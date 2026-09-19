@@ -839,6 +839,8 @@
     <string name="settings_library_warning_dismiss">Grįžti atgal</string>
     <string name="settings_library_warning_message">Ši programa nėra oficiali NTUST bibliotekos programa ir nėra patvirtinta universiteto bibliotekos. Negalime garantuoti normalaus veikimo ar pasekmių dėl naudojimosi.\n\nNaudokite savo nuožiūra. Už bet kokias neigiamas pasekmes esate atsakingi patys, ir tai nesusiję su tigerduck-app.</string>
     <string name="settings_library_warning_title">Atkreipkite dėmesį!</string>
+    <string name="settings_licenses_section_third_party">Trečiųjų šalių bibliotekos</string>
+    <string name="settings_licenses_website">Svetainė</string>
     <string name="settings_link_opening_method">Atidaryti nuorodas su</string>
     <string name="settings_official_website">Oficiali svetainė</string>
     <string name="settings_open_source_licenses">Atvirojo kodo licencijos</string>

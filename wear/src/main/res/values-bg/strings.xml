@@ -839,6 +839,8 @@
     <string name="settings_library_warning_dismiss">Назад</string>
     <string name="settings_library_warning_message">Това приложение не е официалното приложение на библиотеката на NTUST и не е одобрено от университетската библиотека. Не можем да гарантираме нормалната работа или каквито и да е последици от употребата.\n\nИзползвайте по ваша преценка. Всякакви негативни резултати са ваша отговорност и не са свързани с tigerduck-app.</string>
     <string name="settings_library_warning_title">Моля, обърнете внимание!</string>
+    <string name="settings_licenses_section_third_party">Библиотеки на трети страни</string>
+    <string name="settings_licenses_website">Уебсайт</string>
     <string name="settings_link_opening_method">Отваряне на връзки с</string>
     <string name="settings_official_website">Официален уебсайт</string>
     <string name="settings_open_source_licenses">Лицензи с отворен код</string>

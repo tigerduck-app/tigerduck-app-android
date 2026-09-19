@@ -839,6 +839,8 @@
     <string name="settings_library_warning_dismiss">Terug</string>
     <string name="settings_library_warning_message">Deze app is geen officiële NTUST-bibliotheekapp en is niet goedgekeurd door de schoolbibliotheek. We kunnen geen normale werking of gevolgen van het gebruik garanderen.\n\nGebruik op eigen risico. Eventuele negatieve gevolgen zijn voor je eigen verantwoordelijkheid en staan los van tigerduck-app.</string>
     <string name="settings_library_warning_title">Let op!</string>
+    <string name="settings_licenses_section_third_party">Bibliotheken van derden</string>
+    <string name="settings_licenses_website">Website</string>
     <string name="settings_link_opening_method">Links openen met</string>
     <string name="settings_official_website">Officiële website</string>
     <string name="settings_open_source_licenses">Opensource-licenties</string>
