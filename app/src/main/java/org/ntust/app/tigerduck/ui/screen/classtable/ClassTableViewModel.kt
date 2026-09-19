@@ -98,6 +98,10 @@ class ClassTableViewModel @Inject constructor(
      */
     val alwaysShowAllPeriods: StateFlow<Boolean> = appPreferences.alwaysShowAllPeriodsFlow
 
+    /** Drives the room hint in each cell's corner; see [CourseRoomHint]. */
+    val showClassroomInClassTable: StateFlow<Boolean> =
+        appPreferences.showClassroomInClassTableFlow
+
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 

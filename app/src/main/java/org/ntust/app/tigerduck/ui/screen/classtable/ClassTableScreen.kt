@@ -169,6 +169,7 @@ fun ClassTableScreen(
     val alwaysShowAllPeriods by viewModel.alwaysShowAllPeriods.collectAsStateWithLifecycle()
     val activePeriods = remember(courses, alwaysShowAllPeriods) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
+    val showClassroomInClassTable by viewModel.showClassroomInClassTable.collectAsStateWithLifecycle()
     var showAddCourse by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
@@ -414,6 +415,7 @@ fun ClassTableScreen(
                     TimetableGrid(
                         viewModel = viewModel,
                         courses = courses,
+                        showRoomHints = showClassroomInClassTable,
                         weekdays = activeWeekdays,
                         periods = activePeriods,
                         courseNosWithAssignments = courseNosWithAssignments,

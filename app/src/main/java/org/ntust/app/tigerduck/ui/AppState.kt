@@ -209,6 +209,17 @@ class AppState @Inject constructor(
             prefs.alwaysShowAllPeriods = value
         }
 
+    private var showClassroomInClassTableState by mutableStateOf(prefs.showClassroomInClassTable)
+
+    /** Print each course's room in the corner of its class-table cell. */
+    var showClassroomInClassTable: Boolean
+        get() = showClassroomInClassTableState
+        set(value) {
+            if (showClassroomInClassTableState == value) return
+            showClassroomInClassTableState = value
+            prefs.showClassroomInClassTable = value
+        }
+
     private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
 
     /**
@@ -514,6 +525,7 @@ class AppState @Inject constructor(
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
             alwaysShowAllPeriodsState = prefs.alwaysShowAllPeriods
+            showClassroomInClassTableState = prefs.showClassroomInClassTable
             rememberAnnouncementFilterState = prefs.rememberAnnouncementFilter
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation

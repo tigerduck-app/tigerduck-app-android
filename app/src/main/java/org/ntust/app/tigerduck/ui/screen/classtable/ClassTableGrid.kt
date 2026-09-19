@@ -49,6 +49,8 @@ internal fun TimetableGrid(
      * the grid was skipped until the next restart.
      */
     courses: List<Course>,
+    /** Print each course's room in its cell's corner; see [CourseRoomHint]. */
+    showRoomHints: Boolean,
     weekdays: List<Int>,
     periods: List<org.ntust.app.tigerduck.data.model.TimetablePeriod>,
     courseNosWithAssignments: Set<String>,
@@ -188,6 +190,13 @@ internal fun TimetableGrid(
                             is CellRole.SoloStart -> {
                                 SoloCourseCell(
                                     course = role.course,
+                                    // Solo cells only: a 衝堂 cluster splits the
+                                    // cell and leaves no corner to print in.
+                                    roomHint = if (showRoomHints) {
+                                        CourseRoomHint.room(role.course, weekday, period.id)
+                                    } else {
+                                        null
+                                    },
                                     spanCount = role.spanCount,
                                     dayColWidth = dayColWidth,
                                     cellHeight = cellHeight,
