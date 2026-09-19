@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -17,6 +18,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
+import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -46,6 +48,16 @@ import kotlin.math.roundToInt
  * Android 16 QPR1 the platform gates the whole feature behind its internal
  * `ui_rich_ongoing` flag, so no chip appears whatever we send, and this
  * stays an ordinary ongoing notification with a countdown and a progress bar.
+ *
+ * None of that is gated on a capability check here, deliberately.
+ * `canPostPromotedNotifications()` is wrong in both directions on shipping
+ * hardware — see [org.ntust.app.tigerduck.notification.DeviceSkin] — and
+ * posting when it would have said no costs nothing, because an unpromoted
+ * Live Update is just an ordinary ongoing notification. Gating on it would
+ * silently remove the chip on OEMs that render it fine. The capability is a
+ * diagnostic for the settings screen, never a precondition for posting.
+ *
+ * One vendor does need code: see [samsungNowBarExtras].
  */
 @Singleton
 class LiveActivityNotifier @Inject constructor(
@@ -58,6 +70,9 @@ class LiveActivityNotifier @Inject constructor(
     // same-scenario chronometer tick (must stay silent) apart from an actual
     // transition into a new scenario (may alert, subject to per-scenario pref).
     private var lastScenario: LiveActivityScenario? = null
+
+    /** Fixed for the life of the process; see [samsungNowBarExtras]. */
+    private val deviceSkin = DeviceSkin.current()
 
     init {
         ensureChannel()
@@ -160,6 +175,8 @@ class LiveActivityNotifier @Inject constructor(
             )
         }
 
+        samsungNowBarExtras()?.let { builder.addExtras(it) }
+
         manager.notify(NOTIFICATION_ID, builder.build())
 
         // Once the class is actually ongoing, the alarm-driven "即將上課" banner
@@ -172,6 +189,54 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         lastScenario = snapshot.scenario
+    }
+
+    /**
+     * The one vendor-specific thing this class does.
+     *
+     * Samsung's Now Bar (即時通知) runs a pipeline that predates AOSP Live
+     * Updates and ignores a plain promoted notification, so on One UI the chip
+     * stays absent however correct the AOSP side of the builder is. A single
+     * extra opens it. From decompiled One UI 8.5 SystemUI:
+     *
+     * ```
+     * NotificationEntry.isPromotedState() =
+     *     (isDevelopRonTestAllowed() || isAutomation()
+     *      || !AllowedOngoingActivityListManager.isAllowListUsing) && mIsRon
+     * NotificationEntry.isAutomation() =
+     *     extras.getBoolean("android.ongoingActivityNoti.automation")
+     * mIsRon = notification.hasPromotableCharacteristics()
+     * ```
+     *
+     * So `automation` short-circuits Samsung's allowlist, provided the
+     * notification already passes AOSP's promotable checks — which this one
+     * does. Verified on One UI 8.5 (A26, S26 Ultra) and 9.0 (A07). It is inert
+     * on 8.0 and below, where the platform promotes nothing at all, and inert
+     * on a package in Samsung's `blockedRONAppList`, which is checked before
+     * any of this.
+     *
+     * Deliberately just the one key. `android.ongoingActivityNoti.style` >= 1
+     * sends `isOngoingActivity()` down Samsung's private-card lane, which sets
+     * `mIsRon = false` and so cancels this bypass: the two most widely
+     * documented extras undo each other, and the decorative ones (chipIcon,
+     * chipBgColor, primaryInfo …) are useless without the style that breaks it.
+     *
+     * Scoped to Samsung because no other OEM reads these keys, and a
+     * notification carrying vendor extras it does not need is one more thing
+     * for the next OEM's parser to disagree with.
+     *
+     * Worth knowing when testing by hand: the entry sits in the controller's
+     * Pending list while TigerDuck itself is in the foreground, and only moves
+     * to Showing once the app is backgrounded with the screen on and unlocked.
+     * That is the normal state for a class countdown, but it makes the chip
+     * look broken if you watch for it without leaving the app.
+     */
+    private fun samsungNowBarExtras(): Bundle? {
+        if (!deviceSkin.isSamsung) return null
+        return Bundle(2).apply {
+            putBoolean(SAMSUNG_AUTOMATION, true)
+            putString(SAMSUNG_AUTOMATION_PACKAGE, context.packageName)
+        }
     }
 
     private fun cancelClassPreparingBanners() {
@@ -242,6 +307,11 @@ class LiveActivityNotifier @Inject constructor(
         /** Denominator for [NotificationCompat.Builder.setProgress]; percent reads well enough. */
         private const val PROGRESS_MAX = 100
         private val LEGACY_CHANNEL_IDS = listOf("live_activity", "live_activity_v2")
+
+        /** Samsung's undocumented Now Bar allowlist bypass; see [samsungNowBarExtras]. */
+        private const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"
+        private const val SAMSUNG_AUTOMATION_PACKAGE =
+            "android.ongoingActivityNoti.automationPackage"
         const val NOTIFICATION_ID = 42_001
     }
 }
