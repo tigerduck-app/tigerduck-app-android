@@ -99,7 +99,7 @@ class MailWarningsTest {
             MailWarnings.evaluate(
                 from = daemon,
                 subject = "Returned Mail: Hostname cannot be resolved",
-                plainText = "The original message was received from B11315025@mail.ntust.edu.tw",
+                plainText = "The original message was received from B10000001@mail.ntust.edu.tw",
                 links = emptyList(), attachments = emptyList(), returnPath = "<>",
             ),
         )
@@ -143,14 +143,14 @@ class MailWarningsTest {
             subject = "Returned Mail: Hostname cannot be resolved",
             plainText = text, links = emptyList(), attachments = emptyList(), returnPath = "<>",
         )
-        assertTrue(MailWarning.MistypedRecipient in bounce("... <B11315025@mail.ntust.edj.tw>: Hostname cannot be resolved"))
+        assertTrue(MailWarning.MistypedRecipient in bounce("... <B10000001@mail.ntust.edj.tw>: Hostname cannot be resolved"))
         assertFalse("nothing says a gmail address was meant to be ours", MailWarning.MistypedRecipient in bounce("<someone@gmail.com>: user unknown"))
-        assertFalse(MailWarning.MistypedRecipient in bounce("<B11315025@mail.ntust.edu.tw>: mailbox full"))
+        assertFalse(MailWarning.MistypedRecipient in bounce("<B10000001@mail.ntust.edu.tw>: mailbox full"))
         assertFalse(
             "without the null reverse-path this is not a bounce at all",
             MailWarning.MistypedRecipient in MailWarnings.evaluate(
                 from = MailAddress(null, "x@mail.ntust.edu.tw"), subject = "fyi",
-                plainText = "write to B11315025@mail.ntust.edj.tw", links = emptyList(), attachments = emptyList(),
+                plainText = "write to B10000001@mail.ntust.edj.tw", links = emptyList(), attachments = emptyList(),
             ),
         )
     }
