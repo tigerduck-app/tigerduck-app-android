@@ -38,7 +38,7 @@
     <string name="add_course_example">எடுத்துக்காட்டு: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">பொருந்தும் வகுப்புகள் எதுவும் கிடைக்கவில்லை</string>
     <string name="add_course_placeholder">வகுப்பு குறியீடு, பெயர் அல்லது விரிவுரையாளர் உள்ளிடவும்</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d கிரெடிட்கள்</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s கிரெடிட்கள்</string>
     <string name="add_course_search_failed">தேடல் தோல்வியடைந்தது: %1$s</string>
     <string name="add_course_searching">தேடுகிறது…</string>
     <string name="add_course_title">வகுப்பு சேர்</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s பாடநேர அட்டவணையை மீட்டமைக்கவும்</string>
     <string name="class_table_semester_picker_label">பருவம்</string>
     <string name="class_table_sign_in_required_message">உங்கள் வகுப்பு அட்டவணையை காண உள்நுழையவும்</string>
-    <string name="class_table_total_credits_value">%1$d கிரெடிட்கள்</string>
+    <string name="class_table_total_credits_value">%1$s கிரெடிட்கள்</string>
     <string name="cloud_sync_assignments">பணிகள்</string>
     <string name="cloud_sync_class_table">வகுப்பு அட்டவணை</string>
     <string name="cloud_sync_class_table_footer">சாதனங்களுக்கிடையில் எந்த வகுப்பு அட்டவணை தரவை ஒத்திசைக்க வேண்டும் என்பதைத் தேர்ந்தெடுக்கவும்.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">தனிப்பயன்</string>
     <string name="course_color_picker_custom_label">தனிப்பயன் வண்ணம்</string>
     <string name="course_color_picker_title">வண்ணத்தைத் திருத்து</string>
-    <string name="course_credits_value">கிரெடிட்கள்: %1$d</string>
+    <string name="course_credits_value">கிரெடிட்கள்: %1$s</string>
     <string name="course_detail_classroom_label">வகுப்பறை</string>
+    <string name="course_detail_code_copied">குறியீடு நகலெடுக்கப்பட்டது</string>
     <string name="course_detail_code_label">வகுப்பு குறியீடு</string>
+    <string name="course_detail_copy_code">குறியீட்டை நகலெடு</string>
     <string name="course_detail_credits_label">கிரெடிட்கள்</string>
+    <string name="course_detail_dimension_label">பரிமாணம்</string>
     <string name="course_detail_due_prefix">காலக்கெடு: %1$s</string>
+    <string name="course_detail_duration_full_year">முழு ஆண்டு</string>
+    <string name="course_detail_duration_label">கால அளவு</string>
+    <string name="course_detail_duration_one_semester">ஒரு பருவம்</string>
     <string name="course_detail_enrollment_label">சேர்க்கை</string>
     <string name="course_detail_incomplete_assignments">முடிக்காத பணிகள்</string>
     <string name="course_detail_instructor_label">பயிற்றுவிப்பாளர்</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R NTUST போர்டலிலிருந்து சமீபத்திய வகுப்பு பட்டியலை பெறும்.</string>
     <string name="desktop_class_table_empty_title">இந்த பருவத்தில் வகுப்புகள் இல்லை</string>
     <string name="desktop_class_table_loading_value">%1$s ஏற்றுகிறது…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d வகுப்புகள் · %3$d கிரெடிட்கள்</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d வகுப்புகள் · %3$s கிரெடிட்கள்</string>
     <string name="desktop_home_section_upcoming_assignments">வரவிருக்கும் ஒப்படைப்புகள்</string>
     <string name="desktop_more_not_implemented">இன்னும் செயல்படுத்தப்படவில்லை</string>
     <string name="desktop_more_subtitle">Mac-ல் TigerDuck வழங்கும் அனைத்து அம்சங்களையும் உலாவுங்கள். அடிக்கடி பயன்படுத்துவனவற்றை பக்கப்பட்டியில் காட்டும்படி பின் செய்யுங்கள்.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">கணினி token வழங்குவதற்காக காத்திருக்கிறது</string>
     <string name="refreshing_message">புதுப்பிக்கிறோம்… கொஞ்சம் காத்திருங்கள்</string>
     <string name="score_academic_year_semester">கல்வியாண்டு %1$s %2$s</string>
-    <string name="score_course_credits">%1$d கிரெடிட்கள்</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d மதிப்பெண்கள்</string>
+    <string name="score_course_credits">%1$s கிரெடிட்கள்</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s மதிப்பெண்கள்</string>
     <string name="score_course_detail_enrollment_label">சேர்க்கை</string>
     <string name="score_course_detail_schedule_label">வகுப்பு அட்டவணை</string>
     <string name="score_credit_earned">பெற்றவை</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">தர நிலை %1$s(%2$s)</string>
     <string name="score_semester_second">வசந்த பருவம்</string>
     <string name="score_semester_second_short">வசந்.</string>
-    <string name="score_semester_total_credits">%1$d கிரெடிட்கள்</string>
+    <string name="score_semester_total_credits">%1$s கிரெடிட்கள்</string>
     <string name="score_semester_upper">இலையுதிர்</string>
     <string name="score_sign_in_required_message">உங்கள் தர வரலாற்றைப் பார்க்க உள்நுழையவும்</string>
     <string name="score_term_format">தற்போதைய பருவம்: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">கூடுதல் சேவையக அறிவிப்புகளைப் பெறு</string>
     <string name="settings_server_push_update_failed">சேவையகம் மாற்றத்தை ஏற்கவில்லை. பின்னர் மீண்டும் முயற்சிக்கவும்.</string>
     <string name="settings_show_absolute_assignment_time">ஒப்படைப்பு காலக்கெடுவிற்கு முழு தேதி காட்டு</string>
+    <string name="settings_show_classroom_on_class_table">நேரஅட்டவணையில் வகுப்பறையைக் காட்டு</string>
     <string name="settings_sync_brief_description">TigerSync உங்கள் அனைத்து சாதனங்களிலும் தகவலை ஒத்திசைக்க அனுமதிக்கிறது. ஒத்திசைவுக்கு இயக்கப்படாத தகவல் இந்த சாதனத்தில் மட்டுமே இருக்கும்.</string>
     <string name="settings_sync_disabled_note">ஒத்திசைவு முடக்கப்பட்டிருக்கும்போது, எல்லா தரவும் இந்தச் சாதனத்தில் மட்டுமே இருக்கும்.</string>
     <string name="settings_sync_status_off">ஆஃப்</string>

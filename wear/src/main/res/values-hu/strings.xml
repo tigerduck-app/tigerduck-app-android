@@ -38,7 +38,7 @@
     <string name="add_course_example">Példa: EC1013701, Kalkulus, John Wang</string>
     <string name="add_course_not_found">Nem találhatók megfelelő kurzusok</string>
     <string name="add_course_placeholder">Adja meg a kurzuskódot, nevet vagy oktatót</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d kredit</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s kredit</string>
     <string name="add_course_search_failed">Keresés sikertelen: %1$s</string>
     <string name="add_course_searching">Keresés…</string>
     <string name="add_course_title">Kurzus hozzáadása</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s órarend visszaállítása</string>
     <string name="class_table_semester_picker_label">Félév</string>
     <string name="class_table_sign_in_required_message">Jelentkezzen be az órarend megtekintéséhez</string>
-    <string name="class_table_total_credits_value">%1$d kredit</string>
+    <string name="class_table_total_credits_value">%1$s kredit</string>
     <string name="cloud_sync_assignments">Feladatok</string>
     <string name="cloud_sync_class_table">Órarend</string>
     <string name="cloud_sync_class_table_footer">Válaszd ki, mely órarend-adatokat szinkronizáld az eszközök között.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Egyéni</string>
     <string name="course_color_picker_custom_label">Egyéni szín</string>
     <string name="course_color_picker_title">Szín szerkesztése</string>
-    <string name="course_credits_value">Kreditek: %1$d</string>
+    <string name="course_credits_value">Kreditek: %1$s</string>
     <string name="course_detail_classroom_label">Tanterem</string>
+    <string name="course_detail_code_copied">Kód másolva</string>
     <string name="course_detail_code_label">Kód</string>
+    <string name="course_detail_copy_code">Kód másolása</string>
     <string name="course_detail_credits_label">Kreditek</string>
+    <string name="course_detail_dimension_label">Dimenzió</string>
     <string name="course_detail_due_prefix">Határidő: %1$s</string>
+    <string name="course_detail_duration_full_year">Teljes év</string>
+    <string name="course_detail_duration_label">Időtartam</string>
+    <string name="course_detail_duration_one_semester">Egy félév</string>
     <string name="course_detail_enrollment_label">Létszám</string>
     <string name="course_detail_incomplete_assignments">Befejezetlen házi feladatok</string>
     <string name="course_detail_instructor_label">Oktató</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">A ⌘R lekéri a legfrissebb kurzuslistát az NTUST portálról.</string>
     <string name="desktop_class_table_empty_title">Nincsenek kurzusok ebben a félévben</string>
     <string name="desktop_class_table_loading_value">%1$s betöltése…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurzus · %3$d kredit</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurzus · %3$s kredit</string>
     <string name="desktop_home_section_upcoming_assignments">Közelgő házi feladatok</string>
     <string name="desktop_more_not_implemented">Még nincs megvalósítva</string>
     <string name="desktop_more_subtitle">Tekintse át a TigerDuck összes Mac-es funkcióját. Tűzze ki a leggyakrabban használtakat, hogy megjelenjenek az oldalsávon.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Várakozás a rendszer token-hozzárendelésére</string>
     <string name="refreshing_message">Frissítés folyamatban… kérem várjon</string>
     <string name="score_academic_year_semester">%1$s. tanév %2$s félév</string>
-    <string name="score_course_credits">%1$d kredit</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d kredit</string>
+    <string name="score_course_credits">%1$s kredit</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s kredit</string>
     <string name="score_course_detail_enrollment_label">Beiratkozás</string>
     <string name="score_course_detail_schedule_label">Órarend</string>
     <string name="score_credit_earned">Megszerzett</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">%1$s(%2$s) rangsor</string>
     <string name="score_semester_second">Tavaszi félév</string>
     <string name="score_semester_second_short">Tavasz</string>
-    <string name="score_semester_total_credits">%1$d kredit</string>
+    <string name="score_semester_total_credits">%1$s kredit</string>
     <string name="score_semester_upper">Őszi</string>
     <string name="score_sign_in_required_message">Jelentkezzen be a jegytörténet megtekintéséhez</string>
     <string name="score_term_format">Jelenlegi félév: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">További szerverértesítések fogadása</string>
     <string name="settings_server_push_update_failed">A szerver nem fogadta el a módosítást. Próbálja újra később.</string>
     <string name="settings_show_absolute_assignment_time">Teljes dátum megjelenítése a házi feladat határidejénél</string>
+    <string name="settings_show_classroom_on_class_table">Tantermek megjelenítése az órarendben</string>
     <string name="settings_sync_brief_description">A TigerSync lehetővé teszi a kiválasztott adatok szinkronizálását az összes eszközön. A nem engedélyezett adatok csak ezen az eszközön maradnak.</string>
     <string name="settings_sync_disabled_note">Ha a szinkronizálás ki van kapcsolva, minden adat csak ezen az eszközön marad.</string>
     <string name="settings_sync_status_off">Ki</string>

@@ -38,7 +38,7 @@
     <string name="add_course_example">उदाहरण: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">कोणतेही जुळणारे अभ्यासक्रम सापडले नाहीत</string>
     <string name="add_course_placeholder">अभ्यासक्रम कोड, नाव किंवा प्राध्यापक प्रविष्ट करा</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d क्रेडिट्स</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s क्रेडिट्स</string>
     <string name="add_course_search_failed">शोध अयशस्वी: %1$s</string>
     <string name="add_course_searching">शोधत आहे…</string>
     <string name="add_course_title">अभ्यासक्रम जोडा</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s कोर्स टेबल रीसेट करा</string>
     <string name="class_table_semester_picker_label">सेमेस्टर</string>
     <string name="class_table_sign_in_required_message">तुमचा वर्ग तक्ता पाहण्यासाठी साइन इन करा</string>
-    <string name="class_table_total_credits_value">%1$d क्रेडिट्स</string>
+    <string name="class_table_total_credits_value">%1$s क्रेडिट्स</string>
     <string name="cloud_sync_assignments">असाइनमेंट</string>
     <string name="cloud_sync_class_table">वर्ग वेळापत्रक</string>
     <string name="cloud_sync_class_table_footer">डिव्हाइसेसदरम्यान कोणता वर्ग वेळापत्रक डेटा सिंक करायचा ते निवडा.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">सानुकूल</string>
     <string name="course_color_picker_custom_label">सानुकूल रंग</string>
     <string name="course_color_picker_title">रंग संपादित करा</string>
-    <string name="course_credits_value">क्रेडिट्स: %1$d</string>
+    <string name="course_credits_value">क्रेडिट्स: %1$s</string>
     <string name="course_detail_classroom_label">वर्गखोली</string>
+    <string name="course_detail_code_copied">कोड कॉपी झाला</string>
     <string name="course_detail_code_label">कोड</string>
+    <string name="course_detail_copy_code">कोड कॉपी करा</string>
     <string name="course_detail_credits_label">क्रेडिट</string>
+    <string name="course_detail_dimension_label">परिमाण</string>
     <string name="course_detail_due_prefix">देय: %1$s</string>
+    <string name="course_detail_duration_full_year">पूर्ण वर्ष</string>
+    <string name="course_detail_duration_label">कालावधी</string>
+    <string name="course_detail_duration_one_semester">एक सत्र</string>
     <string name="course_detail_enrollment_label">नोंदणी</string>
     <string name="course_detail_incomplete_assignments">अपूर्ण असाइनमेंट</string>
     <string name="course_detail_instructor_label">प्रशिक्षक</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R NTUST पोर्टलवरून नवीनतम अभ्यासक्रम यादी आणते.</string>
     <string name="desktop_class_table_empty_title">या सेमेस्टरमध्ये कोणताही अभ्यासक्रम नाही</string>
     <string name="desktop_class_table_loading_value">%1$s लोड होत आहे…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d अभ्यासक्रम · %3$d क्रेडिट</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d अभ्यासक्रम · %3$s क्रेडिट</string>
     <string name="desktop_home_section_upcoming_assignments">आगामी असाइनमेंट</string>
     <string name="desktop_more_not_implemented">अद्याप कार्यान्वित नाही</string>
     <string name="desktop_more_subtitle">Mac वर TigerDuck च्या सर्व सुविधा पहा. सर्वाधिक वापरल्या जाणाऱ्या साइडबारमध्ये पिन करा.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">सिस्टमने token नियुक्त करण्याची प्रतीक्षा</string>
     <string name="refreshing_message">रिफ्रेश होत आहे… थांबा</string>
     <string name="score_academic_year_semester">शैक्षणिक वर्ष %1$s %2$s</string>
-    <string name="score_course_credits">%1$d क्रेडिट्स</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d क्रेडिट्स</string>
+    <string name="score_course_credits">%1$s क्रेडिट्स</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s क्रेडिट्स</string>
     <string name="score_course_detail_enrollment_label">नावनोंदणी</string>
     <string name="score_course_detail_schedule_label">वर्ग वेळापत्रक</string>
     <string name="score_credit_earned">मिळवले</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">क्रमांक %1$s(%2$s)</string>
     <string name="score_semester_second">वसंत सत्र</string>
     <string name="score_semester_second_short">वसंत</string>
-    <string name="score_semester_total_credits">%1$d क्रेडिट्स</string>
+    <string name="score_semester_total_credits">%1$s क्रेडिट्स</string>
     <string name="score_semester_upper">शरद</string>
     <string name="score_sign_in_required_message">तुमचा ग्रेड इतिहास पाहण्यासाठी साइन इन करा</string>
     <string name="score_term_format">सध्याचे सत्र: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">अतिरिक्त सर्व्हर सूचना मिळवा</string>
     <string name="settings_server_push_update_failed">सर्व्हरने बदल स्वीकारला नाही. कृपया नंतर पुन्हा प्रयत्न करा.</string>
     <string name="settings_show_absolute_assignment_time">असाइनमेंट मुदत वेळेसाठी पूर्ण तारीख दाखवा</string>
+    <string name="settings_show_classroom_on_class_table">वेळापत्रकात वर्गखोली दाखवा</string>
     <string name="settings_sync_brief_description">TigerSync तुम्हाला सर्व उपकरणांवर माहिती सिंक करण्याची परवानगी देते. सिंकसाठी सक्षम नसलेली माहिती फक्त या उपकरणावर राहते.</string>
     <string name="settings_sync_disabled_note">सिंक बंद असताना, सर्व डेटा फक्त या डिव्हाइसवरच राहतो.</string>
     <string name="settings_sync_status_off">बंद</string>

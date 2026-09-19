@@ -38,7 +38,7 @@
     <string name="add_course_example">Dæmi: EC1013701, Stærðfræðigreining, Jón Jónsson</string>
     <string name="add_course_not_found">Engin námskeið fundust</string>
     <string name="add_course_placeholder">Sláðu inn námskeiðskóða, nafn eða kennara</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d einingar</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s einingar</string>
     <string name="add_course_search_failed">Leit mistókst: %1$s</string>
     <string name="add_course_searching">Leita…</string>
     <string name="add_course_title">Bæta við námskeiði</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Endurstilla stundatöflu %1$s</string>
     <string name="class_table_semester_picker_label">Misseri</string>
     <string name="class_table_sign_in_required_message">Skráðu þig inn til að sjá stundaskrána þína</string>
-    <string name="class_table_total_credits_value">%1$d einingar</string>
+    <string name="class_table_total_credits_value">%1$s einingar</string>
     <string name="cloud_sync_assignments">Verkefni</string>
     <string name="cloud_sync_class_table">Stundaskrá</string>
     <string name="cloud_sync_class_table_footer">Veldu hvaða stundaskrárgögn á samstilla á milli tækja.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Sérsniðið</string>
     <string name="course_color_picker_custom_label">Sérsniðinn litur</string>
     <string name="course_color_picker_title">Breyta lit</string>
-    <string name="course_credits_value">Einingar: %1$d</string>
+    <string name="course_credits_value">Einingar: %1$s</string>
     <string name="course_detail_classroom_label">Kennslustofa</string>
+    <string name="course_detail_code_copied">Kóði afritaður</string>
     <string name="course_detail_code_label">Námskeiðskóði</string>
+    <string name="course_detail_copy_code">Afrita kóða</string>
     <string name="course_detail_credits_label">Einingar</string>
+    <string name="course_detail_dimension_label">Vídd</string>
     <string name="course_detail_due_prefix">Skilafrestur: %1$s</string>
+    <string name="course_detail_duration_full_year">Heilt ár</string>
+    <string name="course_detail_duration_label">Lengd</string>
+    <string name="course_detail_duration_one_semester">Ein önn</string>
     <string name="course_detail_enrollment_label">Skráning</string>
     <string name="course_detail_incomplete_assignments">Ókláruð verkefni</string>
     <string name="course_detail_instructor_label">Kennari</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R sækir nýjasta námskeiðalistann frá NTUST-kerfinu.</string>
     <string name="desktop_class_table_empty_title">Engin námskeið á þessu misseri</string>
     <string name="desktop_class_table_loading_value">Hleð %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d námskeið · %3$d einingar</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d námskeið · %3$s einingar</string>
     <string name="desktop_home_section_upcoming_assignments">Verkefni</string>
     <string name="desktop_more_not_implemented">Ekki útfært ennþá</string>
     <string name="desktop_more_subtitle">Skoðaðu allt sem TigerDuck býður upp á fyrir Mac. Festu þau sem þú notar mest svo þau birtist í hliðarstikunni.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Bíður eftir að kerfið úthluti token</string>
     <string name="refreshing_message">Uppfærir… bíddu aðeins</string>
     <string name="score_academic_year_semester">Skólaár %1$s %2$s</string>
-    <string name="score_course_credits">%1$d einingar</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d einingar</string>
+    <string name="score_course_credits">%1$s einingar</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s einingar</string>
     <string name="score_course_detail_enrollment_label">Skráning</string>
     <string name="score_course_detail_schedule_label">Stundaskrá</string>
     <string name="score_credit_earned">Aflað</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Röðun %1$s(%2$s)</string>
     <string name="score_semester_second">Vorönn</string>
     <string name="score_semester_second_short">Vor</string>
-    <string name="score_semester_total_credits">%1$d einingar</string>
+    <string name="score_semester_total_credits">%1$s einingar</string>
     <string name="score_semester_upper">Haust</string>
     <string name="score_sign_in_required_message">Skráðu þig inn til að skoða einkunnasöguna þína</string>
     <string name="score_term_format">Núverandi misseri: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Taka á móti aukatilkynningum frá netþjóni</string>
     <string name="settings_server_push_update_failed">Netþjónninn samþykkti ekki breytinguna. Reyndu aftur síðar.</string>
     <string name="settings_show_absolute_assignment_time">Sýna fulla dagsetningu fyrir skiladag verkefnis</string>
+    <string name="settings_show_classroom_on_class_table">Sýna stofur í stundatöflunni</string>
     <string name="settings_sync_brief_description">TigerSync gerir þér kleift að samstilla valdar upplýsingar á öllum tækjum. Upplýsingar sem ekki eru virkar eru aðeins á þessu tæki.</string>
     <string name="settings_sync_disabled_note">Þegar samstilling er slökkt eru öll gögn aðeins á þessu tæki.</string>
     <string name="settings_sync_status_off">Slökkt</string>

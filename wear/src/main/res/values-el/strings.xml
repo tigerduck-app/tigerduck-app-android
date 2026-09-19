@@ -38,7 +38,7 @@
     <string name="add_course_example">Παράδειγμα: EC1013701, Λογισμός, Γιάννης Παπαδόπουλος</string>
     <string name="add_course_not_found">Δεν βρέθηκαν αντίστοιχα μαθήματα</string>
     <string name="add_course_placeholder">Εισαγάγετε κωδικό μαθήματος, όνομα ή καθηγητή</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d πιστωτικές μονάδες</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s πιστωτικές μονάδες</string>
     <string name="add_course_search_failed">Η αναζήτηση απέτυχε: %1$s</string>
     <string name="add_course_searching">Αναζήτηση…</string>
     <string name="add_course_title">Προσθήκη μαθήματος</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Επαναφορά προγράμματος %1$s</string>
     <string name="class_table_semester_picker_label">Ακαδημαϊκό εξάμηνο</string>
     <string name="class_table_sign_in_required_message">Συνδεθείτε για να δείτε τον πίνακα της τάξης σας</string>
-    <string name="class_table_total_credits_value">%1$d πιστωτικές μονάδες</string>
+    <string name="class_table_total_credits_value">%1$s πιστωτικές μονάδες</string>
     <string name="cloud_sync_assignments">Εργασίες</string>
     <string name="cloud_sync_class_table">Πρόγραμμα μαθημάτων</string>
     <string name="cloud_sync_class_table_footer">Επιλέξτε ποια δεδομένα προγράμματος θα συγχρονίζονται μεταξύ συσκευών.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Προσαρμοσμένο</string>
     <string name="course_color_picker_custom_label">Προσαρμοσμένο χρώμα</string>
     <string name="course_color_picker_title">Επεξεργασία χρώματος</string>
-    <string name="course_credits_value">Πιστωτικές μονάδες: %1$d</string>
+    <string name="course_credits_value">Πιστωτικές μονάδες: %1$s</string>
     <string name="course_detail_classroom_label">Αίθουσα διδασκαλίας</string>
+    <string name="course_detail_code_copied">Ο κωδικός αντιγράφηκε</string>
     <string name="course_detail_code_label">Κώδικας</string>
+    <string name="course_detail_copy_code">Αντιγραφή κωδικού</string>
     <string name="course_detail_credits_label">Πιστώσεις</string>
+    <string name="course_detail_dimension_label">Διάσταση</string>
     <string name="course_detail_due_prefix">Προθεσμία: %1$s</string>
+    <string name="course_detail_duration_full_year">Ολόκληρο έτος</string>
+    <string name="course_detail_duration_label">Διάρκεια</string>
+    <string name="course_detail_duration_one_semester">Ένα εξάμηνο</string>
     <string name="course_detail_enrollment_label">Εγγραφή</string>
     <string name="course_detail_incomplete_assignments">Ημιτελείς εργασίες</string>
     <string name="course_detail_instructor_label">Εκπαιδευτής</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">Το ⌘R φέρνει την πιο πρόσφατη λίστα μαθημάτων από την πύλη NTUST.</string>
     <string name="desktop_class_table_empty_title">Κανένα μάθημα αυτό το εξάμηνο</string>
     <string name="desktop_class_table_loading_value">Φόρτωση %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d μαθήματα · %3$d ECTS</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d μαθήματα · %3$s ECTS</string>
     <string name="desktop_home_section_upcoming_assignments">Επερχόμενες εργασίες</string>
     <string name="desktop_more_not_implemented">Δεν έχει υλοποιηθεί ακόμη</string>
     <string name="desktop_more_subtitle">Δείτε όλες τις δυνατότητες του TigerDuck σε Mac. Καρφιτσώστε αυτές που χρησιμοποιείτε περισσότερο στην πλαϊνή μπάρα.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Αναμονή για ανάθεση token από το σύστημα</string>
     <string name="refreshing_message">Ανανέωση… παρακαλώ περιμένετε</string>
     <string name="score_academic_year_semester">Ακαδημαϊκό Έτος %1$s %2$s</string>
-    <string name="score_course_credits">%1$d πιστωτικές μονάδες</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d πιστ. μον.</string>
+    <string name="score_course_credits">%1$s πιστωτικές μονάδες</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s πιστ. μον.</string>
     <string name="score_course_detail_enrollment_label">Εγγραφή</string>
     <string name="score_course_detail_schedule_label">Πρόγραμμα μαθημάτων</string>
     <string name="score_credit_earned">Αποκτήθηκαν</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Κατάταξη %1$s(%2$s)</string>
     <string name="score_semester_second">Εαρινό εξάμηνο</string>
     <string name="score_semester_second_short">Εαρ</string>
-    <string name="score_semester_total_credits">%1$d πιστωτικές μονάδες</string>
+    <string name="score_semester_total_credits">%1$s πιστωτικές μονάδες</string>
     <string name="score_semester_upper">Χειμερινό</string>
     <string name="score_sign_in_required_message">Συνδεθείτε για να δείτε το ιστορικό βαθμών σας</string>
     <string name="score_term_format">Τρέχον εξάμηνο: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Λήψη πρόσθετων ειδοποιήσεων διακομιστή</string>
     <string name="settings_server_push_update_failed">Ο διακομιστής δεν αποδέχτηκε την αλλαγή. Δοκιμάστε ξανά αργότερα.</string>
     <string name="settings_show_absolute_assignment_time">Εμφάνιση πλήρους ημερομηνίας για προθεσμία εργασίας</string>
+    <string name="settings_show_classroom_on_class_table">Εμφάνιση αιθουσών στο πρόγραμμα</string>
     <string name="settings_sync_brief_description">Το TigerSync σας επιτρέπει να συγχρονίζετε τις επιλεγμένες πληροφορίες σε όλες τις συσκευές. Οι πληροφορίες χωρίς συγχρονισμό παραμένουν μόνο σε αυτή τη συσκευή.</string>
     <string name="settings_sync_disabled_note">Όταν ο συγχρονισμός είναι απενεργοποιημένος, όλα τα δεδομένα παραμένουν μόνο σε αυτή τη συσκευή.</string>
     <string name="settings_sync_status_off">Ανενεργό</string>

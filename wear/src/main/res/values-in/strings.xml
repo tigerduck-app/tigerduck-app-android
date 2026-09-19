@@ -38,7 +38,7 @@
     <string name="add_course_example">Contoh: EC1013701, Kalkulus, John Wang</string>
     <string name="add_course_not_found">Tidak ada mata kuliah yang cocok</string>
     <string name="add_course_placeholder">Masukkan kode mata kuliah, nama, atau dosen</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d SKS</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s SKS</string>
     <string name="add_course_search_failed">Pencarian gagal: %1$s</string>
     <string name="add_course_searching">Mencari…</string>
     <string name="add_course_title">Tambah mata kuliah</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Reset jadwal kuliah %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Masuk untuk melihat jadwal kelas Anda</string>
-    <string name="class_table_total_credits_value">%1$d SKS</string>
+    <string name="class_table_total_credits_value">%1$s SKS</string>
     <string name="cloud_sync_assignments">Tugas</string>
     <string name="cloud_sync_class_table">Jadwal kelas</string>
     <string name="cloud_sync_class_table_footer">Pilih data jadwal kelas mana yang akan disinkronkan antar perangkat.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Khusus</string>
     <string name="course_color_picker_custom_label">Warna khusus</string>
     <string name="course_color_picker_title">Edit warna</string>
-    <string name="course_credits_value">SKS: %1$d</string>
+    <string name="course_credits_value">SKS: %1$s</string>
     <string name="course_detail_classroom_label">Ruang kelas</string>
+    <string name="course_detail_code_copied">Kode disalin</string>
     <string name="course_detail_code_label">Kode</string>
+    <string name="course_detail_copy_code">Salin kode</string>
     <string name="course_detail_credits_label">SKS</string>
+    <string name="course_detail_dimension_label">Dimensi</string>
     <string name="course_detail_due_prefix">Tenggat: %1$s</string>
+    <string name="course_detail_duration_full_year">Satu tahun penuh</string>
+    <string name="course_detail_duration_label">Durasi</string>
+    <string name="course_detail_duration_one_semester">Satu semester</string>
     <string name="course_detail_enrollment_label">Pendaftaran</string>
     <string name="course_detail_incomplete_assignments">Tugas belum selesai</string>
     <string name="course_detail_instructor_label">Pengajar</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R mengambil daftar mata kuliah terbaru dari portal NTUST.</string>
     <string name="desktop_class_table_empty_title">Tidak ada mata kuliah di semester ini</string>
     <string name="desktop_class_table_loading_value">Memuat %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d mata kuliah · %3$d sks</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d mata kuliah · %3$s sks</string>
     <string name="desktop_home_section_upcoming_assignments">Tugas mendatang</string>
     <string name="desktop_more_not_implemented">Belum diimplementasikan</string>
     <string name="desktop_more_subtitle">Jelajahi semua fitur TigerDuck di Mac. Sematkan yang paling sering Anda gunakan di bilah samping.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Menunggu sistem menetapkan token</string>
     <string name="refreshing_message">Sedang menyegarkan… mohon tunggu</string>
     <string name="score_academic_year_semester">Tahun Akademik %1$s %2$s</string>
-    <string name="score_course_credits">%1$d SKS</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d sks</string>
+    <string name="score_course_credits">%1$s SKS</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s sks</string>
     <string name="score_course_detail_enrollment_label">Pendaftaran</string>
     <string name="score_course_detail_schedule_label">Jadwal kelas</string>
     <string name="score_credit_earned">Diperoleh</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Peringkat %1$s(%2$s)</string>
     <string name="score_semester_second">Semester genap</string>
     <string name="score_semester_second_short">Genap</string>
-    <string name="score_semester_total_credits">%1$d SKS</string>
+    <string name="score_semester_total_credits">%1$s SKS</string>
     <string name="score_semester_upper">Ganjil</string>
     <string name="score_sign_in_required_message">Masuk untuk melihat riwayat nilai Anda</string>
     <string name="score_term_format">Semester saat ini: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Terima notifikasi server tambahan</string>
     <string name="settings_server_push_update_failed">Server tidak menerima perubahan ini. Coba lagi nanti.</string>
     <string name="settings_show_absolute_assignment_time">Tampilkan tanggal lengkap untuk waktu jatuh tempo tugas</string>
+    <string name="settings_show_classroom_on_class_table">Tampilkan ruang kelas di jadwal</string>
     <string name="settings_sync_brief_description">TigerSync memungkinkan Anda menyinkronkan informasi pilihan di semua perangkat. Informasi yang tidak diaktifkan tetap hanya di perangkat ini.</string>
     <string name="settings_sync_disabled_note">Saat sinkronisasi mati, semua data hanya tersimpan di perangkat ini.</string>
     <string name="settings_sync_status_off">Nonaktif</string>

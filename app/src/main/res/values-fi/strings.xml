@@ -38,7 +38,7 @@
     <string name="add_course_example">Esimerkki: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">Kursseja ei löydy</string>
     <string name="add_course_placeholder">Syötä kurssikoodi, nimi tai opettaja</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d opintopistettä</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s opintopistettä</string>
     <string name="add_course_search_failed">Haku epäonnistui: %1$s</string>
     <string name="add_course_searching">Haetaan…</string>
     <string name="add_course_title">Lisää kurssi</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Palauta lukujärjestys %1$s</string>
     <string name="class_table_semester_picker_label">Lukukausi</string>
     <string name="class_table_sign_in_required_message">Kirjaudu sisään nähdäksesi luokkataulukkosi</string>
-    <string name="class_table_total_credits_value">%1$d opintopistettä</string>
+    <string name="class_table_total_credits_value">%1$s opintopistettä</string>
     <string name="cloud_sync_assignments">Tehtävät</string>
     <string name="cloud_sync_class_table">Lukujärjestys</string>
     <string name="cloud_sync_class_table_footer">Valitse, mitkä lukujärjestystiedot synkronoidaan laitteiden välillä.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Mukautettu</string>
     <string name="course_color_picker_custom_label">Mukautettu väri</string>
     <string name="course_color_picker_title">Muokkaa väriä</string>
-    <string name="course_credits_value">Opintopisteet: %1$d</string>
+    <string name="course_credits_value">Opintopisteet: %1$s</string>
     <string name="course_detail_classroom_label">Luokkahuone</string>
+    <string name="course_detail_code_copied">Koodi kopioitu</string>
     <string name="course_detail_code_label">Koodi</string>
+    <string name="course_detail_copy_code">Kopioi koodi</string>
     <string name="course_detail_credits_label">Krediitit</string>
+    <string name="course_detail_dimension_label">Ulottuvuus</string>
     <string name="course_detail_due_prefix">Eräpäivä: %1$s</string>
+    <string name="course_detail_duration_full_year">Koko vuosi</string>
+    <string name="course_detail_duration_label">Kesto</string>
+    <string name="course_detail_duration_one_semester">Yksi lukukausi</string>
     <string name="course_detail_enrollment_label">Ilmoittautuminen</string>
     <string name="course_detail_incomplete_assignments">Puutteelliset tehtävät</string>
     <string name="course_detail_instructor_label">Ohjaaja</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R hakee uusimman kurssilistan NTUST-portaalista.</string>
     <string name="desktop_class_table_empty_title">Ei kursseja tällä lukukaudella</string>
     <string name="desktop_class_table_loading_value">Ladataan %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurssia · %3$d opintopistettä</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurssia · %3$s opintopistettä</string>
     <string name="desktop_home_section_upcoming_assignments">Tulevat tehtävät</string>
     <string name="desktop_more_not_implemented">Ei vielä toteutettu</string>
     <string name="desktop_more_subtitle">Selaa kaikkia TigerDuckin Mac-toimintoja. Kiinnitä useimmin käyttämäsi sivupalkkiin.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Odottaa järjestelmän tokenin määrittämistä</string>
     <string name="refreshing_message">Päivitetään… odota hetki</string>
     <string name="score_academic_year_semester">Lukuvuosi %1$s %2$s</string>
-    <string name="score_course_credits">%1$d opintopistettä</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d opintopistettä</string>
+    <string name="score_course_credits">%1$s opintopistettä</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s opintopistettä</string>
     <string name="score_course_detail_enrollment_label">Ilmoittautuminen</string>
     <string name="score_course_detail_schedule_label">Tuntien aikataulu</string>
     <string name="score_credit_earned">Suoritettu</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Sija %1$s(%2$s)</string>
     <string name="score_semester_second">Kevätlukukausi</string>
     <string name="score_semester_second_short">Kevät</string>
-    <string name="score_semester_total_credits">%1$d opintopistettä</string>
+    <string name="score_semester_total_credits">%1$s opintopistettä</string>
     <string name="score_semester_upper">Syksy</string>
     <string name="score_sign_in_required_message">Kirjaudu sisään nähdäksesi arvosanahistoriasi</string>
     <string name="score_term_format">Nykyinen lukukausi: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Vastaanota lisäilmoituksia palvelimelta</string>
     <string name="settings_server_push_update_failed">Palvelin ei hyväksynyt muutosta. Yritä myöhemmin uudelleen.</string>
     <string name="settings_show_absolute_assignment_time">Näytä täysi päivämäärä tehtävän palautusajassa</string>
+    <string name="settings_show_classroom_on_class_table">Näytä luokat lukujärjestyksessä</string>
     <string name="settings_sync_brief_description">TigerSync mahdollistaa valittujen tietojen synkronoinnin kaikkien laitteiden välillä. Synkronoimattomat tiedot pysyvät vain tässä laitteessa.</string>
     <string name="settings_sync_disabled_note">Kun synkronointi on pois päältä, kaikki tiedot pysyvät vain tässä laitteessa.</string>
     <string name="settings_sync_status_off">Pois</string>

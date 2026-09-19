@@ -38,7 +38,7 @@
     <string name="add_course_example">ఉదా: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">సరిపోలే కోర్సులు కనుగొనబడలేదు</string>
     <string name="add_course_placeholder">కోర్సు కోడ్, పేరు లేదా ఇన్‌స్ట్రక్టర్ నమోదు చేయండి</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d క్రెడిట్‌లు</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s క్రెడిట్‌లు</string>
     <string name="add_course_search_failed">శోధన విఫలమైంది: %1$s</string>
     <string name="add_course_searching">వెతుకుతోంది…</string>
     <string name="add_course_title">కోర్సు జోడించండి</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s కోర్సు టేబుల్ రీసెట్ చేయండి</string>
     <string name="class_table_semester_picker_label">సెమిస్టర్</string>
     <string name="class_table_sign_in_required_message">మీ క్లాస్ టేబుల్ చూడటానికి సైన్ ఇన్ చేయండి</string>
-    <string name="class_table_total_credits_value">%1$d క్రెడిట్‌లు</string>
+    <string name="class_table_total_credits_value">%1$s క్రెడిట్‌లు</string>
     <string name="cloud_sync_assignments">అసైన్‌మెంట్లు</string>
     <string name="cloud_sync_class_table">క్లాస్ టేబుల్</string>
     <string name="cloud_sync_class_table_footer">పరికరాల మధ్య ఏ క్లాస్ టేబుల్ డేటాను సింక్ చేయాలో ఎంచుకోండి.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">అనుకూల</string>
     <string name="course_color_picker_custom_label">అనుకూల రంగు</string>
     <string name="course_color_picker_title">రంగు మార్చండి</string>
-    <string name="course_credits_value">క్రెడిట్‌లు: %1$d</string>
+    <string name="course_credits_value">క్రెడిట్‌లు: %1$s</string>
     <string name="course_detail_classroom_label">తరగతి గది</string>
+    <string name="course_detail_code_copied">కోడ్ కాపీ చేయబడింది</string>
     <string name="course_detail_code_label">కోడ్</string>
+    <string name="course_detail_copy_code">కోడ్‌ను కాపీ చేయి</string>
     <string name="course_detail_credits_label">క్రెడిట్‌లు</string>
+    <string name="course_detail_dimension_label">పరిమాణం</string>
     <string name="course_detail_due_prefix">గడువు: %1$s</string>
+    <string name="course_detail_duration_full_year">పూర్తి సంవత్సరం</string>
+    <string name="course_detail_duration_label">వ్యవధి</string>
+    <string name="course_detail_duration_one_semester">ఒక సెమిస్టర్</string>
     <string name="course_detail_enrollment_label">నమోదు</string>
     <string name="course_detail_incomplete_assignments">అసంపూర్ణ అసైన్‌మెంట్లు</string>
     <string name="course_detail_instructor_label">బోధకుడు</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R NTUST పోర్టల్ నుండి తాజా కోర్సు జాబితాను పొందుతుంది.</string>
     <string name="desktop_class_table_empty_title">ఈ సెమిస్టర్‌లో కోర్సులు లేవు</string>
     <string name="desktop_class_table_loading_value">%1$s లోడ్ అవుతోంది…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d కోర్సులు · %3$d క్రెడిట్‌లు</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d కోర్సులు · %3$s క్రెడిట్‌లు</string>
     <string name="desktop_home_section_upcoming_assignments">రాబోయే అసైన్‌మెంట్‌లు</string>
     <string name="desktop_more_not_implemented">ఇంకా అమలు కాలేదు</string>
     <string name="desktop_more_subtitle">Mac‌లో TigerDuck అందించే అన్ని ఫీచర్‌లను బ్రౌజ్ చేయండి. మీరు ఎక్కువగా ఉపయోగించేవాటిని పిన్ చేయండి, అవి సైడ్‌బార్‌లో కనిపిస్తాయి.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">సిస్టమ్ token కేటాయించడం కోసం వేచి ఉంది</string>
     <string name="refreshing_message">రిఫ్రెష్ అవుతున్నది… ఒక్క క్షణం</string>
     <string name="score_academic_year_semester">విద్యా సంవత్సరం %1$s %2$s</string>
-    <string name="score_course_credits">%1$d క్రెడిట్‌లు</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d క్రెడిట్‌లు</string>
+    <string name="score_course_credits">%1$s క్రెడిట్‌లు</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s క్రెడిట్‌లు</string>
     <string name="score_course_detail_enrollment_label">నమోదు</string>
     <string name="score_course_detail_schedule_label">తరగతి షెడ్యూల్</string>
     <string name="score_credit_earned">సంపాదించారు</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">ర్యాంక్ %1$s(%2$s)</string>
     <string name="score_semester_second">వసంత సెమిస్టర్</string>
     <string name="score_semester_second_short">వసంత</string>
-    <string name="score_semester_total_credits">%1$d క్రెడిట్‌లు</string>
+    <string name="score_semester_total_credits">%1$s క్రెడిట్‌లు</string>
     <string name="score_semester_upper">ఫాల్</string>
     <string name="score_sign_in_required_message">మీ గ్రేడ్ చరిత్రను చూడటానికి సైన్ ఇన్ చేయండి</string>
     <string name="score_term_format">ప్రస్తుత సెమెస్టర్: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">అదనపు సర్వర్ నోటిఫికేషన్‌లను స్వీకరించండి</string>
     <string name="settings_server_push_update_failed">సర్వర్ మార్పును ఆమోదించలేదు. తర్వాత మళ్లీ ప్రయత్నించండి.</string>
     <string name="settings_show_absolute_assignment_time">అసైన్‌మెంట్ గడువు సమయానికి పూర్తి తేదీ చూపించు</string>
+    <string name="settings_show_classroom_on_class_table">టైమ్‌టేబుల్‌లో తరగతి గదిని చూపు</string>
     <string name="settings_sync_brief_description">TigerSync మీ అన్ని పరికరాలలో సమాచారాన్ని సమకాలీకరించడానికి అనుమతిస్తుంది. సింక్‌కు ప్రారంభించబడని సమాచారం ఈ పరికరంలో మాత్రమే ఉంటుంది.</string>
     <string name="settings_sync_disabled_note">సింక్ ఆఫ్‌లో ఉన్నప్పుడు, మొత్తం డేటా ఈ పరికరంలో మాత్రమే ఉంటుంది.</string>
     <string name="settings_sync_status_off">ఆఫ్</string>

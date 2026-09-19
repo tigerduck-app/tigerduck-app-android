@@ -38,7 +38,7 @@
     <string name="add_course_example">Piemērs: EC1013701, Matemātiskā analīze, Jānis Bērziņš</string>
     <string name="add_course_not_found">Nav atrasts neviens atbilstošs kurss</string>
     <string name="add_course_placeholder">Ievadiet kursa kodu, nosaukumu vai pasniedzēju</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d kredītpunkti</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s kredītpunkti</string>
     <string name="add_course_search_failed">Meklēšana neizdevās: %1$s</string>
     <string name="add_course_searching">Meklē…</string>
     <string name="add_course_title">Pievienot kursu</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Atiestatīt %1$s stundu sarakstu</string>
     <string name="class_table_semester_picker_label">Semestris</string>
     <string name="class_table_sign_in_required_message">Pierakstieties, lai skatītu savu stundu sarakstu</string>
-    <string name="class_table_total_credits_value">%1$d kredītpunkti</string>
+    <string name="class_table_total_credits_value">%1$s kredītpunkti</string>
     <string name="cloud_sync_assignments">Uzdevumi</string>
     <string name="cloud_sync_class_table">Stundu saraksts</string>
     <string name="cloud_sync_class_table_footer">Izvēlieties, kurus stundu saraksta datus sinhronizēt starp ierīcēm.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Pielāgots</string>
     <string name="course_color_picker_custom_label">Pielāgota krāsa</string>
     <string name="course_color_picker_title">Rediģēt krāsu</string>
-    <string name="course_credits_value">Kredītpunkti: %1$d</string>
+    <string name="course_credits_value">Kredītpunkti: %1$s</string>
     <string name="course_detail_classroom_label">Auditorija</string>
+    <string name="course_detail_code_copied">Kods nokopēts</string>
     <string name="course_detail_code_label">Kods</string>
+    <string name="course_detail_copy_code">Kopēt kodu</string>
     <string name="course_detail_credits_label">Kredītpunkti</string>
+    <string name="course_detail_dimension_label">Dimensija</string>
     <string name="course_detail_due_prefix">Termiņš: %1$s</string>
+    <string name="course_detail_duration_full_year">Viss gads</string>
+    <string name="course_detail_duration_label">Ilgums</string>
+    <string name="course_detail_duration_one_semester">Viens semestris</string>
     <string name="course_detail_enrollment_label">Reģistrācija</string>
     <string name="course_detail_incomplete_assignments">Neizpildītie uzdevumi</string>
     <string name="course_detail_instructor_label">Pasniedzējs</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R iegūst jaunāko kursu sarakstu no NTUST portāla.</string>
     <string name="desktop_class_table_empty_title">Šajā semestrī nav kursu</string>
     <string name="desktop_class_table_loading_value">Ielādē %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursi · %3$d kredītpunkti</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursi · %3$s kredītpunkti</string>
     <string name="desktop_home_section_upcoming_assignments">Gaidāmie uzdevumi</string>
     <string name="desktop_more_not_implemented">Vēl nav ieviests</string>
     <string name="desktop_more_subtitle">Pārlūkojiet visas TigerDuck Mac lietotnes funkcijas. Piespraudiet biežāk lietotās, lai tās rādītos sānjoslā.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Gaida, kad sistēma piešķirs token</string>
     <string name="refreshing_message">Atjauno… pagaidiet</string>
     <string name="score_academic_year_semester">Akadēmiskais gads %1$s %2$s</string>
-    <string name="score_course_credits">%1$d kredītpunkti</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d kredītp.</string>
+    <string name="score_course_credits">%1$s kredītpunkti</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s kredītp.</string>
     <string name="score_course_detail_enrollment_label">Reģistrācija</string>
     <string name="score_course_detail_schedule_label">Stundu saraksts</string>
     <string name="score_credit_earned">Iegūti</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Vieta %1$s(%2$s)</string>
     <string name="score_semester_second">Pavasara semestris</string>
     <string name="score_semester_second_short">Pavasaris</string>
-    <string name="score_semester_total_credits">%1$d kredītpunkti</string>
+    <string name="score_semester_total_credits">%1$s kredītpunkti</string>
     <string name="score_semester_upper">Rudens</string>
     <string name="score_sign_in_required_message">Pierakstieties, lai skatītu atzīmju vēsturi</string>
     <string name="score_term_format">Pašreizējais semestris: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Saņemt papildu servera paziņojumus</string>
     <string name="settings_server_push_update_failed">Serveris nepieņēma izmaiņas. Mēģiniet vēlreiz vēlāk.</string>
     <string name="settings_show_absolute_assignment_time">Rādīt pilnu datumu uzdevuma termiņam</string>
+    <string name="settings_show_classroom_on_class_table">Rādīt auditorijas stundu sarakstā</string>
     <string name="settings_sync_brief_description">TigerSync ļauj sinhronizēt izvēlēto informāciju visās ierīcēs. Nesinhronizēta informācija paliek tikai šajā ierīcē.</string>
     <string name="settings_sync_disabled_note">Kad sinhronizācija ir izslēgta, visi dati paliek tikai šajā ierīcē.</string>
     <string name="settings_sync_status_off">Izslēgts</string>

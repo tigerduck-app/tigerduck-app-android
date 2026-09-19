@@ -38,7 +38,7 @@
     <string name="add_course_example">Eksempel: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">Ingen matchende kurser fundet</string>
     <string name="add_course_placeholder">Indtast kurskode, navn eller underviser</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d ECTS-point</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s ECTS-point</string>
     <string name="add_course_search_failed">Søgning mislykkedes: %1$s</string>
     <string name="add_course_searching">Søger…</string>
     <string name="add_course_title">Tilføj kursus</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Nulstil skema for %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Log ind for at se din klassetabel</string>
-    <string name="class_table_total_credits_value">%1$d ECTS-point</string>
+    <string name="class_table_total_credits_value">%1$s ECTS-point</string>
     <string name="cloud_sync_assignments">Opgaver</string>
     <string name="cloud_sync_class_table">Skema</string>
     <string name="cloud_sync_class_table_footer">Vælg hvilke skemadata der skal synkroniseres mellem enheder.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Tilpasset</string>
     <string name="course_color_picker_custom_label">Tilpasset farve</string>
     <string name="course_color_picker_title">Rediger farve</string>
-    <string name="course_credits_value">ECTS-point: %1$d</string>
+    <string name="course_credits_value">ECTS-point: %1$s</string>
     <string name="course_detail_classroom_label">Klasseværelse</string>
+    <string name="course_detail_code_copied">Koden er kopieret</string>
     <string name="course_detail_code_label">Kode</string>
+    <string name="course_detail_copy_code">Kopiér kode</string>
     <string name="course_detail_credits_label">Kreditter</string>
+    <string name="course_detail_dimension_label">Dimension</string>
     <string name="course_detail_due_prefix">Forfald: %1$s</string>
+    <string name="course_detail_duration_full_year">Helt år</string>
+    <string name="course_detail_duration_label">Varighed</string>
+    <string name="course_detail_duration_one_semester">Et semester</string>
     <string name="course_detail_enrollment_label">Tilmelding</string>
     <string name="course_detail_incomplete_assignments">Ufuldstændige opgaver</string>
     <string name="course_detail_instructor_label">Instruktør</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R henter nyeste fagliste fra NTUST-portalen.</string>
     <string name="desktop_class_table_empty_title">Ingen fag dette semester</string>
     <string name="desktop_class_table_loading_value">Indlæser %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d fag · %3$d ECTS</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d fag · %3$s ECTS</string>
     <string name="desktop_home_section_upcoming_assignments">Kommende opgaver</string>
     <string name="desktop_more_not_implemented">Endnu ikke implementeret</string>
     <string name="desktop_more_subtitle">Se alle TigerDuck-funktioner på Mac. Fastgør dem du bruger mest i sidepanelet.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Venter på, at systemet tildeler et token</string>
     <string name="refreshing_message">Opdaterer… vent et øjeblik</string>
     <string name="score_academic_year_semester">Akademisk år %1$s %2$s</string>
-    <string name="score_course_credits">%1$d ECTS-point</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d ECTS</string>
+    <string name="score_course_credits">%1$s ECTS-point</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s ECTS</string>
     <string name="score_course_detail_enrollment_label">Tilmelding</string>
     <string name="score_course_detail_schedule_label">Klasseskema</string>
     <string name="score_credit_earned">Optjent</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Placering %1$s(%2$s)</string>
     <string name="score_semester_second">Forårssemester</string>
     <string name="score_semester_second_short">Forår</string>
-    <string name="score_semester_total_credits">%1$d ECTS-point</string>
+    <string name="score_semester_total_credits">%1$s ECTS-point</string>
     <string name="score_semester_upper">Efterår</string>
     <string name="score_sign_in_required_message">Log ind for at se din karakterhistorik</string>
     <string name="score_term_format">Aktuelt semester: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Modtag yderligere servernotifikationer</string>
     <string name="settings_server_push_update_failed">Serveren accepterede ikke ændringen. Prøv igen senere.</string>
     <string name="settings_show_absolute_assignment_time">Vis fuld dato for opgavefrist</string>
+    <string name="settings_show_classroom_on_class_table">Vis lokaler i skemaet</string>
     <string name="settings_sync_brief_description">TigerSync lader dig synkronisere dine valgte oplysninger på tværs af alle enheder med TigerSync aktiveret. Oplysninger uden synkronisering forbliver kun på denne enhed.</string>
     <string name="settings_sync_disabled_note">Når synkronisering er slået fra, forbliver alle data kun på denne enhed.</string>
     <string name="settings_sync_status_off">Fra</string>

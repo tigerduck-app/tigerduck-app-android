@@ -38,7 +38,7 @@
     <string name="add_course_example">Voorbeeld: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">Geen overeenkomende vakken gevonden</string>
     <string name="add_course_placeholder">Voer vakcode, naam of docent in</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d studiepunten</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s studiepunten</string>
     <string name="add_course_search_failed">Zoeken mislukt: %1$s</string>
     <string name="add_course_searching">Zoeken…</string>
     <string name="add_course_title">Vak toevoegen</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Lesrooster %1$s herstellen</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Meld je aan om je rooster te bekijken</string>
-    <string name="class_table_total_credits_value">%1$d studiepunten</string>
+    <string name="class_table_total_credits_value">%1$s studiepunten</string>
     <string name="cloud_sync_assignments">Opdrachten</string>
     <string name="cloud_sync_class_table">Lesrooster</string>
     <string name="cloud_sync_class_table_footer">Kies welke lesroostergegevens tussen apparaten gesynchroniseerd worden.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Aangepast</string>
     <string name="course_color_picker_custom_label">Aangepaste kleur</string>
     <string name="course_color_picker_title">Kleur bewerken</string>
-    <string name="course_credits_value">Studiepunten: %1$d</string>
+    <string name="course_credits_value">Studiepunten: %1$s</string>
     <string name="course_detail_classroom_label">Lokaal</string>
+    <string name="course_detail_code_copied">Code gekopieerd</string>
     <string name="course_detail_code_label">Code</string>
+    <string name="course_detail_copy_code">Code kopiëren</string>
     <string name="course_detail_credits_label">Studiepunten</string>
+    <string name="course_detail_dimension_label">Dimensie</string>
     <string name="course_detail_due_prefix">Deadline: %1$s</string>
+    <string name="course_detail_duration_full_year">Heel jaar</string>
+    <string name="course_detail_duration_label">Duur</string>
+    <string name="course_detail_duration_one_semester">Eén semester</string>
     <string name="course_detail_enrollment_label">Inschrijving</string>
     <string name="course_detail_incomplete_assignments">Onvoltooide opdrachten</string>
     <string name="course_detail_instructor_label">Docent</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R haalt de nieuwste vakkenlijst op uit het NTUST-portaal.</string>
     <string name="desktop_class_table_empty_title">Geen vakken dit semester</string>
     <string name="desktop_class_table_loading_value">%1$s laden…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d vakken · %3$d studiepunten</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d vakken · %3$s studiepunten</string>
     <string name="desktop_home_section_upcoming_assignments">Komende opdrachten</string>
     <string name="desktop_more_not_implemented">Nog niet beschikbaar</string>
     <string name="desktop_more_subtitle">Bekijk alle TigerDuck-functies op Mac. Zet de functies die je het meest gebruikt vast in de zijbalk.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Wachten tot het systeem een token toewijst</string>
     <string name="refreshing_message">Bezig met vernieuwen… momentje</string>
     <string name="score_academic_year_semester">Studiejaar %1$s %2$s</string>
-    <string name="score_course_credits">%1$d studiepunten</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d studiepunten</string>
+    <string name="score_course_credits">%1$s studiepunten</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s studiepunten</string>
     <string name="score_course_detail_enrollment_label">Inschrijving</string>
     <string name="score_course_detail_schedule_label">Lesrooster</string>
     <string name="score_credit_earned">Behaald</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Rang %1$s(%2$s)</string>
     <string name="score_semester_second">Lentesemester</string>
     <string name="score_semester_second_short">Lente</string>
-    <string name="score_semester_total_credits">%1$d studiepunten</string>
+    <string name="score_semester_total_credits">%1$s studiepunten</string>
     <string name="score_semester_upper">Najaar</string>
     <string name="score_sign_in_required_message">Meld je aan om je cijfergeschiedenis te bekijken</string>
     <string name="score_term_format">Huidig semester: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Extra servermeldingen ontvangen</string>
     <string name="settings_server_push_update_failed">De server heeft de wijziging niet geaccepteerd. Probeer het later opnieuw.</string>
     <string name="settings_show_absolute_assignment_time">Volledige datum tonen voor opdrachtdeadline</string>
+    <string name="settings_show_classroom_on_class_table">Lokalen tonen in het rooster</string>
     <string name="settings_sync_brief_description">TigerSync synchroniseert je gekozen informatie op al je apparaten. Niet-ingeschakelde informatie blijft alleen op dit apparaat.</string>
     <string name="settings_sync_disabled_note">Wanneer synchronisatie uit staat, blijven alle gegevens alleen op dit apparaat.</string>
     <string name="settings_sync_status_off">Uit</string>

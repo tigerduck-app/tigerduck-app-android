@@ -38,7 +38,7 @@
     <string name="add_course_example">例如：EC1013701、微積分、王小明</string>
     <string name="add_course_not_found">找不到符合的課程</string>
     <string name="add_course_placeholder">輸入課程代碼、課名或老師</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d學分</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s學分</string>
     <string name="add_course_search_failed">搜尋失敗：%1$s</string>
     <string name="add_course_searching">搜尋中…</string>
     <string name="add_course_title">新增課程</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">重置 %1$s 課表</string>
     <string name="class_table_semester_picker_label">學期</string>
     <string name="class_table_sign_in_required_message">尚未登入，無法查看課表</string>
-    <string name="class_table_total_credits_value">%1$d 學分</string>
+    <string name="class_table_total_credits_value">%1$s 學分</string>
     <string name="cloud_sync_assignments">作業</string>
     <string name="cloud_sync_class_table">課表</string>
     <string name="cloud_sync_class_table_footer">選擇要在裝置間同步的課表資料。</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">自訂</string>
     <string name="course_color_picker_custom_label">自訂顏色</string>
     <string name="course_color_picker_title">編輯顏色</string>
-    <string name="course_credits_value">學分：%1$d</string>
+    <string name="course_credits_value">學分：%1$s</string>
     <string name="course_detail_classroom_label">教室</string>
+    <string name="course_detail_code_copied">已複製代碼</string>
     <string name="course_detail_code_label">代碼</string>
+    <string name="course_detail_copy_code">複製代碼</string>
     <string name="course_detail_credits_label">學分</string>
+    <string name="course_detail_dimension_label">向度</string>
     <string name="course_detail_due_prefix">截止:%1$s</string>
+    <string name="course_detail_duration_full_year">全</string>
+    <string name="course_detail_duration_label">學年</string>
+    <string name="course_detail_duration_one_semester">半</string>
     <string name="course_detail_enrollment_label">人數</string>
     <string name="course_detail_incomplete_assignments">未完成作業</string>
     <string name="course_detail_instructor_label">授課教師</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">按 ⌘R 從台科大入口抓取最新課表。</string>
     <string name="desktop_class_table_empty_title">本學期沒有課程</string>
     <string name="desktop_class_table_loading_value">正在載入 %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d 門課 · %3$d 學分</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d 門課 · %3$s 學分</string>
     <string name="desktop_home_section_upcoming_assignments">即將到期的作業</string>
     <string name="desktop_more_not_implemented">尚未實作</string>
     <string name="desktop_more_subtitle">瀏覽 TigerDuck 在 Mac 上提供的所有功能。將常用功能釘選到側邊欄。</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">等系統指派 token</string>
     <string name="refreshing_message">頁面正在刷新，別急～</string>
     <string name="score_academic_year_semester">%1$s 學年度 %2$s學期</string>
-    <string name="score_course_credits">%1$d 學分</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d 學分</string>
+    <string name="score_course_credits">%1$s 學分</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s 學分</string>
     <string name="score_course_detail_enrollment_label">修課人數</string>
     <string name="score_course_detail_schedule_label">上課時段</string>
     <string name="score_credit_earned">已實得</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">排名 %1$s(%2$s)</string>
     <string name="score_semester_second">下學期</string>
     <string name="score_semester_second_short">下</string>
-    <string name="score_semester_total_credits">%1$d 學分</string>
+    <string name="score_semester_total_credits">%1$s 學分</string>
     <string name="score_semester_upper">上</string>
     <string name="score_sign_in_required_message">尚未登入，無法查看歷年成績</string>
     <string name="score_term_format">目前學期：%1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">接收額外伺服器推播</string>
     <string name="settings_server_push_update_failed">伺服器未接受這項變更，請稍後再試。</string>
     <string name="settings_show_absolute_assignment_time">作業截止時間顯示完整日期</string>
+    <string name="settings_show_classroom_on_class_table">在課表首頁顯示教室</string>
     <string name="settings_sync_brief_description">TigerSync 可讓你將所選資料同步至所有已開啟 TigerSync 的裝置。未啟用 TigerSync 的資料僅會保留在此裝置上。</string>
     <string name="settings_sync_disabled_note">關閉同步後，所有資料僅儲存於本機</string>
     <string name="settings_sync_status_off">關閉</string>
