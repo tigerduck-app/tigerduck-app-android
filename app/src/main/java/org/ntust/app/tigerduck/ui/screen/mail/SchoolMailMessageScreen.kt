@@ -126,23 +126,26 @@ fun SchoolMailMessageScreen(
 
     val ready = state.content as? Content.Ready
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
-        val attachment = ready?.body?.attachments?.firstOrNull { it.partId == pendingSavePart }
+        val partId = pendingSavePart
         pendingSavePart = null
-        if (uri != null && attachment != null) {
-            viewModel.saveAttachment(
-                attachment,
-                // "wt": write + truncate. Plain "w" leaves a provider free to not truncate, so
-                // overwriting a larger existing file with a smaller attachment would leave its
-                // old trailing bytes in place.
-                open = { context.contentResolver.openOutputStream(uri, "wt") },
-                onFailure = {
-                    // Best-effort: not every document provider supports deleting what it just
-                    // handed out (some throw UnsupportedOperationException), so a partial write
-                    // is cleaned up where possible and left alone otherwise.
-                    runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
-                },
-            )
-        }
+        if (uri == null) return@rememberLauncherForActivityResult
+        // The part is resolved by the view model, never here: this callback can run before
+        // load() has produced a body at all (a process death while the picker was up restores
+        // pendingSavePart but not view model state), and a lookup here would then quietly find
+        // nothing and drop the save. See SchoolMailMessageViewModel.saveToPart.
+        viewModel.saveToPart(
+            partId,
+            // "wt": write + truncate. Plain "w" leaves a provider free to not truncate, so
+            // overwriting a larger existing file with a smaller attachment would leave its
+            // old trailing bytes in place.
+            open = { context.contentResolver.openOutputStream(uri, "wt") },
+            onFailure = {
+                // Best-effort: not every document provider supports deleting what it just
+                // handed out (some throw UnsupportedOperationException), so a partial write
+                // is cleaned up where possible and left alone otherwise.
+                runCatching { DocumentsContract.deleteDocument(context.contentResolver, uri) }
+            },
+        )
     }
     // Confirmation (needsConfirmation) already happened, if needed, before saveRequest was set --
     // this only launches the SAF picker the confirmed/unconfirmed save asked for.

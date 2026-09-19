@@ -148,6 +148,7 @@ class SchoolMailMessageViewModel @Inject constructor(
                     update { it.copy(content = Content.Ready(summary, EMPTY_BODY, null, null, "", emptyList()), parseFailed = true) }
                     markSeen(summary)
                     selectMode(ViewMode.SOURCE)
+                    resolvePendingSave()
                     return@launch
                 }
                 // Whenever this sanitizes, it honors whatever the state already says about
@@ -162,9 +163,11 @@ class SchoolMailMessageViewModel @Inject constructor(
                     )
                 }
                 markSeen(summary)
+                resolvePendingSave()
             } catch (e: MailError) {
                 if (e is MailError.AuthFailed) account.onAuthFailure()
                 update { it.copy(content = Content.Failed(e)) }
+                resolvePendingSave()
             }
         }
     }
@@ -394,6 +397,54 @@ class SchoolMailMessageViewModel @Inject constructor(
     }
 
     fun consumeSaved() = update { it.copy(savedCount = 0) }
+
+    /** A save the document picker has already answered, waiting for the body that names its part. */
+    private class PendingSave(val partId: String?, val open: () -> OutputStream?, val onFailure: () -> Unit)
+
+    private var pendingSave: PendingSave? = null
+
+    /**
+     * The document picker came back with somewhere to write [partId] to.
+     *
+     * Resolving the part ID against the loaded body belongs here, not on the screen. The screen
+     * remembers the pending part ID across process death (`rememberSaveable`), but the body it
+     * would look the attachment up in is view model state, which is **not** restored -- so a
+     * process death while the SAF picker was foregrounded (routine on a low-RAM device) delivered
+     * the result before [load] had finished, the lookup found nothing, and the save was dropped
+     * in silence: no write, no message, no spinner, and a user convinced they had saved a file
+     * that does not exist.
+     *
+     * So a request that arrives before the body does simply waits for the load already running
+     * ([resolvePendingSave]), and a part that is genuinely not there once it lands is reported as
+     * an action error rather than as nothing at all.
+     */
+    fun saveToPart(partId: String?, open: () -> OutputStream?, onFailure: () -> Unit = {}) {
+        val pending = PendingSave(partId, open, onFailure)
+        when (_state.value.content) {
+            is Content.Ready, is Content.Failed -> resolveSave(pending)
+            else -> pendingSave = pending
+        }
+    }
+
+    private fun resolvePendingSave() {
+        val pending = pendingSave ?: return
+        pendingSave = null
+        resolveSave(pending)
+    }
+
+    private fun resolveSave(pending: PendingSave) {
+        val attachment = (_state.value.content as? Content.Ready)?.body?.attachments
+            // A null partId (the screen lost it) matches nothing, and lands in the branch below.
+            ?.firstOrNull { it.partId == pending.partId }
+        if (attachment == null) {
+            // [MailError.Protocol] reads as school_mail_error_generic. [PendingSave.onFailure] is
+            // deliberately *not* run: nothing was ever written, and the picker's target can be a
+            // file the user chose to overwrite -- deleting it would destroy what they still have.
+            update { it.copy(actionError = MailError.Protocol("attachment is no longer loaded")) }
+            return
+        }
+        saveAttachment(attachment, pending.open, pending.onFailure)
+    }
 
     // --- actions ------------------------------------------------------------------------
 

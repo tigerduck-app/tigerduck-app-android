@@ -456,6 +456,63 @@ class SchoolMailMessageViewModelTest {
     }
 
     @Test
+    fun `a save the picker answered before the body loaded still writes once it has`() {
+        // The process died while the SAF picker was foregrounded: the screen gets its remembered
+        // part ID back, the view model has nothing loaded yet, and the result lands first.
+        val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "x", listOf(att), emptyMap())
+        val vm = vm()
+        val out = ByteArrayOutputStream()
+        vm.saveToPart("2", open = { out })
+        assertEquals("", out.toString())
+
+        vm.load()
+        assertEquals("attachment 2", out.toString())
+        assertEquals(1, vm.state.value.savedCount)
+        assertNull(vm.state.value.actionError)
+    }
+
+    @Test
+    fun `a save for a part the loaded mail does not have says so instead of doing nothing`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "x", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        var cleanedUp = false
+        vm.saveToPart("2", open = { ByteArrayOutputStream() }, onFailure = { cleanedUp = true })
+
+        assertTrue(vm.state.value.actionError is MailError.Protocol)
+        assertEquals(0, vm.state.value.savedCount)
+        // Nothing was written through the document the picker created, so nothing is deleted --
+        // the user may have pointed it at a file they still want.
+        assertFalse(cleanedUp)
+    }
+
+    @Test
+    fun `a save whose part ID the screen lost is reported rather than dropped`() {
+        val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "x", listOf(att), emptyMap())
+        val vm = vm()
+        vm.load()
+        vm.saveToPart(null, open = { ByteArrayOutputStream() })
+        assertTrue(vm.state.value.actionError is MailError.Protocol)
+        assertEquals(0, vm.state.value.savedCount)
+    }
+
+    @Test
+    fun `a save answered while the mail itself fails to load is reported, not dropped`() {
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodyError = MailError.Network()
+        val vm = vm()
+        vm.saveToPart("2", open = { ByteArrayOutputStream() })
+        vm.load()
+        assertTrue(vm.state.value.content is Content.Failed)
+        assertTrue(vm.state.value.actionError is MailError.Protocol)
+    }
+
+    @Test
     fun `a write that fails after a stream was opened runs the cleanup callback`() {
         val att = MailAttachment("2", "a.pdf", "application/pdf", 10, null)
         repo.add("INBOX", mailSummary(5, hasAttachments = true))
