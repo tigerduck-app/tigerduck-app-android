@@ -413,6 +413,7 @@ fun ClassTableScreen(
                 if (activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty() && courses.isNotEmpty()) {
                     TimetableGrid(
                         viewModel = viewModel,
+                        courses = courses,
                         weekdays = activeWeekdays,
                         periods = activePeriods,
                         courseNosWithAssignments = courseNosWithAssignments,
