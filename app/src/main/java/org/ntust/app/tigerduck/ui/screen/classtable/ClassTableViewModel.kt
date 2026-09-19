@@ -130,6 +130,12 @@ class ClassTableViewModel @Inject constructor(
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
 
+    // The term the selected course belongs to. Not always the picker's: the
+    // today carousel shows the live term's courses whatever term the grid
+    // is on, and a course added by hand is looked up in Moodle by
+    // `<term><courseNo>` — see moodleCourseIdFor.
+    private var selectedCourseSemester: String? = null
+
     // Stored pick, else the newest published term, else the pinned term.
     // The catalogue can land after construction on a cold launch, so
     // followNewestSemesterIfUnpicked re-applies the rule once it does.
@@ -458,9 +464,14 @@ class ClassTableViewModel @Inject constructor(
     // when the assignments fetch landed. The screen now collects [assignments]
     // and derives badge state itself.
 
-    fun selectCourse(course: Course, weekday: Int, periodId: String) {
+    /**
+     * [fromLiveTerm] is for the today carousel, whose courses come from the
+     * live term rather than the one the picker is showing.
+     */
+    fun selectCourse(course: Course, weekday: Int, periodId: String, fromLiveTerm: Boolean = false) {
         _selectedWeekday.value = weekday
         _selectedPeriodId.value = periodId
+        selectedCourseSemester = if (fromLiveTerm) liveSemesterCode else _currentSemester.value
         _selectedCourse.value = course
     }
 
@@ -474,11 +485,14 @@ class ClassTableViewModel @Inject constructor(
      * A course added by hand carries no idnumber, so it is looked up as
      * `<term><courseNo>` — the same shape a portal course falls back to in
      * `CourseService.lookupOrFallback`, and a key [MoodleCourseIds.idMap]
-     * writes for every code a course answers to, 合開 aliases included.
+     * writes for every code a course answers to, 合開 aliases included. The
+     * term is the one the course was selected from, which for the today
+     * carousel is the live term even while the grid shows another.
      */
     fun moodleCourseIdFor(course: Course): Int? {
+        val semester = selectedCourseSemester ?: _currentSemester.value
         val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() }
-            ?: "${_currentSemester.value}${course.courseNo}"
+            ?: "$semester${course.courseNo}"
         return lookupMoodleCourseId(idnumber)
     }
 
@@ -488,6 +502,7 @@ class ClassTableViewModel @Inject constructor(
 
     fun clearSelection() {
         _selectedCourse.value = null
+        selectedCourseSemester = null
     }
 
     val existingCourseNos: Set<String>

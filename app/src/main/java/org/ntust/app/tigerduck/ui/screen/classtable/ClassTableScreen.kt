@@ -338,7 +338,8 @@ fun ClassTableScreen(
                                         viewModel.selectCourse(
                                             ongoing.course,
                                             ongoing.weekday,
-                                            ongoing.firstPeriodId
+                                            ongoing.firstPeriodId,
+                                            fromLiveTerm = true,
                                         )
                                     },
                                     modifier = Modifier.fillMaxHeight()
@@ -366,7 +367,12 @@ fun ClassTableScreen(
                                                     it
                                                 )
                                             } ?: ""
-                                        viewModel.selectCourse(course, dayIndex, firstPeriod)
+                                        viewModel.selectCourse(
+                                            course,
+                                            dayIndex,
+                                            firstPeriod,
+                                            fromLiveTerm = true,
+                                        )
                                     },
                                     modifier = Modifier.fillMaxHeight()
                                 )
