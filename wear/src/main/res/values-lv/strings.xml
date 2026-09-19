@@ -930,9 +930,9 @@
     <string name="update_action_later">Vēlāk</string>
     <string name="update_action_skip_version">Izlaist šo versiju</string>
     <string name="update_action_update_now">Atjaunināt tagad</string>
-    <string name="update_available_message">App Store ir pieejama jauna versija (%1$@). Vai vēlaties atjaunināt tagad?</string>
+    <string name="update_available_message">Play Store ir pieejama jauna versija. Vai vēlaties atjaunināt tagad?</string>
     <string name="update_available_title">Pieejams atjauninājums</string>
-    <string name="update_check_failed_message">Neizdevās sasniegt App Store. Mēģiniet vēlāk.</string>
+    <string name="update_check_failed_message">Neizdevās sasniegt Play Store. Mēģiniet vēlāk.</string>
     <string name="update_check_failed_title">Pārbaude neizdevās</string>
     <string name="update_required_action">Atjaunināt</string>
     <string name="update_required_message">Šī TigerDuck versija vairs nevar izveidot savienojumu ar serveri. Atjauniniet uz jaunāko versiju, lai turpinātu sinhronizāciju.</string>

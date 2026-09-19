@@ -930,9 +930,9 @@
     <string name="update_action_later">Mai târziu</string>
     <string name="update_action_skip_version">Omiteți această versiune</string>
     <string name="update_action_update_now">Actualizați acum</string>
-    <string name="update_available_message">O versiune nouă (%1$@) este disponibilă în App Store. Doriți să actualizați acum?</string>
+    <string name="update_available_message">O versiune nouă este disponibilă în Play Store. Doriți să actualizați acum?</string>
     <string name="update_available_title">Actualizare disponibilă</string>
-    <string name="update_check_failed_message">Nu s-a putut contacta App Store. Încercați din nou mai târziu.</string>
+    <string name="update_check_failed_message">Nu s-a putut contacta Play Store. Încercați din nou mai târziu.</string>
     <string name="update_check_failed_title">Verificare eșuată</string>
     <string name="update_required_action">Actualizează</string>
     <string name="update_required_message">Această versiune TigerDuck nu se mai poate conecta la server. Actualizează la cea mai recentă versiune pentru a continua sincronizarea.</string>

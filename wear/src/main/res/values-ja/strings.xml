@@ -930,9 +930,9 @@
     <string name="update_action_later">後で</string>
     <string name="update_action_skip_version">このバージョンをスキップ</string>
     <string name="update_action_update_now">今すぐ更新</string>
-    <string name="update_available_message">App Store に新しいバージョン (%1$@) があります。今すぐ更新しますか？</string>
+    <string name="update_available_message">Play ストアに新しいバージョンがあります。今すぐ更新しますか？</string>
     <string name="update_available_title">アップデートあり</string>
-    <string name="update_check_failed_message">App Store に接続できませんでした。後でもう一度お試しください。</string>
+    <string name="update_check_failed_message">Play ストアに接続できませんでした。後でもう一度お試しください。</string>
     <string name="update_check_failed_title">確認に失敗</string>
     <string name="update_required_action">アップデート</string>
     <string name="update_required_message">このバージョンの TigerDuck はサーバーに接続できなくなりました。同期を続けるには最新バージョンにアップデートしてください。</string>

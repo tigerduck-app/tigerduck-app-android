@@ -930,9 +930,9 @@
     <string name="update_action_later">Kasnije</string>
     <string name="update_action_skip_version">Preskoči ovu verziju</string>
     <string name="update_action_update_now">Ažuriraj sada</string>
-    <string name="update_available_message">Nova verzija (%1$@) dostupna je u App Storeu. Želite li ažurirati sada?</string>
+    <string name="update_available_message">Nova verzija dostupna je u Play Storeu. Želite li ažurirati sada?</string>
     <string name="update_available_title">Dostupno ažuriranje</string>
-    <string name="update_check_failed_message">Nije moguće dosegnuti App Store. Pokušajte ponovo kasnije.</string>
+    <string name="update_check_failed_message">Nije moguće dosegnuti Play Store. Pokušajte ponovo kasnije.</string>
     <string name="update_check_failed_title">Provjera nije uspjela</string>
     <string name="update_required_action">Ažuriraj</string>
     <string name="update_required_message">Ova verzija aplikacije TigerDuck više se ne može povezati s poslužiteljem. Ažurirajte na najnoviju verziju kako biste nastavili sinkronizaciju.</string>

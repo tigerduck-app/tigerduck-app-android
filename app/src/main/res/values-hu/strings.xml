@@ -930,9 +930,9 @@
     <string name="update_action_later">Később</string>
     <string name="update_action_skip_version">Verzió kihagyása</string>
     <string name="update_action_update_now">Frissítés most</string>
-    <string name="update_available_message">Új verzió (%1$@) érhető el az App Store-ban. Szeretnéd most frissíteni?</string>
+    <string name="update_available_message">Új verzió érhető el a Play Store-ban. Szeretnéd most frissíteni?</string>
     <string name="update_available_title">Frissítés elérhető</string>
-    <string name="update_check_failed_message">Az App Store nem érhető el. Próbáld újra később.</string>
+    <string name="update_check_failed_message">A Play Store nem érhető el. Próbáld újra később.</string>
     <string name="update_check_failed_title">Az ellenőrzés sikertelen</string>
     <string name="update_required_action">Frissítés</string>
     <string name="update_required_message">A TigerDuck ezen verziója már nem tud csatlakozni a szerverhez. Frissíts a legújabb verzióra a szinkronizálás folytatásához.</string>

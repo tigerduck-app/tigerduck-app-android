@@ -930,9 +930,9 @@
     <string name="update_action_later">Daha sonra</string>
     <string name="update_action_skip_version">Bu sürümü atla</string>
     <string name="update_action_update_now">Şimdi güncelle</string>
-    <string name="update_available_message">App Store\'da yeni bir sürüm (%1$@) mevcut. Şimdi güncellemek ister misiniz?</string>
+    <string name="update_available_message">Play Store\'da yeni bir sürüm mevcut. Şimdi güncellemek ister misiniz?</string>
     <string name="update_available_title">Güncelleme mevcut</string>
-    <string name="update_check_failed_message">App Store\'a ulaşılamadı. Lütfen daha sonra tekrar deneyin.</string>
+    <string name="update_check_failed_message">Play Store\'a ulaşılamadı. Lütfen daha sonra tekrar deneyin.</string>
     <string name="update_check_failed_title">Denetim başarısız</string>
     <string name="update_required_action">Güncelle</string>
     <string name="update_required_message">TigerDuck\'ın bu sürümü artık sunucuya bağlanamıyor. Eşitlemeye devam etmek için en son sürüme güncelleyin.</string>

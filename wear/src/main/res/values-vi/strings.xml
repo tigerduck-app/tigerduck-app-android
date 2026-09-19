@@ -930,9 +930,9 @@
     <string name="update_action_later">Để sau</string>
     <string name="update_action_skip_version">Bỏ qua phiên bản này</string>
     <string name="update_action_update_now">Cập nhật ngay</string>
-    <string name="update_available_message">Phiên bản mới (%1$@) đã có trên App Store. Bạn có muốn cập nhật ngay không?</string>
+    <string name="update_available_message">Phiên bản mới đã có trên Play Store. Bạn có muốn cập nhật ngay không?</string>
     <string name="update_available_title">Có bản cập nhật</string>
-    <string name="update_check_failed_message">Không thể kết nối App Store. Vui lòng thử lại sau.</string>
+    <string name="update_check_failed_message">Không thể kết nối Play Store. Vui lòng thử lại sau.</string>
     <string name="update_check_failed_title">Kiểm tra thất bại</string>
     <string name="update_required_action">Cập nhật</string>
     <string name="update_required_message">Phiên bản TigerDuck này không còn kết nối được với máy chủ. Hãy cập nhật lên phiên bản mới nhất để tiếp tục đồng bộ.</string>

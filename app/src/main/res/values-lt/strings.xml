@@ -930,9 +930,9 @@
     <string name="update_action_later">Vėliau</string>
     <string name="update_action_skip_version">Praleisti šią versiją</string>
     <string name="update_action_update_now">Atnaujinti dabar</string>
-    <string name="update_available_message">App Store pasiekiama nauja versija (%1$@). Ar norite atnaujinti dabar?</string>
+    <string name="update_available_message">Play Store pasiekiama nauja versija. Ar norite atnaujinti dabar?</string>
     <string name="update_available_title">Yra atnaujinimas</string>
-    <string name="update_check_failed_message">Nepavyko pasiekti App Store. Bandykite vėliau.</string>
+    <string name="update_check_failed_message">Nepavyko pasiekti Play Store. Bandykite vėliau.</string>
     <string name="update_check_failed_title">Patikrinimas nepavyko</string>
     <string name="update_required_action">Atnaujinti</string>
     <string name="update_required_message">Ši „TigerDuck“ versija nebegali prisijungti prie serverio. Atnaujinkite į naujausią versiją, kad sinchronizavimas tęstųsi.</string>

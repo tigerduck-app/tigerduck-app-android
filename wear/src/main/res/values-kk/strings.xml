@@ -930,9 +930,9 @@
     <string name="update_action_later">Кейінірек</string>
     <string name="update_action_skip_version">Бұл нұсқаны өткізіп жіберу</string>
     <string name="update_action_update_now">Қазір жаңарту</string>
-    <string name="update_available_message">App Store дүкенінде жаңа нұсқа (%1$@) қол жетімді. Қазір жаңартқыңыз келе ме?</string>
+    <string name="update_available_message">Play Store дүкенінде жаңа нұсқа қол жетімді. Қазір жаңартқыңыз келе ме?</string>
     <string name="update_available_title">Жаңарту қол жетімді</string>
-    <string name="update_check_failed_message">App Store дүкеніне қосылу мүмкін болмады. Кейінірек қайталаңыз.</string>
+    <string name="update_check_failed_message">Play Store дүкеніне қосылу мүмкін болмады. Кейінірек қайталаңыз.</string>
     <string name="update_check_failed_title">Тексеру сәтсіз аяқталды</string>
     <string name="update_required_action">Жаңарту</string>
     <string name="update_required_message">TigerDuck-тің бұл нұсқасы серверге қосыла алмайды. Синхрондауды жалғастыру үшін соңғы нұсқаға жаңартыңыз.</string>

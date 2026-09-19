@@ -930,9 +930,9 @@
     <string name="update_action_later">Senere</string>
     <string name="update_action_skip_version">Spring denne version over</string>
     <string name="update_action_update_now">Opdater nu</string>
-    <string name="update_available_message">En ny version (%1$@) er tilgængelig i App Store. Vil du opdatere nu?</string>
+    <string name="update_available_message">En ny version er tilgængelig i Play Store. Vil du opdatere nu?</string>
     <string name="update_available_title">Opdatering tilgængelig</string>
-    <string name="update_check_failed_message">Kunne ikke nå App Store. Prøv igen senere.</string>
+    <string name="update_check_failed_message">Kunne ikke nå Play Store. Prøv igen senere.</string>
     <string name="update_check_failed_title">Kontrol mislykkedes</string>
     <string name="update_required_action">Opdater</string>
     <string name="update_required_message">Denne version af TigerDuck kan ikke længere oprette forbindelse til serveren. Opdater til den nyeste version for at fortsætte synkroniseringen.</string>

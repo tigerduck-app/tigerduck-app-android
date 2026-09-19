@@ -930,9 +930,9 @@
     <string name="update_action_later">Αργότερα</string>
     <string name="update_action_skip_version">Παράλειψη αυτής της έκδοσης</string>
     <string name="update_action_update_now">Ενημέρωση τώρα</string>
-    <string name="update_available_message">Μια νέα έκδοση (%1$@) είναι διαθέσιμη στο App Store. Θέλετε να ενημερώσετε τώρα;</string>
+    <string name="update_available_message">Μια νέα έκδοση είναι διαθέσιμη στο Play Store. Θέλετε να ενημερώσετε τώρα;</string>
     <string name="update_available_title">Διαθέσιμη ενημέρωση</string>
-    <string name="update_check_failed_message">Δεν ήταν δυνατή η πρόσβαση στο App Store. Δοκιμάστε ξανά αργότερα.</string>
+    <string name="update_check_failed_message">Δεν ήταν δυνατή η πρόσβαση στο Play Store. Δοκιμάστε ξανά αργότερα.</string>
     <string name="update_check_failed_title">Αποτυχία ελέγχου</string>
     <string name="update_required_action">Ενημέρωση</string>
     <string name="update_required_message">Αυτή η έκδοση του TigerDuck δεν μπορεί πλέον να συνδεθεί στον διακομιστή. Ενημερώστε στην πιο πρόσφατη έκδοση για να συνεχίσετε τον συγχρονισμό.</string>

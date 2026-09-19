@@ -930,9 +930,9 @@
     <string name="update_action_later">稍後</string>
     <string name="update_action_skip_version">跳過此版本</string>
     <string name="update_action_update_now">立即更新</string>
-    <string name="update_available_message">App Store 上已有新版本 (%1$@)，要現在更新嗎？</string>
+    <string name="update_available_message">Play 商店上已有新版本，要現在更新嗎？</string>
     <string name="update_available_title">有可用更新</string>
-    <string name="update_check_failed_message">無法連線到 App Store，請稍後再試。</string>
+    <string name="update_check_failed_message">無法連線到 Play 商店，請稍後再試。</string>
     <string name="update_check_failed_title">檢查失敗</string>
     <string name="update_required_action">更新</string>
     <string name="update_required_message">此版本的 TigerDuck 已無法連線至伺服器。請更新至最新版本以繼續同步。</string>

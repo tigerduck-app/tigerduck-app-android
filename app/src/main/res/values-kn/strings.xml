@@ -930,9 +930,9 @@
     <string name="update_action_later">ನಂತರ</string>
     <string name="update_action_skip_version">ಈ ಆವೃತ್ತಿ ಬಿಟ್ಟುಬಿಡಿ</string>
     <string name="update_action_update_now">ಈಗ ಅಪ್‌ಡೇಟ್ ಮಾಡಿ</string>
-    <string name="update_available_message">App Store ನಲ್ಲಿ ಹೊಸ ಆವೃತ್ತಿ (%1$@) ಲಭ್ಯವಿದೆ. ಈಗ ಅಪ್‌ಡೇಟ್ ಮಾಡಲು ಬಯಸುವಿರಾ?</string>
+    <string name="update_available_message">Play Store ನಲ್ಲಿ ಹೊಸ ಆವೃತ್ತಿ ಲಭ್ಯವಿದೆ. ಈಗ ಅಪ್‌ಡೇಟ್ ಮಾಡಲು ಬಯಸುವಿರಾ?</string>
     <string name="update_available_title">ಅಪ್‌ಡೇಟ್ ಲಭ್ಯವಿದೆ</string>
-    <string name="update_check_failed_message">App Store ತಲುಪಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
+    <string name="update_check_failed_message">Play Store ತಲುಪಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.</string>
     <string name="update_check_failed_title">ಪರಿಶೀಲನೆ ವಿಫಲವಾಯಿತು</string>
     <string name="update_required_action">ಅಪ್‌ಡೇಟ್</string>
     <string name="update_required_message">TigerDuck ನ ಈ ಆವೃತ್ತಿಯು ಇನ್ನು ಮುಂದೆ ಸರ್ವರ್‌ಗೆ ಸಂಪರ್ಕಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ಸಿಂಕ್ ಮುಂದುವರಿಸಲು ಇತ್ತೀಚಿನ ಆವೃತ್ತಿಗೆ ಅಪ್‌ಡೇಟ್ ಮಾಡಿ.</string>

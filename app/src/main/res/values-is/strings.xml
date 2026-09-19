@@ -930,9 +930,9 @@
     <string name="update_action_later">Seinna</string>
     <string name="update_action_skip_version">Sleppa þessari útgáfu</string>
     <string name="update_action_update_now">Uppfæra núna</string>
-    <string name="update_available_message">Ný útgáfa (%1$@) er fáanleg í App Store. Viltu uppfæra núna?</string>
+    <string name="update_available_message">Ný útgáfa er fáanleg í Play Store. Viltu uppfæra núna?</string>
     <string name="update_available_title">Uppfærsla tiltæk</string>
-    <string name="update_check_failed_message">Náðist ekki í App Store. Reyndu aftur síðar.</string>
+    <string name="update_check_failed_message">Náðist ekki í Play Store. Reyndu aftur síðar.</string>
     <string name="update_check_failed_title">Athugun mistókst</string>
     <string name="update_required_action">Uppfæra</string>
     <string name="update_required_message">Þessi útgáfa af TigerDuck getur ekki lengur tengst netþjóninum. Uppfærðu í nýjustu útgáfuna til að halda samstillingu áfram.</string>

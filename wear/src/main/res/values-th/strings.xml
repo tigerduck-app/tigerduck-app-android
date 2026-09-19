@@ -930,9 +930,9 @@
     <string name="update_action_later">ภายหลัง</string>
     <string name="update_action_skip_version">ข้ามเวอร์ชันนี้</string>
     <string name="update_action_update_now">อัปเดตเดี๋ยวนี้</string>
-    <string name="update_available_message">มีเวอร์ชันใหม่ (%1$@) ใน App Store ต้องการอัปเดตตอนนี้ไหม?</string>
+    <string name="update_available_message">มีเวอร์ชันใหม่ใน Play Store ต้องการอัปเดตตอนนี้ไหม?</string>
     <string name="update_available_title">มีการอัปเดต</string>
-    <string name="update_check_failed_message">ไม่สามารถเข้าถึง App Store ได้ ลองอีกครั้งในภายหลัง</string>
+    <string name="update_check_failed_message">ไม่สามารถเข้าถึง Play Store ได้ ลองอีกครั้งในภายหลัง</string>
     <string name="update_check_failed_title">การตรวจสอบล้มเหลว</string>
     <string name="update_required_action">อัปเดต</string>
     <string name="update_required_message">TigerDuck เวอร์ชันนี้ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้อีกต่อไป อัปเดตเป็นเวอร์ชันล่าสุดเพื่อซิงค์ต่อ</string>

@@ -930,9 +930,9 @@
     <string name="update_action_later">Mamaya</string>
     <string name="update_action_skip_version">Laktawan ang bersyong ito</string>
     <string name="update_action_update_now">I-update ngayon</string>
-    <string name="update_available_message">May bagong bersyon (%1$@) na available sa App Store. Gusto mo bang mag-update ngayon?</string>
+    <string name="update_available_message">May bagong bersyon na available sa Play Store. Gusto mo bang mag-update ngayon?</string>
     <string name="update_available_title">May available na update</string>
-    <string name="update_check_failed_message">Hindi maabot ang App Store. Subukan muli mamaya.</string>
+    <string name="update_check_failed_message">Hindi maabot ang Play Store. Subukan muli mamaya.</string>
     <string name="update_check_failed_title">Nabigo ang pagsusuri</string>
     <string name="update_required_action">I-update</string>
     <string name="update_required_message">Hindi na makakonekta sa server ang bersyong ito ng TigerDuck. Mag-update sa pinakabagong bersyon para magpatuloy ang pag-sync.</string>

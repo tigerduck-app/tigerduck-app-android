@@ -930,9 +930,9 @@
     <string name="update_action_later">Nanti</string>
     <string name="update_action_skip_version">Lewati versi ini</string>
     <string name="update_action_update_now">Perbarui sekarang</string>
-    <string name="update_available_message">Versi baru (%1$@) tersedia di App Store. Ingin memperbarui sekarang?</string>
+    <string name="update_available_message">Versi baru tersedia di Play Store. Ingin memperbarui sekarang?</string>
     <string name="update_available_title">Pembaruan tersedia</string>
-    <string name="update_check_failed_message">Tidak dapat menjangkau App Store. Coba lagi nanti.</string>
+    <string name="update_check_failed_message">Tidak dapat menjangkau Play Store. Coba lagi nanti.</string>
     <string name="update_check_failed_title">Pemeriksaan gagal</string>
     <string name="update_required_action">Perbarui</string>
     <string name="update_required_message">Versi TigerDuck ini tidak dapat lagi terhubung ke server. Perbarui ke versi terbaru untuk melanjutkan sinkronisasi.</string>
