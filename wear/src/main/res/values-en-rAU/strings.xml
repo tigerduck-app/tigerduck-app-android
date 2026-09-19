@@ -690,7 +690,7 @@
     <string name="school_mail_view_plain">Plain text</string>
     <string name="school_mail_view_source">Source</string>
     <string name="school_mail_warning_attachment">These attachments could harm your device: %1$@</string>
-    <string name="school_mail_warning_display_name">The name shows a different address than the real sender</string>
+    <string name="school_mail_warning_display_name">The name shows a different address from the real sender</string>
     <string name="school_mail_warning_external">This sender isn\'t a school address</string>
     <string name="school_mail_warning_password">The school never asks for your password by email.</string>
     <string name="score_academic_year_semester">Academic Year %1$s %2$s</string>
