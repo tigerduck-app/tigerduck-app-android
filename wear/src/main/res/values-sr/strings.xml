@@ -38,7 +38,7 @@
     <string name="add_course_example">Пример: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">Нису пронађени одговарајући курсеви</string>
     <string name="add_course_placeholder">Унесите шифру курса, назив или предавача</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d ЕСПБ бодова</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s ЕСПБ бодова</string>
     <string name="add_course_search_failed">Претрага није успела: %1$s</string>
     <string name="add_course_searching">Претраживање…</string>
     <string name="add_course_title">Додај курс</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Ресетуј распоред %1$s</string>
     <string name="class_table_semester_picker_label">Семестар</string>
     <string name="class_table_sign_in_required_message">Пријавите се да бисте видели свој распоред часова</string>
-    <string name="class_table_total_credits_value">%1$d ЕСПБ бодова</string>
+    <string name="class_table_total_credits_value">%1$s ЕСПБ бодова</string>
     <string name="cloud_sync_assignments">Задаци</string>
     <string name="cloud_sync_class_table">Распоред часова</string>
     <string name="cloud_sync_class_table_footer">Изаберите које податке распореда да синхронизујете између уређаја.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Прилагођено</string>
     <string name="course_color_picker_custom_label">Прилагођена боја</string>
     <string name="course_color_picker_title">Уреди боју</string>
-    <string name="course_credits_value">ЕСПБ бодови: %1$d</string>
+    <string name="course_credits_value">ЕСПБ бодови: %1$s</string>
     <string name="course_detail_classroom_label">Учионица</string>
+    <string name="course_detail_code_copied">Код копиран</string>
     <string name="course_detail_code_label">Шифра</string>
+    <string name="course_detail_copy_code">Копирај код</string>
     <string name="course_detail_credits_label">ЕСПБ бодови</string>
+    <string name="course_detail_dimension_label">Димензија</string>
     <string name="course_detail_due_prefix">Рок: %1$s</string>
+    <string name="course_detail_duration_full_year">Цела година</string>
+    <string name="course_detail_duration_label">Трајање</string>
+    <string name="course_detail_duration_one_semester">Један семестар</string>
     <string name="course_detail_enrollment_label">Број уписаних</string>
     <string name="course_detail_incomplete_assignments">Недовршени задаци</string>
     <string name="course_detail_instructor_label">Предавач</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R преузима најновију листу курсева са NTUST портала.</string>
     <string name="desktop_class_table_empty_title">Нема курсева у овом семестру</string>
     <string name="desktop_class_table_loading_value">Учитавање %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курсева · %3$d ЕСПБ бодова</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курсева · %3$s ЕСПБ бодова</string>
     <string name="desktop_home_section_upcoming_assignments">Предстојећи задаци</string>
     <string name="desktop_more_not_implemented">Још није имплементирано</string>
     <string name="desktop_more_subtitle">Прегледајте све функције које TigerDuck нуди на Mac-у. Закачите оне које највише користите да би се приказале на бочној траци.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Чекање да систем додели token</string>
     <string name="refreshing_message">Освежавање… причекајте</string>
     <string name="score_academic_year_semester">Академска година %1$s %2$s</string>
-    <string name="score_course_credits">%1$d ЕСПБ бодова</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d ЕСПБ</string>
+    <string name="score_course_credits">%1$s ЕСПБ бодова</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s ЕСПБ</string>
     <string name="score_course_detail_enrollment_label">Упис</string>
     <string name="score_course_detail_schedule_label">Распоред наставе</string>
     <string name="score_credit_earned">Остварено</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Ранг %1$s(%2$s)</string>
     <string name="score_semester_second">Летњи семестар</string>
     <string name="score_semester_second_short">Лето</string>
-    <string name="score_semester_total_credits">%1$d ЕСПБ бодова</string>
+    <string name="score_semester_total_credits">%1$s ЕСПБ бодова</string>
     <string name="score_semester_upper">Јесењи</string>
     <string name="score_sign_in_required_message">Пријавите се да видите историју оцена</string>
     <string name="score_term_format">Тренутни семестар: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Примање додатних обавештења са сервера</string>
     <string name="settings_server_push_update_failed">Сервер није прихватио промену. Покушајте поново касније.</string>
     <string name="settings_show_absolute_assignment_time">Прикажи пун датум за рок задатка</string>
+    <string name="settings_show_classroom_on_class_table">Прикажи учионице у распореду</string>
     <string name="settings_sync_brief_description">TigerSync омогућава синхронизацију изабраних информација на свим уређајима. Неактивиране информације остају само на овом уређају.</string>
     <string name="settings_sync_disabled_note">Када је синхронизација искључена, сви подаци остају само на овом уређају.</string>
     <string name="settings_sync_status_off">Искључено</string>

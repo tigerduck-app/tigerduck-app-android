@@ -38,7 +38,7 @@
     <string name="add_course_example">לדוגמה: EC1013701, חשבון אינפיניטסימלי, ג\'ון וואנג</string>
     <string name="add_course_not_found">לא נמצאו קורסים תואמים</string>
     <string name="add_course_placeholder">הזן קוד קורס, שם או מרצה</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d נקודות זכות</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s נקודות זכות</string>
     <string name="add_course_search_failed">החיפוש נכשל: %1$s</string>
     <string name="add_course_searching">מחפש…</string>
     <string name="add_course_title">הוסף קורס</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">איפוס מערכת השעות של %1$s</string>
     <string name="class_table_semester_picker_label">שנת הלימודים</string>
     <string name="class_table_sign_in_required_message">היכנס כדי להציג את טבלת הכיתה שלך</string>
-    <string name="class_table_total_credits_value">%1$d נקודות זכות</string>
+    <string name="class_table_total_credits_value">%1$s נקודות זכות</string>
     <string name="cloud_sync_assignments">מטלות</string>
     <string name="cloud_sync_class_table">מערכת שעות</string>
     <string name="cloud_sync_class_table_footer">בחרו אילו נתוני מערכת שעות לסנכרן בין מכשירים.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">מותאם אישית</string>
     <string name="course_color_picker_custom_label">צבע מותאם אישית</string>
     <string name="course_color_picker_title">ערוך צבע</string>
-    <string name="course_credits_value">נקודות זכות: %1$d</string>
+    <string name="course_credits_value">נקודות זכות: %1$s</string>
     <string name="course_detail_classroom_label">כיתה</string>
+    <string name="course_detail_code_copied">הקוד הועתק</string>
     <string name="course_detail_code_label">קוד</string>
+    <string name="course_detail_copy_code">העתקת הקוד</string>
     <string name="course_detail_credits_label">קרדיטים</string>
+    <string name="course_detail_dimension_label">מימד</string>
     <string name="course_detail_due_prefix">תוקף: %1$s</string>
+    <string name="course_detail_duration_full_year">שנה שלמה</string>
+    <string name="course_detail_duration_label">משך</string>
+    <string name="course_detail_duration_one_semester">סמסטר אחד</string>
     <string name="course_detail_enrollment_label">הצטרפות</string>
     <string name="course_detail_incomplete_assignments">משימות שלא הושלמו</string>
     <string name="course_detail_instructor_label">מנחה</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">‎⌘R מושך את רשימת הקורסים העדכנית מפורטל NTUST.</string>
     <string name="desktop_class_table_empty_title">אין קורסים בסמסטר זה</string>
     <string name="desktop_class_table_loading_value">טוען את %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d קורסים · %3$d נקודות זכות</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d קורסים · %3$s נקודות זכות</string>
     <string name="desktop_home_section_upcoming_assignments">מטלות קרובות</string>
     <string name="desktop_more_not_implemented">טרם הוטמע</string>
     <string name="desktop_more_subtitle">עיין בכל התכונות של TigerDuck ב-Mac. הצמד את האהובות עליך לסרגל הצד.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">ממתין שהמערכת תקצה token</string>
     <string name="refreshing_message">מרענן… רגע</string>
     <string name="score_academic_year_semester">שנת לימודים %1$s %2$s</string>
-    <string name="score_course_credits">%1$d נקודות זכות</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d נקודות זכות</string>
+    <string name="score_course_credits">%1$s נקודות זכות</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s נקודות זכות</string>
     <string name="score_course_detail_enrollment_label">הצטרפות</string>
     <string name="score_course_detail_schedule_label">לוח זמנים של כיתה</string>
     <string name="score_credit_earned">נצברו</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">דירוג %1$s(%2$s)</string>
     <string name="score_semester_second">סמסטר אביב</string>
     <string name="score_semester_second_short">אביב</string>
-    <string name="score_semester_total_credits">%1$d נקודות זכות</string>
+    <string name="score_semester_total_credits">%1$s נקודות זכות</string>
     <string name="score_semester_upper">סתיו</string>
     <string name="score_sign_in_required_message">היכנס כדי להציג את היסטוריית הציונים שלך</string>
     <string name="score_term_format">סמסטר נוכחי: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">קבלת התראות נוספות מהשרת</string>
     <string name="settings_server_push_update_failed">השרת לא קיבל את השינוי. נסה שוב מאוחר יותר.</string>
     <string name="settings_show_absolute_assignment_time">הצג תאריך מלא לתאריך הגשת מטלה</string>
+    <string name="settings_show_classroom_on_class_table">הצגת כיתות בלוח השיעורים</string>
     <string name="settings_sync_brief_description">TigerSync מאפשר לך לסנכרן מידע נבחר בין כל המכשירים שלך. מידע שלא הופעל לסנכרון נשאר במכשיר זה בלבד.</string>
     <string name="settings_sync_disabled_note">כאשר הסנכרון כבוי, כל הנתונים נשארים במכשיר זה בלבד.</string>
     <string name="settings_sync_status_off">כבוי</string>

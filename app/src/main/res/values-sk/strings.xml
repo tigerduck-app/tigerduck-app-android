@@ -38,7 +38,7 @@
     <string name="add_course_example">Príklad: EC1013701, Kalkulus, Ján Kováč</string>
     <string name="add_course_not_found">Nenašli sa žiadne zodpovedajúce kurzy</string>
     <string name="add_course_placeholder">Zadajte kód kurzu, názov alebo vyučujúceho</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d kreditov</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s kreditov</string>
     <string name="add_course_search_failed">Vyhľadávanie zlyhalo: %1$s</string>
     <string name="add_course_searching">Vyhľadávanie…</string>
     <string name="add_course_title">Pridať kurz</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Obnoviť rozvrh %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Prihláste sa na zobrazenie rozvrhu</string>
-    <string name="class_table_total_credits_value">%1$d kreditov</string>
+    <string name="class_table_total_credits_value">%1$s kreditov</string>
     <string name="cloud_sync_assignments">Úlohy</string>
     <string name="cloud_sync_class_table">Rozvrh</string>
     <string name="cloud_sync_class_table_footer">Vyberte, ktoré údaje rozvrhu sa majú synchronizovať medzi zariadeniami.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Vlastné</string>
     <string name="course_color_picker_custom_label">Vlastná farba</string>
     <string name="course_color_picker_title">Upraviť farbu</string>
-    <string name="course_credits_value">Kredity: %1$d</string>
+    <string name="course_credits_value">Kredity: %1$s</string>
     <string name="course_detail_classroom_label">Učebňa</string>
+    <string name="course_detail_code_copied">Kód skopírovaný</string>
     <string name="course_detail_code_label">Kód</string>
+    <string name="course_detail_copy_code">Kopírovať kód</string>
     <string name="course_detail_credits_label">Kredity</string>
+    <string name="course_detail_dimension_label">Dimenzia</string>
     <string name="course_detail_due_prefix">Termín: %1$s</string>
+    <string name="course_detail_duration_full_year">Celý rok</string>
+    <string name="course_detail_duration_label">Trvanie</string>
+    <string name="course_detail_duration_one_semester">Jeden semester</string>
     <string name="course_detail_enrollment_label">Zápis</string>
     <string name="course_detail_incomplete_assignments">Nedokončené úlohy</string>
     <string name="course_detail_instructor_label">Vyučujúci</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R načíta najnovší zoznam predmetov z portálu NTUST.</string>
     <string name="desktop_class_table_empty_title">V tomto semestri nie sú žiadne predmety</string>
     <string name="desktop_class_table_loading_value">Načítavanie %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d predmetov · %3$d kreditov</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d predmetov · %3$s kreditov</string>
     <string name="desktop_home_section_upcoming_assignments">Nadchádzajúce úlohy</string>
     <string name="desktop_more_not_implemented">Zatiaľ neimplementované</string>
     <string name="desktop_more_subtitle">Prezrite si všetky funkcie, ktoré TigerDuck ponúka na Macu. Pripnite tie najpoužívanejšie, aby sa zobrazovali na bočnom paneli.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Čakanie, kým systém priradí token</string>
     <string name="refreshing_message">Obnovuje sa… chvíľku počkajte</string>
     <string name="score_academic_year_semester">Akademický rok %1$s %2$s</string>
-    <string name="score_course_credits">%1$d kreditov</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d kreditov</string>
+    <string name="score_course_credits">%1$s kreditov</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s kreditov</string>
     <string name="score_course_detail_enrollment_label">Zápis</string>
     <string name="score_course_detail_schedule_label">Rozvrh hodín</string>
     <string name="score_credit_earned">Získané</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Poradie %1$s(%2$s)</string>
     <string name="score_semester_second">Letný semester</string>
     <string name="score_semester_second_short">Leto</string>
-    <string name="score_semester_total_credits">%1$d kreditov</string>
+    <string name="score_semester_total_credits">%1$s kreditov</string>
     <string name="score_semester_upper">Jeseň</string>
     <string name="score_sign_in_required_message">Prihláste sa a zobrazte históriu známok</string>
     <string name="score_term_format">Aktuálny semester: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Prijímať ďalšie oznámenia zo servera</string>
     <string name="settings_server_push_update_failed">Server zmenu neprijal. Skúste to znova neskôr.</string>
     <string name="settings_show_absolute_assignment_time">Zobraziť úplný dátum termínu úlohy</string>
+    <string name="settings_show_classroom_on_class_table">Zobrazovať učebne v rozvrhu</string>
     <string name="settings_sync_brief_description">TigerSync umožňuje synchronizovať vybrané informácie na všetkých zariadeniach. Neaktivované informácie zostávajú iba na tomto zariadení.</string>
     <string name="settings_sync_disabled_note">Keď je synchronizácia vypnutá, všetky údaje zostávajú iba na tomto zariadení.</string>
     <string name="settings_sync_status_off">Vypnuté</string>

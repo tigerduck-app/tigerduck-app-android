@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.util.formatCredits
 
 @Composable
 internal fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {
@@ -34,7 +35,7 @@ internal fun CourseDetailDialog(course: CourseGrade, onDismiss: () -> Unit) {
             ) {
                 InfoLine(stringResource(R.string.score_info_course_code), course.code)
                 InfoLine(stringResource(R.string.score_info_term), displayTerm(course.term))
-                InfoLine(stringResource(R.string.score_info_credits), "${course.credits ?: 0}")
+                InfoLine(stringResource(R.string.score_info_credits), (course.credits ?: 0f).formatCredits())
                 creditTypeLabel(course.creditType)?.let {
                     InfoLine(
                         stringResource(R.string.score_info_credit_type),

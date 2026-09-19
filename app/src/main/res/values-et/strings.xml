@@ -38,7 +38,7 @@
     <string name="add_course_example">Näide: EC1013701, Calculus, John Wang</string>
     <string name="add_course_not_found">Sobivaid kursusi ei leitud</string>
     <string name="add_course_placeholder">Sisestage kursuse kood, nimi või õpetaja</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d ainepunkti</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s ainepunkti</string>
     <string name="add_course_search_failed">Otsing ebaõnnestus: %1$s</string>
     <string name="add_course_searching">Otsin…</string>
     <string name="add_course_title">Lisa kursus</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Lähtesta %1$s tunniplaan</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Oma klassitabeli vaatamiseks logige sisse</string>
-    <string name="class_table_total_credits_value">%1$d ainepunkti</string>
+    <string name="class_table_total_credits_value">%1$s ainepunkti</string>
     <string name="cloud_sync_assignments">Ülesanded</string>
     <string name="cloud_sync_class_table">Tunniplaan</string>
     <string name="cloud_sync_class_table_footer">Vali, milliseid tunniplaani andmeid seadmete vahel sünkroonida.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Kohandatud</string>
     <string name="course_color_picker_custom_label">Kohandatud värv</string>
     <string name="course_color_picker_title">Muuda värvi</string>
-    <string name="course_credits_value">Ainepunktid: %1$d</string>
+    <string name="course_credits_value">Ainepunktid: %1$s</string>
     <string name="course_detail_classroom_label">Klassiruum</string>
+    <string name="course_detail_code_copied">Kood kopeeritud</string>
     <string name="course_detail_code_label">Kood</string>
+    <string name="course_detail_copy_code">Kopeeri kood</string>
     <string name="course_detail_credits_label">Krediidid</string>
+    <string name="course_detail_dimension_label">Mõõde</string>
     <string name="course_detail_due_prefix">Tähtaeg: %1$s</string>
+    <string name="course_detail_duration_full_year">Terve aasta</string>
+    <string name="course_detail_duration_label">Kestus</string>
+    <string name="course_detail_duration_one_semester">Üks semester</string>
     <string name="course_detail_enrollment_label">Registreerimine</string>
     <string name="course_detail_incomplete_assignments">Mittetäielikud ülesanded</string>
     <string name="course_detail_instructor_label">Juhendaja</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R toob NTUST portaalist uusima kursuste loendi.</string>
     <string name="desktop_class_table_empty_title">Sellel semestril kursusi pole</string>
     <string name="desktop_class_table_loading_value">Laadin %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursust · %3$d ainepunkti</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kursust · %3$s ainepunkti</string>
     <string name="desktop_home_section_upcoming_assignments">Eelseisvad ülesanded</string>
     <string name="desktop_more_not_implemented">Pole veel teostatud</string>
     <string name="desktop_more_subtitle">Sirvi kõiki TigerDucki funktsioone Maci rakenduses. Kinnita enim kasutatavad, et need kuvataks külgribal.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Ootab, kuni süsteem määrab tokeni</string>
     <string name="refreshing_message">Värskendamine… palun oodake</string>
     <string name="score_academic_year_semester">Õppeaasta %1$s %2$s</string>
-    <string name="score_course_credits">%1$d ainepunkti</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d AP</string>
+    <string name="score_course_credits">%1$s ainepunkti</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s AP</string>
     <string name="score_course_detail_enrollment_label">Registreerimine</string>
     <string name="score_course_detail_schedule_label">Tunniplaan</string>
     <string name="score_credit_earned">Teenitud</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Koht %1$s(%2$s)</string>
     <string name="score_semester_second">Kevadsemester</string>
     <string name="score_semester_second_short">Kevad</string>
-    <string name="score_semester_total_credits">%1$d ainepunkti</string>
+    <string name="score_semester_total_credits">%1$s ainepunkti</string>
     <string name="score_semester_upper">Sügis</string>
     <string name="score_sign_in_required_message">Hinnete ajaloo vaatamiseks logige sisse</string>
     <string name="score_term_format">Praegune semester: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Võta vastu täiendavaid serveriteateid</string>
     <string name="settings_server_push_update_failed">Server ei nõustunud muudatusega. Proovi hiljem uuesti.</string>
     <string name="settings_show_absolute_assignment_time">Kuva ülesande tähtajana täielik kuupäev</string>
+    <string name="settings_show_classroom_on_class_table">Näita tunniplaanis ruume</string>
     <string name="settings_sync_brief_description">TigerSync võimaldab sünkroonida valitud teavet kõigi seadmete vahel. Sünkroonimata teave jääb ainult sellesse seadmesse.</string>
     <string name="settings_sync_disabled_note">Kui sünkroonimine on välja lülitatud, jäävad kõik andmed ainult sellesse seadmesse.</string>
     <string name="settings_sync_status_off">Väljas</string>

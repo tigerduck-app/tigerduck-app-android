@@ -38,7 +38,7 @@
     <string name="add_course_example">Eksempel: EC1013701, Kalkulus, John Wang</string>
     <string name="add_course_not_found">Ingen samsvarende fag funnet</string>
     <string name="add_course_placeholder">Skriv inn fagkode, navn eller faglærer</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d studiepoeng</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s studiepoeng</string>
     <string name="add_course_search_failed">Søk mislyktes: %1$s</string>
     <string name="add_course_searching">Søker…</string>
     <string name="add_course_title">Legg til fag</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Tilbakestill timeplan for %1$s</string>
     <string name="class_table_semester_picker_label">Semester</string>
     <string name="class_table_sign_in_required_message">Logg inn for å se timeplanen din</string>
-    <string name="class_table_total_credits_value">%1$d studiepoeng</string>
+    <string name="class_table_total_credits_value">%1$s studiepoeng</string>
     <string name="cloud_sync_assignments">Oppgaver</string>
     <string name="cloud_sync_class_table">Timeplan</string>
     <string name="cloud_sync_class_table_footer">Velg hvilke timeplandata som skal synkroniseres mellom enheter.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Egendefinert</string>
     <string name="course_color_picker_custom_label">Egendefinert farge</string>
     <string name="course_color_picker_title">Rediger farge</string>
-    <string name="course_credits_value">Studiepoeng: %1$d</string>
+    <string name="course_credits_value">Studiepoeng: %1$s</string>
     <string name="course_detail_classroom_label">Klasserom</string>
+    <string name="course_detail_code_copied">Koden er kopiert</string>
     <string name="course_detail_code_label">Fagkode</string>
+    <string name="course_detail_copy_code">Kopier kode</string>
     <string name="course_detail_credits_label">Studiepoeng</string>
+    <string name="course_detail_dimension_label">Dimensjon</string>
     <string name="course_detail_due_prefix">Frist: %1$s</string>
+    <string name="course_detail_duration_full_year">Helt år</string>
+    <string name="course_detail_duration_label">Varighet</string>
+    <string name="course_detail_duration_one_semester">Ett semester</string>
     <string name="course_detail_enrollment_label">Påmelding</string>
     <string name="course_detail_incomplete_assignments">Ufullførte oppgaver</string>
     <string name="course_detail_instructor_label">Foreleser</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R henter nyeste kursliste fra NTUST-portalen.</string>
     <string name="desktop_class_table_empty_title">Ingen kurs dette semesteret</string>
     <string name="desktop_class_table_loading_value">Laster %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurs · %3$d studiepoeng</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kurs · %3$s studiepoeng</string>
     <string name="desktop_home_section_upcoming_assignments">Kommende oppgaver</string>
     <string name="desktop_more_not_implemented">Ikke implementert ennå</string>
     <string name="desktop_more_subtitle">Se alle TigerDuck-funksjoner på Mac. Fest de du bruker mest i sidefeltet.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Venter på at systemet skal tildele en token</string>
     <string name="refreshing_message">Oppdaterer… vent litt</string>
     <string name="score_academic_year_semester">Studieår %1$s %2$s</string>
-    <string name="score_course_credits">%1$d studiepoeng</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d studiepoeng</string>
+    <string name="score_course_credits">%1$s studiepoeng</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s studiepoeng</string>
     <string name="score_course_detail_enrollment_label">Påmelding</string>
     <string name="score_course_detail_schedule_label">Timeplan</string>
     <string name="score_credit_earned">Oppnådd</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Rangering %1$s(%2$s)</string>
     <string name="score_semester_second">Vårsemester</string>
     <string name="score_semester_second_short">Vår</string>
-    <string name="score_semester_total_credits">%1$d studiepoeng</string>
+    <string name="score_semester_total_credits">%1$s studiepoeng</string>
     <string name="score_semester_upper">Høst</string>
     <string name="score_sign_in_required_message">Logg inn for å se karakterhistorikken din</string>
     <string name="score_term_format">Gjeldende semester: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Motta flere servervarsler</string>
     <string name="settings_server_push_update_failed">Serveren godtok ikke endringen. Prøv igjen senere.</string>
     <string name="settings_show_absolute_assignment_time">Vis full dato for oppgavefristens tid</string>
+    <string name="settings_show_classroom_on_class_table">Vis rom i timeplanen</string>
     <string name="settings_sync_brief_description">TigerSync lar deg synkronisere valgt informasjon på alle enheter. Informasjon uten synkronisering forblir kun på denne enheten.</string>
     <string name="settings_sync_disabled_note">Når synkronisering er av, forblir alle data kun på denne enheten.</string>
     <string name="settings_sync_status_off">Av</string>

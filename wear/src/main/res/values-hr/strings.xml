@@ -38,7 +38,7 @@
     <string name="add_course_example">Primjer: EC1013701, Matematička analiza, Ivan Horvat</string>
     <string name="add_course_not_found">Nema pronađenih kolegija</string>
     <string name="add_course_placeholder">Unesite šifru kolegija, naziv ili nastavnika</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d ECTS bodovi</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s ECTS bodovi</string>
     <string name="add_course_search_failed">Pretraga nije uspjela: %1$s</string>
     <string name="add_course_searching">Pretraživanje…</string>
     <string name="add_course_title">Dodaj kolegij</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Poništi raspored %1$s</string>
     <string name="class_table_semester_picker_label">Semestar</string>
     <string name="class_table_sign_in_required_message">Prijavite se za pregled rasporeda nastave</string>
-    <string name="class_table_total_credits_value">%1$d ECTS bodovi</string>
+    <string name="class_table_total_credits_value">%1$s ECTS bodovi</string>
     <string name="cloud_sync_assignments">Zadaci</string>
     <string name="cloud_sync_class_table">Raspored sati</string>
     <string name="cloud_sync_class_table_footer">Odaberite koje podatke rasporeda želite sinkronizirati između uređaja.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Prilagođeno</string>
     <string name="course_color_picker_custom_label">Prilagođena boja</string>
     <string name="course_color_picker_title">Uredi boju</string>
-    <string name="course_credits_value">ECTS bodovi: %1$d</string>
+    <string name="course_credits_value">ECTS bodovi: %1$s</string>
     <string name="course_detail_classroom_label">Učionica</string>
+    <string name="course_detail_code_copied">Kôd kopiran</string>
     <string name="course_detail_code_label">Šifra</string>
+    <string name="course_detail_copy_code">Kopiraj kôd</string>
     <string name="course_detail_credits_label">ECTS bodovi</string>
+    <string name="course_detail_dimension_label">Dimenzija</string>
     <string name="course_detail_due_prefix">Rok: %1$s</string>
+    <string name="course_detail_duration_full_year">Cijela godina</string>
+    <string name="course_detail_duration_label">Trajanje</string>
+    <string name="course_detail_duration_one_semester">Jedan semestar</string>
     <string name="course_detail_enrollment_label">Broj upisanih</string>
     <string name="course_detail_incomplete_assignments">Nedovršeni zadaci</string>
     <string name="course_detail_instructor_label">Nastavnik</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R dohvaća najnoviji popis kolegija s NTUST portala.</string>
     <string name="desktop_class_table_empty_title">Nema kolegija u ovom semestru</string>
     <string name="desktop_class_table_loading_value">Učitavanje %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kolegija · %3$d ECTS bodova</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d kolegija · %3$s ECTS bodova</string>
     <string name="desktop_home_section_upcoming_assignments">Nadolazeći zadaci</string>
     <string name="desktop_more_not_implemented">Još nije implementirano</string>
     <string name="desktop_more_subtitle">Pregledajte sve značajke koje TigerDuck nudi na Macu. Prikvačite one koje najčešće koristite kako bi se prikazale na bočnoj traci.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Čeka da sustav dodijeli token</string>
     <string name="refreshing_message">Osvježavanje… pričekajte</string>
     <string name="score_academic_year_semester">Akademska godina %1$s %2$s</string>
-    <string name="score_course_credits">%1$d ECTS bodovi</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d ECTS bodova</string>
+    <string name="score_course_credits">%1$s ECTS bodovi</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s ECTS bodova</string>
     <string name="score_course_detail_enrollment_label">Upis</string>
     <string name="score_course_detail_schedule_label">Raspored nastave</string>
     <string name="score_credit_earned">Stečeni</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Poredak %1$s(%2$s)</string>
     <string name="score_semester_second">Proljetni semestar</string>
     <string name="score_semester_second_short">Proljeće</string>
-    <string name="score_semester_total_credits">%1$d ECTS bodovi</string>
+    <string name="score_semester_total_credits">%1$s ECTS bodovi</string>
     <string name="score_semester_upper">Jesen</string>
     <string name="score_sign_in_required_message">Prijavite se za pregled povijesti ocjena</string>
     <string name="score_term_format">Trenutni semestar: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Primaj dodatne obavijesti poslužitelja</string>
     <string name="settings_server_push_update_failed">Poslužitelj nije prihvatio promjenu. Pokušajte ponovno kasnije.</string>
     <string name="settings_show_absolute_assignment_time">Prikaži puni datum za rok predaje zadatka</string>
+    <string name="settings_show_classroom_on_class_table">Prikaži učionice u rasporedu</string>
     <string name="settings_sync_brief_description">TigerSync omogućuje sinkronizaciju odabranih podataka na svim uređajima. Podaci bez sinkronizacije ostaju samo na ovom uređaju.</string>
     <string name="settings_sync_disabled_note">Kad je sinkronizacija isključena, svi podaci ostaju samo na ovom uređaju.</string>
     <string name="settings_sync_status_off">Isključeno</string>

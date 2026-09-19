@@ -159,7 +159,16 @@ class WearScheduleBridge @Inject constructor(
         val courseNo: String,
         val courseName: String,
         val instructor: String,
+        /**
+         * Whole credits, truncated. Retained for watches that predate
+         * [creditsExact]: their Gson reads this key through `nextInt()`,
+         * which throws on a fractional value, and `SchedulePersistence`
+         * catches that into an empty schedule — the watch would drop every
+         * course rather than one number. New watches ignore it.
+         */
         val credits: Int,
+        /** The real, possibly fractional count. Absent from an older phone. */
+        val creditsExact: Float? = null,
         val classroom: String,
         val scheduleJson: String,
         val classroomMapJson: String = "{}",
@@ -178,7 +187,8 @@ internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBrid
     courseNo = courseNo,
     courseName = displayName,
     instructor = instructor,
-    credits = credits,
+    credits = credits.toInt(),
+    creditsExact = credits,
     classroom = classroom,
     scheduleJson = scheduleJson,
     classroomMapJson = classroomMapJson ?: "{}",

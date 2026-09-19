@@ -17,7 +17,7 @@ class CourseUploadPayloadTest {
         courseNo = courseNo,
         courseName = courseName,
         instructor = "Ada, Grace、Alan",
-        credits = 3,
+        credits = 3f,
         classroom = "T3-101",
         scheduleJson = """{"1":["3","4"]}""",
         classroomMapJson = """{"1-3":"T3-101"}""",

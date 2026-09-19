@@ -54,6 +54,7 @@ import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.util.formatCredits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -246,7 +247,7 @@ private fun CreditSummaryCard(summary: CreditSummary) {
     }
 }
 @Composable
-private fun CreditStat(label: String, value: Int, modifier: Modifier = Modifier) {
+private fun CreditStat(label: String, value: Float, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(14.dp))
@@ -255,7 +256,7 @@ private fun CreditStat(label: String, value: Int, modifier: Modifier = Modifier)
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = value.toString(),
+            text = value.formatCredits(),
             style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
             color = MaterialTheme.colorScheme.primary
         )

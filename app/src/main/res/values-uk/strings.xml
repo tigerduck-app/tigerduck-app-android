@@ -38,7 +38,7 @@
     <string name="add_course_example">Приклад: EC1013701, Математичний аналіз, Іван Петров</string>
     <string name="add_course_not_found">Відповідних курсів не знайдено</string>
     <string name="add_course_placeholder">Введіть код курсу, назву або викладача</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d кредитів</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s кредитів</string>
     <string name="add_course_search_failed">Помилка пошуку: %1$s</string>
     <string name="add_course_searching">Пошук…</string>
     <string name="add_course_title">Додати курс</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">Скинути розклад %1$s</string>
     <string name="class_table_semester_picker_label">Семестр</string>
     <string name="class_table_sign_in_required_message">Увійдіть, щоб переглянути розклад занять</string>
-    <string name="class_table_total_credits_value">%1$d кредитів</string>
+    <string name="class_table_total_credits_value">%1$s кредитів</string>
     <string name="cloud_sync_assignments">Завдання</string>
     <string name="cloud_sync_class_table">Розклад</string>
     <string name="cloud_sync_class_table_footer">Виберіть, які дані розкладу синхронізувати між пристроями.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">Власний</string>
     <string name="course_color_picker_custom_label">Власний колір</string>
     <string name="course_color_picker_title">Змінити колір</string>
-    <string name="course_credits_value">Кредити: %1$d</string>
+    <string name="course_credits_value">Кредити: %1$s</string>
     <string name="course_detail_classroom_label">Аудиторія</string>
+    <string name="course_detail_code_copied">Код скопійовано</string>
     <string name="course_detail_code_label">Код</string>
+    <string name="course_detail_copy_code">Скопіювати код</string>
     <string name="course_detail_credits_label">Кредити</string>
+    <string name="course_detail_dimension_label">Напрям</string>
     <string name="course_detail_due_prefix">Термін: %1$s</string>
+    <string name="course_detail_duration_full_year">Весь рік</string>
+    <string name="course_detail_duration_label">Тривалість</string>
+    <string name="course_detail_duration_one_semester">Один семестр</string>
     <string name="course_detail_enrollment_label">Зарахування</string>
     <string name="course_detail_incomplete_assignments">Незавершені завдання</string>
     <string name="course_detail_instructor_label">Викладач</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R отримує найновіший розклад з порталу NTUST.</string>
     <string name="desktop_class_table_empty_title">Цього семестру курсів немає</string>
     <string name="desktop_class_table_loading_value">Завантаження %1$s…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курсів · %3$d кредитів</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d курсів · %3$s кредитів</string>
     <string name="desktop_home_section_upcoming_assignments">Майбутні завдання</string>
     <string name="desktop_more_not_implemented">Ще не реалізовано</string>
     <string name="desktop_more_subtitle">Перегляньте всі можливості TigerDuck на Mac. Закріпіть ті, що використовуєте найчастіше, на бічній панелі.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">Очікування призначення token системою</string>
     <string name="refreshing_message">Оновлення… зачекайте</string>
     <string name="score_academic_year_semester">%1$s навчальний рік %2$s</string>
-    <string name="score_course_credits">%1$d кредитів</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d кредитів</string>
+    <string name="score_course_credits">%1$s кредитів</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s кредитів</string>
     <string name="score_course_detail_enrollment_label">Зарахування</string>
     <string name="score_course_detail_schedule_label">Розклад занять</string>
     <string name="score_credit_earned">Здобуто</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">Місце %1$s(%2$s)</string>
     <string name="score_semester_second">Весняний семестр</string>
     <string name="score_semester_second_short">Весна</string>
-    <string name="score_semester_total_credits">%1$d кредитів</string>
+    <string name="score_semester_total_credits">%1$s кредитів</string>
     <string name="score_semester_upper">Осінь</string>
     <string name="score_sign_in_required_message">Увійдіть, щоб переглянути історію оцінок</string>
     <string name="score_term_format">Поточний семестр: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">Отримувати додаткові сповіщення сервера</string>
     <string name="settings_server_push_update_failed">Сервер не прийняв цю зміну. Спробуйте пізніше.</string>
     <string name="settings_show_absolute_assignment_time">Показувати повну дату для дедлайну завдання</string>
+    <string name="settings_show_classroom_on_class_table">Показувати аудиторії в розкладі</string>
     <string name="settings_sync_brief_description">TigerSync дозволяє синхронізувати обрану інформацію на всіх пристроях. Інформація без синхронізації залишається лише на цьому пристрої.</string>
     <string name="settings_sync_disabled_note">Коли синхронізацію вимкнено, усі дані залишаються лише на цьому пристрої.</string>
     <string name="settings_sync_status_off">Вимк.</string>

@@ -15,7 +15,7 @@ import org.junit.Test
 private fun course(
     term: String,
     code: String,
-    credits: Int?,
+    credits: Float?,
     grade: String,
     status: GradeStatus = GradeStatus.GRADED,
 ) = CourseGrade(
@@ -56,11 +56,11 @@ class NtustGradePointsTest {
     @Test
     fun `gpa is credit-weighted over graded courses only`() {
         val courses = listOf(
-            course("1142", "A", credits = 3, grade = "A+"),          // 4.3 × 3
-            course("1142", "B", credits = 1, grade = "C"),           // 2.0 × 1
-            course("1142", "C", credits = 2, grade = "成績未到", status = GradeStatus.PENDING),
-            course("1142", "D", credits = 1, grade = "通過", status = GradeStatus.PASS_FAIL_GRADED),
-            course("1142", "E", credits = 0, grade = "A"),
+            course("1142", "A", credits = 3f, grade = "A+"),          // 4.3 × 3
+            course("1142", "B", credits = 1f, grade = "C"),           // 2.0 × 1
+            course("1142", "C", credits = 2f, grade = "成績未到", status = GradeStatus.PENDING),
+            course("1142", "D", credits = 1f, grade = "通過", status = GradeStatus.PASS_FAIL_GRADED),
+            course("1142", "E", credits = 0f, grade = "A"),
             course("1142", "F", credits = null, grade = "A"),
         )
         assertEquals((4.3 * 3 + 2.0) / 4, NtustGradePoints.gpaOf(courses)!!, 1e-9)
@@ -69,7 +69,7 @@ class NtustGradePointsTest {
     @Test
     fun `a term with nothing graded yet has no gpa at all`() {
         val pending = listOf(
-            course("1142", "C", credits = 2, grade = "成績未到", status = GradeStatus.PENDING),
+            course("1142", "C", credits = 2f, grade = "成績未到", status = GradeStatus.PENDING),
         )
         assertNull(NtustGradePoints.gpaOf(pending))
     }
@@ -88,12 +88,12 @@ class GpaTrendPointTest {
             ),
         ),
         courses = listOf(
-            course("1141", "A", credits = 3, grade = "A"),      // published row wins; math ignored
-            course("1142", "B", credits = 2, grade = "A+"),     // 4.3 × 2
-            course("1142", "C", credits = 2, grade = "B"),      // 3.0 × 2
-            course("1142", "D", credits = 3, grade = "成績未到", status = GradeStatus.PENDING),
+            course("1141", "A", credits = 3f, grade = "A"),      // published row wins; math ignored
+            course("1142", "B", credits = 2f, grade = "A+"),     // 4.3 × 2
+            course("1142", "C", credits = 2f, grade = "B"),      // 3.0 × 2
+            course("1142", "D", credits = 3f, grade = "成績未到", status = GradeStatus.PENDING),
             // Nothing graded, so this term contributes no point at all.
-            course("1151", "E", credits = 3, grade = "成績未到", status = GradeStatus.PENDING),
+            course("1151", "E", credits = 3f, grade = "成績未到", status = GradeStatus.PENDING),
         ),
         creditSummary = CreditSummary.EMPTY,
     )

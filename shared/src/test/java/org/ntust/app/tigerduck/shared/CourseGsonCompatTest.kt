@@ -166,3 +166,42 @@ class CourseGsonCompatTest {
         assertEquals(classroomMapIn, restored.classroomMap)
     }
 }
+
+/**
+ * Pins the upgrade-safe contract for [Course.credits], which became a [Float]
+ * when NTUST's 0.5-credit courses turned out to be parsing as zero.
+ *
+ * The type change deliberately ships without a `DataMigration` step, on two
+ * grounds this suite exists to keep true:
+ *   - `Float` compiles to a JVM primitive, so the `Unsafe.allocateInstance`
+ *     path that dropped `classroomMapJson`'s default leaves `0.0f` here rather
+ *     than null — there is no non-null check for it to trip.
+ *   - JSON has one number type, so a cache written as `"credits":3` by a build
+ *     that declared the field `Int` still reads back as `3.0f`.
+ *
+ * If either stops holding, this fails instead of a user's first launch.
+ */
+class CourseCreditsGsonCompatTest {
+
+    private val gson = com.google.gson.Gson()
+
+    @Test
+    fun `an integral credits value written by an older build reads back as a float`() {
+        val json = """{"courseNo":"CS101","courseName":"Algorithms","credits":3}"""
+        assertEquals(3f, gson.fromJson(json, Course::class.java).credits, 0f)
+    }
+
+    @Test
+    fun `a half credit round-trips`() {
+        val encoded = gson.toJson(Course(courseNo = "GE301", courseName = "Service", credits = 0.5f))
+        assertTrue(encoded.contains("\"credits\":0.5"))
+        assertEquals(0.5f, gson.fromJson(encoded, Course::class.java).credits, 0f)
+    }
+
+    /** The Unsafe path leaves a primitive at its JVM zero, never null. */
+    @Test
+    fun `a row with no credits key deserializes as zero rather than crashing`() {
+        val json = """{"courseNo":"CS101","courseName":"Algorithms"}"""
+        assertEquals(0f, gson.fromJson(json, Course::class.java).credits, 0f)
+    }
+}

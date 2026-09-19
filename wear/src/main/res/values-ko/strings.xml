@@ -38,7 +38,7 @@
     <string name="add_course_example">예: EC1013701, 미적분학, John Wang</string>
     <string name="add_course_not_found">일치하는 수업을 찾을 수 없습니다</string>
     <string name="add_course_placeholder">수업 코드, 이름 또는 강사명을 입력하세요</string>
-    <string name="add_course_result_meta">%1$s · %2$s · %3$d 학점</string>
+    <string name="add_course_result_meta">%1$s · %2$s · %3$s 학점</string>
     <string name="add_course_search_failed">검색 실패: %1$s</string>
     <string name="add_course_searching">검색 중…</string>
     <string name="add_course_title">수업 추가</string>
@@ -180,7 +180,7 @@
     <string name="class_table_reset_title_with_semester">%1$s 시간표 초기화</string>
     <string name="class_table_semester_picker_label">학기</string>
     <string name="class_table_sign_in_required_message">시간표를 보려면 로그인하세요</string>
-    <string name="class_table_total_credits_value">%1$d 학점</string>
+    <string name="class_table_total_credits_value">%1$s 학점</string>
     <string name="cloud_sync_assignments">과제</string>
     <string name="cloud_sync_class_table">시간표</string>
     <string name="cloud_sync_class_table_footer">기기 간에 동기화할 시간표 데이터를 선택하세요.</string>
@@ -237,11 +237,17 @@
     <string name="course_color_picker_custom_badge">사용자 지정</string>
     <string name="course_color_picker_custom_label">사용자 지정 색상</string>
     <string name="course_color_picker_title">색상 편집</string>
-    <string name="course_credits_value">학점: %1$d</string>
+    <string name="course_credits_value">학점: %1$s</string>
     <string name="course_detail_classroom_label">강의실</string>
+    <string name="course_detail_code_copied">코드가 복사되었습니다</string>
     <string name="course_detail_code_label">코드</string>
+    <string name="course_detail_copy_code">코드 복사</string>
     <string name="course_detail_credits_label">학점</string>
+    <string name="course_detail_dimension_label">영역</string>
     <string name="course_detail_due_prefix">마감: %1$s</string>
+    <string name="course_detail_duration_full_year">1년</string>
+    <string name="course_detail_duration_label">기간</string>
+    <string name="course_detail_duration_one_semester">한 학기</string>
     <string name="course_detail_enrollment_label">수강 인원</string>
     <string name="course_detail_incomplete_assignments">미완료 과제</string>
     <string name="course_detail_instructor_label">강사</string>
@@ -265,7 +271,7 @@
     <string name="desktop_class_table_empty_hint">⌘R로 NTUST 포털에서 최신 시간표를 가져옵니다.</string>
     <string name="desktop_class_table_empty_title">이번 학기에 강의가 없습니다</string>
     <string name="desktop_class_table_loading_value">%1$s 로드 중…</string>
-    <string name="desktop_class_table_subtitle_value">%1$s · %2$d 과목 · %3$d 학점</string>
+    <string name="desktop_class_table_subtitle_value">%1$s · %2$d 과목 · %3$s 학점</string>
     <string name="desktop_home_section_upcoming_assignments">예정된 과제</string>
     <string name="desktop_more_not_implemented">아직 구현되지 않음</string>
     <string name="desktop_more_subtitle">Mac에서 사용할 수 있는 모든 TigerDuck 기능을 둘러보세요. 자주 쓰는 기능을 사이드바에 고정할 수 있습니다.</string>
@@ -586,8 +592,8 @@
     <string name="push_server_status_waiting_token">시스템이 token을 할당하기를 기다리는 중</string>
     <string name="refreshing_message">새로고침 중… 잠시만요</string>
     <string name="score_academic_year_semester">%1$s 학년도 %2$s</string>
-    <string name="score_course_credits">%1$d 학점</string>
-    <string name="score_course_credits_meta">%1$@ · %2$d학점</string>
+    <string name="score_course_credits">%1$s 학점</string>
+    <string name="score_course_credits_meta">%1$@ · %2$s학점</string>
     <string name="score_course_detail_enrollment_label">수강 신청</string>
     <string name="score_course_detail_schedule_label">수업 일정</string>
     <string name="score_credit_earned">취득</string>
@@ -641,7 +647,7 @@
     <string name="score_semester_ranking">등수 %1$s(%2$s)</string>
     <string name="score_semester_second">2학기</string>
     <string name="score_semester_second_short">2학기</string>
-    <string name="score_semester_total_credits">%1$d 학점</string>
+    <string name="score_semester_total_credits">%1$s 학점</string>
     <string name="score_semester_upper">1학기</string>
     <string name="score_sign_in_required_message">성적 기록을 보려면 로그인하세요</string>
     <string name="score_term_format">현재 학기: %1$s-%2$s</string>
@@ -729,6 +735,7 @@
     <string name="settings_server_push_label">추가 서버 알림 수신</string>
     <string name="settings_server_push_update_failed">서버가 변경 사항을 적용하지 못했습니다. 나중에 다시 시도해 주세요.</string>
     <string name="settings_show_absolute_assignment_time">과제 마감 시간을 전체 날짜로 표시</string>
+    <string name="settings_show_classroom_on_class_table">시간표에 강의실 표시</string>
     <string name="settings_sync_brief_description">TigerSync를 사용하면 모든 기기에서 선택한 정보를 동기화할 수 있습니다. 동기화가 활성화되지 않은 정보는 이 기기에만 남습니다.</string>
     <string name="settings_sync_disabled_note">동기화가 꺼져 있으면 모든 데이터는 이 기기에만 저장됩니다.</string>
     <string name="settings_sync_status_off">꺼짐</string>
