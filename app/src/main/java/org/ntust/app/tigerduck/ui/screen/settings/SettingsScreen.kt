@@ -88,6 +88,7 @@ fun SettingsScreen(
     onNavigateToNotificationDebug: () -> Unit = {},
     onNavigateToTriggersDebug: () -> Unit = {},
     onNavigateToServerFailureDebug: () -> Unit = {},
+    onNavigateToMailDevServerDebug: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val isNtustLoggingIn by viewModel.isNtustLoggingIn.collectAsStateWithLifecycle()
@@ -567,6 +568,10 @@ fun SettingsScreen(
                             HorizontalDivider()
                             SettingsLinkRow("Server failure simulation") { onNavigateToServerFailureDebug() }
                             HorizontalDivider()
+                            // Points School Mail at a non-school mail server, so the
+                            // feature can be exercised without a real school mailbox.
+                            SettingsLinkRow("Email") { onNavigateToMailDevServerDebug() }
+                            HorizontalDivider()
                             // One-shot UI surfaces (What's new, update prompt,
                             // flip-to-library first trigger) live behind here so
                             // they can be re-fired after a single dismissal.
@@ -660,7 +665,7 @@ fun SettingsScreen(
             passwordPlaceholder = stringResource(R.string.sign_in_password),
             // Only the mail account's own ID — never the NTUST or library one.
             initialUsername = mailViewModel.studentId.orEmpty(),
-            uppercaseInput = true,
+            uppercaseInput = mailViewModel.devServer == null,
             isLoggingIn = isMailSigningIn,
             loginError = mailError?.let { stringResource(it.messageRes()) },
             onLogin = { u, p -> mailViewModel.signIn(u, p) },
