@@ -453,8 +453,38 @@ class SchoolMailListViewModelTest {
         repo.blockPrefetch = false
         advanceUntilIdle()
 
-        // The only calls after the switch are the switch's own full-size load.
-        assertTrue(repo.pageLimits.drop(before).all { it.second == 50 })
+        // The switch's own load comes first, at full size and never queued behind the warm.
+        assertEquals("草稿匣" to 50, repo.pageLimits[before])
+        // The parked call really was cancelled rather than merely abandoned: it released its slot
+        // inside loadPage before the switch's own load entered it, so no two loads were ever open
+        // at once. A prefetch left running would have overlapped that load and made this 2.
+        assertEquals(1, repo.maxConcurrentLoads)
+        // And the cancelled queue did not carry on beside the one the switch starts: it would
+        // have gone on to 廣告信匣 and 回收筒, which the new queue also covers, so a survivor
+        // shows up as a folder warmed twice.
+        val prefetched = repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
+        assertEquals(prefetched.size, prefetched.distinct().size)
+    }
+
+    @Test
+    fun `switching folder warms whatever the new view is not showing`() = runTest {
+        // startPrefetch used to run from load() alone, and load() is keyed on (signedIn,
+        // authFailed) -- so the first chip tap cancelled the warm and nothing ever started it
+        // again. A user who tapped a chip early left every other mailbox cold for the rest of
+        // this view model's life, which is the feature quietly switching itself off.
+        vm.load()
+        advanceUntilIdle()
+        val before = repo.pageLimits.size
+
+        vm.selectFolder(FolderSelection.Real("草稿匣"))
+        advanceUntilIdle()
+
+        val after = repo.pageLimits.drop(before)
+        assertEquals("草稿匣" to 50, after.first())
+        assertEquals(
+            setOf("INBOX", "寄件備份匣", "廣告信匣", "回收筒"),
+            after.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }.map { it.first }.toSet(),
+        )
     }
 
     @Test

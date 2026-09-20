@@ -194,6 +194,11 @@ class SchoolMailListViewModel @Inject constructor(
         viewModelScope.launch {
             showCached()
             fetchFirstPage()
+            // Restarted, not merely cancelled. [startPrefetch] used to run from [load] alone, so
+            // the first chip tap ended the warming for this view model's whole life -- a user who
+            // tapped early left Drafts, Junk and Trash cold from then on and the feature simply
+            // stopped working. The new queue is the one the *new* selection is not showing.
+            if (_state.value.loadState is LoadState.Loaded) startPrefetch()
         }
     }
 
@@ -303,7 +308,9 @@ class SchoolMailListViewModel @Inject constructor(
      *
      * Silent by construction. It never touches loadState and never sets actionError: this is work
      * the user did not ask for, and a failure means only that a later chip tap is as slow as it
-     * used to be. Cancelled the moment the user does ask for something.
+     * used to be. Cancelled the moment the user does ask for something -- and started again once
+     * that request has landed, from [load] and from [selectFolder] alike, because the folders
+     * worth warming are whichever ones the current view is not showing.
      */
     private fun startPrefetch() {
         prefetchJob?.cancel()
