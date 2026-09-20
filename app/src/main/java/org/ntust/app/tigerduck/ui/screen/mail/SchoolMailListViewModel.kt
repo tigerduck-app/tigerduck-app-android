@@ -181,9 +181,15 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     fun refresh() {
-        // The warm queue gives the connection back first. SessionHolder serialises every command
-        // behind one mutex, so a refresh that did not cancel would wait out whichever folder page
-        // the prefetch happened to be fetching before its own could even start.
+        // Stops the warm queue before it takes the connection again. SessionHolder serialises
+        // every command behind one mutex, so without this a refresh could wait out several
+        // folders' pages rather than at most one.
+        //
+        // At most one, not none: a fetch already in flight is blocking Angus Mail I/O inside that
+        // mutex, and cancellation is not observed until it returns. It deliberately is not
+        // interrupted -- abandoning a half-read IMAP response would leave the shared connection
+        // out of step with the server for whoever used it next. The mutex is fair, so the refresh
+        // is first in the queue behind that one page.
         prefetchJob?.cancel()
         prefetchJob = null
         viewModelScope.launch {
@@ -330,7 +336,11 @@ class SchoolMailListViewModel @Inject constructor(
      * Not cancelled by [loadMoreIfNeeded], [submitSearch] or [toggleRead]. Those are one command
      * each, and the holder's mutex is fair, so the most any of them waits is the single folder
      * page already in flight -- cheaper than throwing away a queue they would only have to see
-     * rebuilt.
+     * rebuilt. Cancelling buys the same one-page bound for the paths that do it; no caller can do
+     * better, because the in-flight fetch is blocking I/O that must not be abandoned mid-response.
+     *
+     * Fetched with `background = true`, so a warm can seed an empty folder cache but never
+     * shorten one the user has already paged further than [PREFETCH_LIMIT].
      */
     private fun startPrefetch() {
         prefetchJob?.cancel()
@@ -343,7 +353,7 @@ class SchoolMailListViewModel @Inject constructor(
             for (folder in queue) {
                 if (!isActive) return@launch
                 try {
-                    repository.loadPage(folder, null, PREFETCH_LIMIT)
+                    repository.loadPage(folder, null, PREFETCH_LIMIT, background = true)
                 } catch (e: CancellationException) {
                     // A cancelled prefetch must actually stop, not just skip to the next
                     // iteration's isActive check -- runCatching would otherwise swallow this

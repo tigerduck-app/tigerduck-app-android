@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -676,5 +677,55 @@ class SchoolMailListViewModelTest {
 
     private companion object {
         const val SENT = "寄件備份匣"
+    }
+
+    @Test
+    fun `a warm never shortens a folder cache that already holds more`() = runTest {
+        // More mail than one warm brings back, so a warm's page really is the shorter one.
+        repo.add("草稿匣", *(1..30).map { mailSummary(it.toLong()) }.toTypedArray())
+
+        // Opening the folder caches a full foreground page.
+        vm.selectFolder(FolderSelection.Real("草稿匣"))
+        advanceUntilIdle()
+        val full = repo.cachedPage("草稿匣")!!.messages.size
+        assertTrue("fixture must hold more than a prefetch page", full > SchoolMailListViewModel.PREFETCH_LIMIT)
+
+        // Going back to All mail warms 草稿匣 again, at twenty rows.
+        vm.selectFolder(FolderSelection.AllMail)
+        advanceUntilIdle()
+
+        // Twenty rows must not be what is left on disk for an offline open.
+        assertEquals(full, repo.cachedPage("草稿匣")!!.messages.size)
+    }
+
+    @Test
+    fun `a warm still seeds a folder that has no cache at all`() = runTest {
+        vm.load()
+        advanceUntilIdle()
+
+        // 廣告信匣 is not in All mail's merge, so only the warm can have populated it.
+        assertNotNull(repo.cachedPage("廣告信匣"))
+    }
+
+    @Test
+    fun `a refresh stops the warm queue and starts a new one once it lands`() = runTest {
+        repo.blockPrefetch = true
+        vm.load()
+        advanceUntilIdle()
+        val before = repo.pageLimits.size
+
+        vm.refresh()
+        advanceUntilIdle()
+        repo.blockPrefetch = false
+        advanceUntilIdle()
+
+        // The refresh's own load went first, at full size.
+        assertEquals(50, repo.pageLimits[before].second)
+        // Never two loads inside the repository at once: the parked warm really was cancelled.
+        assertEquals(1, repo.maxConcurrentLoads)
+        // And warming resumed afterwards rather than ending for the view model's life -- the bug
+        // that cancelling without restarting would have reintroduced.
+        val after = repo.pageLimits.drop(before + 1).filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
+        assertEquals(setOf("草稿匣", "廣告信匣", "回收筒"), after.map { it.first }.toSet())
     }
 }

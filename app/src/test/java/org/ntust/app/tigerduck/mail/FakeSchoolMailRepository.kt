@@ -51,12 +51,12 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     /** Every `(folder, limit)` handed to [loadPage], in order -- what a prefetch test checks against. */
     val pageLimits = mutableListOf<Pair<String, Int>>()
     /**
-     * Thrown only by a [loadPage] call whose `limit` is not [MailRepository.PAGE_SIZE] -- i.e. a
+     * Thrown only by a [loadPage] call marked `background` -- i.e. a
      * background prefetch, never the visible folder's own load.
      */
     var prefetchError: MailError? = null
     /**
-     * While true, a prefetch-sized [loadPage] call (limit != [MailRepository.PAGE_SIZE]) suspends
+     * While true, a background [loadPage] call suspends
      * instead of returning, so a test can assert what a cancel does to it mid-flight. Cancellable:
      * it is a plain suspending await, not a busy loop, so cancelling the caller's job ends it.
      */
@@ -127,13 +127,13 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         cachedPages.remove(folder)
     }
 
-    override suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int): MailPage {
+    override suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int, background: Boolean): MailPage {
         openLoads++
         maxConcurrentLoads = maxOf(maxConcurrentLoads, openLoads)
         try {
             foldersTouched += folder
             pageLimits += folder to limit
-            if (limit != MailRepository.PAGE_SIZE) {
+            if (background) {
                 prefetchError?.let { throw it }
                 if (blockPrefetch) {
                     val gate = CompletableDeferred<Unit>()
@@ -144,9 +144,18 @@ class FakeSchoolMailRepository : SchoolMailRepository {
             loadError?.let { throw it }
             val all = sorted(folder)
             val from = beforeSeq ?: 0
-            val chunk = all.drop(from).take(pageSize)
+            // `limit` is honoured, not just recorded: the real repository's rule about a warm
+            // never shortening a cache only means anything if a warm can return a shorter page.
+            val chunk = all.drop(from).take(minOf(pageSize, limit))
             val page = MailPage(1, all.size, chunk, (from + chunk.size).takeIf { it < all.size })
-            if (beforeSeq == null) cachedPages[folder] = page
+            // Mirrors MailRepository.loadPage: a first page replaces the cache, except for a
+            // background warm that would leave less of the same mailbox behind than is there.
+            if (beforeSeq == null) {
+                val cached = cachedPages[folder]
+                val shortens = background && cached != null &&
+                    cached.uidValidity == page.uidValidity && cached.messages.size > page.messages.size
+                if (!shortens) cachedPages[folder] = page
+            }
             return page
         } finally {
             openLoads--
