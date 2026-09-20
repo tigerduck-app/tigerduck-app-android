@@ -354,7 +354,24 @@ fun registerBundledNoticesExport(
 ) {
     val export = tasks.register("exportBundledNotices$name") {
         dependsOn(exportTask)
-        if (sharedWith != null) mustRunAfter("exportBundledNoticesPlayRelease")
+        // The watch's document references texts by the hashes the phone's
+        // already carries, so the phone's has to exist first. A real
+        // dependency rather than `mustRunAfter`: `sharedWith` is declared as
+        // an input below, and Gradle rejects reading another task's output
+        // without one.
+        if (sharedWith != null) dependsOn("exportBundledNoticesPlayRelease")
+        inputs.file(libraryList).withPathSensitivity(PathSensitivity.NONE)
+        sharedWith?.let { inputs.file(it).withPathSensitivity(PathSensitivity.NONE) }
+        // Declared so Gradle knows this file is *produced*, not merely
+        // present. res/raw feeds merge*Resources, and with no output
+        // declaration a single `-PexportLicenses assemble…` invocation could
+        // have the merge read this file while this task rewrote it, silently.
+        // Now that is a validation error instead of a race.
+        outputs.file(output)
+        // The classpath is deliberately not a declared input — resolving it
+        // at configuration time would cost every build — so this task can
+        // never be up to date. That is the safe direction: it re-reads the
+        // dependency graph on every run and so cannot quietly go stale.
         outputs.upToDateWhen { false }
         doLast {
             val needsNotice = librariesMissingTheirCopyright(libraryList)
@@ -410,9 +427,26 @@ fun resolveModuleArchives(classpath: Configuration): Map<String, File> {
     fun view(type: String) = classpath.incoming.artifactView {
         isLenient = true
         attributes.attribute(Attribute.of("artifactType", String::class.java), type)
-    }.artifacts.artifacts
+    }.artifacts
+    val aar = view("aar")
+    val jar = view("jar")
+    // Leniency is required: the `aar` view has nothing to offer a pure-JAR
+    // module, and project(":shared") cannot be materialised here. But it
+    // also swallows genuine failures — a corrupted entry in the module
+    // cache, a transient repository error, a failed artifact transform —
+    // and the only symptom would be a *shorter* notices file written by a
+    // green build. A notice dropped that way is one the app is legally
+    // obliged to reproduce, so fail loudly rather than write it short.
+    val failures = aar.failures + jar.failures
+    if (failures.isNotEmpty()) {
+        throw GradleException(
+            "${classpath.name}: ${failures.size} artifact(s) could not be resolved, so the " +
+                "notices would be written incomplete:\n" +
+                failures.joinToString("\n") { "  ${it.message}" },
+        )
+    }
     val archives = linkedMapOf<String, File>()
-    (view("aar") + view("jar")).forEach { artifact ->
+    (aar.artifacts + jar.artifacts).forEach { artifact ->
         val id = artifact.id.componentIdentifier
         if (id is ModuleComponentIdentifier && artifact.file.name != "classes.jar") {
             archives.putIfAbsent("${id.group}:${id.module}", artifact.file)
@@ -440,8 +474,15 @@ fun librariesMissingTheirCopyright(libraryList: File): Set<String> {
         .toSet()
 }
 
+// The extensions are listed rather than `\w+` so that a class named after a
+// licence — `License.class`, `Notice.class` — is not read as one. Only the
+// nested `classes.jar` inside an AAR is filtered out by name; a plain JAR is
+// walked whole, bytecode and all.
 private val legalFileName =
-    Regex("""^(LICEN[CS]E|NOTICE|COPYING|THIRD[-_]?PARTY[-_]?NOTICES)(\.\w+)?$""", RegexOption.IGNORE_CASE)
+    Regex(
+        """^(LICEN[CS]E|NOTICE|COPYING|THIRD[-_]?PARTY[-_]?NOTICES)(\.(txt|md|html?|rst))?$""",
+        RegexOption.IGNORE_CASE,
+    )
 
 /** `name to text` for every notice bundled in one artifact. */
 @Suppress("UNCHECKED_CAST")
