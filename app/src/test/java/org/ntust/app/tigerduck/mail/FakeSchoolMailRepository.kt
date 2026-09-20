@@ -27,6 +27,11 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var searchUnsupported = false
     val bodies = mutableMapOf<Long, MailBody>()
     var bodyError: MailError? = null
+    /**
+     * Every `(folder, uid)` handed to [body], in order -- recorded before [bodyError] fires, so a
+     * test can tell "the fetch was refused" apart from "the fetch was never attempted".
+     */
+    val bodyCalls = mutableListOf<Pair<String, Long>>()
     var moveError: MailError? = null
     var deleteError: MailError? = null
     /** Thrown by [setSeen] before it records anything, so a refused mark-read leaves no trace. */
@@ -158,6 +163,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     override suspend fun summary(folder: String, uid: Long) = touching(folder) { sorted(folder).firstOrNull { it.uid == uid } }
     override suspend fun body(folder: String, uid: Long): MailBody {
         foldersTouched += folder
+        bodyCalls += folder to uid
         onBody?.invoke()
         bodyError?.let { throw it }
         return bodies[uid] ?: throw MailError.Protocol("gone")

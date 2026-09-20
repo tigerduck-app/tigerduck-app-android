@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import java.time.Instant
 import javax.inject.Inject
+import kotlin.coroutines.coroutineContext
 
 @HiltViewModel
 class SchoolMailListViewModel @Inject constructor(
@@ -400,7 +401,12 @@ class SchoolMailListViewModel @Inject constructor(
         try {
             val status = repository.inboxStatus()
             val newest = s.messages.filter { it.folder == s.inboxFolder }.maxOfOrNull { it.uid } ?: 0L
-            if (status.uidNext > newest + 1) fetchFirstPage() else checker.noteSeenByPage(status)
+            if (status.uidNext > newest + 1) {
+                fetchFirstPage()
+                prefetchArrivedBodies(newest)
+            } else {
+                checker.noteSeenByPage(status)
+            }
         } catch (e: MailError) {
             // A rejected password still has to reach the account (spec §7.4) -- both paths below
             // make that hop. Everything else is a transient action failure rather than the page
@@ -413,6 +419,52 @@ class SchoolMailListViewModel @Inject constructor(
             // interception case worth interrupting for, and a toast that fades after a few
             // seconds every sixtieth second is something a user can miss indefinitely (§12.3).
             if (e is MailError.Certificate) fail(e) else actionFail(e)
+        }
+    }
+
+    /**
+     * Spec §5's body prefetch, on the foreground poll's path.
+     *
+     * [MailChecker] pulls a new mail's body down on the connection its check already holds, so
+     * tapping the notification opens a mail that is already there rather than a spinner. The poll
+     * never goes through [MailChecker.check]: it calls [fetchFirstPage] itself. So in the one case
+     * where the mail is certain to be tapped within seconds -- the app open on this very list --
+     * the row appeared within the minute and opening it still spun.
+     *
+     * Same constraints as the checker's version. Bounded to [BODY_PREFETCH_LIMIT] and newest
+     * first, because a burst of mail must not turn one poll into a long one. Sequential, on the
+     * connection the page already holds: Mail2000 caps connections and answers "server busy"
+     * under load. Silent -- it touches neither [UiState.loadState] nor [UiState.actionError], so
+     * nothing here can change what the poll reports; a body that will not come down means only
+     * that opening that mail is as slow as it used to be.
+     *
+     * No second connection and no change to the read path a tap takes:
+     * [SchoolMailRepository.body] is already cache-first and already writes what it fetches back
+     * to the cache, which is exactly the pair of calls the checker makes by hand.
+     *
+     * [previousNewest] is the highest inbox UID the list held *before* this poll's fetch, so the
+     * arrivals are precisely the rows that fetch brought in -- never the page the user has been
+     * looking at all along.
+     */
+    private suspend fun prefetchArrivedBodies(previousNewest: Long) {
+        val s = _state.value
+        if (s.loadState !is LoadState.Loaded) return
+        val inbox = s.inboxFolder ?: return
+        val arrivals = s.messages
+            .filter { it.folder == inbox && it.uid > previousNewest }
+            .sortedByDescending { it.uid }
+            .take(BODY_PREFETCH_LIMIT)
+        for (row in arrivals) {
+            if (!coroutineContext.isActive) return
+            try {
+                repository.body(inbox, row.uid)
+            } catch (e: CancellationException) {
+                // A cancelled prefetch must actually stop, for the same reason as [startPrefetch]:
+                // the page has gone away, or the user has asked for something else.
+                throw e
+            } catch (e: Throwable) {
+                // Silent by design (see the doc above).
+            }
         }
     }
 
@@ -461,6 +513,9 @@ class SchoolMailListViewModel @Inject constructor(
 
         /** Enough to fill a screen; the real load that follows a chip tap replaces it. */
         internal const val PREFETCH_LIMIT = 20
+
+        /** Newest arrivals whose body one poll will warm. The same bound [MailChecker] uses. */
+        internal const val BODY_PREFETCH_LIMIT = 5
 
         /** The date the card itself shows, then folder and UID so the merge order is stable. */
         private val NEWEST_FIRST =

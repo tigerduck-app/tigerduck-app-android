@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.model.FolderStatus
+import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import org.ntust.app.tigerduck.mail.testApplicationScope
@@ -308,6 +309,87 @@ class SchoolMailListViewModelTest {
         account.signOut()
         main.dispatcher.scheduler.runCurrent()
         assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
+    }
+
+    // --- a new mail's body ---------------------------------------------------------------
+
+    /** One poll tick. Not advanceUntilIdle: the poll loop never idles, it delays again. */
+    private fun pollOnce() {
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+    }
+
+    /** Replaces the inbox with exactly [uids], and the status a server would report for it. */
+    private fun inboxOf(vararg uids: Long) {
+        repo.mail.getOrPut("INBOX") { mutableListOf() }.apply {
+            clear()
+            addAll(uids.map { mailSummary(it) })
+        }
+        repo.status = FolderStatus(server.uidValidity, uids.max() + 1, uids.size, uids.size)
+    }
+
+    @Test
+    fun `a poll that finds new mail warms its body, so tapping it does not spin`() {
+        // Spec §5. MailChecker does this on the connection its own check holds, but the page poll
+        // never goes through MailChecker -- it calls fetchFirstPage itself. So in the one case
+        // where the mail is certain to be opened within seconds, the app already on this list,
+        // the row arrived within the minute and tapping it still spun.
+        inboxOf(1)
+        vm.load()
+        vm.startPolling()
+        repo.bodyCalls.clear()
+
+        repo.bodies[2] = MailBody(null, "hello", emptyList(), emptyMap())
+        inboxOf(1, 2)
+        pollOnce()
+
+        assertEquals(listOf("INBOX" to 2L), repo.bodyCalls)
+    }
+
+    @Test
+    fun `a burst of new mail warms the newest five and nothing the list already had`() {
+        // Bounded for the same reason MailChecker's is: a burst must not turn one poll into a
+        // long one on a connection the screen is waiting behind.
+        inboxOf(1)
+        vm.load()
+        vm.startPolling()
+        repo.bodyCalls.clear()
+
+        inboxOf(*(1L..9L).toList().toLongArray())
+        pollOnce()
+
+        assertEquals(listOf(9L, 8L, 7L, 6L, 5L), repo.bodyCalls.map { it.second })
+    }
+
+    @Test
+    fun `a body that will not come down leaves the poll's page exactly as it was`() {
+        inboxOf(1)
+        vm.load()
+        vm.startPolling()
+        repo.bodyCalls.clear()
+        repo.bodyError = MailError.ServerBusy()
+
+        inboxOf(1, 2)
+        pollOnce()
+
+        // The fetch was actually attempted -- without this the test would pass just as well with
+        // the prefetch deleted outright.
+        assertEquals(listOf("INBOX" to 2L), repo.bodyCalls)
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+        assertNull(vm.state.value.actionError)
+    }
+
+    @Test
+    fun `a poll that finds nothing new warms nothing`() {
+        inboxOf(1)
+        vm.load()
+        vm.startPolling()
+        repo.bodyCalls.clear()
+
+        pollOnce()
+
+        assertTrue(repo.bodyCalls.isEmpty())
     }
 
     // --- prefetch --------------------------------------------------------------------------
