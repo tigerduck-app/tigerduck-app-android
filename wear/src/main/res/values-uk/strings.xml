@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">Тема: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Переслане повідомлення ----------</string>
     <string name="school_mail_guide_gmail_title">Читайте університетську пошту в додатку Gmail</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">Інструкції з\'являться незабаром.</string>
     <string name="school_mail_invalid_recipients">Перевірте ці адреси: %1$@</string>
     <string name="school_mail_keep_editing">Продовжити редагування</string>

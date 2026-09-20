@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">Betreff: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Weitergeleitete Nachricht ----------</string>
     <string name="school_mail_guide_gmail_title">Uni-Mail in Gmail lesen</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">Anleitung folgt in Kürze.</string>
     <string name="school_mail_invalid_recipients">Überprüfe diese Adressen: %1$@</string>
     <string name="school_mail_keep_editing">Weiter bearbeiten</string>

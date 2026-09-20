@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">பொருள்: %1$@</string>
     <string name="school_mail_forwarded_header">---------- முன்னனுப்பப்பட்ட செய்தி ----------</string>
     <string name="school_mail_guide_gmail_title">Gmail-இல் பள்ளி மின்னஞ்சலைப் படியுங்கள்</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">வழிமுறைகள் விரைவில் வரும்.</string>
     <string name="school_mail_invalid_recipients">இந்த முகவரிகளைச் சரிபார்க்கவும்: %1$@</string>
     <string name="school_mail_keep_editing">தொடர்ந்து திருத்து</string>

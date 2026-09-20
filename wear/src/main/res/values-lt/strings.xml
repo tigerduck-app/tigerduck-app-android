@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">Tema: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Persiųstas laiškas ----------</string>
     <string name="school_mail_guide_gmail_title">Skaitykite mokyklos paštą Gmail programėlėje</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">Instrukcijos netrukus bus pridėtos.</string>
     <string name="school_mail_invalid_recipients">Patikrinkite šiuos adresus: %1$@</string>
     <string name="school_mail_keep_editing">Tęsti redagavimą</string>

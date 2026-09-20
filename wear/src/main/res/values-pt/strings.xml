@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">Assunto: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Mensagem reencaminhada ----------</string>
     <string name="school_mail_guide_gmail_title">Lê o correio universitário no Gmail</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">As instruções estarão disponíveis brevemente.</string>
     <string name="school_mail_invalid_recipients">Verifica estes endereços: %1$@</string>
     <string name="school_mail_keep_editing">Continuar a editar</string>

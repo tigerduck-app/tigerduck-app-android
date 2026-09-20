@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">Subject: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Forwarded message ----------</string>
     <string name="school_mail_guide_gmail_title">Read school mail in Gmail</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">Instructions are coming soon.</string>
     <string name="school_mail_invalid_recipients">Check these addresses: %1$@</string>
     <string name="school_mail_keep_editing">Keep editing</string>

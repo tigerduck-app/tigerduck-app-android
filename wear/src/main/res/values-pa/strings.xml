@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">ਵਿਸ਼ਾ: %1$@</string>
     <string name="school_mail_forwarded_header">---------- ਫਾਰਵਰਡ ਕੀਤਾ ਸੁਨੇਹਾ ----------</string>
     <string name="school_mail_guide_gmail_title">Gmail ਵਿੱਚ ਸਕੂਲ ਮੇਲ ਪੜ੍ਹੋ</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">ਹਦਾਇਤਾਂ ਜਲਦੀ ਆ ਰਹੀਆਂ ਹਨ।</string>
     <string name="school_mail_invalid_recipients">ਇਹ ਪਤੇ ਜਾਂਚੋ: %1$@</string>
     <string name="school_mail_keep_editing">ਸੰਪਾਦਨ ਜਾਰੀ ਰੱਖੋ</string>

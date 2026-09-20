@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">Konu: %1$@</string>
     <string name="school_mail_forwarded_header">---------- İletilen ileti ----------</string>
     <string name="school_mail_guide_gmail_title">Okul postasını Gmail\'de okuyun</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">Yönergeler yakında eklenecek.</string>
     <string name="school_mail_invalid_recipients">Şu adresleri kontrol edin: %1$@</string>
     <string name="school_mail_keep_editing">Düzenlemeye devam et</string>

@@ -652,6 +652,8 @@
     <string name="school_mail_forward_subject">Ämne: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Vidarebefordrat meddelande ----------</string>
     <string name="school_mail_guide_gmail_title">Läs skolmejl i Gmail</string>
+    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
+    <string name="school_mail_guide_open_in_browser">Open in browser</string>
     <string name="school_mail_guide_placeholder">Instruktioner kommer snart.</string>
     <string name="school_mail_invalid_recipients">Kontrollera de här adresserna: %1$@</string>
     <string name="school_mail_keep_editing">Fortsätt redigera</string>
