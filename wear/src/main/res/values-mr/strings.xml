@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">कृपया लक्षात घ्या!</string>
     <string name="settings_licenses_section_third_party">तृतीय-पक्ष लायब्ररी</string>
     <string name="settings_licenses_section_wear">Wear OS अ‍ॅप</string>
+    <string name="settings_licenses_unavailable">परवान्यांची यादी लोड करण्यात अयशस्वी</string>
     <string name="settings_licenses_website">वेबसाइट</string>
     <string name="settings_link_opening_method">लिंक उघडण्याची पद्धत</string>
     <string name="settings_official_website">अधिकृत वेबसाइट</string>

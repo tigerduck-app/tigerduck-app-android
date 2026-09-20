@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Figyelem!</string>
     <string name="settings_licenses_section_third_party">Harmadik féltől származó könyvtárak</string>
     <string name="settings_licenses_section_wear">Wear OS alkalmazás</string>
+    <string name="settings_licenses_unavailable">A licenclista betöltése nem sikerült</string>
     <string name="settings_licenses_website">Weboldal</string>
     <string name="settings_link_opening_method">Hivatkozások megnyitása ezzel:</string>
     <string name="settings_official_website">Hivatalos weboldal</string>

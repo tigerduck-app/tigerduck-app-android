@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Atkreipkite dėmesį!</string>
     <string name="settings_licenses_section_third_party">Trečiųjų šalių bibliotekos</string>
     <string name="settings_licenses_section_wear">Wear OS programėlė</string>
+    <string name="settings_licenses_unavailable">Nepavyko įkelti licencijų sąrašo</string>
     <string name="settings_licenses_website">Svetainė</string>
     <string name="settings_link_opening_method">Atidaryti nuorodas su</string>
     <string name="settings_official_website">Oficiali svetainė</string>

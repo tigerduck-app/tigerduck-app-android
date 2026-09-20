@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">ਕਿਰਪਾ ਕਰਕੇ ਧਿਆਨ ਦਿਓ!</string>
     <string name="settings_licenses_section_third_party">ਤੀਜੀ-ਧਿਰ ਲਾਇਬ੍ਰੇਰੀਆਂ</string>
     <string name="settings_licenses_section_wear">Wear OS ਐਪ</string>
+    <string name="settings_licenses_unavailable">ਲਾਇਸੈਂਸ ਸੂਚੀ ਲੋਡ ਕਰਨ ਵਿੱਚ ਅਸਮਰੱਥ</string>
     <string name="settings_licenses_website">ਵੈੱਬਸਾਈਟ</string>
     <string name="settings_link_opening_method">ਲਿੰਕ ਖੋਲ੍ਹੋ</string>
     <string name="settings_official_website">ਅਧਿਕਾਰਤ ਵੈੱਬਸਾਈਟ</string>

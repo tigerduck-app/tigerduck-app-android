@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">કૃપા નોંધ કરો!</string>
     <string name="settings_licenses_section_third_party">તૃતીય-પક્ષ લાઇબ્રેરીઓ</string>
     <string name="settings_licenses_section_wear">Wear OS ઍપ</string>
+    <string name="settings_licenses_unavailable">લાઇસન્સની સૂચિ લોડ કરવામાં અસમર્થ</string>
     <string name="settings_licenses_website">વેબસાઇટ</string>
     <string name="settings_link_opening_method">લિંક ખોલવાની રીત</string>
     <string name="settings_official_website">અધિકૃત વેબસાઇટ</string>

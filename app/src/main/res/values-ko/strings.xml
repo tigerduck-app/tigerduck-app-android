@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">주의해 주세요!</string>
     <string name="settings_licenses_section_third_party">서드파티 라이브러리</string>
     <string name="settings_licenses_section_wear">Wear OS 앱</string>
+    <string name="settings_licenses_unavailable">라이선스 목록을 불러올 수 없습니다</string>
     <string name="settings_licenses_website">웹사이트</string>
     <string name="settings_link_opening_method">링크 열기 방식</string>
     <string name="settings_official_website">공식 웹사이트</string>

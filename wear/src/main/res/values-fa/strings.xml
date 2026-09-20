@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">لطفاً توجه کنید!</string>
     <string name="settings_licenses_section_third_party">کتابخانه‌های شخص ثالث</string>
     <string name="settings_licenses_section_wear">برنامه Wear OS</string>
+    <string name="settings_licenses_unavailable">بارگیری فهرست مجوزها ممکن نیست</string>
     <string name="settings_licenses_website">وب‌سایت</string>
     <string name="settings_link_opening_method">باز کردن لینک‌ها با</string>
     <string name="settings_official_website">وب‌سایت رسمی</string>

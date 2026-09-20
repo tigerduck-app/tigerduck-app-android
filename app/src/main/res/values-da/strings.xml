@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Bemærk venligst!</string>
     <string name="settings_licenses_section_third_party">Tredjepartsbiblioteker</string>
     <string name="settings_licenses_section_wear">Wear OS-app</string>
+    <string name="settings_licenses_unavailable">Kan ikke indlæse licenslisten</string>
     <string name="settings_licenses_website">Hjemmeside</string>
     <string name="settings_link_opening_method">Åbn links med</string>
     <string name="settings_official_website">Officiel hjemmeside</string>

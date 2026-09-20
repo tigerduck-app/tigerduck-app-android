@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Bitte beachten!</string>
     <string name="settings_licenses_section_third_party">Bibliotheken von Drittanbietern</string>
     <string name="settings_licenses_section_wear">Wear-OS-App</string>
+    <string name="settings_licenses_unavailable">Lizenzliste kann nicht geladen werden</string>
     <string name="settings_licenses_website">Website</string>
     <string name="settings_link_opening_method">Links öffnen mit</string>
     <string name="settings_official_website">Offizielle Website</string>

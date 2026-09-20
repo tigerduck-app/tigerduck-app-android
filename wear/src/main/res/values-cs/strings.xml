@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Upozornění!</string>
     <string name="settings_licenses_section_third_party">Knihovny třetích stran</string>
     <string name="settings_licenses_section_wear">Aplikace Wear OS</string>
+    <string name="settings_licenses_unavailable">Nelze načíst seznam licencí</string>
     <string name="settings_licenses_website">Web</string>
     <string name="settings_link_opening_method">Otevírat odkazy v</string>
     <string name="settings_official_website">Oficiální web</string>

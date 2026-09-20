@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Pakitandaan po!</string>
     <string name="settings_licenses_section_third_party">Mga third-party na library</string>
     <string name="settings_licenses_section_wear">App para sa Wear OS</string>
+    <string name="settings_licenses_unavailable">Hindi ma-load ang listahan ng lisensya</string>
     <string name="settings_licenses_website">Website</string>
     <string name="settings_link_opening_method">Buksan ang mga link gamit ang</string>
     <string name="settings_official_website">Opisyal na website</string>

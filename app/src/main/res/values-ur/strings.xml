@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">براہ کرم نوٹ کریں!</string>
     <string name="settings_licenses_section_third_party">فریق ثالث کی لائبریریاں</string>
     <string name="settings_licenses_section_wear">Wear OS ایپ</string>
+    <string name="settings_licenses_unavailable">لائسنس کی فہرست لوڈ کرنے میں ناکامی</string>
     <string name="settings_licenses_website">ویب سائٹ</string>
     <string name="settings_link_opening_method">لنک کھولنے کا طریقہ</string>
     <string name="settings_official_website">آفیشل ویب سائٹ</string>

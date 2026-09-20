@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">שים לב!</string>
     <string name="settings_licenses_section_third_party">ספריות צד שלישי</string>
     <string name="settings_licenses_section_wear">אפליקציית Wear OS</string>
+    <string name="settings_licenses_unavailable">לא ניתן לטעון את רשימת הרישיונות</string>
     <string name="settings_licenses_website">אתר</string>
     <string name="settings_link_opening_method">פתח קישורים עם</string>
     <string name="settings_official_website">אתר רשמי</string>

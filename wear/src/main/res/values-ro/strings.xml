@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Atenție!</string>
     <string name="settings_licenses_section_third_party">Biblioteci terțe</string>
     <string name="settings_licenses_section_wear">Aplicația Wear OS</string>
+    <string name="settings_licenses_unavailable">Lista de licențe nu poate fi încărcată</string>
     <string name="settings_licenses_website">Site web</string>
     <string name="settings_link_opening_method">Deschide linkurile cu</string>
     <string name="settings_official_website">Site web oficial</string>

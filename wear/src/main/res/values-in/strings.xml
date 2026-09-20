@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Mohon perhatikan!</string>
     <string name="settings_licenses_section_third_party">Pustaka pihak ketiga</string>
     <string name="settings_licenses_section_wear">Aplikasi Wear OS</string>
+    <string name="settings_licenses_unavailable">Tidak dapat memuat daftar lisensi</string>
     <string name="settings_licenses_website">Situs web</string>
     <string name="settings_link_opening_method">Buka tautan dengan</string>
     <string name="settings_official_website">Situs web resmi</string>

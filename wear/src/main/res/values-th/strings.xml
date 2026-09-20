@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">โปรดทราบ!</string>
     <string name="settings_licenses_section_third_party">ไลบรารีของบุคคลที่สาม</string>
     <string name="settings_licenses_section_wear">แอป Wear OS</string>
+    <string name="settings_licenses_unavailable">ไม่สามารถโหลดรายการสัญญาอนุญาตได้</string>
     <string name="settings_licenses_website">เว็บไซต์</string>
     <string name="settings_link_opening_method">เปิดลิงก์ด้วย</string>
     <string name="settings_official_website">เว็บไซต์ทางการ</string>

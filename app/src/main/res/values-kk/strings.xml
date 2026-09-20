@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Назар аударыңыз!</string>
     <string name="settings_licenses_section_third_party">Үшінші тарап кітапханалары</string>
     <string name="settings_licenses_section_wear">Wear OS қолданбасы</string>
+    <string name="settings_licenses_unavailable">Лицензиялар тізімін жүктеу мүмкін емес</string>
     <string name="settings_licenses_website">Веб-сайт</string>
     <string name="settings_link_opening_method">Сілтемелерді ашу</string>
     <string name="settings_official_website">Ресми веб-сайт</string>

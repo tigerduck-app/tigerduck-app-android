@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">ご注意ください！</string>
     <string name="settings_licenses_section_third_party">サードパーティライブラリ</string>
     <string name="settings_licenses_section_wear">Wear OS アプリ</string>
+    <string name="settings_licenses_unavailable">ライセンス一覧を読み込めません</string>
     <string name="settings_licenses_website">ウェブサイト</string>
     <string name="settings_link_opening_method">リンクを開く方法</string>
     <string name="settings_official_website">公式ウェブサイト</string>

@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Παρακαλώ σημειώστε!</string>
     <string name="settings_licenses_section_third_party">Βιβλιοθήκες τρίτων</string>
     <string name="settings_licenses_section_wear">Εφαρμογή Wear OS</string>
+    <string name="settings_licenses_unavailable">Δεν είναι δυνατή η φόρτωση της λίστας αδειών</string>
     <string name="settings_licenses_website">Ιστότοπος</string>
     <string name="settings_link_opening_method">Άνοιγμα συνδέσμων με</string>
     <string name="settings_official_website">Επίσημος ιστότοπος</string>

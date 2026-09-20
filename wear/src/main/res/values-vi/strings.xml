@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Vui lòng lưu ý!</string>
     <string name="settings_licenses_section_third_party">Thư viện bên thứ ba</string>
     <string name="settings_licenses_section_wear">Ứng dụng Wear OS</string>
+    <string name="settings_licenses_unavailable">Không thể tải danh sách giấy phép</string>
     <string name="settings_licenses_website">Trang web</string>
     <string name="settings_link_opening_method">Mở liên kết bằng</string>
     <string name="settings_official_website">Trang web chính thức</string>

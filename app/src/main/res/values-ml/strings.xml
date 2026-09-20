@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">ദയവായി ശ്രദ്ധിക്കുക!</string>
     <string name="settings_licenses_section_third_party">മൂന്നാം കക്ഷി ലൈബ്രറികൾ</string>
     <string name="settings_licenses_section_wear">Wear OS ആപ്പ്</string>
+    <string name="settings_licenses_unavailable">ലൈസൻസ് പട്ടിക ലോഡ് ചെയ്യാൻ കഴിഞ്ഞില്ല</string>
     <string name="settings_licenses_website">വെബ്സൈറ്റ്</string>
     <string name="settings_link_opening_method">ലിങ്കുകൾ തുറക്കേണ്ടത്</string>
     <string name="settings_official_website">ഔദ്യോഗിക വെബ്സൈറ്റ്</string>

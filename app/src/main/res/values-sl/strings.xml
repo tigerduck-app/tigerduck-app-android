@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Prosimo, upoštevajte!</string>
     <string name="settings_licenses_section_third_party">Knjižnice tretjih oseb</string>
     <string name="settings_licenses_section_wear">Aplikacija Wear OS</string>
+    <string name="settings_licenses_unavailable">Seznama licenc ni mogoče naložiti</string>
     <string name="settings_licenses_website">Spletna stran</string>
     <string name="settings_link_opening_method">Odpri povezave z</string>
     <string name="settings_official_website">Uradna spletna stran</string>

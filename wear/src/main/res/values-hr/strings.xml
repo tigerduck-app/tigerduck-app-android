@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Molimo obratite pažnju!</string>
     <string name="settings_licenses_section_third_party">Biblioteke trećih strana</string>
     <string name="settings_licenses_section_wear">Aplikacija za Wear OS</string>
+    <string name="settings_licenses_unavailable">Učitavanje popisa licenci nije uspjelo</string>
     <string name="settings_licenses_website">Web stranica</string>
     <string name="settings_link_opening_method">Otvaranje veza s</string>
     <string name="settings_official_website">Službena web stranica</string>

@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Vinsamlegast taktu eftir!</string>
     <string name="settings_licenses_section_third_party">Forritasöfn þriðju aðila</string>
     <string name="settings_licenses_section_wear">Wear OS forrit</string>
+    <string name="settings_licenses_unavailable">Ekki tókst að hlaða leyfislistanum</string>
     <string name="settings_licenses_website">Vefsíða</string>
     <string name="settings_link_opening_method">Opna tengla með</string>
     <string name="settings_official_website">Opinber vefsíða</string>

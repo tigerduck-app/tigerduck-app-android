@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">Моля, обърнете внимание!</string>
     <string name="settings_licenses_section_third_party">Библиотеки на трети страни</string>
     <string name="settings_licenses_section_wear">Приложение за Wear OS</string>
+    <string name="settings_licenses_unavailable">Не може да се зареди списъкът с лицензи</string>
     <string name="settings_licenses_website">Уебсайт</string>
     <string name="settings_link_opening_method">Отваряне на връзки с</string>
     <string name="settings_official_website">Официален уебсайт</string>

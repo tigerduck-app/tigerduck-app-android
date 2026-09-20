@@ -841,6 +841,7 @@
     <string name="settings_library_warning_title">ದಯವಿಟ್ಟು ಗಮನಿಸಿ!</string>
     <string name="settings_licenses_section_third_party">ಮೂರನೇ ವ್ಯಕ್ತಿಯ ಲೈಬ್ರರಿಗಳು</string>
     <string name="settings_licenses_section_wear">Wear OS ಅಪ್ಲಿಕೇಶನ್</string>
+    <string name="settings_licenses_unavailable">ಪರವಾನಗಿ ಪಟ್ಟಿಯನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
     <string name="settings_licenses_website">ವೆಬ್‌ಸೈಟ್</string>
     <string name="settings_link_opening_method">ಲಿಂಕ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
     <string name="settings_official_website">ಅಧಿಕೃತ ವೆಬ್‌ಸೈಟ್</string>
