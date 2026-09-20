@@ -41,11 +41,12 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
     val context = LocalContext.current
     val cs = MaterialTheme.colorScheme
-    // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.surface/cs.onSurface below
-    // follow the app's own resolved theme (MainActivity's themeMode override -- "dark" or "light"
-    // -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same Compose-observable value
-    // MainActivity mirrors that resolved theme into, so the embedded page's theme stays in
-    // lockstep with the colours passed alongside it instead of just the OS half of the time.
+    // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.background/cs.onBackground
+    // below follow the app's own resolved theme (MainActivity's themeMode override -- "dark" or
+    // "light" -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same
+    // Compose-observable value MainActivity mirrors that resolved theme into, so the embedded
+    // page's theme stays in lockstep with the colours passed alongside it instead of just the OS
+    // half of the time.
     val isDark = TigerDuckTheme.isDarkMode
     val languageTag = context.resources.configuration.locales[0].toLanguageTag()
 
@@ -56,8 +57,13 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
         platform = "android",
         isDark = isDark,
         languageTag = languageTag,
-        background = cs.surface.toCssHex(),
-        foreground = cs.onSurface.toCssHex(),
+        // background/onBackground, not surface/onSurface: in this theme those are deliberately
+        // different (background is the page -- white or black; surface is cards -- #F2F2F7 or
+        // #3A3A3C), the Scaffold below fills with background, and every other sub-settings screen
+        // renders its body on background too. Passing surface here would paint the page a slab of
+        // mid-grey and leave a seam exactly where these parameters exist to remove one.
+        background = cs.background.toCssHex(),
+        foreground = cs.onBackground.toCssHex(),
     )
     // No query: the browser fallback should get the full site page, nav and all, not the
     // stripped embed that only makes sense inside this screen.
@@ -104,7 +110,7 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
             key(reloadKey) {
                 GuideWebView(
                     url = embedUrl,
-                    backgroundColor = cs.surface.toArgb(),
+                    backgroundColor = cs.background.toArgb(),
                     onExternalLink = { link -> openMailLink(context, link, browserPreference) },
                     onError = { failed = true },
                     modifier = Modifier.fillMaxSize().padding(padding),

@@ -75,10 +75,14 @@ internal fun percentEncode(value: String): String = buildString {
 /**
  * The help page, told everything it needs to stop looking like a web page.
  *
- * `bg`/`fg` are the app's own surface colours rather than anything the site picks: the two
- * palettes are maintained in different repositories and would drift, and a WebView whose
- * background is a shade off the screen behind it shows a seam at its edges. They are the same
- * values [SchoolMailMessageScreen] passes into [MailHtmlTheme] for the very same reason.
+ * `bg`/`fg` are the app's own colours rather than anything the site picks: the two palettes are
+ * maintained in different repositories and would drift, and a WebView whose background is a shade
+ * off the screen behind it shows a seam at its edges.
+ *
+ * [SchoolMailGuideScreen] passes `background`/`onBackground` -- what its Scaffold fills with, and
+ * what every sub-settings screen renders its body on. That is *not* the same pair
+ * [SchoolMailMessageScreen] passes into [MailHtmlTheme]: a mail document sits inside a
+ * `Surface(color = surface)` card, so there the card's colour is the one that has to match.
  */
 internal fun guideUrl(
     platform: String,
