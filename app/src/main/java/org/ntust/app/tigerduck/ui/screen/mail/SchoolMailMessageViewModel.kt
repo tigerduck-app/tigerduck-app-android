@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -142,14 +143,36 @@ class SchoolMailMessageViewModel @Inject constructor(
     fun setMailTheme(theme: MailHtmlTheme) {
         if (theme == mailTheme) return
         mailTheme = theme
+        rebuildDocument(theme)
+    }
+
+    private var themeJob: Job? = null
+
+    /**
+     * Rebuilds the open mail's document in [theme], from the sanitized HTML and inline images
+     * already in hand.
+     *
+     * The result is applied only if the content it was built from is still the content on screen.
+     * [loadRemoteImages] re-sanitizes and swaps *both* `html` and `document` for a pair that
+     * allows remote images; a theme rebuild that started before it and landed after would put the
+     * blocking document back underneath `remoteImagesAllowed = true` -- images missing, and the
+     * action that would ask for them again already spent. So the allowance is read once, here,
+     * alongside the HTML it belongs with, and both are checked again before the swap.
+     *
+     * Only the newest rebuild matters, so a second one cancels the first rather than racing it.
+     */
+    private fun rebuildDocument(theme: MailHtmlTheme) {
         val ready = _state.value.content as? Content.Ready ?: return
         val html = ready.html ?: return
-        viewModelScope.launch {
+        val allowRemote = _state.value.remoteImagesAllowed
+        themeJob?.cancel()
+        themeJob = viewModelScope.launch {
             val document = withContext(io) {
-                MailHtmlDocument.build(html.html, ready.body.inlineImages, _state.value.remoteImagesAllowed, theme)
+                MailHtmlDocument.build(html.html, ready.body.inlineImages, allowRemote, theme)
             }
             update { st ->
                 val current = st.content as? Content.Ready ?: return@update st
+                if (current.html !== html || st.remoteImagesAllowed != allowRemote) return@update st
                 st.copy(content = current.copy(document = document))
             }
         }
@@ -261,9 +284,12 @@ class SchoolMailMessageViewModel @Inject constructor(
         viewModelScope.launch {
             update { it.copy(loadingRemoteImages = true) }
             try {
+                // Captured, not read again at the end: the theme can change while this is in
+                // flight, and the comparison below is what notices.
+                val builtWith = mailTheme
                 val (html, document) = withContext(io) {
                     val sanitized = HtmlSanitizer.sanitize(source, allowRemoteImages = true)
-                    sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true, theme = mailTheme)
+                    sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true, theme = builtWith)
                 }
                 update { st ->
                     // The mail cannot change underneath this (load() is a no-op once Ready), but
@@ -272,6 +298,10 @@ class SchoolMailMessageViewModel @Inject constructor(
                     val current = st.content as? Content.Ready ?: return@update st
                     st.copy(remoteImagesAllowed = true, content = current.copy(html = html, document = document))
                 }
+                // This swap wins over any theme rebuild that was in flight -- their guard sees the
+                // new html and stands down -- so if the theme moved while this ran, the colours it
+                // has just installed are stale and only this knows it.
+                if (mailTheme != builtWith) rebuildDocument(mailTheme)
             } finally {
                 update { it.copy(loadingRemoteImages = false) }
             }
