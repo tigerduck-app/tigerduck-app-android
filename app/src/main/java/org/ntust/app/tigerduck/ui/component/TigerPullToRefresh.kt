@@ -35,8 +35,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
@@ -62,6 +64,9 @@ private val ThresholdDp = 140.dp
 private val MaxPullDp = 220.dp
 private val RefreshingMessageOffset = 36.dp
 private const val PostThresholdScale = 0.3f
+
+/** Long enough that no frame of a spring or a fling trips it, short enough to feel immediate. */
+private const val ChromeIdleSettleMs = 150L
 
 @Composable
 fun TigerPullToRefresh(
@@ -178,6 +183,24 @@ fun TigerPullToRefresh(
             targetValue = 0f,
             animationSpec = spring(stiffness = 400f, dampingRatio = 0.9f),
         )
+    }
+
+    // The chrome came to rest somewhere in between and nothing is coming to finish it. A fling
+    // settles in onPostFling and a finger's release produces one even at zero velocity, so the
+    // only way to get here is input that dispatches scroll and then simply stops -- a mouse wheel
+    // or trackpad on a tablet, ChromeOS or DeX. Gated on fingerDown so a slow drag, which also
+    // pauses, is never settled out from under the finger holding it.
+    if (appBar != null || searchReveal != null) {
+        LaunchedEffect(connection) {
+            snapshotFlow { (appBar?.offsetPx ?: 0f) to (searchReveal?.revealPx ?: 0f) }
+                .collectLatest {
+                    if (fingerDown.value) return@collectLatest
+                    // Restarted by every frame of a settle or a fling, so it only ever fires
+                    // once the chrome has genuinely stopped.
+                    delay(ChromeIdleSettleMs)
+                    if (!fingerDown.value) connection.settleFromIdle()
+                }
+        }
     }
 
     Box(
@@ -385,6 +408,32 @@ internal class PullChromeConnection(
      * With no chrome it returns on the first line, leaving the four screens that pass
      * none with exactly the default implementation's behaviour.
      */
+    /**
+     * Settles the chrome from somewhere that is not a fling, publishing the job in the same slot
+     * [onPreScroll] cancels so the next gesture still takes it back.
+     *
+     * This exists for the mouse wheel, which moves the chrome and then reports nothing: for wheel
+     * input `onScrollStopped` returns before any fling is dispatched, so [onPostFling] never runs
+     * and a notch -- far less than the bar's own height -- used to leave it clipped until some
+     * touch gesture happened along. The source cannot be told apart here (in this version
+     * `NestedScrollSource.Wheel` *is* `UserInput`), so the caller instead waits for the chrome to
+     * stop moving with no finger down, which is true of a wheel and of nothing a finger does.
+     */
+    fun settleFromIdle() {
+        if (appBar == null && searchReveal == null) return
+        if (!chromeNeedsSettling(appBar, searchReveal)) return
+        settleJob?.cancel()
+        val settles = scope.launch {
+            searchReveal?.let { launch { it.settle() } }
+            appBar?.let { launch { it.settle() } }
+        }
+        settleJob = settles
+        scope.launch {
+            settles.join()
+            if (settleJob === settles) settleJob = null
+        }
+    }
+
     override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
         if (appBar == null && searchReveal == null) return Velocity.Zero
         coroutineScope {
@@ -429,6 +478,17 @@ internal fun chromeConsumption(
         appBar?.let { used += it.onScroll(availableY - alreadyUsed - used) }
     }
     return used
+}
+
+/**
+ * Whether either half of the chrome is stranded between its two resting places. False once both
+ * are home, which is what stops an idle settle from firing on its own result forever.
+ */
+internal fun chromeNeedsSettling(appBar: AppBarState?, searchReveal: SearchRevealState?): Boolean {
+    val barAdrift = appBar != null && appBarSettleTarget(appBar.offsetPx, appBar.heightPx) != appBar.offsetPx
+    val drawerAdrift = searchReveal != null &&
+        searchDrawerSettleTarget(searchReveal.revealPx, searchReveal.maxPx, searchReveal.pinned) != searchReveal.revealPx
+    return barAdrift || drawerAdrift
 }
 
 private fun dampDelta(delta: Float, currentY: Float, threshold: Float): Float {

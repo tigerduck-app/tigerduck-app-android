@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.component
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScrollChromeTest {
@@ -258,5 +259,35 @@ class ScrollChromeTest {
         val state = AppBarState().apply { heightPx = 200f }
         state.snapToRest()
         assertEquals(0f, state.offsetPx, 0.01f)
+    }
+
+    @Test
+    fun `a bar stranded between its two ends needs settling`() {
+        val state = bar()
+        assertTrue(!chromeNeedsSettling(state, null))
+        state.onScroll(-40f)   // a wheel notch, far short of the bar's own height
+        assertTrue(chromeNeedsSettling(state, null))
+    }
+
+    @Test
+    fun `nothing needs settling once both halves are home`() {
+        val state = bar()
+        val drawer = SearchRevealState().apply { maxPx = 56f }
+        state.onScroll(-200f)          // fully hidden is a resting place
+        drawer.consume(56f)            // fully open is too
+        assertTrue(!chromeNeedsSettling(state, drawer))
+    }
+
+    @Test
+    fun `a half-open drawer needs settling even with the bar at rest`() {
+        val drawer = SearchRevealState().apply { maxPx = 56f }
+        drawer.consume(20f)
+        assertTrue(chromeNeedsSettling(null, drawer))
+    }
+
+    @Test
+    fun `a pinned drawer is already where it belongs`() {
+        val drawer = SearchRevealState().apply { maxPx = 56f; pinned = true }
+        assertTrue(!chromeNeedsSettling(null, drawer))
     }
 }
