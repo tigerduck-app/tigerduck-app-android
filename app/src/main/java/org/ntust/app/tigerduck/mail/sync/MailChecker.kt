@@ -104,11 +104,16 @@ class MailChecker @Inject constructor(
                 val advanced = fresh.maxOfOrNull { it.uid + 1 } ?: status.uidNext
                 val toNotify = fresh.filter { !it.flags.seen && !it.flags.deleted }
                 if (toNotify.isNotEmpty()) notifier.postNewMail(INBOX, toNotify)
-                prefetchBodies(session, status.uidValidity, toNotify)
                 // Spec §8.5 order: notify, then advance -- and never backwards. The page
                 // poll's noteSeenByPage can move the marker further while this check runs;
                 // overwriting it would re-notify mail the list has already shown.
                 state.inboxSeenUidNext = maxOf(state.inboxSeenUidNext, advanced)
+                // Last, and deliberately after the marker. Warming bodies is a convenience the
+                // check's real job does not depend on, and it is the slowest thing here -- up to
+                // five fetches on a connection that may be on a train. Run before the advance, a
+                // process death anywhere in it would leave the marker where it was and notify
+                // every one of these mails again on the next check.
+                prefetchBodies(session, status.uidValidity, toNotify)
                 CheckOutcome.NewMail(toNotify.size)
             }
         } catch (e: CancellationException) {
@@ -144,7 +149,16 @@ class MailChecker @Inject constructor(
      */
     private fun prefetchBodies(session: MailSession, uidValidity: Long, arrivals: List<MailSummary>) {
         arrivals.sortedByDescending { it.uid }.take(BODY_PREFETCH_LIMIT).forEach { summary ->
-            runCatching { cache.saveBody(INBOX, summary.uid, uidValidity, session.fetchBody(INBOX, summary.uid)) }
+            try {
+                cache.saveBody(INBOX, summary.uid, uidValidity, session.fetchBody(INBOX, summary.uid))
+            } catch (e: CancellationException) {
+                // Not runCatching: that catches Throwable, so a cancellation would be swallowed
+                // here and the loop would carry on fetching for a check nobody is waiting for.
+                // The same rule SchoolMailListViewModel's two prefetches follow.
+                throw e
+            } catch (e: Exception) {
+                // Silent by design (see the doc above).
+            }
         }
     }
 
