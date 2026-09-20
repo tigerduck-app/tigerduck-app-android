@@ -50,7 +50,7 @@ class SchoolMailListViewModelTest {
         account = MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root),
             FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
         runBlocking { account.signIn("b10000001", "pw") }
-        vm = SchoolMailListViewModel(repo, account, MailChecker(account, state, server.factory(), RecordingNotifier()) { 0 }, schoolMailSite())
+        vm = SchoolMailListViewModel(repo, account, MailChecker(account, state, server.factory(), RecordingNotifier(), MailCache(tmp.root)) { 0 }, schoolMailSite())
     }
 
     @Test

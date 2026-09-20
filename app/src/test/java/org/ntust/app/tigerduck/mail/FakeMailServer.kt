@@ -61,6 +61,12 @@ class FakeMailServer {
         private set
     var openSessions = 0
         private set
+
+    /** How many times a session was actually asked for a mail's body. */
+    var bodyFetches = 0
+
+    /** When true, `fetchBody` throws a network error instead of returning the mail's body. */
+    var failBodyFetch = false
     val passwords = mutableMapOf("B10000001" to "pw")
 
     fun deliver(
@@ -137,7 +143,11 @@ class FakeMailServer {
         override fun refreshFlags(folder: String, uids: List<Long>) =
             call { list(folder).filter { it.summary.uid in uids }.associate { it.summary.uid to it.summary.flags } }
 
-        override fun fetchBody(folder: String, uid: Long) = call { find(folder, uid).body }
+        override fun fetchBody(folder: String, uid: Long) = call {
+            bodyFetches++
+            if (failBodyFetch) throw MailError.Network()
+            find(folder, uid).body
+        }
 
         override fun writeRawSource(folder: String, uid: Long, out: OutputStream) = call {
             rawSourceFetches++

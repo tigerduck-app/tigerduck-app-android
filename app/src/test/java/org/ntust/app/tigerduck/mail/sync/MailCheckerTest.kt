@@ -4,6 +4,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -36,8 +38,10 @@ class MailCheckerTest {
         MailAccount(InMemoryCredentialStore(), state, server.factory(), MailCache(tmp.root), FakeDemoGate(), schoolMailSite(), scheduler, notifier, testApplicationScope())
     }
 
-    private fun checker(factory: MailSessionFactory = server.factory()) =
-        MailChecker(account, state, factory, notifier) { now }
+    private fun checker(
+        factory: MailSessionFactory = server.factory(),
+        cache: MailCache = MailCache(tmp.root),
+    ) = MailChecker(account, state, factory, notifier, cache) { now }
 
     @Test
     fun `nothing happens before sign-in`() = runTest {
@@ -185,5 +189,65 @@ class MailCheckerTest {
         now += 1
         checker().check(CheckSource.WORKER)
         assertEquals(listOf("${now}|WORKER|NoChange", "${now - 1}|ALARM|NoChange"), state.diagnostics)
+    }
+
+    @Test
+    fun `new mail arrives with its body already cached`() = runTest {
+        val cache = MailCache(tmp.root)
+        account.signIn("b10000001", "pw")
+        checker(cache = cache).check(CheckSource.ALARM)   // baseline
+        val uid = server.deliver("hello there")
+        checker(cache = cache).check(CheckSource.ALARM)
+
+        val validity = server.uidValidity
+        assertNotNull(cache.loadBody("INBOX", uid, validity))
+    }
+
+    @Test
+    fun `at most five bodies are fetched for one burst`() = runTest {
+        val cache = MailCache(tmp.root)
+        account.signIn("b10000001", "pw")
+        checker(cache = cache).check(CheckSource.ALARM)
+        val uids = (1..8).map { server.deliver("mail $it") }
+        checker(cache = cache).check(CheckSource.ALARM)
+
+        val validity = server.uidValidity
+        val cached = uids.count { cache.loadBody("INBOX", it, validity) != null }
+        assertEquals(5, cached)
+    }
+
+    @Test
+    fun `the newest mail is the one that gets cached`() = runTest {
+        val cache = MailCache(tmp.root)
+        account.signIn("b10000001", "pw")
+        checker(cache = cache).check(CheckSource.ALARM)
+        val uids = (1..8).map { server.deliver("mail $it") }
+        checker(cache = cache).check(CheckSource.ALARM)
+
+        val validity = server.uidValidity
+        assertNotNull(cache.loadBody("INBOX", uids.last(), validity))
+        assertNull(cache.loadBody("INBOX", uids.first(), validity))
+    }
+
+    @Test
+    fun `a body that will not fetch does not change the outcome`() = runTest {
+        val cache = MailCache(tmp.root)
+        account.signIn("b10000001", "pw")
+        checker(cache = cache).check(CheckSource.ALARM)
+        server.deliver("hello")
+        server.failBodyFetch = true
+
+        assertEquals(CheckOutcome.NewMail(1), checker(cache = cache).check(CheckSource.ALARM))
+    }
+
+    @Test
+    fun `nothing is fetched when no mail arrived`() = runTest {
+        val cache = MailCache(tmp.root)
+        account.signIn("b10000001", "pw")
+        checker(cache = cache).check(CheckSource.ALARM)
+        server.bodyFetches = 0
+        checker(cache = cache).check(CheckSource.ALARM)
+
+        assertEquals(0, server.bodyFetches)
     }
 }
