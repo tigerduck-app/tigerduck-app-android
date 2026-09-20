@@ -55,4 +55,23 @@ class MailHeaderTextTest {
         val list = listOf(MailAddress(null, ""), MailAddress(null, "b@x.tw"))
         assertEquals("b@x.tw", recipientText(list))
     }
+
+    @Test
+    fun `the collapsed label names only the first recipient, as iOS does`() {
+        val to = listOf(
+            MailAddress(name = "Alice", address = "alice@mail.ntust.edu.tw"),
+            MailAddress(name = "Bob", address = "bob@mail.ntust.edu.tw"),
+        )
+        // The expanded block prints the whole list; the label printing it too was the same line
+        // twice on screen.
+        assertEquals("alice@mail.ntust.edu.tw", recipientSummary(to))
+        assertEquals("alice@mail.ntust.edu.tw, bob@mail.ntust.edu.tw", recipientText(to))
+    }
+
+    @Test
+    fun `the collapsed label falls back to a name, and is empty with no recipients`() {
+        assertEquals("Registry", recipientSummary(listOf(MailAddress(name = "Registry", address = ""))))
+        assertEquals("", recipientSummary(emptyList()))
+        assertEquals("", recipientSummary(listOf(MailAddress(name = null, address = ""))))
+    }
 }

@@ -52,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -512,8 +514,23 @@ internal fun senderLines(from: MailAddress?): Pair<String?, String?> {
  * contributing an empty slot and a stray ", ,".
  */
 internal fun recipientText(addresses: List<MailAddress>): String =
+    recipientParts(addresses).joinToString(", ")
+
+/**
+ * The *first* recipient alone, for the collapsed disclosure label.
+ *
+ * iOS's `DisclosureGroup` label is `summary.to?.first`, its content the whole joined list. Giving
+ * the label the joined list too printed the identical line twice the moment it was expanded --
+ * once ellipsised in the label, once in full underneath -- which is the same duplication the
+ * sender lines were just fixed for.
+ *
+ * Empty when there is no recipient to name, which is exactly what iOS's `?? ""` produces.
+ */
+internal fun recipientSummary(addresses: List<MailAddress>): String =
+    recipientParts(addresses).firstOrNull().orEmpty()
+
+private fun recipientParts(addresses: List<MailAddress>): List<String> =
     addresses.mapNotNull { it.address.takeIf { a -> a.isNotBlank() } ?: it.name?.takeIf { n -> n.isNotBlank() } }
-        .joinToString(", ")
 
 /**
  * Sender name over its address, or just the address alone when there is no name to put it under;
@@ -558,10 +575,20 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
         val cc = recipientText(summary.cc)
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable { expanded = !expanded },
+            // minimumInteractiveComponentSize because this used to be a TextButton, which carried
+            // one: a labelMedium line and an 18dp chevron measure about 20dp, well under the 48dp
+            // a finger is entitled to. Role.Button so the row announces as something to press
+            // rather than as a stray line of text that happens to react.
+            modifier = Modifier
+                .minimumInteractiveComponentSize()
+                .clickable(role = Role.Button) { expanded = !expanded },
         ) {
             Text(
-                stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
+                // The first recipient only, as iOS's DisclosureGroup label does. The full list
+                // lives in the expanded block below; printing it here as well showed the same
+                // line twice whenever the details were open.
+                stringResource(R.string.school_mail_details_to)
+                    .replaceIosArg(1, recipientSummary(summary.to)),
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
