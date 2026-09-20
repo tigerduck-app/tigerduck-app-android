@@ -4,12 +4,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * The one invariant the six screens sharing this component depend on: onPreScroll reports
- * exactly what it consumed. Too much and the list feels dead, too little and the scroll is
- * applied twice. The refresh pull's own share is passed in as `alreadyUsed`, so what is
- * asserted here is the *rest* of the split.
+ * Covers [chromeConsumption] only — the arithmetic of the split, not the nested-scroll
+ * connection that calls it. The connection's own behaviour (the source and finger-down guards,
+ * how `used` folds into what onPreScroll returns, the release effect) is not exercised here;
+ * that needs an instrumented test.
+ *
+ * What is pinned is the invariant the composition rests on: the chrome takes a signed share
+ * that never exceeds what is left after the refresh pull has taken its own, so the caller can
+ * report the sum as consumed. The pull's share arrives as `alreadyUsed`.
  */
-class TigerPullToRefreshTest {
+class ChromeConsumptionTest {
 
     private fun bar(height: Float = 200f) = AppBarState().apply { heightPx = height }
 

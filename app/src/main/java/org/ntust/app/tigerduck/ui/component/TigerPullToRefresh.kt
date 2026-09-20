@@ -102,6 +102,12 @@ fun TigerPullToRefresh(
     // exactly that: it arrives as NestedScrollSource.UserInput, and no fling follows it.
     // Requiring a finger to be down before accumulating, and springing home when one lifts,
     // closes that whole class rather than the single path that was reported.
+    //
+    // UserInput is a wide door: mouse wheel and trackpad (NestedScrollSource.Wheel *is*
+    // UserInput), arrow and page keys, accessibility scroll actions and bring-into-view all
+    // arrive through it. None of them can arm a refresh any more. For a phone app that is the
+    // behaviour we want, and the accessibility case is a straight fix: a TalkBack scroll could
+    // previously strand the list translated down with no gesture able to bring it back.
     val fingerDown = remember { mutableStateOf(false) }
 
     // Set by onPreFling, read by the release effect below. A release that ends in a fling is
@@ -118,7 +124,10 @@ fun TigerPullToRefresh(
         }
     }
 
-    val connection = remember {
+    // Keyed: the connection captures appBar and searchReveal, so a screen that swaps or
+    // conditionally passes one would otherwise keep driving the instance it was born with
+    // while the UI drew the new one.
+    val connection = remember(appBar, searchReveal) {
         object : NestedScrollConnection {
             var crossedThreshold = false
 
@@ -201,14 +210,24 @@ fun TigerPullToRefresh(
     }
 
     // The finger lifted. onPreFling covers a release that ended in a fling; this covers a lift
-    // with no fling at all — a cancelled gesture, or anything else that left dragY raised —
-    // which otherwise sat there forever.
+    // with no fling at all — a cancelled gesture, a tap, or anything else that left dragY
+    // raised — which otherwise sat there forever.
     LaunchedEffect(fingerDown.value) {
         if (fingerDown.value || dragY.value == 0f) return@LaunchedEffect
         // One frame of grace: the fling from this same pointer-up is dispatched on its own
         // coroutine, and it owns the rebound when it comes.
         withFrameNanos { }
-        if (releaseHandledByFling.value || dragY.value == 0f) return@LaunchedEffect
+        // Stand aside whenever anything already owns the Animatable. The flag covers the
+        // release that produced the fling; isRunning additionally covers a tap landing during
+        // that release's ~400ms rebound, which clears the flag by pressing but never crosses
+        // touch slop, so no second onPreFling arrives to set it again. Two animateTo calls on
+        // one Animatable cancel each other: the loser throws inside the still-suspended
+        // onPreFling, skipping its `crossedThreshold = false` and stranding the next pull's
+        // threshold haptic. isRunning is false when dragY was parked by snapTo — the hang this
+        // effect exists for — so guarding on it takes nothing away.
+        if (releaseHandledByFling.value || dragY.isRunning || dragY.value == 0f) {
+            return@LaunchedEffect
+        }
         isUserPulling.value = false
         dragY.animateTo(
             targetValue = 0f,
@@ -222,7 +241,10 @@ fun TigerPullToRefresh(
             // Watching on the Initial pass observes without competing for the gesture: nothing
             // is consumed here, so every child still sees the event exactly as before. The
             // finally matters — a cancelled pointer handler is restarted rather than sent an
-            // "up", and fingerDown would otherwise be stuck true.
+            // "up", and fingerDown would otherwise be stuck true. It is paid for by the other
+            // side of that: a handler reset mid-gesture (a density or view-configuration
+            // change) reports the finger as up and can begin a rebound under a finger still on
+            // the glass. The next move event sets it back, so the worst case is a jitter.
             .pointerInput(Unit) {
                 try {
                     awaitPointerEventScope {
