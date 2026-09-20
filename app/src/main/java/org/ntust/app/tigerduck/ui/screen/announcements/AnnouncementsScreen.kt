@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -58,7 +57,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -86,14 +87,17 @@ import org.ntust.app.tigerduck.network.model.localizedTagLabel
 import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.SearchDrawer
+import org.ntust.app.tigerduck.ui.component.SearchDrawerHeight
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.readToggleIcon
+import org.ntust.app.tigerduck.ui.component.rememberAppBarState
+import org.ntust.app.tigerduck.ui.component.rememberSearchRevealState
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AnnouncementsScreen(
     onOpenBulletin: (Int) -> Unit,
@@ -110,9 +114,9 @@ fun AnnouncementsScreen(
 
     // Pagination trigger uses the LazyColumn index (not the bulletin id) so
     // the lookup into `displayed` stays O(1) regardless of list length. The
-    // sticky-header item occupies index 0; bulletins occupy 1..displayed.size.
-    // We filter to Int-keyed items so spinner/spacer (String keys) don't
-    // drive the trigger.
+    // chrome is an overlay rather than an item now, so the bulletins start at
+    // index 0 and item index i is displayed[i]. We filter to Int-keyed items
+    // so spinner/spacer (String keys) don't drive the trigger.
     val currentDisplayed by rememberUpdatedState(state.displayed)
     val currentOnLastVisible by rememberUpdatedState(viewModel::loadMoreIfNeeded)
     LaunchedEffect(listState) {
@@ -122,8 +126,7 @@ fun AnnouncementsScreen(
             .filterNotNull()
             .distinctUntilChanged()
             .collect { lastIndex ->
-                // headers are item 0; bulletinIndex = lastIndex - 1.
-                currentDisplayed.getOrNull(lastIndex - 1)?.let(currentOnLastVisible)
+                currentDisplayed.getOrNull(lastIndex)?.let(currentOnLastVisible)
             }
     }
 
@@ -139,6 +142,20 @@ fun AnnouncementsScreen(
         (viewportHeightPx - headerHeightPx).coerceAtLeast(0).toDp()
     }
     val canShowEmptyState = viewportHeightPx > 0 && headerHeightPx > 0
+
+    val appBar = rememberAppBarState()
+    val searchReveal = rememberSearchRevealState(with(density) { SearchDrawerHeight.toPx() })
+    var searchFocused by remember { mutableStateOf(false) }
+    // A search that is already running when this screen composes -- the view model outlives the
+    // composition, so coming back from a bulletin lands here with the text still set -- has to
+    // arrive with the drawer already open. `pinned` is true on the very next line, and a pinned
+    // drawer cannot be opened by any gesture, which would leave a live filter on the list with no
+    // field on screen to clear it. Done in a `remember` so it happens during the first
+    // composition, while `pinned` is still false.
+    remember(searchReveal) {
+        if (state.searchText.isNotEmpty()) searchReveal.consume(searchReveal.maxPx)
+    }
+    searchReveal.pinned = searchFocused || state.searchText.isNotEmpty()
 
     // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
     // re-subcomposes its content lambda whenever incoming constraints change
@@ -156,139 +173,153 @@ fun AnnouncementsScreen(
             onRefresh = viewModel::refresh,
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
+            appBar = appBar,
+            searchReveal = searchReveal,
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                // stickyHeader keeps the page title, search field, and filter
-                // chips pinned at the top while the bulletin list scrolls —
-                // matching the always-visible chrome the old non-LazyColumn
-                // layout provided, and preventing the search field from being
-                // disposed (losing IME focus) when it scrolls off.
-                stickyHeader(key = "headers") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.background)
-                            .onSizeChanged { headerHeightPx = it.height },
-                    ) {
-                        PageHeader(title = stringResource(R.string.feature_announcements)) {
-                            SyncStatusDot(
-                                servers = listOf(ServerKind.BACKEND),
-                                isLoading = isLoading,
-                            )
-                            if (state.unreadOnly && state.hasUnread) {
-                                IconButton(onClick = viewModel::markAllRead) {
-                                    Icon(
-                                        Icons.Filled.DoneAll,
-                                        contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
+            Box(Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    // The chrome is a sibling overlay now rather than the first
+                    // item, so the list keeps the room for it here instead. The
+                    // overlay translates away on scroll while this padding stays
+                    // put, which is what lets the bulletins travel up under it.
+                    contentPadding = PaddingValues(
+                        top = with(density) { appBar.heightPx.toDp() },
+                    ),
+                ) {
+                    val displayed = state.displayed
+                    val loadState = state.loadState
+                    when {
+                        displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
+                            if (canShowEmptyState) {
+                                item(key = "empty-state") {
+                                    CenteredEmptyState(
+                                        height = emptyStateHeight,
+                                        title = stringResource(
+                                            if (state.unreadOnly) R.string.bulletin_no_unread_title
+                                            else R.string.bulletin_no_bulletins_title
+                                        ),
+                                        message = stringResource(R.string.bulletin_no_bulletins_message),
                                     )
                                 }
                             }
-                            val unreadOnlyLabel =
-                                stringResource(R.string.bulletin_show_unread_only_action)
-                            Box(
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .toggleable(
-                                        value = state.unreadOnly,
-                                        role = Role.Switch,
-                                        onValueChange = { viewModel.setUnreadOnly(it) },
+                        }
+
+                        displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
+                            if (canShowEmptyState) {
+                                item(key = "failed-state") {
+                                    CenteredEmptyState(
+                                        height = emptyStateHeight,
+                                        title = stringResource(R.string.bulletin_load_failed_title),
+                                        message = loadState.message,
                                     )
-                                    .semantics {
-                                        contentDescription = unreadOnlyLabel
-                                    },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                                    contentDescription = null,
-                                )
-                            }
-                            IconButton(onClick = onOpenSubscriptions) {
-                                Icon(
-                                    Icons.Filled.Settings,
-                                    contentDescription = stringResource(R.string.bulletin_notifications_title),
-                                )
+                                }
                             }
                         }
-                        SearchBar(
-                            value = state.searchText,
-                            onValueChange = viewModel::setSearch,
-                        )
-                        FilterSection(
-                            taxonomy = state.taxonomy,
-                            selectedOrgs = state.selectedOrgs,
-                            selectedTags = state.selectedTags,
-                            onOrgsChange = viewModel::setOrgFilter,
-                            onTagsChange = viewModel::setTagFilter,
-                        )
+
+                        else -> {
+                            items(displayed, key = { it.id }) { item ->
+                                // 8dp gap above each card stands in for the
+                                // verticalArrangement.spacedBy on the old list-only
+                                // LazyColumn; horizontal padding stays off the
+                                // LazyColumn's contentPadding, which now carries
+                                // the room the chrome overlay needs.
+                                SwipeableBulletinCard(
+                                    item = item,
+                                    taxonomy = state.taxonomy,
+                                    isRead = item.id in state.readIds,
+                                    onClick = { onOpenBulletin(item.id) },
+                                    onToggleRead = { viewModel.toggleRead(item.id) },
+                                    modifier = Modifier.padding(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = 8.dp,
+                                    ),
+                                )
+                            }
+                            if (state.isPaginating) {
+                                item(key = "pagination-spinner") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) { CircularProgressIndicator() }
+                                }
+                            }
+                            item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+                        }
                     }
                 }
 
-                val displayed = state.displayed
-                val loadState = state.loadState
-                when {
-                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
-                        if (canShowEmptyState) {
-                            item(key = "empty-state") {
-                                CenteredEmptyState(
-                                    height = emptyStateHeight,
-                                    title = stringResource(
-                                        if (state.unreadOnly) R.string.bulletin_no_unread_title
-                                        else R.string.bulletin_no_bulletins_title
-                                    ),
-                                    message = stringResource(R.string.bulletin_no_bulletins_message),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // One measurement, both readers: the empty state sizes
+                        // itself to the viewport below the chrome, and the list
+                        // pads itself by exactly what the chrome covers.
+                        .onSizeChanged {
+                            headerHeightPx = it.height
+                            appBar.heightPx = it.height.toFloat()
+                        }
+                        .graphicsLayer { translationY = appBar.offsetPx }
+                        .background(MaterialTheme.colorScheme.background),
+                ) {
+                    PageHeader(title = stringResource(R.string.feature_announcements)) {
+                        SyncStatusDot(
+                            servers = listOf(ServerKind.BACKEND),
+                            isLoading = isLoading,
+                        )
+                        if (state.unreadOnly && state.hasUnread) {
+                            IconButton(onClick = viewModel::markAllRead) {
+                                Icon(
+                                    Icons.Filled.DoneAll,
+                                    contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
                                 )
                             }
                         }
-                    }
-
-                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
-                        if (canShowEmptyState) {
-                            item(key = "failed-state") {
-                                CenteredEmptyState(
-                                    height = emptyStateHeight,
-                                    title = stringResource(R.string.bulletin_load_failed_title),
-                                    message = loadState.message,
+                        val unreadOnlyLabel =
+                            stringResource(R.string.bulletin_show_unread_only_action)
+                        Box(
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .toggleable(
+                                    value = state.unreadOnly,
+                                    role = Role.Switch,
+                                    onValueChange = { viewModel.setUnreadOnly(it) },
                                 )
-                            }
-                        }
-                    }
-
-                    else -> {
-                        items(displayed, key = { it.id }) { item ->
-                            // 8dp gap above each card stands in for the
-                            // verticalArrangement.spacedBy on the old list-only
-                            // LazyColumn; horizontal padding moved off the
-                            // (now mixed) LazyColumn's contentPadding so the
-                            // header items keep their edge-to-edge layout.
-                            SwipeableBulletinCard(
-                                item = item,
-                                taxonomy = state.taxonomy,
-                                isRead = item.id in state.readIds,
-                                onClick = { onOpenBulletin(item.id) },
-                                onToggleRead = { viewModel.toggleRead(item.id) },
-                                modifier = Modifier.padding(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = 8.dp,
-                                ),
+                                .semantics {
+                                    contentDescription = unreadOnlyLabel
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
+                                contentDescription = null,
                             )
                         }
-                        if (state.isPaginating) {
-                            item(key = "pagination-spinner") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) { CircularProgressIndicator() }
-                            }
+                        IconButton(onClick = onOpenSubscriptions) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.bulletin_notifications_title),
+                            )
                         }
-                        item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                     }
+                    SearchDrawer(searchReveal) {
+                        SearchBar(
+                            value = state.searchText,
+                            onValueChange = viewModel::setSearch,
+                            onFocusChanged = { searchFocused = it },
+                        )
+                    }
+                    FilterSection(
+                        taxonomy = state.taxonomy,
+                        selectedOrgs = state.selectedOrgs,
+                        selectedTags = state.selectedTags,
+                        onOrgsChange = viewModel::setOrgFilter,
+                        onTagsChange = viewModel::setTagFilter,
+                    )
                 }
             }
         }
@@ -296,8 +327,8 @@ fun AnnouncementsScreen(
 }
 
 /**
- * Empty / failed state sized to fit exactly the area below the sticky
- * header, so the icon lands at the visual center of the available space
+ * Empty / failed state sized to fit exactly the area below the chrome
+ * overlay, so the icon lands at the visual center of the available space
  * and the LazyColumn doesn't become scrollable past the viewport.
  */
 @Composable
@@ -320,14 +351,23 @@ private fun CenteredEmptyState(
     }
 }
 
+/**
+ * [onFocusChanged] is what pins the search drawer open: the field must not be scrolled away
+ * from under someone who is typing in it.
+ */
 @Composable
-private fun SearchBar(value: String, onValueChange: (String) -> Unit) {
+private fun SearchBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .onFocusChanged { onFocusChanged(it.isFocused) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         placeholder = { Text(stringResource(R.string.bulletin_search_prompt)) },
         singleLine = true,
