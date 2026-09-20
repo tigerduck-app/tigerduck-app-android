@@ -40,6 +40,7 @@ fun MailWebView(
     document: String,
     allowedRemoteUrls: Set<String>,
     linkCount: Int,
+    backgroundColor: Int,
     onLink: (index: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -51,7 +52,7 @@ fun MailWebView(
         factory = { context ->
             WebView(context).apply {
                 layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                setBackgroundColor(android.graphics.Color.WHITE)
+                setBackgroundColor(backgroundColor)
                 isVerticalScrollBarEnabled = false
                 isHorizontalScrollBarEnabled = false
                 settings.apply {
@@ -91,6 +92,7 @@ fun MailWebView(
         },
         update = { view ->
             view.settings.blockNetworkLoads = allowed.isEmpty()
+            view.setBackgroundColor(backgroundColor)
             if (view.tag != document) {
                 view.tag = document
                 view.loadDataWithBaseURL(null, document, "text/html", "utf-8", null)

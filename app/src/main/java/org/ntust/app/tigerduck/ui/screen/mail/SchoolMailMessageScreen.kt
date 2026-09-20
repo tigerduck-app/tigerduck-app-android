@@ -10,6 +10,7 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -59,6 +60,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -105,6 +107,16 @@ fun SchoolMailMessageScreen(
     var showMove by remember { mutableStateOf(false) }
     var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingSavePart by rememberSaveable { mutableStateOf<String?>(null) }
+
+    // Read fresh on every recomposition (not just once) so a live theme change is picked up
+    // before the next document rebuild -- there's no Compose theme access inside the view model.
+    val cs = MaterialTheme.colorScheme
+    val mailTheme = MailHtmlTheme(
+        background = cs.surface.toCssHex(),
+        foreground = cs.onSurface.toCssHex(),
+        isDark = isSystemInDarkTheme(),
+    )
+    viewModel.setMailTheme(mailTheme)
 
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.closed) { if (state.closed) onBack() }
@@ -263,16 +275,18 @@ fun SchoolMailMessageScreen(
                                     emptySet()
                                 }
                             }
-                            // Spec §9.3: HTML always sits on white paper, dark mode included.
+                            // Spec §9.3: the HTML sits on the app's own surface colour, not
+                            // hardcoded white paper, so it reads as part of the app in dark theme.
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color.White,
+                                color = cs.surface,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                             ) {
                                 MailWebView(
                                     document = document.html,
                                     allowedRemoteUrls = allowedRemoteUrls,
                                     linkCount = document.links.size,
+                                    backgroundColor = cs.surface.toArgb(),
                                     onLink = { pendingLink = it },
                                     modifier = Modifier.fillMaxWidth(),
                                 )

@@ -122,6 +122,20 @@ class SchoolMailMessageViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState(folder = folder))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    /**
+     * The app's own colours for the mail HTML page (spec §9.3 no longer means white paper). There
+     * is no Compose theme access from a view model, so [SchoolMailMessageScreen] pushes its current
+     * `MaterialTheme.colorScheme` in on every recomposition via [setMailTheme]; [render] and
+     * [loadRemoteImages] read it whenever they (re)build the document. A theme change reaches the
+     * WebView's own background immediately (its native view colour is recomputed on every
+     * recomposition), but the document's own embedded colours wait for the next rebuild.
+     */
+    private var mailTheme = MailHtmlTheme(background = "#ffffff", foreground = "#000000", isDark = false)
+
+    fun setMailTheme(theme: MailHtmlTheme) {
+        mailTheme = theme
+    }
+
     private fun update(transform: (UiState) -> UiState) = _state.update(transform)
 
     /**
@@ -185,7 +199,7 @@ class SchoolMailMessageViewModel @Inject constructor(
     private suspend fun render(summary: MailSummary, body: MailBody, allowRemote: Boolean): Content.Ready =
         withContext(io) {
             val html = body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = allowRemote) }
-            val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote) }
+            val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote, mailTheme) }
             val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
             val warnings = MailWarnings.evaluate(
                 summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments, summary.returnPath,
@@ -230,7 +244,7 @@ class SchoolMailMessageViewModel @Inject constructor(
             try {
                 val (html, document) = withContext(io) {
                     val sanitized = HtmlSanitizer.sanitize(source, allowRemoteImages = true)
-                    sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true)
+                    sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true, theme = mailTheme)
                 }
                 update { st ->
                     // The mail cannot change underneath this (load() is a no-op once Ready), but
