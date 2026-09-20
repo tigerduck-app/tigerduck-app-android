@@ -651,10 +651,8 @@
     <string name="school_mail_forward_from">De la: %1$@</string>
     <string name="school_mail_forward_subject">Subiect: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Mesaj redirecționat ----------</string>
-    <string name="school_mail_guide_gmail_title">Citește e-mailul universitar în Gmail</string>
     <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
     <string name="school_mail_guide_open_in_browser">Open in browser</string>
-    <string name="school_mail_guide_placeholder">Instrucțiunile vor fi disponibile în curând.</string>
     <string name="school_mail_invalid_recipients">Verifică aceste adrese: %1$@</string>
     <string name="school_mail_keep_editing">Continuă editarea</string>
     <string name="school_mail_leave_title">Salvezi acest e-mail ca ciornă?</string>

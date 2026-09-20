@@ -651,10 +651,8 @@
     <string name="school_mail_forward_from">فرستنده: %1$@</string>
     <string name="school_mail_forward_subject">موضوع: %1$@</string>
     <string name="school_mail_forwarded_header">---------- پیام بازارسال‌شده ----------</string>
-    <string name="school_mail_guide_gmail_title">خواندن ایمیل مدرسه در Gmail</string>
     <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
     <string name="school_mail_guide_open_in_browser">Open in browser</string>
-    <string name="school_mail_guide_placeholder">دستورالعمل‌ها به‌زودی اضافه می‌شود.</string>
     <string name="school_mail_invalid_recipients">این آدرس‌ها را بررسی کنید: %1$@</string>
     <string name="school_mail_keep_editing">ادامهٔ ویرایش</string>
     <string name="school_mail_leave_title">این ایمیل به‌عنوان پیش‌نویس ذخیره شود؟</string>

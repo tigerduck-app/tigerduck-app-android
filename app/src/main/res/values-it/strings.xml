@@ -651,10 +651,8 @@
     <string name="school_mail_forward_from">Da: %1$@</string>
     <string name="school_mail_forward_subject">Oggetto: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Messaggio inoltrato ----------</string>
-    <string name="school_mail_guide_gmail_title">Leggi la posta universitaria in Gmail</string>
     <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
     <string name="school_mail_guide_open_in_browser">Open in browser</string>
-    <string name="school_mail_guide_placeholder">Le istruzioni saranno disponibili a breve.</string>
     <string name="school_mail_invalid_recipients">Controlla questi indirizzi: %1$@</string>
     <string name="school_mail_keep_editing">Continua a modificare</string>
     <string name="school_mail_leave_title">Salvare questo messaggio come bozza?</string>

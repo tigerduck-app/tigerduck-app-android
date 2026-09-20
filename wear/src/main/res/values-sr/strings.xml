@@ -651,10 +651,8 @@
     <string name="school_mail_forward_from">Од: %1$@</string>
     <string name="school_mail_forward_subject">Тема: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Прослеђена порука ----------</string>
-    <string name="school_mail_guide_gmail_title">Читајте школску пошту преко Gmail апликације</string>
     <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
     <string name="school_mail_guide_open_in_browser">Open in browser</string>
-    <string name="school_mail_guide_placeholder">Упутства ће ускоро бити доступна.</string>
     <string name="school_mail_invalid_recipients">Проверите ове адресе: %1$@</string>
     <string name="school_mail_keep_editing">Настави уређивање</string>
     <string name="school_mail_leave_title">Да сачувам ову поруку као нацрт?</string>

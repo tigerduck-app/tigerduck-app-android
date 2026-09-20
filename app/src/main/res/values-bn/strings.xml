@@ -651,10 +651,8 @@
     <string name="school_mail_forward_from">প্রেরক: %1$@</string>
     <string name="school_mail_forward_subject">বিষয়: %1$@</string>
     <string name="school_mail_forwarded_header">---------- ফরওয়ার্ড করা বার্তা ----------</string>
-    <string name="school_mail_guide_gmail_title">Gmail-এ স্কুল মেইল পড়ুন</string>
     <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
     <string name="school_mail_guide_open_in_browser">Open in browser</string>
-    <string name="school_mail_guide_placeholder">নির্দেশাবলী শীঘ্রই আসছে।</string>
     <string name="school_mail_invalid_recipients">এই ঠিকানাগুলো যাচাই করুন: %1$@</string>
     <string name="school_mail_keep_editing">সম্পাদনা চালিয়ে যান</string>
     <string name="school_mail_leave_title">এই মেইলটি খসড়া হিসেবে সংরক্ষণ করবেন?</string>

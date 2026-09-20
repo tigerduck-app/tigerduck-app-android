@@ -651,10 +651,8 @@
     <string name="school_mail_forward_from">จาก: %1$@</string>
     <string name="school_mail_forward_subject">หัวเรื่อง: %1$@</string>
     <string name="school_mail_forwarded_header">---------- ข้อความที่ส่งต่อ ----------</string>
-    <string name="school_mail_guide_gmail_title">อ่านอีเมลมหาวิทยาลัยใน Gmail</string>
     <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
     <string name="school_mail_guide_open_in_browser">Open in browser</string>
-    <string name="school_mail_guide_placeholder">คำแนะนำจะเปิดให้ใช้งานเร็ว ๆ นี้</string>
     <string name="school_mail_invalid_recipients">ตรวจสอบที่อยู่เหล่านี้: %1$@</string>
     <string name="school_mail_keep_editing">แก้ไขต่อ</string>
     <string name="school_mail_leave_title">บันทึกอีเมลนี้เป็นแบบร่างหรือไม่?</string>

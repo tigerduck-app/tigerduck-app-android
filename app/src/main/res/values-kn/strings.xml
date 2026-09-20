@@ -651,10 +651,8 @@
     <string name="school_mail_forward_from">ಕಳುಹಿಸಿದವರು: %1$@</string>
     <string name="school_mail_forward_subject">ವಿಷಯ: %1$@</string>
     <string name="school_mail_forwarded_header">---------- ಫಾರ್ವರ್ಡ್ ಮಾಡಿದ ಸಂದೇಶ ----------</string>
-    <string name="school_mail_guide_gmail_title">Gmail ನಲ್ಲಿ ಶಾಲಾ ಇಮೇಲ್ ಓದಿ</string>
     <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
     <string name="school_mail_guide_open_in_browser">Open in browser</string>
-    <string name="school_mail_guide_placeholder">ಸೂಚನೆಗಳು ಶೀಘ್ರದಲ್ಲೇ ಬರಲಿವೆ.</string>
     <string name="school_mail_invalid_recipients">ಈ ವಿಳಾಸಗಳನ್ನು ಪರಿಶೀಲಿಸಿ: %1$@</string>
     <string name="school_mail_keep_editing">ಸಂಪಾದನೆ ಮುಂದುವರಿಸಿ</string>
     <string name="school_mail_leave_title">ಈ ಇಮೇಲ್ ಅನ್ನು ಡ್ರಾಫ್ಟ್ ಆಗಿ ಉಳಿಸಬೇಕೇ?</string>
