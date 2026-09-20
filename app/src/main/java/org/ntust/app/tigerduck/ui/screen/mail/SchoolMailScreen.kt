@@ -32,9 +32,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
@@ -113,6 +111,7 @@ import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.readToggleIcon
 import org.ntust.app.tigerduck.ui.component.statusText
 import org.ntust.app.tigerduck.ui.screen.settings.LoginSheet
 import org.ntust.app.tigerduck.ui.screen.settings.signInFieldValue
@@ -493,7 +492,7 @@ private fun SwipeableMailCard(
     val offset = remember(row.key) { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val icon = if (message.flags.seen) Icons.AutoMirrored.Filled.Undo else Icons.Filled.Check
+    val icon = readToggleIcon(isRead = message.flags.seen)
     val iconDescription = stringResource(if (message.flags.seen) R.string.school_mail_mark_unread else R.string.school_mail_mark_read)
     // The same localized label the swipe icon announces: what the toggle is about to do.
     val readActions = remember(iconDescription) {

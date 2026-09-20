@@ -27,9 +27,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
@@ -91,6 +89,7 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.readToggleIcon
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -512,8 +511,8 @@ private fun BulletinCard(
  * SwipeableAssignmentRow pattern on the home screen (100dp threshold,
  * 0.6× drag damping, fling-out + snap-reset on commit, spring-back
  * otherwise). Either swipe direction toggles read state — the leading or
- * trailing icon flips between Check (will mark read) and Undo (will mark
- * unread) based on current state.
+ * trailing icon flips between a "mark read" envelope and a "mark unread"
+ * envelope based on current state.
  */
 @Composable
 private fun SwipeableBulletinCard(
@@ -531,7 +530,7 @@ private fun SwipeableBulletinCard(
     val coroutineScope = rememberCoroutineScope()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val actionColor = Color(0xFF34C759)
-    val icon = if (isRead) Icons.Filled.Check else Icons.AutoMirrored.Filled.Undo
+    val icon = readToggleIcon(isRead = isRead)
     val iconDesc = stringResource(
         if (isRead) R.string.bulletin_mark_as_unread_action
         else R.string.bulletin_mark_as_read_action
