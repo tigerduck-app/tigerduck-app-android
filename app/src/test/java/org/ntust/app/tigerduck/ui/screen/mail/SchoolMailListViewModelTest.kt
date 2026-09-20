@@ -350,6 +350,11 @@ class SchoolMailListViewModelTest {
         vm.load()
         advanceUntilIdle()
 
+        // The failure actually happened to every folder in the queue -- proof it was
+        // swallowed, not just that prefetch never got a chance to run at all.
+        val prefetched = repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
+        assertEquals(setOf("草稿匣", "廣告信匣", "回收筒"), prefetched.map { it.first }.toSet())
+
         assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
         assertNull(vm.state.value.actionError)
     }
@@ -368,6 +373,22 @@ class SchoolMailListViewModelTest {
 
         // The only calls after the switch are the switch's own full-size load.
         assertTrue(repo.pageLimits.drop(before).all { it.second == 50 })
+    }
+
+    @Test
+    fun `the prefetch never has two loadPage calls open at the same time`() = runTest {
+        // Mail2000 caps connections and answers "server busy" under load -- a fan-out here
+        // (e.g. one async{} per folder) would be paid for by the screen the user is actually
+        // reading. blockPrefetch parks a call *inside* loadPage rather than before it, so a
+        // fan-out implementation gets the chance to start a second call while the first is
+        // still open -- which is exactly what maxConcurrentLoads would catch.
+        repo.blockPrefetch = true
+        vm.load()
+        advanceUntilIdle()
+        repo.blockPrefetch = false
+        advanceUntilIdle()
+
+        assertEquals(1, repo.maxConcurrentLoads)
     }
 
     // --- All mail ------------------------------------------------------------------------

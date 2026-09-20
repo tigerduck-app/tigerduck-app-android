@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.mail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -313,7 +314,17 @@ class SchoolMailListViewModel @Inject constructor(
         prefetchJob = viewModelScope.launch {
             for (folder in queue) {
                 if (!isActive) return@launch
-                runCatching { repository.loadPage(folder, null, PREFETCH_LIMIT) }
+                try {
+                    repository.loadPage(folder, null, PREFETCH_LIMIT)
+                } catch (e: CancellationException) {
+                    // A cancelled prefetch must actually stop, not just skip to the next
+                    // iteration's isActive check -- runCatching would otherwise swallow this
+                    // too and let the loop carry on regardless of who cancelled it or why.
+                    throw e
+                } catch (e: Throwable) {
+                    // Silent by design (see the doc above): a background warm's failure means
+                    // only that a later chip tap is as slow as it used to be.
+                }
             }
         }
     }

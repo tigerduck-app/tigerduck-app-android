@@ -61,6 +61,17 @@ class FakeSchoolMailRepository : SchoolMailRepository {
             if (!value) prefetchGate?.complete(Unit)
         }
     private var prefetchGate: CompletableDeferred<Unit>? = null
+    /** How many [loadPage] calls are open right now -- incremented on entry, decremented in `finally`. */
+    private var openLoads = 0
+    /**
+     * The largest [openLoads] ever observed. A sequential prefetch never lets a second
+     * [loadPage] start before the one ahead of it returns, so this must stay 1 across a whole
+     * prefetch run; a fan-out (e.g. `async` per folder) would let two calls sit inside
+     * [loadPage] at once -- which, combined with [blockPrefetch] parking the first one open,
+     * is exactly what this catches.
+     */
+    var maxConcurrentLoads = 0
+        private set
     val sent = mutableListOf<Pair<OutgoingMail, Pair<String, Long>?>>()
     val drafts = mutableListOf<Pair<OutgoingMail, Long?>>()
     val discardedDrafts = mutableListOf<Long>()
@@ -112,23 +123,29 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int): MailPage {
-        foldersTouched += folder
-        pageLimits += folder to limit
-        if (limit != MailRepository.PAGE_SIZE) {
-            prefetchError?.let { throw it }
-            if (blockPrefetch) {
-                val gate = CompletableDeferred<Unit>()
-                prefetchGate = gate
-                gate.await()
+        openLoads++
+        maxConcurrentLoads = maxOf(maxConcurrentLoads, openLoads)
+        try {
+            foldersTouched += folder
+            pageLimits += folder to limit
+            if (limit != MailRepository.PAGE_SIZE) {
+                prefetchError?.let { throw it }
+                if (blockPrefetch) {
+                    val gate = CompletableDeferred<Unit>()
+                    prefetchGate = gate
+                    gate.await()
+                }
             }
+            loadError?.let { throw it }
+            val all = sorted(folder)
+            val from = beforeSeq ?: 0
+            val chunk = all.drop(from).take(pageSize)
+            val page = MailPage(1, all.size, chunk, (from + chunk.size).takeIf { it < all.size })
+            if (beforeSeq == null) cachedPages[folder] = page
+            return page
+        } finally {
+            openLoads--
         }
-        loadError?.let { throw it }
-        val all = sorted(folder)
-        val from = beforeSeq ?: 0
-        val chunk = all.drop(from).take(pageSize)
-        val page = MailPage(1, all.size, chunk, (from + chunk.size).takeIf { it < all.size })
-        if (beforeSeq == null) cachedPages[folder] = page
-        return page
     }
 
     override suspend fun inboxStatus(): FolderStatus {
