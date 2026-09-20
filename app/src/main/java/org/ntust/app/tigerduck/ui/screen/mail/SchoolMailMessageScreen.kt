@@ -10,7 +10,6 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,6 +86,7 @@ import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.replaceIosArg
 
 private val WarningOrange = Color(0xFFFF9500)
@@ -112,7 +112,12 @@ fun SchoolMailMessageScreen(
     val mailTheme = MailHtmlTheme(
         background = cs.surface.toCssHex(),
         foreground = cs.onSurface.toCssHex(),
-        isDark = isSystemInDarkTheme(),
+        // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.surface/cs.onSurface
+        // above follow the app's own resolved theme (MainActivity's themeMode override -- "dark"
+        // or "light" -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same
+        // Compose-observable value MainActivity mirrors that resolved theme into, so this stays
+        // in lockstep with the colours right next to it instead of just the OS half of the time.
+        isDark = TigerDuckTheme.isDarkMode,
     )
     // Keyed on mailTheme (a data class, so this only relaunches on a genuine colour change, not
     // every recomposition): pushing it into the view model directly from the composable body
