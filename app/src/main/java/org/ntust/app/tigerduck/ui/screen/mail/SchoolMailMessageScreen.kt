@@ -108,15 +108,19 @@ fun SchoolMailMessageScreen(
     var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingSavePart by rememberSaveable { mutableStateOf<String?>(null) }
 
-    // Read fresh on every recomposition (not just once) so a live theme change is picked up
-    // before the next document rebuild -- there's no Compose theme access inside the view model.
     val cs = MaterialTheme.colorScheme
     val mailTheme = MailHtmlTheme(
         background = cs.surface.toCssHex(),
         foreground = cs.onSurface.toCssHex(),
         isDark = isSystemInDarkTheme(),
     )
-    viewModel.setMailTheme(mailTheme)
+    // Keyed on mailTheme (a data class, so this only relaunches on a genuine colour change, not
+    // every recomposition): pushing it into the view model directly from the composable body
+    // would be an unguarded side effect of composition, which can run speculatively or be
+    // abandoned. SchoolMailMessageViewModel.setMailTheme also rebuilds the already-loaded
+    // document when the theme actually changes, so a dark/light flip while a mail is open
+    // recolours it instead of leaving it stale.
+    LaunchedEffect(mailTheme) { viewModel.setMailTheme(mailTheme) }
 
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.closed) { if (state.closed) onBack() }

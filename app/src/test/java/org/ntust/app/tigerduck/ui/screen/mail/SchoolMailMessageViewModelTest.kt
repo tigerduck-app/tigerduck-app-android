@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -345,6 +346,52 @@ class SchoolMailMessageViewModelTest {
         vm.moveTo("回收筒")
         assertEquals(Triple("INBOX", 5L, "回收筒"), repo.moved.single())
         assertTrue(vm.state.value.closed)
+    }
+
+    // --- mail theme: a genuine change rebuilds the already-loaded document -------------------
+
+    @Test
+    fun `a theme change while a mail is open rebuilds the document with the new colours, preserving remote-image state`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("""<p><img src="https://t.example/p.gif"></p>""", null, emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        vm.loadRemoteImages()
+        assertTrue(vm.state.value.remoteImagesAllowed)
+
+        val dark = MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true)
+        vm.setMailTheme(dark)
+        val document = ready(vm).document!!
+        assertTrue(document.html, document.html.contains("background:#121212"))
+        assertTrue(document.html, document.html.contains("color:#e6e6e6"))
+        assertTrue(document.html, document.html.contains("color-scheme:dark"))
+        // The rebuild reads allowRemoteImages back off state rather than hardcoding false, so
+        // remote images already allowed before the theme changed are not silently re-blocked.
+        assertTrue(document.html, document.html.contains("img-src data: https: http:"))
+    }
+
+    @Test
+    fun `setting the same theme twice does not rebuild the document`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("<p>hi</p>", null, emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        val dark = MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true)
+        vm.setMailTheme(dark)
+        val document = ready(vm).document
+
+        vm.setMailTheme(dark)
+        assertSame(document, ready(vm).document)
+    }
+
+    @Test
+    fun `a theme change on a plain-text mail does nothing -- there is no document to rebuild`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        vm.setMailTheme(MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true))
+        assertNull(ready(vm).document)
     }
 
     // --- attachments: open ------------------------------------------------------------------

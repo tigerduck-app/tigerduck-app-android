@@ -125,15 +125,34 @@ class SchoolMailMessageViewModel @Inject constructor(
     /**
      * The app's own colours for the mail HTML page (spec §9.3 no longer means white paper). There
      * is no Compose theme access from a view model, so [SchoolMailMessageScreen] pushes its current
-     * `MaterialTheme.colorScheme` in on every recomposition via [setMailTheme]; [render] and
-     * [loadRemoteImages] read it whenever they (re)build the document. A theme change reaches the
-     * WebView's own background immediately (its native view colour is recomputed on every
-     * recomposition), but the document's own embedded colours wait for the next rebuild.
+     * `MaterialTheme.colorScheme` in through [setMailTheme] from a `LaunchedEffect` keyed on it;
+     * [render] and [loadRemoteImages] read it whenever they (re)build the document.
+     *
+     * A genuine change -- not merely a recomposition that recomputes the same colours -- also
+     * rebuilds the document already on screen, whenever content is already [Content.Ready], from
+     * the sanitized HTML and inline images already in hand: no re-fetch, no re-sanitize, just
+     * [MailHtmlDocument.build] run again. Without this, the WebView's *native* background (set
+     * independently, straight from the current colour scheme) repaints immediately on a
+     * dark/light flip while a mail is open, but the document itself would keep the colours it was
+     * built with -- a stale, wrongly-coloured page inside a freshly-coloured frame, which is
+     * exactly what this theming exists to prevent.
      */
     private var mailTheme = MailHtmlTheme(background = "#ffffff", foreground = "#000000", isDark = false)
 
     fun setMailTheme(theme: MailHtmlTheme) {
+        if (theme == mailTheme) return
         mailTheme = theme
+        val ready = _state.value.content as? Content.Ready ?: return
+        val html = ready.html ?: return
+        viewModelScope.launch {
+            val document = withContext(io) {
+                MailHtmlDocument.build(html.html, ready.body.inlineImages, _state.value.remoteImagesAllowed, theme)
+            }
+            update { st ->
+                val current = st.content as? Content.Ready ?: return@update st
+                st.copy(content = current.copy(document = document))
+            }
+        }
     }
 
     private fun update(transform: (UiState) -> UiState) = _state.update(transform)
