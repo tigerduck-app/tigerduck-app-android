@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.mail
 import android.view.ViewGroup
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
@@ -106,9 +107,18 @@ internal fun guideUrl(
  *
  * [WebViewClient.shouldOverrideUrlLoading] keeps navigation inside the help path (see
  * [isGuideUrl]); anything else -- an external link on the page -- is handed to [onExternalLink]
- * instead of being loaded in this WebView. [WebViewClient.onReceivedError] calls [onError] only
- * for a main-frame load failure ([WebResourceRequest.isForMainFrame]): a failed sub-resource (an
- * image, a font) is not reason to swap the whole screen for a retry card.
+ * instead of being loaded in this WebView.
+ *
+ * [onError] is reached from two places, both gated on [WebResourceRequest.isForMainFrame] -- a
+ * failed sub-resource (an image, a font) is not reason to swap the whole screen for a retry card:
+ * [WebViewClient.onReceivedError] for a transport-level failure (no network, DNS, TLS), and
+ * [WebViewClient.onReceivedHttpError] for a page the server answered with 4xx or 5xx. The second
+ * never fires for the first: a status code is not an error to the loader, so without that
+ * override a 404 or a 502 would paint the server's own error body inside the guide screen.
+ *
+ * Neither can catch a help page that has not been deployed yet. The site serves an SPA fallback,
+ * so an unknown path comes back 200 with `index.html`, which is a perfectly successful load as
+ * far as the WebView is concerned.
  */
 @Composable
 fun GuideWebView(
@@ -143,6 +153,14 @@ fun GuideWebView(
                     }
 
                     override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                        if (request.isForMainFrame) latestOnError()
+                    }
+
+                    override fun onReceivedHttpError(
+                        view: WebView,
+                        request: WebResourceRequest,
+                        errorResponse: WebResourceResponse,
+                    ) {
                         if (request.isForMainFrame) latestOnError()
                     }
                 }
