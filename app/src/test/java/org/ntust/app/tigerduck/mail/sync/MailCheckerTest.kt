@@ -236,8 +236,12 @@ class MailCheckerTest {
         checker(cache = cache).check(CheckSource.ALARM)
         server.deliver("hello")
         server.failBodyFetch = true
+        server.bodyFetches = 0
 
         assertEquals(CheckOutcome.NewMail(1), checker(cache = cache).check(CheckSource.ALARM))
+        // The fetch really was attempted and really did fail. Without this the test passes just
+        // as well with prefetchBodies deleted, which is not what it claims to be about.
+        assertTrue(server.bodyFetches > 0)
     }
 
     @Test

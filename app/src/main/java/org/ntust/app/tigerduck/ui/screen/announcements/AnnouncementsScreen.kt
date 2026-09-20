@@ -129,20 +129,23 @@ fun AnnouncementsScreen(
             }
     }
 
-    // Empty-state height = viewport - header. Both are measured via
+    // Empty-state height = viewport - chrome. Both are measured via
     // onSizeChanged, and we hold off rendering the empty state until both
     // measurements have arrived — otherwise the first composition uses 0
-    // for the header and sizes the empty state to the full viewport,
+    // for the chrome and sizes the empty state to the full viewport,
     // briefly making the LazyColumn scrollable past the bottom.
-    var headerHeightPx by remember { mutableIntStateOf(0) }
+    //
+    // The chrome's height is read straight off appBar, which the same
+    // onSizeChanged writes: a second copy of one measurement is a second
+    // thing to keep in step for nothing.
     var viewportHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val emptyStateHeight = with(density) {
-        (viewportHeightPx - headerHeightPx).coerceAtLeast(0).toDp()
-    }
-    val canShowEmptyState = viewportHeightPx > 0 && headerHeightPx > 0
-
     val appBar = rememberAppBarState()
+    val emptyStateHeight = with(density) {
+        (viewportHeightPx - appBar.heightPx).coerceAtLeast(0f).toDp()
+    }
+    val canShowEmptyState = viewportHeightPx > 0 && appBar.heightPx > 0f
+
     val searchReveal = rememberSearchRevealState()
     var searchFocused by remember { mutableStateOf(false) }
     // Pinning opens the drawer as well as holding it open, which is what puts the field on screen
@@ -249,13 +252,11 @@ fun AnnouncementsScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        // One measurement, both readers: the empty state sizes
-                        // itself to the viewport below the chrome, and the list
-                        // pads itself by exactly what the chrome covers.
-                        .onSizeChanged {
-                            headerHeightPx = it.height
-                            appBar.heightPx = it.height.toFloat()
-                        }
+                        // One measurement, three readers: the empty state sizes
+                        // itself to the viewport below the chrome, the list pads
+                        // itself by exactly what the chrome covers, and the bar
+                        // knows how far it has to travel to hide.
+                        .onSizeChanged { appBar.heightPx = it.height.toFloat() }
                         .graphicsLayer { translationY = appBar.offsetPx }
                         .background(MaterialTheme.colorScheme.background),
                 ) {

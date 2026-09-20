@@ -125,8 +125,14 @@ fun rememberAppBarState(): AppBarState = remember { AppBarState() }
  * gives the staged gesture the iOS search drawer has: a short pull opens search, a longer one goes
  * on to arm a refresh. `TigerPullToRefresh` owns that hand-off.
  *
- * [pinned] holds the drawer open while the field is focused or carries text -- a scroll must not
- * yank the field out from under someone mid-edit.
+ * [pinned] holds [revealPx] at [maxPx] while the field is focused or carries text, so no scroll
+ * can shut the drawer under someone mid-edit.
+ *
+ * It holds the drawer's *height*, not the field's position on screen. A pinned [consume] returns
+ * 0, and `chromeConsumption` then hands that whole upward delta to [AppBarState.onScroll]
+ * instead -- so the chrome overlay, drawer and focused field and live IME included, still
+ * translates up and off with the bar. The field keeps its text, its focus and its full height
+ * throughout, and one downward scroll brings it straight back.
  */
 @Stable
 class SearchRevealState(initialMaxPx: Float = 0f) {

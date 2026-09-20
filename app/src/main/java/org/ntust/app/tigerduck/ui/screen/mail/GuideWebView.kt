@@ -41,6 +41,13 @@ private const val HEX_DIGITS = "0123456789ABCDEF"
  * `isReturnDefaultValues` JVM unit tests -- stays unit-testable without Robolectric. A URL
  * [java.net.URI] cannot parse (or a scheme-relative one, which parses with a `null` scheme) is
  * rejected rather than throwing: fail closed.
+ *
+ * [java.net.URI.normalize] collapses **literal** `.` and `..` segments only, so a path cannot
+ * lexically climb out of [GUIDE_PATH_PREFIX]. Percent-encoded ones (`%2e%2e`) are not dot
+ * segments to a URI parser and survive it untouched; what keeps those out is Chromium, which
+ * canonicalizes a URL to WHATWG rules -- resolving the encoded form -- before this callback is
+ * ever handed one. The host stays pinned either way, so the worst such a URL could reach is
+ * another page on the same site, with no JavaScript bridge to reach anything of ours.
  */
 internal fun isGuideUrl(url: String): Boolean {
     val uri = runCatching { java.net.URI(url) }.getOrNull()?.normalize() ?: return false

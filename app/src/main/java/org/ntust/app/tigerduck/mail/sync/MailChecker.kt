@@ -142,8 +142,8 @@ class MailChecker @Inject constructor(
      * moving the marker -- has already succeeded by the time it runs; a body that will not come
      * down means only that opening that mail is as slow as it used to be.
      */
-    private fun prefetchBodies(session: MailSession, uidValidity: Long, fresh: List<MailSummary>) {
-        fresh.sortedByDescending { it.uid }.take(BODY_PREFETCH_LIMIT).forEach { summary ->
+    private fun prefetchBodies(session: MailSession, uidValidity: Long, arrivals: List<MailSummary>) {
+        arrivals.sortedByDescending { it.uid }.take(BODY_PREFETCH_LIMIT).forEach { summary ->
             runCatching { cache.saveBody(INBOX, summary.uid, uidValidity, session.fetchBody(INBOX, summary.uid)) }
         }
     }

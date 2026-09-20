@@ -93,7 +93,7 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
                 EmptyStateView(
                     icon = Icons.AutoMirrored.Filled.HelpOutline,
                     title = stringResource(R.string.school_mail_guide_load_failed),
-                    message = "",
+                    message = null,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { failed = false; reloadKey++ }) {
