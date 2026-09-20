@@ -775,6 +775,7 @@
     <string name="score_semester_upper">前期</string>
     <string name="score_sign_in_required_message">成績履歴を表示するにはサインインしてください</string>
     <string name="score_term_format">現在の学期：%1$s-%2$s</string>
+    <string name="settings_about_others">その他</string>
     <string name="settings_accent_color">アクセントカラー</string>
     <string name="settings_account_library_system">図書館システム</string>
     <string name="settings_account_ntust_system">校務システム</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">戻る</string>
     <string name="settings_library_warning_message">本アプリは NTUST 公式の図書館アプリではなく、学校図書館の認可も得ていません。各機能の正常動作および使用結果について保証することはできません。\n\nご利用は慎重にお願いします。利用後に発生したいかなる悪影響についてもご自身の責任となり、tigerduck-app とは一切関係ありません。</string>
     <string name="settings_library_warning_title">ご注意ください！</string>
+    <string name="settings_licenses_section_third_party">サードパーティライブラリ</string>
+    <string name="settings_licenses_section_wear">Wear OS アプリ</string>
+    <string name="settings_licenses_unavailable">ライセンス一覧を読み込めません</string>
+    <string name="settings_licenses_website">ウェブサイト</string>
     <string name="settings_link_opening_method">リンクを開く方法</string>
     <string name="settings_official_website">公式ウェブサイト</string>
     <string name="settings_open_source_licenses">オープンソースライセンス</string>

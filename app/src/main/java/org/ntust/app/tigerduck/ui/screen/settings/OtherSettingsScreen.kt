@@ -1,8 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.content.Context
-import android.content.Intent
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -30,10 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
@@ -43,26 +38,23 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
  * 其他設定, one card per group: 課程字體大小, 反轉滑條方向, 螢幕翻轉, 震動,
- * API 端點, 顏色主題 with 重新分配課表顏色, 使用分析, then the links out.
- * iOS has the same page without 震動, 螢幕翻轉, 顏色主題 and 使用分析,
- * which it does not offer. The library switches live on
- * [LibrarySettingsScreen], the other entry in Settings' 其他設定 section.
+ * API 端點, 顏色主題 with 重新分配課表顏色, 使用分析. iOS has the same page
+ * without 震動, 螢幕翻轉, 顏色主題 and 使用分析, which it does not offer.
+ * The library switches live on [LibrarySettingsScreen], the other entry in
+ * Settings' 其他設定 section, and the links out on [AboutOthersScreen].
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OtherSettingsScreen(
     onBack: () -> Unit,
     onNavigateToApiEndpoint: () -> Unit,
-    onNavigateToSourceCode: () -> Unit,
     onNavigateToVibration: () -> Unit,
     onNavigateToCourseNameSize: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     var analyticsEnabled by remember { mutableStateOf(viewModel.prefs.analyticsEnabled) }
     val invertSlider = viewModel.appState.invertSliderDirection
     val themeMode = viewModel.appState.themeMode
-    val browserPreference = viewModel.appState.browserPreference
     val rotationMode = viewModel.appState.rotationMode
     val courseNameScale = viewModel.appState.courseNameScale
 
@@ -227,50 +219,6 @@ fun OtherSettingsScreen(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                 )
             }
-
-            item { Spacer(Modifier.height(8.dp)) }
-
-            item {
-                ContentCard {
-                    Column {
-                        SettingsLinkRow(stringResource(R.string.settings_feedback_bug_report)) {
-                            openUrl(
-                                context,
-                                "https://github.com/tigerduck-app/tigerduck-app-android/issues",
-                                browserPreference,
-                            )
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_privacy_policy)) {
-                            openUrl(
-                                context,
-                                "https://app.ntust.org/tigerduck/privacy",
-                                browserPreference,
-                            )
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_delete_account)) {
-                            openUrl(
-                                context,
-                                "https://tigerduck.app/delete-account",
-                                browserPreference,
-                            )
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_open_source_licenses)) {
-                            openUrl(
-                                context,
-                                "https://github.com/tigerduck-app/tigerduck-app-android/blob/main/LICENSE",
-                                browserPreference,
-                            )
-                        }
-                        HorizontalDivider()
-                        SettingsLinkRow(stringResource(R.string.settings_view_source_code)) {
-                            onNavigateToSourceCode()
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -287,14 +235,5 @@ fun OtherSettingsScreen(
             dismissText = stringResource(R.string.action_cancel),
             onDismiss = { showResetColorsConfirm = false },
         )
-    }
-}
-
-private fun openUrl(context: Context, url: String, browserPreference: String) {
-    val uri = url.toUri()
-    if (browserPreference == "inApp") {
-        CustomTabsIntent.Builder().build().launchUrl(context, uri)
-    } else {
-        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     }
 }

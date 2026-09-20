@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Јесењи</string>
     <string name="score_sign_in_required_message">Пријавите се да видите историју оцена</string>
     <string name="score_term_format">Тренутни семестар: %1$s-%2$s</string>
+    <string name="settings_about_others">Остало</string>
     <string name="settings_accent_color">Акцентна боја</string>
     <string name="settings_account_library_system">Библиотечки систем</string>
     <string name="settings_account_ntust_system">Академски систем</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Иди назад</string>
     <string name="settings_library_warning_message">Ова апликација није званична NTUST библиотечка апликација и није одобрена од стране школске библиотеке. Не можемо гарантовати исправан рад нити последице коришћења.\n\nКористите по свом нахођењу. Сви негативни исходи су Ваша лична одговорност и нису повезани са tigerduck-app.</string>
     <string name="settings_library_warning_title">Молимо обратите пажњу!</string>
+    <string name="settings_licenses_section_third_party">Библиотеке трећих страна</string>
+    <string name="settings_licenses_section_wear">Апликација за Wear OS</string>
+    <string name="settings_licenses_unavailable">Учитавање листе лиценци није успело</string>
+    <string name="settings_licenses_website">Веб-сајт</string>
     <string name="settings_link_opening_method">Отвори линкове са</string>
     <string name="settings_official_website">Званични веб-сајт</string>
     <string name="settings_open_source_licenses">Лиценце отвореног кода</string>

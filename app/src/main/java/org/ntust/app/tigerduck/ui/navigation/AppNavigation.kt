@@ -77,12 +77,15 @@ import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AboutOthersScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.LicenseDetailScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LibrarySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationPermissionSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.OpenSourceLicensesScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
@@ -114,6 +117,11 @@ sealed class Screen(val route: String) {
     object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object AboutOthers : Screen("aboutOthers")
+    object OpenSourceLicenses : Screen("openSourceLicenses")
+    object LicenseDetail : Screen("openSourceLicenses/{key}") {
+        fun route(key: String) = "openSourceLicenses/$key"
+    }
     object LibrarySettings : Screen("librarySettings")
     object SchoolMailSettings : Screen(MailRoutes.SETTINGS)
     object SchoolMailGuide : Screen(MailRoutes.GUIDE)
@@ -476,6 +484,7 @@ fun MainNavigation(
                     onNavigateToLibrarySettings = { navController.navigate(Screen.LibrarySettings.route) },
                     onNavigateToSchoolMailSettings = { navController.navigate(Screen.SchoolMailSettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
+                    onNavigateToAboutOthers = { navController.navigate(Screen.AboutOthers.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
                     // the `if (BuildConfig.DEBUG)` block below, so an
@@ -544,9 +553,30 @@ fun MainNavigation(
                     onNavigateToApiEndpoint = {
                         navController.navigate(Screen.ApiEndpointDebug.route)
                     },
-                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                     onNavigateToCourseNameSize = { navController.navigate(Screen.CourseNameSizeSettings.route) },
+                )
+            }
+            composable(Screen.AboutOthers.route) {
+                AboutOthersScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
+                    onNavigateToLicenses = { navController.navigate(Screen.OpenSourceLicenses.route) },
+                )
+            }
+            composable(Screen.OpenSourceLicenses.route) {
+                OpenSourceLicensesScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenLicense = { key -> navController.navigate(Screen.LicenseDetail.route(key)) },
+                )
+            }
+            composable(
+                Screen.LicenseDetail.route,
+                arguments = listOf(navArgument("key") { type = NavType.StringType }),
+            ) { entry ->
+                LicenseDetailScreen(
+                    key = entry.arguments?.getString("key").orEmpty(),
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screen.LibrarySettings.route) {

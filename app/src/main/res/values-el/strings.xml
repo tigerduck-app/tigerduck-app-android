@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Χειμερινό</string>
     <string name="score_sign_in_required_message">Συνδεθείτε για να δείτε το ιστορικό βαθμών σας</string>
     <string name="score_term_format">Τρέχον εξάμηνο: %1$s-%2$s</string>
+    <string name="settings_about_others">Άλλα</string>
     <string name="settings_accent_color">Χρώμα έμφασης</string>
     <string name="settings_account_library_system">Σύστημα βιβλιοθήκης</string>
     <string name="settings_account_ntust_system">Ακαδημαϊκό σύστημα</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Επιστροφή</string>
     <string name="settings_library_warning_message">Αυτή η εφαρμογή δεν είναι επίσημη εφαρμογή βιβλιοθήκης NTUST και δεν έχει εγκριθεί από τη βιβλιοθήκη του σχολείου. Δεν μπορούμε να εγγυηθούμε κανονική λειτουργία ή οποιαδήποτε συνέπεια χρήσης.\n\nΧρησιμοποιείτε κατά την κρίση σας. Τυχόν αρνητικά αποτελέσματα είναι δική σας ευθύνη και δεν σχετίζονται με το tigerduck-app.</string>
     <string name="settings_library_warning_title">Παρακαλώ σημειώστε!</string>
+    <string name="settings_licenses_section_third_party">Βιβλιοθήκες τρίτων</string>
+    <string name="settings_licenses_section_wear">Εφαρμογή Wear OS</string>
+    <string name="settings_licenses_unavailable">Δεν είναι δυνατή η φόρτωση της λίστας αδειών</string>
+    <string name="settings_licenses_website">Ιστότοπος</string>
     <string name="settings_link_opening_method">Άνοιγμα συνδέσμων με</string>
     <string name="settings_official_website">Επίσημος ιστότοπος</string>
     <string name="settings_open_source_licenses">Άδειες ανοιχτού κώδικα</string>

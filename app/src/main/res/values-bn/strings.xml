@@ -775,6 +775,7 @@
     <string name="score_semester_upper">শরৎকাল</string>
     <string name="score_sign_in_required_message">আপনার গ্রেড ইতিহাস দেখতে সাইন ইন করুন</string>
     <string name="score_term_format">বর্তমান সেমিস্টার: %1$s-%2$s</string>
+    <string name="settings_about_others">অন্যান্য</string>
     <string name="settings_accent_color">অ্যাকসেন্ট রং</string>
     <string name="settings_account_library_system">লাইব্রেরি সিস্টেম</string>
     <string name="settings_account_ntust_system">একাডেমিক সিস্টেম</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">ফিরে যান</string>
     <string name="settings_library_warning_message">এই অ্যাপটি NTUST-এর অফিশিয়াল লাইব্রেরি অ্যাপ নয় এবং স্কুল লাইব্রেরি কর্তৃক অনুমোদিত নয়। স্বাভাবিক কার্যক্রম বা ব্যবহারের পরিণতির কোনো নিশ্চয়তা দেওয়া যাচ্ছে না।\n\nনিজের বিচারে ব্যবহার করুন। যেকোনো নেতিবাচক পরিণতি আপনার নিজের দায়িত্ব এবং tigerduck-app-এর সাথে সম্পর্কহীন।</string>
     <string name="settings_library_warning_title">অনুগ্রহ করে নোট করুন!</string>
+    <string name="settings_licenses_section_third_party">তৃতীয় পক্ষের লাইব্রেরি</string>
+    <string name="settings_licenses_section_wear">Wear OS অ্যাপ</string>
+    <string name="settings_licenses_unavailable">লাইসেন্সের তালিকা লোড করতে অক্ষম৷</string>
+    <string name="settings_licenses_website">ওয়েবসাইট</string>
     <string name="settings_link_opening_method">লিংক খুলুন</string>
     <string name="settings_official_website">অফিসিয়াল ওয়েবসাইট</string>
     <string name="settings_open_source_licenses">ওপেন-সোর্স লাইসেন্স</string>

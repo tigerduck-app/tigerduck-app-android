@@ -775,6 +775,7 @@
     <string name="score_semester_upper">סתיו</string>
     <string name="score_sign_in_required_message">היכנס כדי להציג את היסטוריית הציונים שלך</string>
     <string name="score_term_format">סמסטר נוכחי: %1$s-%2$s</string>
+    <string name="settings_about_others">אחר</string>
     <string name="settings_accent_color">צבע הדגש</string>
     <string name="settings_account_library_system">מערכת ספרייה</string>
     <string name="settings_account_ntust_system">מערכת אקדמית</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">חזור</string>
     <string name="settings_library_warning_message">אפליקציה זו אינה אפליקציית ספריית NTUST הרשמית ולא אושרה על ידי ספריית בית הספר. איננו יכולים להבטיח תפעול תקין או כל השלכות הנובעות מהשימוש.\n\nהשתמש לפי שיקול דעתך. כל תוצאה שלילית היא באחריותך בלבד ואינה קשורה ל-tigerduck-app.</string>
     <string name="settings_library_warning_title">שים לב!</string>
+    <string name="settings_licenses_section_third_party">ספריות צד שלישי</string>
+    <string name="settings_licenses_section_wear">אפליקציית Wear OS</string>
+    <string name="settings_licenses_unavailable">לא ניתן לטעון את רשימת הרישיונות</string>
+    <string name="settings_licenses_website">אתר</string>
     <string name="settings_link_opening_method">פתח קישורים עם</string>
     <string name="settings_official_website">אתר רשמי</string>
     <string name="settings_open_source_licenses">רישיונות קוד פתוח</string>

@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Őszi</string>
     <string name="score_sign_in_required_message">Jelentkezzen be a jegytörténet megtekintéséhez</string>
     <string name="score_term_format">Jelenlegi félév: %1$s-%2$s</string>
+    <string name="settings_about_others">Egyéb</string>
     <string name="settings_accent_color">Kiemelő szín</string>
     <string name="settings_account_library_system">Könyvtári rendszer</string>
     <string name="settings_account_ntust_system">Tanulmányi rendszer</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Vissza</string>
     <string name="settings_library_warning_message">Ez az alkalmazás nem az NTUST könyvtár hivatalos alkalmazása, és a könyvtár nem hagyta jóvá. Nem garantálhatjuk a normál működést vagy a használat következményeit.\n\nSaját belátása szerint használja. Minden negatív következményért Ön felel, és az nem kapcsolódik a tigerduck-app alkalmazáshoz.</string>
     <string name="settings_library_warning_title">Figyelem!</string>
+    <string name="settings_licenses_section_third_party">Harmadik féltől származó könyvtárak</string>
+    <string name="settings_licenses_section_wear">Wear OS alkalmazás</string>
+    <string name="settings_licenses_unavailable">A licenclista betöltése nem sikerült</string>
+    <string name="settings_licenses_website">Weboldal</string>
     <string name="settings_link_opening_method">Hivatkozások megnyitása ezzel:</string>
     <string name="settings_official_website">Hivatalos weboldal</string>
     <string name="settings_open_source_licenses">Nyílt forráskódú licencek</string>

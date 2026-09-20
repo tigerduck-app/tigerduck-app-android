@@ -775,6 +775,7 @@
     <string name="score_semester_upper">1학기</string>
     <string name="score_sign_in_required_message">성적 기록을 보려면 로그인하세요</string>
     <string name="score_term_format">현재 학기: %1$s-%2$s</string>
+    <string name="settings_about_others">기타</string>
     <string name="settings_accent_color">강조 색상</string>
     <string name="settings_account_library_system">도서관 시스템</string>
     <string name="settings_account_ntust_system">학사 시스템</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">돌아가기</string>
     <string name="settings_library_warning_message">이 앱은 NTUST 공식 도서관 앱이 아니며 학교 도서관의 승인을 받지 않았습니다. 정상 작동이나 사용으로 인한 결과를 보장할 수 없습니다.\n\n사용은 본인의 판단에 따르며, 부정적인 결과는 본인 책임이고 tigerduck-app과는 무관합니다.</string>
     <string name="settings_library_warning_title">주의해 주세요!</string>
+    <string name="settings_licenses_section_third_party">서드파티 라이브러리</string>
+    <string name="settings_licenses_section_wear">Wear OS 앱</string>
+    <string name="settings_licenses_unavailable">라이선스 목록을 불러올 수 없습니다</string>
+    <string name="settings_licenses_website">웹사이트</string>
     <string name="settings_link_opening_method">링크 열기 방식</string>
     <string name="settings_official_website">공식 웹사이트</string>
     <string name="settings_open_source_licenses">오픈소스 라이선스</string>

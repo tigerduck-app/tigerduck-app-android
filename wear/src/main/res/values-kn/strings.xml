@@ -775,6 +775,7 @@
     <string name="score_semester_upper">ಶರತ್ಕಾಲ</string>
     <string name="score_sign_in_required_message">ನಿಮ್ಮ ಅಂಕಗಳ ಇತಿಹಾಸ ವೀಕ್ಷಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡಿ</string>
     <string name="score_term_format">ಪ್ರಸ್ತುತ ಸೆಮಿಸ್ಟರ್: %1$s-%2$s</string>
+    <string name="settings_about_others">ಇತರೆ</string>
     <string name="settings_accent_color">ಆಕ್ಸೆಂಟ್ ಬಣ್ಣ</string>
     <string name="settings_account_library_system">ಗ್ರಂಥಾಲಯ ವ್ಯವಸ್ಥೆ</string>
     <string name="settings_account_ntust_system">ಶಾಲಾ ವ್ಯವಸ್ಥೆ</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">ಹಿಂದೆ ಹೋಗಿ</string>
     <string name="settings_library_warning_message">ಈ ಅಪ್ಲಿಕೇಶನ್ NTUST ಅಧಿಕೃತ ಗ್ರಂಥಾಲಯ ಅಪ್ಲಿಕೇಶನ್ ಅಲ್ಲ ಮತ್ತು ಶಾಲಾ ಗ್ರಂಥಾಲಯ ಅನುಮೋದಿಸಿಲ್ಲ. ಸಾಮಾನ್ಯ ಕಾರ್ಯಾಚರಣೆ ಅಥವಾ ಬಳಕೆಯ ಯಾವುದೇ ಪರಿಣಾಮಗಳನ್ನು ನಾವು ಖಾತರಿಪಡಿಸಲಾಗುವುದಿಲ್ಲ.\n\nನಿಮ್ಮ ವಿವೇಚನೆಯಿಂದ ಬಳಸಿ. ಯಾವುದೇ ನಕಾರಾತ್ಮಕ ಫಲಿತಾಂಶಗಳಿಗೆ ನೀವೇ ಜವಾಬ್ದಾರರು ಮತ್ತು tigerduck-app ಗೆ ಸಂಬಂಧವಿಲ್ಲ.</string>
     <string name="settings_library_warning_title">ದಯವಿಟ್ಟು ಗಮನಿಸಿ!</string>
+    <string name="settings_licenses_section_third_party">ಮೂರನೇ ವ್ಯಕ್ತಿಯ ಲೈಬ್ರರಿಗಳು</string>
+    <string name="settings_licenses_section_wear">Wear OS ಅಪ್ಲಿಕೇಶನ್</string>
+    <string name="settings_licenses_unavailable">ಪರವಾನಗಿ ಪಟ್ಟಿಯನ್ನು ಲೋಡ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
+    <string name="settings_licenses_website">ವೆಬ್‌ಸೈಟ್</string>
     <string name="settings_link_opening_method">ಲಿಂಕ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ</string>
     <string name="settings_official_website">ಅಧಿಕೃತ ವೆಬ್‌ಸೈಟ್</string>
     <string name="settings_open_source_licenses">ಮುಕ್ತ ಮೂಲ ಪರವಾನಗಿಗಳು</string>

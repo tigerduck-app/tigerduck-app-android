@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Höst</string>
     <string name="score_sign_in_required_message">Logga in för att se ditt betygshistorik</string>
     <string name="score_term_format">Aktuell termin: %1$s-%2$s</string>
+    <string name="settings_about_others">Övrigt</string>
     <string name="settings_accent_color">Accentfärg</string>
     <string name="settings_account_library_system">Bibliotekets system</string>
     <string name="settings_account_ntust_system">Studentportal</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Gå tillbaka</string>
     <string name="settings_library_warning_message">Den här appen är inte en officiell NTUST-biblioteksapp och har inte godkänts av skolans bibliotek. Vi kan inte garantera normal drift eller några konsekvenser av användning.\n\nAnvänd på eget ansvar. Eventuella negativa utfall är ditt eget ansvar och är orelaterade till tigerduck-app.</string>
     <string name="settings_library_warning_title">Observera!</string>
+    <string name="settings_licenses_section_third_party">Tredjepartsbibliotek</string>
+    <string name="settings_licenses_section_wear">Wear OS-app</string>
+    <string name="settings_licenses_unavailable">Det gick inte att läsa in licenslistan</string>
+    <string name="settings_licenses_website">Webbplats</string>
     <string name="settings_link_opening_method">Öppna länkar med</string>
     <string name="settings_official_website">Officiell webbplats</string>
     <string name="settings_open_source_licenses">Öppen källkod-licenser</string>

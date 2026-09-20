@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Ganjil</string>
     <string name="score_sign_in_required_message">Masuk untuk melihat riwayat nilai Anda</string>
     <string name="score_term_format">Semester saat ini: %1$s-%2$s</string>
+    <string name="settings_about_others">Lainnya</string>
     <string name="settings_accent_color">Warna aksen</string>
     <string name="settings_account_library_system">Sistem perpustakaan</string>
     <string name="settings_account_ntust_system">Sistem akademik</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Kembali</string>
     <string name="settings_library_warning_message">Aplikasi ini bukan aplikasi perpustakaan resmi NTUST dan belum disetujui oleh perpustakaan kampus. Kami tidak dapat menjamin operasi normal atau konsekuensi apa pun dari penggunaan.\n\nGunakan dengan kebijaksanaan kamu sendiri. Setiap dampak negatif menjadi tanggung jawab kamu sendiri dan tidak terkait dengan tigerduck-app.</string>
     <string name="settings_library_warning_title">Mohon perhatikan!</string>
+    <string name="settings_licenses_section_third_party">Pustaka pihak ketiga</string>
+    <string name="settings_licenses_section_wear">Aplikasi Wear OS</string>
+    <string name="settings_licenses_unavailable">Tidak dapat memuat daftar lisensi</string>
+    <string name="settings_licenses_website">Situs web</string>
     <string name="settings_link_opening_method">Buka tautan dengan</string>
     <string name="settings_official_website">Situs web resmi</string>
     <string name="settings_open_source_licenses">Lisensi sumber terbuka</string>

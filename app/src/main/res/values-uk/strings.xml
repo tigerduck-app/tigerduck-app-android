@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Осінь</string>
     <string name="score_sign_in_required_message">Увійдіть, щоб переглянути історію оцінок</string>
     <string name="score_term_format">Поточний семестр: %1$s-%2$s</string>
+    <string name="settings_about_others">Інше</string>
     <string name="settings_accent_color">Акцентний колір</string>
     <string name="settings_account_library_system">Система бібліотеки</string>
     <string name="settings_account_ntust_system">Шкільна система</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Повернутися</string>
     <string name="settings_library_warning_message">Цей застосунок не є офіційним застосунком бібліотеки NTUST і не схвалений шкільною бібліотекою. Ми не можемо гарантувати нормальну роботу або будь-які наслідки використання.\n\nВикористовуйте на власний розсуд. Будь-які негативні наслідки — ваша особиста відповідальність і не пов\'язані з tigerduck-app.</string>
     <string name="settings_library_warning_title">Зверніть увагу!</string>
+    <string name="settings_licenses_section_third_party">Сторонні бібліотеки</string>
+    <string name="settings_licenses_section_wear">Застосунок Wear OS</string>
+    <string name="settings_licenses_unavailable">Не вдалося завантажити список ліцензій</string>
+    <string name="settings_licenses_website">Сайт</string>
     <string name="settings_link_opening_method">Відкривати посилання за допомогою</string>
     <string name="settings_official_website">Офіційний сайт</string>
     <string name="settings_open_source_licenses">Ліцензії з відкритим кодом</string>

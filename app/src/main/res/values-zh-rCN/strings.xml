@@ -775,6 +775,7 @@
     <string name="score_semester_upper">上</string>
     <string name="score_sign_in_required_message">请登录后查看历年成绩</string>
     <string name="score_term_format">目前学期：%1$s-%2$s</string>
+    <string name="settings_about_others">其他</string>
     <string name="settings_accent_color">主题色</string>
     <string name="settings_account_library_system">图书馆系统</string>
     <string name="settings_account_ntust_system">校务系统</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">退回</string>
     <string name="settings_library_warning_message">本应用程序非台科大官方图书馆应用程序，且尚未得到学校图书馆认可，无法保证各项功能的正常使用及其他相关使用后果。\n\n如需使用请谨慎。若使用后产生任何负面结果，需自负责任，且与 tigerduck-app 一律无关！</string>
     <string name="settings_library_warning_title">请注意！</string>
+    <string name="settings_licenses_section_third_party">第三方库</string>
+    <string name="settings_licenses_section_wear">Wear OS 应用</string>
+    <string name="settings_licenses_unavailable">无法加载授权清单</string>
+    <string name="settings_licenses_website">网站</string>
     <string name="settings_link_opening_method">打开链接方式</string>
     <string name="settings_official_website">官网</string>
     <string name="settings_open_source_licenses">开源授权</string>

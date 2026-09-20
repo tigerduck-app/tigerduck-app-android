@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Efterår</string>
     <string name="score_sign_in_required_message">Log ind for at se din karakterhistorik</string>
     <string name="score_term_format">Aktuelt semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Andet</string>
     <string name="settings_accent_color">Accentfarve</string>
     <string name="settings_account_library_system">Bibliotekssystem</string>
     <string name="settings_account_ntust_system">Studentportal</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Gå tilbage</string>
     <string name="settings_library_warning_message">Denne app er ikke en officiel NTUST-biblioteksapp og er ikke godkendt af skolebiblioteket. Vi kan ikke garantere normal drift eller konsekvenserne af brugen.\n\nBrug efter eget skøn. Eventuelle negative konsekvenser er dit eget ansvar og uden relation til tigerduck-app.</string>
     <string name="settings_library_warning_title">Bemærk venligst!</string>
+    <string name="settings_licenses_section_third_party">Tredjepartsbiblioteker</string>
+    <string name="settings_licenses_section_wear">Wear OS-app</string>
+    <string name="settings_licenses_unavailable">Kan ikke indlæse licenslisten</string>
+    <string name="settings_licenses_website">Hjemmeside</string>
     <string name="settings_link_opening_method">Åbn links med</string>
     <string name="settings_official_website">Officiel hjemmeside</string>
     <string name="settings_open_source_licenses">Open source-licenser</string>

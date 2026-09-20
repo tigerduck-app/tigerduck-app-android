@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Haust</string>
     <string name="score_sign_in_required_message">Skráðu þig inn til að skoða einkunnasöguna þína</string>
     <string name="score_term_format">Núverandi misseri: %1$s-%2$s</string>
+    <string name="settings_about_others">Annað</string>
     <string name="settings_accent_color">Áherslulitir</string>
     <string name="settings_account_library_system">Bókasafnskerfi</string>
     <string name="settings_account_ntust_system">Námskerfi</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Fara til baka</string>
     <string name="settings_library_warning_message">Þetta forrit er ekki opinbert NTUST bókasafnsforrit og hefur ekki verið samþykkt af skólabókasafninu. Við getum ekki tryggt eðlilega virkni eða neinar afleiðingar notkunar.\n\nNotaðu að eigin geðþótta. Allar neikvæðar afleiðingar eru á þínu eigin ábyrgð og ótengt tigerduck-app.</string>
     <string name="settings_library_warning_title">Vinsamlegast taktu eftir!</string>
+    <string name="settings_licenses_section_third_party">Forritasöfn þriðju aðila</string>
+    <string name="settings_licenses_section_wear">Wear OS forrit</string>
+    <string name="settings_licenses_unavailable">Ekki tókst að hlaða leyfislistanum</string>
+    <string name="settings_licenses_website">Vefsíða</string>
     <string name="settings_link_opening_method">Opna tengla með</string>
     <string name="settings_official_website">Opinber vefsíða</string>
     <string name="settings_open_source_licenses">Opinn uppspretta leyfi</string>

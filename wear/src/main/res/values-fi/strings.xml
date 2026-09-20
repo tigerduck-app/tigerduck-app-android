@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Syksy</string>
     <string name="score_sign_in_required_message">Kirjaudu sisään nähdäksesi arvosanahistoriasi</string>
     <string name="score_term_format">Nykyinen lukukausi: %1$s-%2$s</string>
+    <string name="settings_about_others">Muut</string>
     <string name="settings_accent_color">Korostusväri</string>
     <string name="settings_account_library_system">Kirjastojärjestelmä</string>
     <string name="settings_account_ntust_system">Opiskelijaportaali</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Takaisin</string>
     <string name="settings_library_warning_message">Tämä sovellus ei ole virallinen NTUST-kirjastosovellus eikä koulun kirjasto ole hyväksynyt sitä. Emme voi taata normaalia toimintaa tai käytön seurauksia.\n\nKäytä omalla harkinnalla. Mahdolliset negatiiviset seuraukset ovat omalla vastuullasi eivätkä liity tigerduck-app-sovellukseen.</string>
     <string name="settings_library_warning_title">Huomio!</string>
+    <string name="settings_licenses_section_third_party">Kolmannen osapuolen kirjastot</string>
+    <string name="settings_licenses_section_wear">Wear OS -sovellus</string>
+    <string name="settings_licenses_unavailable">Lisenssiluetteloa ei voi ladata</string>
+    <string name="settings_licenses_website">Verkkosivusto</string>
     <string name="settings_link_opening_method">Avaa linkit</string>
     <string name="settings_official_website">Virallinen verkkosivusto</string>
     <string name="settings_open_source_licenses">Avoimen lähdekoodin lisenssit</string>

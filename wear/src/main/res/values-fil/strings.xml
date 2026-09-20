@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Unang Semestre</string>
     <string name="score_sign_in_required_message">Mag-sign in upang tingnan ang iyong kasaysayan ng grado</string>
     <string name="score_term_format">Kasalukuyang term: %1$s-%2$s</string>
+    <string name="settings_about_others">Iba pa</string>
     <string name="settings_accent_color">Accent na kulay</string>
     <string name="settings_account_library_system">Sistema ng aklatan</string>
     <string name="settings_account_ntust_system">Sistemang akademiko</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Bumalik</string>
     <string name="settings_library_warning_message">Hindi ito opisyal na library app ng NTUST at hindi pa ito aprubado ng school library. Hindi namin masisiguro ang normal na operasyon o anumang kahihinatnan ng paggamit.\n\nGamitin sa sariling pagpapasya. Ang anumang negatibong kinalabasan ay sarili mong responsibilidad at walang kaugnayan sa tigerduck-app.</string>
     <string name="settings_library_warning_title">Pakitandaan po!</string>
+    <string name="settings_licenses_section_third_party">Mga third-party na library</string>
+    <string name="settings_licenses_section_wear">App para sa Wear OS</string>
+    <string name="settings_licenses_unavailable">Hindi ma-load ang listahan ng lisensya</string>
+    <string name="settings_licenses_website">Website</string>
     <string name="settings_link_opening_method">Buksan ang mga link gamit ang</string>
     <string name="settings_official_website">Opisyal na website</string>
     <string name="settings_open_source_licenses">Mga open-source na lisensya</string>

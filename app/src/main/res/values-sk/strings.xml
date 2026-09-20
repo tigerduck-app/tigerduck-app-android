@@ -775,6 +775,7 @@
     <string name="score_semester_upper">Jeseň</string>
     <string name="score_sign_in_required_message">Prihláste sa a zobrazte históriu známok</string>
     <string name="score_term_format">Aktuálny semester: %1$s-%2$s</string>
+    <string name="settings_about_others">Iné</string>
     <string name="settings_accent_color">Zvýrazňujúca farba</string>
     <string name="settings_account_library_system">Systém knižnice</string>
     <string name="settings_account_ntust_system">Školský systém</string>
@@ -838,6 +839,10 @@
     <string name="settings_library_warning_dismiss">Späť</string>
     <string name="settings_library_warning_message">Táto aplikácia nie je oficiálna aplikácia knižnice NTUST a nebola schválená školskou knižnicou. Nemôžeme zaručiť normálnu prevádzku ani žiadne dôsledky používania.\n\nPoužívajte podľa vlastného uváženia. Za akékoľvek negatívne dôsledky zodpovedáte sami, čo nesúvisí s tigerduck-app.</string>
     <string name="settings_library_warning_title">Upozornenie!</string>
+    <string name="settings_licenses_section_third_party">Knižnice tretích strán</string>
+    <string name="settings_licenses_section_wear">Aplikácia Wear OS</string>
+    <string name="settings_licenses_unavailable">Zoznam licencií sa nedá načítať</string>
+    <string name="settings_licenses_website">Webová stránka</string>
     <string name="settings_link_opening_method">Otvárať odkazy pomocou</string>
     <string name="settings_official_website">Oficiálna stránka</string>
     <string name="settings_open_source_licenses">Licencie open-source</string>
