@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.CompletableDeferred
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
@@ -42,6 +43,24 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     val foldersTouched = mutableListOf<String>()
     /** Mirrors the real repository's cache: [loadPage]'s first page populates it, [dropCache] simulates a [MailError.FolderChanged] eviction. */
     private val cachedPages = mutableMapOf<String, MailPage>()
+    /** Every `(folder, limit)` handed to [loadPage], in order -- what a prefetch test checks against. */
+    val pageLimits = mutableListOf<Pair<String, Int>>()
+    /**
+     * Thrown only by a [loadPage] call whose `limit` is not [MailRepository.PAGE_SIZE] -- i.e. a
+     * background prefetch, never the visible folder's own load.
+     */
+    var prefetchError: MailError? = null
+    /**
+     * While true, a prefetch-sized [loadPage] call (limit != [MailRepository.PAGE_SIZE]) suspends
+     * instead of returning, so a test can assert what a cancel does to it mid-flight. Cancellable:
+     * it is a plain suspending await, not a busy loop, so cancelling the caller's job ends it.
+     */
+    var blockPrefetch: Boolean = false
+        set(value) {
+            field = value
+            if (!value) prefetchGate?.complete(Unit)
+        }
+    private var prefetchGate: CompletableDeferred<Unit>? = null
     val sent = mutableListOf<Pair<OutgoingMail, Pair<String, Long>?>>()
     val drafts = mutableListOf<Pair<OutgoingMail, Long?>>()
     val discardedDrafts = mutableListOf<Long>()
@@ -92,8 +111,17 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         cachedPages.remove(folder)
     }
 
-    override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
+    override suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int): MailPage {
         foldersTouched += folder
+        pageLimits += folder to limit
+        if (limit != MailRepository.PAGE_SIZE) {
+            prefetchError?.let { throw it }
+            if (blockPrefetch) {
+                val gate = CompletableDeferred<Unit>()
+                prefetchGate = gate
+                gate.await()
+            }
+        }
         loadError?.let { throw it }
         val all = sorted(folder)
         val from = beforeSeq ?: 0

@@ -129,12 +129,19 @@ class SchoolMailListViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private var pollJob: Job? = null
+    private var prefetchJob: Job? = null
 
     init {
         // Signing out must not leave the previous account's mail on screen for
         // whoever signs in next (spec §7.5).
         viewModelScope.launch {
-            account.signedIn.collect { signedIn -> if (!signedIn) _state.value = UiState() }
+            account.signedIn.collect { signedIn ->
+                if (!signedIn) {
+                    prefetchJob?.cancel()
+                    prefetchJob = null
+                    _state.value = UiState()
+                }
+            }
         }
     }
 
@@ -167,6 +174,7 @@ class SchoolMailListViewModel @Inject constructor(
             }
             showCached()
             fetchFirstPage()
+            if (_state.value.loadState is LoadState.Loaded) startPrefetch()
         }
     }
 
@@ -176,6 +184,8 @@ class SchoolMailListViewModel @Inject constructor(
 
     fun selectFolder(selection: FolderSelection) {
         if (selection == _state.value.selected) return
+        prefetchJob?.cancel()
+        prefetchJob = null
         _state.update {
             it.copy(selected = selection, messages = emptyList(), cursors = emptyMap(), searchResults = null, searchText = "", searchLocalOnly = false)
         }
@@ -242,6 +252,8 @@ class SchoolMailListViewModel @Inject constructor(
     fun stopPolling() {
         pollJob?.cancel()
         pollJob = null
+        prefetchJob?.cancel()
+        prefetchJob = null
         repository.release()
     }
 
@@ -275,6 +287,34 @@ class SchoolMailListViewModel @Inject constructor(
             }
         } catch (e: MailError) {
             fail(e)
+        }
+    }
+
+    /**
+     * Warms the folders the user is *not* looking at, so switching chips paints from cache instead
+     * of waiting on a round trip.
+     *
+     * Sequential, and on the connection the page already holds: Mail2000 caps connections and
+     * answers "server busy" under load, so a fan-out here would be paid for by the screen the user
+     * is actually reading. Twenty rows rather than a full page for the same reason -- it is enough
+     * to fill a screen, and the real load that follows a chip tap replaces it.
+     *
+     * Silent by construction. It never touches loadState and never sets actionError: this is work
+     * the user did not ask for, and a failure means only that a later chip tap is as slow as it
+     * used to be. Cancelled the moment the user does ask for something.
+     */
+    private fun startPrefetch() {
+        prefetchJob?.cancel()
+        val done = _state.value.targets.toMutableSet()
+        val queue = _state.value.chips
+            .mapNotNull { (it.selection as? FolderSelection.Real)?.name }
+            .filter { done.add(it) }
+        if (queue.isEmpty()) return
+        prefetchJob = viewModelScope.launch {
+            for (folder in queue) {
+                if (!isActive) return@launch
+                runCatching { repository.loadPage(folder, null, PREFETCH_LIMIT) }
+            }
         }
     }
 
@@ -407,6 +447,9 @@ class SchoolMailListViewModel @Inject constructor(
 
     companion object {
         const val POLL_MS = 60_000L
+
+        /** Enough to fill a screen; the real load that follows a chip tap replaces it. */
+        internal const val PREFETCH_LIMIT = 20
 
         /** The date the card itself shows, then folder and UID so the merge order is stable. */
         private val NEWEST_FIRST =

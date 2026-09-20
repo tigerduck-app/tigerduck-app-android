@@ -46,7 +46,7 @@ interface SchoolMailRepository {
 
     /** The folder's last saved page, read from disk on the IO dispatcher. */
     suspend fun cachedPage(folder: String): MailPage?
-    suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage
+    suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int = MailRepository.PAGE_SIZE): MailPage
     suspend fun inboxStatus(): FolderStatus
     suspend fun refreshFlags(folder: String, uids: List<Long>): Map<Long, MailFlags>
     suspend fun summary(folder: String, uid: Long): MailSummary?
@@ -206,9 +206,9 @@ class MailRepository @Inject constructor(
         MailPage(dto.uidValidity, dto.totalMessages, dto.messages.orEmpty().map { it.toModel() }, dto.nextBeforeSeq.takeIf { it > 0 })
     }
 
-    override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
+    override suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int): MailPage {
         if (account.isDemo) return demoPage(folder)
-        val page = withSession { it.fetchPage(folder, beforeSeq, PAGE_SIZE) }
+        val page = withSession { it.fetchPage(folder, beforeSeq, limit) }
         if (beforeSeq == null) withContext(Dispatchers.IO) { cache.saveFolder(folder, page) }
         return page
     }

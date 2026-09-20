@@ -4,6 +4,8 @@ package org.ntust.app.tigerduck.ui.screen.mail
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -306,6 +308,66 @@ class SchoolMailListViewModelTest {
         account.signOut()
         main.dispatcher.scheduler.runCurrent()
         assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
+    }
+
+    // --- prefetch --------------------------------------------------------------------------
+
+    @Test
+    fun `entering the page warms the other folders at twenty rows each`() = runTest {
+        vm.load()
+        advanceUntilIdle()
+
+        val prefetched = repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
+        // The real decoded names (see SpecialFolder): DRAFTS, JUNK, TRASH -- everything but the
+        // two folders All mail already merged in (INBOX, SENT).
+        assertEquals(
+            setOf("草稿匣", "廣告信匣", "回收筒"),
+            prefetched.map { it.first }.toSet(),
+        )
+    }
+
+    @Test
+    fun `the visible folders are loaded at full size, not the prefetch size`() = runTest {
+        vm.load()
+        advanceUntilIdle()
+
+        val first = repo.pageLimits.first()
+        assertEquals(50, first.second)
+    }
+
+    @Test
+    fun `no folder is fetched twice`() = runTest {
+        vm.load()
+        advanceUntilIdle()
+
+        val names = repo.pageLimits.map { it.first }
+        assertEquals(names.size, names.distinct().size)
+    }
+
+    @Test
+    fun `a prefetch failure never reaches the page`() = runTest {
+        repo.prefetchError = MailError.ServerBusy()
+        vm.load()
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+        assertNull(vm.state.value.actionError)
+    }
+
+    @Test
+    fun `switching folder cancels the prefetch in flight`() = runTest {
+        repo.blockPrefetch = true
+        vm.load()
+        advanceUntilIdle()
+        val before = repo.pageLimits.size
+
+        vm.selectFolder(FolderSelection.Real("草稿匣"))
+        advanceUntilIdle()
+        repo.blockPrefetch = false
+        advanceUntilIdle()
+
+        // The only calls after the switch are the switch's own full-size load.
+        assertTrue(repo.pageLimits.drop(before).all { it.second == 50 })
     }
 
     // --- All mail ------------------------------------------------------------------------
