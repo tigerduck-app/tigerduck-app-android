@@ -840,6 +840,7 @@
     <string name="settings_library_warning_message">هذا التطبيق ليس تطبيقًا رسميًا لمكتبة NTUST ولم يحصل على موافقة مكتبة الجامعة. لا يمكننا ضمان التشغيل الطبيعي ولا أي عواقب للاستخدام.\n\nاستخدمه على مسؤوليتك. أي نتائج سلبية تقع على عاتقك ولا علاقة لها بـ tigerduck-app.</string>
     <string name="settings_library_warning_title">يرجى الانتباه!</string>
     <string name="settings_licenses_section_third_party">مكتبات الجهات الخارجية</string>
+    <string name="settings_licenses_section_wear">تطبيق Wear OS</string>
     <string name="settings_licenses_website">الموقع الإلكتروني</string>
     <string name="settings_link_opening_method">فتح الروابط بواسطة</string>
     <string name="settings_official_website">الموقع الرسمي</string>

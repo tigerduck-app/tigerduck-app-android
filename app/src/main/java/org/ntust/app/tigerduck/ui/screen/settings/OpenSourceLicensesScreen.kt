@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.StringRes
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -52,8 +53,11 @@ import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import javax.inject.Inject
 
-/** [LicenseDetailScreen]'s key for TigerDuck's own licence; any other key is a [LicenseEntry] index. */
+/** [LicenseDetailScreen]'s key for TigerDuck's own licence. */
 const val APP_LICENSE_KEY = "app"
+
+/** Marks a [LicenseDetailScreen] key as an index into the watch app's list rather than the phone's. */
+private const val WEAR_KEY_PREFIX = "w"
 
 /** The licence name, not translated: it is the title of a legal text. */
 private const val APP_LICENSE_NAME = "GNU Affero General Public License v3.0"
@@ -84,31 +88,61 @@ fun OpenSourceLicensesScreen(
     val licenses by viewModel.licenses.collectAsStateWithLifecycle()
 
     LicenseScaffold(title = stringResource(R.string.settings_open_source_licenses), onBack = onBack) {
+        val entries = licenses?.entries.orEmpty()
+        // TigerDuck's own licence, and next to it anything TigerDuck
+        // publishes separately — name-abbr is MIT, not the app's AGPL, and
+        // filed under "third-party" it would be both wrong and unfindable.
         item {
             ContentCard {
-                LicenseRow(
-                    title = stringResource(R.string.app_name),
-                    subtitle = APP_LICENSE_NAME,
-                    onClick = { onOpenLicense(APP_LICENSE_KEY) },
-                )
+                Column {
+                    LicenseRow(
+                        title = stringResource(R.string.app_name),
+                        subtitle = APP_LICENSE_NAME,
+                        onClick = { onOpenLicense(APP_LICENSE_KEY) },
+                    )
+                    entries.withIndex().filter { it.value.firstParty }.forEach { (index, entry) ->
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+                        LicenseRow(
+                            title = entry.title,
+                            subtitle = entry.licenseNames.joinToString(", "),
+                            onClick = { onOpenLicense(index.toString()) },
+                        )
+                    }
+                }
             }
         }
-        val entries = licenses?.entries.orEmpty()
-        if (entries.isNotEmpty()) {
-            item { SectionHeader(stringResource(R.string.settings_licenses_section_third_party)) }
-            item {
-                ContentCard {
-                    Column {
-                        entries.forEachIndexed { index, entry ->
-                            LicenseRow(
-                                title = entry.title,
-                                subtitle = entry.licenseNames.joinToString(", "),
-                                onClick = { onOpenLicense(index.toString()) },
-                            )
-                            if (index < entries.lastIndex) {
-                                HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
-                            }
-                        }
+        licenseSection(
+            titleRes = R.string.settings_licenses_section_third_party,
+            rows = entries.withIndex().filterNot { it.value.firstParty }.map { it.index.toString() to it.value },
+            onOpenLicense = onOpenLicense,
+        )
+        // The watch app has no licence page of its own; see [Licenses.wearEntries].
+        licenseSection(
+            titleRes = R.string.settings_licenses_section_wear,
+            rows = licenses?.wearEntries.orEmpty().mapIndexed { index, entry -> "$WEAR_KEY_PREFIX$index" to entry },
+            onOpenLicense = onOpenLicense,
+        )
+    }
+}
+
+private fun LazyListScope.licenseSection(
+    @StringRes titleRes: Int,
+    rows: List<Pair<String, LicenseEntry>>,
+    onOpenLicense: (key: String) -> Unit,
+) {
+    if (rows.isEmpty()) return
+    item { SectionHeader(stringResource(titleRes)) }
+    item {
+        ContentCard {
+            Column {
+                rows.forEachIndexed { position, (key, entry) ->
+                    LicenseRow(
+                        title = entry.title,
+                        subtitle = entry.licenseNames.joinToString(", "),
+                        onClick = { onOpenLicense(key) },
+                    )
+                    if (position < rows.lastIndex) {
+                        HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
                     }
                 }
             }
@@ -146,7 +180,11 @@ fun LicenseDetailScreen(
         return
     }
 
-    val entry = key.toIntOrNull()?.let { licenses?.entries?.getOrNull(it) }
+    val entry = if (key.startsWith(WEAR_KEY_PREFIX)) {
+        key.removePrefix(WEAR_KEY_PREFIX).toIntOrNull()?.let { licenses?.wearEntries?.getOrNull(it) }
+    } else {
+        key.toIntOrNull()?.let { licenses?.entries?.getOrNull(it) }
+    }
     LicenseScaffold(title = entry?.title.orEmpty(), onBack = onBack) {
         if (entry != null) entryDetail(entry, open)
     }

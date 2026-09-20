@@ -11,7 +11,8 @@
       ],
       "website": "https://github.com/tigerduck-app/name-abbr",
       "note": "Course and classroom abbreviation tables, shipped as class-name-abbr.json and classroom-name-abbr.json. Published separately from the app and under MIT rather than the app's AGPL.",
-      "textAsset": "name-abbr-license.txt"
+      "textAsset": "name-abbr-license.txt",
+      "firstParty": true
     },
     {
       "id": "public-suffix-list",

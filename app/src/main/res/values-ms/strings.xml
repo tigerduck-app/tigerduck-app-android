@@ -840,6 +840,7 @@
     <string name="settings_library_warning_message">Aplikasi ini bukan aplikasi perpustakaan rasmi NTUST dan belum mendapat kelulusan perpustakaan sekolah. Kami tidak dapat menjamin operasi normal atau sebarang akibat daripada penggunaan.\n\nGunakan atas budi bicara anda sendiri. Sebarang akibat negatif adalah tanggungjawab anda sendiri dan tidak berkaitan dengan tigerduck-app.</string>
     <string name="settings_library_warning_title">Sila ambil perhatian!</string>
     <string name="settings_licenses_section_third_party">Pustaka pihak ketiga</string>
+    <string name="settings_licenses_section_wear">Apl Wear OS</string>
     <string name="settings_licenses_website">Laman web</string>
     <string name="settings_link_opening_method">Buka pautan dengan</string>
     <string name="settings_official_website">Laman web rasmi</string>

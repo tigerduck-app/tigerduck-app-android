@@ -80,8 +80,16 @@ default is silently dropped and the field is null at runtime.
   one command, which is applied only under `-PexportLicenses`: applied
   unconditionally the plugin hooks every variant's resource generation and
   downloads licence texts on each build. After changing a dependency run
-  `./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease`
-  — `licenses-up-to-date.yaml` fails the PR otherwise. Licence texts the
+  `./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease`
+  — `licenses-up-to-date.yaml` fails the PR otherwise. That third task is
+  the watch's own dependencies, written into the **phone's** play resources
+  as `aboutlibraries_wear.json` / `bundled_notices_wear.json`: `:wear`
+  declares `standalone = false`, so it never reaches a user without the
+  phone app, and the phone's page shows its licences under a Wear OS
+  heading. The watch's notices are stored by the same content hashes as the
+  phone's and leave out every text the phone's file already carries, so the
+  two are read together at run time — `res/raw` is flavor-specific, so
+  `WearLicenses` names the resources per flavor and is null on fdroid. Licence texts the
   plugin cannot find itself go in `app/aboutlibraries/licenses/`, keyed by
   the hash it reports.
 

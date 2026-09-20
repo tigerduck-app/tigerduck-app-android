@@ -840,6 +840,7 @@
     <string name="settings_library_warning_message">Þetta forrit er ekki opinbert NTUST bókasafnsforrit og hefur ekki verið samþykkt af skólabókasafninu. Við getum ekki tryggt eðlilega virkni eða neinar afleiðingar notkunar.\n\nNotaðu að eigin geðþótta. Allar neikvæðar afleiðingar eru á þínu eigin ábyrgð og ótengt tigerduck-app.</string>
     <string name="settings_library_warning_title">Vinsamlegast taktu eftir!</string>
     <string name="settings_licenses_section_third_party">Forritasöfn þriðju aðila</string>
+    <string name="settings_licenses_section_wear">Wear OS forrit</string>
     <string name="settings_licenses_website">Vefsíða</string>
     <string name="settings_link_opening_method">Opna tengla með</string>
     <string name="settings_official_website">Opinber vefsíða</string>

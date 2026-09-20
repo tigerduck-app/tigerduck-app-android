@@ -203,6 +203,51 @@ class LicenseCatalogTest {
     }
 
     @Test
+    fun `the watch app's libraries are listed, and only in the flavour that ships it`() {
+        val wear = wearShipped()
+        assertTrue(wear.map { it.title }.toString(), wear.any { it.title == "androidx.wear.compose" })
+        assertTrue(wear.any { it.title == "com.google.android.gms" })
+        // fdroid has no watch app, so no list for one to read.
+        assertTrue(!File("src/fdroid/res/raw/aboutlibraries_wear.json").exists())
+        assertTrue(!File("src/fdroid/res/raw/bundled_notices_wear.json").exists())
+    }
+
+    @Test
+    fun `the watch's notices are stored once, not repeated per document`() {
+        val phone = File("src/play/res/raw/bundled_notices.json").readText()
+        val wear = File("src/play/res/raw/bundled_notices_wear.json").readText()
+        // Both ship Play Services, so the watch document leans on the
+        // phone's texts by hash rather than carrying its own copies.
+        assertTrue("the watch document is carrying duplicate texts", wear.length < phone.length / 4)
+        // And every reference still resolves once the two are read together.
+        for ((library, notices) in LicenseCatalog.parseNotices(phone, wear)) {
+            assertTrue("$library has an unresolved notice", notices.all { it.content.isNotBlank() })
+        }
+    }
+
+    @Test
+    fun `a licence published as the SPDX template carries its real copyright on the watch too`() {
+        val placeholder = Regex("""<(year|copyright holders?|owner)>""", RegexOption.IGNORE_CASE)
+        val supplied = noticesOf("play").keys + extras().holders.keys
+        val unattributed = Libs.Builder()
+            .withJson(File("src/play/res/raw/aboutlibraries_wear.json").readText()).build().libraries
+            .filter { library -> library.licenses.any { placeholder.containsMatchIn(it.licenseContent.orEmpty()) } }
+            .map { it.uniqueId }
+            .filterNot { it in supplied }
+        assertTrue("$unattributed", unattributed.isEmpty())
+    }
+
+    @Test
+    fun `name-abbr sits beside the app, not under third parties`() {
+        val entries = shipped("play")
+        assertEquals(listOf("name-abbr"), entries.filter { it.firstParty }.map { it.title })
+        // The two that genuinely are third-party stay where they belong.
+        assertTrue(entries.filterNot { it.firstParty }.map { it.title }.containsAll(
+            listOf("Public Suffix List", "Material Design Icons"),
+        ))
+    }
+
+    @Test
     fun `reflow joins the hard-wrapped lines of a paragraph and keeps paragraphs apart`() {
         assertEquals(
             "Everyone is permitted to copy and distribute verbatim copies.\n\nPreamble",
@@ -238,7 +283,20 @@ class LicenseCatalogTest {
         )
 
     private fun noticesOf(flavor: String): Map<String, List<BundledNotice>> =
-        LicenseCatalog.parseNotices(File("src/$flavor/res/raw/bundled_notices.json").readText())
+        LicenseCatalog.parseNotices(
+            *listOfNotNull(
+                File("src/$flavor/res/raw/bundled_notices.json").readText(),
+                File("src/$flavor/res/raw/bundled_notices_wear.json").takeIf { it.isFile }?.readText(),
+            ).toTypedArray(),
+        )
+
+    /** The watch app's list, which only the play flavor carries. */
+    private fun wearShipped(): List<LicenseEntry> =
+        LicenseCatalog.entries(
+            Libs.Builder().withJson(File("src/play/res/raw/aboutlibraries_wear.json").readText()).build().libraries,
+            noticesOf("play"),
+            ExtraLicenses(holders = extras().holders),
+        )
 
     /** The production parser, with the two lookups the app resolves at run time. */
     private fun extras(): ExtraLicenses {

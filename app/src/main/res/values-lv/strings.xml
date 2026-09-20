@@ -840,6 +840,7 @@
     <string name="settings_library_warning_message">Šī lietotne nav NTUST oficiālā bibliotēkas lietotne un nav apstiprināta no universitātes bibliotēkas puses. Mēs nevaram garantēt normālu darbību vai jebkādas lietošanas sekas.\n\nLietojiet pēc saviem ieskatiem. Par jebkādām negatīvām sekām atbild pats lietotājs, un tas nav saistīts ar tigerduck-app.</string>
     <string name="settings_library_warning_title">Lūdzu, ņemiet vērā!</string>
     <string name="settings_licenses_section_third_party">Trešo pušu bibliotēkas</string>
+    <string name="settings_licenses_section_wear">Wear OS lietotne</string>
     <string name="settings_licenses_website">Vietne</string>
     <string name="settings_link_opening_method">Atvērt saites ar</string>
     <string name="settings_official_website">Oficiālā vietne</string>

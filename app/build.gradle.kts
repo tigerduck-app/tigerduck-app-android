@@ -298,6 +298,21 @@ if (providers.gradleProperty("exportLicenses").isPresent) {
 
     registerBundledNoticesExport("play")
     registerBundledNoticesExport("fdroid")
+    // The watch's list lives in the phone's play resources; see
+    // wear/build.gradle.kts for why it is shown there rather than on the
+    // watch. Only the play flavor gets one — :wear is play-only.
+    registerBundledNoticesExport(
+        name = "Wear",
+        classpath = { project(":wear").configurations.getByName("releaseRuntimeClasspath") },
+        libraryList = file("src/play/res/raw/aboutlibraries_wear.json"),
+        output = file("src/play/res/raw/bundled_notices_wear.json"),
+        exportTask = ":wear:exportLibraryDefinitionsRelease",
+        // The watch shares almost every notice with the phone — both ship
+        // Play Services. Reference those by the hash the phone's file
+        // already carries instead of writing them a second time; the app
+        // reads the two documents into one map.
+        sharedWith = file("src/play/res/raw/bundled_notices.json"),
+    )
 }
 
 /**
@@ -318,17 +333,35 @@ if (providers.gradleProperty("exportLicenses").isPresent) {
  */
 fun registerBundledNoticesExport(flavor: String) {
     val variant = "${flavor}Release"
-    val export = tasks.register("exportBundledNotices${variant.replaceFirstChar(Char::uppercase)}") {
-        dependsOn("exportLibraryDefinitions${variant.replaceFirstChar(Char::uppercase)}")
-        val libraryList = file("src/$flavor/res/raw/aboutlibraries.json")
-        val output = file("src/$flavor/res/raw/bundled_notices.json")
-        val classpath = configurations.getByName("${variant}RuntimeClasspath")
+    registerBundledNoticesExport(
+        name = variant.replaceFirstChar(Char::uppercase),
+        classpath = { configurations.getByName("${variant}RuntimeClasspath") },
+        libraryList = file("src/$flavor/res/raw/aboutlibraries.json"),
+        output = file("src/$flavor/res/raw/bundled_notices.json"),
+        exportTask = "exportLibraryDefinitions${variant.replaceFirstChar(Char::uppercase)}",
+    )
+}
+
+fun registerBundledNoticesExport(
+    name: String,
+    // Resolved in the task action: AGP creates the variant configurations
+    // long after this script is evaluated.
+    classpath: () -> Configuration,
+    libraryList: File,
+    output: File,
+    exportTask: String,
+    sharedWith: File? = null,
+) {
+    val export = tasks.register("exportBundledNotices$name") {
+        dependsOn(exportTask)
+        if (sharedWith != null) mustRunAfter("exportBundledNoticesPlayRelease")
         outputs.upToDateWhen { false }
         doLast {
             val needsNotice = librariesMissingTheirCopyright(libraryList)
+            val alreadyWritten = sharedWith?.let { noticeTextHashes(it) }.orEmpty()
             val texts = sortedMapOf<String, String>()
             val libraries = sortedMapOf<String, MutableList<Map<String, String>>>()
-            resolveModuleArchives(classpath).forEach { (module, archive) ->
+            resolveModuleArchives(classpath()).forEach { (module, archive) ->
                 ZipFile(archive).use { zip ->
                     bundledNotices(zip).forEach { (name, text) ->
                         // A bundled copy of the licence the page already
@@ -342,7 +375,7 @@ fun registerBundledNoticesExport(flavor: String) {
                         if (isLicenseCopy && module !in needsNotice) return@forEach
                         val hash = MessageDigest.getInstance("SHA-256")
                             .digest(text.toByteArray()).joinToString("") { "%02x".format(it) }.take(12)
-                        texts[hash] = text
+                        if (hash !in alreadyWritten) texts[hash] = text
                         libraries.getOrPut(module) { mutableListOf() }
                             .add(mapOf("name" to name, "hash" to hash))
                     }
@@ -353,14 +386,24 @@ fun registerBundledNoticesExport(flavor: String) {
                     groovy.json.JsonOutput.toJson(mapOf("texts" to texts, "libraries" to libraries)),
                 ) + "\n",
             )
-            logger.lifecycle("$flavor: ${libraries.size} libraries carry notices, ${texts.size} distinct texts")
+            logger.lifecycle("$name: ${libraries.size} libraries carry notices, ${texts.size} distinct texts")
         }
     }
     // The plugin creates its export tasks late, so match rather than name:
     // one `exportLibraryDefinitions…` command refreshes both files.
-    tasks.matching { it.name == "exportLibraryDefinitions${variant.replaceFirstChar(Char::uppercase)}" }
+    val owner = if (exportTask.startsWith(":")) project(exportTask.substringBeforeLast(':')) else project
+    owner.tasks.matching { it.name == exportTask.substringAfterLast(':') }
         .configureEach { finalizedBy(export) }
 }
+
+/** The hashes a previously written notices document already carries. */
+@Suppress("UNCHECKED_CAST")
+fun noticeTextHashes(document: File): Set<String> =
+    if (!document.isFile) {
+        emptySet()
+    } else {
+        ((groovy.json.JsonSlurper().parse(document) as Map<String, Any>)["texts"] as Map<String, String>).keys
+    }
 
 /** Every resolved module's own `.aar`/`.jar`, not the `classes.jar` AGP transforms it into. */
 fun resolveModuleArchives(classpath: Configuration): Map<String, File> {

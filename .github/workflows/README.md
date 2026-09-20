@@ -82,6 +82,10 @@ flavor, both written by the one export command:
   real copyright line for licences whose published text is the SPDX template
   (`<year> <copyright holders>`), and the licences of the third-party code
   compiled into Play Services and Firebase.
+- `aboutlibraries_wear.json` and `bundled_notices_wear.json`, play only — the
+  watch app's own dependencies. `:wear` declares `standalone = false`, so it
+  never reaches a user without the phone app, and the phone's page lists them
+  under a Wear OS heading rather than the watch carrying a page of its own.
 
 Both are committed rather than generated during the build so that no build
 reaches the network. `app/src/main/res/raw/extra_licenses.json` is

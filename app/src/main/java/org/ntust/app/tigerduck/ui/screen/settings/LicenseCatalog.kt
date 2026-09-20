@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.wear.WearLicenses
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,6 +45,8 @@ data class LicenseEntry(
     val website: String?,
     /** Why this ships, for entries the dependency graph doesn't explain on its own. */
     val note: String?,
+    /** TigerDuck's own, published separately: listed beside the app, not under third parties. */
+    val firstParty: Boolean = false,
     val texts: List<LicenseText>,
     val notices: List<BundledNotice>,
 )
@@ -53,6 +56,12 @@ data class Licenses(
     /** The repository's `LICENSE`, copied into the assets at build time. */
     val appLicense: String,
     val entries: List<LicenseEntry>,
+    /**
+     * The watch app's, which the phone shows because the watch has no page
+     * of its own: it declares `standalone = false`, so it never reaches a
+     * user without the phone app. Empty on fdroid, which ships no watch app.
+     */
+    val wearEntries: List<LicenseEntry> = emptyList(),
 )
 
 object LicenseCatalog {
@@ -104,16 +113,26 @@ object LicenseCatalog {
      * construct it — the page crashed in a minified build for exactly that
      * reason.
      */
-    fun parseNotices(json: String): Map<String, List<BundledNotice>> {
-        val root = JsonParser.parseString(json).asJsonObject
-        val texts = root.getAsJsonObject("texts")
-        return root.getAsJsonObject("libraries").entrySet().associate { (library, refs) ->
-            library to refs.asJsonArray.mapNotNull { ref ->
-                val at = ref.asJsonObject
-                val content = texts[at["hash"]?.asString]?.asString ?: return@mapNotNull null
-                BundledNotice(at["name"]?.asString ?: content.substringBefore('\n'), content)
+    fun parseNotices(vararg documents: String): Map<String, List<BundledNotice>> {
+        val roots = documents.map { JsonParser.parseString(it).asJsonObject }
+        // Texts are keyed by content hash across every document, so the
+        // watch's can leave out the ones the phone's already carries — the
+        // two overlap almost entirely, both shipping Play Services.
+        val texts = roots.flatMap { it.getAsJsonObject("texts").entrySet() }
+            .associate { (hash, text) -> hash to text.asString }
+        val notices = mutableMapOf<String, MutableList<BundledNotice>>()
+        for (root in roots) {
+            for ((library, refs) in root.getAsJsonObject("libraries").entrySet()) {
+                for (ref in refs.asJsonArray) {
+                    val at = ref.asJsonObject
+                    val content = texts[at["hash"]?.asString] ?: continue
+                    val notice = BundledNotice(at["name"]?.asString ?: content.substringBefore('\n'), content)
+                    val carried = notices.getOrPut(library) { mutableListOf() }
+                    if (notice !in carried) carried.add(notice)
+                }
             }
         }
+        return notices
     }
 
     /**
@@ -137,6 +156,7 @@ object LicenseCatalog {
                 holders = entry.strings("holders"),
                 website = field("website"),
                 note = field("note"),
+                firstParty = entry["firstParty"]?.takeIf { !it.isJsonNull }?.asBoolean ?: false,
                 texts = listOf(
                     LicenseText(
                         name = field("licenseName") ?: field("spdxId").orEmpty(),
@@ -209,12 +229,23 @@ class LicenseRepository @Inject constructor(
     suspend fun load(): Licenses = mutex.withLock {
         cached ?: withContext(Dispatchers.IO) {
             val libraries = Libs.Builder().withJson(raw(R.raw.aboutlibraries)).build().libraries
+            val wearLibraries = WearLicenses.libraries
+                ?.let { Libs.Builder().withJson(raw(it)).build().libraries }
+                .orEmpty()
+            val notices = LicenseCatalog.parseNotices(
+                raw(R.raw.bundled_notices),
+                *listOfNotNull(WearLicenses.notices?.let(::raw)).toTypedArray(),
+            )
+            val extras = extraLicenses(libraries)
             Licenses(
                 appLicense = asset(APP_LICENSE_ASSET),
-                entries = LicenseCatalog.entries(
-                    libraries,
-                    LicenseCatalog.parseNotices(raw(R.raw.bundled_notices)),
-                    extraLicenses(libraries),
+                entries = LicenseCatalog.entries(libraries, notices, extras),
+                // The standalone rows are the phone's own; only the
+                // copyright lines the metadata omits carry over.
+                wearEntries = LicenseCatalog.entries(
+                    wearLibraries,
+                    notices,
+                    ExtraLicenses(holders = extras.holders),
                 ),
             )
         }.also { cached = it }

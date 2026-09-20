@@ -840,6 +840,7 @@
     <string name="settings_library_warning_message">Aquesta aplicació no és l\'aplicació oficial de la biblioteca de NTUST i no ha estat aprovada per la biblioteca de l\'escola. No podem garantir el funcionament normal ni les conseqüències de l\'ús.\n\nUseu-la a criteri propi. Qualsevol resultat negatiu és responsabilitat vostra i no té relació amb tigerduck-app.</string>
     <string name="settings_library_warning_title">Atenció!</string>
     <string name="settings_licenses_section_third_party">Biblioteques de tercers</string>
+    <string name="settings_licenses_section_wear">Aplicació per a Wear OS</string>
     <string name="settings_licenses_website">Lloc web</string>
     <string name="settings_link_opening_method">Obriu els enllaços amb</string>
     <string name="settings_official_website">Lloc web oficial</string>

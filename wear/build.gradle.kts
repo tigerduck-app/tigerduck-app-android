@@ -185,3 +185,29 @@ dependencies {
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.gson)
 }
+
+// The watch's own dependencies, exported into the phone app's play
+// resources: the watch declares `standalone = false`, so it never reaches a
+// user who doesn't also have the phone app, and the phone's Open-source
+// licences page is a far better place to read a licence than a watch face.
+// Committed and applied only under -PexportLicenses, for the same reasons as
+// the phone's own list — see app/build.gradle.kts. The bundled notices that
+// go with this list are written by :app:exportBundledNoticesWear, which this
+// task is finalized by.
+if (providers.gradleProperty("exportLicenses").isPresent) {
+    apply(plugin = libs.plugins.aboutlibraries.get().pluginId)
+    extensions.configure<com.mikepenz.aboutlibraries.plugin.AboutLibrariesExtension> {
+        collect {
+            configPath.set(rootProject.file("app/aboutlibraries"))
+            includePlatform.set(false)
+        }
+        export {
+            prettyPrint.set(true)
+        }
+        exports {
+            create("release") {
+                outputFile.set(rootProject.file("app/src/play/res/raw/aboutlibraries_wear.json"))
+            }
+        }
+    }
+}
