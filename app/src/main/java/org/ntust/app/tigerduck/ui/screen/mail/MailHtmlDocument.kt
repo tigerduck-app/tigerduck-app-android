@@ -113,5 +113,11 @@ object MailHtmlDocument {
     private fun decode(s: String) = runCatching { URLDecoder.decode(s.replace("+", "%2B"), "UTF-8") }.getOrDefault(s)
 }
 
-/** `#rrggbb` for CSS. Alpha is dropped: the WebView is opaque and a mail has nothing behind it. */
-fun Color.toCssHex(): String = String.format("#%06x", toArgb() and 0xFFFFFF)
+/**
+ * `#rrggbb` for CSS. Alpha is dropped: the WebView is opaque and a mail has nothing behind it.
+ *
+ * [java.util.Locale.ROOT] because this is machine-readable output, not text for a reader. `%x`
+ * happens not to be one of the conversions `Formatter` localises, so the default locale would
+ * give the same six characters today -- pinning it means that stays true of the next edit too.
+ */
+fun Color.toCssHex(): String = String.format(java.util.Locale.ROOT, "#%06x", toArgb() and 0xFFFFFF)

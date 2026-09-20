@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -48,7 +49,10 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
     // page's theme stays in lockstep with the colours passed alongside it instead of just the OS
     // half of the time.
     val isDark = TigerDuckTheme.isDarkMode
-    val languageTag = context.resources.configuration.locales[0].toLanguageTag()
+    // LocalConfiguration, not context.resources.configuration: the latter is not a Compose state
+    // read, so a locale change would leave the embedded page on the language it first loaded with
+    // (lint: LocalContextConfigurationRead).
+    val languageTag = LocalConfiguration.current.locales[0].toLanguageTag()
 
     var failed by remember { mutableStateOf(false) }
     var reloadKey by remember { mutableIntStateOf(0) }

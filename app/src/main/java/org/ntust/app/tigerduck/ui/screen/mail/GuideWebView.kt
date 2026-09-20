@@ -1,10 +1,12 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import android.annotation.SuppressLint
 import android.view.ViewGroup
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.WebSettings
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -144,18 +146,28 @@ fun GuideWebView(
                 layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                 setBackgroundColor(backgroundColor)
                 settings.apply {
+                    // Suppressed knowingly: this renders a React SPA this team builds and ships,
+                    // not mail. See the class doc for what is and is not turned on, and why.
+                    @SuppressLint("SetJavaScriptEnabled")
                     javaScriptEnabled = true
                     domStorageEnabled = true
                     allowFileAccess = false
                     allowContentAccess = false
                     setSupportMultipleWindows(false)
                     safeBrowsingEnabled = true
+                    // Explicit, and the same value MailWebView pins: this is the current default
+                    // for the app's targetSdk, but a default is not a decision.
+                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 }
                 webViewClient = object : WebViewClient() {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                         val target = request.url.toString()
                         if (isGuideUrl(target)) return false
-                        latestOnExternalLink(target)
+                        // Only a main-frame navigation is a link the reader followed, and only
+                        // that should reach a browser. A subframe heading somewhere else is not
+                        // something anyone asked for -- this callback fires for those too -- so
+                        // it is refused here rather than either loaded or opened outside.
+                        if (request.isForMainFrame) latestOnExternalLink(target)
                         return true
                     }
 
