@@ -133,6 +133,12 @@ class SchoolMailListViewModel @Inject constructor(
     private var pollJob: Job? = null
     private var prefetchJob: Job? = null
 
+    /**
+     * True once a warm queue has run to the end, so a resume knows there is nothing left to warm.
+     * Reset whenever a new queue is built, and whenever the account goes away.
+     */
+    private var prefetchDone = false
+
     init {
         // Signing out must not leave the previous account's mail on screen for
         // whoever signs in next (spec §7.5).
@@ -141,6 +147,7 @@ class SchoolMailListViewModel @Inject constructor(
                 if (!signedIn) {
                     prefetchJob?.cancel()
                     prefetchJob = null
+                    prefetchDone = false
                     _state.value = UiState()
                 }
             }
@@ -263,6 +270,13 @@ class SchoolMailListViewModel @Inject constructor(
     fun startPolling() {
         if (account.authFailed.value) return
         repository.acquire()
+        // Pausing cancels the warm along with the poll, and nothing used to start it again: only
+        // a load, a refresh or a folder tap did. [PREFETCH_START_DELAY_MS] made that easy to hit
+        // -- leave the screen within half a second of it appearing, which is exactly what
+        // following a notification and coming straight back does, and every other mailbox stayed
+        // cold for the rest of the visit. [prefetchDone] is what keeps a resume with nothing left
+        // to warm from going back to the server to find that out.
+        if (!prefetchDone && _state.value.loadState is LoadState.Loaded) startPrefetch()
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
             while (isActive && !account.authFailed.value) {
@@ -347,11 +361,15 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private fun startPrefetch() {
         prefetchJob?.cancel()
+        prefetchDone = false
         val done = _state.value.targets.toMutableSet()
         val queue = _state.value.chips
             .mapNotNull { (it.selection as? FolderSelection.Real)?.name }
             .filter { done.add(it) }
-        if (queue.isEmpty()) return
+        if (queue.isEmpty()) {
+            prefetchDone = true
+            return
+        }
         prefetchJob = viewModelScope.launch {
             // Nothing is touched for a moment after the screen's own load lands. Cancelling the
             // queue cannot abort a fetch already inside the session mutex -- that is blocking
@@ -376,6 +394,9 @@ class SchoolMailListViewModel @Inject constructor(
                     // only that a later chip tap is as slow as it used to be.
                 }
             }
+            // Reached only by running the queue out. A cancelled job leaves this false, which is
+            // what tells the next resume there is still warming to do.
+            prefetchDone = true
         }
     }
 

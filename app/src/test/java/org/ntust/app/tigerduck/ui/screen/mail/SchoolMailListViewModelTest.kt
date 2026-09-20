@@ -743,4 +743,43 @@ class SchoolMailListViewModelTest {
         // And the warm does still happen once the moment has passed.
         assertEquals(3, repo.pageLimits.count { it.second == SchoolMailListViewModel.PREFETCH_LIMIT })
     }
+
+    @Test
+    fun `leaving before the warm starts does not leave the other mailboxes cold`() {
+        val warm = { repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT } }
+        vm.load()
+        // Still inside the start grace, so the queue is parked and has touched nothing.
+        assertEquals(0, warm().size)
+
+        // Leaving here is what following a notification straight back out looks like.
+        vm.stopPolling()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(0, warm().size)
+
+        // Coming back has to re-arm it; nothing else would until a load, refresh or folder tap.
+        vm.startPolling()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(setOf("草稿匣", "廣告信匣", "回收筒"), warm().map { it.first }.toSet())
+        vm.stopPolling()
+    }
+
+    @Test
+    fun `a resume with nothing left to warm does not go back to the server`() {
+        val warm = { repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT } }
+        vm.load()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(3, warm().size)
+
+        vm.stopPolling()
+        vm.startPolling()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+
+        // The queue ran out before the pause, so resuming must not warm the same three again.
+        assertEquals(3, warm().size)
+        vm.stopPolling()
+    }
 }
