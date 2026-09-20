@@ -32,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
@@ -233,6 +234,26 @@ fun TigerPullToRefresh(
             targetValue = 0f,
             animationSpec = spring(stiffness = 400f, dampingRatio = 0.9f),
         )
+    }
+
+    // The chrome has no rebound of its own: `consume` and `onScroll` run only under a finger, so a
+    // pull that stops part way leaves a horizontal slice of the search field wedged between the
+    // banners and the chips, or the header cropped in half, until some later scroll happens to
+    // drain it. Material's enterAlways snaps at exactly this moment; so do we.
+    //
+    // Inside the null check, so the five screens that pass no chrome keep the composition, and the
+    // behaviour, they already had -- this effect does not exist for them. Keyed on fingerDown so
+    // the next touch cancels a settle in flight and the finger takes over from wherever it had
+    // reached. Neither state shares an Animatable with dragY, so the release interlock above is
+    // untouched by any of this.
+    if (appBar != null || searchReveal != null) {
+        LaunchedEffect(fingerDown.value, appBar, searchReveal) {
+            if (fingerDown.value) return@LaunchedEffect
+            coroutineScope {
+                searchReveal?.let { launch { it.settle() } }
+                appBar?.let { launch { it.settle() } }
+            }
+        }
     }
 
     Box(

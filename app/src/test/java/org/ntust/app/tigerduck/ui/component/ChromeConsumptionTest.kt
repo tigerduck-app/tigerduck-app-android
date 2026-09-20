@@ -49,7 +49,7 @@ class ChromeConsumptionTest {
     @Test
     fun `nothing is consumed once the bar is hidden and the drawer is shut`() {
         val appBar = bar()
-        val reveal = SearchRevealState(maxPx = 56f)
+        val reveal = SearchRevealState(initialMaxPx = 56f)
         chromeConsumption(-500f, 0f, appBar, reveal)
         assertEquals(0f, chromeConsumption(-100f, 0f, appBar, reveal), 0.01f)
     }
@@ -57,7 +57,7 @@ class ChromeConsumptionTest {
     @Test
     fun `scrolling down brings the bar back and leaves the drawer alone`() {
         val appBar = bar()
-        val reveal = SearchRevealState(maxPx = 56f)
+        val reveal = SearchRevealState(initialMaxPx = 56f)
         chromeConsumption(-500f, 0f, appBar, reveal)
         assertEquals(60f, chromeConsumption(60f, 0f, appBar, reveal), 0.01f)
         assertEquals(-140f, appBar.offsetPx, 0.01f)

@@ -1,5 +1,8 @@
 package org.ntust.app.tigerduck.ui.component
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,8 +17,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.dp
+
+/**
+ * Where a lifted finger leaves the chrome: past half way it goes the rest of the way, short of it
+ * it goes back. The same tipping point Material's own "enterAlways" bar settles on.
+ */
+private const val SettleFraction = 0.5f
+
+/**
+ * Critically damped, at the stiffness the refresh pull rebounds with. No bounce, deliberately: an
+ * overshoot would draw a band of background above the bar, or a gap below the search field.
+ */
+private val SettleSpec =
+    spring<Float>(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)
 
 /**
  * Where the page chrome sits: 0 fully shown, `-heightPx` fully hidden.
@@ -29,18 +45,56 @@ import androidx.compose.ui.unit.dp
  */
 @Stable
 class AppBarState {
-    var heightPx by mutableFloatStateOf(0f)
+    private var _heightPx by mutableFloatStateOf(0f)
+
+    /**
+     * How tall the chrome measures, written by the screen.
+     *
+     * Setting it re-clamps [offsetPx], because the chrome changes height while it is up: an
+     * auth-failed banner appears, a "local results only" note arrives, a filter row turns up with
+     * its taxonomy. Left alone, a bar that had grown would pop its new bottom band back over the
+     * list unasked, and a bar that had shrunk would silently eat the difference off the next
+     * downward scroll before anything moved. A bar that was fully hidden stays fully hidden.
+     */
+    var heightPx: Float
+        get() = _heightPx
+        set(value) {
+            val wasFullyHidden = _heightPx > 0f && offsetPx <= -_heightPx
+            _heightPx = value
+            offsetPx = if (wasFullyHidden) -value else offsetPx.coerceIn(-value, 0f)
+        }
 
     var offsetPx by mutableFloatStateOf(0f)
         private set
 
     /** Applies [delta] and returns how much of it was used, for the caller to report as consumed. */
     fun onScroll(delta: Float): Float {
-        if (heightPx <= 0f) return 0f
+        if (_heightPx <= 0f) return 0f
         val before = offsetPx
-        offsetPx = (offsetPx + delta).coerceIn(-heightPx, 0f)
+        offsetPx = (offsetPx + delta).coerceIn(-_heightPx, 0f)
         return offsetPx - before
     }
+
+    /**
+     * Sends the bar to whichever end it is nearer, for a finger that let go half way through
+     * hiding it. Nothing but a gesture moves [offsetPx], so without this the header simply stays
+     * cropped in half until the next scroll. Cancelling the call leaves the bar wherever the
+     * animation had reached, which is what the next touch wants.
+     */
+    suspend fun settle() {
+        val target = appBarSettleTarget(offsetPx, _heightPx)
+        if (offsetPx == target) return
+        animate(offsetPx, target, animationSpec = SettleSpec) { value, _ ->
+            offsetPx = value.coerceIn(-_heightPx, 0f)
+        }
+    }
+}
+
+/** Nearer end wins. A bar of unmeasured height has nowhere to go, so it stays put. */
+internal fun appBarSettleTarget(offsetPx: Float, heightPx: Float): Float = when {
+    heightPx <= 0f -> offsetPx
+    offsetPx <= -heightPx * SettleFraction -> -heightPx
+    else -> 0f
 }
 
 @Composable
@@ -57,31 +111,80 @@ fun rememberAppBarState(): AppBarState = remember { AppBarState() }
  * yank the field out from under someone mid-edit.
  */
 @Stable
-class SearchRevealState(val maxPx: Float) {
+class SearchRevealState(initialMaxPx: Float = 0f) {
+    private var _maxPx by mutableFloatStateOf(initialMaxPx)
+    private var _pinned by mutableStateOf(false)
+
     var revealPx by mutableFloatStateOf(0f)
         private set
 
-    var pinned by mutableStateOf(false)
+    /**
+     * How far the drawer opens: the field's own measured height, written by [SearchDrawer] rather
+     * than guessed at from a constant. A text field grows with the font scale while its padding
+     * does not, so any fixed number is wrong for somebody -- measured, the field is whole at every
+     * scale and the finger moves it one to one. A pinned drawer follows the measurement.
+     */
+    var maxPx: Float
+        get() = _maxPx
+        set(value) {
+            _maxPx = value
+            revealPx = if (_pinned) value else revealPx.coerceIn(0f, value)
+        }
+
+    /**
+     * Holds the drawer open while the field is focused or carries text.
+     *
+     * Pinning *opens* the drawer as well as holding it, because [consume] refuses to move a pinned
+     * drawer: a field that gains focus while the drawer is shut -- Tab traversal from a hardware
+     * keyboard, an accessibility focus action, or a search the view model was still carrying when
+     * the screen composed -- would otherwise pin itself invisible, with no gesture able to reach
+     * it and a live filter on the list nobody could see or clear.
+     */
+    var pinned: Boolean
+        get() = _pinned
+        set(value) {
+            val wasPinned = _pinned
+            _pinned = value
+            if (value && !wasPinned) revealPx = _maxPx
+        }
 
     /** Applies [delta] and returns how much of it was used. Positive opens, negative closes. */
     fun consume(delta: Float): Float {
-        if (pinned) return 0f
+        if (_pinned) return 0f
         val before = revealPx
-        revealPx = (revealPx + delta).coerceIn(0f, maxPx)
+        revealPx = (revealPx + delta).coerceIn(0f, _maxPx)
         return revealPx - before
+    }
+
+    /**
+     * Opens or shuts the drawer the rest of the way, for a finger that let go part way through the
+     * reveal -- about a centimetre of travel is all it takes, and a drawer left there draws a
+     * horizontal slice of the field that reads as broken. Cancelling the call leaves the drawer
+     * wherever the animation had reached.
+     */
+    suspend fun settle() {
+        val target = searchDrawerSettleTarget(revealPx, _maxPx, _pinned)
+        if (revealPx == target) return
+        animate(revealPx, target, animationSpec = SettleSpec) { value, _ ->
+            // Anything that pins mid-flight -- a tap landing on the half-open field -- wins: the
+            // pin has already put the drawer exactly where it wants it.
+            if (!_pinned) revealPx = value.coerceIn(0f, _maxPx)
+        }
     }
 }
 
-@Composable
-fun rememberSearchRevealState(maxPx: Float): SearchRevealState =
-    remember(maxPx) { SearchRevealState(maxPx) }
-
 /**
- * How far the drawer opens: the 56dp minimum height of an `OutlinedTextField` plus the 4dp above
- * and below that both screens pad their field with. A field taller than this -- a large font
- * scale -- is clipped rather than squashed, which is the lesser of the two.
+ * Nearer end wins, except for a pinned drawer, which is already where it belongs, and an
+ * unmeasured one, which has nowhere to go.
  */
-val SearchDrawerHeight = 64.dp
+internal fun searchDrawerSettleTarget(revealPx: Float, maxPx: Float, pinned: Boolean): Float = when {
+    pinned || maxPx <= 0f -> revealPx
+    revealPx >= maxPx * SettleFraction -> maxPx
+    else -> 0f
+}
+
+@Composable
+fun rememberSearchRevealState(): SearchRevealState = remember { SearchRevealState() }
 
 /**
  * The search field, clipped to however far the drawer is open. A height of 0 means it is not
@@ -89,9 +192,7 @@ val SearchDrawerHeight = 64.dp
  * meant for the list.
  *
  * [content] is never removed from the composition, only hidden, so the field keeps its text and
- * its IME focus however far the drawer has closed. It is measured at its own full height and then
- * clipped bottom-first, so it slides out from under the chrome above it instead of being squashed
- * flat and stretched open again.
+ * its IME focus however far the drawer has closed.
  */
 @Composable
 fun SearchDrawer(state: SearchRevealState, content: @Composable () -> Unit) {
@@ -102,6 +203,13 @@ fun SearchDrawer(state: SearchRevealState, content: @Composable () -> Unit) {
             .height(height)
             .clipToBounds(),
     ) {
-        Box(Modifier.wrapContentHeight(align = Alignment.Bottom, unbounded = true)) { content() }
+        // `unbounded` is what measures the field at its own full height inside a box that may be
+        // no height at all, so the drawer clips it rather than squashing it flat and stretching it
+        // open again. Anchored to the bottom, so it slides out from under the chrome above it.
+        Box(Modifier.wrapContentHeight(align = Alignment.Bottom, unbounded = true)) {
+            // A layout of its own, measured under those same unbounded constraints, so its size is
+            // the field's natural height -- which is exactly how far the drawer has to open.
+            Box(Modifier.onSizeChanged { state.maxPx = it.height.toFloat() }) { content() }
+        }
     }
 }

@@ -88,7 +88,6 @@ import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SearchDrawer
-import org.ntust.app.tigerduck.ui.component.SearchDrawerHeight
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
@@ -144,17 +143,11 @@ fun AnnouncementsScreen(
     val canShowEmptyState = viewportHeightPx > 0 && headerHeightPx > 0
 
     val appBar = rememberAppBarState()
-    val searchReveal = rememberSearchRevealState(with(density) { SearchDrawerHeight.toPx() })
+    val searchReveal = rememberSearchRevealState()
     var searchFocused by remember { mutableStateOf(false) }
-    // A search that is already running when this screen composes -- the view model outlives the
-    // composition, so coming back from a bulletin lands here with the text still set -- has to
-    // arrive with the drawer already open. `pinned` is true on the very next line, and a pinned
-    // drawer cannot be opened by any gesture, which would leave a live filter on the list with no
-    // field on screen to clear it. Done in a `remember` so it happens during the first
-    // composition, while `pinned` is still false.
-    remember(searchReveal) {
-        if (state.searchText.isNotEmpty()) searchReveal.consume(searchReveal.maxPx)
-    }
+    // Pinning opens the drawer as well as holding it open, which is what puts the field on screen
+    // for a search the view model was still carrying when this screen composed -- coming back from
+    // a bulletin -- and for a field that takes focus without a gesture having opened anything.
     searchReveal.pinned = searchFocused || state.searchText.isNotEmpty()
 
     // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
