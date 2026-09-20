@@ -70,11 +70,23 @@ submodule references.
 
 ### `licenses-up-to-date.yaml`
 
-Runs on PRs to `main` and `dev`. Regenerates the Open-source licences lists
-(`app/src/{play,fdroid}/res/raw/aboutlibraries.json`) from each release
-variant's dependency graph and fails if they differ from what is committed, so a
-dependency change cannot ship with a stale list. The lists are committed rather
-than generated during the build so that no build reaches the network.
+Runs on PRs to `main` and `dev`. Regenerates the Open-source licences data from
+each release variant's dependency graph and fails if it differs from what is
+committed, so a dependency change cannot ship with a stale list. Two files per
+flavor, both written by the one export command:
+
+- `res/raw/aboutlibraries.json` — the libraries and the licences they are
+  published under, read from their POMs.
+- `res/raw/bundled_notices.json` — what each artifact carries *inside* itself,
+  which a POM-driven list cannot see: Apache-2.0 section 4(d) notices, the
+  real copyright line for licences whose published text is the SPDX template
+  (`<year> <copyright holders>`), and the licences of the third-party code
+  compiled into Play Services and Firebase.
+
+Both are committed rather than generated during the build so that no build
+reaches the network. `app/src/main/res/raw/extra_licenses.json` is
+hand-maintained and not checked here — it covers material with no dependency
+graph to compare against.
 
 ### `version-bumped.yaml`
 

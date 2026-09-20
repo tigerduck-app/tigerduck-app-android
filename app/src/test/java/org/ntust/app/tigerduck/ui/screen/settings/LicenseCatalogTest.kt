@@ -37,54 +37,75 @@ class LicenseCatalogTest {
 
     @Test
     fun `artifacts of one Maven group under the same licences share a row`() {
-        val groups = LicenseCatalog.group(
+        val entries = LicenseCatalog.entries(
             listOf(lib("androidx.activity:activity"), lib("androidx.activity:activity-compose")),
         )
-        assertEquals(1, groups.size)
-        assertEquals("androidx.activity", groups.single().title)
+        assertEquals(1, entries.size)
+        assertEquals("androidx.activity", entries.single().title)
         assertEquals(
-            listOf("androidx.activity:activity", "androidx.activity:activity-compose"),
-            groups.single().artifacts.map { it.uniqueId },
+            listOf("androidx.activity:activity 1.0", "androidx.activity:activity-compose 1.0"),
+            entries.single().artifacts,
         )
     }
 
     @Test
     fun `a group splits where its artifacts carry different licences`() {
-        val groups = LicenseCatalog.group(
+        val entries = LicenseCatalog.entries(
             listOf(
                 lib("androidx.datastore:datastore"),
                 lib("androidx.datastore:datastore-preferences-external-protobuf", licenses = setOf(bsd)),
             ),
         )
-        assertEquals(listOf("androidx.datastore", "androidx.datastore"), groups.map { it.title })
-        assertEquals(listOf(listOf(apache), listOf(bsd)), groups.map { it.licenses })
+        assertEquals(listOf("androidx.datastore", "androidx.datastore"), entries.map { it.title })
+        assertEquals(listOf(listOf("Apache-2.0"), listOf("BSD-3-Clause")), entries.map { it.licenseNames })
     }
 
     @Test
     fun `rows are ordered by title regardless of case`() {
-        val groups = LicenseCatalog.group(
+        val entries = LicenseCatalog.entries(
             listOf(lib("org.jsoup:jsoup"), lib("com.google.code.gson:gson"), lib("androidx.core:core")),
         )
-        assertEquals(listOf("androidx.core", "com.google.code.gson", "org.jsoup"), groups.map { it.title })
+        assertEquals(listOf("androidx.core", "com.google.code.gson", "org.jsoup"), entries.map { it.title })
     }
 
     @Test
     fun `holders are the organisation then the developers, each named once`() {
-        val group = LicenseCatalog.group(
+        val entry = LicenseCatalog.entries(
             listOf(
                 lib("com.squareup.okhttp3:okhttp", org = "Square, Inc.", developers = listOf("Square, Inc.")),
                 lib("com.squareup.okhttp3:logging-interceptor", developers = listOf("Jesse Wilson")),
             ),
         ).single()
-        assertEquals(listOf("Square, Inc.", "Jesse Wilson"), group.holders)
+        assertEquals(listOf("Square, Inc.", "Jesse Wilson"), entry.holders)
+    }
+
+    @Test
+    fun `a copyright line the metadata omits is added to the holders`() {
+        val entry = LicenseCatalog.entries(
+            libraries = listOf(lib("androidx.glance:glance-appwidget-external-protobuf", licenses = setOf(bsd), org = "The Android Open Source Project")),
+            extras = ExtraLicenses(
+                holders = mapOf("androidx.glance:glance-appwidget-external-protobuf" to listOf("Copyright 2008 Google Inc.")),
+            ),
+        ).single()
+        assertEquals(listOf("The Android Open Source Project", "Copyright 2008 Google Inc."), entry.holders)
+    }
+
+    @Test
+    fun `a notice bundled inside an artifact is attached to its row`() {
+        val notice = BundledNotice("NOTICE.md", "the notice")
+        val entry = LicenseCatalog.entries(
+            libraries = listOf(lib("org.eclipse.angus:angus-mail")),
+            notices = mapOf("org.eclipse.angus:angus-mail" to listOf(notice)),
+        ).single()
+        assertEquals(listOf(notice), entry.notices)
     }
 
     @Test
     fun `the website falls back to the source repository`() {
-        val group = LicenseCatalog.group(
+        val entry = LicenseCatalog.entries(
             listOf(lib("org.jsoup:jsoup", scm = "https://github.com/jhy/jsoup")),
         ).single()
-        assertEquals("https://github.com/jhy/jsoup", group.website)
+        assertEquals("https://github.com/jhy/jsoup", entry.website)
     }
 
     @Test
@@ -105,15 +126,80 @@ class LicenseCatalogTest {
     fun `every open-source licence either flavour ships carries its full text`() {
         // Google's SDK terms are not open-source licences and publish no text
         // to embed; the page links to them instead.
-        val linkedOnly = setOf("ASDKL", "PCSDKToS")
+        val linkedOnly = setOf("Android Software Development Kit License", "Play Core Software Development Kit Terms of Service")
         for (flavor in listOf("play", "fdroid")) {
             val missing = shipped(flavor)
-                .flatMap { it.licenses }
-                .filter { it.hash !in linkedOnly && it.licenseContent.isNullOrBlank() }
+                .flatMap { it.texts }
+                .filter { it.name !in linkedOnly && it.content.isNullOrBlank() }
                 .map { it.name }
                 .toSet()
             assertTrue("$flavor: $missing", missing.isEmpty())
         }
+    }
+
+    @Test
+    fun `material that ships without a POM to describe it is listed too`() {
+        for (flavor in listOf("play", "fdroid")) {
+            val titles = shipped(flavor).map { it.title }
+            for (expected in listOf("name-abbr", "Public Suffix List", "Material Design Icons")) {
+                assertTrue("$flavor is missing $expected", expected in titles)
+            }
+        }
+    }
+
+    @Test
+    fun `each entry that ships without a POM says why it ships, and carries its licence`() {
+        for (entry in shipped("play").filter { it.artifacts.isEmpty() }) {
+            assertTrue("${entry.title} has no note", !entry.note.isNullOrBlank())
+            assertTrue("${entry.title} has no holders", entry.holders.isNotEmpty())
+            assertTrue("${entry.title} has no licence text", entry.texts.any { !it.content.isNullOrBlank() })
+        }
+    }
+
+    @Test
+    fun `the name-abbr row carries the submodule's own licence, not the app's`() {
+        val entry = shipped("play").single { it.title == "name-abbr" }
+        assertEquals(File("../name-abbr/LICENSE").readText(), entry.texts.single().content)
+        assertTrue(entry.texts.single().content!!.startsWith("MIT License"))
+    }
+
+    @Test
+    fun `a licence published as the SPDX template carries its real copyright somewhere`() {
+        // MIT and the BSD family publish a template whose `<year> <copyright
+        // holders>` line the artifact is expected to fill in. Both licences
+        // require that notice be reproduced, so every library that reaches
+        // the page with an unfilled one has to get it from somewhere else:
+        // a notice bundled in the artifact, or a hand-supplied holder.
+        val placeholder = Regex("""<(year|copyright holders?|owner)>""", RegexOption.IGNORE_CASE)
+        for (flavor in listOf("play", "fdroid")) {
+            val supplied = noticesOf(flavor).keys + extras().holders.keys
+            val libraries = Libs.Builder().withJson(listJson(flavor)).build().libraries
+            val unattributed = libraries
+                .filter { library -> library.licenses.any { placeholder.containsMatchIn(it.licenseContent.orEmpty()) } }
+                .map { it.uniqueId }
+                .filterNot { it in supplied }
+            assertTrue("$flavor: $unattributed", unattributed.isEmpty())
+        }
+    }
+
+    @Test
+    fun `every bundled notice resolves to a text`() {
+        for (flavor in listOf("play", "fdroid")) {
+            val notices = noticesOf(flavor)
+            assertTrue("$flavor has no bundled notices at all", notices.isNotEmpty())
+            for ((library, list) in notices) {
+                assertTrue("$flavor: $library has an empty notice", list.all { it.content.isNotBlank() })
+            }
+        }
+    }
+
+    @Test
+    fun `the licences inside Google's closed SDKs reach the play page`() {
+        val playServices = shipped("play").single { it.title == "com.google.android.gms" }
+        val names = playServices.notices.map { it.name }
+        assertTrue(names.toString(), listOf("Guava JDK7", "Kotlin", "Protocol Buffers").any { it in names })
+        // fdroid ships no Play Services at all, so it carries none of this.
+        assertTrue(shipped("fdroid").none { it.title == "com.google.android.gms" })
     }
 
     @Test
@@ -139,8 +225,32 @@ class LicenseCatalogTest {
         assertEquals("a b\n\nc", LicenseCatalog.reflow("a\r\nb\r\n\r\nc"))
     }
 
-    private fun shipped(flavor: String): List<LicenseGroup> {
-        val json = File("src/$flavor/res/raw/aboutlibraries.json").readText()
-        return LicenseCatalog.group(Libs.Builder().withJson(json).build().libraries)
+    // The committed resources, read the way LicenseRepository reads them,
+    // so these tests fail on a stale export rather than at runtime.
+
+    private fun listJson(flavor: String) = File("src/$flavor/res/raw/aboutlibraries.json").readText()
+
+    private fun shipped(flavor: String): List<LicenseEntry> =
+        LicenseCatalog.entries(
+            Libs.Builder().withJson(listJson(flavor)).build().libraries,
+            noticesOf(flavor),
+            extras(),
+        )
+
+    private fun noticesOf(flavor: String): Map<String, List<BundledNotice>> =
+        LicenseCatalog.parseNotices(File("src/$flavor/res/raw/bundled_notices.json").readText())
+
+    /** The production parser, with the two lookups the app resolves at run time. */
+    private fun extras(): ExtraLicenses {
+        val licenses = Libs.Builder().withJson(listJson("play")).build().libraries.flatMap { it.licenses }
+        return LicenseCatalog.parseExtras(
+            File("src/main/res/raw/extra_licenses.json").readText(),
+            licenseText = { spdxId -> licenses.first { it.spdxId == spdxId }.licenseContent },
+            // What copyLicenseAssets copies into the assets, read from source.
+            asset = { name ->
+                assertEquals("name-abbr-license.txt", name)
+                File("../name-abbr/LICENSE").readText()
+            },
+        )
     }
 }

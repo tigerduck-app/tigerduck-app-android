@@ -39,7 +39,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
-import com.mikepenz.aboutlibraries.entity.License
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +52,7 @@ import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import javax.inject.Inject
 
-/** [LicenseDetailScreen]'s key for TigerDuck's own licence; any other key is a [LicenseGroup] index. */
+/** [LicenseDetailScreen]'s key for TigerDuck's own licence; any other key is a [LicenseEntry] index. */
 const val APP_LICENSE_KEY = "app"
 
 /** The licence name, not translated: it is the title of a legal text. */
@@ -72,7 +71,7 @@ class OpenSourceLicensesViewModel @Inject constructor(
 /**
  * 開源授權, behind the row of that name on [AboutOthersScreen]: every
  * licence this build is under or ships — TigerDuck's own first, then one row
- * per [LicenseGroup] from the flavor's generated list, so the fdroid build
+ * per [LicenseEntry] from the flavor's generated list, so the fdroid build
  * lists no Google Play components. iOS has the same page.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,19 +93,19 @@ fun OpenSourceLicensesScreen(
                 )
             }
         }
-        val groups = licenses?.groups.orEmpty()
-        if (groups.isNotEmpty()) {
+        val entries = licenses?.entries.orEmpty()
+        if (entries.isNotEmpty()) {
             item { SectionHeader(stringResource(R.string.settings_licenses_section_third_party)) }
             item {
                 ContentCard {
                     Column {
-                        groups.forEachIndexed { index, group ->
+                        entries.forEachIndexed { index, entry ->
                             LicenseRow(
-                                title = group.title,
-                                subtitle = group.licenses.joinToString(", ") { it.spdxId ?: it.name },
+                                title = entry.title,
+                                subtitle = entry.licenseNames.joinToString(", "),
                                 onClick = { onOpenLicense(index.toString()) },
                             )
-                            if (index < groups.lastIndex) {
+                            if (index < entries.lastIndex) {
                                 HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
                             }
                         }
@@ -119,9 +118,10 @@ fun OpenSourceLicensesScreen(
 
 /**
  * One licence in full: TigerDuck's own for [APP_LICENSE_KEY], otherwise the
- * [LicenseGroup] at that index — its artifacts, who publishes them, and the
- * text of each licence they ship under. Google's SDK terms publish no text
- * to embed, so those link out instead.
+ * [LicenseEntry] at that index — its artifacts, who publishes them, the text
+ * of each licence they ship under, and any notice they carry inside their
+ * own artifact. Google's SDK terms publish no text to embed, so those link
+ * out instead.
  */
 @Composable
 fun LicenseDetailScreen(
@@ -146,25 +146,29 @@ fun LicenseDetailScreen(
         return
     }
 
-    val group = key.toIntOrNull()?.let { licenses?.groups?.getOrNull(it) }
-    LicenseScaffold(title = group?.title.orEmpty(), onBack = onBack) {
-        if (group != null) groupDetail(group, open)
+    val entry = key.toIntOrNull()?.let { licenses?.entries?.getOrNull(it) }
+    LicenseScaffold(title = entry?.title.orEmpty(), onBack = onBack) {
+        if (entry != null) entryDetail(entry, open)
     }
 }
 
-private fun LazyListScope.groupDetail(group: LicenseGroup, open: (String) -> Unit) {
+private fun LazyListScope.entryDetail(entry: LicenseEntry, open: (String) -> Unit) {
     item {
         ContentCard {
             Column(modifier = Modifier.padding(16.dp)) {
-                if (group.holders.isNotEmpty()) {
+                entry.note?.let { note ->
+                    Text(note, style = MaterialTheme.typography.bodyMedium)
+                }
+                if (entry.holders.isNotEmpty()) {
                     Text(
-                        group.holders.joinToString(", "),
+                        entry.holders.joinToString(", "),
                         style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(top = if (entry.note == null) 0.dp else 8.dp),
                     )
                 }
-                group.artifacts.forEach { artifact ->
+                entry.artifacts.forEach { artifact ->
                     Text(
-                        listOfNotNull(artifact.uniqueId, artifact.artifactVersion).joinToString(" "),
+                        artifact,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     )
@@ -172,17 +176,20 @@ private fun LazyListScope.groupDetail(group: LicenseGroup, open: (String) -> Uni
             }
         }
     }
-    group.website?.let { website ->
+    entry.website?.let { website ->
         item {
             ContentCard {
                 SettingsLinkRow(stringResource(R.string.settings_licenses_website)) { open(website) }
             }
         }
     }
-    group.licenses.forEach { license ->
-        val text = license.licenseContent
-        if (text.isNullOrBlank()) linkedLicense(license, open) else licenseText(license.name, text)
+    entry.texts.forEach { license ->
+        if (license.content.isNullOrBlank()) linkedLicense(license, open) else licenseText(license.name, license.content)
     }
+    // What the artifact itself carries, after the licence it is published
+    // under: the notice Apache-2.0 asks be passed on, or the licences of the
+    // code compiled into a closed SDK.
+    entry.notices.forEach { notice -> licenseText(notice.name, notice.content) }
 }
 
 private fun LazyListScope.licenseText(name: String, text: String) {
@@ -201,7 +208,7 @@ private fun LazyListScope.licenseText(name: String, text: String) {
     }
 }
 
-private fun LazyListScope.linkedLicense(license: License, open: (String) -> Unit) {
+private fun LazyListScope.linkedLicense(license: LicenseText, open: (String) -> Unit) {
     val url = license.url ?: return
     item {
         ContentCard(modifier = Modifier.padding(top = 12.dp)) {

@@ -1,4 +1,6 @@
+import java.security.MessageDigest
 import java.util.Properties
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.android.application)
@@ -151,11 +153,12 @@ android {
         }
     }
 
-    sourceSets {
-        getByName("main") {
-            assets.directories.add(rootProject.file("name-abbr").path)
-        }
-    }
+    // No `sourceSets { main { assets.directories.add(file("name-abbr")) } }`
+    // here, deliberately. That maps the whole submodule in, which ships its
+    // README and scraper script to every user and puts its LICENSE on
+    // assets/LICENSE — the path the app's own licence is copied to, leaving
+    // the merge order to decide which licence the page shows. copyLicenseAssets
+    // below copies the two JSONs and both licences under distinct names.
 
     // Per-app language picker hands users any locale we ship, but Play's
     // default per-language AAB splits only deliver the split matching the
@@ -172,9 +175,12 @@ android {
 
     packaging {
         resources {
-            // angus-mail, jakarta.mail-api and angus-activation each ship
-            // these notices; keep one copy instead of failing the merge.
-            pickFirsts += setOf("META-INF/LICENSE.md", "META-INF/NOTICE.md")
+            // angus-mail, jakarta.mail-api, angus-activation and
+            // jakarta.activation-api each ship these, and all four differ.
+            // Concatenate them: picking one silently drops the other three,
+            // which are the notices those projects publish to be
+            // redistributed with the code.
+            merges += setOf("META-INF/LICENSE.md", "META-INF/NOTICE.md")
         }
     }
 }
@@ -186,9 +192,11 @@ android {
 // `submodules: true` on actions/checkout.
 val verifyNameAbbrSubmodule = tasks.register("verifyNameAbbrSubmodule") {
     val nameAbbrDir = rootProject.file("name-abbr")
-    // Explicit contract: files the runtime loader requires by name. Update
-    // this list when CourseService starts loading additional JSONs.
-    val requiredFiles = listOf("class-name-abbr.json", "classroom-name-abbr.json")
+    // Explicit contract: files the runtime loader requires by name, plus
+    // the submodule's own LICENSE, which the licences page shows because
+    // this data ships under MIT rather than the app's AGPL. Update this
+    // list when CourseService starts loading additional JSONs.
+    val requiredFiles = listOf("class-name-abbr.json", "classroom-name-abbr.json", "LICENSE")
     doLast {
         val hint =
             "Run `git submodule update --init` (or pass submodules: true to actions/checkout in CI)."
@@ -206,30 +214,48 @@ val verifyNameAbbrSubmodule = tasks.register("verifyNameAbbrSubmodule") {
 tasks.matching { it.name.startsWith("merge") && it.name.endsWith("Assets") }
     .configureEach { dependsOn(verifyNameAbbrSubmodule) }
 
-// Open-source licences shows TigerDuck's own licence from the repository's
-// LICENSE, copied into the assets on every build so the page can't drift
-// from the file.
-abstract class CopyAppLicense : DefaultTask() {
+// Assets the licences page and the abbreviation loader read at runtime,
+// copied on every build so neither can drift from the file it came from.
+// Each lands under its own name: two files called LICENSE competing for
+// assets/LICENSE is how the app's own licence and name-abbr's used to
+// collide, with only the merge order deciding which one the page showed.
+abstract class CopyLicenseAssets : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.NONE)
-    abstract val licenseFile: RegularFileProperty
+    abstract val appLicense: RegularFileProperty
+
+    @get:InputFile
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val nameAbbrLicense: RegularFileProperty
+
+    /** `class-name-abbr.json` and `classroom-name-abbr.json`, under their own names. */
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val nameAbbrData: ConfigurableFileCollection
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
     @TaskAction
     fun copy() {
-        licenseFile.get().asFile.copyTo(outputDir.file("LICENSE").get().asFile, overwrite = true)
+        val out = outputDir.get()
+        appLicense.get().asFile.copyTo(out.file("tigerduck-license.txt").asFile, overwrite = true)
+        nameAbbrLicense.get().asFile.copyTo(out.file("name-abbr-license.txt").asFile, overwrite = true)
+        nameAbbrData.forEach { it.copyTo(out.file(it.name).asFile, overwrite = true) }
     }
 }
 
-val copyAppLicense = tasks.register<CopyAppLicense>("copyAppLicense") {
-    licenseFile.set(rootProject.layout.projectDirectory.file("LICENSE"))
+val copyLicenseAssets = tasks.register<CopyLicenseAssets>("copyLicenseAssets") {
+    dependsOn(verifyNameAbbrSubmodule)
+    val nameAbbr = rootProject.layout.projectDirectory.dir("name-abbr")
+    appLicense.set(rootProject.layout.projectDirectory.file("LICENSE"))
+    nameAbbrLicense.set(nameAbbr.file("LICENSE"))
+    nameAbbrData.from(nameAbbr.file("class-name-abbr.json"), nameAbbr.file("classroom-name-abbr.json"))
 }
 
 androidComponents {
     onVariants { variant ->
-        variant.sources.assets?.addGeneratedSourceDirectory(copyAppLicense, CopyAppLicense::outputDir)
+        variant.sources.assets?.addGeneratedSourceDirectory(copyLicenseAssets, CopyLicenseAssets::outputDir)
     }
 }
 
@@ -269,6 +295,135 @@ if (providers.gradleProperty("exportLicenses").isPresent) {
             }
         }
     }
+
+    registerBundledNoticesExport("play")
+    registerBundledNoticesExport("fdroid")
+}
+
+/**
+ * Notices a dependency ships *inside* its own artifact, which a POM-driven
+ * list like AboutLibraries' cannot see. Two kinds:
+ *
+ *  - `META-INF/NOTICE*` and the like. Apache-2.0 section 4(d) requires
+ *    these be redistributed; kotlinx.coroutines' arrives this way, inside
+ *    androidx.concurrent.
+ *  - Google's `third_party_licenses.txt` plus its `.json` offset index,
+ *    which is how Play Services and Firebase carry the licences of the
+ *    third-party code compiled into those closed SDKs.
+ *
+ * Both are extracted into `res/raw/bundled_notices.json` and committed, for
+ * the same reason the library list is: the build must not reach the network
+ * or vary between runs. Texts are stored once and referenced by hash — the
+ * Play Services artifacts repeat the same few licences hundreds of times.
+ */
+fun registerBundledNoticesExport(flavor: String) {
+    val variant = "${flavor}Release"
+    val export = tasks.register("exportBundledNotices${variant.replaceFirstChar(Char::uppercase)}") {
+        dependsOn("exportLibraryDefinitions${variant.replaceFirstChar(Char::uppercase)}")
+        val libraryList = file("src/$flavor/res/raw/aboutlibraries.json")
+        val output = file("src/$flavor/res/raw/bundled_notices.json")
+        val classpath = configurations.getByName("${variant}RuntimeClasspath")
+        outputs.upToDateWhen { false }
+        doLast {
+            val needsNotice = librariesMissingTheirCopyright(libraryList)
+            val texts = sortedMapOf<String, String>()
+            val libraries = sortedMapOf<String, MutableList<Map<String, String>>>()
+            resolveModuleArchives(classpath).forEach { (module, archive) ->
+                ZipFile(archive).use { zip ->
+                    bundledNotices(zip).forEach { (name, text) ->
+                        // A bundled copy of the licence the page already
+                        // prints in full is noise — AndroidX ships one per
+                        // artifact. Keep it only where that printed text is
+                        // the SPDX template, whose `<year> <copyright
+                        // holders>` line the bundled copy fills in. NOTICE
+                        // files are always kept; they exist to be passed on.
+                        val isLicenseCopy = name.substringBeforeLast('.').equals("LICENSE", ignoreCase = true) ||
+                            name.substringBeforeLast('.').equals("LICENCE", ignoreCase = true)
+                        if (isLicenseCopy && module !in needsNotice) return@forEach
+                        val hash = MessageDigest.getInstance("SHA-256")
+                            .digest(text.toByteArray()).joinToString("") { "%02x".format(it) }.take(12)
+                        texts[hash] = text
+                        libraries.getOrPut(module) { mutableListOf() }
+                            .add(mapOf("name" to name, "hash" to hash))
+                    }
+                }
+            }
+            output.writeText(
+                groovy.json.JsonOutput.prettyPrint(
+                    groovy.json.JsonOutput.toJson(mapOf("texts" to texts, "libraries" to libraries)),
+                ) + "\n",
+            )
+            logger.lifecycle("$flavor: ${libraries.size} libraries carry notices, ${texts.size} distinct texts")
+        }
+    }
+    // The plugin creates its export tasks late, so match rather than name:
+    // one `exportLibraryDefinitions…` command refreshes both files.
+    tasks.matching { it.name == "exportLibraryDefinitions${variant.replaceFirstChar(Char::uppercase)}" }
+        .configureEach { finalizedBy(export) }
+}
+
+/** Every resolved module's own `.aar`/`.jar`, not the `classes.jar` AGP transforms it into. */
+fun resolveModuleArchives(classpath: Configuration): Map<String, File> {
+    fun view(type: String) = classpath.incoming.artifactView {
+        isLenient = true
+        attributes.attribute(Attribute.of("artifactType", String::class.java), type)
+    }.artifacts.artifacts
+    val archives = linkedMapOf<String, File>()
+    (view("aar") + view("jar")).forEach { artifact ->
+        val id = artifact.id.componentIdentifier
+        if (id is ModuleComponentIdentifier && artifact.file.name != "classes.jar") {
+            archives.putIfAbsent("${id.group}:${id.module}", artifact.file)
+        }
+    }
+    return archives
+}
+
+/**
+ * Libraries whose licence text reaches the page as the SPDX template, with
+ * the copyright line left as `<year> <copyright holders>` — MIT and the BSD
+ * family. Both licences require that the real notice be reproduced, and the
+ * only place it exists is inside the artifact.
+ */
+@Suppress("UNCHECKED_CAST")
+fun librariesMissingTheirCopyright(libraryList: File): Set<String> {
+    val placeholder = Regex("""<(year|copyright holders?|owner)>|\[(year|fullname)]""", RegexOption.IGNORE_CASE)
+    val parsed = groovy.json.JsonSlurper().parse(libraryList) as Map<String, Any>
+    val templated = (parsed["licenses"] as Map<String, Map<String, Any>>)
+        .filterValues { placeholder.containsMatchIn((it["content"] as String?).orEmpty()) }
+        .keys
+    return (parsed["libraries"] as List<Map<String, Any>>)
+        .filter { library -> (library["licenses"] as? List<String>).orEmpty().any { it in templated } }
+        .map { it["uniqueId"] as String }
+        .toSet()
+}
+
+private val legalFileName =
+    Regex("""^(LICEN[CS]E|NOTICE|COPYING|THIRD[-_]?PARTY[-_]?NOTICES)(\.\w+)?$""", RegexOption.IGNORE_CASE)
+
+/** `name to text` for every notice bundled in one artifact. */
+@Suppress("UNCHECKED_CAST")
+fun bundledNotices(zip: ZipFile): List<Pair<String, String>> {
+    val index = zip.getEntry("third_party_licenses.json")
+    val blob = zip.getEntry("third_party_licenses.txt")
+    if (index != null && blob != null) {
+        val bytes = zip.getInputStream(blob).use { it.readBytes() }
+        val entries = zip.getInputStream(index).use {
+            groovy.json.JsonSlurper().parse(it) as Map<String, Map<String, Int>>
+        }
+        return entries.entries.sortedBy { it.key }.mapNotNull { (name, at) ->
+            val start = at["start"] ?: return@mapNotNull null
+            val length = at["length"] ?: return@mapNotNull null
+            val text = String(bytes, start, length, Charsets.UTF_8).trim()
+            if (text.isEmpty()) null else name to text
+        }
+    }
+    return zip.entries().toList()
+        .filter { !it.isDirectory && legalFileName.matches(it.name.substringAfterLast('/')) }
+        .sortedBy { it.name }
+        .mapNotNull { entry ->
+            val text = zip.getInputStream(entry).use { it.readBytes().toString(Charsets.UTF_8) }.trim()
+            if (text.isEmpty()) null else entry.name.substringAfterLast('/') to text
+        }
 }
 
 dependencies {

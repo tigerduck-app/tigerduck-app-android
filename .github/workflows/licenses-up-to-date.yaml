@@ -1,11 +1,16 @@
 name: Licences up to date
 
-# Settings → Others → Open-source licences reads the committed
-# app/src/{play,fdroid}/res/raw/aboutlibraries.json. They are generated from
-# each release variant's dependency graph but committed rather than built on
-# the fly (see the aboutLibraries block in app/build.gradle.kts), so a
-# dependency change that forgets to regenerate them would ship a stale list.
-# This regenerates both and fails on any difference.
+# Settings → Others → Open-source licences reads two committed files per
+# flavor: res/raw/aboutlibraries.json, the libraries and their licences, and
+# res/raw/bundled_notices.json, the notices each dependency carries inside
+# its own artifact. Both are generated from the release variant's dependency
+# graph but committed rather than built on the fly (see app/build.gradle.kts),
+# so a dependency change that forgets to regenerate them would ship a stale
+# list. The export task writes both; this regenerates them and fails on any
+# difference.
+#
+# res/raw/extra_licenses.json is hand-maintained and deliberately not checked
+# here: it covers material that has no dependency graph to compare against.
 
 on:
   pull_request:

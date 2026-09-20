@@ -70,15 +70,35 @@ default is silently dropped and the field is null at runtime.
   (`PIN_EXPIRY_EPOCH`). `TigerDuckApp.warnIfPinsNearExpiry` logs a warning
   in the 30-day window. Rotate before lapse; post-expiry the platform
   falls back to system CA trust silently.
-- **The Open-source licences lists are committed, not built.**
-  `app/src/{play,fdroid}/res/raw/aboutlibraries.json` come from the
-  AboutLibraries plugin, which is applied only under `-PexportLicenses`:
-  applied unconditionally it hooks every variant's resource generation and
+- **The Open-source licences lists are committed, not built.** Two
+  generated files per flavor: `res/raw/aboutlibraries.json` (libraries and
+  their licences, from the AboutLibraries plugin) and
+  `res/raw/bundled_notices.json` (notices each dependency ships *inside* its
+  own artifact — Apache-2.0 section 4(d) notices, the filled-in copyright
+  line for licences published as the SPDX template, and the third-party
+  licences Google compiles into Play Services and Firebase). Both come from
+  one command, which is applied only under `-PexportLicenses`: applied
+  unconditionally the plugin hooks every variant's resource generation and
   downloads licence texts on each build. After changing a dependency run
   `./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease`
-  — `licenses-up-to-date.yaml` fails the PR otherwise. Texts the plugin
-  cannot find itself go in `app/aboutlibraries/licenses/`, keyed by the hash
-  it reports.
+  — `licenses-up-to-date.yaml` fails the PR otherwise. Licence texts the
+  plugin cannot find itself go in `app/aboutlibraries/licenses/`, keyed by
+  the hash it reports.
+
+  `app/src/main/res/raw/extra_licenses.json` is the hand-maintained
+  companion: third-party material that ships with no POM to describe it
+  (the `name-abbr` submodule's MIT data, Mozilla's Public Suffix List
+  riding inside OkHttp, a Material Icons glyph redrawn as a drawable) plus
+  copyright lines the published metadata omits. Add to it whenever
+  something third-party starts shipping that Gradle never resolves.
+
+- **Assets the licences page reads are copied in by `copyLicenseAssets`**,
+  each under its own name — `tigerduck-license.txt`, `name-abbr-license.txt`
+  — together with name-abbr's two JSONs. Do not map `name-abbr/` in as a
+  whole asset directory: that ships its README and scraper script to every
+  user, and lands its `LICENSE` on `assets/LICENSE`, the same path the app's
+  own licence used to be copied to, leaving the merge order to decide which
+  licence the page showed.
 - **No `Co-Authored-By: Claude` trailer** on commits — per global user
   preference. Applies to every commit in this repo, every workflow.
 
