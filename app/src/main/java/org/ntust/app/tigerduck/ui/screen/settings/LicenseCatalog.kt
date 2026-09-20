@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
+import android.util.Log
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.mikepenz.aboutlibraries.Libs
@@ -27,6 +28,26 @@ data class LicenseText(val name: String, val content: String?, val url: String?)
  * SDKs.
  */
 data class BundledNotice(val name: String, val content: String)
+
+/**
+ * What [LicenseCatalog.parseNotices] read out of the generated documents.
+ *
+ * [unresolved] is the point of the type. Texts are stored by content hash
+ * across documents so `bundled_notices_wear.json` can leave out every one
+ * the phone's document already carries — which also means a phone-side
+ * dependency change can remove a text the watch still points at. A
+ * reference that resolves to nothing drops its notice off the page with
+ * nothing left behind to notice, so the parser carries the misses out
+ * rather than swallowing them.
+ */
+data class BundledNotices(
+    /** The notices each `group:artifact` carries inside its own artifact. */
+    val byLibrary: Map<String, List<BundledNotice>> = emptyMap(),
+    /** Every hash the documents named, resolved or not. */
+    val references: Int = 0,
+    /** `library: hash`, one per reference no document carried a text for. */
+    val unresolved: List<String> = emptyList(),
+)
 
 /**
  * One row on [OpenSourceLicensesScreen]: either the artifacts of one Maven
@@ -113,27 +134,62 @@ object LicenseCatalog {
      * construct it — the page crashed in a minified build for exactly that
      * reason.
      */
-    fun parseNotices(vararg documents: String): Map<String, List<BundledNotice>> {
+    fun parseNotices(vararg documents: String): BundledNotices {
         val roots = documents.map { JsonParser.parseString(it).asJsonObject }
         // Texts are keyed by content hash across every document, so the
         // watch's can leave out the ones the phone's already carries — the
         // two overlap almost entirely, both shipping Play Services.
-        val texts = roots.flatMap { it.getAsJsonObject("texts").entrySet() }
+        val texts = roots.flatMap { it.getAsJsonObject("texts")?.entrySet().orEmpty() }
             .associate { (hash, text) -> hash to text.asString }
         val notices = mutableMapOf<String, MutableList<BundledNotice>>()
+        var references = 0
+        val unresolved = mutableListOf<String>()
         for (root in roots) {
-            for ((library, refs) in root.getAsJsonObject("libraries").entrySet()) {
+            for ((library, refs) in root.getAsJsonObject("libraries")?.entrySet().orEmpty()) {
                 for (ref in refs.asJsonArray) {
+                    references++
                     val at = ref.asJsonObject
-                    val content = texts[at["hash"]?.asString] ?: continue
+                    val hash = at["hash"]?.asString
+                    val content = hash?.let(texts::get)
+                    if (content == null) {
+                        unresolved.add("$library: $hash")
+                        continue
+                    }
                     val notice = BundledNotice(at["name"]?.asString ?: content.substringBefore('\n'), content)
                     val carried = notices.getOrPut(library) { mutableListOf() }
                     if (notice !in carried) carried.add(notice)
                 }
             }
         }
-        return notices
+        return BundledNotices(notices, references, unresolved)
     }
+
+    /**
+     * The notices of one entry, one section per distinct text, titled with
+     * every name that refers to it. Play Services references the same
+     * 11 KB Google text under sixteen names — Dagger, Guava, Firebase, the
+     * coroutines runtime — and repeating the body under each of them put
+     * around half a megabyte of text on that one detail page. Every name is
+     * a legal attribution and none is dropped; only the repetition is.
+     */
+    fun groupNotices(notices: List<BundledNotice>): List<BundledNotice> =
+        notices.groupBy(BundledNotice::content)
+            .map { (content, sharing) ->
+                BundledNotice(sharing.map(BundledNotice::name).distinct().joinToString(", "), content)
+            }
+
+    /**
+     * The text of a licence the library list already carries, for an extras
+     * entry that names one by `licenseRef`.
+     *
+     * The first entry that has a text, not the last that matches: the export
+     * already keys an EPL/EDL pair by hash with no `spdxId` on one of them,
+     * so a second entry under a duplicate spdxId carrying no text is a
+     * plausible future export, and last-wins would quietly strip the licence
+     * off whichever extras entry points at it.
+     */
+    fun resolveLicenseRef(licenses: List<License>, spdxId: String): String? =
+        licenses.firstOrNull { it.spdxId == spdxId && !it.licenseContent.isNullOrBlank() }?.licenseContent
 
     /**
      * The hand-maintained extras. [licenseText] resolves a `licenseRef` to a
@@ -146,7 +202,7 @@ object LicenseCatalog {
         asset: (String) -> String,
     ): ExtraLicenses {
         val root = JsonParser.parseString(json).asJsonObject
-        val entries = root.getAsJsonArray("entries").map { element ->
+        val entries = root.getAsJsonArray("entries")?.map { element ->
             val entry = element.asJsonObject
             fun field(name: String) = entry[name]?.takeIf { !it.isJsonNull }?.asString
             LicenseEntry(
@@ -168,8 +224,8 @@ object LicenseCatalog {
                 ),
                 notices = emptyList(),
             )
-        }
-        val holders = root.getAsJsonObject("holders").entrySet()
+        }.orEmpty()
+        val holders = root.getAsJsonObject("holders")?.entrySet().orEmpty()
             .associate { (library, lines) -> library to lines.asJsonArray.map { it.asString } }
         return ExtraLicenses(entries, holders)
     }
@@ -227,7 +283,23 @@ class LicenseRepository @Inject constructor(
     private var cached: Licenses? = null
 
     suspend fun load(): Licenses = mutex.withLock {
-        cached ?: withContext(Dispatchers.IO) {
+        cached ?: withContext(Dispatchers.IO) { read() }.also { cached = it }
+    }
+
+    /**
+     * Never throws. The view model collects this through
+     * `stateIn(..., Eagerly)`, where an exception has nowhere to go but the
+     * uncaught handler — a malformed or truncated export would take the
+     * whole process down from a screen the user has not opened yet. A list
+     * that cannot be read is worth a page missing its third parties, not a
+     * crash, so the two halves fail apart: the app's own licence still
+     * shows when the generated lists don't.
+     */
+    private fun read(): Licenses {
+        val appLicense = runCatching { asset(APP_LICENSE_ASSET) }
+            .onFailure { Log.w(TAG, "Could not read $APP_LICENSE_ASSET", it) }
+            .getOrDefault("")
+        return runCatching {
             val libraries = Libs.Builder().withJson(raw(R.raw.aboutlibraries)).build().libraries
             val wearLibraries = WearLicenses.libraries
                 ?.let { Libs.Builder().withJson(raw(it)).build().libraries }
@@ -235,10 +307,10 @@ class LicenseRepository @Inject constructor(
             val notices = LicenseCatalog.parseNotices(
                 raw(R.raw.bundled_notices),
                 *listOfNotNull(WearLicenses.notices?.let(::raw)).toTypedArray(),
-            )
+            ).byLibrary
             val extras = extraLicenses(libraries)
             Licenses(
-                appLicense = asset(APP_LICENSE_ASSET),
+                appLicense = appLicense,
                 entries = LicenseCatalog.entries(libraries, notices, extras),
                 // The standalone rows are the phone's own; only the
                 // copyright lines the metadata omits carry over.
@@ -248,7 +320,9 @@ class LicenseRepository @Inject constructor(
                     ExtraLicenses(holders = extras.holders),
                 ),
             )
-        }.also { cached = it }
+        }
+            .onFailure { Log.w(TAG, "Could not read the generated licence lists", it) }
+            .getOrDefault(Licenses(appLicense = appLicense, entries = emptyList()))
     }
 
     private fun raw(id: Int): String =
@@ -258,13 +332,16 @@ class LicenseRepository @Inject constructor(
         context.assets.open(name).bufferedReader().use { it.readText() }
 
     private fun extraLicenses(libraries: List<Library>): ExtraLicenses {
-        val bySpdxId = libraries.flatMap { it.licenses }
-            .mapNotNull { license -> license.spdxId?.let { it to license.licenseContent } }
-            .toMap()
-        return LicenseCatalog.parseExtras(raw(R.raw.extra_licenses), bySpdxId::get, ::asset)
+        val licenses = libraries.flatMap { it.licenses }
+        return LicenseCatalog.parseExtras(
+            raw(R.raw.extra_licenses),
+            { spdxId -> LicenseCatalog.resolveLicenseRef(licenses, spdxId) },
+            ::asset,
+        )
     }
 
     companion object {
         const val APP_LICENSE_ASSET = "tigerduck-license.txt"
+        private const val TAG = "LicenseRepository"
     }
 }

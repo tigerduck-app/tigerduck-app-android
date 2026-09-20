@@ -7,6 +7,7 @@ import com.mikepenz.aboutlibraries.entity.License
 import com.mikepenz.aboutlibraries.entity.Organization
 import com.mikepenz.aboutlibraries.entity.Scm
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -172,7 +173,7 @@ class LicenseCatalogTest {
         // a notice bundled in the artifact, or a hand-supplied holder.
         val placeholder = Regex("""<(year|copyright holders?|owner)>""", RegexOption.IGNORE_CASE)
         for (flavor in listOf("play", "fdroid")) {
-            val supplied = noticesOf(flavor).keys + extras().holders.keys
+            val supplied = noticesOf(flavor).byLibrary.keys + extras().holders.keys
             val libraries = Libs.Builder().withJson(listJson(flavor)).build().libraries
             val unattributed = libraries
                 .filter { library -> library.licenses.any { placeholder.containsMatchIn(it.licenseContent.orEmpty()) } }
@@ -186,11 +187,40 @@ class LicenseCatalogTest {
     fun `every bundled notice resolves to a text`() {
         for (flavor in listOf("play", "fdroid")) {
             val notices = noticesOf(flavor)
-            assertTrue("$flavor has no bundled notices at all", notices.isNotEmpty())
-            for ((library, list) in notices) {
+            assertTrue("$flavor has no bundled notices at all", notices.byLibrary.isNotEmpty())
+            // Counted from the documents, not from what came out of them:
+            // the parser drops a reference it cannot resolve, so walking the
+            // result could only ever find the ones that worked.
+            assertTrue("$flavor names no notice at all", notices.references > 0)
+            // bundled_notices_wear.json deliberately carries no text the
+            // phone's document already has, so a phone-side dependency
+            // change can delete one the watch still points at. That notice
+            // then leaves the page with nothing left to show it was there.
+            assertEquals("$flavor: ${notices.unresolved}", emptyList<String>(), notices.unresolved)
+            for ((library, list) in notices.byLibrary) {
                 assertTrue("$flavor: $library has an empty notice", list.all { it.content.isNotBlank() })
             }
         }
+    }
+
+    @Test
+    fun `a reference to a text no document carries is reported, not dropped`() {
+        val notices = LicenseCatalog.parseNotices(
+            """{"texts":{"h1":"the notice"},"libraries":{"g:a":[{"name":"N","hash":"h1"},{"name":"M","hash":"gone"}]}}""",
+        )
+        assertEquals(listOf(BundledNotice("N", "the notice")), notices.byLibrary["g:a"])
+        assertEquals(2, notices.references)
+        assertEquals(listOf("g:a: gone"), notices.unresolved)
+    }
+
+    @Test
+    fun `a document missing a section is read as empty rather than thrown on`() {
+        // Both halves are read off platform types that return null for a key
+        // that isn't there, and the page is collected eagerly: an NPE here
+        // would reach the uncaught handler rather than the screen.
+        assertEquals(BundledNotices(), LicenseCatalog.parseNotices("{}"))
+        val extras = LicenseCatalog.parseExtras("{}", licenseText = { null }, asset = { "" })
+        assertEquals(ExtraLicenses(), extras)
     }
 
     @Test
@@ -200,6 +230,58 @@ class LicenseCatalogTest {
         assertTrue(names.toString(), listOf("Guava JDK7", "Kotlin", "Protocol Buffers").any { it in names })
         // fdroid ships no Play Services at all, so it carries none of this.
         assertTrue(shipped("fdroid").none { it.title == "com.google.android.gms" })
+    }
+
+    @Test
+    fun `notices that share a text are one section, titled with every name`() {
+        val google = "the licences inside Play Services"
+        val grouped = LicenseCatalog.groupNotices(
+            listOf(
+                BundledNotice("Guava JDK7", google),
+                BundledNotice("Dagger", google),
+                BundledNotice("NOTICE.md", "something of its own"),
+            ),
+        )
+        assertEquals(listOf("Guava JDK7, Dagger", "NOTICE.md"), grouped.map { it.name })
+        assertEquals(listOf(google, "something of its own"), grouped.map { it.content })
+    }
+
+    @Test
+    fun `the play services page carries each notice once and still names them all`() {
+        val notices = shipped("play").single { it.title == "com.google.android.gms" }.notices
+        val grouped = LicenseCatalog.groupNotices(notices)
+        // Attribution is the whole point of the page, so grouping may drop
+        // repetition and nothing else. (No notice name has a comma in it,
+        // which is what makes the joined title splittable back apart.)
+        assertEquals(
+            notices.map { it.name }.toSet(),
+            grouped.flatMap { it.name.split(", ") }.toSet(),
+        )
+        // Sixteen of them are the same 11 KB Google text under sixteen
+        // names, which is most of the half-megabyte that page used to render.
+        val before = notices.sumOf { it.content.length }
+        val after = grouped.sumOf { it.content.length }
+        assertTrue("$before characters became $after", after < before * 3 / 4)
+    }
+
+    @Test
+    fun `a licenceRef takes the first licence that has a text, not the last that matches`() {
+        // The export already keys an EPL/EDL pair by hash, one of them with
+        // no spdxId at all, so a second entry under a duplicate spdxId
+        // carrying no text is a plausible next export. Last-wins would strip
+        // the Apache text off Material Design Icons without a word.
+        val blank = License("Apache License 2.0", null, spdxId = "Apache-2.0", licenseContent = null, hash = "blank")
+        assertEquals("apache", LicenseCatalog.resolveLicenseRef(listOf(apache, blank), "Apache-2.0"))
+        assertEquals("apache", LicenseCatalog.resolveLicenseRef(listOf(blank, apache), "Apache-2.0"))
+        assertNull(LicenseCatalog.resolveLicenseRef(listOf(blank), "Apache-2.0"))
+        // An spdxId nothing carries is a miss, not a throw.
+        assertNull(LicenseCatalog.resolveLicenseRef(listOf(bsd), "Apache-2.0"))
+    }
+
+    @Test
+    fun `the entry that names its licence by reference gets that licence's text`() {
+        val icons = shipped("play").single { it.title == "Material Design Icons" }
+        assertTrue(icons.texts.single().content.orEmpty().contains("Apache License"))
     }
 
     @Test
@@ -219,16 +301,18 @@ class LicenseCatalogTest {
         // Both ship Play Services, so the watch document leans on the
         // phone's texts by hash rather than carrying its own copies.
         assertTrue("the watch document is carrying duplicate texts", wear.length < phone.length / 4)
-        // And every reference still resolves once the two are read together.
-        for ((library, notices) in LicenseCatalog.parseNotices(phone, wear)) {
-            assertTrue("$library has an unresolved notice", notices.all { it.content.isNotBlank() })
-        }
+        // And every reference still resolves once the two are read together
+        // — asked of the references, not of the notices that came back, or
+        // the ones that went missing would be missing from the check too.
+        val notices = LicenseCatalog.parseNotices(phone, wear)
+        assertEquals(notices.unresolved.toString(), emptyList<String>(), notices.unresolved)
+        assertTrue(notices.references > notices.byLibrary.values.sumOf { it.size })
     }
 
     @Test
     fun `a licence published as the SPDX template carries its real copyright on the watch too`() {
         val placeholder = Regex("""<(year|copyright holders?|owner)>""", RegexOption.IGNORE_CASE)
-        val supplied = noticesOf("play").keys + extras().holders.keys
+        val supplied = noticesOf("play").byLibrary.keys + extras().holders.keys
         val unattributed = Libs.Builder()
             .withJson(File("src/play/res/raw/aboutlibraries_wear.json").readText()).build().libraries
             .filter { library -> library.licenses.any { placeholder.containsMatchIn(it.licenseContent.orEmpty()) } }
@@ -278,11 +362,11 @@ class LicenseCatalogTest {
     private fun shipped(flavor: String): List<LicenseEntry> =
         LicenseCatalog.entries(
             Libs.Builder().withJson(listJson(flavor)).build().libraries,
-            noticesOf(flavor),
+            noticesOf(flavor).byLibrary,
             extras(),
         )
 
-    private fun noticesOf(flavor: String): Map<String, List<BundledNotice>> =
+    private fun noticesOf(flavor: String): BundledNotices =
         LicenseCatalog.parseNotices(
             *listOfNotNull(
                 File("src/$flavor/res/raw/bundled_notices.json").readText(),
@@ -294,7 +378,7 @@ class LicenseCatalogTest {
     private fun wearShipped(): List<LicenseEntry> =
         LicenseCatalog.entries(
             Libs.Builder().withJson(File("src/play/res/raw/aboutlibraries_wear.json").readText()).build().libraries,
-            noticesOf("play"),
+            noticesOf("play").byLibrary,
             ExtraLicenses(holders = extras().holders),
         )
 
@@ -303,7 +387,11 @@ class LicenseCatalogTest {
         val licenses = Libs.Builder().withJson(listJson("play")).build().libraries.flatMap { it.licenses }
         return LicenseCatalog.parseExtras(
             File("src/main/res/raw/extra_licenses.json").readText(),
-            licenseText = { spdxId -> licenses.first { it.spdxId == spdxId }.licenseContent },
+            // The production resolver, not a second one that happens to
+            // agree with it: a test that picks the first match while the app
+            // picks the last would pass over exactly the export that breaks
+            // the page.
+            licenseText = { spdxId -> LicenseCatalog.resolveLicenseRef(licenses, spdxId) },
             // What copyLicenseAssets copies into the assets, read from source.
             asset = { name ->
                 assertEquals("name-abbr-license.txt", name)
