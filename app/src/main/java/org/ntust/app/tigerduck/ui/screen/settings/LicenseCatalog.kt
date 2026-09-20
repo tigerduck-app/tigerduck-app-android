@@ -290,40 +290,48 @@ class LicenseRepository @Inject constructor(
      * Never throws. The view model collects this through
      * `stateIn(..., Eagerly)`, where an exception has nowhere to go but the
      * uncaught handler — a malformed or truncated export would take the
-     * whole process down from a screen the user has not opened yet. A list
-     * that cannot be read is worth a page missing its third parties, not a
-     * crash, so the two halves fail apart: the app's own licence still
-     * shows when the generated lists don't.
+     * whole process down from a screen the user has not opened yet.
+     *
+     * Each input falls back on its own, because they are not equally
+     * trustworthy and the result is cached for the process. The phone's
+     * library list is generated and diffed by CI; `extra_licenses.json` is
+     * hand-maintained, and the watch's two documents only exist on play. One
+     * hand-edit, or one watch document that will not parse, must not take
+     * the eighty rows beside it down — nor the app's own licence, which
+     * comes from an asset and is read separately.
      */
     private fun read(): Licenses {
-        val appLicense = runCatching { asset(APP_LICENSE_ASSET) }
-            .onFailure { Log.w(TAG, "Could not read $APP_LICENSE_ASSET", it) }
-            .getOrDefault("")
-        return runCatching {
-            val libraries = Libs.Builder().withJson(raw(R.raw.aboutlibraries)).build().libraries
-            val wearLibraries = WearLicenses.libraries
-                ?.let { Libs.Builder().withJson(raw(it)).build().libraries }
-                .orEmpty()
-            val notices = LicenseCatalog.parseNotices(
+        val appLicense = readOrWarn("the app's own licence") { asset(APP_LICENSE_ASSET) }.orEmpty()
+        val libraries = readOrWarn("the library list") {
+            Libs.Builder().withJson(raw(R.raw.aboutlibraries)).build().libraries
+        }.orEmpty()
+        val notices = readOrWarn("the bundled notices") {
+            LicenseCatalog.parseNotices(
                 raw(R.raw.bundled_notices),
                 *listOfNotNull(WearLicenses.notices?.let(::raw)).toTypedArray(),
             ).byLibrary
-            val extras = extraLicenses(libraries)
-            Licenses(
-                appLicense = appLicense,
-                entries = LicenseCatalog.entries(libraries, notices, extras),
-                // The standalone rows are the phone's own; only the
-                // copyright lines the metadata omits carry over.
-                wearEntries = LicenseCatalog.entries(
-                    wearLibraries,
-                    notices,
-                    ExtraLicenses(holders = extras.holders),
-                ),
-            )
-        }
-            .onFailure { Log.w(TAG, "Could not read the generated licence lists", it) }
-            .getOrDefault(Licenses(appLicense = appLicense, entries = emptyList()))
+        }.orEmpty()
+        val extras = readOrWarn("the hand-maintained extras") { extraLicenses(libraries) }
+            ?: ExtraLicenses()
+        val wearLibraries = readOrWarn("the watch's library list") {
+            WearLicenses.libraries?.let { Libs.Builder().withJson(raw(it)).build().libraries }
+        }.orEmpty()
+        return Licenses(
+            appLicense = appLicense,
+            entries = readOrWarn("the licence entries") {
+                LicenseCatalog.entries(libraries, notices, extras)
+            }.orEmpty(),
+            // The standalone rows are the phone's own; only the
+            // copyright lines the metadata omits carry over.
+            wearEntries = readOrWarn("the watch's licence entries") {
+                LicenseCatalog.entries(wearLibraries, notices, ExtraLicenses(holders = extras.holders))
+            }.orEmpty(),
+        )
     }
+
+    /** [block], or null and a line in the log — never an exception. */
+    private fun <T> readOrWarn(what: String, block: () -> T): T? =
+        runCatching(block).onFailure { Log.w(TAG, "Could not read $what", it) }.getOrNull()
 
     private fun raw(id: Int): String =
         context.resources.openRawResource(id).bufferedReader().use { it.readText() }
