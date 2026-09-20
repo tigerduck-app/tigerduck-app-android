@@ -728,4 +728,19 @@ class SchoolMailListViewModelTest {
         val after = repo.pageLimits.drop(before + 1).filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
         assertEquals(setOf("草稿匣", "廣告信匣", "回收筒"), after.map { it.first }.toSet())
     }
+
+    @Test
+    fun `the warm holds off, so a refresh in the first moments queues behind nothing`() = runTest {
+        vm.load()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS / 2)
+
+        // Inside the grace the connection has not been taken for warming at all, so a cancel
+        // landing here costs a foreground request nothing -- not even the one page it would
+        // otherwise have had to wait out.
+        assertEquals(0, repo.pageLimits.count { it.second == SchoolMailListViewModel.PREFETCH_LIMIT })
+
+        advanceUntilIdle()
+        // And the warm does still happen once the moment has passed.
+        assertEquals(3, repo.pageLimits.count { it.second == SchoolMailListViewModel.PREFETCH_LIMIT })
+    }
 }

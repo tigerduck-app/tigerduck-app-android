@@ -337,7 +337,10 @@ class SchoolMailListViewModel @Inject constructor(
      * each, and the holder's mutex is fair, so the most any of them waits is the single folder
      * page already in flight -- cheaper than throwing away a queue they would only have to see
      * rebuilt. Cancelling buys the same one-page bound for the paths that do it; no caller can do
-     * better, because the in-flight fetch is blocking I/O that must not be abandoned mid-response.
+     * better once a fetch is in flight, because that is blocking I/O which must not be abandoned
+     * mid-response. What [PREFETCH_START_DELAY_MS] adds is that the window in which there *is*
+     * something in flight opens late enough to miss the collision that actually happens -- a
+     * refresh in the first moments after the screen paints -- which then waits for nothing.
      *
      * Fetched with `background = true`, so a warm can seed an empty folder cache but never
      * shorten one the user has already paged further than [PREFETCH_LIMIT].
@@ -350,6 +353,15 @@ class SchoolMailListViewModel @Inject constructor(
             .filter { done.add(it) }
         if (queue.isEmpty()) return
         prefetchJob = viewModelScope.launch {
+            // Nothing is touched for a moment after the screen's own load lands. Cancelling the
+            // queue cannot abort a fetch already inside the session mutex -- that is blocking
+            // Angus Mail I/O, and abandoning a half-read IMAP response would leave the shared
+            // connection out of step with the server -- so the only way to spare a foreground
+            // request that wait is for the warm not to have started yet. This grace covers the
+            // case that actually happens: someone who opens the page, sees stale rows, and pulls
+            // to refresh straight away. Their cancel then lands before the connection is ever
+            // taken, and they wait for nothing at all.
+            delay(PREFETCH_START_DELAY_MS)
             for (folder in queue) {
                 if (!isActive) return@launch
                 try {
@@ -550,6 +562,12 @@ class SchoolMailListViewModel @Inject constructor(
 
         /** Enough to fill a screen; the real load that follows a chip tap replaces it. */
         internal const val PREFETCH_LIMIT = 20
+
+        /**
+         * How long a warm holds off before it takes the connection, so that a refresh in the
+         * first moments after a screen paints cancels it rather than queues behind it.
+         */
+        internal const val PREFETCH_START_DELAY_MS = 500L
 
         /** Newest arrivals whose body one poll will warm. The same bound [MailChecker] uses. */
         internal const val BODY_PREFETCH_LIMIT = 5
