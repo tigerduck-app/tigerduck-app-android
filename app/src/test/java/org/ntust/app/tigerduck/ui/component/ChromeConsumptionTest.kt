@@ -5,11 +5,11 @@ import org.junit.Test
 
 /**
  * Covers [chromeConsumption] only — the arithmetic of the split, not the nested-scroll
- * connection that calls it. The connection's own behaviour (the source and finger-down guards,
- * how `used` folds into what onPreScroll returns, the release effect) is not exercised here;
- * that needs an instrumented test.
+ * connection that calls it. [PullChromeConnectionTest] covers that: the source and finger-down
+ * guards, how `used` folds into what onPreScroll returns, and the order the three consumers
+ * unwind in. Only the release effect, which lives in the composable itself, is still untested.
  *
- * What is pinned is the invariant the composition rests on: the chrome takes a signed share
+ * What is pinned here is the invariant the composition rests on: the chrome takes a signed share
  * that never exceeds what is left after the refresh pull has taken its own, so the caller can
  * report the sum as consumed. The pull's share arrives as `alreadyUsed`.
  */
