@@ -181,7 +181,18 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     fun refresh() {
-        viewModelScope.launch { if (_state.value.searchResults != null) runSearch() else fetchFirstPage() }
+        // The warm queue gives the connection back first. SessionHolder serialises every command
+        // behind one mutex, so a refresh that did not cancel would wait out whichever folder page
+        // the prefetch happened to be fetching before its own could even start.
+        prefetchJob?.cancel()
+        prefetchJob = null
+        viewModelScope.launch {
+            if (_state.value.searchResults != null) runSearch() else fetchFirstPage()
+            // Restarted once the user's own request has landed, exactly as [selectFolder] does --
+            // cancelling without restarting would end the warming for this view model's whole
+            // life the first time anybody pulled to refresh.
+            if (_state.value.loadState is LoadState.Loaded) startPrefetch()
+        }
     }
 
     fun selectFolder(selection: FolderSelection) {
@@ -308,9 +319,18 @@ class SchoolMailListViewModel @Inject constructor(
      *
      * Silent by construction. It never touches loadState and never sets actionError: this is work
      * the user did not ask for, and a failure means only that a later chip tap is as slow as it
-     * used to be. Cancelled the moment the user does ask for something -- and started again once
-     * that request has landed, from [load] and from [selectFolder] alike, because the folders
-     * worth warming are whichever ones the current view is not showing.
+     * used to be.
+     *
+     * Cancelled, and then restarted once the request has landed, by every entry point that goes
+     * to the server for the *whole* list: [load], [selectFolder] and [refresh]. Restarting is the
+     * half that matters -- cancelling alone would end the warming for this view model's whole life
+     * on the first chip tap -- and the queue is rebuilt each time because the folders worth
+     * warming are whichever ones the current view is not showing.
+     *
+     * Not cancelled by [loadMoreIfNeeded], [submitSearch] or [toggleRead]. Those are one command
+     * each, and the holder's mutex is fair, so the most any of them waits is the single folder
+     * page already in flight -- cheaper than throwing away a queue they would only have to see
+     * rebuilt.
      */
     private fun startPrefetch() {
         prefetchJob?.cancel()
