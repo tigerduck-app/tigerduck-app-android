@@ -43,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -91,8 +92,10 @@ import org.ntust.app.tigerduck.ui.component.SearchDrawer
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.fillHeightBelowChrome
 import org.ntust.app.tigerduck.ui.component.readToggleIcon
 import org.ntust.app.tigerduck.ui.component.rememberAppBarState
+import org.ntust.app.tigerduck.ui.component.rememberChromeContentPadding
 import org.ntust.app.tigerduck.ui.component.rememberSearchRevealState
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -107,7 +110,13 @@ fun AnnouncementsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val isLoading = state.loadState is AnnouncementsViewModel.LoadState.Loading
+    val appBar = rememberAppBarState()
     LaunchedEffect(state.unreadOnly, state.selectedOrgs, state.selectedTags, state.searchText) {
+        // The bar first, then the jump. `scrollToItem` does not dispatch a single nested-scroll
+        // delta, so a bar left part way up by the scroll that preceded the filter tap would stay
+        // there over a list now at its very top -- a band of bare `contentPadding` where the
+        // chrome belongs, until some later gesture happened to bring it back.
+        appBar.snapToRest()
         listState.scrollToItem(0)
     }
 
@@ -137,14 +146,18 @@ fun AnnouncementsScreen(
     //
     // The chrome's height is read straight off appBar, which the same
     // onSizeChanged writes: a second copy of one measurement is a second
-    // thing to keep in step for nothing.
+    // thing to keep in step for nothing. The subtraction itself happens in
+    // `fillHeightBelowChrome`, at measure time -- appBar.heightPx changes on
+    // every frame the search drawer moves, and reading it here would recompose
+    // this whole screen for the length of the gesture.
     var viewportHeightPx by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
-    val appBar = rememberAppBarState()
-    val emptyStateHeight = with(density) {
-        (viewportHeightPx - appBar.heightPx).coerceAtLeast(0f).toDp()
+    // `derivedStateOf` so the same per-frame writes don't invalidate anything either: this is a
+    // one-way latch that flips false -> true once both measurements have landed, and a derived
+    // state only notifies when its *result* changes.
+    val canShowEmptyState by remember {
+        derivedStateOf { viewportHeightPx > 0 && appBar.heightPx > 0f }
     }
-    val canShowEmptyState = viewportHeightPx > 0 && appBar.heightPx > 0f
+    val chromePadding = rememberChromeContentPadding(appBar)
 
     val searchReveal = rememberSearchRevealState()
     var searchFocused by remember { mutableStateOf(false) }
@@ -180,9 +193,7 @@ fun AnnouncementsScreen(
                     // item, so the list keeps the room for it here instead. The
                     // overlay translates away on scroll while this padding stays
                     // put, which is what lets the bulletins travel up under it.
-                    contentPadding = PaddingValues(
-                        top = with(density) { appBar.heightPx.toDp() },
-                    ),
+                    contentPadding = chromePadding,
                 ) {
                     val displayed = state.displayed
                     val loadState = state.loadState
@@ -191,7 +202,7 @@ fun AnnouncementsScreen(
                             if (canShowEmptyState) {
                                 item(key = "empty-state") {
                                     CenteredEmptyState(
-                                        height = emptyStateHeight,
+                                        modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
                                         title = stringResource(
                                             if (state.unreadOnly) R.string.bulletin_no_unread_title
                                             else R.string.bulletin_no_bulletins_title
@@ -206,7 +217,7 @@ fun AnnouncementsScreen(
                             if (canShowEmptyState) {
                                 item(key = "failed-state") {
                                     CenteredEmptyState(
-                                        height = emptyStateHeight,
+                                        modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
                                         title = stringResource(R.string.bulletin_load_failed_title),
                                         message = loadState.message,
                                     )
@@ -327,14 +338,12 @@ fun AnnouncementsScreen(
  */
 @Composable
 private fun CenteredEmptyState(
-    height: androidx.compose.ui.unit.Dp,
+    modifier: Modifier,
     title: String,
     message: String,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
         EmptyStateView(

@@ -116,6 +116,7 @@ import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.readToggleIcon
 import org.ntust.app.tigerduck.ui.component.rememberAppBarState
+import org.ntust.app.tigerduck.ui.component.rememberChromeContentPadding
 import org.ntust.app.tigerduck.ui.component.rememberSearchRevealState
 import org.ntust.app.tigerduck.ui.component.statusText
 import org.ntust.app.tigerduck.ui.screen.settings.LoginSheet
@@ -222,7 +223,7 @@ fun SchoolMailScreen(
     }
 
     val appBar = rememberAppBarState()
-    val density = LocalDensity.current
+    val chromePadding = rememberChromeContentPadding(appBar)
     val searchReveal = rememberSearchRevealState()
     var searchFocused by remember { mutableStateOf(false) }
     // Pinning opens the drawer as well as holding it open, which is what puts the field on screen
@@ -245,7 +246,11 @@ fun SchoolMailScreen(
                 // The chrome is a sibling overlay now rather than the first item, so the list
                 // keeps the room for it here instead. The overlay translates away on scroll
                 // while this padding stays put, which is what lets the rows travel up under it.
-                contentPadding = PaddingValues(top = with(density) { appBar.heightPx.toDp() }),
+                //
+                // Measured lazily (see [ChromeContentPadding]): the chrome's height changes on
+                // every frame the search drawer moves, and reading it in this composition body
+                // would recompose the whole screen for the length of the gesture.
+                contentPadding = chromePadding,
             ) {
                 val displayed = state.displayed
                 val failed = state.loadState as? SchoolMailListViewModel.LoadState.Failed

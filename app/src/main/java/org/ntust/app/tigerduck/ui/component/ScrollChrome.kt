@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -19,8 +20,14 @@ import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 
 /**
  * Where a lifted finger leaves the chrome: past half way it goes the rest of the way, short of it
@@ -103,6 +110,21 @@ class AppBarState {
                 offsetPx = value.coerceIn(-_heightPx, 0f)
             }
         }
+    }
+
+    /**
+     * Puts the bar straight back at rest, with no animation.
+     *
+     * For the one caller that moves the list without scrolling it: `scrollToItem` jumps the
+     * viewport without dispatching a single nested-scroll delta, so nothing here would hear about
+     * it. A bar left translated up over a list that is now at its very top draws a band of empty
+     * `contentPadding` where the chrome should be, and only a fresh gesture would put it back.
+     *
+     * Under the same [MutatorMutex] as [settle], so it also takes the bar off a spring that was
+     * mid-flight rather than being overwritten by it on the next frame.
+     */
+    suspend fun snapToRest() {
+        settleMutex.mutate { offsetPx = 0f }
     }
 
     private val settleMutex = MutatorMutex()
@@ -266,3 +288,56 @@ fun SearchDrawer(state: SearchRevealState, content: @Composable () -> Unit) {
         }
     }
 }
+
+/**
+ * The room a list leaves at its top for the chrome overlay, read when it is *asked* rather than
+ * when it is built.
+ *
+ * `LazyColumn` calls [calculateTopPadding] from inside its measure policy, so this read lands in
+ * the measure pass: a change remeasures the list and nothing else. Building
+ * `PaddingValues(top = appBar.heightPx.toDp())` in a composition body instead puts the same read
+ * in whoever composed it -- and the chrome's height changes on *every frame* the search drawer
+ * moves, so that recomposes the entire screen body for the length of the gesture and again for
+ * the length of the settle, to hand the layout a number only the layout ever wanted.
+ *
+ * The instance has to be stable: `contentPadding` is one of the measure policy's `remember` keys,
+ * so a fresh object per composition would rebuild the policy on every frame and undo the point.
+ * [rememberChromeContentPadding] is what holds it.
+ */
+@Stable
+internal class ChromeContentPadding(
+    private val state: AppBarState,
+    private val density: Density,
+) : PaddingValues {
+    override fun calculateTopPadding(): Dp = with(density) { state.heightPx.toDp() }
+    override fun calculateBottomPadding(): Dp = 0.dp
+    override fun calculateLeftPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+    override fun calculateRightPadding(layoutDirection: LayoutDirection): Dp = 0.dp
+}
+
+/** The stable [ChromeContentPadding] a `LazyColumn` under [state]'s chrome should be given. */
+@Composable
+fun rememberChromeContentPadding(state: AppBarState): PaddingValues {
+    val density = LocalDensity.current
+    return remember(state, density) { ChromeContentPadding(state, density) }
+}
+
+/**
+ * Sizes an item to exactly the viewport left below the chrome, so an empty state's icon lands in
+ * the middle of what can actually be seen and the list never becomes scrollable past its own
+ * bottom.
+ *
+ * The chrome's height is read here, inside `layout`, for the same reason
+ * [ChromeContentPadding] exists: in a composition body it would recompose the screen on every
+ * frame of the search drawer's travel.
+ *
+ * A [viewportHeightPx] of 0 -- nothing measured yet -- gives a height of 0 rather than the full
+ * viewport, which is what keeps the first frame from briefly sizing an empty state to a screen
+ * and a bit.
+ */
+fun Modifier.fillHeightBelowChrome(state: AppBarState, viewportHeightPx: Int): Modifier =
+    this.layout { measurable, constraints ->
+        val height = (viewportHeightPx - state.heightPx).coerceAtLeast(0f).roundToInt()
+        val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }

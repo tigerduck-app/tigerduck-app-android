@@ -241,4 +241,22 @@ class ScrollChromeTest {
         state.maxPx = 64f
         assertEquals(64f, state.revealPx, 0.01f)
     }
+
+    @Test
+    fun `snapToRest puts a hidden bar straight back, for a list that jumped to the top`() =
+        runBlocking {
+            val state = AppBarState().apply { heightPx = 200f }
+            state.onScroll(-200f)
+            assertEquals(-200f, state.offsetPx, 0.01f)
+            // scrollToItem dispatches no delta, so nothing else would ever move this back.
+            state.snapToRest()
+            assertEquals(0f, state.offsetPx, 0.01f)
+        }
+
+    @Test
+    fun `snapToRest on a bar already at rest is a no-op`() = runBlocking {
+        val state = AppBarState().apply { heightPx = 200f }
+        state.snapToRest()
+        assertEquals(0f, state.offsetPx, 0.01f)
+    }
 }
