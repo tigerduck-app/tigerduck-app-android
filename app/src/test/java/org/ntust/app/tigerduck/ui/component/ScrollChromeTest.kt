@@ -193,17 +193,12 @@ class ScrollChromeTest {
         assertEquals(56f, state.revealPx, 0.01f)
     }
 
-    @Test
-    fun `pinning again, which is what every recomposition does, changes nothing`() {
-        val state = reveal()
-        state.consume(20f)
-        state.pinned = true
-        repeat(3) { state.pinned = true }
-        assertEquals(56f, state.revealPx, 0.01f)
-        state.pinned = false
-        // And an ordinary drawer again afterwards, not one stuck open.
-        assertEquals(-16f, state.consume(-16f), 0.01f)
-    }
+    // No test for the setter's `wasPinned` guard -- the one that stops every recomposition's
+    // `pinned = true` from re-running the open -- because it has no observable effect on this
+    // state: nothing can move revealPx while pinned, so the repeated write lands on the same
+    // value with the guard or without it. What the guard buys is the recomposition it saves,
+    // which is Compose runtime behaviour rather than state. An honest gap beats a test that
+    // cannot fail for the thing it names.
 
     @Test
     fun `unpinning leaves the drawer open for the next scroll to close`() {

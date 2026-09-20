@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
@@ -225,17 +226,42 @@ fun TigerPullToRefresh(
              * ended with no fling at all, because a release with no velocity still runs a fling of
              * zero length and still reports here.
              *
-             * Suspending here rather than launching is what makes the hand-off right: the call is
-             * awaited inside the list's own scroll mutation, so the next touch preempts that
-             * mutation, cancels both settles, and the finger picks the chrome up from wherever the
-             * spring had reached. With no chrome at all it returns on the first line, leaving the
-             * five screens that pass none with exactly the default implementation's behaviour.
+             * The next touch has to be able to take the chrome back, and nothing does that for
+             * us. Only `doFlingAnimation` runs inside `scroll(MutatePriority.Default)`; the
+             * post-fling dispatch is launched beside it, on the dispatcher's own scope. So this
+             * settle holds no mutex — it blocks nothing — and no mutex cancels it either. Hence
+             * the watcher below: the Initial-pass pointer handler raises `fingerDown` before the
+             * drag detector sees the same event, so cancelling on it hands the chrome over
+             * cleanly, from wherever the spring had reached. Without it a spring and a finger
+             * write `offsetPx` on alternate frames for a third of a second while `onScroll`
+             * reports those pixels consumed and the list stands still — flick, flick, flick is
+             * all it takes to see that.
+             *
+             * A mouse wheel never arrives here at all: for wheel input `onScrollStopped` returns
+             * before any fling is dispatched, so a wheel scroll moves the chrome and nothing
+             * settles it. On a tablet, ChromeOS or DeX the bar can strand part way — one notch
+             * moves it far less than its own height, and no touch gesture takes that path, so it
+             * is left as it is.
+             *
+             * With no chrome it returns on the first line, leaving the four screens that pass
+             * none with exactly the default implementation's behaviour.
              */
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (appBar == null && searchReveal == null) return Velocity.Zero
                 coroutineScope {
-                    searchReveal?.let { launch { it.settle() } }
-                    appBar?.let { launch { it.settle() } }
+                    val settles = launch {
+                        searchReveal?.let { launch { it.settle() } }
+                        appBar?.let { launch { it.settle() } }
+                    }
+                    // snapshotFlow reports the current value first, so a finger already down when
+                    // the fling ended -- a touch that interrupted it -- cancels the settle before
+                    // it can take a single frame.
+                    val handover = launch {
+                        snapshotFlow { fingerDown.value }.first { it }
+                        settles.cancel()
+                    }
+                    settles.join()
+                    handover.cancel()
                 }
                 return Velocity.Zero
             }
@@ -323,7 +349,7 @@ fun TigerPullToRefresh(
  * pull already took. Returns the *additional* amount, with the same sign as [availableY] and
  * never more than what is left — so a caller can report the sum as consumed and the list still
  * receives every pixel nobody claimed. With no chrome at all it returns 0, which is what keeps
- * the five screens that pass neither exactly where they were.
+ * the four screens that pass neither exactly where they were.
  */
 internal fun chromeConsumption(
     availableY: Float,

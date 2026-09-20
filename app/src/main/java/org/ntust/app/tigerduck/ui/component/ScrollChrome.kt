@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.component
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.MutatorMutex
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -89,14 +90,22 @@ class AppBarState {
      * hiding it. Nothing but a gesture moves [offsetPx], so without this the header simply stays
      * cropped in half until the next scroll. Cancelling the call leaves the bar wherever the
      * animation had reached, which is what the next touch wants.
+     *
+     * Under a [MutatorMutex], so a second settle -- a fling, a quick drag, another fling, all
+     * inside the first spring's third of a second -- cancels the first outright rather than two
+     * animations writing this one offset on alternate frames.
      */
     suspend fun settle() {
-        val target = appBarSettleTarget(offsetPx, _heightPx)
-        if (offsetPx == target) return
-        animate(offsetPx, target, animationSpec = SettleSpec) { value, _ ->
-            offsetPx = value.coerceIn(-_heightPx, 0f)
+        settleMutex.mutate {
+            val target = appBarSettleTarget(offsetPx, _heightPx)
+            if (offsetPx == target) return@mutate
+            animate(offsetPx, target, animationSpec = SettleSpec) { value, _ ->
+                offsetPx = value.coerceIn(-_heightPx, 0f)
+            }
         }
     }
+
+    private val settleMutex = MutatorMutex()
 }
 
 /** Nearer end wins. A bar of unmeasured height has nowhere to go, so it stays put. */
@@ -176,24 +185,31 @@ class SearchRevealState(initialMaxPx: Float = 0f) {
      * reveal -- about a centimetre of travel is all it takes, and a drawer left there draws a
      * horizontal slice of the field that reads as broken. Cancelling the call leaves the drawer
      * wherever the animation had reached.
+     *
+     * Under a [MutatorMutex], for the same reason as [AppBarState.settle]: overlapping settles
+     * cancel each other rather than fighting over one value.
      */
     suspend fun settle() {
-        val target = searchDrawerSettleTarget(revealPx, _maxPx, _pinned)
-        if (revealPx == target) return
-        try {
-            animate(revealPx, target, animationSpec = SettleSpec) { value, _ ->
-                // Anything that pins mid-flight -- a tap landing on the half-open field -- wins
-                // outright, and the spring is abandoned rather than merely muted. A spring left
-                // running would pick the drawer up again the moment the pin came off, from
-                // wherever its curve had reached by then, and shut a field someone had just
-                // opened by touching it.
-                if (_pinned) throw PinnedMidSettle()
-                revealPx = value.coerceIn(0f, _maxPx)
+        settleMutex.mutate {
+            val target = searchDrawerSettleTarget(revealPx, _maxPx, _pinned)
+            if (revealPx == target) return@mutate
+            try {
+                animate(revealPx, target, animationSpec = SettleSpec) { value, _ ->
+                    // Anything that pins mid-flight -- a tap landing on the half-open field --
+                    // wins outright, and the spring is abandoned rather than merely muted. A
+                    // spring left running would pick the drawer up again the moment the pin came
+                    // off, from wherever its curve had reached by then, and shut a field someone
+                    // had just opened by touching it.
+                    if (_pinned) throw PinnedMidSettle()
+                    revealPx = value.coerceIn(0f, _maxPx)
+                }
+            } catch (_: PinnedMidSettle) {
+                // Stopping the animation is the whole of it; the pin has placed the drawer.
             }
-        } catch (_: PinnedMidSettle) {
-            // Stopping the animation is the whole of it; the pin has already placed the drawer.
         }
     }
+
+    private val settleMutex = MutatorMutex()
 }
 
 /** Control flow only: [SearchRevealState.settle] throws it at itself to abandon its animation. */
