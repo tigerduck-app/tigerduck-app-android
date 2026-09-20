@@ -10,6 +10,7 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,8 @@ import androidx.compose.material.icons.automirrored.filled.Forward
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.ReplyAll
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ButtonDefaults
@@ -73,6 +76,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
+import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.resolveAttachmentMimeType
@@ -479,6 +483,38 @@ private fun ModeItem(label: String, selected: Boolean, onClick: () -> Unit) {
     )
 }
 
+/**
+ * The sender's two lines: a name above its address, or the address alone.
+ *
+ * The second line exists to put the address under a *name*. When the header carried no display
+ * name the first line already is the address, and printing it again showed every no-name sender
+ * twice -- the previous guard only checked that an address existed, which is a different
+ * question. A bounce's `<MAILER-DAEMON>` has a name and no routable address, so it keeps its
+ * name and draws no second line, exactly as before.
+ *
+ * `null` first means there is nothing to name at all; `null` second means draw no second line.
+ */
+internal fun senderLines(from: MailAddress?): Pair<String?, String?> {
+    if (from == null) return null to null
+    val name = from.name?.takeIf { it.isNotBlank() }
+    val address = from.address.takeIf { it.isNotBlank() }
+    return when {
+        name != null && address != null -> name to address
+        name != null -> name to null
+        else -> address to null
+    }
+}
+
+/**
+ * Recipients as iOS prints them (`MailMessageView.swift`): the addresses, comma-joined. The name
+ * stands in only where there is no address to show -- a `MailAddress` can legitimately carry a
+ * display name and nothing routable -- and an entry with neither is dropped rather than
+ * contributing an empty slot and a stray ", ,".
+ */
+internal fun recipientText(addresses: List<MailAddress>): String =
+    addresses.mapNotNull { it.address.takeIf { a -> a.isNotBlank() } ?: it.name?.takeIf { n -> n.isNotBlank() } }
+        .joinToString(", ")
+
 /** Name plus the full address, always (spec §6.3); recipients collapsed behind a tap. */
 @Composable
 private fun MessageHeader(summary: MailSummary, mailDomain: String) {
@@ -490,18 +526,17 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
         )
         val from = summary.from
+        val (primary, secondary) = senderLines(from)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    from?.display?.takeIf { it.isNotBlank() } ?: stringResource(R.string.school_mail_no_sender),
+                    primary ?: stringResource(R.string.school_mail_no_sender),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // A bounce's `<MAILER-DAEMON>` leaves no address to print under the name; an
-                // empty second line would just look like the address failed to load.
-                if (from != null && from.isRoutable) {
-                    Text(from.address, style = MaterialTheme.typography.bodySmall, color = cs.outline)
+                if (secondary != null) {
+                    Text(secondary, style = MaterialTheme.typography.bodySmall, color = cs.outline)
                 }
             }
             if (MailWarnings.isExternalSender(from, summary.returnPath, mailDomain)) {
@@ -516,18 +551,37 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
             }
         }
         Text(MailDateFormat.full(summary.sentAt ?: summary.receivedAt), style = MaterialTheme.typography.labelSmall, color = cs.outline)
-        val to = summary.to.joinToString(", ") { it.display }
-        val cc = summary.cc.joinToString(", ") { it.display }
-        TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
-            Text(
-                stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = if (expanded) Int.MAX_VALUE else 1,
-                overflow = TextOverflow.Ellipsis,
+        val to = recipientText(summary.to)
+        val cc = recipientText(summary.cc)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { expanded = !expanded },
+        ) {
+            val toText = @Composable {
+                Text(
+                    stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = if (expanded) Int.MAX_VALUE else 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(Modifier.weight(1f)) {
+                if (expanded) SelectionContainer { toText() } else toText()
+            }
+            Icon(
+                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = cs.outline,
+                modifier = Modifier.size(18.dp),
             )
         }
         if (expanded && cc.isNotEmpty()) {
-            Text(stringResource(R.string.school_mail_details_cc).replaceIosArg(1, cc), style = MaterialTheme.typography.labelMedium)
+            SelectionContainer {
+                Text(
+                    stringResource(R.string.school_mail_details_cc).replaceIosArg(1, cc),
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
         }
     }
 }
