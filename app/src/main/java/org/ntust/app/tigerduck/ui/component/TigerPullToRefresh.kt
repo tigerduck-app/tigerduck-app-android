@@ -32,8 +32,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
@@ -133,10 +133,21 @@ fun TigerPullToRefresh(
         object : NestedScrollConnection {
             var crossedThreshold = false
 
+            /** The settle currently running, for the next scroll to take the chrome back from. */
+            var settleJob: Job? = null
+
             override fun onPreScroll(
                 available: Offset,
                 source: NestedScrollSource,
             ): Offset {
+                // The first delta of a real gesture takes the chrome off whatever spring was
+                // settling it. Here rather than on the touch that began the gesture, because this
+                // is the moment something else is about to write the same value — and because a
+                // tap, a long press or a horizontal swipe on a row produces no delta, no fling
+                // and so no second settle, and cancelling on those would leave the chrome frozen
+                // part way with nothing coming to finish it. The spring runs on through the
+                // touch-slop interval, which is right: that is not yet a scroll.
+                if (source == NestedScrollSource.UserInput) settleJob?.cancel()
                 var used = 0f
                 // The refresh pull unwinds first: it is the last thing the finger raised, so it
                 // is the first thing an upward move takes back. Draining the drawer ahead of it
@@ -226,16 +237,17 @@ fun TigerPullToRefresh(
              * ended with no fling at all, because a release with no velocity still runs a fling of
              * zero length and still reports here.
              *
-             * The next touch has to be able to take the chrome back, and nothing does that for
+             * The next gesture has to be able to take the chrome back, and nothing does that for
              * us. Only `doFlingAnimation` runs inside `scroll(MutatePriority.Default)`; the
              * post-fling dispatch is launched beside it, on the dispatcher's own scope. So this
-             * settle holds no mutex — it blocks nothing — and no mutex cancels it either. Hence
-             * the watcher below: the Initial-pass pointer handler raises `fingerDown` before the
-             * drag detector sees the same event, so cancelling on it hands the chrome over
-             * cleanly, from wherever the spring had reached. Without it a spring and a finger
-             * write `offsetPx` on alternate frames for a third of a second while `onScroll`
-             * reports those pixels consumed and the list stands still — flick, flick, flick is
-             * all it takes to see that.
+             * settle holds no mutex — it blocks nothing — and no mutex cancels it either. Left at
+             * that, a spring and a finger would write `offsetPx` on alternate frames for a third
+             * of a second while `onScroll` reported those pixels consumed and the list stood
+             * still; flick, flick, flick is all it takes to see that.
+             *
+             * So the job is published here for `onPreScroll` to cancel on the next gesture's
+             * first delta. `onPostScroll`'s drawer is covered by the same cancel, pre-scroll
+             * running first in the same dispatch.
              *
              * A mouse wheel never arrives here at all: for wheel input `onScrollStopped` returns
              * before any fling is dispatched, so a wheel scroll moves the chrome and nothing
@@ -253,15 +265,15 @@ fun TigerPullToRefresh(
                         searchReveal?.let { launch { it.settle() } }
                         appBar?.let { launch { it.settle() } }
                     }
-                    // snapshotFlow reports the current value first, so a finger already down when
-                    // the fling ended -- a touch that interrupted it -- cancels the settle before
-                    // it can take a single frame.
-                    val handover = launch {
-                        snapshotFlow { fingerDown.value }.first { it }
-                        settles.cancel()
+                    settleJob = settles
+                    try {
+                        settles.join()
+                    } finally {
+                        // Only if it is still ours: a settle already replaced by a later one has
+                        // handed the field over, and clearing it then would hide that one from
+                        // the scroll that needs to cancel it.
+                        if (settleJob === settles) settleJob = null
                     }
-                    settles.join()
-                    handover.cancel()
                 }
                 return Velocity.Zero
             }

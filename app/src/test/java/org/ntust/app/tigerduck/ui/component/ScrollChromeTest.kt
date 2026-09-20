@@ -194,11 +194,11 @@ class ScrollChromeTest {
     }
 
     // No test for the setter's `wasPinned` guard -- the one that stops every recomposition's
-    // `pinned = true` from re-running the open -- because it has no observable effect on this
-    // state: nothing can move revealPx while pinned, so the repeated write lands on the same
-    // value with the guard or without it. What the guard buys is the recomposition it saves,
-    // which is Compose runtime behaviour rather than state. An honest gap beats a test that
-    // cannot fail for the thing it names.
+    // `pinned = true` from re-running the open -- because it buys nothing observable anywhere.
+    // Nothing can move revealPx while pinned, so the repeated write lands on the same value, and
+    // a float state's setter is equality-guarded, so writing that same value notifies nobody and
+    // costs no recomposition either. The guard says what the setter means; it does not change
+    // what happens, and there is nothing here for a test to hold on to.
 
     @Test
     fun `unpinning leaves the drawer open for the next scroll to close`() {
