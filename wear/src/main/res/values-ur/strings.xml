@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">بھیجنے والا: %1$@</string>
     <string name="school_mail_forward_subject">موضوع: %1$@</string>
     <string name="school_mail_forwarded_header">---------- آگے بھیجا گیا پیغام ----------</string>
-    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
-    <string name="school_mail_guide_open_in_browser">Open in browser</string>
+    <string name="school_mail_guide_load_failed">گائیڈ لوڈ نہیں ہو سکی</string>
+    <string name="school_mail_guide_open_in_browser">براؤزر میں کھولیں</string>
     <string name="school_mail_invalid_recipients">یہ پتے چیک کریں: %1$@</string>
     <string name="school_mail_keep_editing">ترمیم جاری رکھیں</string>
     <string name="school_mail_leave_title">کیا یہ ای میل بطور مسودہ محفوظ کریں؟</string>

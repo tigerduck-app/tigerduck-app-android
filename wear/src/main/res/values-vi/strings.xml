@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">Từ: %1$@</string>
     <string name="school_mail_forward_subject">Chủ đề: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Thư đã chuyển tiếp ----------</string>
-    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
-    <string name="school_mail_guide_open_in_browser">Open in browser</string>
+    <string name="school_mail_guide_load_failed">Không thể tải hướng dẫn</string>
+    <string name="school_mail_guide_open_in_browser">Mở trong trình duyệt</string>
     <string name="school_mail_invalid_recipients">Kiểm tra các địa chỉ sau: %1$@</string>
     <string name="school_mail_keep_editing">Tiếp tục chỉnh sửa</string>
     <string name="school_mail_leave_title">Lưu thư này thành thư nháp?</string>

@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">보낸사람: %1$@</string>
     <string name="school_mail_forward_subject">제목: %1$@</string>
     <string name="school_mail_forwarded_header">---------- 전달된 메시지 ----------</string>
-    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
-    <string name="school_mail_guide_open_in_browser">Open in browser</string>
+    <string name="school_mail_guide_load_failed">가이드를 불러올 수 없습니다</string>
+    <string name="school_mail_guide_open_in_browser">브라우저에서 열기</string>
     <string name="school_mail_invalid_recipients">다음 주소를 확인하세요: %1$@</string>
     <string name="school_mail_keep_editing">계속 편집</string>
     <string name="school_mail_leave_title">이 메일을 임시보관함에 저장할까요?</string>

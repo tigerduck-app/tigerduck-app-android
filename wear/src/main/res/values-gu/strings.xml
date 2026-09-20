@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">પ્રેષક: %1$@</string>
     <string name="school_mail_forward_subject">વિષય: %1$@</string>
     <string name="school_mail_forwarded_header">---------- ફોરવર્ડ કરેલ સંદેશ ----------</string>
-    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
-    <string name="school_mail_guide_open_in_browser">Open in browser</string>
+    <string name="school_mail_guide_load_failed">માર્ગદર્શિકા લોડ થઈ શકી નહીં</string>
+    <string name="school_mail_guide_open_in_browser">બ્રાઉઝરમાં ખોલો</string>
     <string name="school_mail_invalid_recipients">આ સરનામાં તપાસો: %1$@</string>
     <string name="school_mail_keep_editing">સંપાદન ચાલુ રાખો</string>
     <string name="school_mail_leave_title">આ મેઇલને ડ્રાફ્ટ તરીકે સેવ કરવો છે?</string>

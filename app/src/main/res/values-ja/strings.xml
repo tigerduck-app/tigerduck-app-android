@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">差出人：%1$@</string>
     <string name="school_mail_forward_subject">件名：%1$@</string>
     <string name="school_mail_forwarded_header">---------- 転送されたメッセージ ----------</string>
-    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
-    <string name="school_mail_guide_open_in_browser">Open in browser</string>
+    <string name="school_mail_guide_load_failed">ガイドを読み込めませんでした</string>
+    <string name="school_mail_guide_open_in_browser">ブラウザで開く</string>
     <string name="school_mail_invalid_recipients">次のアドレスを確認してください：%1$@</string>
     <string name="school_mail_keep_editing">編集を続ける</string>
     <string name="school_mail_leave_title">このメールを下書きとして保存しますか？</string>

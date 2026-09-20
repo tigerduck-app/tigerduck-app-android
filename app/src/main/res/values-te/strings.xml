@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">పంపినవారు: %1$@</string>
     <string name="school_mail_forward_subject">విషయం: %1$@</string>
     <string name="school_mail_forwarded_header">---------- ఫార్వర్డ్ చేసిన సందేశం ----------</string>
-    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
-    <string name="school_mail_guide_open_in_browser">Open in browser</string>
+    <string name="school_mail_guide_load_failed">గైడ్‌ను లోడ్ చేయలేకపోయింది</string>
+    <string name="school_mail_guide_open_in_browser">బ్రౌజర్‌లో తెరవండి</string>
     <string name="school_mail_invalid_recipients">ఈ చిరునామాలను తనిఖీ చేయండి: %1$@</string>
     <string name="school_mail_keep_editing">సవరించడం కొనసాగించండి</string>
     <string name="school_mail_leave_title">ఈ ఇమెయిల్‌ను డ్రాఫ్ట్‌గా సేవ్ చేయాలా?</string>

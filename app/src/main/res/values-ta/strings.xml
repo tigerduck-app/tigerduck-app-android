@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">அனுப்புநர்: %1$@</string>
     <string name="school_mail_forward_subject">பொருள்: %1$@</string>
     <string name="school_mail_forwarded_header">---------- முன்னனுப்பப்பட்ட செய்தி ----------</string>
-    <string name="school_mail_guide_load_failed">Couldn\'t load the guide</string>
-    <string name="school_mail_guide_open_in_browser">Open in browser</string>
+    <string name="school_mail_guide_load_failed">வழிகாட்டியை ஏற்ற முடியவில்லை</string>
+    <string name="school_mail_guide_open_in_browser">உலாவியில் திற</string>
     <string name="school_mail_invalid_recipients">இந்த முகவரிகளைச் சரிபார்க்கவும்: %1$@</string>
     <string name="school_mail_keep_editing">தொடர்ந்து திருத்து</string>
     <string name="school_mail_leave_title">இந்த மின்னஞ்சலை வரைவாக சேமிக்கவா?</string>
