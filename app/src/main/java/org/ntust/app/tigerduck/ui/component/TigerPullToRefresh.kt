@@ -19,6 +19,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,6 +27,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -67,6 +70,10 @@ fun TigerPullToRefresh(
      */
     onDragProgress: (Float) -> Unit = {},
     refreshingMessage: String? = null,
+    /** Optional hiding page chrome; null leaves scrolling exactly as it was. */
+    appBar: AppBarState? = null,
+    /** Optional search drawer that opens before the refresh pull; null leaves overscroll as it was. */
+    searchReveal: SearchRevealState? = null,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
@@ -87,6 +94,22 @@ fun TigerPullToRefresh(
     // even though dragY > 0 and isRefreshing is still true.
     val isUserPulling = remember { mutableStateOf(false) }
 
+    // Whether a finger is actually on the screen right now.
+    //
+    // dragY used to be reset in exactly one place — onPreFling — so anything that grew it
+    // without ending in a fling left the content translated down with no way back. A
+    // programmatic bring-into-view (the keyboard opening under a focused search field) is
+    // exactly that: it arrives as NestedScrollSource.UserInput, and no fling follows it.
+    // Requiring a finger to be down before accumulating, and springing home when one lifts,
+    // closes that whole class rather than the single path that was reported.
+    val fingerDown = remember { mutableStateOf(false) }
+
+    // Set by onPreFling, read by the release effect below. A release that ends in a fling is
+    // already rebounded there, and a second animateTo on the same Animatable would cancel the
+    // first mid-flight — taking the rest of onPreFling down with it, crossedThreshold and the
+    // swallowed velocity included. The effect stands aside whenever this is set.
+    val releaseHandledByFling = remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
         snapshotFlow { dragY.value }.collect { y ->
             val progress = (y / thresholdPx).coerceIn(0f, 1f)
@@ -104,15 +127,25 @@ fun TigerPullToRefresh(
                 source: NestedScrollSource,
             ): Offset {
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (!fingerDown.value) return Offset.Zero
+                var used = 0f
+                // The refresh pull unwinds first: it is the last thing the finger raised, so it
+                // is the first thing an upward move takes back. Draining the drawer ahead of it
+                // would make the gesture irreversible — the drawer would shut while the content
+                // still hung below the bar.
                 if (available.y < 0f && dragY.value > 0f) {
                     val consumed = maxOf(available.y, -dragY.value)
                     scope.launch { dragY.snapTo(dragY.value + consumed) }
                     if (crossedThreshold && dragY.value + consumed < thresholdPx) {
                         crossedThreshold = false
                     }
-                    return Offset(0f, consumed)
+                    used += consumed
                 }
-                return Offset.Zero
+                // Then the optional chrome takes its share of whatever is left over. With both
+                // null that returns 0 and `used` is exactly what the block above produced,
+                // which is exactly what this used to return.
+                used += chromeConsumption(available.y, used, appBar, searchReveal)
+                return Offset(0f, used)
             }
 
             override fun onPostScroll(
@@ -121,8 +154,14 @@ fun TigerPullToRefresh(
                 source: NestedScrollSource,
             ): Offset {
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
+                if (!fingerDown.value) return Offset.Zero
                 if (available.y > 0f) {
-                    val delta = dampDelta(available.y, dragY.value, thresholdPx)
+                    // The list is at the top and still being pulled. The drawer gets the first
+                    // bite; only what it cannot hold goes on to arm a refresh.
+                    var used = 0f
+                    searchReveal?.let { used += it.consume(available.y) }
+                    val remaining = available.y - used
+                    val delta = dampDelta(remaining, dragY.value, thresholdPx)
                     val newY = (dragY.value + delta).coerceIn(0f, maxPx)
                     scope.launch { dragY.snapTo(newY) }
                     if (newY > 0f) isUserPulling.value = true
@@ -143,6 +182,7 @@ fun TigerPullToRefresh(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
+                releaseHandledByFling.value = true
                 if (dragY.value > 0f) {
                     val triggered = dragY.value >= thresholdPx && !latestIsRefreshing
                     if (triggered) latestOnRefresh()
@@ -160,7 +200,44 @@ fun TigerPullToRefresh(
         }
     }
 
-    Box(modifier = modifier.nestedScroll(connection)) {
+    // The finger lifted. onPreFling covers a release that ended in a fling; this covers a lift
+    // with no fling at all — a cancelled gesture, or anything else that left dragY raised —
+    // which otherwise sat there forever.
+    LaunchedEffect(fingerDown.value) {
+        if (fingerDown.value || dragY.value == 0f) return@LaunchedEffect
+        // One frame of grace: the fling from this same pointer-up is dispatched on its own
+        // coroutine, and it owns the rebound when it comes.
+        withFrameNanos { }
+        if (releaseHandledByFling.value || dragY.value == 0f) return@LaunchedEffect
+        isUserPulling.value = false
+        dragY.animateTo(
+            targetValue = 0f,
+            animationSpec = spring(stiffness = 400f, dampingRatio = 0.9f),
+        )
+    }
+
+    Box(
+        modifier = modifier
+            .nestedScroll(connection)
+            // Watching on the Initial pass observes without competing for the gesture: nothing
+            // is consumed here, so every child still sees the event exactly as before. The
+            // finally matters — a cancelled pointer handler is restarted rather than sent an
+            // "up", and fingerDown would otherwise be stuck true.
+            .pointerInput(Unit) {
+                try {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val pressed = event.changes.any { it.pressed }
+                            if (pressed) releaseHandledByFling.value = false
+                            fingerDown.value = pressed
+                        }
+                    }
+                } finally {
+                    fingerDown.value = false
+                }
+            },
+    ) {
         Box(modifier = Modifier.graphicsLayer { translationY = dragY.value }) {
             if (isRefreshing && refreshingMessage != null && dragY.value > 0f
                 && isUserPulling.value
@@ -184,6 +261,31 @@ fun TigerPullToRefresh(
             }
         }
     }
+}
+
+/**
+ * How much of [availableY] the optional chrome takes, on top of the [alreadyUsed] the refresh
+ * pull already took. Returns the *additional* amount, with the same sign as [availableY] and
+ * never more than what is left — so a caller can report the sum as consumed and the list still
+ * receives every pixel nobody claimed. With no chrome at all it returns 0, which is what keeps
+ * the five screens that pass neither exactly where they were.
+ */
+internal fun chromeConsumption(
+    availableY: Float,
+    alreadyUsed: Float,
+    appBar: AppBarState?,
+    searchReveal: SearchRevealState?,
+): Float {
+    var used = 0f
+    if (availableY < 0f) {
+        // Scrolling up: close the drawer first, then hide the bar.
+        searchReveal?.let { used += it.consume(availableY - alreadyUsed - used) }
+        appBar?.let { used += it.onScroll(availableY - alreadyUsed - used) }
+    } else if (availableY > 0f) {
+        // Scrolling down anywhere: the bar comes back before the list moves.
+        appBar?.let { used += it.onScroll(availableY - alreadyUsed - used) }
+    }
+    return used
 }
 
 private fun dampDelta(delta: Float, currentY: Float, threshold: Float): Float {
