@@ -515,7 +515,10 @@ internal fun recipientText(addresses: List<MailAddress>): String =
     addresses.mapNotNull { it.address.takeIf { a -> a.isNotBlank() } ?: it.name?.takeIf { n -> n.isNotBlank() } }
         .joinToString(", ")
 
-/** Name plus the full address, always (spec §6.3); recipients collapsed behind a tap. */
+/**
+ * Sender name over its address, or just the address alone when there is no name to put it under;
+ * recipients collapsed behind a tap, with the revealed addresses selectable.
+ */
 @Composable
 private fun MessageHeader(summary: MailSummary, mailDomain: String) {
     val cs = MaterialTheme.colorScheme
@@ -557,17 +560,13 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.clickable { expanded = !expanded },
         ) {
-            val toText = @Composable {
-                Text(
-                    stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
-                    style = MaterialTheme.typography.labelMedium,
-                    maxLines = if (expanded) Int.MAX_VALUE else 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Box(Modifier.weight(1f)) {
-                if (expanded) SelectionContainer { toText() } else toText()
-            }
+            Text(
+                stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
             Icon(
                 if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
                 contentDescription = null,
@@ -575,12 +574,24 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
                 modifier = Modifier.size(18.dp),
             )
         }
-        if (expanded && cc.isNotEmpty()) {
+        // The tap target above is the collapsed summary only, never selectable; the full
+        // addresses revealed here are selectable and never a tap target -- the same split as
+        // iOS's DisclosureGroup label vs. content, so there is no gesture conflict between
+        // toggling and selecting.
+        if (expanded) {
             SelectionContainer {
-                Text(
-                    stringResource(R.string.school_mail_details_cc).replaceIosArg(1, cc),
-                    style = MaterialTheme.typography.labelMedium,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    if (cc.isNotEmpty()) {
+                        Text(
+                            stringResource(R.string.school_mail_details_cc).replaceIosArg(1, cc),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
             }
         }
     }
