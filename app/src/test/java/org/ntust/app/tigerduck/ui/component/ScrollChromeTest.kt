@@ -194,6 +194,18 @@ class ScrollChromeTest {
     }
 
     @Test
+    fun `pinning again, which is what every recomposition does, changes nothing`() {
+        val state = reveal()
+        state.consume(20f)
+        state.pinned = true
+        repeat(3) { state.pinned = true }
+        assertEquals(56f, state.revealPx, 0.01f)
+        state.pinned = false
+        // And an ordinary drawer again afterwards, not one stuck open.
+        assertEquals(-16f, state.consume(-16f), 0.01f)
+    }
+
+    @Test
     fun `unpinning leaves the drawer open for the next scroll to close`() {
         val state = reveal()
         state.pinned = true

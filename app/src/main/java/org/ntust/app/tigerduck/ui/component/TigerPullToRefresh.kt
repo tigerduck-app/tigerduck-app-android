@@ -136,14 +136,19 @@ fun TigerPullToRefresh(
                 available: Offset,
                 source: NestedScrollSource,
             ): Offset {
-                if (source != NestedScrollSource.UserInput) return Offset.Zero
-                if (!fingerDown.value) return Offset.Zero
                 var used = 0f
                 // The refresh pull unwinds first: it is the last thing the finger raised, so it
                 // is the first thing an upward move takes back. Draining the drawer ahead of it
                 // would make the gesture irreversible — the drawer would shut while the content
                 // still hung below the bar.
-                if (available.y < 0f && dragY.value > 0f) {
+                //
+                // Only ever under a real finger. The two guards are the hang fix and they stay
+                // exactly as strict as they were: a programmatic bring-into-view, a wheel, an
+                // accessibility scroll or a fling must never grow dragY, because none of them is
+                // followed by a release that would bring it back down.
+                if (source == NestedScrollSource.UserInput && fingerDown.value &&
+                    available.y < 0f && dragY.value > 0f
+                ) {
                     val consumed = maxOf(available.y, -dragY.value)
                     scope.launch { dragY.snapTo(dragY.value + consumed) }
                     if (crossedThreshold && dragY.value + consumed < thresholdPx) {
@@ -151,9 +156,15 @@ fun TigerPullToRefresh(
                     }
                     used += consumed
                 }
-                // Then the optional chrome takes its share of whatever is left over. With both
-                // null that returns 0 and `used` is exactly what the block above produced,
-                // which is exactly what this used to return.
+                // Then the optional chrome takes its share of whatever is left over -- and it
+                // takes it from a fling too, deliberately, where the pull above does not. The bar
+                // has to keep tracking content that is still moving: settled at the lift instead,
+                // a quick flick that had hidden it a third of the way would spring the header
+                // back down over a list still travelling hundreds of pixels. It comes to rest in
+                // onPostFling, when the scrolling has actually stopped.
+                //
+                // With both null this returns 0 and `used` is exactly what the block above
+                // produced, which is exactly what this returned before any of it existed.
                 used += chromeConsumption(available.y, used, appBar, searchReveal)
                 return Offset(0f, used)
             }
@@ -207,6 +218,27 @@ fun TigerPullToRefresh(
                 isUserPulling.value = false
                 return Velocity.Zero
             }
+
+            /**
+             * Where the chrome comes to rest. This is the one hook that means "the scrolling has
+             * actually stopped": it arrives after the fling has decayed, and after a drag that
+             * ended with no fling at all, because a release with no velocity still runs a fling of
+             * zero length and still reports here.
+             *
+             * Suspending here rather than launching is what makes the hand-off right: the call is
+             * awaited inside the list's own scroll mutation, so the next touch preempts that
+             * mutation, cancels both settles, and the finger picks the chrome up from wherever the
+             * spring had reached. With no chrome at all it returns on the first line, leaving the
+             * five screens that pass none with exactly the default implementation's behaviour.
+             */
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (appBar == null && searchReveal == null) return Velocity.Zero
+                coroutineScope {
+                    searchReveal?.let { launch { it.settle() } }
+                    appBar?.let { launch { it.settle() } }
+                }
+                return Velocity.Zero
+            }
         }
     }
 
@@ -234,26 +266,6 @@ fun TigerPullToRefresh(
             targetValue = 0f,
             animationSpec = spring(stiffness = 400f, dampingRatio = 0.9f),
         )
-    }
-
-    // The chrome has no rebound of its own: `consume` and `onScroll` run only under a finger, so a
-    // pull that stops part way leaves a horizontal slice of the search field wedged between the
-    // banners and the chips, or the header cropped in half, until some later scroll happens to
-    // drain it. Material's enterAlways snaps at exactly this moment; so do we.
-    //
-    // Inside the null check, so the five screens that pass no chrome keep the composition, and the
-    // behaviour, they already had -- this effect does not exist for them. Keyed on fingerDown so
-    // the next touch cancels a settle in flight and the finger takes over from wherever it had
-    // reached. Neither state shares an Animatable with dragY, so the release interlock above is
-    // untouched by any of this.
-    if (appBar != null || searchReveal != null) {
-        LaunchedEffect(fingerDown.value, appBar, searchReveal) {
-            if (fingerDown.value) return@LaunchedEffect
-            coroutineScope {
-                searchReveal?.let { launch { it.settle() } }
-                appBar?.let { launch { it.settle() } }
-            }
-        }
     }
 
     Box(

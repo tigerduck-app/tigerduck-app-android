@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -52,13 +53,21 @@ class AppBarState {
      *
      * Setting it re-clamps [offsetPx], because the chrome changes height while it is up: an
      * auth-failed banner appears, a "local results only" note arrives, a filter row turns up with
-     * its taxonomy. Left alone, a bar that had grown would pop its new bottom band back over the
-     * list unasked, and a bar that had shrunk would silently eat the difference off the next
-     * downward scroll before anything moved. A bar that was fully hidden stays fully hidden.
+     * its taxonomy. A bar that was *fully hidden* stays fully hidden -- without that, growing the
+     * chrome would drop its new bottom band over the list unasked, on top of whatever was being
+     * read. A bar that had shrunk is pulled back into range, or it would silently eat the
+     * difference off the next downward scroll before anything moved.
+     *
+     * A bar only *part* of the way up keeps its offset, and so does show more of itself as the
+     * chrome grows. That one is deliberate: it is not hidden, it is mid-gesture, and the extra
+     * band belongs to the position the user's finger left it in.
      */
     var heightPx: Float
         get() = _heightPx
-        set(value) {
+        // Unobserved reads: this runs inside the chrome's own measure pass, and a measure that
+        // observed the offset would be invalidated by every frame of every scroll. The writes
+        // still notify whoever reads these from composition.
+        set(value) = Snapshot.withoutReadObservation {
             val wasFullyHidden = _heightPx > 0f && offsetPx <= -_heightPx
             _heightPx = value
             offsetPx = if (wasFullyHidden) -value else offsetPx.coerceIn(-value, 0f)
@@ -126,7 +135,9 @@ class SearchRevealState(initialMaxPx: Float = 0f) {
      */
     var maxPx: Float
         get() = _maxPx
-        set(value) {
+        // Unobserved, and for the same reason as [AppBarState.heightPx]: the write arrives from
+        // the drawer's own measure pass, which must not come to depend on how far it is open.
+        set(value) = Snapshot.withoutReadObservation {
             _maxPx = value
             revealPx = if (_pinned) value else revealPx.coerceIn(0f, value)
         }
@@ -142,7 +153,11 @@ class SearchRevealState(initialMaxPx: Float = 0f) {
      */
     var pinned: Boolean
         get() = _pinned
-        set(value) {
+        // Both screens assign this straight from their composition body, on every recomposition.
+        // Observing the old value there would make each screen's restart scope depend on it, so
+        // every flip -- focus in, focus out, the search text becoming empty -- would cost a second
+        // whole pass over the screen body just to find the write had become a no-op.
+        set(value) = Snapshot.withoutReadObservation {
             val wasPinned = _pinned
             _pinned = value
             if (value && !wasPinned) revealPx = _maxPx
@@ -165,13 +180,24 @@ class SearchRevealState(initialMaxPx: Float = 0f) {
     suspend fun settle() {
         val target = searchDrawerSettleTarget(revealPx, _maxPx, _pinned)
         if (revealPx == target) return
-        animate(revealPx, target, animationSpec = SettleSpec) { value, _ ->
-            // Anything that pins mid-flight -- a tap landing on the half-open field -- wins: the
-            // pin has already put the drawer exactly where it wants it.
-            if (!_pinned) revealPx = value.coerceIn(0f, _maxPx)
+        try {
+            animate(revealPx, target, animationSpec = SettleSpec) { value, _ ->
+                // Anything that pins mid-flight -- a tap landing on the half-open field -- wins
+                // outright, and the spring is abandoned rather than merely muted. A spring left
+                // running would pick the drawer up again the moment the pin came off, from
+                // wherever its curve had reached by then, and shut a field someone had just
+                // opened by touching it.
+                if (_pinned) throw PinnedMidSettle()
+                revealPx = value.coerceIn(0f, _maxPx)
+            }
+        } catch (_: PinnedMidSettle) {
+            // Stopping the animation is the whole of it; the pin has already placed the drawer.
         }
     }
 }
+
+/** Control flow only: [SearchRevealState.settle] throws it at itself to abandon its animation. */
+private class PinnedMidSettle : RuntimeException(null, null, false, false)
 
 /**
  * Nearer end wins, except for a pinned drawer, which is already where it belongs, and an
@@ -193,6 +219,11 @@ fun rememberSearchRevealState(): SearchRevealState = remember { SearchRevealStat
  *
  * [content] is never removed from the composition, only hidden, so the field keeps its text and
  * its IME focus however far the drawer has closed.
+ *
+ * It must be something that has a height of its own: it is measured with no upper bound, so a
+ * `fillMaxHeight`, a `weight`, or a `LazyColumn` inside it would report a nonsense height and the
+ * drawer would take that for how far it has to open. A text field, which is what this is for, is
+ * exactly right.
  */
 @Composable
 fun SearchDrawer(state: SearchRevealState, content: @Composable () -> Unit) {
