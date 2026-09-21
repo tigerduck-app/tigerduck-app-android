@@ -98,6 +98,7 @@ import org.ntust.app.tigerduck.ui.component.readToggleIcon
 import org.ntust.app.tigerduck.ui.component.rememberAppBarState
 import org.ntust.app.tigerduck.ui.component.rememberChromeContentPadding
 import org.ntust.app.tigerduck.ui.component.rememberSearchRevealState
+import org.ntust.app.tigerduck.ui.component.scrollbar
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -193,7 +194,11 @@ fun AnnouncementsScreen(
             Box(Modifier.fillMaxSize().clipToBounds()) {
                 LazyColumn(
                     state = listState,
-                    modifier = Modifier.fillMaxSize(),
+                    // The thumb's track starts where the chrome overlay ends, or the bar would
+                    // hide it whenever the list is near its top.
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .scrollbar(listState) { appBar.heightPx + appBar.offsetPx },
                     // The chrome is a sibling overlay now rather than the first
                     // item, so the list keeps the room for it here instead. The
                     // overlay translates away on scroll while this padding stays

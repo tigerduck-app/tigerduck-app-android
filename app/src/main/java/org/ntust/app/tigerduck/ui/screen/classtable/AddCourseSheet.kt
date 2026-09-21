@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -59,6 +60,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
+import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.util.formatCredits
 import org.ntust.app.tigerduck.util.toCreditsOrZero
@@ -343,8 +345,10 @@ fun AddCourseSheet(
             // states the Column expands to fill the sheet via the Spacer below so
             // the centered overlay can position relative to the full sheet height.
             if (!isSearching && searchResults.isNotEmpty()) {
+                val resultsState = rememberLazyListState()
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    state = resultsState,
+                    modifier = Modifier.weight(1f).scrollbar(resultsState),
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
                     items(searchResults) { group ->

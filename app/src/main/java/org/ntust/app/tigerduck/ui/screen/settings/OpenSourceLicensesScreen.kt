@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -53,6 +54,7 @@ import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import javax.inject.Inject
 
@@ -402,10 +404,13 @@ private fun LicenseScaffold(
         containerColor = MaterialTheme.colorScheme.background,
     ) { scaffoldPadding ->
         SelectableWhen(selectable) {
+            val listState = rememberLazyListState()
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(scaffoldPadding),
+                    .padding(scaffoldPadding)
+                    .scrollbar(listState),
                 contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
                 content = content,
             )
