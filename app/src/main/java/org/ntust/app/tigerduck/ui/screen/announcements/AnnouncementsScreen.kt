@@ -57,6 +57,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -185,7 +186,11 @@ fun AnnouncementsScreen(
             appBar = appBar,
             searchReveal = searchReveal,
         ) {
-            Box(Modifier.fillMaxSize()) {
+            // Clipped, because the chrome overlay hides by translating up past this
+            // box's top edge, and the root Scaffold has already padded that edge down
+            // to the bottom of the status bar. Unclipped, the band of chrome that
+            // lands behind the status bar stayed drawn there, under the clock.
+            Box(Modifier.fillMaxSize().clipToBounds()) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
