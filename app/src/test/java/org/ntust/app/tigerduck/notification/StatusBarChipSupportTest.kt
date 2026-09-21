@@ -21,7 +21,8 @@ class StatusBarChipSupportTest {
         brand: String = manufacturer,
         oneUiVersion: Int? = null,
         oplusRomMajor: Int? = null,
-    ) = DeviceSkin(sdkInt, manufacturer, brand, oneUiVersion, oplusRomMajor)
+        hyperOsVersion: Int? = null,
+    ) = DeviceSkin(sdkInt, manufacturer, brand, oneUiVersion, oplusRomMajor, hyperOsVersion)
 
     // --- the original standard, still the first gate ----------------------
 
@@ -135,13 +136,95 @@ class StatusBarChipSupportTest {
         )
     }
 
+    // --- Xiaomi: the island arrived with HyperOS 3 -----------------------
+
+    @Test
+    fun `HyperOS 3 on API 36 trusts the platform`() {
+        // POCO C85, HyperOS 3.0.302 / Android 16: the island shows exactly the
+        // notifications flagged PROMOTED_ONGOING, and that flag follows the
+        // same permission canPostPromotedNotifications() reports.
+        assertEquals(
+            StatusBarChipSupport.PLATFORM_DECIDES,
+            skin(manufacturer = "Xiaomi", brand = "POCO", hyperOsVersion = 3).chipSupport,
+        )
+    }
+
+    @Test
+    fun `HyperOS before 3 has no chip even on API 36`() {
+        for (version in listOf(1, 2)) {
+            assertEquals(
+                "HyperOS $version",
+                StatusBarChipSupport.UNSUPPORTED,
+                skin(manufacturer = "Xiaomi", hyperOsVersion = version).chipSupport,
+            )
+        }
+    }
+
+    @Test
+    fun `HyperOS 3 on Android 15 is held back by the API floor`() {
+        // Some older phones got HyperOS 3 on an Android 15 base.
+        assertEquals(
+            StatusBarChipSupport.UNSUPPORTED,
+            skin(sdkInt = 35, manufacturer = "Xiaomi", hyperOsVersion = 3).chipSupport,
+        )
+    }
+
+    @Test
+    fun `an unreadable HyperOS version falls back to the platform answer`() {
+        assertEquals(
+            StatusBarChipSupport.PLATFORM_DECIDES,
+            skin(manufacturer = "Xiaomi", hyperOsVersion = null).chipSupport,
+        )
+    }
+
+    @Test
+    fun `Redmi and POCO brands are Xiaomi`() {
+        for (brand in listOf("Redmi", "POCO")) {
+            assertEquals(
+                brand,
+                StatusBarChipSupport.UNSUPPORTED,
+                skin(manufacturer = "unknown", brand = brand, hyperOsVersion = 2).chipSupport,
+            )
+        }
+    }
+
+    // --- which chips need the countdown spelled out -----------------------
+
+    @Test
+    fun `only the HyperOS island needs a static countdown`() {
+        assertEquals(true, skin(manufacturer = "Xiaomi", hyperOsVersion = 3).chipShowsStaticText)
+        assertEquals(true, skin(manufacturer = "Xiaomi", hyperOsVersion = 4).chipShowsStaticText)
+    }
+
+    @Test
+    fun `chips that run the chronometer keep it`() {
+        // Short critical text outranks the chronometer on AOSP chips, so
+        // setting it anywhere else would freeze a clock that works.
+        for (skin in listOf(
+            skin(manufacturer = "Google"),
+            skin(manufacturer = "samsung", oneUiVersion = DeviceSkin.ONE_UI_8_5),
+            skin(manufacturer = "OPPO", oplusRomMajor = 16),
+        )) {
+            assertEquals(skin.manufacturer, false, skin.chipShowsStaticText)
+        }
+    }
+
+    @Test
+    fun `no chip means no static countdown to keep fresh`() {
+        assertEquals(false, skin(manufacturer = "Xiaomi", hyperOsVersion = 2).chipShowsStaticText)
+        assertEquals(
+            false,
+            skin(sdkInt = 35, manufacturer = "Xiaomi", hyperOsVersion = 3).chipShowsStaticText,
+        )
+    }
+
     // --- everything else: untested means capable, not broken --------------
 
     @Test
     fun `a skin nobody has measured is treated as capable`() {
         // The rule this table was written to: not on the list, meets the API
         // floor, so the chip is available and the platform decides the grant.
-        for (maker in listOf("Xiaomi", "vivo", "HONOR", "HUAWEI", "motorola", "asus")) {
+        for (maker in listOf("vivo", "HONOR", "HUAWEI", "motorola", "asus")) {
             assertEquals(
                 maker,
                 StatusBarChipSupport.PLATFORM_DECIDES,

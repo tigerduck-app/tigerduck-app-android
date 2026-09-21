@@ -57,7 +57,8 @@ import kotlin.math.roundToInt
  * silently remove the chip on OEMs that render it fine. The capability is a
  * diagnostic for the settings screen, never a precondition for posting.
  *
- * One vendor does need code: see [samsungNowBarExtras].
+ * Two vendors do need code: see [samsungNowBarExtras], and the HyperOS
+ * countdown below.
  */
 @Singleton
 class LiveActivityNotifier @Inject constructor(
@@ -141,16 +142,28 @@ class LiveActivityNotifier @Inject constructor(
             .setVisibility(visibility)
             .apply { if (!soundWanted) setSilent(true) }
 
-        // Deliberately no setShortCriticalText: the chip picks its content in
-        // priority order — short critical text, then a metric, then `when` —
-        // and only the last of those ticks. Leaving it unset is what makes the
-        // chip a live counting-down clock instead of a string frozen at
-        // whatever the remaining time was when we last posted.
+        // No setShortCriticalText, except on HyperOS: the chip picks its
+        // content in priority order — short critical text, then a metric,
+        // then `when` — and only the last of those ticks. Leaving it unset is
+        // what makes the chip a live counting-down clock instead of a string
+        // frozen at whatever the remaining time was when we last posted.
+        // HyperOS's island never reads `when` and shows the title in its
+        // place, so there a frozen string is the best on offer, and
+        // LiveActivityManager re-posts it each time the minute changes.
         val target = snapshot.countdownTarget?.time ?: 0L
-        if (target > AppClock.nowMillis()) {
+        val now = AppClock.nowMillis()
+        if (target > now) {
             builder.setUsesChronometer(true)
             builder.setChronometerCountDown(true)
             builder.setWhen(target)
+            if (deviceSkin.chipShowsStaticText) {
+                builder.setShortCriticalText(
+                    StaticCountdown.format(
+                        StaticCountdown.minutesLeft(target, now),
+                        context.resources.configuration.locales[0],
+                    )
+                )
+            }
         } else {
             builder.setShowWhen(false)
         }

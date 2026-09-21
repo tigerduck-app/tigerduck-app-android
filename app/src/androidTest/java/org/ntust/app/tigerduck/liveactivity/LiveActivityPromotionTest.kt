@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.liveactivity
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationManagerCompat
 import androidx.test.core.app.ApplicationProvider
@@ -11,10 +12,13 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Before
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.notification.DeviceSkin
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 
 /**
@@ -44,8 +48,12 @@ class LiveActivityPromotionTest {
         // The Gradle connectedAndroidTest task installs the app under test
         // without -g, so on API 33+ POST_NOTIFICATIONS starts denied and the
         // notifier returns before posting anything — which reads as "the chip
-        // is broken" rather than "the test has no permission".
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // is broken" rather than "the test has no permission". Only when
+        // missing: HyperOS refuses the grant outright unless "USB debugging
+        // (Security settings)" is on, even for a permission already held.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            context.checkSelfPermission(POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
             InstrumentationRegistry.getInstrumentation().uiAutomation
                 .grantRuntimePermission(context.packageName, POST_NOTIFICATIONS)
         }
@@ -130,6 +138,39 @@ class LiveActivityPromotionTest {
         assertEquals(0, extras.getInt(SAMSUNG_STYLE))
     }
 
+    /**
+     * HyperOS's island shows short critical text, else the title, and never
+     * the chronometer — so without this the island reads the class name where
+     * every other device shows a countdown.
+     */
+    @Test
+    fun hyperOsIslandGetsTheCountdownAsText() {
+        assumeTrue(
+            "Only the HyperOS island shows a static countdown",
+            DeviceSkin.current().chipShowsStaticText,
+        )
+
+        val text = postInClass().extras.getString(SHORT_CRITICAL_TEXT)
+
+        // postInClass counts down from 34 minutes; allow for the post landing
+        // a moment later. ICU spells the unit, so match the number only.
+        assertTrue("Expected a 34-minute countdown, got <$text>", text?.contains("34") == true)
+    }
+
+    /**
+     * Everywhere else short critical text would outrank the chronometer and
+     * freeze a clock that already ticks on its own.
+     */
+    @Test
+    fun otherChipsKeepTheLiveChronometer() {
+        assumeTrue(
+            "The HyperOS island is covered above",
+            !DeviceSkin.current().chipShowsStaticText,
+        )
+
+        assertNull(postInClass().extras.getString(SHORT_CRITICAL_TEXT))
+    }
+
     private fun postInClass(): Notification {
         val notifier = LiveActivityNotifier(context, LiveActivityPreferences(context))
         notifier.apply(
@@ -139,7 +180,10 @@ class LiveActivityPromotionTest {
                 subtitle = "09:10–10:00",
                 locationText = "TR-412",
                 instructor = "Instrumentation",
-                countdownTarget = Date(System.currentTimeMillis() + 34 * 60_000L),
+                // AppClock, as the resolver uses: the notifier counts down
+                // against it, and a debug clock set elsewhere would put a
+                // wall-clock target hours away.
+                countdownTarget = Date(AppClock.nowMillis() + 34 * 60_000L),
                 progress = 0.32,
                 accentHex = 0xF5A623,
                 sourceId = "promotion-test",
@@ -173,6 +217,8 @@ class LiveActivityPromotionTest {
         const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"
         const val SAMSUNG_AUTOMATION_PACKAGE = "android.ongoingActivityNoti.automationPackage"
         const val SAMSUNG_STYLE = "android.ongoingActivityNoti.style"
+        /** `Notification.EXTRA_SHORT_CRITICAL_TEXT`, API 36. */
+        const val SHORT_CRITICAL_TEXT = "android.shortCriticalText"
         const val POST_TIMEOUT_MS = 5_000L
         const val POLL_INTERVAL_MS = 50L
     }

@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
+import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 import javax.inject.Inject
@@ -37,6 +38,7 @@ class LiveActivityManager @Inject constructor(
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
     private val resolver = LiveActivityResolver()
+    private val deviceSkin = DeviceSkin.current()
     private val managerJob = SupervisorJob(appScope.coroutineContext[Job])
     private val scope = appScope + managerJob
     private var refreshJob: Job? = null
@@ -182,6 +184,14 @@ class LiveActivityManager @Inject constructor(
         // asks for it, and the min() below still collapses to the real
         // boundary once the class has less than a tick left to run.
         if (snapshot?.progress != null) candidates += now.time + PROGRESS_TICK_MS
+
+        // The HyperOS island shows the countdown as text it never redraws —
+        // see DeviceSkin.chipShowsStaticText — so there each change of the
+        // displayed minute needs a post of its own. Other chips tick alone.
+        val target = snapshot?.countdownTarget?.time
+        if (target != null && target > now.time && deviceSkin.chipShowsStaticText) {
+            candidates += StaticCountdown.nextChangeAt(target, now.time)
+        }
 
         val classPrepLead = preferences.classPreparingLeadTimeSec * 1000
         val assignmentLead = preferences.assignmentLeadTimeSec * 1000

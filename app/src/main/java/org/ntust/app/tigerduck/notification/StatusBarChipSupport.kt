@@ -65,8 +65,16 @@ data class DeviceSkin(
      * UI — 16 for ColorOS 16.0.10. Null when absent or unreadable.
      */
     val oplusRomMajor: Int?,
+    /**
+     * `ro.mi.os.version.code` — 3 for HyperOS 3.0. Null when absent or
+     * unreadable, which includes every non-Xiaomi device and MIUI.
+     */
+    val hyperOsVersion: Int?,
 ) {
     val isSamsung: Boolean get() = matches("samsung")
+
+    /** Redmi and POCO phones report the Xiaomi manufacturer and run the same HyperOS. */
+    val isXiaomi: Boolean get() = matches("xiaomi") || matches("redmi") || matches("poco")
 
     /**
      * OPPO, OnePlus and realme ship the same Oplus ROM, so a result measured
@@ -100,11 +108,33 @@ data class DeviceSkin(
             isOplus && (oplusRomMajor == null || oplusRomMajor >= COLOR_OS_16) ->
                 StatusBarChipSupport.ALWAYS_ON
 
-            // Samsung on 8.5+, Pixels, and every skin not in the table above:
-            // HyperOS, Funtouch OS and MagicOS are all untested, and untested
+            // HyperOS draws Live Updates in its own island rather than an AOSP
+            // chip, and only from HyperOS 3 on, so an earlier HyperOS has no
+            // chip whatever API level it reports.
+            isXiaomi && hyperOsVersion != null && hyperOsVersion < HYPER_OS_3 ->
+                StatusBarChipSupport.UNSUPPORTED
+
+            // Samsung on 8.5+, Pixels, HyperOS 3+, and every skin not in the
+            // table above. HyperOS 3 is here on measurement, not by default: on
+            // a POCO C85 (HyperOS 3.0.302, Android 16) the island takes exactly
+            // the notifications the platform flagged PROMOTED_ONGOING, and the
+            // platform sets that flag from the same POST_PROMOTED_NOTIFICATIONS
+            // check canPostPromotedNotifications() reports, so the API is the
+            // truth there. Funtouch OS and MagicOS are untested, and untested
             // means "use the standard", not "assume broken".
             else -> StatusBarChipSupport.PLATFORM_DECIDES
         }
+
+    /**
+     * Whether the chip shows a fixed string where other skins run a clock.
+     *
+     * HyperOS's island never reads the chronometer. It fills its right-hand
+     * slot with the first non-empty of short critical text, title, subtext and
+     * text, so a notification that leaves the first unset — correctly, for
+     * every other skin — shows its title there instead of a countdown.
+     */
+    val chipShowsStaticText: Boolean
+        get() = isXiaomi && chipSupport != StatusBarChipSupport.UNSUPPORTED
 
     companion object {
         /** First One UI built on Android 16 QPR2, and the first that promotes anything. */
@@ -113,9 +143,12 @@ data class DeviceSkin(
         /** The ColorOS generation shipped on Android 16. */
         const val COLOR_OS_16 = 16
 
+        /** First HyperOS whose island shows promoted notifications. */
+        const val HYPER_OS_3 = 3
+
         /**
          * Read once per process and shared: the inputs cannot change while the
-         * app is alive, and every miss costs three reflective property reads.
+         * app is alive, and every miss costs up to four reflective property reads.
          */
         private val cached: DeviceSkin by lazy {
             DeviceSkin(
@@ -127,6 +160,7 @@ data class DeviceSkin(
                     systemProperty("ro.build.version.oplusrom")
                         ?: systemProperty("ro.build.version.opporom")
                 ),
+                hyperOsVersion = systemProperty("ro.mi.os.version.code")?.toIntOrNull(),
             )
         }
 
