@@ -64,17 +64,9 @@ class WearScheduleBridge @Inject constructor(
             GZIPOutputStream(bos).use { it.write(payload) }
         }.toByteArray()
 
-        // Resolve "system" to the concrete tag the watch should mirror — the
-        // watch can't observe the phone's system locale directly, so we send
-        // the resolved BCP-47 tag instead of the literal "system" sentinel.
-        // `resolveExplicitLocale(SYSTEM)` is documented to return null, so go
-        // straight to `resolvedSystemLanguage()` for the SYSTEM branch.
-        val rawLanguage = appPreferences.appLanguage
-        val languageTag = if (rawLanguage == AppLanguageManager.SYSTEM) {
-            AppLanguageManager.resolvedSystemLanguage()
-        } else {
-            rawLanguage
-        }
+        // The watch can't observe the phone's locale, so send the concrete tag
+        // the phone UI is rendering in rather than the "system" sentinel.
+        val languageTag = AppLanguageManager.uiLanguageTag(appPreferences.appLanguage)
 
         // Mirror the debug-only screen-capture override to the watch. Force
         // false in release builds so a stale-from-debug pref on disk cannot
