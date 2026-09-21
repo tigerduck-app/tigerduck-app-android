@@ -7,9 +7,12 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
+import org.ntust.app.tigerduck.mail.imap.MailSession
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
 import org.ntust.app.tigerduck.mail.model.FolderStatus
+import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.notify.MailNotifier
+import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,6 +50,7 @@ class MailChecker @Inject constructor(
     private val state: MailStateStore,
     private val sessions: MailSessionFactory,
     private val notifier: MailNotifier,
+    private val cache: MailCache,
     private val clock: MailClock,
 ) {
     private val mutex = Mutex()
@@ -104,6 +108,12 @@ class MailChecker @Inject constructor(
                 // poll's noteSeenByPage can move the marker further while this check runs;
                 // overwriting it would re-notify mail the list has already shown.
                 state.inboxSeenUidNext = maxOf(state.inboxSeenUidNext, advanced)
+                // Last, and deliberately after the marker. Warming bodies is a convenience the
+                // check's real job does not depend on, and it is the slowest thing here -- up to
+                // five fetches on a connection that may be on a train. Run before the advance, a
+                // process death anywhere in it would leave the marker where it was and notify
+                // every one of these mails again on the next check.
+                prefetchBodies(session, status.uidValidity, toNotify)
                 CheckOutcome.NewMail(toNotify.size)
             }
         } catch (e: CancellationException) {
@@ -125,8 +135,36 @@ class MailChecker @Inject constructor(
         state.diagnostics = listOf("${clock.now()}|${source.name}|${outcome.label}") + state.diagnostics
     }
 
+    /**
+     * Pulls the newest arrivals' bodies down on the connection this check already has open, so
+     * tapping the notification opens a mail that is already there rather than a spinner.
+     *
+     * Bounded to [BODY_PREFETCH_LIMIT]: a burst of mail must not turn a check that should take a
+     * second into a long one, and the alarm that scheduled it is not a good place to be slow.
+     * Newest first, because that is the one the notification is about.
+     *
+     * Never throws. This is a convenience on top of a check whose real job -- notifying, and
+     * moving the marker -- has already succeeded by the time it runs; a body that will not come
+     * down means only that opening that mail is as slow as it used to be.
+     */
+    private fun prefetchBodies(session: MailSession, uidValidity: Long, arrivals: List<MailSummary>) {
+        arrivals.sortedByDescending { it.uid }.take(BODY_PREFETCH_LIMIT).forEach { summary ->
+            try {
+                cache.saveBody(INBOX, summary.uid, uidValidity, session.fetchBody(INBOX, summary.uid))
+            } catch (e: CancellationException) {
+                // Not runCatching: that catches Throwable, so a cancellation would be swallowed
+                // here and the loop would carry on fetching for a check nobody is waiting for.
+                // The same rule SchoolMailListViewModel's two prefetches follow.
+                throw e
+            } catch (e: Exception) {
+                // Silent by design (see the doc above).
+            }
+        }
+    }
+
     private companion object {
         const val INBOX = "INBOX"
         const val FOREGROUND_THROTTLE_MS = 60_000L
+        const val BODY_PREFETCH_LIMIT = 5
     }
 }

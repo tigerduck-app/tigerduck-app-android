@@ -589,7 +589,10 @@ fun MainNavigation(
                 )
             }
             composable(Screen.SchoolMailGuide.route) {
-                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailGuideScreen(onBack = { navController.popBackStack() })
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailGuideScreen(
+                    browserPreference = appState.browserPreference,
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(Screen.VibrationSettings.route) {
                 VibrationSettingsScreen(onBack = { navController.popBackStack() })

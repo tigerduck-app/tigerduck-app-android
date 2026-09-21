@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.mail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,7 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import java.time.Instant
 import javax.inject.Inject
+import kotlin.coroutines.coroutineContext
 
 @HiltViewModel
 class SchoolMailListViewModel @Inject constructor(
@@ -129,12 +131,26 @@ class SchoolMailListViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private var pollJob: Job? = null
+    private var prefetchJob: Job? = null
+
+    /**
+     * True once a warm queue has run to the end, so a resume knows there is nothing left to warm.
+     * Reset whenever a new queue is built, and whenever the account goes away.
+     */
+    private var prefetchDone = false
 
     init {
         // Signing out must not leave the previous account's mail on screen for
         // whoever signs in next (spec §7.5).
         viewModelScope.launch {
-            account.signedIn.collect { signedIn -> if (!signedIn) _state.value = UiState() }
+            account.signedIn.collect { signedIn ->
+                if (!signedIn) {
+                    prefetchJob?.cancel()
+                    prefetchJob = null
+                    prefetchDone = false
+                    _state.value = UiState()
+                }
+            }
         }
     }
 
@@ -167,21 +183,46 @@ class SchoolMailListViewModel @Inject constructor(
             }
             showCached()
             fetchFirstPage()
+            if (_state.value.loadState is LoadState.Loaded) startPrefetch()
         }
     }
 
     fun refresh() {
-        viewModelScope.launch { if (_state.value.searchResults != null) runSearch() else fetchFirstPage() }
+        // Stops the warm queue before it takes the connection again. SessionHolder serialises
+        // every command behind one mutex, so without this a refresh could wait out several
+        // folders' pages rather than at most one.
+        //
+        // At most one, not none: a fetch already in flight is blocking Angus Mail I/O inside that
+        // mutex, and cancellation is not observed until it returns. It deliberately is not
+        // interrupted -- abandoning a half-read IMAP response would leave the shared connection
+        // out of step with the server for whoever used it next. The mutex is fair, so the refresh
+        // is first in the queue behind that one page.
+        prefetchJob?.cancel()
+        prefetchJob = null
+        viewModelScope.launch {
+            if (_state.value.searchResults != null) runSearch() else fetchFirstPage()
+            // Restarted once the user's own request has landed, exactly as [selectFolder] does --
+            // cancelling without restarting would end the warming for this view model's whole
+            // life the first time anybody pulled to refresh.
+            if (_state.value.loadState is LoadState.Loaded) startPrefetch()
+        }
     }
 
     fun selectFolder(selection: FolderSelection) {
         if (selection == _state.value.selected) return
+        prefetchJob?.cancel()
+        prefetchJob = null
         _state.update {
             it.copy(selected = selection, messages = emptyList(), cursors = emptyMap(), searchResults = null, searchText = "", searchLocalOnly = false)
         }
         viewModelScope.launch {
             showCached()
             fetchFirstPage()
+            // Restarted, not merely cancelled. [startPrefetch] used to run from [load] alone, so
+            // the first chip tap ended the warming for this view model's whole life -- a user who
+            // tapped early left Drafts, Junk and Trash cold from then on and the feature simply
+            // stopped working. The new queue is the one the *new* selection is not showing.
+            if (_state.value.loadState is LoadState.Loaded) startPrefetch()
         }
     }
 
@@ -229,6 +270,13 @@ class SchoolMailListViewModel @Inject constructor(
     fun startPolling() {
         if (account.authFailed.value) return
         repository.acquire()
+        // Pausing cancels the warm along with the poll, and nothing used to start it again: only
+        // a load, a refresh or a folder tap did. [PREFETCH_START_DELAY_MS] made that easy to hit
+        // -- leave the screen within half a second of it appearing, which is exactly what
+        // following a notification and coming straight back does, and every other mailbox stayed
+        // cold for the rest of the visit. [prefetchDone] is what keeps a resume with nothing left
+        // to warm from going back to the server to find that out.
+        if (!prefetchDone && _state.value.loadState is LoadState.Loaded) startPrefetch()
         pollJob?.cancel()
         pollJob = viewModelScope.launch {
             while (isActive && !account.authFailed.value) {
@@ -242,6 +290,8 @@ class SchoolMailListViewModel @Inject constructor(
     fun stopPolling() {
         pollJob?.cancel()
         pollJob = null
+        prefetchJob?.cancel()
+        prefetchJob = null
         repository.release()
     }
 
@@ -275,6 +325,78 @@ class SchoolMailListViewModel @Inject constructor(
             }
         } catch (e: MailError) {
             fail(e)
+        }
+    }
+
+    /**
+     * Warms the folders the user is *not* looking at, so switching chips paints from cache instead
+     * of waiting on a round trip.
+     *
+     * Sequential, and on the connection the page already holds: Mail2000 caps connections and
+     * answers "server busy" under load, so a fan-out here would be paid for by the screen the user
+     * is actually reading. Twenty rows rather than a full page for the same reason -- it is enough
+     * to fill a screen, and the real load that follows a chip tap replaces it.
+     *
+     * Silent by construction. It never touches loadState and never sets actionError: this is work
+     * the user did not ask for, and a failure means only that a later chip tap is as slow as it
+     * used to be.
+     *
+     * Cancelled, and then restarted once the request has landed, by every entry point that goes
+     * to the server for the *whole* list: [load], [selectFolder] and [refresh]. Restarting is the
+     * half that matters -- cancelling alone would end the warming for this view model's whole life
+     * on the first chip tap -- and the queue is rebuilt each time because the folders worth
+     * warming are whichever ones the current view is not showing.
+     *
+     * Not cancelled by [loadMoreIfNeeded], [submitSearch] or [toggleRead]. Those are one command
+     * each, and the holder's mutex is fair, so the most any of them waits is the single folder
+     * page already in flight -- cheaper than throwing away a queue they would only have to see
+     * rebuilt. Cancelling buys the same one-page bound for the paths that do it; no caller can do
+     * better once a fetch is in flight, because that is blocking I/O which must not be abandoned
+     * mid-response. What [PREFETCH_START_DELAY_MS] adds is that the window in which there *is*
+     * something in flight opens late enough to miss the collision that actually happens -- a
+     * refresh in the first moments after the screen paints -- which then waits for nothing.
+     *
+     * Fetched with `background = true`, so a warm can seed an empty folder cache but never
+     * shorten one the user has already paged further than [PREFETCH_LIMIT].
+     */
+    private fun startPrefetch() {
+        prefetchJob?.cancel()
+        prefetchDone = false
+        val done = _state.value.targets.toMutableSet()
+        val queue = _state.value.chips
+            .mapNotNull { (it.selection as? FolderSelection.Real)?.name }
+            .filter { done.add(it) }
+        if (queue.isEmpty()) {
+            prefetchDone = true
+            return
+        }
+        prefetchJob = viewModelScope.launch {
+            // Nothing is touched for a moment after the screen's own load lands. Cancelling the
+            // queue cannot abort a fetch already inside the session mutex -- that is blocking
+            // Angus Mail I/O, and abandoning a half-read IMAP response would leave the shared
+            // connection out of step with the server -- so the only way to spare a foreground
+            // request that wait is for the warm not to have started yet. This grace covers the
+            // case that actually happens: someone who opens the page, sees stale rows, and pulls
+            // to refresh straight away. Their cancel then lands before the connection is ever
+            // taken, and they wait for nothing at all.
+            delay(PREFETCH_START_DELAY_MS)
+            for (folder in queue) {
+                if (!isActive) return@launch
+                try {
+                    repository.loadPage(folder, null, PREFETCH_LIMIT, background = true)
+                } catch (e: CancellationException) {
+                    // A cancelled prefetch must actually stop, not just skip to the next
+                    // iteration's isActive check -- runCatching would otherwise swallow this
+                    // too and let the loop carry on regardless of who cancelled it or why.
+                    throw e
+                } catch (e: Throwable) {
+                    // Silent by design (see the doc above): a background warm's failure means
+                    // only that a later chip tap is as slow as it used to be.
+                }
+            }
+            // Reached only by running the queue out. A cancelled job leaves this false, which is
+            // what tells the next resume there is still warming to do.
+            prefetchDone = true
         }
     }
 
@@ -349,7 +471,12 @@ class SchoolMailListViewModel @Inject constructor(
         try {
             val status = repository.inboxStatus()
             val newest = s.messages.filter { it.folder == s.inboxFolder }.maxOfOrNull { it.uid } ?: 0L
-            if (status.uidNext > newest + 1) fetchFirstPage() else checker.noteSeenByPage(status)
+            if (status.uidNext > newest + 1) {
+                fetchFirstPage()
+                prefetchArrivedBodies(newest)
+            } else {
+                checker.noteSeenByPage(status)
+            }
         } catch (e: MailError) {
             // A rejected password still has to reach the account (spec §7.4) -- both paths below
             // make that hop. Everything else is a transient action failure rather than the page
@@ -362,6 +489,52 @@ class SchoolMailListViewModel @Inject constructor(
             // interception case worth interrupting for, and a toast that fades after a few
             // seconds every sixtieth second is something a user can miss indefinitely (§12.3).
             if (e is MailError.Certificate) fail(e) else actionFail(e)
+        }
+    }
+
+    /**
+     * Spec §5's body prefetch, on the foreground poll's path.
+     *
+     * [MailChecker] pulls a new mail's body down on the connection its check already holds, so
+     * tapping the notification opens a mail that is already there rather than a spinner. The poll
+     * never goes through [MailChecker.check]: it calls [fetchFirstPage] itself. So in the one case
+     * where the mail is certain to be tapped within seconds -- the app open on this very list --
+     * the row appeared within the minute and opening it still spun.
+     *
+     * Same constraints as the checker's version. Bounded to [BODY_PREFETCH_LIMIT] and newest
+     * first, because a burst of mail must not turn one poll into a long one. Sequential, on the
+     * connection the page already holds: Mail2000 caps connections and answers "server busy"
+     * under load. Silent -- it touches neither [UiState.loadState] nor [UiState.actionError], so
+     * nothing here can change what the poll reports; a body that will not come down means only
+     * that opening that mail is as slow as it used to be.
+     *
+     * No second connection and no change to the read path a tap takes:
+     * [SchoolMailRepository.body] is already cache-first and already writes what it fetches back
+     * to the cache, which is exactly the pair of calls the checker makes by hand.
+     *
+     * [previousNewest] is the highest inbox UID the list held *before* this poll's fetch, so the
+     * arrivals are precisely the rows that fetch brought in -- never the page the user has been
+     * looking at all along.
+     */
+    private suspend fun prefetchArrivedBodies(previousNewest: Long) {
+        val s = _state.value
+        if (s.loadState !is LoadState.Loaded) return
+        val inbox = s.inboxFolder ?: return
+        val arrivals = s.messages
+            .filter { it.folder == inbox && it.uid > previousNewest }
+            .sortedByDescending { it.uid }
+            .take(BODY_PREFETCH_LIMIT)
+        for (row in arrivals) {
+            if (!coroutineContext.isActive) return
+            try {
+                repository.body(inbox, row.uid)
+            } catch (e: CancellationException) {
+                // A cancelled prefetch must actually stop, for the same reason as [startPrefetch]:
+                // the page has gone away, or the user has asked for something else.
+                throw e
+            } catch (e: Throwable) {
+                // Silent by design (see the doc above).
+            }
         }
     }
 
@@ -407,6 +580,18 @@ class SchoolMailListViewModel @Inject constructor(
 
     companion object {
         const val POLL_MS = 60_000L
+
+        /** Enough to fill a screen; the real load that follows a chip tap replaces it. */
+        internal const val PREFETCH_LIMIT = 20
+
+        /**
+         * How long a warm holds off before it takes the connection, so that a refresh in the
+         * first moments after a screen paints cancels it rather than queues behind it.
+         */
+        internal const val PREFETCH_START_DELAY_MS = 500L
+
+        /** Newest arrivals whose body one poll will warm. The same bound [MailChecker] uses. */
+        internal const val BODY_PREFETCH_LIMIT = 5
 
         /** The date the card itself shows, then folder and UID so the merge order is stable. */
         private val NEWEST_FIRST =

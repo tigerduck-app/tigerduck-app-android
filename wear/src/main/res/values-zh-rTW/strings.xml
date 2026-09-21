@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">寄件者：%1$@</string>
     <string name="school_mail_forward_subject">主旨：%1$@</string>
     <string name="school_mail_forwarded_header">---------- 轉寄的郵件 ----------</string>
-    <string name="school_mail_guide_gmail_title">用 Gmail 收校園信</string>
-    <string name="school_mail_guide_placeholder">說明即將推出。</string>
+    <string name="school_mail_guide_load_failed">無法載入說明</string>
+    <string name="school_mail_guide_open_in_browser">在瀏覽器開啟</string>
     <string name="school_mail_invalid_recipients">請檢查這些位址：%1$@</string>
     <string name="school_mail_keep_editing">繼續編輯</string>
     <string name="school_mail_leave_title">要把這封信存成草稿嗎？</string>

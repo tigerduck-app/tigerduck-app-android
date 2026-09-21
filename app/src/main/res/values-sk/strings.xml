@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">Od: %1$@</string>
     <string name="school_mail_forward_subject">Predmet: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Preposlaná správa ----------</string>
-    <string name="school_mail_guide_gmail_title">Čítajte školskú poštu v aplikácii Gmail</string>
-    <string name="school_mail_guide_placeholder">Návod bude čoskoro k dispozícii.</string>
+    <string name="school_mail_guide_load_failed">Návod sa nepodarilo načítať</string>
+    <string name="school_mail_guide_open_in_browser">Otvoriť v prehliadači</string>
     <string name="school_mail_invalid_recipients">Skontrolujte tieto adresy: %1$@</string>
     <string name="school_mail_keep_editing">Pokračovať v úpravách</string>
     <string name="school_mail_leave_title">Uložiť túto správu ako koncept?</string>

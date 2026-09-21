@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">De : %1$@</string>
     <string name="school_mail_forward_subject">Objet : %1$@</string>
     <string name="school_mail_forwarded_header">---------- Message transféré ----------</string>
-    <string name="school_mail_guide_gmail_title">Lire la messagerie universitaire dans Gmail</string>
-    <string name="school_mail_guide_placeholder">Les instructions seront bientôt disponibles.</string>
+    <string name="school_mail_guide_load_failed">Impossible de charger le guide</string>
+    <string name="school_mail_guide_open_in_browser">Ouvrir dans le navigateur</string>
     <string name="school_mail_invalid_recipients">Vérifiez ces adresses : %1$@</string>
     <string name="school_mail_keep_editing">Continuer la modification</string>
     <string name="school_mail_leave_title">Enregistrer ce message comme brouillon ?</string>

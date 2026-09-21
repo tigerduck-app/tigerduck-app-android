@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -122,6 +123,61 @@ class SchoolMailMessageViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState(folder = folder))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    /**
+     * The app's own colours for the mail HTML page (spec §9.3 no longer means white paper). There
+     * is no Compose theme access from a view model, so [SchoolMailMessageScreen] pushes its current
+     * `MaterialTheme.colorScheme` in through [setMailTheme] from a `LaunchedEffect` keyed on it;
+     * [render] and [loadRemoteImages] read it whenever they (re)build the document.
+     *
+     * A genuine change -- not merely a recomposition that recomputes the same colours -- also
+     * rebuilds the document already on screen, whenever content is already [Content.Ready], from
+     * the sanitized HTML and inline images already in hand: no re-fetch, no re-sanitize, just
+     * [MailHtmlDocument.build] run again. Without this, the WebView's *native* background (set
+     * independently, straight from the current colour scheme) repaints immediately on a
+     * dark/light flip while a mail is open, but the document itself would keep the colours it was
+     * built with -- a stale, wrongly-coloured page inside a freshly-coloured frame, which is
+     * exactly what this theming exists to prevent.
+     */
+    private var mailTheme = MailHtmlTheme(background = "#ffffff", foreground = "#000000", isDark = false)
+
+    fun setMailTheme(theme: MailHtmlTheme) {
+        if (theme == mailTheme) return
+        mailTheme = theme
+        rebuildDocument(theme)
+    }
+
+    private var themeJob: Job? = null
+
+    /**
+     * Rebuilds the open mail's document in [theme], from the sanitized HTML and inline images
+     * already in hand.
+     *
+     * The result is applied only if the content it was built from is still the content on screen.
+     * [loadRemoteImages] re-sanitizes and swaps *both* `html` and `document` for a pair that
+     * allows remote images; a theme rebuild that started before it and landed after would put the
+     * blocking document back underneath `remoteImagesAllowed = true` -- images missing, and the
+     * action that would ask for them again already spent. So the allowance is read once, here,
+     * alongside the HTML it belongs with, and both are checked again before the swap.
+     *
+     * Only the newest rebuild matters, so a second one cancels the first rather than racing it.
+     */
+    private fun rebuildDocument(theme: MailHtmlTheme) {
+        val ready = _state.value.content as? Content.Ready ?: return
+        val html = ready.html ?: return
+        val allowRemote = _state.value.remoteImagesAllowed
+        themeJob?.cancel()
+        themeJob = viewModelScope.launch {
+            val document = withContext(io) {
+                MailHtmlDocument.build(html.html, ready.body.inlineImages, allowRemote, theme)
+            }
+            update { st ->
+                val current = st.content as? Content.Ready ?: return@update st
+                if (current.html !== html || st.remoteImagesAllowed != allowRemote) return@update st
+                st.copy(content = current.copy(document = document))
+            }
+        }
+    }
+
     private fun update(transform: (UiState) -> UiState) = _state.update(transform)
 
     /**
@@ -185,7 +241,7 @@ class SchoolMailMessageViewModel @Inject constructor(
     private suspend fun render(summary: MailSummary, body: MailBody, allowRemote: Boolean): Content.Ready =
         withContext(io) {
             val html = body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = allowRemote) }
-            val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote) }
+            val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote, mailTheme) }
             val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
             val warnings = MailWarnings.evaluate(
                 summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments, summary.returnPath,
@@ -228,9 +284,12 @@ class SchoolMailMessageViewModel @Inject constructor(
         viewModelScope.launch {
             update { it.copy(loadingRemoteImages = true) }
             try {
+                // Captured, not read again at the end: the theme can change while this is in
+                // flight, and the comparison below is what notices.
+                val builtWith = mailTheme
                 val (html, document) = withContext(io) {
                     val sanitized = HtmlSanitizer.sanitize(source, allowRemoteImages = true)
-                    sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true)
+                    sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true, theme = builtWith)
                 }
                 update { st ->
                     // The mail cannot change underneath this (load() is a no-op once Ready), but
@@ -239,6 +298,10 @@ class SchoolMailMessageViewModel @Inject constructor(
                     val current = st.content as? Content.Ready ?: return@update st
                     st.copy(remoteImagesAllowed = true, content = current.copy(html = html, document = document))
                 }
+                // This swap wins over any theme rebuild that was in flight -- their guard sees the
+                // new html and stands down -- so if the theme moved while this ran, the colours it
+                // has just installed are stale and only this knows it.
+                if (mailTheme != builtWith) rebuildDocument(mailTheme)
             } finally {
                 update { it.copy(loadingRemoteImages = false) }
             }

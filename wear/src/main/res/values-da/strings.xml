@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">Fra: %1$@</string>
     <string name="school_mail_forward_subject">Emne: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Videresendt besked ----------</string>
-    <string name="school_mail_guide_gmail_title">Læs skolemail i Gmail</string>
-    <string name="school_mail_guide_placeholder">Vejledningen kommer snart.</string>
+    <string name="school_mail_guide_load_failed">Vejledningen kunne ikke indlæses</string>
+    <string name="school_mail_guide_open_in_browser">Åbn i browser</string>
     <string name="school_mail_invalid_recipients">Tjek disse adresser: %1$@</string>
     <string name="school_mail_keep_editing">Fortsæt redigering</string>
     <string name="school_mail_leave_title">Gem denne mail som kladde?</string>

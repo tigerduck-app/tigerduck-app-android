@@ -67,7 +67,7 @@ class MailAlarmTickTest {
         }
     }
 
-    private fun checker(factory: MailSessionFactory) = MailChecker(account, state, factory, notifier) { 0L }
+    private fun checker(factory: MailSessionFactory) = MailChecker(account, state, factory, notifier, MailCache(tmp.root)) { 0L }
 
     private fun tick(checker: MailChecker): CheckOutcome? = runBlocking {
         runAlarmTick(

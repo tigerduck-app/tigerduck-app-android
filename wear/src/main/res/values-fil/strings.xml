@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">Mula kay: %1$@</string>
     <string name="school_mail_forward_subject">Paksa: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Mensaheng ipinasa ----------</string>
-    <string name="school_mail_guide_gmail_title">Basahin ang mail ng paaralan sa Gmail</string>
-    <string name="school_mail_guide_placeholder">Malapit nang dumating ang mga instruction.</string>
+    <string name="school_mail_guide_load_failed">Hindi ma-load ang gabay</string>
+    <string name="school_mail_guide_open_in_browser">Buksan sa browser</string>
     <string name="school_mail_invalid_recipients">I-check ang mga address na ito: %1$@</string>
     <string name="school_mail_keep_editing">Ituloy ang pag-edit</string>
     <string name="school_mail_leave_title">I-save ang mail na ito bilang draft?</string>

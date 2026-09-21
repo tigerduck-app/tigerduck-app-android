@@ -46,7 +46,16 @@ interface SchoolMailRepository {
 
     /** The folder's last saved page, read from disk on the IO dispatcher. */
     suspend fun cachedPage(folder: String): MailPage?
-    suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage
+    /**
+     * @param background true for a warm nobody asked for. Such a call never shortens a cached
+     *   page it did not improve on -- see [MailRepository.loadPage].
+     */
+    suspend fun loadPage(
+        folder: String,
+        beforeSeq: Int?,
+        limit: Int = MailRepository.PAGE_SIZE,
+        background: Boolean = false,
+    ): MailPage
     suspend fun inboxStatus(): FolderStatus
     suspend fun refreshFlags(folder: String, uids: List<Long>): Map<Long, MailFlags>
     suspend fun summary(folder: String, uid: Long): MailSummary?
@@ -206,11 +215,29 @@ class MailRepository @Inject constructor(
         MailPage(dto.uidValidity, dto.totalMessages, dto.messages.orEmpty().map { it.toModel() }, dto.nextBeforeSeq.takeIf { it > 0 })
     }
 
-    override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
+    /**
+     * A first page ([beforeSeq] null) replaces the folder's cache, because it is the newest truth
+     * about that mailbox and the old page may name mail that is gone.
+     *
+     * Except for a [background] warm, which fetches fewer rows than a foreground load does and so
+     * must never be the thing that shortens an offline mailbox: cache the user has already paged
+     * to fifty rows, warm it with twenty, and a restart or a failed first fetch would leave them
+     * with the twenty. A warm still seeds an empty cache -- the case it exists for -- and still
+     * replaces one from an older mailbox generation, where the cached page is worthless anyway.
+     */
+    override suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int, background: Boolean): MailPage {
         if (account.isDemo) return demoPage(folder)
-        val page = withSession { it.fetchPage(folder, beforeSeq, PAGE_SIZE) }
-        if (beforeSeq == null) withContext(Dispatchers.IO) { cache.saveFolder(folder, page) }
+        val page = withSession { it.fetchPage(folder, beforeSeq, limit) }
+        if (beforeSeq == null && !(background && wouldShortenCache(folder, page))) {
+            withContext(Dispatchers.IO) { cache.saveFolder(folder, page) }
+        }
         return page
+    }
+
+    /** True when [page] holds less of the same mailbox than the cache already does. */
+    private suspend fun wouldShortenCache(folder: String, page: MailPage): Boolean {
+        val cached = cachedPage(folder) ?: return false
+        return cached.uidValidity == page.uidValidity && cached.messages.size > page.messages.size
     }
 
     override suspend fun inboxStatus(): FolderStatus {

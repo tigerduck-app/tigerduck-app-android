@@ -10,6 +10,7 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,8 @@ import androidx.compose.material.icons.automirrored.filled.Forward
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.ReplyAll
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ButtonDefaults
@@ -49,6 +52,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,8 +63,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -72,6 +78,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
+import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.resolveAttachmentMimeType
@@ -85,6 +92,7 @@ import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
+import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.replaceIosArg
 
 private val WarningOrange = Color(0xFFFF9500)
@@ -105,6 +113,25 @@ fun SchoolMailMessageScreen(
     var showMove by remember { mutableStateOf(false) }
     var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingSavePart by rememberSaveable { mutableStateOf<String?>(null) }
+
+    val cs = MaterialTheme.colorScheme
+    val mailTheme = MailHtmlTheme(
+        background = cs.surface.toCssHex(),
+        foreground = cs.onSurface.toCssHex(),
+        // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.surface/cs.onSurface
+        // above follow the app's own resolved theme (MainActivity's themeMode override -- "dark"
+        // or "light" -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same
+        // Compose-observable value MainActivity mirrors that resolved theme into, so this stays
+        // in lockstep with the colours right next to it instead of just the OS half of the time.
+        isDark = TigerDuckTheme.isDarkMode,
+    )
+    // Keyed on mailTheme (a data class, so this only relaunches on a genuine colour change, not
+    // every recomposition): pushing it into the view model directly from the composable body
+    // would be an unguarded side effect of composition, which can run speculatively or be
+    // abandoned. SchoolMailMessageViewModel.setMailTheme also rebuilds the already-loaded
+    // document when the theme actually changes, so a dark/light flip while a mail is open
+    // recolours it instead of leaving it stale.
+    LaunchedEffect(mailTheme) { viewModel.setMailTheme(mailTheme) }
 
     LaunchedEffect(Unit) { viewModel.load() }
     LaunchedEffect(state.closed) { if (state.closed) onBack() }
@@ -263,16 +290,18 @@ fun SchoolMailMessageScreen(
                                     emptySet()
                                 }
                             }
-                            // Spec §9.3: HTML always sits on white paper, dark mode included.
+                            // Spec §9.3: the HTML sits on the app's own surface colour, not
+                            // hardcoded white paper, so it reads as part of the app in dark theme.
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color.White,
+                                color = cs.surface,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                             ) {
                                 MailWebView(
                                     document = document.html,
                                     allowedRemoteUrls = allowedRemoteUrls,
                                     linkCount = document.links.size,
+                                    backgroundColor = cs.surface.toArgb(),
                                     onLink = { pendingLink = it },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
@@ -456,7 +485,57 @@ private fun ModeItem(label: String, selected: Boolean, onClick: () -> Unit) {
     )
 }
 
-/** Name plus the full address, always (spec §6.3); recipients collapsed behind a tap. */
+/**
+ * The sender's two lines: a name above its address, or the address alone.
+ *
+ * The second line exists to put the address under a *name*. When the header carried no display
+ * name the first line already is the address, and printing it again showed every no-name sender
+ * twice -- the previous guard only checked that an address existed, which is a different
+ * question. A bounce's `<MAILER-DAEMON>` has a name and no routable address, so it keeps its
+ * name and draws no second line, exactly as before.
+ *
+ * `null` first means there is nothing to name at all; `null` second means draw no second line.
+ */
+internal fun senderLines(from: MailAddress?): Pair<String?, String?> {
+    if (from == null) return null to null
+    val name = from.name?.takeIf { it.isNotBlank() }
+    val address = from.address.takeIf { it.isNotBlank() }
+    return when {
+        name != null && address != null -> name to address
+        name != null -> name to null
+        else -> address to null
+    }
+}
+
+/**
+ * Recipients as iOS prints them (`MailMessageView.swift`): the addresses, comma-joined. The name
+ * stands in only where there is no address to show -- a `MailAddress` can legitimately carry a
+ * display name and nothing routable -- and an entry with neither is dropped rather than
+ * contributing an empty slot and a stray ", ,".
+ */
+internal fun recipientText(addresses: List<MailAddress>): String =
+    recipientParts(addresses).joinToString(", ")
+
+/**
+ * The *first* recipient alone, for the collapsed disclosure label.
+ *
+ * iOS's `DisclosureGroup` label is `summary.to?.first`, its content the whole joined list. Giving
+ * the label the joined list too printed the identical line twice the moment it was expanded --
+ * once ellipsised in the label, once in full underneath -- which is the same duplication the
+ * sender lines were just fixed for.
+ *
+ * Empty when there is no recipient to name, which is exactly what iOS's `?? ""` produces.
+ */
+internal fun recipientSummary(addresses: List<MailAddress>): String =
+    recipientParts(addresses).firstOrNull().orEmpty()
+
+private fun recipientParts(addresses: List<MailAddress>): List<String> =
+    addresses.mapNotNull { it.address.takeIf { a -> a.isNotBlank() } ?: it.name?.takeIf { n -> n.isNotBlank() } }
+
+/**
+ * Sender name over its address, or just the address alone when there is no name to put it under;
+ * recipients collapsed behind a tap, with the revealed addresses selectable.
+ */
 @Composable
 private fun MessageHeader(summary: MailSummary, mailDomain: String) {
     val cs = MaterialTheme.colorScheme
@@ -467,18 +546,17 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.SemiBold),
         )
         val from = summary.from
+        val (primary, secondary) = senderLines(from)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    from?.display?.takeIf { it.isNotBlank() } ?: stringResource(R.string.school_mail_no_sender),
+                    primary ?: stringResource(R.string.school_mail_no_sender),
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                // A bounce's `<MAILER-DAEMON>` leaves no address to print under the name; an
-                // empty second line would just look like the address failed to load.
-                if (from != null && from.isRoutable) {
-                    Text(from.address, style = MaterialTheme.typography.bodySmall, color = cs.outline)
+                if (secondary != null) {
+                    Text(secondary, style = MaterialTheme.typography.bodySmall, color = cs.outline)
                 }
             }
             if (MailWarnings.isExternalSender(from, summary.returnPath, mailDomain)) {
@@ -493,18 +571,55 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
             }
         }
         Text(MailDateFormat.full(summary.sentAt ?: summary.receivedAt), style = MaterialTheme.typography.labelSmall, color = cs.outline)
-        val to = summary.to.joinToString(", ") { it.display }
-        val cc = summary.cc.joinToString(", ") { it.display }
-        TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
+        val to = recipientText(summary.to)
+        val cc = recipientText(summary.cc)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            // minimumInteractiveComponentSize because this used to be a TextButton, which carried
+            // one: a labelMedium line and an 18dp chevron measure about 20dp, well under the 48dp
+            // a finger is entitled to. Role.Button so the row announces as something to press
+            // rather than as a stray line of text that happens to react.
+            modifier = Modifier
+                .minimumInteractiveComponentSize()
+                .clickable(role = Role.Button) { expanded = !expanded },
+        ) {
             Text(
-                stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
+                // The first recipient only, as iOS's DisclosureGroup label does. The full list
+                // lives in the expanded block below; printing it here as well showed the same
+                // line twice whenever the details were open.
+                stringResource(R.string.school_mail_details_to)
+                    .replaceIosArg(1, recipientSummary(summary.to)),
                 style = MaterialTheme.typography.labelMedium,
-                maxLines = if (expanded) Int.MAX_VALUE else 1,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                contentDescription = null,
+                tint = cs.outline,
+                modifier = Modifier.size(18.dp),
             )
         }
-        if (expanded && cc.isNotEmpty()) {
-            Text(stringResource(R.string.school_mail_details_cc).replaceIosArg(1, cc), style = MaterialTheme.typography.labelMedium)
+        // The tap target above is the collapsed summary only, never selectable; the full
+        // addresses revealed here are selectable and never a tap target -- the same split as
+        // iOS's DisclosureGroup label vs. content, so there is no gesture conflict between
+        // toggling and selecting.
+        if (expanded) {
+            SelectionContainer {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
+                        style = MaterialTheme.typography.labelMedium,
+                    )
+                    if (cc.isNotEmpty()) {
+                        Text(
+                            stringResource(R.string.school_mail_details_cc).replaceIosArg(1, cc),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
         }
     }
 }

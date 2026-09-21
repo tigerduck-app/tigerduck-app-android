@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">Frá: %1$@</string>
     <string name="school_mail_forward_subject">Efni: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Áframsend skilaboð ----------</string>
-    <string name="school_mail_guide_gmail_title">Lesa skólapóst í Gmail</string>
-    <string name="school_mail_guide_placeholder">Leiðbeiningar birtast fljótlega.</string>
+    <string name="school_mail_guide_load_failed">Ekki tókst að hlaða inn leiðbeiningunum</string>
+    <string name="school_mail_guide_open_in_browser">Opna í vafra</string>
     <string name="school_mail_invalid_recipients">Athugaðu þessi netföng: %1$@</string>
     <string name="school_mail_keep_editing">Halda áfram að breyta</string>
     <string name="school_mail_leave_title">Vista þennan póst sem drög?</string>

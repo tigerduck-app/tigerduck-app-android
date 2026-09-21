@@ -12,6 +12,8 @@ import org.ntust.app.tigerduck.mail.sanitize.MailLink
 
 class MailHtmlDocumentTest {
     private val png = InlineImage("image/png", byteArrayOf(1, 2, 3))
+    private val dark = MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true)
+    private val light = MailHtmlTheme(background = "#ffffff", foreground = "#1b1b1b", isDark = false)
 
     @Test
     fun `cid images come from fetched parts and unknown ones are dropped`() {
@@ -36,9 +38,37 @@ class MailHtmlDocumentTest {
     @Test
     fun `the CSP allows remote images only after the user asks`() {
         assertEquals("default-src 'none'; img-src data:; style-src 'unsafe-inline'", MailHtmlDocument.csp(false))
-        val doc = MailHtmlDocument.build("<p>x</p>", emptyMap(), allowRemoteImages = true).html
+        val doc = MailHtmlDocument.build("<p>x</p>", emptyMap(), allowRemoteImages = true, theme = dark).html
         assertTrue(doc.contains("img-src data: https: http:"))
         assertTrue(doc.contains("<body><p>x</p></body>"))
+    }
+
+    // --- theme: the page's own surface, never a sender's colours -----------------------------
+
+    @Test
+    fun `dark theme colours reach the document`() {
+        val html = MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, dark).html
+        assertTrue(html, html.contains("background:#121212"))
+        assertTrue(html, html.contains("color:#e6e6e6"))
+    }
+
+    @Test
+    fun `color-scheme follows the theme`() {
+        assertTrue(MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, dark).html.contains("color-scheme:dark"))
+        assertTrue(MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, light).html.contains("color-scheme:light"))
+    }
+
+    @Test
+    fun `sender's own inline style is left alone`() {
+        val body = """<p style="background:#ffeeaa;color:#003300">branded</p>"""
+        val html = MailHtmlDocument.build(body, emptyMap(), false, dark).html
+        assertTrue(html, html.contains("""style="background:#ffeeaa;color:#003300""""))
+    }
+
+    @Test
+    fun `white is no longer hardcoded`() {
+        val html = MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, dark).html
+        assertFalse(html, html.contains("background:#fff;"))
     }
 
     // --- rewriteLinks: every <a href> becomes its index into the links it returns -------------
@@ -72,7 +102,7 @@ class MailHtmlDocumentTest {
     @Test
     fun `build's document never contains an original href, only the synthetic form`() {
         val html = """<p><a href="https://evil.example/steal">click here</a></p>"""
-        val doc = MailHtmlDocument.build(html, emptyMap(), allowRemoteImages = false)
+        val doc = MailHtmlDocument.build(html, emptyMap(), allowRemoteImages = false, theme = dark)
         assertFalse(doc.html.contains("evil.example"))
         assertTrue(doc.html.contains("""href="https://link.invalid/0""""))
         assertEquals(listOf(MailLink("click here", "https://evil.example/steal")), doc.links)
@@ -117,7 +147,7 @@ class MailHtmlDocumentTest {
     fun `every anchor the WebView parses maps to the list entry with its own text and href`() {
         for (mail in clonedAnchorMails) {
             val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
-            val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false)
+            val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = dark)
             // None of these needs the fail-closed path: the rewrite's own tree is stable.
             assertTrue(mail, document.links.isNotEmpty())
             assertLockstep(mail, sanitized.html, document)
@@ -151,7 +181,7 @@ class MailHtmlDocumentTest {
         assertTrue(document.links.isEmpty())
         assertFalse(document.html.contains("href"))
         assertTrue(Jsoup.parseBodyFragment(document.html).select("a").isNotEmpty())
-        assertLockstep(mail, sanitized.html, MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false))
+        assertLockstep(mail, sanitized.html, MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = dark))
     }
 
     @Test
@@ -160,7 +190,7 @@ class MailHtmlDocumentTest {
         // markup. Done after the rewrite, it would merge two checked anchors into one.
         val mail = """<a href="https://a.example">src="cid:x</a> <a href="https://evil.example">ntust.edu.tw</a>"""
         val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
-        val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false)
+        val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = dark)
         assertLockstep(mail, MailHtmlDocument.inlineCids(sanitized.html, emptyMap()), document)
     }
 }

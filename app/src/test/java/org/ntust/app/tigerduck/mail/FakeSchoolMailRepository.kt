@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.CompletableDeferred
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
@@ -26,6 +27,11 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var searchUnsupported = false
     val bodies = mutableMapOf<Long, MailBody>()
     var bodyError: MailError? = null
+    /**
+     * Every `(folder, uid)` handed to [body], in order -- recorded before [bodyError] fires, so a
+     * test can tell "the fetch was refused" apart from "the fetch was never attempted".
+     */
+    val bodyCalls = mutableListOf<Pair<String, Long>>()
     var moveError: MailError? = null
     var deleteError: MailError? = null
     /** Thrown by [setSeen] before it records anything, so a refused mark-read leaves no trace. */
@@ -42,6 +48,35 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     val foldersTouched = mutableListOf<String>()
     /** Mirrors the real repository's cache: [loadPage]'s first page populates it, [dropCache] simulates a [MailError.FolderChanged] eviction. */
     private val cachedPages = mutableMapOf<String, MailPage>()
+    /** Every `(folder, limit)` handed to [loadPage], in order -- what a prefetch test checks against. */
+    val pageLimits = mutableListOf<Pair<String, Int>>()
+    /**
+     * Thrown only by a [loadPage] call marked `background` -- i.e. a
+     * background prefetch, never the visible folder's own load.
+     */
+    var prefetchError: MailError? = null
+    /**
+     * While true, a background [loadPage] call suspends
+     * instead of returning, so a test can assert what a cancel does to it mid-flight. Cancellable:
+     * it is a plain suspending await, not a busy loop, so cancelling the caller's job ends it.
+     */
+    var blockPrefetch: Boolean = false
+        set(value) {
+            field = value
+            if (!value) prefetchGate?.complete(Unit)
+        }
+    private var prefetchGate: CompletableDeferred<Unit>? = null
+    /** How many [loadPage] calls are open right now -- incremented on entry, decremented in `finally`. */
+    private var openLoads = 0
+    /**
+     * The largest [openLoads] ever observed. A sequential prefetch never lets a second
+     * [loadPage] start before the one ahead of it returns, so this must stay 1 across a whole
+     * prefetch run; a fan-out (e.g. `async` per folder) would let two calls sit inside
+     * [loadPage] at once -- which, combined with [blockPrefetch] parking the first one open,
+     * is exactly what this catches.
+     */
+    var maxConcurrentLoads = 0
+        private set
     val sent = mutableListOf<Pair<OutgoingMail, Pair<String, Long>?>>()
     val drafts = mutableListOf<Pair<OutgoingMail, Long?>>()
     val discardedDrafts = mutableListOf<Long>()
@@ -92,15 +127,39 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         cachedPages.remove(folder)
     }
 
-    override suspend fun loadPage(folder: String, beforeSeq: Int?): MailPage {
-        foldersTouched += folder
-        loadError?.let { throw it }
-        val all = sorted(folder)
-        val from = beforeSeq ?: 0
-        val chunk = all.drop(from).take(pageSize)
-        val page = MailPage(1, all.size, chunk, (from + chunk.size).takeIf { it < all.size })
-        if (beforeSeq == null) cachedPages[folder] = page
-        return page
+    override suspend fun loadPage(folder: String, beforeSeq: Int?, limit: Int, background: Boolean): MailPage {
+        openLoads++
+        maxConcurrentLoads = maxOf(maxConcurrentLoads, openLoads)
+        try {
+            foldersTouched += folder
+            pageLimits += folder to limit
+            if (background) {
+                prefetchError?.let { throw it }
+                if (blockPrefetch) {
+                    val gate = CompletableDeferred<Unit>()
+                    prefetchGate = gate
+                    gate.await()
+                }
+            }
+            loadError?.let { throw it }
+            val all = sorted(folder)
+            val from = beforeSeq ?: 0
+            // `limit` is honoured, not just recorded: the real repository's rule about a warm
+            // never shortening a cache only means anything if a warm can return a shorter page.
+            val chunk = all.drop(from).take(minOf(pageSize, limit))
+            val page = MailPage(1, all.size, chunk, (from + chunk.size).takeIf { it < all.size })
+            // Mirrors MailRepository.loadPage: a first page replaces the cache, except for a
+            // background warm that would leave less of the same mailbox behind than is there.
+            if (beforeSeq == null) {
+                val cached = cachedPages[folder]
+                val shortens = background && cached != null &&
+                    cached.uidValidity == page.uidValidity && cached.messages.size > page.messages.size
+                if (!shortens) cachedPages[folder] = page
+            }
+            return page
+        } finally {
+            openLoads--
+        }
     }
 
     override suspend fun inboxStatus(): FolderStatus {
@@ -113,6 +172,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     override suspend fun summary(folder: String, uid: Long) = touching(folder) { sorted(folder).firstOrNull { it.uid == uid } }
     override suspend fun body(folder: String, uid: Long): MailBody {
         foldersTouched += folder
+        bodyCalls += folder to uid
         onBody?.invoke()
         bodyError?.let { throw it }
         return bodies[uid] ?: throw MailError.Protocol("gone")

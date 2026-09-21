@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">发件人：%1$@</string>
     <string name="school_mail_forward_subject">主题：%1$@</string>
     <string name="school_mail_forwarded_header">---------- 转发的邮件 ----------</string>
-    <string name="school_mail_guide_gmail_title">用 Gmail 收校园邮件</string>
-    <string name="school_mail_guide_placeholder">说明即将推出。</string>
+    <string name="school_mail_guide_load_failed">无法加载指南</string>
+    <string name="school_mail_guide_open_in_browser">在浏览器中打开</string>
     <string name="school_mail_invalid_recipients">请检查这些地址：%1$@</string>
     <string name="school_mail_keep_editing">继续编辑</string>
     <string name="school_mail_leave_title">要把这封邮件存为草稿吗？</string>

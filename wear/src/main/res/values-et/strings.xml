@@ -651,8 +651,8 @@
     <string name="school_mail_forward_from">Saatja: %1$@</string>
     <string name="school_mail_forward_subject">Teema: %1$@</string>
     <string name="school_mail_forwarded_header">---------- Edastatud kiri ----------</string>
-    <string name="school_mail_guide_gmail_title">Loe kooli e-posti rakenduses Gmail</string>
-    <string name="school_mail_guide_placeholder">Juhised lisatakse peagi.</string>
+    <string name="school_mail_guide_load_failed">Juhendit ei õnnestunud laadida</string>
+    <string name="school_mail_guide_open_in_browser">Ava brauseris</string>
     <string name="school_mail_invalid_recipients">Kontrolli neid aadresse: %1$@</string>
     <string name="school_mail_keep_editing">Jätka muutmist</string>
     <string name="school_mail_leave_title">Kas salvestada see kiri mustandina?</string>

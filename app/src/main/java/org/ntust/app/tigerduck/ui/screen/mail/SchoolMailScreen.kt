@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +31,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
@@ -70,8 +67,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -109,10 +109,15 @@ import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
+import org.ntust.app.tigerduck.ui.component.SearchDrawer
 import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.readToggleIcon
+import org.ntust.app.tigerduck.ui.component.rememberAppBarState
+import org.ntust.app.tigerduck.ui.component.rememberChromeContentPadding
+import org.ntust.app.tigerduck.ui.component.rememberSearchRevealState
 import org.ntust.app.tigerduck.ui.component.statusText
 import org.ntust.app.tigerduck.ui.screen.settings.LoginSheet
 import org.ntust.app.tigerduck.ui.screen.settings.signInFieldValue
@@ -121,7 +126,6 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Spec §6.2 — the Announcements list pattern, over the school inbox. */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SchoolMailScreen(
     browserPreference: String,
@@ -210,7 +214,7 @@ fun SchoolMailScreen(
     LaunchedEffect(listState) {
         // Rows are keyed by (folder, uid) -- in All mail a UID alone names two different mails --
         // so the last visible *row* is found by matching those keys against what is displayed,
-        // rather than by picking out one key type from among the header and spacer items.
+        // rather than by picking out one key type from among the spinner and spacer items.
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.mapNotNullTo(mutableSetOf()) { it.key as? String } }
             .map { keys -> currentDisplayed.lastOrNull { it.key in keys } }
             .filterNotNull()
@@ -218,57 +222,138 @@ fun SchoolMailScreen(
             .collect { row -> viewModel.loadMoreIfNeeded(row) }
     }
 
+    val appBar = rememberAppBarState()
+    val chromePadding = rememberChromeContentPadding(appBar)
+    val searchReveal = rememberSearchRevealState()
+    var searchFocused by remember { mutableStateOf(false) }
+    // Pinning opens the drawer as well as holding it open, which is what puts the field on screen
+    // for a search the view model was still carrying when this screen composed -- coming back from
+    // a message -- and for a field that takes focus without a gesture having opened anything.
+    searchReveal.pinned = searchFocused || state.searchText.isNotEmpty()
+
     TigerPullToRefresh(
         isRefreshing = isLoading,
         onRefresh = viewModel::refresh,
         modifier = Modifier.fillMaxSize(),
         refreshingMessage = stringResource(R.string.refreshing_message),
+        appBar = appBar,
+        searchReveal = searchReveal,
     ) {
-        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-            stickyHeader(key = "headers") {
-                Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
-                    PageHeader(title = stringResource(R.string.feature_school_mail)) {
-                        val failed = state.loadState as? SchoolMailListViewModel.LoadState.Failed
-                        val mailStatus = when {
-                            failed != null || authFailed -> ServerStatus.FAILED
-                            state.loadState is SchoolMailListViewModel.LoadState.Loaded -> ServerStatus.OK
-                            else -> ServerStatus.UNKNOWN
-                        }
-                        SyncStatusDot(
-                            status = mailStatus,
-                            label = stringResource(R.string.feature_school_mail),
-                            icon = Icons.Filled.Mail,
-                            // The state of the mail server, in the same words every other row of
-                            // this dot uses -- not the student ID, which is an identity and says
-                            // nothing about whether anything is reaching the server. The specific
-                            // failure still has a home: the list itself shows the error.
-                            text = statusText(mailStatus),
-                            isLoading = isLoading,
-                        )
-                        IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
-                            Icon(
-                                if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                                contentDescription = stringResource(R.string.school_mail_unread_only),
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                // The chrome is a sibling overlay now rather than the first item, so the list
+                // keeps the room for it here instead. The overlay translates away on scroll
+                // while this padding stays put, which is what lets the rows travel up under it.
+                //
+                // Measured lazily (see [ChromeContentPadding]): the chrome's height changes on
+                // every frame the search drawer moves, and reading it in this composition body
+                // would recompose the whole screen for the length of the gesture.
+                contentPadding = chromePadding,
+            ) {
+                val displayed = state.displayed
+                val failed = state.loadState as? SchoolMailListViewModel.LoadState.Failed
+                when {
+                    displayed.isEmpty() && failed != null -> item(key = "failed") {
+                        Box(Modifier.fillParentMaxHeight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            EmptyStateView(
+                                icon = Icons.Filled.Mail,
+                                title = stringResource(R.string.school_mail_load_failed_title),
+                                message = stringResource(failed.error.messageRes()),
                             )
                         }
-                        IconButton(onClick = onOpenGuide) {
-                            Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.school_mail_use_other_app))
-                        }
-                        IconButton(onClick = onCompose) {
-                            Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.school_mail_compose))
+                    }
+                    displayed.isEmpty() && state.loadState is SchoolMailListViewModel.LoadState.Loaded -> item(key = "empty") {
+                        Box(Modifier.fillParentMaxHeight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            EmptyStateView(
+                                icon = Icons.Filled.Mail,
+                                title = stringResource(R.string.school_mail_empty_title),
+                                message = stringResource(R.string.school_mail_empty_message),
+                            )
                         }
                     }
-                    DevMailServerBanner(accountViewModel.devServer)
-                    if (authFailed) {
-                        AuthFailedBanner(onSignInAgain = {
-                            accountViewModel.clearError()
-                            showReauthSheet = true
-                        })
+                    else -> {
+                        items(displayed, key = { it.key }) { row ->
+                            SwipeableMailCard(
+                                row = row,
+                                mailDomain = viewModel.mailDomain,
+                                // The row's own folder decides everything, never the selected chip:
+                                // opened from All mail, a Sent mail has to behave exactly as it
+                                // would had the user opened Sent itself.
+                                onClick = {
+                                    if (state.kindOf(row.folder) == SpecialFolder.DRAFTS) onEditDraft(row.folder, row.uid)
+                                    else onOpenMessage(row.folder, row.uid)
+                                },
+                                onToggleRead = { viewModel.toggleRead(row) },
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                            )
+                        }
+                        if (state.isPaginating || state.isSearching) {
+                            item(key = "spinner") {
+                                Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+                        item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                     }
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onSizeChanged { appBar.heightPx = it.height.toFloat() }
+                    .graphicsLayer { translationY = appBar.offsetPx }
+                    .background(MaterialTheme.colorScheme.background),
+            ) {
+                PageHeader(title = stringResource(R.string.feature_school_mail)) {
+                    val failed = state.loadState as? SchoolMailListViewModel.LoadState.Failed
+                    val mailStatus = when {
+                        failed != null || authFailed -> ServerStatus.FAILED
+                        state.loadState is SchoolMailListViewModel.LoadState.Loaded -> ServerStatus.OK
+                        else -> ServerStatus.UNKNOWN
+                    }
+                    SyncStatusDot(
+                        status = mailStatus,
+                        label = stringResource(R.string.feature_school_mail),
+                        icon = Icons.Filled.Mail,
+                        // The state of the mail server, in the same words every other row of
+                        // this dot uses -- not the student ID, which is an identity and says
+                        // nothing about whether anything is reaching the server. The specific
+                        // failure still has a home: the list itself shows the error.
+                        text = statusText(mailStatus),
+                        isLoading = isLoading,
+                    )
+                    IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
+                        Icon(
+                            if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
+                            contentDescription = stringResource(R.string.school_mail_unread_only),
+                        )
+                    }
+                    IconButton(onClick = onOpenGuide) {
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.school_mail_use_other_app))
+                    }
+                    IconButton(onClick = onCompose) {
+                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.school_mail_compose))
+                    }
+                }
+                DevMailServerBanner(accountViewModel.devServer)
+                if (authFailed) {
+                    AuthFailedBanner(onSignInAgain = {
+                        accountViewModel.clearError()
+                        showReauthSheet = true
+                    })
+                }
+                SearchDrawer(searchReveal) {
                     OutlinedTextField(
                         value = state.searchText,
                         onValueChange = viewModel::setSearchText,
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .onFocusChanged { searchFocused = it.isFocused },
                         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                         placeholder = { Text(stringResource(R.string.school_mail_search_prompt)) },
                         singleLine = true,
@@ -276,63 +361,15 @@ fun SchoolMailScreen(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { viewModel.submitSearch() }),
                     )
-                    FolderChips(state = state, onSelect = viewModel::selectFolder)
-                    if (state.searchLocalOnly) {
-                        Text(
-                            stringResource(R.string.school_mail_search_local_only),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.outline,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                        )
-                    }
                 }
-            }
-
-            val displayed = state.displayed
-            val failed = state.loadState as? SchoolMailListViewModel.LoadState.Failed
-            when {
-                displayed.isEmpty() && failed != null -> item(key = "failed") {
-                    Box(Modifier.fillParentMaxHeight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        EmptyStateView(
-                            icon = Icons.Filled.Mail,
-                            title = stringResource(R.string.school_mail_load_failed_title),
-                            message = stringResource(failed.error.messageRes()),
-                        )
-                    }
-                }
-                displayed.isEmpty() && state.loadState is SchoolMailListViewModel.LoadState.Loaded -> item(key = "empty") {
-                    Box(Modifier.fillParentMaxHeight(0.6f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        EmptyStateView(
-                            icon = Icons.Filled.Mail,
-                            title = stringResource(R.string.school_mail_empty_title),
-                            message = stringResource(R.string.school_mail_empty_message),
-                        )
-                    }
-                }
-                else -> {
-                    items(displayed, key = { it.key }) { row ->
-                        SwipeableMailCard(
-                            row = row,
-                            mailDomain = viewModel.mailDomain,
-                            // The row's own folder decides everything, never the selected chip:
-                            // opened from All mail, a Sent mail has to behave exactly as it
-                            // would had the user opened Sent itself.
-                            onClick = {
-                                if (state.kindOf(row.folder) == SpecialFolder.DRAFTS) onEditDraft(row.folder, row.uid)
-                                else onOpenMessage(row.folder, row.uid)
-                            },
-                            onToggleRead = { viewModel.toggleRead(row) },
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
-                        )
-                    }
-                    if (state.isPaginating || state.isSearching) {
-                        item(key = "spinner") {
-                            Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
-                        }
-                    }
-                    item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+                FolderChips(state = state, onSelect = viewModel::selectFolder)
+                if (state.searchLocalOnly) {
+                    Text(
+                        stringResource(R.string.school_mail_search_local_only),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    )
                 }
             }
         }
@@ -493,7 +530,7 @@ private fun SwipeableMailCard(
     val offset = remember(row.key) { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val icon = if (message.flags.seen) Icons.AutoMirrored.Filled.Undo else Icons.Filled.Check
+    val icon = readToggleIcon(isRead = message.flags.seen)
     val iconDescription = stringResource(if (message.flags.seen) R.string.school_mail_mark_unread else R.string.school_mail_mark_read)
     // The same localized label the swipe icon announces: what the toggle is about to do.
     val readActions = remember(iconDescription) {

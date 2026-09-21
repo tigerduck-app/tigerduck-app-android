@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import org.jsoup.Jsoup
 import org.jsoup.select.Elements
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
@@ -14,6 +16,15 @@ import java.util.Base64
  * be kept in lockstep with it (see [MailHtmlDocument.rewriteLinks]).
  */
 data class LinkedHtml(val html: String, val links: List<MailLink>)
+
+/**
+ * The page's own surface, so a mail reads as part of the app rather than as white paper in a
+ * dark room. Only the page is themed: a sender's own colours are never rewritten, because the
+ * alternative distorts logos, screenshots and branded mail with no way for the reader to tell.
+ * [isDark] drives `color-scheme`, which is what makes mail that opts into `prefers-color-scheme`
+ * follow along, and makes UA-default form controls legible.
+ */
+data class MailHtmlTheme(val background: String, val foreground: String, val isDark: Boolean)
 
 /** Wraps sanitized mail HTML for the locked-down WebView (spec §9.3): CSP, paper styling, inlined cid images. */
 object MailHtmlDocument {
@@ -77,13 +88,20 @@ object MailHtmlDocument {
      * the cid images are inlined: [inlineCids] is a text substitution, and running it after the lockstep
      * check in [rewriteLinks] would leave the WebView a body that check never saw.
      */
-    fun build(sanitizedHtml: String, images: Map<String, InlineImage>, allowRemoteImages: Boolean): LinkedHtml {
+    fun build(
+        sanitizedHtml: String,
+        images: Map<String, InlineImage>,
+        allowRemoteImages: Boolean,
+        theme: MailHtmlTheme,
+    ): LinkedHtml {
         val body = rewriteLinks(inlineCids(sanitizedHtml, images))
+        val scheme = if (theme.isDark) "dark" else "light"
         return body.copy(
             html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" +
                 "<meta http-equiv=\"Content-Security-Policy\" content=\"${csp(allowRemoteImages)}\">" +
                 "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
-                "<style>html,body{margin:0;padding:0;background:#fff;color:#000}" +
+                "<style>:root{color-scheme:$scheme}" +
+                "html,body{margin:0;padding:0;background:${theme.background};color:${theme.foreground}}" +
                 "body{padding:12px;font-family:sans-serif;overflow-wrap:anywhere}" +
                 "img{max-width:100%;height:auto}table{max-width:100%}pre{white-space:pre-wrap}</style>" +
                 "</head><body>${body.html}</body></html>",
@@ -94,3 +112,12 @@ object MailHtmlDocument {
 
     private fun decode(s: String) = runCatching { URLDecoder.decode(s.replace("+", "%2B"), "UTF-8") }.getOrDefault(s)
 }
+
+/**
+ * `#rrggbb` for CSS. Alpha is dropped: the WebView is opaque and a mail has nothing behind it.
+ *
+ * [java.util.Locale.ROOT] because this is machine-readable output, not text for a reader. `%x`
+ * happens not to be one of the conversions `Formatter` localises, so the default locale would
+ * give the same six characters today -- pinning it means that stays true of the next edit too.
+ */
+fun Color.toCssHex(): String = String.format(java.util.Locale.ROOT, "#%06x", toArgb() and 0xFFFFFF)
