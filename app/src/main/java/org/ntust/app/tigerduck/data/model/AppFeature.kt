@@ -82,7 +82,6 @@ enum class AppFeature(val id: String) {
     val isLibraryRelated: Boolean
         get() = this == LIBRARY || this == DISCUSSION_ROOM || this == LIBRARY_LECTURE
 
-    /** Gated by [org.ntust.app.tigerduck.mail.SchoolMailAvailability], not by isImplemented. */
     val isSchoolMail: Boolean
         get() = this == SCHOOL_MAIL
 

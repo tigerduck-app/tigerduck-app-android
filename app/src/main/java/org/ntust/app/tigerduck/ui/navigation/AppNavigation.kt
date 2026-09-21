@@ -189,11 +189,6 @@ fun MainNavigation(
     FlipToLibraryEffect(navController = navController, appState = appState)
     LaunchedEffect(widgetStartRoute) {
         widgetStartRoute ?: return@LaunchedEffect
-        // A School Mail notification can outlive the feature's visibility (dev toggle off).
-        if (widgetStartRoute.startsWith(MailRoutes.LIST) && !appState.schoolMailVisible) {
-            onStartRouteConsumed()
-            return@LaunchedEffect
-        }
         // The library-shortcut widget emits a sentinel instead of a direct
         // route so the feature gate is re-evaluated at tap time. If library
         // has been turned off since the widget was placed, reroute to
@@ -251,8 +246,7 @@ fun MainNavigation(
     val configuredTabs by remember {
         derivedStateOf {
             appState.configuredTabs.filter { feature ->
-                (!feature.isLibraryRelated || appState.libraryFeatureEnabled) &&
-                    (!feature.isSchoolMail || appState.schoolMailVisible)
+                !feature.isLibraryRelated || appState.libraryFeatureEnabled
             }
         }
     }

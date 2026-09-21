@@ -66,6 +66,13 @@ TigerDuck 是由一群學生共同開發的校園助手
 - **翻面就開**：把手機面朝下放著，自動跳到入館 QR-Code
 - 登入、QR 等敏感畫面自動啟用 `FLAG_SECURE`，防止截圖 / 錄影
 
+### 📧 **校園信箱**
+
+- 直接在 App 裡收 NTUST 信箱，依資料夾瀏覽、搜尋、標記已讀
+- 撰寫、回覆、轉寄與附件，寄件備份自動歸檔到寄件備份匣
+- 外部寄件者、連結與網址不符、釣魚字樣與高風險附件都會標示出來
+- 遠端圖片預設不載入，信件 HTML 經過淨化才顯示
+
 ### 🌏 **外觀**
 
 - 與 iOS **共用 65 種語系翻譯**，自行設定或跟著系統語言切換
@@ -278,12 +285,6 @@ Gradle 也能在編譯前自動跑一次，但**預設不啟用**——要加上
 以及寫進手機 play 資源的手錶版 `aboutlibraries_wear.json` / `bundled_notices_wear.json`）。
 沒有 POM 可描述的第三方素材則手動維護在 `app/src/main/res/raw/extra_licenses.json`。
 
-### 校園信箱（尚未對外開放）
-
-`mail/` 底下的校園信箱功能已在 repo 內，但**預設不會出現在正式版**：
-`SCHOOL_MAIL_RELEASED` 目前為 `false`，僅 debug build 搭配開發者開關才看得到。
-待計中書面同意後才會開啟，在那之前請不要把它寫進對外的功能說明。
-
 ## 專案架構
 
 ```text
@@ -301,7 +302,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       ├── demo/                       # 示範帳號與假資料
 │       ├── di/                         # Hilt 模組
 │       ├── liveactivity/               # 即時動態 / 進行中通知
-│       ├── mail/                       # 校園信箱 IMAP / SMTP、HTML 淨化、通知（預設隱藏，見下方說明）
+│       ├── mail/                       # 校園信箱 IMAP / SMTP、MIME 解析、HTML 淨化、寄信警示、通知
 │       ├── network/                    # 課表 / Moodle / 公告 / 圖書館 API
 │       │   └── model/
 │       ├── notification/               # 作業到期通知排程、通知頻道
@@ -317,7 +318,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       │   │   ├── calendar/           # 行事曆
 │       │   │   ├── announcements/      # 公告整合、LLM 分類、訂閱規則
 │       │   │   ├── library/            # 圖書館
-│       │   │   ├── mail/               # 校園信箱（收信、撰寫、附件；預設隱藏）
+│       │   │   ├── mail/               # 校園信箱（收信匣、閱讀、撰寫 / 回覆 / 轉寄、附件）
 │       │   │   ├── score/              # 歷年成績與排名
 │       │   │   ├── more/               # 「更多」聚合頁
 │       │   │   ├── settings/           # 設定（語言、Tab、通知、震動、伺服器推播、即時動態、來源碼）

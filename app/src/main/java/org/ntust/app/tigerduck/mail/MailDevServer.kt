@@ -134,8 +134,7 @@ class SharedPrefsMailDevServerStore(context: Context) : MailDevServerStore {
  * compile-time constant, so there the override is not hidden but *absent* -- the branch
  * that would read it is removed and no release code path can reach the store. `debug` is
  * a parameter, defaulted to that constant, only so a JVM test can ask for the release
- * answer (`BuildConfig.DEBUG` is always true under unit tests) -- the same shape
- * [SchoolMailAvailability] uses for the same reason.
+ * answer (`BuildConfig.DEBUG` is always true under unit tests).
  */
 @Singleton
 class MailSite @Inject constructor(private val store: MailDevServerStore) {

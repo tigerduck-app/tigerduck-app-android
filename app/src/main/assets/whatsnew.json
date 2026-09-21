@@ -116,8 +116,7 @@
         "設定中可以查看 App 使用的開源授權",
         "「關於」頁面重新整理，相關連結更好找",
         "課表與課程詳情顯示更多課程資訊",
-        "公告頁面的滑動與搜尋操作優化",
-        "修正即時更新在部分裝置上的顯示問題"
+        "公告頁面的滑動與搜尋操作優化"
       ]
     },
     "en": {
@@ -130,8 +129,7 @@
         "View the open-source licences the app uses in Settings",
         "About page reorganized, making links easier to find",
         "Class table and course details show more course information",
-        "Improved scrolling and search on the bulletins page",
-        "Fix Live Updates display on some devices"
+        "Improved scrolling and search on the bulletins page"
       ]
     }
   }

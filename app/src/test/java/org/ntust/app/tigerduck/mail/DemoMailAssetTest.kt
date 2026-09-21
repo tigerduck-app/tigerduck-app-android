@@ -15,7 +15,7 @@ class DemoMailAssetTest {
     fun `the shipped demo mailbox covers every case the reviewers should see`() {
         for (lang in listOf("zh", "en")) {
             val box = DemoMailFixture.parse(json, lang)!!
-            assertTrue(box.matches("B99999999", "tigerduck-review"))
+            assertTrue(box.matches("B11308964", "its-my-duty"))
             val warnings = box.messages.flatMap { m ->
                 val html = m.body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = false) }
                 val plain = m.body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()

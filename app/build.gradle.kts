@@ -60,11 +60,6 @@ android {
         // platform silently falls back to system CA trust with no UI signal.
         // 2027-01-18T00:00:00Z = 1800230400000L epoch ms.
         buildConfigField("long", "PIN_EXPIRY_EPOCH", "1800230400000L")
-
-        // School Mail stays hidden in release builds until the computer
-        // center's written consent arrives (docs/TigerDuck-Mail-DESIGN.md
-        // §12.5). Debug builds show it behind the developer toggle.
-        buildConfigField("boolean", "SCHOOL_MAIL_RELEASED", "false")
     }
 
     signingConfigs {

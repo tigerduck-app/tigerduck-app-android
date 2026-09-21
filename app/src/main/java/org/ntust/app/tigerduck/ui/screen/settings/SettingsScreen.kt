@@ -233,23 +233,23 @@ fun SettingsScreen(
                             )
                         }
 
-                        if (viewModel.appState.schoolMailVisible) {
-                            HorizontalDivider()
-                            // Its own account (spec §7.1). A rejected password shows as
-                            // signed out so the button offers "Sign in" again.
-                            AccountRow(
-                                title = stringResource(R.string.school_mail_account_title),
-                                isLoggedIn = isMailSignedIn && !mailAuthFailed,
-                                subtitle = if (isMailSignedIn) mailViewModel.studentId else null,
-                                isLoggingIn = isMailSigningIn,
-                                onLogin = {
-                                    mailViewModel.clearError()
-                                    showMailLoginSheet = true
-                                },
-                                onLogout = { mailViewModel.signOut() },
-                                actionMinWidth = accountButtonMinWidth,
-                            )
-                        }
+                        HorizontalDivider()
+                        // Its own account (spec §7.1). A rejected password shows as
+                        // signed out so the button offers "Sign in" again.
+                        AccountRow(
+                            title = stringResource(R.string.school_mail_account_title),
+                            isLoggedIn = isMailSignedIn && !mailAuthFailed,
+                            subtitle = if (isMailSignedIn) mailViewModel.studentId else null,
+                            isLoggingIn = isMailSigningIn,
+                            onLogin = {
+                                mailViewModel.clearError()
+                                showMailLoginSheet = true
+                            },
+                            onLogout = { mailViewModel.signOut() },
+                            actionMinWidth = accountButtonMinWidth,
+                        )
+                    
+
                     }
                 }
             }
@@ -444,19 +444,16 @@ fun SettingsScreen(
                         // diagnostics log live behind this row, not on the
                         // School Mail settings page — notification settings
                         // belong with the app's other notification settings.
-                        // Gated on schoolMailVisible like every other School
-                        // Mail entry point (spec §12.5), and greyed out rather
-                        // than hidden while no mailbox is signed in: there is
-                        // nothing to set yet, but the setting is still worth
-                        // knowing about. Demo mode signs in like any other
-                        // account, so it lands on the enabled side.
-                        if (viewModel.appState.schoolMailVisible) {
-                            HorizontalDivider()
-                            SettingsLinkRow(
-                                stringResource(R.string.school_mail_notification_settings_title),
-                                enabled = isMailSignedIn,
-                            ) { onNavigateToSchoolMailNotificationSettings() }
-                        }
+                        // Greyed out rather than hidden while no mailbox is
+                        // signed in: there is nothing to set yet, but the
+                        // setting is still worth knowing about. Demo mode signs
+                        // in like any other account, so it lands on the enabled
+                        // side.
+                        HorizontalDivider()
+                        SettingsLinkRow(
+                            stringResource(R.string.school_mail_notification_settings_title),
+                            enabled = isMailSignedIn,
+                        ) { onNavigateToSchoolMailNotificationSettings() }
                         HorizontalDivider()
                         SettingsLinkRow(
                             stringResource(R.string.notification_permission_settings_nav_title)
@@ -481,11 +478,9 @@ fun SettingsScreen(
                         SettingsLinkRow(stringResource(R.string.settings_library_related_features)) {
                             onNavigateToLibrarySettings()
                         }
-                        if (viewModel.appState.schoolMailVisible) {
-                            HorizontalDivider()
-                            SettingsLinkRow(stringResource(R.string.school_mail_account_title)) {
-                                onNavigateToSchoolMailSettings()
-                            }
+                        HorizontalDivider()
+                        SettingsLinkRow(stringResource(R.string.school_mail_account_title)) {
+                            onNavigateToSchoolMailSettings()
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_section_other_settings)) { onNavigateToOtherSettings() }
@@ -597,13 +592,6 @@ fun SettingsScreen(
                                 onCheckedChange = {
                                     viewModel.appState.disableScreenCaptureProtection = it
                                 },
-                            )
-                            HorizontalDivider()
-                            SettingsToggleRow(
-                                label = "Show School Mail",
-                                checked = viewModel.appState.schoolMailDevEnabled,
-                                subtitle = "Release builds hide it until SCHOOL_MAIL_RELEASED is true.",
-                                onCheckedChange = { viewModel.appState.schoolMailDevEnabled = it },
                             )
                             HorizontalDivider()
                             @OptIn(ExperimentalFoundationApi::class)

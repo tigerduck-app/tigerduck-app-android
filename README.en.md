@@ -68,6 +68,13 @@ even more OAO!
 - **Flip-to-open**: leave the phone face-down and it jumps straight to the entry QR
 - Login / QR and other sensitive screens auto-enable `FLAG_SECURE` to block screenshots and screen recording
 
+### 📧 **School Mail**
+
+- Read your NTUST mailbox in the app — browse by folder, search, toggle read state
+- Compose, reply, forward and attach files; the sent copy is filed to the sent folder
+- External senders, mismatched links, password bait and risky attachments are flagged
+- Remote images are held back by default and mail HTML is sanitized before it renders
+
 ### 🌏 **Multilingual**
 
 - **65 locales shared with the iOS client** — follow the system language or set per-app
@@ -302,13 +309,6 @@ watch's `aboutlibraries_wear.json` / `bundled_notices_wear.json` written into th
 resources). Third-party material with no POM to describe it is hand-maintained in
 `app/src/main/res/raw/extra_licenses.json`.
 
-### School Mail (not yet public)
-
-The School Mail feature under `mail/` is in the repo but **does not appear in release builds**:
-`SCHOOL_MAIL_RELEASED` is `false`, so it is visible only in debug builds behind the developer
-toggle. It stays gated until the computer centre gives written consent — until then, please keep
-it out of user-facing feature descriptions.
-
 ## Project Structure
 
 ```text
@@ -326,7 +326,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       ├── demo/                       # Demo account and fixtures
 │       ├── di/                         # Hilt modules
 │       ├── liveactivity/               # Live activity / ongoing notification
-│       ├── mail/                       # School Mail IMAP / SMTP, HTML sanitizing, notifications (hidden by default — see below)
+│       ├── mail/                       # School Mail IMAP / SMTP, MIME parsing, HTML sanitizing, send warnings, notifications
 │       ├── network/                    # Class table / Moodle / bulletins / library APIs
 │       │   └── model/
 │       ├── notification/               # Assignment due notification scheduling + channels
@@ -342,7 +342,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       │   │   ├── calendar/           # Calendar
 │       │   │   ├── announcements/      # Bulletin feed, LLM categories, subscriptions
 │       │   │   ├── library/            # Library
-│       │   │   ├── mail/               # School Mail (read, compose, attachments; hidden by default)
+│       │   │   ├── mail/               # School Mail (mailbox, reading, compose / reply / forward, attachments)
 │       │   │   ├── score/              # Historical GPA & rankings
 │       │   │   ├── more/               # "More" hub
 │       │   │   ├── settings/           # Settings (language, tabs, notifications, haptics, server push, live activity, source)

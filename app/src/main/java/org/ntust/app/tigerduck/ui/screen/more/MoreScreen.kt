@@ -61,8 +61,7 @@ fun MoreScreen(navController: NavController, appState: AppState) {
     val grouped = AppFeature.moreFeatures
         .filter { feature ->
             feature !in pageFeatures &&
-                    (!feature.isLibraryRelated || appState.libraryFeatureEnabled) &&
-                    (!feature.isSchoolMail || appState.schoolMailVisible)
+                    (!feature.isLibraryRelated || appState.libraryFeatureEnabled)
         }
         .groupBy { it.category }
         .toList()

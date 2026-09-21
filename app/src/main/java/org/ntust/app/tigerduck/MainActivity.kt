@@ -251,10 +251,8 @@ class MainActivity : AppCompatActivity() {
 
         // School Mail has no push: returning to the app is one of its check points (spec §8.5).
         // Throttled to one per minute and single-flight inside MailChecker; a no-op when signed out.
-        if (appState.schoolMailVisible) {
-            lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                mailChecker.check(org.ntust.app.tigerduck.mail.sync.CheckSource.FOREGROUND)
-            }
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            mailChecker.check(org.ntust.app.tigerduck.mail.sync.CheckSource.FOREGROUND)
         }
     }
 
