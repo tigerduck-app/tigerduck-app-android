@@ -109,7 +109,7 @@
     "zh-Hant": {
       "title": "2.2.0 新功能",
       "highlights": [
-        "修正三星 NowBar 以及其他品牌手機的即時更新顯示問題",
+        "修正三星 NowBar、小米系列超級島以及其他品牌手機的即時更新顯示問題",
         "修正了多部門合開課程無法連接 Moodle 的問題",
         "修正了新增課程不會即時顯示的問題",
         "新增校園信箱功能",
@@ -122,7 +122,7 @@
     "en": {
       "title": "What's new in 2.2.0",
       "highlights": [
-        "Fix Live Updates display on Samsung NowBar and other devices",
+        "Fix Live Updates display on Samsung NowBar, Xiaomi series HyperIsland and other devices",
         "Fix the issue that courses co-taught by multiple departments cannot connect to Moodle",
         "Fix the issue that newly added courses do not display immediately",
         "Added campus email feature",
