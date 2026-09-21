@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -487,6 +488,30 @@ class MailRepositoryTest {
         assertNull(setup.account.signIn("b10000001", "pw"))
         assertFalse(setup.account.authFailed.value)
         assertEquals(listOf("a"), repo.loadPage("INBOX", null).messages.map { it.subject })
+    }
+
+    /**
+     * The same sign-out, reached without the test body ever yielding to the
+     * scheduler first. `withContext(Dispatchers.IO)` skips suspending when the
+     * IO block finishes before the caller gets as far as suspending, and on a
+     * Linux CI runner both hops here did: the repository's `signedIn`
+     * collector then first ran after the sign-out, dropped it as the initial
+     * value, and the connection stayed open. `runBlocking` pins that ordering
+     * instead of leaving it to the OS scheduler.
+     */
+    @Test
+    fun `a sign-out before the scheduler has run anything still closes the connection`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val repo = runBlocking { setup.signedIn() }
+        runBlocking { repo.folders() }
+        assertEquals(1, server.openSessions)
+        setup.account.signOut()
+        withContext(Dispatchers.Default) {
+            withTimeout(5_000) {
+                while (server.openSessions != 0) delay(10)
+            }
+        }
+        assertEquals(0, server.openSessions)
     }
 
     @Test

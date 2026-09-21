@@ -2,8 +2,12 @@ package org.ntust.app.tigerduck.mail
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -38,6 +42,20 @@ class MailAccount @Inject constructor(
 ) {
     private val _signedIn = MutableStateFlow(credentialsOrNull() != null)
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
+
+    /**
+     * One event per [signOut], for cleanup that must run on every one of
+     * them. [signedIn] can't carry that: a StateFlow hands a collector only
+     * the latest value, so a sign-in and a sign-out that both land before it
+     * next runs read as no change at all. Buffered so [signOut] never
+     * suspends; a subscriber that falls behind still gets one, which is all
+     * cleanup needs.
+     */
+    private val _signOuts = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val signOuts: SharedFlow<Unit> = _signOuts.asSharedFlow()
 
     private val _authFailed = MutableStateFlow(state.authFailed)
     val authFailed: StateFlow<Boolean> = _authFailed.asStateFlow()
@@ -93,7 +111,7 @@ class MailAccount @Inject constructor(
     /**
      * Both callers are on the main thread, so only the cheap part runs there:
      * the flags and the credential removal stay synchronous because the
-     * repository's `signedIn` collector and every later `credentialsOrNull()`
+     * repository's [signOuts] collector and every later `credentialsOrNull()`
      * depend on them having already happened. Deleting the cache tree and
      * cancelling the notifications are IO and finish on their own.
      */
@@ -103,6 +121,7 @@ class MailAccount @Inject constructor(
         state.clear()
         _signedIn.value = false
         _authFailed.value = false
+        _signOuts.tryEmit(Unit)
         scope.launch(Dispatchers.IO) {
             cache.clearAll()
             notifier.cancelAll()

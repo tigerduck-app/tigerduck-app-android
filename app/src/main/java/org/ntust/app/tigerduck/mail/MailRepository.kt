@@ -2,8 +2,8 @@ package org.ntust.app.tigerduck.mail
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -111,19 +111,18 @@ class MailRepository @Inject constructor(
         // and a fresh sign-in must never see the previous account's cached
         // folder resolution or demo mail.
         //
-        // drop(1): only a *transition* to signed out is a sign-out. A repository
-        // that has just been built holds no session, no resolved folders and no
-        // demo mail, so the current value has nothing to clear -- but this
-        // collector starts on another dispatcher, so acting on it would let the
-        // wipe land late, after a sign-in that happened in the meantime had
-        // already put something there.
-        scope.launch {
-            account.signedIn.drop(1).collect { signedIn ->
-                if (!signedIn) {
-                    withContext(Dispatchers.IO) { holder.closeNow() }
-                    resolved = null
-                    synchronized(demoFolders) { demoFolders.clear(); demoUidSeq = 9_000L }
-                }
+        // Sign-out events, not signedIn going false. Watching the StateFlow
+        // lost sign-outs two ways: a collector that first ran after one took
+        // `false` as its initial value, and one that last saw `false` read a
+        // sign-in and sign-out landing before it next ran as no change. Either
+        // way the held socket stayed authenticated. UNDISPATCHED subscribes
+        // before this constructor returns, so no sign-out can precede the
+        // subscriber, and a fresh repository has nothing of its own to clear.
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            account.signOuts.collect {
+                withContext(Dispatchers.IO) { holder.closeNow() }
+                resolved = null
+                synchronized(demoFolders) { demoFolders.clear(); demoUidSeq = 9_000L }
             }
         }
     }
