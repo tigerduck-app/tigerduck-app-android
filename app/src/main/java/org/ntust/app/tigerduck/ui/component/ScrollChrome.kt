@@ -49,6 +49,9 @@ private val SettleSpec =
  * *any* downward scroll brings it straight back, wherever the list happens to be. The user should
  * never have to travel back to the top to reach the folder chips or the compose button.
  *
+ * It hides only as far as the content moves, though: `chromeFollow` feeds it what the list
+ * actually scrolled, so a list at its end or an empty page leaves it in place.
+ *
  * [heightPx] is measured by the screen and written back here; until it is, [onScroll] consumes
  * nothing, so the first frame can never eat a scroll on behalf of a bar of unknown size.
  */
@@ -151,10 +154,10 @@ fun rememberAppBarState(): AppBarState = remember { AppBarState() }
  * can shut the drawer under someone mid-edit.
  *
  * It holds the drawer's *height*, not the field's position on screen. A pinned [consume] returns
- * 0, and `chromeConsumption` then hands that whole upward delta to [AppBarState.onScroll]
- * instead -- so the chrome overlay, drawer and focused field and live IME included, still
- * translates up and off with the bar. The field keeps its text, its focus and its full height
- * throughout, and one downward scroll brings it straight back.
+ * 0, so the whole upward delta reaches the list, and `chromeFollow` then takes the chrome overlay
+ * -- drawer and focused field and live IME included -- up and off with it. The field keeps its
+ * text, its focus and its full height throughout, and one downward scroll brings it straight
+ * back.
  */
 @Stable
 class SearchRevealState(initialMaxPx: Float = 0f) {

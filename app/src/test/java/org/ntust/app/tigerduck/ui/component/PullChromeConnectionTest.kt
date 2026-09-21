@@ -67,6 +67,13 @@ class PullChromeConnectionTest {
 
         fun scroll(delta: Float, source: NestedScrollSource = NestedScrollSource.UserInput): Offset =
             connection.onPreScroll(Offset(0f, delta), source)
+
+        /** What the list reports after its own turn: [consumed] it moved, [available] it could not. */
+        fun afterList(
+            consumed: Float,
+            available: Float = 0f,
+            source: NestedScrollSource = NestedScrollSource.UserInput,
+        ): Offset = connection.onPostScroll(Offset(0f, consumed), Offset(0f, available), source)
     }
 
     private fun bar(height: Float = 200f) = AppBarState().apply { heightPx = height }
@@ -121,19 +128,20 @@ class PullChromeConnectionTest {
         assertEquals(0f, rig.dragY.value, 0.01f)
 
         // Upward, during a fling: the pull is left alone -- but the bar deliberately still
-        // tracks it, which is what keeps the header with a list that is still travelling.
+        // follows the list, which is what keeps the header with content that is still travelling.
         rig.dragY.snapTo(80f)
         val used = rig.scroll(-30f, NestedScrollSource.SideEffect)
+        rig.afterList(consumed = -30f, source = NestedScrollSource.SideEffect)
         advanceUntilIdle()
         assertEquals(80f, rig.dragY.value, 0.01f)
+        assertEquals(0f, used.y, 0.01f)
         assertEquals(-30f, appBar.offsetPx, 0.01f)
-        assertEquals(-30f, used.y, 0.01f)
     }
 
     // --- the unwind order --------------------------------------------------------------------
 
     @Test
-    fun `an upward scroll unwinds the pull, then the drawer, then the bar`() = runTest {
+    fun `an upward scroll unwinds the pull, then the drawer, then moves the list and bar together`() = runTest {
         // LIFO: the pull is the last thing the finger raised, so it is the first thing given
         // back. Draining the drawer first would make the gesture irreversible -- the field would
         // shut while the content still hung below the bar.
@@ -146,10 +154,45 @@ class PullChromeConnectionTest {
         val used = rig.scroll(-120f)
         advanceUntilIdle()
 
-        assertEquals(-120f, used.y, 0.01f)
+        assertEquals(-96f, used.y, 0.01f)
         assertEquals(0f, rig.dragY.value, 0.01f)     // the first 40
         assertEquals(0f, open.revealPx, 0.01f)       // the next 56
-        assertEquals(-24f, appBar.offsetPx, 0.01f)   // and the last 24
+        assertEquals(0f, appBar.offsetPx, 0.01f)     // the bar waits for the list
+
+        rig.afterList(consumed = -24f)               // which scrolls the last 24
+        assertEquals(-24f, appBar.offsetPx, 0.01f)   // and the bar goes with it
+    }
+
+    // --- the bar follows the content, and only the content ---------------------------------
+
+    @Test
+    fun `an upward drag on a page that cannot scroll leaves the bar put`() = runTest {
+        // An empty page: the finger travels, the list has nothing to move, so neither does the bar.
+        val appBar = bar()
+        val rig = Rig(this, appBar = appBar)
+        rig.fingerDown.value = true
+
+        assertEquals(0f, rig.scroll(-80f).y, 0.01f)
+        rig.afterList(consumed = 0f, available = -80f)
+        advanceUntilIdle()
+
+        assertEquals(0f, appBar.offsetPx, 0.01f)
+    }
+
+    @Test
+    fun `at the end of the list the bar stops when the content does`() = runTest {
+        // Ten pixels of list left and a fifty pixel drag: the bar goes ten and no further.
+        val appBar = bar()
+        val rig = Rig(this, appBar = appBar)
+        rig.fingerDown.value = true
+
+        rig.scroll(-50f)
+        rig.afterList(consumed = -10f, available = -40f)
+        rig.scroll(-50f)
+        rig.afterList(consumed = 0f, available = -50f)
+        advanceUntilIdle()
+
+        assertEquals(-10f, appBar.offsetPx, 0.01f)
     }
 
     @Test

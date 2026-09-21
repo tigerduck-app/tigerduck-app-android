@@ -321,12 +321,10 @@ internal class PullChromeConnection(
             }
             used += consumed
         }
-        // Then the optional chrome takes its share of whatever is left over -- and it
-        // takes it from a fling too, deliberately, where the pull above does not. The bar
-        // has to keep tracking content that is still moving: settled at the lift instead,
-        // a quick flick that had hidden it a third of the way would spring the header
-        // back down over a list still travelling hundreds of pixels. It comes to rest in
-        // onPostFling, when the scrolling has actually stopped.
+        // Then the optional chrome takes its share of whatever is left over: an open
+        // drawer shuts on the way up, and the bar comes back on the way down, both before
+        // the list moves. Hiding the bar is not in here -- it waits for onPostScroll, to
+        // move only as far as the list actually did.
         //
         // With both null this returns 0 and `used` is exactly what the block above
         // produced, which is exactly what this returned before any of it existed.
@@ -339,6 +337,13 @@ internal class PullChromeConnection(
         available: Offset,
         source: NestedScrollSource,
     ): Offset {
+        // The bar hides by what the list scrolled and not a pixel more, so a list at its
+        // end, or an empty page with nothing to scroll, leaves it where it is. From a fling
+        // too, deliberately, where the pull below does not: the bar has to keep tracking
+        // content that is still moving, or a flick that had hidden it a third of the way
+        // would spring the header back down over a list still travelling hundreds of
+        // pixels. It comes to rest in onPostFling, once the scrolling has actually stopped.
+        chromeFollow(consumed.y, appBar)
         if (source != NestedScrollSource.UserInput) return Offset.Zero
         if (!fingerDown.value) return Offset.Zero
         if (available.y > 0f) {
@@ -456,11 +461,14 @@ internal class PullChromeConnection(
 }
 
 /**
- * How much of [availableY] the optional chrome takes, on top of the [alreadyUsed] the refresh
- * pull already took. Returns the *additional* amount, with the same sign as [availableY] and
- * never more than what is left — so a caller can report the sum as consumed and the list still
- * receives every pixel nobody claimed. With no chrome at all it returns 0, which is what keeps
- * the four screens that pass neither exactly where they were.
+ * How much of [availableY] the optional chrome takes before the list moves, on top of the
+ * [alreadyUsed] the refresh pull already took. Returns the *additional* amount, with the same
+ * sign as [availableY] and never more than what is left — so a caller can report the sum as
+ * consumed and the list still receives every pixel nobody claimed. With no chrome at all it
+ * returns 0, which is what keeps the four screens that pass neither exactly where they were.
+ *
+ * On the way up only the drawer takes anything: the bar hides after the list has moved, in
+ * [chromeFollow], so a list that cannot move cannot hide it.
  */
 internal fun chromeConsumption(
     availableY: Float,
@@ -470,14 +478,22 @@ internal fun chromeConsumption(
 ): Float {
     var used = 0f
     if (availableY < 0f) {
-        // Scrolling up: close the drawer first, then hide the bar.
+        // Scrolling up: close the drawer. The bar follows the list afterwards.
         searchReveal?.let { used += it.consume(availableY - alreadyUsed - used) }
-        appBar?.let { used += it.onScroll(availableY - alreadyUsed - used) }
     } else if (availableY > 0f) {
         // Scrolling down anywhere: the bar comes back before the list moves.
         appBar?.let { used += it.onScroll(availableY - alreadyUsed - used) }
     }
     return used
+}
+
+/**
+ * Hides the bar by the [consumedY] the list itself scrolled, once it has. Only ever upward:
+ * bringing the bar back is [chromeConsumption]'s job, before the list moves, so that any
+ * downward scroll reveals it wherever the list happens to be.
+ */
+internal fun chromeFollow(consumedY: Float, appBar: AppBarState?) {
+    if (consumedY < 0f) appBar?.onScroll(consumedY)
 }
 
 /**
