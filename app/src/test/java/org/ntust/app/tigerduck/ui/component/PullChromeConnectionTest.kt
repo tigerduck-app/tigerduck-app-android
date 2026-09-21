@@ -3,6 +3,7 @@
 package org.ntust.app.tigerduck.ui.component
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -41,6 +42,7 @@ class PullChromeConnectionTest {
     ) {
         val dragY = Animatable(0f)
         val fingerDown = mutableStateOf(false)
+        val gesture = mutableIntStateOf(0)
         val isUserPulling = mutableStateOf(false)
         val releaseHandledByFling = mutableStateOf(false)
         var refreshing = false
@@ -50,6 +52,7 @@ class PullChromeConnectionTest {
         val connection = PullChromeConnection(
             dragY = dragY,
             fingerDown = fingerDown,
+            gesture = gesture,
             isUserPulling = isUserPulling,
             releaseHandledByFling = releaseHandledByFling,
             thresholdPx = thresholdPx,
@@ -61,6 +64,13 @@ class PullChromeConnectionTest {
             onRefresh = { refreshCalls++ },
             onThresholdHaptic = { hapticCalls++ },
         )
+
+        /** A finger lifts and comes down again: what the composable's pointer handler reports. */
+        fun newTouch() {
+            fingerDown.value = false
+            gesture.intValue++
+            fingerDown.value = true
+        }
 
         fun pull(delta: Float, source: NestedScrollSource = NestedScrollSource.UserInput): Offset =
             connection.onPostScroll(Offset.Zero, Offset(0f, delta), source)
@@ -245,21 +255,67 @@ class PullChromeConnectionTest {
     // --- the drawer-first split ----------------------------------------------------------------
 
     @Test
-    fun `at the top the drawer fills before any of it arms the refresh`() = runTest {
-        // The staged gesture: a short pull opens search, a longer one goes on to arm a refresh.
+    fun `a first pull only opens the drawer, however far it goes`() = runTest {
         val open = drawer()
         val rig = Rig(this, drawer = open)
-        rig.fingerDown.value = true
+        rig.newTouch()
 
         assertEquals(40f, rig.pull(40f).y, 0.01f)
         advanceUntilIdle()
         assertEquals(40f, open.revealPx, 0.01f)
-        assertEquals(0f, rig.dragY.value, 0.01f)
 
-        assertEquals(40f, rig.pull(40f).y, 0.01f)
+        // Well past the drawer and past the refresh threshold: all of it swallowed.
+        for (i in 1..10) assertEquals(40f, rig.pull(40f).y, 0.01f)
         advanceUntilIdle()
-        assertEquals(56f, open.revealPx, 0.01f)      // the drawer takes the 16 it had left
-        assertEquals(24f, rig.dragY.value, 0.01f)    // and the rest goes to the pull
+        assertEquals(56f, open.revealPx, 0.01f)
+        assertEquals(0f, rig.dragY.value, 0.01f)
+        assertFalse(rig.isUserPulling.value)
+        assertEquals(0, rig.hapticCalls)
+    }
+
+    @Test
+    fun `a second pull, with the drawer open, arms the refresh`() = runTest {
+        val open = drawer()
+        val rig = Rig(this, drawer = open)
+        rig.newTouch()
+        rig.pull(80f)
+        advanceUntilIdle()
+
+        rig.newTouch()
+        rig.pull(120f)
+        advanceUntilIdle()
+
+        assertEquals(56f, open.revealPx, 0.01f)
+        assertTrue(rig.dragY.value > 0f)
+        assertTrue(rig.connection.crossedThreshold)
+        assertEquals(1, rig.hapticCalls)
+    }
+
+    @Test
+    fun `a pull that left the drawer part way is still a drawer pull next time`() = runTest {
+        // Short of half way the drawer settles shut, so the next pull is for search again.
+        val open = drawer(open = 20f)
+        val rig = Rig(this, drawer = open)
+        rig.newTouch()
+
+        rig.pull(200f)
+        advanceUntilIdle()
+
+        assertEquals(0f, rig.dragY.value, 0.01f)
+        assertEquals(56f, open.revealPx, 0.01f)
+    }
+
+    @Test
+    fun `a pinned drawer is already open, so the pull goes to the refresh`() = runTest {
+        // A focused field, or one holding a search: the drawer is where it belongs already.
+        val open = drawer().apply { pinned = true }
+        val rig = Rig(this, drawer = open)
+        rig.newTouch()
+
+        rig.pull(60f)
+        advanceUntilIdle()
+
+        assertEquals(60f, rig.dragY.value, 0.01f)
     }
 
     @Test

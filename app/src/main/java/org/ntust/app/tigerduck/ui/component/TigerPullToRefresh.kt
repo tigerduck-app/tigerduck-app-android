@@ -10,11 +10,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.IntState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -82,7 +84,11 @@ fun TigerPullToRefresh(
     refreshingMessage: String? = null,
     /** Optional hiding page chrome; null leaves scrolling exactly as it was. */
     appBar: AppBarState? = null,
-    /** Optional search drawer that opens before the refresh pull; null leaves overscroll as it was. */
+    /**
+     * Optional search drawer. A pull that starts with it shut only opens it, however far it goes;
+     * the refresh takes a second pull, with the drawer already open. Null leaves overscroll as it
+     * was.
+     */
     searchReveal: SearchRevealState? = null,
     content: @Composable () -> Unit,
 ) {
@@ -120,6 +126,10 @@ fun TigerPullToRefresh(
     // previously strand the list translated down with no gesture able to bring it back.
     val fingerDown = remember { mutableStateOf(false) }
 
+    // Counts touches, so the connection can tell one pull from the next: whether a pull opens the
+    // search drawer or arms a refresh is decided once per gesture, not per frame.
+    val gesture = remember { mutableIntStateOf(0) }
+
     // Set by onPreFling, read by the release effect below. A release that ends in a fling is
     // already rebounded there, and a second animateTo on the same Animatable would cancel the
     // first mid-flight — taking the rest of onPreFling down with it, crossedThreshold and the
@@ -146,6 +156,7 @@ fun TigerPullToRefresh(
         PullChromeConnection(
             dragY = dragY,
             fingerDown = fingerDown,
+            gesture = gesture,
             isUserPulling = isUserPulling,
             releaseHandledByFling = releaseHandledByFling,
             thresholdPx = thresholdPx,
@@ -220,6 +231,7 @@ fun TigerPullToRefresh(
                             val event = awaitPointerEvent(PointerEventPass.Initial)
                             val pressed = event.changes.any { it.pressed }
                             if (pressed) releaseHandledByFling.value = false
+                            if (pressed && !fingerDown.value) gesture.intValue++
                             fingerDown.value = pressed
                         }
                     }
@@ -273,6 +285,8 @@ fun TigerPullToRefresh(
 internal class PullChromeConnection(
     private val dragY: Animatable<Float, AnimationVector1D>,
     private val fingerDown: MutableState<Boolean>,
+    /** Bumped on every touch-down; see [pullOpensDrawerOnly]. */
+    private val gesture: IntState,
     private val isUserPulling: MutableState<Boolean>,
     private val releaseHandledByFling: MutableState<Boolean>,
     private val thresholdPx: Float,
@@ -285,6 +299,24 @@ internal class PullChromeConnection(
     private val onThresholdHaptic: () -> Unit,
 ) : NestedScrollConnection {
     var crossedThreshold = false
+
+    private var decidedGesture = -1
+    private var decidedDrawerOnly = false
+
+    /**
+     * Whether this gesture's pull at the top is for the search drawer rather than the refresh:
+     * decided at its first overscroll, from whether the drawer was shut then, and held for the
+     * rest of the gesture. Holding it is the point -- a pull that has just filled the drawer would
+     * otherwise find it open and go straight on to a refresh nobody asked for.
+     */
+    private fun pullOpensDrawerOnly(): Boolean {
+        val current = gesture.intValue
+        if (current != decidedGesture) {
+            decidedGesture = current
+            decidedDrawerOnly = searchReveal != null && searchReveal.revealPx < searchReveal.maxPx
+        }
+        return decidedDrawerOnly
+    }
 
     /** The settle currently running, for the next scroll to take the chrome back from. */
     var settleJob: Job? = null
@@ -347,10 +379,14 @@ internal class PullChromeConnection(
         if (source != NestedScrollSource.UserInput) return Offset.Zero
         if (!fingerDown.value) return Offset.Zero
         if (available.y > 0f) {
-            // The list is at the top and still being pulled. The drawer gets the first
-            // bite; only what it cannot hold goes on to arm a refresh.
+            // The list is at the top and still being pulled. A pull that began with the
+            // drawer shut is for the drawer alone: it opens, and the rest of the pull goes
+            // nowhere, however long it runs. Only a new pull, with the drawer already open,
+            // arms a refresh.
             var used = 0f
+            val drawerOnly = pullOpensDrawerOnly()
             searchReveal?.let { used += it.consume(available.y) }
+            if (drawerOnly) return Offset(0f, available.y)
             val remaining = available.y - used
             val delta = dampDelta(remaining, dragY.value, thresholdPx)
             val newY = (dragY.value + delta).coerceIn(0f, maxPx)

@@ -146,9 +146,9 @@ fun rememberAppBarState(): AppBarState = remember { AppBarState() }
 /**
  * How far the search drawer is open, 0..[maxPx].
  *
- * Overscroll at the very top fills this *before* any of it reaches the refresh pull, which is what
- * gives the staged gesture the iOS search drawer has: a short pull opens search, a longer one goes
- * on to arm a refresh. `TigerPullToRefresh` owns that hand-off.
+ * Overscroll at the very top fills this, and a pull that starts with it shut does nothing else:
+ * however far it goes, it only opens search. Refreshing takes a second pull, made with the drawer
+ * already open. `TigerPullToRefresh` owns that split.
  *
  * [pinned] holds [revealPx] at [maxPx] while the field is focused or carries text, so no scroll
  * can shut the drawer under someone mid-edit.
