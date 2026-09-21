@@ -113,6 +113,7 @@ fun AnnouncementsScreen(
     val listState = rememberLazyListState()
     val isLoading = state.loadState is AnnouncementsViewModel.LoadState.Loading
     val appBar = rememberAppBarState()
+    val chromeScope = rememberCoroutineScope()
     LaunchedEffect(state.unreadOnly, state.selectedOrgs, state.selectedTags, state.searchText) {
         // The bar first, then the jump. `scrollToItem` does not dispatch a single nested-scroll
         // delta, so a bar left part way up by the scroll that preceded the filter tap would stay
@@ -198,7 +199,15 @@ fun AnnouncementsScreen(
                     // hide it whenever the list is near its top.
                     modifier = Modifier
                         .fillMaxSize()
-                        .scrollbar(listState) { appBar.heightPx + appBar.offsetPx },
+                        .scrollbar(
+                            listState,
+                            topInsetPx = { appBar.heightPx + appBar.offsetPx },
+                            // A fast scroll moves the list without a nested-scroll delta, so a bar it
+                            // left hidden over the very top would uncover bare content padding.
+                            onFastScrollStopped = {
+                                if (!listState.canScrollBackward) chromeScope.launch { appBar.snapToRest() }
+                            },
+                        ),
                     // The chrome is a sibling overlay now rather than the first
                     // item, so the list keeps the room for it here instead. The
                     // overlay translates away on scroll while this padding stays

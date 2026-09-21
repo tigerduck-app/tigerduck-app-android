@@ -4,8 +4,11 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScrollbarTest {
@@ -99,5 +102,66 @@ class ScrollbarTest {
     fun `an empty list shows no thumb`() {
         val info = Layout(emptyList(), totalItemsCount = 0, viewport = 1000)
         assertNull(lazyListScrollbarThumb(info, canScrollBackward = false, canScrollForward = true))
+    }
+
+    // --- fast scroll ---------------------------------------------------------------------------
+
+    @Test
+    fun `the thumb centres under the finger and stops at both ends`() {
+        // A 1000 px track from 200 down, with a 100 px thumb: 900 px of travel.
+        assertEquals(0f, fastScrollFraction(y = 250f, trackTop = 200f, track = 1000f, thumbHeight = 100f), 0.001f)
+        assertEquals(0.5f, fastScrollFraction(y = 700f, trackTop = 200f, track = 1000f, thumbHeight = 100f), 0.001f)
+        assertEquals(1f, fastScrollFraction(y = 1150f, trackTop = 200f, track = 1000f, thumbHeight = 100f), 0.001f)
+        // Above the track and below it: clamped rather than scrolling past either end.
+        assertEquals(0f, fastScrollFraction(y = 0f, trackTop = 200f, track = 1000f, thumbHeight = 100f), 0.001f)
+        assertEquals(1f, fastScrollFraction(y = 5000f, trackTop = 200f, track = 1000f, thumbHeight = 100f), 0.001f)
+    }
+
+    @Test
+    fun `a thumb that fills its track has nowhere to go`() {
+        assertEquals(0f, fastScrollFraction(y = 500f, trackTop = 0f, track = 400f, thumbHeight = 400f), 0.001f)
+    }
+
+    @Test
+    fun `half way down the track lands half way down the list`() {
+        // 100 rows of 100 px, 1000 on screen: 9000 px to scroll, so the middle is 4500 -- row 45.
+        val info = Layout(rows(0, 10, 100), totalItemsCount = 100, viewport = 1000)
+        assertEquals(45 to 0, fastScrollTarget(0.5f, averageItem = 100f, info = info))
+        assertEquals(0 to 0, fastScrollTarget(0f, averageItem = 100f, info = info))
+    }
+
+    @Test
+    fun `a target part way into a row keeps the remainder as its offset`() {
+        val info = Layout(rows(0, 10, 100), totalItemsCount = 100, viewport = 1000)
+        assertEquals(45 to 90, fastScrollTarget(4590f / 9000f, averageItem = 100f, info = info))
+    }
+
+    @Test
+    fun `the bottom of the track asks for the last row outright`() {
+        // The list clamps that to its true end, wherever the estimate put it.
+        val info = Layout(rows(0, 10, 100), totalItemsCount = 100, viewport = 1000)
+        assertEquals(99 to 0, fastScrollTarget(1f, averageItem = 100f, info = info))
+    }
+
+    @Test
+    fun `fast scrolling an empty list goes nowhere`() {
+        val info = Layout(emptyList(), totalItemsCount = 0, viewport = 1000)
+        assertEquals(0 to 0, fastScrollTarget(0.7f, averageItem = 100f, info = info))
+    }
+
+    @Test
+    fun `only the trailing edge takes hold, on whichever side that is`() {
+        assertTrue(isOnTrailingEdge(x = 1070f, width = 1080f, edge = 60f, direction = LayoutDirection.Ltr))
+        assertFalse(isOnTrailingEdge(x = 1000f, width = 1080f, edge = 60f, direction = LayoutDirection.Ltr))
+        assertFalse(isOnTrailingEdge(x = 10f, width = 1080f, edge = 60f, direction = LayoutDirection.Ltr))
+        assertTrue(isOnTrailingEdge(x = 10f, width = 1080f, edge = 60f, direction = LayoutDirection.Rtl))
+        assertFalse(isOnTrailingEdge(x = 1070f, width = 1080f, edge = 60f, direction = LayoutDirection.Rtl))
+    }
+
+    @Test
+    fun `the average row height counts the spacing between rows`() {
+        // Three 100 px rows 10 px apart span 320 px: 106.7 each.
+        val spaced = listOf(Item(0, 0, 100), Item(1, 110, 100), Item(2, 220, 100))
+        assertEquals(320f / 3f, averageItemPx(Layout(spaced, totalItemsCount = 50, viewport = 1000))!!, 0.01f)
     }
 }

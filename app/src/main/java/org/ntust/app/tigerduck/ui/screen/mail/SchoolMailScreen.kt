@@ -225,6 +225,7 @@ fun SchoolMailScreen(
     }
 
     val appBar = rememberAppBarState()
+    val chromeScope = rememberCoroutineScope()
     val chromePadding = rememberChromeContentPadding(appBar)
     val searchReveal = rememberSearchRevealState()
     var searchFocused by remember { mutableStateOf(false) }
@@ -252,7 +253,15 @@ fun SchoolMailScreen(
                 // it whenever the list is near its top.
                 modifier = Modifier
                     .fillMaxSize()
-                    .scrollbar(listState) { appBar.heightPx + appBar.offsetPx },
+                    .scrollbar(
+                        listState,
+                        topInsetPx = { appBar.heightPx + appBar.offsetPx },
+                        // A fast scroll moves the list without a nested-scroll delta, so a bar it
+                        // left hidden over the very top would uncover bare content padding.
+                        onFastScrollStopped = {
+                            if (!listState.canScrollBackward) chromeScope.launch { appBar.snapToRest() }
+                        },
+                    ),
                 // The chrome is a sibling overlay now rather than the first item, so the list
                 // keeps the room for it here instead. The overlay translates away on scroll
                 // while this padding stays put, which is what lets the rows travel up under it.
