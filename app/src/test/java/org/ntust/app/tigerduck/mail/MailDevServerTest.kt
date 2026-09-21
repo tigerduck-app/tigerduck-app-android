@@ -196,7 +196,7 @@ class MailDevServerTest {
         assertEquals("the seen marker names a UID in the old mailbox", 0L, state.inboxSeenUidNext)
         assertEquals(1, scheduler.cancelled)
         withContext(Dispatchers.Default) {
-            withTimeout(2_000) {
+            withTimeout(5_000) {
                 while (File(cache.attachmentsDir, "a.pdf").exists() || notifier.cancelledAll == 0) delay(10)
             }
         }

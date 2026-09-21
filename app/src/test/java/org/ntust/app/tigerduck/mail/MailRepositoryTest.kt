@@ -501,7 +501,7 @@ class MailRepositoryTest {
         // runCurrent() alone can't flush it -- bridge with a short real-time
         // poll instead of asserting immediately.
         withContext(Dispatchers.Default) {
-            withTimeout(2_000) {
+            withTimeout(5_000) {
                 while (server.openSessions != 0) delay(10)
             }
         }

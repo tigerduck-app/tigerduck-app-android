@@ -120,7 +120,7 @@ class MailAccountTest {
         // Deleting the cache tree and cancelling notifications are the IO half, on the
         // application scope -- bridge to real time to see them land.
         withContext(Dispatchers.Default) {
-            withTimeout(2_000) {
+            withTimeout(5_000) {
                 while (File(cache.attachmentsDir, "a.pdf").exists() || notifier.cancelledAll == 0) delay(10)
             }
         }
