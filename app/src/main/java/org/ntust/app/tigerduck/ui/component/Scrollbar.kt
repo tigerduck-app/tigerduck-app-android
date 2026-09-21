@@ -59,6 +59,10 @@ internal data class ScrollbarThumb(val offset: Float, val size: Float)
  * A thin scroll indicator on the trailing edge of a [verticalScroll][androidx.compose.foundation.verticalScroll]
  * container. It shows while the content moves and fades once it stops, and never appears for
  * content that fits. A long press on the edge takes hold of it for fast scrolling.
+ *
+ * Goes *before* `verticalScroll` in the chain, so it draws over the viewport. After it, it would
+ * be laid out and drawn inside the scrolled content, the whole content's height tall and moving
+ * with it.
  */
 @Composable
 fun Modifier.scrollbar(state: ScrollState): Modifier {
@@ -101,8 +105,10 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
 }
 
 /**
- * The same indicator for a `LazyColumn`, whose full height is never measured: it is estimated
- * from the rows on screen, which is close enough for a thumb that only says where you are.
+ * The same indicator for a `LazyColumn`, whose full height is never measured. It is estimated:
+ * every row keeps the height it had when last laid out, and only rows never yet on screen are
+ * guessed at, from the average of the ones that were. A message -- a short header over one very
+ * tall body -- is exact after its first frame; a long list converges as it is scrolled.
  *
  * A long press on the trailing edge takes hold of it: the thumb widens into the accent colour and
  * the list jumps to wherever the finger is along the track, until it lifts.
@@ -126,6 +132,7 @@ fun Modifier.scrollbar(
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     val direction = LocalLayoutDirection.current
+    val sizes = remember(state) { ItemSizes() }
     val latestTopInset by rememberUpdatedState(topInsetPx)
     val latestOnStopped by rememberUpdatedState(onFastScrollStopped)
     return this
@@ -139,20 +146,24 @@ fun Modifier.scrollbar(
                 if (down.position.y < latestTopInset().coerceIn(0f, height)) return@awaitEachGesture
                 if (!state.canScrollBackward && !state.canScrollForward) return@awaitEachGesture
                 if (!awaitLongPressInPlace(down)) return@awaitEachGesture
-                // Held for the whole drag: re-averaging on every move would let a stretch of tall
-                // rows coming on screen drag the list away under a finger that had not moved.
-                val averageItem = averageItemPx(state.layoutInfo) ?: return@awaitEachGesture
+                // The guess for unseen rows is held for the whole drag: re-averaging on every move
+                // would let a stretch of tall rows coming on screen drag the list away under a
+                // finger that had not moved.
+                sizes.record(state.layoutInfo)
+                val guess = sizes.average() ?: return@awaitEachGesture
+                val sizeOf = { index: Int -> sizes.of(index) ?: guess }
                 fastScrolling = true
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 try {
                     followFinger(down) { y ->
                         val info = state.layoutInfo
+                        sizes.record(info)
                         val trackTop = latestTopInset().coerceIn(0f, height)
                         val track = height - trackTop
-                        val thumb = lazyListScrollbarThumb(info, state.canScrollBackward, state.canScrollForward)
+                        val thumb = lazyListScrollbarThumb(info, state.canScrollBackward, state.canScrollForward, sizeOf)
                             ?: return@followFinger
                         val fraction = fastScrollFraction(y, trackTop, track, thumbHeightPx(track, thumb.size))
-                        val (index, offset) = fastScrollTarget(fraction, averageItem, info)
+                        val (index, offset) = fastScrollTarget(fraction, info, sizeOf)
                         scope.launch { state.scrollToItem(index, offset) }
                     }
                 } finally {
@@ -163,50 +174,88 @@ fun Modifier.scrollbar(
         }
         .drawWithContent {
             drawContent()
+            val info = state.layoutInfo
+            sizes.record(info)
+            val guess = sizes.average() ?: return@drawWithContent
             val thumb = lazyListScrollbarThumb(
-                state.layoutInfo,
+                info,
                 canScrollBackward = state.canScrollBackward,
                 canScrollForward = state.canScrollForward,
+                sizeOf = { sizes.of(it) ?: guess },
             ) ?: return@drawWithContent
             drawThumb(thumb, latestTopInset().coerceIn(0f, size.height), look)
         }
 }
 
 /**
- * Estimates the thumb from the visible rows: their average height, spacing included, stands in
- * for every row the list has not measured. Null when the list fits and there is nothing to show.
+ * The heights rows had when last laid out, by index, spacing included -- the estimate's memory.
+ *
+ * Forgotten whenever the list's length changes: a page appended, a filter applied. Indices then
+ * name other rows, and a stale height is worse than the average standing in until each row is
+ * seen again. Plain fields rather than snapshot state: it is written from the draw pass, and
+ * nothing should recompose or redraw because a height was remembered.
+ */
+internal class ItemSizes {
+    private var count = -1
+    private val sizes = HashMap<Int, Int>()
+
+    fun record(info: LazyListLayoutInfo) {
+        if (info.totalItemsCount != count) {
+            sizes.clear()
+            count = info.totalItemsCount
+        }
+        for (item in info.visibleItemsInfo) sizes[item.index] = item.size + info.mainAxisItemSpacing
+    }
+
+    fun of(index: Int): Float? = sizes[index]?.toFloat()
+
+    /** The stand-in for a row never laid out; null until anything has been. */
+    fun average(): Float? = if (sizes.isEmpty()) null else sizes.values.sum().toFloat() / sizes.size
+}
+
+/** The list's estimated full length and how far into it the viewport starts, both in px. */
+private class ListExtent(val content: Float, val scrolled: Float, val viewport: Float)
+
+private fun listExtent(info: LazyListLayoutInfo, sizeOf: (Int) -> Float): ListExtent? {
+    val first = info.visibleItemsInfo.firstOrNull() ?: return null
+    if (info.totalItemsCount <= 0) return null
+    var before = 0f
+    var rows = 0f
+    for (index in 0 until info.totalItemsCount) {
+        val size = sizeOf(index)
+        if (index < first.index) before += size
+        rows += size
+    }
+    return ListExtent(
+        content = info.beforeContentPadding + rows + info.afterContentPadding,
+        scrolled = info.beforeContentPadding + before - first.offset + info.viewportStartOffset,
+        viewport = (info.viewportEndOffset - info.viewportStartOffset).toFloat(),
+    )
+}
+
+/**
+ * Where the thumb sits, from [sizeOf]'s height for every row. Null when the list fits and there
+ * is nothing to show.
  *
  * The two ends are taken from the list rather than the estimate, so the thumb reaches the very
- * top and bottom of its track exactly when the list does, however uneven the rows are.
+ * top and bottom of its track exactly when the list does, however rough the guesses are.
  */
 internal fun lazyListScrollbarThumb(
     info: LazyListLayoutInfo,
     canScrollBackward: Boolean,
     canScrollForward: Boolean,
+    sizeOf: (Int) -> Float,
 ): ScrollbarThumb? {
     if (!canScrollBackward && !canScrollForward) return null
-    val averageItem = averageItemPx(info) ?: return null
-    val viewport = (info.viewportEndOffset - info.viewportStartOffset).toFloat()
-    val content = info.beforeContentPadding + averageItem * info.totalItemsCount + info.afterContentPadding
-    val maxScroll = content - viewport
-    if (maxScroll <= 0f || viewport <= 0f) return null
-    val first = info.visibleItemsInfo.first()
-    val scrolled = info.beforeContentPadding + first.index * averageItem - first.offset + info.viewportStartOffset
+    val extent = listExtent(info, sizeOf) ?: return null
+    val maxScroll = extent.content - extent.viewport
+    if (maxScroll <= 0f || extent.viewport <= 0f) return null
     val offset = when {
         !canScrollBackward -> 0f
         !canScrollForward -> 1f
-        else -> (scrolled / maxScroll).coerceIn(0f, 1f)
+        else -> (extent.scrolled / maxScroll).coerceIn(0f, 1f)
     }
-    return ScrollbarThumb(offset = offset, size = (viewport / content).coerceIn(0f, 1f))
-}
-
-/** The visible rows' average height, spacing included; null with nothing on screen to measure. */
-internal fun averageItemPx(info: LazyListLayoutInfo): Float? {
-    val visible = info.visibleItemsInfo
-    if (visible.isEmpty() || info.totalItemsCount <= 0) return null
-    val first = visible.first()
-    val last = visible.last()
-    return ((last.offset + last.size - first.offset).toFloat() / visible.size).takeIf { it > 0f }
+    return ScrollbarThumb(offset = offset, size = (extent.viewport / extent.content).coerceIn(0f, 1f))
 }
 
 /**
@@ -220,20 +269,24 @@ internal fun fastScrollFraction(y: Float, trackTop: Float, track: Float, thumbHe
 }
 
 /**
- * The row and offset within it that put the list [fraction] of the way down, by the same estimate
- * the thumb is drawn from. The bottom asks for the last row outright, which the list clamps to its
- * true end rather than to wherever the estimate says the end is.
+ * The row, and the offset into it, that put the list [fraction] of the way down by the same
+ * heights the thumb is drawn from. The bottom asks for the last row outright, which the list
+ * clamps to its true end rather than to wherever the estimate says the end is.
  */
-internal fun fastScrollTarget(fraction: Float, averageItem: Float, info: LazyListLayoutInfo): Pair<Int, Int> {
+internal fun fastScrollTarget(fraction: Float, info: LazyListLayoutInfo, sizeOf: (Int) -> Float): Pair<Int, Int> {
     val total = info.totalItemsCount
-    if (total <= 0 || averageItem <= 0f) return 0 to 0
+    if (total <= 0) return 0 to 0
     if (fraction >= 1f) return (total - 1) to 0
-    val viewport = (info.viewportEndOffset - info.viewportStartOffset).toFloat()
-    val content = info.beforeContentPadding + averageItem * total + info.afterContentPadding
-    val target = fraction.coerceAtLeast(0f) * (content - viewport).coerceAtLeast(0f)
-    val index = (target / averageItem).toInt().coerceIn(0, total - 1)
-    val offset = (target - index * averageItem).roundToInt().coerceAtLeast(0)
-    return index to offset
+    val extent = listExtent(info, sizeOf) ?: return 0 to 0
+    // Scroll 0 puts row 0 at the top of the content, below the leading padding, so the target is
+    // measured in rows alone.
+    var remaining = fraction.coerceAtLeast(0f) * (extent.content - extent.viewport).coerceAtLeast(0f)
+    for (index in 0 until total) {
+        val size = sizeOf(index)
+        if (remaining < size) return index to remaining.roundToInt()
+        remaining -= size
+    }
+    return (total - 1) to 0
 }
 
 internal fun isOnTrailingEdge(x: Float, width: Float, edge: Float, direction: LayoutDirection): Boolean =
@@ -278,7 +331,10 @@ private fun scrollbarLook(scrolling: Boolean, fastScrolling: Boolean): Scrollbar
     val shown = scrolling || fastScrolling
     val alpha = animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
-        animationSpec = tween(durationMillis = if (shown) 150 else 500),
+        // Twice as long to go as it used to take: held for half a second, then faded over the
+        // next. The hold is what leaves time to long-press it -- a slower fade alone spends most
+        // of its change in the first few frames, so the thumb looked gone almost as soon.
+        animationSpec = if (shown) tween(durationMillis = 150) else tween(durationMillis = 500, delayMillis = 500),
         label = "scrollbar_alpha",
     )
     val width = animateDpAsState(

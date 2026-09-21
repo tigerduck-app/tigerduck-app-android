@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -89,6 +90,7 @@ import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
+import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
@@ -253,8 +255,10 @@ fun SchoolMailMessageScreen(
                 val sourceChunks = remember(state.source) {
                     state.source?.lines()?.chunked(SOURCE_CHUNK_LINES)?.map { it.joinToString("\n") }
                 }
+                val listState = rememberLazyListState()
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(padding),
+                    state = listState,
+                    modifier = Modifier.fillMaxSize().padding(padding).scrollbar(listState),
                     contentPadding = PaddingValues(bottom = 32.dp),
                 ) {
                     item(key = "header") { MessageHeader(content.summary, viewModel.mailDomain) }

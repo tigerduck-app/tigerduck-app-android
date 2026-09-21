@@ -170,8 +170,8 @@ fun LanguagePickerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(scrollState)
                 .scrollbar(scrollState)
+                .verticalScroll(scrollState)
                 .padding(top = 4.dp, bottom = 32.dp),
         ) {
             Text(
