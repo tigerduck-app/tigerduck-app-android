@@ -609,6 +609,9 @@ fun SettingsScreen(
                                     .fillMaxWidth()
                                     .combinedClickable(
                                         onClick = { },
+                                        // The app vibrates for this long press itself, through the Vibration setting;
+                                        // Compose's own buzz would land on top of it and ignore that setting.
+                                        hapticFeedbackEnabled = false,
                                         onLongClick = {
                                             Haptics.perform(
                                                 context,

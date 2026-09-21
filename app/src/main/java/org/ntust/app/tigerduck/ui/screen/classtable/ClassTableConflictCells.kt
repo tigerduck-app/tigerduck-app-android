@@ -187,6 +187,9 @@ internal fun ConflictCourseCell(
                                 periodId
                             )
                         },
+                        // The app vibrates for this long press itself, through the Vibration setting;
+                        // Compose's own buzz would land on top of it and ignore that setting.
+                        hapticFeedbackEnabled = false,
                         onLongClick = { onLongPress(); showMenu = true },
                     ),
             ) {
@@ -240,6 +243,9 @@ internal fun ConflictCourseCell(
                                 periodId
                             )
                         },
+                        // The app vibrates for this long press itself, through the Vibration setting;
+                        // Compose's own buzz would land on top of it and ignore that setting.
+                        hapticFeedbackEnabled = false,
                         onLongClick = { onLongPress(); showMenu = true },
                     ),
             ) {
@@ -374,6 +380,9 @@ internal fun MultiConflictCourseCell(
                         }
                         .combinedClickable(
                             onClick = { onSelect(member.course, member.firstPeriodId) },
+                            // The app vibrates for this long press itself, through the Vibration setting;
+                            // Compose's own buzz would land on top of it and ignore that setting.
+                            hapticFeedbackEnabled = false,
                             onLongClick = {
                                 onLongPress()
                                 menuForCourse = member.course
