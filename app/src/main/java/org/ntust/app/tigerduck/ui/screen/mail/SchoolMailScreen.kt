@@ -308,14 +308,28 @@ fun SchoolMailScreen(
                                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
                             )
                         }
-                        if (state.isPaginating || state.isSearching) {
-                            item(key = "spinner") {
+                        // The footer only ever follows real rows. While the first page is still on
+                        // its way there are none, and a footer alone at index 0 is the row
+                        // LazyColumn holds in place when the mail arrives above it -- which opened
+                        // the list scrolled to its end. A search still running over no rows yet
+                        // gets its spinner under a key of its own, gone once rows arrive, so the
+                        // list falls back to its first row instead.
+                        if (displayed.isNotEmpty()) {
+                            if (state.isPaginating || state.isSearching) {
+                                item(key = "spinner") {
+                                    Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator()
+                                    }
+                                }
+                            }
+                            item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+                        } else if (state.isSearching) {
+                            item(key = "searching") {
                                 Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                                     CircularProgressIndicator()
                                 }
                             }
                         }
-                        item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                     }
                 }
             }

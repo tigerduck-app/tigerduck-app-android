@@ -264,17 +264,22 @@ fun AnnouncementsScreen(
                                     ),
                                 )
                             }
-                            if (state.isPaginating) {
-                                item(key = "pagination-spinner") {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) { CircularProgressIndicator() }
+                            // The footer only ever follows real bulletins. On a first load there are
+                            // none yet, and a footer alone at index 0 is the row LazyColumn holds in
+                            // place when the bulletins arrive above it -- opening the list at its end.
+                            if (displayed.isNotEmpty()) {
+                                if (state.isPaginating) {
+                                    item(key = "pagination-spinner") {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 16.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) { CircularProgressIndicator() }
+                                    }
                                 }
+                                item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                             }
-                            item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                         }
                     }
                 }
