@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -124,22 +125,12 @@ fun AnnouncementsScreen(
         listState.scrollToItem(0)
     }
 
-    // Pagination trigger uses the LazyColumn index (not the bulletin id) so
-    // the lookup into `displayed` stays O(1) regardless of list length. The
-    // chrome is an overlay rather than an item now, so the bulletins start at
-    // index 0 and item index i is displayed[i]. We filter to Int-keyed items
-    // so spinner/spacer (String keys) don't drive the trigger.
-    val currentDisplayed by rememberUpdatedState(state.displayed)
     val currentOnLastVisible by rememberUpdatedState(viewModel::loadMoreIfNeeded)
     LaunchedEffect(listState) {
-        snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Int }?.index
-        }
+        snapshotFlow { listState.layoutInfo.lastVisibleBulletinId() }
             .filterNotNull()
             .distinctUntilChanged()
-            .collect { lastIndex ->
-                currentDisplayed.getOrNull(lastIndex)?.let(currentOnLastVisible)
-            }
+            .collect { id -> currentOnLastVisible(id) }
     }
 
     // Empty-state height = viewport - chrome. Both are measured via
@@ -790,3 +781,18 @@ private fun formatShortDate(raw: String): String {
         raw.substringBefore('T')
     }
 }
+
+/**
+ * The id of the last bulletin on screen, which is what asks for the next page.
+ *
+ * By the item's key, not by where the item sits in the list: a place in the list is not a place
+ * among the bulletins. The list carries a top anchor above them, and a header added later would
+ * move them again -- so reading `displayed[index]`, which this used to do, went one past the end
+ * of the bulletins exactly as the last of them came into view, found nothing, and never asked for
+ * the page that was due. The key *is* the id (`key = { it.id }`), so this is still the O(1) it was
+ * meant to be and is right whatever else the list puts above the bulletins. Picking out the Int
+ * keys is what passes over the anchor, the pagination spinner and the bottom spacer, which the
+ * list keys by String.
+ */
+internal fun LazyListLayoutInfo.lastVisibleBulletinId(): Int? =
+    visibleItemsInfo.lastOrNull { it.key is Int }?.key as? Int
