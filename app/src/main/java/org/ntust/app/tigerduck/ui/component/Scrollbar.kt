@@ -46,8 +46,11 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
 import kotlin.math.roundToInt
 
 private val ScrollbarWidth = 6.dp
@@ -69,6 +72,23 @@ private const val MinThumbPx = 40f
 private val FastScrollTouchWidth = 48.dp
 
 /**
+ * How wide a band at the edge counts as landing on the thumb itself rather than merely near it. A
+ * touch that lands there takes hold at once, with no holding still first, which is how the
+ * platform's own fast scrollers have always worked -- and the only way that is reliable, since a
+ * phone may report a finger as sliding for as long as its contact spreads: a Galaxy A26 reports
+ * 68 px in the first 11 ms and keeps going, which no test for a finger held still can tell from a
+ * slow scroll.
+ */
+private val ThumbGrabWidth = 24.dp
+
+/**
+ * How far above and below the thumb still counts as landing on it. Generous, because the thumb can
+ * be a short thing to aim a fingertip at on a long list, and because missing it drops back to the
+ * long press, which is the part that is unreliable at the very edge of a screen.
+ */
+private val ThumbGrabSlop = 24.dp
+
+/**
  * Where the thumb sits, as fractions of its track: [offset] 0 at the top and 1 at the bottom of
  * its travel, [size] the share of the track it covers.
  */
@@ -77,7 +97,8 @@ internal data class ScrollbarThumb(val offset: Float, val size: Float)
 /**
  * A thin scroll indicator on the trailing edge of a [verticalScroll][androidx.compose.foundation.verticalScroll]
  * container. It shows while the content moves and fades once it stops, and never appears for
- * content that fits. While it shows, a long press on the edge takes hold of it for fast scrolling.
+ * content that fits. While it shows, a touch on the thumb takes hold of it for fast scrolling at
+ * once, and a long press anywhere along the edge does too.
  *
  * Goes *before* `verticalScroll` in the chain, so it draws over the viewport. After it, it would
  * be laid out and drawn inside the scrolled content, the whole content's height tall and moving
@@ -95,17 +116,22 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                 if (look.alpha.value <= 0f || state.maxValue <= 0) return@awaitEachGesture
-                if (!isOnTrailingEdge(down.position.x, size.width.toFloat(), FastScrollTouchWidth.toPx(), direction)) {
+                val width = size.width.toFloat()
+                if (!isOnTrailingEdge(down.position.x, width, FastScrollTouchWidth.toPx(), direction)) {
                     return@awaitEachGesture
                 }
-                if (!awaitLongPressInPlace(down)) return@awaitEachGesture
+                val onThumb = isOnTrailingEdge(down.position.x, width, ThumbGrabWidth.toPx(), direction) &&
+                    scrollThumb(state, size.height.toFloat()).holds(down.position.y, ThumbGrabSlop.toPx())
+                if (!onThumb && !awaitLongPressInPlace(down)) return@awaitEachGesture
                 fastScrolling = true
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 // One session at UserInput for the whole drag -- see the LazyListState overload.
                 val targets = Channel<Int>(Channel.CONFLATED)
                 scope.launch {
-                    state.scroll(MutatePriority.UserInput) {
-                        for (target in targets) scrollBy((target - state.value).toFloat())
+                    holdTheScroll {
+                        state.scroll(MutatePriority.UserInput) {
+                            for (target in targets) scrollBy((target - state.value).toFloat())
+                        }
                     }
                 }
                 try {
@@ -143,8 +169,9 @@ private fun scrollThumb(state: ScrollState, height: Float): ThumbSpan? {
  * guessed at, from the average of the ones that were. A message -- a short header over one very
  * tall body -- is exact after its first frame; a long list converges as it is scrolled.
  *
- * While it shows, a long press on the trailing edge takes hold of it: the thumb widens into the
- * accent colour and the list jumps to wherever the finger is along the track, until it lifts.
+ * While it shows, a touch that lands on the thumb takes hold of it at once, and a long press
+ * anywhere along the trailing edge does too: the thumb widens into the accent colour and the list
+ * jumps to wherever the finger is along the track, until it lifts.
  *
  * [topInsetPx] keeps the track clear of anything drawn over the top of the list -- a page's
  * chrome overlay, which would otherwise hide the thumb whenever the list is near its top. Read
@@ -186,12 +213,15 @@ fun Modifier.scrollbar(
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                 if (look.alpha.value <= 0f) return@awaitEachGesture
                 val height = size.height.toFloat()
-                if (!isOnTrailingEdge(down.position.x, size.width.toFloat(), FastScrollTouchWidth.toPx(), direction)) {
+                val width = size.width.toFloat()
+                if (!isOnTrailingEdge(down.position.x, width, FastScrollTouchWidth.toPx(), direction)) {
                     return@awaitEachGesture
                 }
                 if (down.position.y < latestTopInset().coerceIn(0f, height)) return@awaitEachGesture
                 if (!state.canScrollBackward && !state.canScrollForward) return@awaitEachGesture
-                if (!awaitLongPressInPlace(down)) return@awaitEachGesture
+                val onThumb = isOnTrailingEdge(down.position.x, width, ThumbGrabWidth.toPx(), direction) &&
+                    thumbOf(height).holds(down.position.y, ThumbGrabSlop.toPx())
+                if (!onThumb && !awaitLongPressInPlace(down)) return@awaitEachGesture
                 // The guess for unseen rows is held for the whole drag: re-averaging on every move
                 // would let a stretch of tall rows coming on screen drag the list away under a
                 // finger that had not moved.
@@ -210,9 +240,11 @@ fun Modifier.scrollbar(
                 val targets = Channel<Pair<Int, Int>>(Channel.CONFLATED)
                 scope.launch {
                     try {
-                        state.scroll(MutatePriority.UserInput) {
-                            val rows = LazyLayoutScrollScope(state, this)
-                            for ((index, offset) in targets) rows.snapToItem(index, offset)
+                        holdTheScroll {
+                            state.scroll(MutatePriority.UserInput) {
+                                val rows = LazyLayoutScrollScope(state, this)
+                                for ((index, offset) in targets) rows.snapToItem(index, offset)
+                            }
                         }
                     } finally {
                         // After the last jump has landed, so it sees where the list really ended up.
@@ -347,6 +379,10 @@ internal fun fastScrollTarget(fraction: Float, info: LazyListLayoutInfo, sizeOf:
     return (total - 1) to 0
 }
 
+/** Whether [y] lands on this thumb, give or take [slop]. Nothing lands on a thumb that is not there. */
+internal fun ThumbSpan?.holds(y: Float, slop: Float): Boolean =
+    this != null && y >= top - slop && y <= top + height + slop
+
 internal fun isOnTrailingEdge(x: Float, width: Float, edge: Float, direction: LayoutDirection): Boolean =
     if (direction == LayoutDirection.Rtl) x <= edge else x >= width - edge
 
@@ -404,6 +440,28 @@ private suspend fun AwaitPointerEventScope.followFinger(down: PointerInputChange
         change.consume()
         if (!change.pressed) return
         onMove(change.position.y)
+    }
+}
+
+/**
+ * Runs [session] until the finger's targets run out, taking the scroll back whenever something else
+ * claims it.
+ *
+ * One claim at the same priority is enough to end a scroll session, and there is one about to
+ * happen nearly every time: the thumb shows while the list is still settling from the scroll that
+ * put it there, and that settling reclaims the list a frame or two after the finger lands on the
+ * thumb. Without this, a fast scroll jumped once and then went dead under the finger.
+ */
+private suspend fun holdTheScroll(session: suspend () -> Unit) {
+    while (coroutineContext.isActive) {
+        try {
+            session()
+            return
+        } catch (interrupted: CancellationException) {
+            // Ours was interrupted, not cancelled: the finger is still down and the targets are
+            // still coming, so take the list back. A cancelled scope leaves through isActive.
+            if (!coroutineContext.isActive) throw interrupted
+        }
     }
 }
 

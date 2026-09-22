@@ -45,6 +45,23 @@ class ScrollbarFastScrollTest {
         return state
     }
 
+    /** Where the bar is drawn, worked out exactly as the bar works it out. */
+    private fun thumbOf(state: LazyListState): ThumbSpan {
+        val height = rule.onNodeWithTag("list").fetchSemanticsNode().size.height.toFloat()
+        return rule.runOnUiThread {
+            val sizes = ItemSizes()
+            sizes.record(state.layoutInfo)
+            val guess = sizes.average()!!
+            val thumb = lazyListScrollbarThumb(
+                state.layoutInfo,
+                canScrollBackward = state.canScrollBackward,
+                canScrollForward = state.canScrollForward,
+                sizeOf = { sizes.of(it) ?: guess },
+            )!!
+            thumbSpan(thumb, trackTop = 0f, height = height)!!
+        }
+    }
+
     /** Drags the list and comes to a stop before lifting, so the thumb shows and nothing coasts. */
     private fun stopTheList() {
         rule.onNodeWithTag("list").performTouchInput {
@@ -73,16 +90,35 @@ class ScrollbarFastScrollTest {
     }
 
     @Test
+    fun aTouchThatLandsOnTheThumbDragsItWithNoHolding() {
+        // The platform's own fast scrollers work this way, and it is the only way that holds up on
+        // a phone that reports a finger as sliding while its contact spreads.
+        val state = showList()
+        rule.mainClock.autoAdvance = false
+        stopTheList()
+        val thumb = thumbOf(state)
+        rule.onNodeWithTag("list").performTouchInput { down(Offset(width - 20f, thumb.top + thumb.height / 2f)) }
+        rule.mainClock.advanceTimeBy(16)
+        rule.onNodeWithTag("list").performTouchInput { moveTo(Offset(width - 20f, height - 1f)) }
+        rule.mainClock.advanceTimeBy(100)
+
+        rule.runOnUiThread {
+            assertTrue("dragged to the bottom, at ${state.firstVisibleItemIndex}", state.firstVisibleItemIndex > 180)
+        }
+        rule.onNodeWithTag("list").performTouchInput { up() }
+    }
+
+    @Test
     fun aGrabWhileTheListIsStillCoastingDragsIt() {
         val state = showList()
         rule.mainClock.autoAdvance = false
         rule.onNodeWithTag("list").performTouchInput { swipeUp(durationMillis = 80) }
         rule.mainClock.advanceTimeBy(100)
-        rule.runOnIdle { assertTrue("the fling should still be coasting", state.isScrollInProgress) }
+        rule.runOnUiThread { assertTrue("the fling should still be coasting", state.isScrollInProgress) }
 
         grabAndDragToBottom()
 
-        rule.runOnIdle {
+        rule.runOnUiThread {
             assertTrue("dragged to the bottom, at ${state.firstVisibleItemIndex}", state.firstVisibleItemIndex > 180)
         }
         rule.onNodeWithTag("list").performTouchInput { up() }
@@ -108,7 +144,7 @@ class ScrollbarFastScrollTest {
         rule.onNodeWithTag("list").performTouchInput { moveTo(Offset(width - 20f, height - 1f)) }
         rule.mainClock.advanceTimeBy(100)
 
-        rule.runOnIdle {
+        rule.runOnUiThread {
             assertTrue("dragged to the bottom, at ${state.firstVisibleItemIndex}", state.firstVisibleItemIndex > 180)
         }
         rule.onNodeWithTag("list").performTouchInput { up() }
@@ -116,12 +152,13 @@ class ScrollbarFastScrollTest {
 
     @Test
     fun aFingerThatKeepsMovingAfterItSettlesIsAScroll() {
-        // The same wander, but it carries on past the settling: the list scrolls and nothing is
-        // taken hold of.
+        // Away from the thumb, and wandering on past the settling: this is a scroll. The list
+        // follows the finger by hand and nothing is taken hold of -- neither the touch itself,
+        // which did not land on the thumb, nor the wander, which never stopped.
         val state = showList()
         rule.mainClock.autoAdvance = false
         stopTheList()
-        val started = rule.runOnIdle { state.firstVisibleItemIndex }
+        val started = rule.runOnUiThread { state.firstVisibleItemIndex }
         var longPress = 0L
         var slop = 0f
         rule.onNodeWithTag("list").performTouchInput {
@@ -135,12 +172,13 @@ class ScrollbarFastScrollTest {
         }
         rule.mainClock.advanceTimeBy(200)
 
-        rule.runOnIdle {
+        rule.runOnUiThread {
             assertTrue(
                 "scrolled by hand from $started, now at ${state.firstVisibleItemIndex}",
                 state.firstVisibleItemIndex in (started + 1)..(started + 20),
             )
         }
+        rule.mainClock.autoAdvance = true
         rule.onNodeWithTag("list").performTouchInput { up() }
     }
 
@@ -163,7 +201,7 @@ class ScrollbarFastScrollTest {
         rule.onNodeWithTag("list").performTouchInput { moveTo(Offset(width - 20f, height - 1f)) }
         rule.mainClock.advanceTimeBy(100)
 
-        rule.runOnIdle {
+        rule.runOnUiThread {
             assertTrue("dragged to the bottom, at ${state.firstVisibleItemIndex}", state.firstVisibleItemIndex > 180)
         }
         rule.onNodeWithTag("list").performTouchInput { up() }
@@ -183,11 +221,11 @@ class ScrollbarFastScrollTest {
         }
         // Still inside the two seconds the thumb holds before it starts to fade.
         rule.mainClock.advanceTimeBy(100)
-        rule.runOnIdle { assertTrue("the list should have stopped", !state.isScrollInProgress) }
+        rule.runOnUiThread { assertTrue("the list should have stopped", !state.isScrollInProgress) }
 
         grabAndDragToBottom()
 
-        rule.runOnIdle {
+        rule.runOnUiThread {
             assertTrue("dragged to the bottom, at ${state.firstVisibleItemIndex}", state.firstVisibleItemIndex > 180)
         }
         rule.onNodeWithTag("list").performTouchInput { up() }

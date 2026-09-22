@@ -226,6 +226,22 @@ class ScrollbarTest {
     }
 
     @Test
+    fun `a touch lands on the thumb from its top edge to its bottom, give or take the slop`() {
+        val thumb = ThumbSpan(top = 400f, height = 100f)
+        assertTrue(thumb.holds(y = 400f, slop = 20f))
+        assertTrue(thumb.holds(y = 500f, slop = 20f))
+        assertTrue(thumb.holds(y = 381f, slop = 20f))
+        assertTrue(thumb.holds(y = 519f, slop = 20f))
+        assertFalse(thumb.holds(y = 379f, slop = 20f))
+        assertFalse(thumb.holds(y = 521f, slop = 20f))
+    }
+
+    @Test
+    fun `nothing lands on a thumb that is not there`() {
+        assertFalse(null.holds(y = 400f, slop = 20f))
+    }
+
+    @Test
     fun `the exclusion spans the touch zone across and the thumb with room to spare`() {
         val thumb = ThumbSpan(top = 400f, height = 100f)
         val bounds = thumbExclusionBounds(thumb, width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Ltr)
