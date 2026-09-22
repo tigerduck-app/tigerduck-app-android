@@ -149,7 +149,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     )
     val syncAssignmentRemindersChanged: SharedFlow<Unit> = _syncAssignmentRemindersChanged.asSharedFlow()
 
-    /** "同步內容" (Synced content) toggle — assignment due-date reminders. */
+    /** "Synced content" toggle — assignment due-date reminders. */
     var syncAssignmentReminders: Boolean
         get() = prefs.getBoolean("syncAssignmentReminders", true)
         set(value) {
@@ -168,7 +168,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     )
     val syncLiveActivityChanged: SharedFlow<Unit> = _syncLiveActivityChanged.asSharedFlow()
 
-    /** "同步內容" (Synced content) toggle — Live Activity / Live Updates state. */
+    /** "Synced content" toggle — Live Activity / Live Updates state. */
     var syncLiveActivity: Boolean
         get() = prefs.getBoolean("syncLiveActivity", true)
         set(value) {
@@ -304,6 +304,30 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) {
             prefs.edit().putBoolean("alwaysShowPeriodsABC", value).apply()
             _alwaysShowAllPeriods.value = value
+        }
+
+    private val _showClassroomInClassTable =
+        MutableStateFlow(prefs.getBoolean("showClassroomInClassTable", false))
+
+    /**
+     * Observable form of [showClassroomInClassTable], for the class table,
+     * whose cells read it while the toggle lives on the Settings screen.
+     */
+    val showClassroomInClassTableFlow: StateFlow<Boolean> =
+        _showClassroomInClassTable.asStateFlow()
+
+    /**
+     * Print each course's room in the corner of its class-table cell. Off by
+     * default: the grid's job is which course, not where, and the cell is
+     * narrow enough that a second line is a deliberate trade. Device-local,
+     * like every display preference; the settings document the backend
+     * syncs does not carry it.
+     */
+    var showClassroomInClassTable: Boolean
+        get() = _showClassroomInClassTable.value
+        set(value) {
+            prefs.edit().putBoolean("showClassroomInClassTable", value).apply()
+            _showClassroomInClassTable.value = value
         }
 
     var rememberAnnouncementFilter: Boolean
@@ -580,11 +604,12 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /** Wipe every pref key. Used by the full-reset flow only. */
     fun clearAllPrefs() {
         prefs.edit().clear().apply()
-        // `alwaysShowAllPeriods` is the one preference read from an in-memory
-        // mirror rather than the file, so clearing the file alone leaves the
-        // class table pinned — and the Settings row reading "on" — until the
-        // next process start.
+        // `alwaysShowAllPeriods` and `showClassroomInClassTable` are read from
+        // in-memory mirrors rather than the file, so clearing the file alone
+        // leaves the class table pinned — and the Settings rows reading "on" —
+        // until the next process start.
         _alwaysShowAllPeriods.value = false
+        _showClassroomInClassTable.value = false
     }
 
     fun getString(key: String): String? = prefs.getString(key, null)
@@ -610,7 +635,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         return created
     }
 
-    /** Semester the user last viewed in 課表. Null until first pick. */
+    /** Semester the user last viewed in the class table. Null until first pick. */
     var classTableSelectedSemester: String?
         get() = prefs.getString("classTableSelectedSemester", null)
         set(value) {
@@ -658,7 +683,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             .apply()
 
     /**
-     * The term the 選課 system is currently open for (`LoginEnable`). Runs
+     * The term the course selection system is currently open for (`LoginEnable`). Runs
      * weeks ahead of the term in session, so it is not interchangeable with
      * the term in session from the published academic calendar.
      */

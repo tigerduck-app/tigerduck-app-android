@@ -97,11 +97,39 @@
     "en": {
       "title": "What's new in 2.1.0",
       "highlights": [
-        "TigerSync settings screen reorganized",
+        "TigerSync settings page reorganized",
         "Notification settings sync across devices",
         "Fix the notification that never appeared when the Moodle login expired",
         "Live Updates lead time now matches the iOS version",
         "Push notifications follow the app's interface language"
+      ]
+    }
+  },
+  "27": {
+    "zh-Hant": {
+      "title": "2.2.0 新功能",
+      "highlights": [
+        "修正三星 NowBar、小米系列超級島以及其他品牌手機的即時更新顯示問題",
+        "修正了多部門合開課程無法連接 Moodle 的問題",
+        "修正了新增課程不會即時顯示的問題",
+        "新增校園信箱功能",
+        "設定中可以查看 App 使用的開源授權",
+        "設定中的「關於」頁面重新整理，相關連結更好找",
+        "課表與課程詳情顯示更多課程資訊",
+        "公告頁面的滑動與搜尋操作優化"
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.2.0",
+      "highlights": [
+        "Fix Live Updates display on Samsung NowBar, Xiaomi series HyperIsland and other devices",
+        "Fix the issue of courses co-taught by multiple departments cannot connect to Moodle",
+        "Fix the issue of newly added courses do not display immediately",
+        "Added campus email feature",
+        "View the open-source licences the app uses in Settings",
+        "About page in settings reorganized, making links easier to find",
+        "Class table and course details show more course information",
+        "Improved scrolling and search on the bulletins page"
       ]
     }
   }

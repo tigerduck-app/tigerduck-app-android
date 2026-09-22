@@ -33,7 +33,8 @@ import javax.inject.Singleton
  * - [PROMOTED_NOTIFICATIONS]: User-revocable special access (API 36+). Without
  *   it the Live Update still posts as an ordinary ongoing notification, but
  *   the system will not promote it to a status-bar chip. Granted from a
- *   dedicated settings page, never from a runtime prompt.
+ *   dedicated settings page, never from a runtime prompt. Whether it applies
+ *   at all is an OEM question as much as an API-level one — see [DeviceSkin].
  */
 enum class AppPermission {
     NOTIFICATIONS,
@@ -54,6 +55,14 @@ class SystemPermissions @Inject constructor(
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    /**
+     * Read once: none of the inputs — API level, manufacturer, skin version —
+     * can change without the process being restarted, and the lookup reaches
+     * for `SystemProperties` by reflection, which is not worth repeating on
+     * every ON_RESUME re-read of the permission rows.
+     */
+    private val chipSupport: StatusBarChipSupport by lazy { DeviceSkin.current().chipSupport }
 
     /** True if the permission is granted right now. Returns true when not applicable. */
     fun isGranted(p: AppPermission): Boolean = when (p) {
@@ -80,21 +89,34 @@ class SystemPermissions @Inject constructor(
             activityManager.isBackgroundRestricted.not()
         }
 
-        AppPermission.PROMOTED_NOTIFICATIONS -> {
-            // Returns false on older platforms, which would read as "denied";
-            // isApplicable draws the grey "not on this version" state instead.
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) true
-            else NotificationManagerCompat.from(context).canPostPromotedNotifications()
+        AppPermission.PROMOTED_NOTIFICATIONS -> when (chipSupport) {
+            // No chip surface on this device. isApplicable reports false and
+            // the row is painted grey; "granted" is this class's convention
+            // for a permission that does not apply, and keeps the permission
+            // out of revokedSinceGrantUnmuted().
+            StatusBarChipSupport.UNSUPPORTED -> true
+
+            // ColorOS renders the chip while the capability API returns false.
+            // Believing the API here would leave a permanent red row, and a
+            // settings link, on a device where the feature already works.
+            StatusBarChipSupport.ALWAYS_ON -> true
+
+            StatusBarChipSupport.PLATFORM_DECIDES ->
+                NotificationManagerCompat.from(context).canPostPromotedNotifications()
         }
     }
 
-    /** False if the permission doesn't exist on this API level (treat as granted). */
+    /** False if this device has no such permission to grant (treat as granted). */
     fun isApplicable(p: AppPermission): Boolean = when (p) {
         AppPermission.NOTIFICATIONS -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
         AppPermission.EXACT_ALARM -> Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         AppPermission.BATTERY_OPTIMIZATION -> true
+        // Not just the API level: a Galaxy on One UI 8.0 is API 36 and still
+        // has no chip to grant, so it gets the grey "not on this system
+        // version" row rather than a red one pointing at a settings page that
+        // cannot help.
         AppPermission.PROMOTED_NOTIFICATIONS ->
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+            chipSupport != StatusBarChipSupport.UNSUPPORTED
     }
 
     fun state(p: AppPermission): PermissionState =
@@ -158,7 +180,10 @@ class SystemPermissions @Inject constructor(
         AppPermission.BATTERY_OPTIMIZATION -> batterySettingsIntents().firstOrNull()
 
         AppPermission.PROMOTED_NOTIFICATIONS -> {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+            // isApplicable, not the API level: on a skin with no chip surface
+            // the page may well exist and open, and toggling it would change
+            // nothing. Offering no destination is more honest than a dead end.
+            if (isApplicable(AppPermission.PROMOTED_NOTIFICATIONS)) {
                 // The platform warns this activity may not exist on every
                 // build; tryStartActivity already swallows the miss.
                 Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).apply {

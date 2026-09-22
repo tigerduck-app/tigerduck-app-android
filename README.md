@@ -66,6 +66,13 @@ TigerDuck 是由一群學生共同開發的校園助手
 - **翻面就開**：把手機面朝下放著，自動跳到入館 QR-Code
 - 登入、QR 等敏感畫面自動啟用 `FLAG_SECURE`，防止截圖 / 錄影
 
+### 📧 **校園信箱**
+
+- 直接在 App 裡收 NTUST 信箱，依資料夾瀏覽、搜尋、標記已讀
+- 撰寫、回覆、轉寄與附件，寄件備份自動歸檔到寄件備份匣
+- 外部寄件者、連結與網址不符、釣魚字樣與高風險附件都會標示出來
+- 遠端圖片預設不載入，信件 HTML 經過淨化才顯示
+
 ### 🌏 **外觀**
 
 - 與 iOS **共用 65 種語系翻譯**，自行設定或跟著系統語言切換
@@ -149,6 +156,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 - [x] **敏感畫面 `FLAG_SECURE`** – 登入、入館 QR 等防止截圖 / 螢幕錄影
 - [x] **帳號刪除入口** – 設定內可申請刪除伺服器端推播身分
 - [x] **通知權限設定** – 通知權限、精確鬧鐘與背景活動限制集中在一頁，點一下前往對應的系統設定
+- [x] **開源授權頁** – 設定 → 關於可查看 App、相依套件與手錶端的開源授權
 
 ### ⌚ Wear OS（Play 限定）
 
@@ -263,6 +271,20 @@ Gradle 也能在編譯前自動跑一次，但**預設不啟用**——要加上
 [`name-abbr/`](https://github.com/tigerduck-app/name-abbr) 子模組提供與 iOS 共用的課程 /
 教室簡稱字典，避免長名稱破版。
 
+### 開源授權清單
+
+授權清單是**產生後 commit 進 repo**，不是 build 時即時產生。改動相依套件後要重新產生，
+否則 `licenses-up-to-date.yaml` 會擋下 PR：
+
+```bash
+./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease \
+  :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease
+```
+
+產生的檔案落在各 flavor 的 `res/raw/`（`aboutlibraries.json`、`bundled_notices.json`，
+以及寫進手機 play 資源的手錶版 `aboutlibraries_wear.json` / `bundled_notices_wear.json`）。
+沒有 POM 可描述的第三方素材則手動維護在 `app/src/main/res/raw/extra_licenses.json`。
+
 ## 專案架構
 
 ```text
@@ -270,14 +292,17 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 ├── app/                                # 手機 App（fdroid / play 兩種 flavor）
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
+│       ├── academic/                   # 校方行事曆（學期起訖、假日、補課日）
 │       ├── auth/                       # NTUST SSO 認證、登入狀態
 │       ├── data/
 │       │   ├── cache/                  # 檔案快取
 │       │   ├── model/                  # Domain / DTO 模型
 │       │   └── preferences/            # App 偏好與憑證管理（EncryptedSharedPreferences）
 │       ├── debug/                      # Debug 時鐘覆寫、API endpoint override 等開發者工具
+│       ├── demo/                       # 示範帳號與假資料
 │       ├── di/                         # Hilt 模組
 │       ├── liveactivity/               # 即時動態 / 進行中通知
+│       ├── mail/                       # 校園信箱 IMAP / SMTP、MIME 解析、HTML 淨化、寄信警示、通知
 │       ├── network/                    # 課表 / Moodle / 公告 / 圖書館 API
 │       │   └── model/
 │       ├── notification/               # 作業到期通知排程、通知頻道
@@ -293,6 +318,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       │   │   ├── calendar/           # 行事曆
 │       │   │   ├── announcements/      # 公告整合、LLM 分類、訂閱規則
 │       │   │   ├── library/            # 圖書館
+│       │   │   ├── mail/               # 校園信箱（收信匣、閱讀、撰寫 / 回覆 / 轉寄、附件）
 │       │   │   ├── score/              # 歷年成績與排名
 │       │   │   ├── more/               # 「更多」聚合頁
 │       │   │   ├── settings/           # 設定（語言、Tab、通知、震動、伺服器推播、即時動態、來源碼）
@@ -301,6 +327,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       │   ├── theme/                  # 主題、配色、視覺預設
 │       │   └── AppState.kt
 │       ├── update/                     # In-App Update gate + What's new repository
+│       ├── util/                       # 共用小函式（學分格式化等）
 │       ├── widget/                     # 桌面 widget
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt

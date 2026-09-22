@@ -48,7 +48,9 @@ object CourseSyncReconciler {
         if (semester.length != 4) return true
         if (moodleId == null || moodleId.length <= 4) return true
         if (moodleId != moodleId.take(4) + courseNo) return true
-        return moodleId.take(4) == semester
+        // Case-insensitive: Moodle spells a summer term "114h" and NTUST
+        // "114H", and a raw compare filed every summer row under another term.
+        return moodleId.take(4).equals(semester, ignoreCase = true)
     }
 
     /**

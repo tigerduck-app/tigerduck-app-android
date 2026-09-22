@@ -68,6 +68,13 @@ even more OAO!
 - **Flip-to-open**: leave the phone face-down and it jumps straight to the entry QR
 - Login / QR and other sensitive screens auto-enable `FLAG_SECURE` to block screenshots and screen recording
 
+### 📧 **School Mail**
+
+- Read your NTUST mailbox in the app — browse by folder, search, toggle read state
+- Compose, reply, forward and attach files; the sent copy is filed to the sent folder
+- External senders, mismatched links, password bait and risky attachments are flagged
+- Remote images are held back by default and mail HTML is sanitized before it renders
+
 ### 🌏 **Multilingual**
 
 - **65 locales shared with the iOS client** — follow the system language or set per-app
@@ -159,6 +166,8 @@ even more OAO!
   screen recording
 - [x] **Account deletion entry** — Request deletion of the server-side push identity from
   Settings
+- [x] **Open-source licence page** — Settings → About lists the licences of the app, its
+  dependencies and the watch app
 - [x] **Notification permission settings** — Notification permission, exact alarms and
   background restrictions on one page, each a tap away from its system setting
 
@@ -285,6 +294,21 @@ The [`name-abbr/`](https://github.com/tigerduck-app/name-abbr) submodule ships s
 classroom abbreviation dictionaries used by both the Android and iOS apps to keep long names
 readable.
 
+### Open-source licence lists
+
+The licence lists are **generated and committed**, not built on the fly. Regenerate them after
+changing a dependency, or `licenses-up-to-date.yaml` will block the PR:
+
+```bash
+./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease \
+  :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease
+```
+
+Output lands in each flavor's `res/raw/` (`aboutlibraries.json`, `bundled_notices.json`, plus the
+watch's `aboutlibraries_wear.json` / `bundled_notices_wear.json` written into the phone's play
+resources). Third-party material with no POM to describe it is hand-maintained in
+`app/src/main/res/raw/extra_licenses.json`.
+
 ## Project Structure
 
 ```text
@@ -292,14 +316,17 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 ├── app/                                # Phone app (fdroid / play flavors)
 │   ├── build.gradle.kts
 │   └── src/main/java/org/ntust/app/tigerduck/
+│       ├── academic/                   # Academic calendar (term dates, holidays, make-up days)
 │       ├── auth/                       # NTUST SSO authentication, login state
 │       ├── data/
 │       │   ├── cache/                  # File cache
 │       │   ├── model/                  # Domain / DTO models
 │       │   └── preferences/            # App preferences and credential vault (EncryptedSharedPreferences)
 │       ├── debug/                      # Developer tools incl. debug clock + API endpoint override
+│       ├── demo/                       # Demo account and fixtures
 │       ├── di/                         # Hilt modules
 │       ├── liveactivity/               # Live activity / ongoing notification
+│       ├── mail/                       # School Mail IMAP / SMTP, MIME parsing, HTML sanitizing, send warnings, notifications
 │       ├── network/                    # Class table / Moodle / bulletins / library APIs
 │       │   └── model/
 │       ├── notification/               # Assignment due notification scheduling + channels
@@ -315,6 +342,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       │   │   ├── calendar/           # Calendar
 │       │   │   ├── announcements/      # Bulletin feed, LLM categories, subscriptions
 │       │   │   ├── library/            # Library
+│       │   │   ├── mail/               # School Mail (mailbox, reading, compose / reply / forward, attachments)
 │       │   │   ├── score/              # Historical GPA & rankings
 │       │   │   ├── more/               # "More" hub
 │       │   │   ├── settings/           # Settings (language, tabs, notifications, haptics, server push, live activity, source)
@@ -323,6 +351,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       │   ├── theme/                  # Tokens, palette, visual presets
 │       │   └── AppState.kt
 │       ├── update/                     # In-App Update gate + What's new repository
+│       ├── util/                       # Small shared helpers (credit formatting, …)
 │       ├── widget/                     # Home screen widgets
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt

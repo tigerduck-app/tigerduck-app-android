@@ -279,17 +279,13 @@ class UpdateChecker @Inject constructor(
      * Debug-only: arm a synthetic pending prompt so the Triggers screen can
      * retest the dialog without a real Play update available. Uses
      * [Int.MAX_VALUE] as the versionCode so it can never collide with a
-     * skipped real version, and a synthetic name so the dialog body reads
-     * as "obviously a debug fire".
+     * skipped real version.
      */
     fun armForDebug() {
         // Debug-arm is an explicit re-test — drop the per-session suppression
         // so the dialog actually surfaces even after the dev just dismissed it.
         dismissedThisSession = false
-        _pendingUpdate.value = PendingUpdate(
-            availableVersionCode = Int.MAX_VALUE,
-            availableVersionName = "99.0.0",
-        )
+        _pendingUpdate.value = PendingUpdate(availableVersionCode = Int.MAX_VALUE)
     }
 
     companion object {

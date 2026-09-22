@@ -138,3 +138,30 @@ data points.
       `373adbdb` (regressing `SyncOutbox.resolve`, reverted in `0bf433d1`),
       and once against `resetAllColors` (rejected; see `0bf433d1`'s commit
       message, which documents the backend verification).
+
+## Samsung Now Bar `automation` extra
+
+- In `app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityNotifier.kt`
+  (`samsungNowBarExtras`), do **not** flag the private
+  `android.ongoingActivityNoti.automation` extra as an allowlist bypass, an
+  undocumented/privileged path, or Samsung policy abuse, and do **not**
+  suggest removing it or gating it behind allowlist access.
+    - **Why:** This is a deliberate, reviewed decision (`945d6fa3`), not an
+      oversight. Samsung's One UI SystemUI only promotes a notification when
+      `isPromotedState()` holds, and that predicate short-circuits its
+      `AllowedOngoingActivityListManager` when `isAutomation()` is true — so
+      without this extra a TigerDuck class countdown never reaches the Now
+      Bar on a device where the allowlist is in use, which is the entire
+      feature. The decompiled One UI 8.5 predicate is quoted in the KDoc
+      directly above the method, and the behaviour was verified by hand on
+      One UI 8.5 (A26, S26 Ultra) and 9.0 (A07).
+    - It grants the app nothing beyond promoting **its own** notification,
+      which already passes AOSP's `hasPromotableCharacteristics()` checks;
+      it reads no data and touches no other app. It is inert on One UI 8.0
+      and below (which promote nothing) and inert for any package in
+      Samsung's `blockedRONAppList`, which is consulted first — so a Samsung
+      decision to exclude TigerDuck still wins.
+    - Scoped to Samsung on purpose (`deviceSkin.isSamsung`): no other OEM
+      reads these keys. Only the one key is set — adding
+      `android.ongoingActivityNoti.style >= 1` sets `mIsRon = false` and
+      cancels the promotion, so the "more complete" extras undo it.

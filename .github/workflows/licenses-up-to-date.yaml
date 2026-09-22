@@ -1,0 +1,60 @@
+name: Licences up to date
+
+# Settings → Others → Open-source licences reads two committed files per
+# flavor: res/raw/aboutlibraries.json, the libraries and their licences, and
+# res/raw/bundled_notices.json, the notices each dependency carries inside
+# its own artifact. Both are generated from the release variant's dependency
+# graph but committed rather than built on the fly (see app/build.gradle.kts),
+# so a dependency change that forgets to regenerate them would ship a stale
+# list. The export task writes both; this regenerates them and fails on any
+# difference.
+#
+# The play flavor carries two more, aboutlibraries_wear.json and
+# bundled_notices_wear.json: the watch app's own dependencies, shown on the
+# phone because :wear declares standalone = false and so never reaches a user
+# without the phone app.
+#
+# res/raw/extra_licenses.json is hand-maintained and deliberately not checked
+# here: it covers material that has no dependency graph to compare against.
+
+on:
+  pull_request:
+    branches: [ dev, main ]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          submodules: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Regenerate the licence lists
+        run: ./gradlew --no-daemon -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease
+
+      - name: Fail if they changed
+        run: |
+          # --porcelain rather than `git diff`, because git diff never reports
+          # an untracked file: were an export task to start writing a new path
+          # under these directories, a diff-only check would pass while that
+          # file was missing from the repository, and the app would ship
+          # without it.
+          changed=$(git status --porcelain --untracked-files=all -- app/src/play/res/raw app/src/fdroid/res/raw)
+          if [ -n "$changed" ]; then
+            echo "$changed"
+            git diff -- app/src/play/res/raw app/src/fdroid/res/raw
+            echo "::error::The licence lists are stale. Run: ./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease"
+            exit 1
+          fi

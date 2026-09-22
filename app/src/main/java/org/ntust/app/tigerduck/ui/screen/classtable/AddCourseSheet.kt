@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -59,7 +60,10 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
+import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.util.formatCredits
+import org.ntust.app.tigerduck.util.toCreditsOrZero
 
 // Course codes are ASCII alphanumeric with at least one digit
 // (e.g. "EC1013701", "GE1002101"). Anything else is treated as a name or
@@ -341,8 +345,10 @@ fun AddCourseSheet(
             // states the Column expands to fill the sheet via the Spacer below so
             // the centered overlay can position relative to the full sheet height.
             if (!isSearching && searchResults.isNotEmpty()) {
+                val resultsState = rememberLazyListState()
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    state = resultsState,
+                    modifier = Modifier.weight(1f).scrollbar(resultsState),
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
                     items(searchResults) { group ->
@@ -363,6 +369,8 @@ fun AddCourseSheet(
                                         maxCount = group.maxCount,
                                         schedule = group.schedule,
                                         classroomMap = group.classroomMap,
+                                        dimension = group.dimension,
+                                        allYear = group.allYear,
                                     )
                                     if (onAdd(course)) {
                                         addedCourseNo = group.courseNo
@@ -381,7 +389,7 @@ fun AddCourseSheet(
                                         R.string.add_course_result_meta,
                                         group.courseNo,
                                         group.instructor,
-                                        group.credits
+                                        group.credits.formatCredits()
                                     ),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
@@ -463,14 +471,20 @@ private data class GroupedCourse(
     val courseNo: String,
     val courseName: String,
     val instructor: String,
-    val credits: Int,
+    val credits: Float,
     val classroom: String,
     val enrolledCount: Int,
     val maxCount: Int,
     val schedule: Map<Int, List<String>>,
     /** "weekday-period" -> deduped room for that slot. See [Course.classroom]. */
     val classroomMap: Map<String, String>,
-    val nodeDisplay: String
+    val nodeDisplay: String,
+    /**
+     * Carried straight from QueryCourse so a course added by hand shows its
+     * dimension and term span without waiting for the next refresh.
+     */
+    val dimension: String?,
+    val allYear: String?,
 )
 
 /**
@@ -528,7 +542,11 @@ private fun groupResults(
                 classroom = newClassroom,
                 schedule = merged,
                 classroomMap = existing.classroomMap + partialClassroomMap,
-                nodeDisplay = nodeStr
+                nodeDisplay = nodeStr,
+                // Same first-non-empty rule as CourseService.lookupOrFallback:
+                // the row naming the dimension need not be the first seen.
+                dimension = CourseService.firstNonEmpty(listOf(existing.dimension, result.dimension)),
+                allYear = CourseService.firstNonEmpty(listOf(existing.allYear, result.allYear)),
             )
         } else {
             order.add(key)
@@ -536,13 +554,15 @@ private fun groupResults(
                 courseNo = result.courseNo,
                 courseName = result.courseName,
                 instructor = result.courseTeacher,
-                credits = result.creditPoint.toIntOrNull() ?: 0,
+                credits = result.creditPoint.toCreditsOrZero(),
                 classroom = result.classRoomNo ?: "",
                 enrolledCount = result.chooseStudent ?: 0,
                 maxCount = result.maxEnrollment,
                 schedule = partial,
                 classroomMap = partialClassroomMap,
-                nodeDisplay = result.node ?: ""
+                nodeDisplay = result.node ?: "",
+                dimension = CourseService.firstNonEmpty(listOf(result.dimension)),
+                allYear = CourseService.firstNonEmpty(listOf(result.allYear)),
             )
         }
     }

@@ -217,6 +217,17 @@ class TigerDuckApp : Application(), Configuration.Provider {
                 description = ctx.getString(R.string.notification_system_channel_description)
             }
         )
+        // New school mail. Default importance: a banner without an alarm-style
+        // interruption — the checks run every few minutes, never "instantly".
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                NotificationChannels.SCHOOL_MAIL,
+                ctx.getString(R.string.notification_school_mail_channel_name),
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = ctx.getString(R.string.notification_school_mail_channel_description)
+            }
+        )
     }
 
     @android.annotation.SuppressLint("AppBundleLocaleChanges")

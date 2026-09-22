@@ -52,3 +52,23 @@
 
 -keep,allowobfuscation,allowshrinking,allowoptimization class com.google.gson.reflect.TypeToken
 -keep,allowobfuscation,allowshrinking,allowoptimization class * extends com.google.gson.reflect.TypeToken
+
+# School Mail — Angus Mail finds its protocol providers through
+# META-INF/javamail.providers and its StreamProvider through ServiceLoader,
+# both by class name, so none of these may be renamed or stripped.
+-keep class org.eclipse.angus.mail.** { *; }
+-keep class org.eclipse.angus.activation.** { *; }
+-keep class jakarta.mail.** { *; }
+-keep class jakarta.activation.** { *; }
+-dontwarn java.awt.**
+-dontwarn java.beans.**
+-dontwarn javax.security.sasl.**
+-dontwarn javax.naming.**
+# OAuth2 SASL client path (unused — the server is AUTH LOGIN only) and
+# angus-activation's optional GraalVM native-image integration, neither
+# reachable on Android. R8-generated via missing_rules.txt.
+-dontwarn javax.security.auth.callback.NameCallback
+-dontwarn org.graalvm.nativeimage.hosted.Feature$BeforeAnalysisAccess
+-dontwarn org.graalvm.nativeimage.hosted.Feature$IsInConfigurationAccess
+-dontwarn org.graalvm.nativeimage.hosted.Feature
+-dontwarn org.graalvm.nativeimage.hosted.RuntimeReflection

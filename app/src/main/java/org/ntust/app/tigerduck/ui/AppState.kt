@@ -69,6 +69,7 @@ class AppState @Inject constructor(
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
+    private val mailAccount: org.ntust.app.tigerduck.mail.MailAccount,
 ) {
     /**
      * Whether the demo account was signed in when this process started.
@@ -207,6 +208,17 @@ class AppState @Inject constructor(
             if (alwaysShowAllPeriodsState == value) return
             alwaysShowAllPeriodsState = value
             prefs.alwaysShowAllPeriods = value
+        }
+
+    private var showClassroomInClassTableState by mutableStateOf(prefs.showClassroomInClassTable)
+
+    /** Print each course's room in the corner of its class-table cell. */
+    var showClassroomInClassTable: Boolean
+        get() = showClassroomInClassTableState
+        set(value) {
+            if (showClassroomInClassTableState == value) return
+            showClassroomInClassTableState = value
+            prefs.showClassroomInClassTable = value
         }
 
     private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
@@ -365,6 +377,7 @@ class AppState @Inject constructor(
             prefs.libraryFeatureEnabled = value
         }
 
+
     private var flipToLibraryEnabledState by mutableStateOf(prefs.flipToLibraryEnabled)
 
     var flipToLibraryEnabled: Boolean
@@ -498,6 +511,9 @@ class AppState @Inject constructor(
      * silently stops being complete.
      */
     fun performFullReset() {
+        // The mail account is separate from the NTUST sign-in (spec §7.5), but a full reset wipes
+        // everything: its password, caches, alarms and posted notifications.
+        mailAccount.signOut()
         authService.logout()
         scope.launch {
             runCatching { dataCache.clearEverything() }
@@ -514,6 +530,7 @@ class AppState @Inject constructor(
             accentColorHexState = prefs.accentColorHex
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
             alwaysShowAllPeriodsState = prefs.alwaysShowAllPeriods
+            showClassroomInClassTableState = prefs.showClassroomInClassTable
             rememberAnnouncementFilterState = prefs.rememberAnnouncementFilter
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation

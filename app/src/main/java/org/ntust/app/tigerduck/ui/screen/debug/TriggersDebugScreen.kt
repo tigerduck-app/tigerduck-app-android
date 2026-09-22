@@ -110,7 +110,7 @@ fun TriggersDebugScreen(
             TriggerSection(
                 header = "Update prompt",
                 footer = "Fires the in-app \"Update available\" dialog with a " +
-                    "synthetic versionCode (Int.MAX_VALUE / display \"99.0.0\") " +
+                    "synthetic versionCode (Int.MAX_VALUE) " +
                     "so the three actions (Update now / Later / Skip this " +
                     "version) can be retested without a real Play update " +
                     "available. (No-op on fdroid.)",

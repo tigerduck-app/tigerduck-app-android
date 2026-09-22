@@ -68,22 +68,25 @@ class MoodleService @Inject constructor(
         rosterCourseNos: Set<String>? = null,
     ): List<Assignment> = withContext(Dispatchers.IO) {
         val currentSemester = courseService.currentSemesterCode()
-        val relevant = if (rosterCourseNos != null) {
-            if (rosterCourseNos.isEmpty()) {
-                enrolledCourses.filter { it.semesterCode == currentSemester }
-            } else {
-                enrolledCourses.filter { it.courseNo in rosterCourseNos }
-            }
+        // What the class table holds right now, hand-added rows included. It
+        // decides which of a 合開 course's codes an assignment is filed under.
+        val cachedCourseNos = dataCache.loadCourses().map { it.courseNo }.toSet()
+        val rosterNos = rosterCourseNos ?: cachedCourseNos
+        // Matched on every code a course answers to (MoodleCourseIds.forRoster):
+        // the roster holds the student's own department's code, which for a
+        // co-listed course is not always the one in its idnumber.
+        val relevant = if (rosterNos.isEmpty()) {
+            enrolledCourses.filter { it.semesterCode == currentSemester }
         } else {
-            val currentCourses = dataCache.loadCourses()
-            val currentCourseNos = currentCourses.map { it.courseNo }.toSet()
-            if (currentCourses.isEmpty()) {
-                enrolledCourses.filter { it.semesterCode == currentSemester }
-            } else {
-                enrolledCourses.filter { it.courseNo in currentCourseNos }
-            }
+            MoodleCourseIds.forRoster(enrolledCourses, rosterNos)
         }
         if (relevant.isEmpty()) return@withContext emptyList<Assignment>()
+        val localCourseNos = rosterNos + cachedCourseNos
+        // Once per course rather than once per assignment: the alias scan
+        // runs a regex over the fullname.
+        val courseNoById = relevant.associate {
+            it.id to MoodleCourseIds.assignmentCourseNo(it, localCourseNos)
+        }
 
         attemptWithTokenRetry { token ->
             val userId = getSiteInfoUserId(token)
@@ -116,7 +119,7 @@ class MoodleService @Inject constructor(
                 val submitted = submission?.status == "submitted"
                 Assignment(
                     assignmentId = a.id.toString(),
-                    courseNo = course?.courseNo ?: "",
+                    courseNo = courseNoById[courseId] ?: "",
                     courseName = parseCourseName(course?.fullname).decodeHtmlEntities(),
                     title = a.name.decodeHtmlEntities(),
                     dueDate = Date(a.duedate * 1000),

@@ -70,6 +70,20 @@
         </receiver>
 
         <receiver
+            android:name="org.ntust.app.tigerduck.mail.sync.MailAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name="org.ntust.app.tigerduck.mail.sync.MailRescheduleReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name="org.ntust.app.tigerduck.widget.WidgetBoundaryReceiver"
             android:exported="false" />
 
@@ -168,6 +182,17 @@
                 android:name="androidx.work.WorkManagerInitializer"
                 android:value="androidx.startup"
                 tools:node="remove" />
+        </provider>
+
+        <!-- Hands opened School Mail attachments to other apps, read-only, one grant per intent. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.mailfiles"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/mail_file_paths" />
         </provider>
 
     </application>

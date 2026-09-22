@@ -111,6 +111,9 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var fcmBootstrap: FcmBootstrap
 
+    @Inject
+    lateinit var mailChecker: org.ntust.app.tigerduck.mail.sync.MailChecker
+
     private val widgetStartRoute = mutableStateOf<String?>(null)
     private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
 
@@ -245,6 +248,12 @@ class MainActivity : AppCompatActivity() {
         // warm. Whether one is due, and the consent and flavor gates, are
         // decided inside; a no-op on fdroid.
         fcmBootstrap.retryRegistrationIfDue()
+
+        // School Mail has no push: returning to the app is one of its check points (spec §8.5).
+        // Throttled to one per minute and single-flight inside MailChecker; a no-op when signed out.
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            mailChecker.check(org.ntust.app.tigerduck.mail.sync.CheckSource.FOREGROUND)
+        }
     }
 
     /**
@@ -474,9 +483,8 @@ private fun ServerPushPopupHost(coordinator: ServerPushPopupCoordinator) {
 private fun UpdatePromptHost(updateChecker: UpdateChecker) {
     val pending by updateChecker.pendingUpdate.collectAsStateWithLifecycle()
     val activity = LocalContext.current as? Activity ?: return
-    pending?.let { p ->
+    if (pending != null) {
         UpdatePromptDialog(
-            pending = p,
             onUpdateNow = { updateChecker.onUpdateNow(activity) },
             onLater = { updateChecker.onLater() },
             onSkipThisVersion = { updateChecker.onSkipThisVersion() },

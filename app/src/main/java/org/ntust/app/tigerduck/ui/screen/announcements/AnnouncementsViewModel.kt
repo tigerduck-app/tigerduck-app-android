@@ -240,11 +240,17 @@ class AnnouncementsViewModel @Inject constructor(
         }
     }
 
-    fun loadMoreIfNeeded(item: BulletinSummary) {
+    /**
+     * Asks for the next page once the list has been scrolled within five bulletins of the end.
+     *
+     * Takes the id rather than the bulletin, because the id is what the caller can be sure of:
+     * it is the list item's key, and so survives anything the screen puts above the bulletins.
+     */
+    fun loadMoreIfNeeded(lastVisibleId: Int) {
         val s = _state.value
         if (!s.hasMore || s.isPaginating) return
         val tail = s.displayed.takeLast(5).map { it.id }
-        if (item.id !in tail) return
+        if (lastVisibleId !in tail) return
         val cursor = nextCursor ?: return
         prefetch?.cancel()
         _state.update { it.copy(isPaginating = true) }

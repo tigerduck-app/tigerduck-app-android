@@ -85,6 +85,7 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
+import org.ntust.app.tigerduck.util.formatCredits
 
 private data class ConflictPickerTarget(
     val courseA: Course,
@@ -168,6 +169,7 @@ fun ClassTableScreen(
     val alwaysShowAllPeriods by viewModel.alwaysShowAllPeriods.collectAsStateWithLifecycle()
     val activePeriods = remember(courses, alwaysShowAllPeriods) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
+    val showClassroomInClassTable by viewModel.showClassroomInClassTable.collectAsStateWithLifecycle()
     var showAddCourse by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
@@ -336,7 +338,8 @@ fun ClassTableScreen(
                                         viewModel.selectCourse(
                                             ongoing.course,
                                             ongoing.weekday,
-                                            ongoing.firstPeriodId
+                                            ongoing.firstPeriodId,
+                                            fromLiveTerm = true,
                                         )
                                     },
                                     modifier = Modifier.fillMaxHeight()
@@ -364,7 +367,12 @@ fun ClassTableScreen(
                                                     it
                                                 )
                                             } ?: ""
-                                        viewModel.selectCourse(course, dayIndex, firstPeriod)
+                                        viewModel.selectCourse(
+                                            course,
+                                            dayIndex,
+                                            firstPeriod,
+                                            fromLiveTerm = true,
+                                        )
                                     },
                                     modifier = Modifier.fillMaxHeight()
                                 )
@@ -396,7 +404,7 @@ fun ClassTableScreen(
                     // left as a stray separator when there is none.
                     val credits = stringResource(
                         R.string.class_table_total_credits_value,
-                        viewModel.totalCredits
+                        viewModel.totalCredits.formatCredits()
                     )
                     Text(
                         text = viewModel.studentId
@@ -412,6 +420,8 @@ fun ClassTableScreen(
                 if (activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty() && courses.isNotEmpty()) {
                     TimetableGrid(
                         viewModel = viewModel,
+                        courses = courses,
+                        showRoomHints = showClassroomInClassTable,
                         weekdays = activeWeekdays,
                         periods = activePeriods,
                         courseNosWithAssignments = courseNosWithAssignments,

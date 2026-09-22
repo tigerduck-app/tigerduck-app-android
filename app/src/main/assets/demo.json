@@ -2,6 +2,136 @@
   "studentId": "B11308964",
   "school-password": "its-my-duty",
   "library-password": "its-my-duty",
+  "mail": {
+    "studentId": "B11308964",
+    "password": "its-my-duty",
+    "displayName": {
+      "zh": "示範同學",
+      "en": "Demo Student"
+    },
+    "messages": [
+      {
+        "from": {
+          "name": "教務處",
+          "address": "academic@mail.ntust.edu.tw"
+        },
+        "subject": {
+          "zh": "115 學年度第 1 學期期中考試時間公告",
+          "en": "Midterm exam schedule, fall 2026"
+        },
+        "date": "2026-09-14T09:00:00+08:00",
+        "seen": false,
+        "html": {
+          "zh": "<div style=\"font-family:sans-serif\"><img src=\"https://www.ntust.edu.tw/var/file/0/1000/img/logo.png\" alt=\"NTUST\"><h2 style=\"color:#1a4f8b\">期中考試時間</h2><p>各位同學好：</p><p>本學期期中考試週為 <b>11 月 2 日至 11 月 6 日</b>，請留意各課程公告。</p><table style=\"border-collapse:collapse\"><tr><td style=\"border:1px solid #ccc;padding:4px\">11/2–11/6</td><td style=\"border:1px solid #ccc;padding:4px\">期中考試週</td></tr></table><p>教務處 敬啟</p></div>",
+          "en": "<div style=\"font-family:sans-serif\"><img src=\"https://www.ntust.edu.tw/var/file/0/1000/img/logo.png\" alt=\"NTUST\"><h2 style=\"color:#1a4f8b\">Midterm exams</h2><p>Dear students,</p><p>Midterm week runs <b>November 2–6</b>. Please check each course's announcements.</p><table style=\"border-collapse:collapse\"><tr><td style=\"border:1px solid #ccc;padding:4px\">11/2–11/6</td><td style=\"border:1px solid #ccc;padding:4px\">Midterm week</td></tr></table><p>Office of Academic Affairs</p></div>"
+        }
+      },
+      {
+        "from": {
+          "name": "圖書館",
+          "address": "library@mail.ntust.edu.tw"
+        },
+        "subject": {
+          "zh": "圖書館國慶日開放時間異動",
+          "en": "Library hours over the National Day holiday"
+        },
+        "date": "2026-09-15T14:30:00+08:00",
+        "seen": true,
+        "plain": {
+          "zh": "各位讀者好：\n\n國慶日連假期間開放時間異動，詳見附件。\n\n圖書館",
+          "en": "Hello,\n\nOpening hours change over the National Day holiday. See the attached schedule.\n\nLibrary"
+        },
+        "attachments": [
+          {
+            "name": {
+              "zh": "開放時間.pdf",
+              "en": "opening-hours.pdf"
+            },
+            "type": "application/pdf",
+            "size": 48213
+          }
+        ]
+      },
+      {
+        "from": {
+          "name": "Coursera",
+          "address": "no-reply@t.mail.coursera.org"
+        },
+        "subject": {
+          "zh": "你的課程本週開始",
+          "en": "Your course starts this week"
+        },
+        "date": "2026-09-15T20:10:00+08:00",
+        "seen": false,
+        "plain": {
+          "zh": "你好，\n\n你報名的課程將於本週開始，祝學習愉快！",
+          "en": "Hi,\n\nThe course you enrolled in starts this week. Happy learning!"
+        }
+      },
+      {
+        "from": {
+          "name": "NTUST Mail Admin",
+          "address": "admin@ntust-mail-verify.com"
+        },
+        "subject": {
+          "zh": "【重要】信箱容量已滿，請立即驗證帳號",
+          "en": "[Important] Mailbox full — verify your account now"
+        },
+        "date": "2026-09-16T08:05:00+08:00",
+        "seen": false,
+        "html": {
+          "zh": "<p>您的信箱容量已滿，24 小時內未完成驗證將停用帳號。</p><p>請點選 <a href=\"https://ntust-mail-verify.com/login\">https://mail.ntust.edu.tw</a> 重新登入並輸入密碼。</p>",
+          "en": "<p>Your mailbox is full. Accounts not verified within 24 hours will be suspended.</p><p>Click <a href=\"https://ntust-mail-verify.com/login\">https://mail.ntust.edu.tw</a> to sign in again and enter your password.</p>"
+        }
+      },
+      {
+        "folder": "drafts",
+        "from": {
+          "name": "示範同學",
+          "address": "b11308964@mail.ntust.edu.tw"
+        },
+        "to": [
+          {
+            "name": "資訊工程系辦公室",
+            "address": "cs-office@mail.ntust.edu.tw"
+          }
+        ],
+        "subject": {
+          "zh": "詢問轉系申請截止日期",
+          "en": "Question about the transfer application deadline"
+        },
+        "date": "2026-09-16T21:40:00+08:00",
+        "seen": true,
+        "plain": {
+          "zh": "您好，\n\n想請問轉系申請的截止日期是什麼時候呢？謝謝。",
+          "en": "Hello,\n\nCould you tell me the deadline for the department-transfer application? Thank you."
+        }
+      },
+      {
+        "folder": "sent",
+        "from": {
+          "name": "示範同學",
+          "address": "b11308964@mail.ntust.edu.tw"
+        },
+        "to": [
+          {
+            "name": "教務處",
+            "address": "academic@mail.ntust.edu.tw"
+          }
+        ],
+        "subject": {
+          "zh": "Re: 115 學年度第 1 學期期中考試時間公告",
+          "en": "Re: Midterm exam schedule, fall 2026"
+        },
+        "date": "2026-09-14T10:15:00+08:00",
+        "seen": true,
+        "plain": {
+          "zh": "收到，謝謝提醒！",
+          "en": "Got it, thanks for the reminder!"
+        }
+      }
+    ]
+  },
 
   "libraryQr": {
     "content": "https://youtu.be/dQw4w9WgXcQ?si=CQQ7LP-6WHftwFCZ",

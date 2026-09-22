@@ -64,17 +64,9 @@ class WearScheduleBridge @Inject constructor(
             GZIPOutputStream(bos).use { it.write(payload) }
         }.toByteArray()
 
-        // Resolve "system" to the concrete tag the watch should mirror — the
-        // watch can't observe the phone's system locale directly, so we send
-        // the resolved BCP-47 tag instead of the literal "system" sentinel.
-        // `resolveExplicitLocale(SYSTEM)` is documented to return null, so go
-        // straight to `resolvedSystemLanguage()` for the SYSTEM branch.
-        val rawLanguage = appPreferences.appLanguage
-        val languageTag = if (rawLanguage == AppLanguageManager.SYSTEM) {
-            AppLanguageManager.resolvedSystemLanguage()
-        } else {
-            rawLanguage
-        }
+        // The watch can't observe the phone's locale, so send the concrete tag
+        // the phone UI is rendering in rather than the "system" sentinel.
+        val languageTag = AppLanguageManager.uiLanguageTag(appPreferences.appLanguage)
 
         // Mirror the debug-only screen-capture override to the watch. Force
         // false in release builds so a stale-from-debug pref on disk cannot
@@ -159,7 +151,16 @@ class WearScheduleBridge @Inject constructor(
         val courseNo: String,
         val courseName: String,
         val instructor: String,
+        /**
+         * Whole credits, truncated. Retained for watches that predate
+         * [creditsExact]: their Gson reads this key through `nextInt()`,
+         * which throws on a fractional value, and `SchedulePersistence`
+         * catches that into an empty schedule — the watch would drop every
+         * course rather than one number. New watches ignore it.
+         */
         val credits: Int,
+        /** The real, possibly fractional count. Absent from an older phone. */
+        val creditsExact: Float? = null,
         val classroom: String,
         val scheduleJson: String,
         val classroomMapJson: String = "{}",
@@ -178,7 +179,8 @@ internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBrid
     courseNo = courseNo,
     courseName = displayName,
     instructor = instructor,
-    credits = credits,
+    credits = credits.toInt(),
+    creditsExact = credits,
     classroom = classroom,
     scheduleJson = scheduleJson,
     classroomMapJson = classroomMapJson ?: "{}",

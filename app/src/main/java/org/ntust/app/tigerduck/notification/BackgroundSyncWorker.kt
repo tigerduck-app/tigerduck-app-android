@@ -30,6 +30,7 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import java.util.concurrent.TimeUnit
+import org.ntust.app.tigerduck.util.toCreditsOrZero
 
 enum class SyncSource { NONE, BACKEND, LOCAL }
 
@@ -293,7 +294,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     courseNo = r.courseNo,
                                     courseName = r.courseName,
                                     instructor = r.courseTeacher,
-                                    credits = r.creditPoint.toIntOrNull() ?: 0,
+                                    credits = r.creditPoint.toCreditsOrZero(),
                                     classroom = allRooms.joinToString(", "),
                                     enrolledCount = r.chooseStudent ?: 0,
                                     maxCount = r.maxEnrollment,
@@ -301,7 +302,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     classroomMap = classroomMap,
                                     moodleIdNumber = moodleByNo[courseNo]?.idnumber
                                         ?: "${r.semester}${r.courseNo}",
-                                    moodleNumericCourseId = moodleByNo[courseNo]?.id
+                                    moodleNumericCourseId = moodleByNo[courseNo]?.id,
+                                    // Carried here too: the next foreground
+                                    // merge takes this row as-is, so leaving
+                                    // them out would erase them.
+                                    dimension = CourseService.firstNonEmpty(results.map { it.dimension }),
+                                    allYear = CourseService.firstNonEmpty(results.map { it.allYear }),
                                 )
                             } else {
                                 CourseService.fallbackCourseFromMoodle(

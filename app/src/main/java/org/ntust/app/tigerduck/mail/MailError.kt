@@ -1,0 +1,96 @@
+package org.ntust.app.tigerduck.mail
+
+import jakarta.mail.AuthenticationFailedException
+import jakarta.mail.FolderClosedException
+import jakarta.mail.StoreClosedException
+import jakarta.mail.search.SearchException
+import kotlinx.coroutines.CancellationException
+import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.SocketException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import java.security.cert.CertPathValidatorException
+import java.security.cert.CertificateException
+import javax.net.ssl.SSLHandshakeException
+import javax.net.ssl.SSLPeerUnverifiedException
+
+/** What went wrong, in the terms the UI and the checker act on (spec §7.1, §12.3). */
+sealed class MailError(message: String, cause: Throwable? = null) : Exception(message, cause) {
+    class AuthFailed(cause: Throwable? = null) : MailError("authentication failed", cause)
+    class Network(cause: Throwable? = null) : MailError("network error", cause)
+    /** Includes a pin mismatch from network_security_config.xml. Never offer to continue. */
+    class Certificate(cause: Throwable? = null) : MailError("certificate check failed", cause)
+    class ServerBusy(cause: Throwable? = null) : MailError("server busy", cause)
+    class SearchUnsupported(cause: Throwable? = null) : MailError("search unsupported", cause)
+    /** The mail is bigger than [MailLimits] will hold in memory at once, so it was not fetched. */
+    class TooLarge(val sizeBytes: Long, val limitBytes: Long) : MailError("message is $sizeBytes bytes, over the $limitBytes limit")
+    class Protocol(message: String, cause: Throwable? = null) : MailError(message, cause)
+    /** Thrown if anything tries to open a socket while the demo mailbox is active. */
+    class DemoMode : MailError("demo mode never opens sockets")
+    /** A folder's UIDVALIDITY no longer matches the caller's cached page; nothing on the server was touched. */
+    class FolderChanged : MailError("folder changed; refresh")
+}
+
+object MailErrors {
+    /**
+     * How a mailbox server says "not now" rather than "wrong password": the RFC 5530
+     * response codes, plus the only two phrasings that can mean nothing else.
+     *
+     * Deliberately narrow. Mail2000's exact reply for a refused connection is
+     * unverified, and a marker that is merely *likely* to mean "busy" is far more
+     * dangerous than one that is missing: "please try again" or "busy" also appear in
+     * genuine rejections, and reading one of those as a busy server would keep
+     * re-sending a password the server has already rejected -- the §7.4 harm. Anything
+     * unrecognized therefore stays [MailError.AuthFailed], which stops the retries.
+     */
+    private val BUSY_MARKERS = listOf("[unavailable]", "[limit]", "[inuse]", "too many connections", "connection limit")
+
+    private fun looksBusy(message: String?): Boolean {
+        val text = message?.lowercase() ?: return false
+        return BUSY_MARKERS.any { it in text }
+    }
+
+    /**
+     * Throws rather than returns for a [CancellationException]: a cancelled coroutine is not a
+     * mail failure and there is no [MailError] that honestly describes one. Every caller here
+     * routes `Exception` through this ([SessionHolder], `AngusMailSessionFactory.open`,
+     * `AngusMailTransport.send`, `MailAccount.signIn`, `MailChecker`), so without this one of
+     * them would eventually turn a cancellation into [MailError.Protocol] -- a failure recorded
+     * against a check or a sign-in that was merely called off.
+     */
+    fun classify(t: Throwable): MailError {
+        if (t is MailError) return t
+        if (t is CancellationException) throw t
+        val seen = HashSet<Throwable>()
+        var current: Throwable? = t
+        while (current != null && seen.add(current)) {
+            when (current) {
+                // A refused connection is reported as an authentication failure too
+                // (`NO [UNAVAILABLE] Too many connections`). Spec §12.3 keeps the two
+                // apart: a busy server is retried next round, a rejected password
+                // cancels every background check and asks the user to sign in again.
+                // Only this exception's own message is inspected -- that is where the
+                // server's tagged NO text lands, and a wrapper's wording must never
+                // turn a genuinely rejected password into "just busy". Unrecognized
+                // wording fails closed, as AuthFailed.
+                is AuthenticationFailedException ->
+                    return if (looksBusy(current.message)) MailError.ServerBusy(t) else MailError.AuthFailed(t)
+                is SSLPeerUnverifiedException, is SSLHandshakeException,
+                is CertificateException, is CertPathValidatorException -> return MailError.Certificate(t)
+                is SearchException -> return MailError.SearchUnsupported(t)
+                is UnknownHostException, is ConnectException, is SocketTimeoutException,
+                is NoRouteToHostException, is SocketException,
+                is FolderClosedException, is StoreClosedException -> return MailError.Network(t)
+            }
+            current = current.cause
+        }
+        val text = generateSequence(t) { it.cause }.take(8).mapNotNull { it.message }.joinToString(" ")
+        return when {
+            looksBusy(text) -> MailError.ServerBusy(t)
+            t is IOException -> MailError.Network(t)
+            else -> MailError.Protocol(t.message ?: t.javaClass.simpleName, t)
+        }
+    }
+}

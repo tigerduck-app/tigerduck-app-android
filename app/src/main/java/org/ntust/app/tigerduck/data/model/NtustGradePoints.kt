@@ -66,7 +66,7 @@ object NtustGradePoints {
             if (credit <= 0) continue
             val points = pointsForGrade(course.grade) ?: continue
             weighted += points * credit
-            credits += credit
+            credits += credit.toDouble()
         }
         return if (credits > 0) weighted / credits else null
     }

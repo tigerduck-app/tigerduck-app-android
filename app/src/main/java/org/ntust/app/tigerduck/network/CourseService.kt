@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.ntust.app.tigerduck.util.toCreditsOrZero
 
 sealed class CourseServiceError : Exception() {
     class NotAuthenticated : CourseServiceError()
@@ -274,7 +275,7 @@ class CourseService @Inject constructor(
                 courseNo = first.courseNo,
                 courseName = first.courseName,
                 instructor = first.courseTeacher,
-                credits = first.creditPoint.toIntOrNull() ?: 0,
+                credits = first.creditPoint.toCreditsOrZero(),
                 classroom = allRooms.joinToString(", "),
                 enrolledCount = first.chooseStudent ?: 0,
                 maxCount = first.maxEnrollment,
@@ -282,6 +283,10 @@ class CourseService @Inject constructor(
                 classroomMap = buildClassroomMap(results),
                 moodleIdNumber = moodle?.idnumber ?: "${first.semester}${first.courseNo}",
                 moodleNumericCourseId = moodle?.id,
+                // First non-empty rather than the first row's: a course split
+                // across rows only names these on some of them.
+                dimension = CourseService.firstNonEmpty(results.map { it.dimension }),
+                allYear = CourseService.firstNonEmpty(results.map { it.allYear }),
             )
         }
     } catch (e: CancellationException) {
@@ -335,6 +340,15 @@ class CourseService @Inject constructor(
         // count is acceptable given the surrounding fields all update live
         // (assignments, Moodle enrolment list, etc.) on every refresh.
         private const val LOOKUP_TTL_MS = 30L * 60L * 1000L
+
+        /**
+         * The first non-empty value across a course's QueryCourse rows. A
+         * course split across rows (one per room and day-set) only names its
+         * GE dimension or term span on some of them, so the first row is not
+         * enough.
+         */
+        fun firstNonEmpty(values: List<String?>): String? =
+            values.firstOrNull { !it.isNullOrBlank() }?.trim()
 
         /**
          * Build a stub [Course] from Moodle enrolment metadata when QueryCourse

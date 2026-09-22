@@ -142,6 +142,26 @@ object AppLanguageManager {
     fun currentLocale(language: String): Locale =
         resolveExplicitLocale(language) ?: Locale.getDefault()
 
+    /**
+     * The BCP-47 tag of the language the phone UI renders in, for a second
+     * surface that must render the same one — the watch, which cannot read
+     * the phone's locale itself.
+     *
+     * Not [resolvedSystemLanguage]: that picks a *course API* language, and
+     * `"zh"` is a fine answer for the API and a wrong one for a UI. Android
+     * expands a bare `zh` through CLDR's likely subtags to `zh-Hans-CN`, which
+     * matches `values-zh-rCN`, so a watch told `"zh"` by a Traditional Chinese
+     * phone rendered Simplified. The same answer sent a Japanese phone's watch
+     * `"en"`. Passing on the full tag keeps script and region intact.
+     *
+     * @param deviceLocale what "Follow system" resolves to; a parameter only so
+     *   the JVM tests can supply one.
+     */
+    fun uiLanguageTag(
+        language: String,
+        deviceLocale: Locale = Resources.getSystem().configuration.locales[0] ?: Locale.getDefault(),
+    ): String = (resolveExplicitLocale(language) ?: deviceLocale).toLanguageTag()
+
     private fun toLocaleList(language: String): LocaleListCompat {
         return when (val normalized = normalize(language)) {
             // SYSTEM: empty list lets Android track the device locale live.

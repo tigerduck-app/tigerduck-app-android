@@ -62,6 +62,18 @@ import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.component.SecureScreen
 
 /**
+ * What a sign-in field shows: what the user has put in it, or the prefill while they have
+ * put nothing in it at all.
+ *
+ * [typed] is null until the field is edited, and that is what makes "only ever fill an
+ * empty field" exact rather than approximate. A field the user *cleared* holds `""`, not
+ * null, so nothing comes back into it; and a prefill that changes while the form is up —
+ * signing in to the NTUST account in another screen, say — cannot land on top of a
+ * correction already typed here.
+ */
+internal fun signInFieldValue(typed: String?, prefill: String): String = typed ?: prefill
+
+/**
  * Login prompt rendered as a custom Dialog wrapping a Material 3 Surface so the
  * dialog body can consume `imePadding()` and slide its inputs above the soft
  * keyboard. The visual style (rounded shape, container color, tonal elevation)
@@ -75,14 +87,27 @@ fun LoginSheet(
     usernamePlaceholder: String,
     passwordPlaceholder: String,
     initialUsername: String = "",
+    /**
+     * What the password field starts from, for a caller that has something to offer — the
+     * School Mail sign-in does, from the stored NTUST account. Never submitted for the user
+     * and never laid on top of anything typed; see [signInFieldValue].
+     */
+    initialPassword: String = "",
     uppercaseInput: Boolean = false,
     isLoggingIn: Boolean,
     loginError: String?,
     onLogin: (String, String) -> Unit,
     onDismiss: () -> Unit,
+    /** Rendered under the subtitle, e.g. School Mail's "Forgot your password?" link. */
+    footer: (@Composable () -> Unit)? = null,
 ) {
-    var username by rememberSaveable(initialUsername) { mutableStateOf(initialUsername) }
-    var password by rememberSaveable { mutableStateOf("") }
+    // Null until the field is edited, so a prefill only ever reaches an untouched field —
+    // see [signInFieldValue]. `rememberSaveable` keeps an edit across a rotation, which is
+    // exactly what must not be overwritten.
+    var typedUsername by rememberSaveable { mutableStateOf<String?>(null) }
+    var typedPassword by rememberSaveable { mutableStateOf<String?>(null) }
+    val username = signInFieldValue(typedUsername, initialUsername)
+    val password = signInFieldValue(typedPassword, initialPassword)
     // Visibility toggle is intentionally NOT persisted across config changes —
     // a rotation should snap the password back to hidden so a shoulder-surf
     // window doesn't survive a screen flip.
@@ -107,8 +132,13 @@ fun LoginSheet(
     }
 
     LaunchedEffect(Unit) {
-        if (username.isBlank()) usernameFocusRequester.requestFocus()
-        else passwordFocusRequester.requestFocus()
+        // With both fields already filled there is nothing to type, so nothing takes focus
+        // and the keyboard stays down rather than opening over a completed form.
+        when {
+            username.isBlank() -> usernameFocusRequester.requestFocus()
+            password.isBlank() -> passwordFocusRequester.requestFocus()
+            else -> Unit
+        }
     }
 
     Dialog(
@@ -145,7 +175,7 @@ fun LoginSheet(
                         value = username,
                         onValueChange = { raw ->
                             val stripped = raw.filter { ch -> !ch.isWhitespace() }
-                            username = if (uppercaseInput) stripped.uppercase() else stripped
+                            typedUsername = if (uppercaseInput) stripped.uppercase() else stripped
                         },
                         label = usernamePlaceholder,
                         capitalization = KeyboardCapitalization.Sentences,
@@ -160,7 +190,7 @@ fun LoginSheet(
                     )
                     OutlinedTextField(
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = { typedPassword = it },
                         label = { Text(passwordPlaceholder) },
                         singleLine = true,
                         visualTransformation = if (passwordVisible) VisualTransformation.None
@@ -170,7 +200,7 @@ fun LoginSheet(
                                 PasswordTrailingIcons(
                                     password = password,
                                     passwordVisible = passwordVisible,
-                                    onClear = { password = ""; passwordVisible = false },
+                                    onClear = { typedPassword = ""; passwordVisible = false },
                                     onToggleVisibility = { passwordVisible = !passwordVisible },
                                 )
                             }
@@ -208,6 +238,7 @@ fun LoginSheet(
                             )
                         }
                     }
+                    footer?.invoke()
 
                     if (loginError != null) {
                         Row(

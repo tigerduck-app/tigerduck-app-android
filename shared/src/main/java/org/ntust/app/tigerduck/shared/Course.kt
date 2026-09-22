@@ -7,7 +7,13 @@ data class Course(
     val courseNo: String,
     val courseName: String,
     val instructor: String = "",
-    val credits: Int = 0,
+    /**
+     * Fractional: NTUST issues 0.5-credit courses. A primitive, so Gson's
+     * Unsafe path leaves 0.0f rather than null on a cache that predates the
+     * change, and JSON has one number type — `"credits":3` written by an
+     * older version still reads back as 3.0f without a DataMigration step.
+     */
+    val credits: Float = 0f,
     val classroom: String = "",
     val enrolledCount: Int = 0,
     val maxCount: Int = 0,
@@ -47,6 +53,21 @@ data class Course(
      * visually unchanged. Reverting to default sets this back to null.
      */
     val customCourseName: String? = null,
+    /**
+     * General-education dimension from QueryCourse (`Dimension`), e.g. "C".
+     * Blank for every course that carries none, which is most of them.
+     *
+     * Nullable, like [classroomMapJson], so a cache file written before this
+     * field existed still decodes: Gson's Unsafe path leaves it null.
+     */
+    val dimension: String? = null,
+    /**
+     * Term span from QueryCourse (`AllYear`): "F" = full academic year,
+     * "H" = a single semester. Null or blank when the portal reported
+     * neither, or for a row cached before this field existed. Nullable for the
+     * same reason as [dimension].
+     */
+    val allYear: String? = null,
 ) {
     /** Resolved name for display: user override if set, else the derived default. */
     val displayName: String
@@ -149,7 +170,7 @@ data class Course(
             courseNo: String,
             courseName: String,
             instructor: String = "",
-            credits: Int = 0,
+            credits: Float = 0f,
             classroom: String = "",
             enrolledCount: Int = 0,
             maxCount: Int = 0,
@@ -158,6 +179,8 @@ data class Course(
             moodleIdNumber: String? = null,
             moodleNumericCourseId: Int? = null,
             isManual: Boolean = false,
+            dimension: String? = null,
+            allYear: String? = null,
         ): Course {
             val stringKeyMap = schedule.mapKeys { it.key.toString() }
             val json = scheduleGson.toJson(stringKeyMap)
@@ -175,6 +198,8 @@ data class Course(
                 moodleIdNumber = moodleIdNumber,
                 moodleNumericCourseId = moodleNumericCourseId,
                 isManual = isManual,
+                dimension = dimension,
+                allYear = allYear,
             )
         }
 

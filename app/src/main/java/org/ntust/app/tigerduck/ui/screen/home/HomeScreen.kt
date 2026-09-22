@@ -66,6 +66,7 @@ import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import java.util.Calendar
+import org.ntust.app.tigerduck.util.formatCredits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -374,7 +375,7 @@ private fun CourseDetailDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    stringResource(R.string.course_credits_value, course.credits),
+                    stringResource(R.string.course_credits_value, course.credits.formatCredits()),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 if (assignments.isNotEmpty()) {

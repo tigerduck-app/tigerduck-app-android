@@ -1,9 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -45,17 +42,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -66,6 +58,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.xmlpull.v1.XmlPullParser
 import java.text.Collator
@@ -177,8 +170,8 @@ fun LanguagePickerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(scrollState)
                 .scrollbar(scrollState)
+                .verticalScroll(scrollState)
                 .padding(top = 4.dp, bottom = 32.dp),
         ) {
             Text(
@@ -235,39 +228,6 @@ fun LanguagePickerScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun Modifier.scrollbar(
-    state: ScrollState,
-    width: Dp = 3.dp,
-    inset: Dp = 2.dp,
-): Modifier {
-    val targetAlpha = if (state.isScrollInProgress) 1f else 0f
-    val duration = if (state.isScrollInProgress) 150 else 500
-    val alpha by animateFloatAsState(
-        targetValue = targetAlpha,
-        animationSpec = tween(durationMillis = duration),
-        label = "scrollbar_alpha",
-    )
-    val barColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-    return drawWithContent {
-        drawContent()
-        val maxValue = state.maxValue
-        if (maxValue <= 0 || alpha <= 0f) return@drawWithContent
-        val viewportH = size.height
-        val totalH = viewportH + maxValue
-        val thumbH = (viewportH * viewportH / totalH).coerceAtLeast(40f)
-        val thumbY = (state.value.toFloat() / maxValue) * (viewportH - thumbH)
-        val barWidthPx = width.toPx()
-        val insetPx = inset.toPx()
-        drawRoundRect(
-            color = barColor.copy(alpha = barColor.alpha * alpha),
-            topLeft = Offset(size.width - barWidthPx - insetPx, thumbY),
-            size = Size(barWidthPx, thumbH),
-            cornerRadius = CornerRadius(barWidthPx / 2f, barWidthPx / 2f),
-        )
     }
 }
 

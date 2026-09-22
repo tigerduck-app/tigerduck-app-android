@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SemesterCatalog
@@ -81,6 +82,11 @@ class ClassTableViewModel @Inject constructor(
     private val _liveSemesterCourses = MutableStateFlow<List<Course>>(emptyList())
     val liveSemesterCourses: StateFlow<List<Course>> = _liveSemesterCourses
 
+    // The term [_liveSemesterCourses] was loaded for. The live term is read
+    // off the calendar each time, so it can roll over while that list still
+    // holds the previous term's roster — see liveCoursesTerm.
+    private var liveSemesterCoursesTerm: String? = null
+
     private val _assignments = MutableStateFlow<List<Assignment>>(emptyList())
     val assignments: StateFlow<List<Assignment>> = _assignments
 
@@ -96,6 +102,10 @@ class ClassTableViewModel @Inject constructor(
      * ClassTableViewModelInitOrderTest for why that placement is load-bearing.
      */
     val alwaysShowAllPeriods: StateFlow<Boolean> = appPreferences.alwaysShowAllPeriodsFlow
+
+    /** Drives the room hint in each cell's corner; see [CourseRoomHint]. */
+    val showClassroomInClassTable: StateFlow<Boolean> =
+        appPreferences.showClassroomInClassTableFlow
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
@@ -124,6 +134,12 @@ class ClassTableViewModel @Inject constructor(
 
     private val _selectedWeekday = MutableStateFlow<Int?>(null)
     private val _selectedPeriodId = MutableStateFlow<String?>(null)
+
+    // The term the selected course belongs to. Not always the picker's: the
+    // today carousel shows the live term's courses whatever term the grid
+    // is on, and a course added by hand is looked up in Moodle by
+    // `<term><courseNo>` — see moodleCourseIdFor.
+    private var selectedCourseSemester: String? = null
 
     // Stored pick, else the newest published term, else the pinned term.
     // The catalogue can land after construction on a cold launch, so
@@ -338,7 +354,7 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
-    val totalCredits: Int get() = _courses.value.sumOf { it.credits }
+    val totalCredits: Float get() = _courses.value.fold(0f) { acc, c -> acc + c.credits }
 
     /** The live term's roster, wherever it currently lives. */
     private val liveCourses: List<Course>
@@ -346,6 +362,19 @@ class ClassTableViewModel @Inject constructor(
             _courses.value
         } else {
             _liveSemesterCourses.value
+        }
+
+    /**
+     * The term [liveCourses] actually holds, which is what a carousel card
+     * belongs to. Taken from whichever list it reads rather than recomputed
+     * from the calendar, so a term that rolls over while the view model is
+     * alive cannot pair the old roster with the new term.
+     */
+    private val liveCoursesTerm: String
+        get() = if (_currentSemester.value == liveSemesterCode) {
+            _currentSemester.value
+        } else {
+            liveSemesterCoursesTerm ?: liveSemesterCode
         }
 
     val todayCourses: List<Course>
@@ -371,6 +400,7 @@ class ClassTableViewModel @Inject constructor(
         } else {
             resolveCustomNames(dataCache.loadCourses(live))
         }
+        liveSemesterCoursesTerm = live
     }
 
     val activeWeekdays: List<Int>
@@ -437,28 +467,13 @@ class ClassTableViewModel @Inject constructor(
             return computeOngoingCourses(liveCourses, dayTime.weekday, dayTime.minuteOfDay)
         }
 
-    fun coursesAt(weekday: Int, period: String): List<Course> =
-        ClassTableCellLayout.coursesAt(_courses.value, weekday, period)
-
-    /** Grid geometry lives in [ClassTableCellLayout]; these bind it to state. */
-    fun cellRole(weekday: Int, periodIndex: Int): CellRole =
-        ClassTableCellLayout.roleAt(_courses.value, activePeriods, weekday, periodIndex)
-
-    /**
-     * [cellRole] for callers that already hold the period list.
-     *
-     * The no-[periods] overload reads the `activePeriods` getter, which walks
-     * every course's schedule, builds a period-id set and filters the
-     * chronological order — per call. The grid asks for a role once per cell,
-     * so roughly seven weekdays x fourteen periods rebuild the same list a
-     * hundred times per recomposition. TimetableGrid is already handed the
-     * memoized list as `periods`; passing it back through skips all of that.
-     */
-    fun cellRole(
-        periods: List<TimetablePeriod>,
-        weekday: Int,
-        periodIndex: Int,
-    ): CellRole = ClassTableCellLayout.roleAt(_courses.value, periods, weekday, periodIndex)
+    // coursesAt / cellRole were removed for the same reason hasAssignment was
+    // (below): they read _courses.value, which Compose does not track. The
+    // grid took only the view model and the weekday/period lists, so a course
+    // added into rows and days already on screen left every one of those
+    // inputs equal, Compose skipped the grid, and the new course only showed
+    // up after a restart. TimetableGrid is now handed the collected list and
+    // asks ClassTableCellLayout directly.
 
     fun wouldCauseTripleConflict(candidate: Course): TripleConflictError? =
         ClassTableCellLayout.findTripleConflict(_courses.value, candidate)
@@ -468,26 +483,45 @@ class ClassTableViewModel @Inject constructor(
     // when the assignments fetch landed. The screen now collects [assignments]
     // and derives badge state itself.
 
-    fun selectCourse(course: Course, weekday: Int, periodId: String) {
+    /**
+     * [fromLiveTerm] is for the today carousel, whose courses come from the
+     * live term rather than the one the picker is showing.
+     */
+    fun selectCourse(course: Course, weekday: Int, periodId: String, fromLiveTerm: Boolean = false) {
         _selectedWeekday.value = weekday
         _selectedPeriodId.value = periodId
+        selectedCourseSemester = if (fromLiveTerm) liveCoursesTerm else _currentSemester.value
         _selectedCourse.value = course
     }
 
     /**
      * Numeric Moodle course id for [course], or null when we have no entry
-     * for it in the idnumber map yet (e.g. manual courses without a Moodle
+     * for it in the idnumber map yet (e.g. a manual course without a Moodle
      * counterpart, or a cold start before the first sync). The detail
      * popup uses this to decide whether to render the "open in Moodle"
      * affordance.
+     *
+     * A course added by hand carries no idnumber, so it is looked up as
+     * `<term><courseNo>` — the same shape a portal course falls back to in
+     * `CourseService.lookupOrFallback`, and a key [MoodleCourseIds.idMap]
+     * writes for every code a course answers to, 合開 aliases included. The
+     * term is the one the course was selected from, which for the today
+     * carousel is the live term even while the grid shows another.
      */
     fun moodleCourseIdFor(course: Course): Int? {
-        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
-        return _moodleCourseIdByIdnumber.value[idnumber]
+        val semester = selectedCourseSemester ?: _currentSemester.value
+        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() }
+            ?: "$semester${course.courseNo}"
+        return lookupMoodleCourseId(idnumber)
     }
+
+    /** Normalised on both sides: see [MoodleCourseIds.normalizedIdnumber]. */
+    private fun lookupMoodleCourseId(idnumber: String): Int? =
+        _moodleCourseIdByIdnumber.value[MoodleCourseIds.normalizedIdnumber(idnumber)]
 
     fun clearSelection() {
         _selectedCourse.value = null
+        selectedCourseSemester = null
     }
 
     val existingCourseNos: Set<String>
@@ -561,12 +595,6 @@ class ClassTableViewModel @Inject constructor(
             widgetUpdater.requestUpdate()
         }
         syncCourseOverride(courseNo, customName = "", locale = locale)
-    }
-
-    private fun resolveMoodleNumericId(course: Course): Int? {
-        course.moodleNumericCourseId?.let { return it }
-        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
-        return _moodleCourseIdByIdnumber.value[idnumber]
     }
 
     fun deleteCourse(courseNo: String) {
@@ -653,7 +681,10 @@ class ClassTableViewModel @Inject constructor(
                 TigerDuckTheme.buildCourseColorMap(_courses.value)
             }
             if (cachedMoodleIds.isNotEmpty()) {
-                _moodleCourseIdByIdnumber.value = cachedMoodleIds
+                // A map written before keys were normalised still has
+                // Moodle's "114h" spelling; the lookup asks for "114H".
+                _moodleCourseIdByIdnumber.value =
+                    cachedMoodleIds.mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
             }
             refreshLiveSemesterCourses()
             fetchData()
@@ -800,16 +831,15 @@ class ClassTableViewModel @Inject constructor(
             )
             // Build the idnumber → numeric-id map across ALL semesters
             // (not just the one currently displayed) so the detail popup's
-            // Moodle button works for historical semesters too. Skip entries
-            // missing either field — both are required to build a usable
-            // deep link. Only overwrite when Moodle returned something so a
-            // transient failure keeps the previously cached mapping live;
-            // account switches still reset it because logout wipes the
-            // cache file via DataCache.clearAllUserData.
+            // Moodle button works for historical semesters too, keyed on
+            // every code a course answers to so a 合開 course reached through
+            // its second department's code still resolves — see
+            // MoodleCourseIds.idMap. Only overwrite when Moodle returned
+            // something so a transient failure keeps the previously cached
+            // mapping live; account switches still reset it because logout
+            // wipes the cache file via DataCache.clearAllUserData.
             if (moodleAll.isNotEmpty()) {
-                val fresh = moodleAll
-                    .mapNotNull { c -> c.idnumber?.takeIf { it.isNotEmpty() }?.let { it to c.id } }
-                    .toMap()
+                val fresh = MoodleCourseIds.idMap(moodleAll)
                 _moodleCourseIdByIdnumber.value = fresh
                 dataCache.saveMoodleCourseIds(fresh)
             }

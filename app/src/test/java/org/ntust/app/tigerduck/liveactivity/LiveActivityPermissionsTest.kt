@@ -66,10 +66,12 @@ class LiveActivityPermissionsTest {
     }
 
     @Test
-    fun `a permission this OS version does not have is not missing`() {
-        // PROMOTED_NOTIFICATIONS below API 36: SystemPermissions reports it
-        // applicable = false, which the permission screen paints grey rather
-        // than red. No row should appear for it here either.
+    fun `a permission this device does not have is not missing`() {
+        // PROMOTED_NOTIFICATIONS where the device has no chip surface — below
+        // API 36, or a Galaxy stuck on One UI 8.0, which is API 36 and still
+        // promotes nothing. SystemPermissions reports applicable = false, which
+        // the permission screen paints grey rather than red. No row should
+        // appear for it here either.
         val missing = LiveActivityPermissions.missing(
             states(
                 promoted = PermissionState(

@@ -3,9 +3,12 @@
 
 package org.ntust.app.tigerduck.ui.screen.classtable
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +26,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,12 +39,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -48,9 +60,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.net.toUri
+import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.util.formatCredits
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,6 +85,33 @@ internal fun CourseDetailDialog(
     val dash = "—"
     val classroomValue = classroom.trim().ifEmpty { dash }
     val timeValue = timeRange?.takeIf { it.isNotBlank() } ?: dash
+
+    // The course code is what students paste into 加退選, the portal search
+    // and group chats, so the row that shows it also hands it over.
+    val context = LocalContext.current
+    val view = LocalView.current
+    val codeCopiedMessage = stringResource(R.string.course_detail_code_copied)
+    var copyCount by remember { mutableIntStateOf(0) }
+    var codeCopied by remember { mutableStateOf(false) }
+    // Keyed on the count, so a second copy inside the window restarts the
+    // timer instead of having the first one clear its checkmark early.
+    LaunchedEffect(copyCount) {
+        if (copyCount == 0) return@LaunchedEffect
+        codeCopied = true
+        delay(1_500)
+        codeCopied = false
+    }
+    val copyCourseCode: () -> Unit = {
+        context.getSystemService(ClipboardManager::class.java)
+            ?.setPrimaryClip(ClipData.newPlainText("course_no", course.courseNo))
+        // Through the app's own scenario, like every other haptic here, so
+        // the Settings → Vibration sliders govern it too.
+        Haptics.perform(context, HapticScenario.CourseCodeCopy)
+        // The checkmark and the haptic are both invisible to TalkBack.
+        @Suppress("DEPRECATION")
+        view.announceForAccessibility(codeCopiedMessage)
+        copyCount++
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -153,10 +196,24 @@ internal fun CourseDetailDialog(
                     InfoRow(
                         label = stringResource(R.string.course_detail_code_label),
                         value = course.courseNo,
+                        copied = codeCopied,
+                        onCopy = copyCourseCode,
                     )
+                    CourseDetailMetadata.dimension(course.dimension)?.let {
+                        InfoRow(
+                            label = stringResource(R.string.course_detail_dimension_label),
+                            value = it,
+                        )
+                    }
+                    CourseDetailMetadata.durationLabel(course.allYear)?.let {
+                        InfoRow(
+                            label = stringResource(R.string.course_detail_duration_label),
+                            value = stringResource(it),
+                        )
+                    }
                     InfoRow(
                         label = stringResource(R.string.course_detail_credits_label),
-                        value = course.credits.toString(),
+                        value = course.credits.formatCredits(),
                     )
                     InfoRow(
                         label = stringResource(R.string.course_detail_enrollment_label),
@@ -287,11 +344,33 @@ internal fun openCourseInMoodle(context: Context, moodleCourseId: Int) {
     }
 }
 
+/**
+ * A label/value row. A non-null [onCopy] makes the whole row a copy button,
+ * marked by a glyph in front of the value — the value is what gets copied, so
+ * the glyph reads as a marker on it rather than as a separate control. It
+ * turns into a checkmark while [copied].
+ */
 @Composable
-private fun InfoRow(label: String, value: String) {
+private fun InfoRow(
+    label: String,
+    value: String,
+    copied: Boolean = false,
+    onCopy: (() -> Unit)? = null,
+) {
+    val rowModifier = if (onCopy != null) {
+        Modifier
+            .fillMaxWidth()
+            .clickable(
+                onClickLabel = stringResource(R.string.course_detail_copy_code),
+                role = Role.Button,
+                onClick = onCopy,
+            )
+    } else {
+        Modifier.fillMaxWidth()
+    }
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
+        modifier = rowModifier,
+        verticalAlignment = if (onCopy != null) Alignment.CenterVertically else Alignment.Top,
     ) {
         Text(
             text = label,
@@ -299,6 +378,20 @@ private fun InfoRow(label: String, value: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.weight(1f))
+        if (onCopy != null) {
+            Icon(
+                imageVector = if (copied) Icons.Filled.Check else Icons.Filled.ContentCopy,
+                contentDescription = null,
+                tint = if (copied) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .size(16.dp),
+            )
+        }
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,

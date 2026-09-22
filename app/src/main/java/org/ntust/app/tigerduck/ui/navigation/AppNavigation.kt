@@ -59,6 +59,8 @@ import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementDetailScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.mail.ComposeMode
+import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
@@ -75,12 +77,15 @@ import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
 import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
+import org.ntust.app.tigerduck.ui.screen.settings.AboutOthersScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
+import org.ntust.app.tigerduck.ui.screen.settings.LicenseDetailScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CourseNameSizeSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LibrarySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationPermissionSettingsScreen
+import org.ntust.app.tigerduck.ui.screen.settings.OpenSourceLicensesScreen
 import org.ntust.app.tigerduck.ui.screen.settings.OtherSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.CloudSyncSettingsScreen
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsScreen
@@ -107,11 +112,26 @@ sealed class Screen(val route: String) {
     object TabEditor : Screen("tabEditor")
     object LanguagePicker : Screen("languagePicker")
     object LiveActivitySettings : Screen("liveActivitySettings")
+    object SchoolMailNotificationSettings : Screen("schoolMailNotificationSettings")
     object NotificationPermissionSettings : Screen("notificationPermissionSettings")
     object AssignmentReminderSettings : Screen("assignmentReminderSettings")
     object SourceCodePicker : Screen("sourceCodePicker")
     object OtherSettings : Screen("otherSettings")
+    object AboutOthers : Screen("aboutOthers")
+    object OpenSourceLicenses : Screen("openSourceLicenses")
+    object LicenseDetail : Screen("openSourceLicenses/{key}") {
+        fun route(key: String) = "openSourceLicenses/$key"
+    }
     object LibrarySettings : Screen("librarySettings")
+    object SchoolMailSettings : Screen(MailRoutes.SETTINGS)
+    object SchoolMailGuide : Screen(MailRoutes.GUIDE)
+    object SchoolMail : Screen(MailRoutes.LIST)
+    object SchoolMailMessage : Screen(MailRoutes.MESSAGE) {
+        fun route(folder: String, uid: Long) = MailRoutes.message(folder, uid)
+    }
+    object SchoolMailCompose : Screen(MailRoutes.COMPOSE) {
+        fun route(mode: ComposeMode, folder: String? = null, uid: Long? = null) = MailRoutes.compose(mode, folder, uid)
+    }
     object CourseNameSizeSettings : Screen("courseNameSizeSettings")
     object CloudSync : Screen("cloudSync")
     object SyncContent : Screen("syncContent")
@@ -121,6 +141,7 @@ sealed class Screen(val route: String) {
     object ApiEndpointDebug : Screen("apiEndpointDebug")
     object TriggersDebug : Screen("triggersDebug")
     object ServerFailureDebug : Screen("serverFailureDebug")
+    object MailDevServerDebug : Screen("mailDevServerDebug")
 }
 
 @Composable
@@ -405,6 +426,38 @@ fun MainNavigation(
                 SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Library.route) { LibraryScreen() }
+            composable(Screen.SchoolMail.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailScreen(
+                    browserPreference = appState.browserPreference,
+                    onOpenMessage = { folder, uid -> navController.navigate(Screen.SchoolMailMessage.route(folder, uid)) },
+                    onEditDraft = { folder, uid -> navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.DRAFT, folder, uid)) },
+                    onCompose = { navController.navigate(Screen.SchoolMailCompose.route(ComposeMode.NEW)) },
+                    onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
+                )
+            }
+            composable(
+                Screen.SchoolMailMessage.route,
+                arguments = listOf(
+                    navArgument("folder") { type = NavType.StringType },
+                    navArgument("uid") { type = NavType.LongType },
+                ),
+            ) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageScreen(
+                    browserPreference = appState.browserPreference,
+                    onBack = { navController.popBackStack() },
+                    onCompose = { mode, folder, uid -> navController.navigate(Screen.SchoolMailCompose.route(mode, folder, uid)) },
+                )
+            }
+            composable(
+                Screen.SchoolMailCompose.route,
+                arguments = listOf(
+                    navArgument("mode") { type = NavType.StringType; defaultValue = ComposeMode.NEW.name },
+                    navArgument("folder") { type = NavType.StringType; defaultValue = "" },
+                    navArgument("uid") { type = NavType.LongType; defaultValue = -1L },
+                ),
+            ) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeScreen(onDone = { navController.popBackStack() })
+            }
             composable(Screen.Score.route) {
                 ScoreScreen(onOpenSignInSettings = openSignInSettings)
             }
@@ -414,13 +467,18 @@ fun MainNavigation(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
                     onNavigateToLiveActivity = { navController.navigate(Screen.LiveActivitySettings.route) },
+                    onNavigateToSchoolMailNotificationSettings = {
+                        navController.navigate(Screen.SchoolMailNotificationSettings.route)
+                    },
                     onNavigateToNotificationPermissionSettings = {
                         navController.navigate(Screen.NotificationPermissionSettings.route)
                     },
                     onNavigateToAssignmentReminders = { navController.navigate(Screen.AssignmentReminderSettings.route) },
                     onNavigateToCloudSync = { navController.navigate(Screen.CloudSync.route) },
                     onNavigateToLibrarySettings = { navController.navigate(Screen.LibrarySettings.route) },
+                    onNavigateToSchoolMailSettings = { navController.navigate(Screen.SchoolMailSettings.route) },
                     onNavigateToOtherSettings = { navController.navigate(Screen.OtherSettings.route) },
+                    onNavigateToAboutOthers = { navController.navigate(Screen.AboutOthers.route) },
                     // Debug-route navigation is no-op in release builds:
                     // the composables themselves are registered only inside
                     // the `if (BuildConfig.DEBUG)` block below, so an
@@ -438,6 +496,9 @@ fun MainNavigation(
                     },
                     onNavigateToServerFailureDebug = {
                         if (BuildConfig.DEBUG) navController.navigate(Screen.ServerFailureDebug.route)
+                    },
+                    onNavigateToMailDevServerDebug = {
+                        if (BuildConfig.DEBUG) navController.navigate(Screen.MailDevServerDebug.route)
                     },
                 )
             }
@@ -463,6 +524,11 @@ fun MainNavigation(
                         onBack = { navController.popBackStack() },
                     )
                 }
+                composable(Screen.MailDevServerDebug.route) {
+                    org.ntust.app.tigerduck.ui.screen.debug.MailDevServerDebugScreen(
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
             // Outside the `if (BuildConfig.DEBUG)` block below, unlike its
             // neighbours: the endpoint override is reachable from Settings →
@@ -481,13 +547,46 @@ fun MainNavigation(
                     onNavigateToApiEndpoint = {
                         navController.navigate(Screen.ApiEndpointDebug.route)
                     },
-                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToVibration = { navController.navigate(Screen.VibrationSettings.route) },
                     onNavigateToCourseNameSize = { navController.navigate(Screen.CourseNameSizeSettings.route) },
                 )
             }
+            composable(Screen.AboutOthers.route) {
+                AboutOthersScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
+                    onNavigateToLicenses = { navController.navigate(Screen.OpenSourceLicenses.route) },
+                )
+            }
+            composable(Screen.OpenSourceLicenses.route) {
+                OpenSourceLicensesScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenLicense = { key -> navController.navigate(Screen.LicenseDetail.route(key)) },
+                )
+            }
+            composable(
+                Screen.LicenseDetail.route,
+                arguments = listOf(navArgument("key") { type = NavType.StringType }),
+            ) { entry ->
+                LicenseDetailScreen(
+                    key = entry.arguments?.getString("key").orEmpty(),
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(Screen.LibrarySettings.route) {
                 LibrarySettingsScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.SchoolMailSettings.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailSettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
+                )
+            }
+            composable(Screen.SchoolMailGuide.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailGuideScreen(
+                    browserPreference = appState.browserPreference,
+                    onBack = { navController.popBackStack() },
+                )
             }
             composable(Screen.VibrationSettings.route) {
                 VibrationSettingsScreen(onBack = { navController.popBackStack() })
@@ -510,6 +609,11 @@ fun MainNavigation(
                     onNavigateToNotificationPermissionSettings = {
                         navController.navigate(Screen.NotificationPermissionSettings.route)
                     },
+                )
+            }
+            composable(Screen.SchoolMailNotificationSettings.route) {
+                org.ntust.app.tigerduck.ui.screen.mail.SchoolMailNotificationSettingsScreen(
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screen.NotificationPermissionSettings.route) {
@@ -546,6 +650,7 @@ fun AppFeature.toRoute(): String = when (this) {
     AppFeature.CLASS_TABLE -> Screen.ClassTable.route
     AppFeature.CALENDAR -> Screen.Calendar.route
     AppFeature.ANNOUNCEMENTS -> Screen.Announcements.route
+    AppFeature.SCHOOL_MAIL -> Screen.SchoolMail.route
     AppFeature.LIBRARY -> Screen.Library.route
     AppFeature.SCORE -> Screen.Score.route
     AppFeature.MORE -> Screen.More.route

@@ -24,7 +24,11 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 fun EmptyStateView(
     icon: ImageVector,
     title: String,
-    message: String,
+    /**
+     * Null for a state whose title already says everything. The sub-line and the spacer above it
+     * are then left out entirely, rather than drawn empty and leaving a stray gap under the title.
+     */
+    message: String?,
     modifier: Modifier = Modifier,
     onIconClick: (() -> Unit)? = null,
 ) {
@@ -66,11 +70,13 @@ fun EmptyStateView(
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-        )
+        if (message != null) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+            )
+        }
     }
 }

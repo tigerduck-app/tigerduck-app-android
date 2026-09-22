@@ -31,8 +31,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -51,6 +53,8 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 @Composable
 internal fun SoloCourseCell(
     course: Course,
+    /** The room to print in the bottom-left corner, or null for none. */
+    roomHint: String?,
     spanCount: Int,
     dayColWidth: androidx.compose.ui.unit.Dp,
     cellHeight: androidx.compose.ui.unit.Dp,
@@ -84,6 +88,15 @@ internal fun SoloCourseCell(
             append(assignmentLabel)
         }
     }
+    // A notch under the course name, so the name keeps the visual weight:
+    // the room is a reminder, not a second title.
+    val hintFontSize = 10.sp * TigerDuckTheme.courseNameScale * 0.85f
+    val hintLineHeight = hintFontSize * 1.2f
+    val hintSpace = if (roomHint == null) {
+        0.dp
+    } else {
+        with(LocalDensity.current) { hintLineHeight.toDp() } + 2.dp
+    }
     Box(
         modifier = Modifier
             .width(dayColWidth)
@@ -98,6 +111,9 @@ internal fun SoloCourseCell(
             }
             .combinedClickable(
                 onClick = onTap,
+                // The app vibrates for this long press itself, through the Vibration setting;
+                // Compose's own buzz would land on top of it and ignore that setting.
+                hapticFeedbackEnabled = false,
                 onLongClick = {
                     onLongPress()
                     showMenu = true
@@ -110,8 +126,30 @@ internal fun SoloCourseCell(
             maxLines = if (spanCount >= 2) 3 else 2,
             modifier = Modifier
                 .padding(2.dp)
+                // Hand the hint's line back to it. Without this the centred
+                // name keeps the whole cell, and a two-line name in a
+                // one-period cell prints straight through the room.
+                .padding(bottom = hintSpace)
                 .align(Alignment.Center),
         )
+        if (roomHint != null) {
+            Text(
+                text = roomHint,
+                style = MaterialTheme.typography.labelSmall,
+                color = cellTextColor.copy(alpha = 0.7f),
+                fontSize = hintFontSize,
+                lineHeight = hintLineHeight,
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    // Clear of the assignment badge in the opposite corner.
+                    .padding(start = 3.dp, bottom = 2.dp, end = if (hasAssignment) 18.dp else 3.dp)
+                    // Already in the cell's own label, which reads the room.
+                    .clearAndSetSemantics {},
+            )
+        }
         if (hasAssignment) {
             Icon(
                 imageVector = Icons.Filled.Book,

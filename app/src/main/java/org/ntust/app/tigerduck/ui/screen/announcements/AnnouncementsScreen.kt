@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -27,9 +27,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FilterAltOff
@@ -46,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -59,15 +58,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -86,13 +90,20 @@ import org.ntust.app.tigerduck.network.model.localizedTagLabel
 import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.SearchDrawer
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.fillHeightBelowChrome
+import org.ntust.app.tigerduck.ui.component.listTopAnchor
+import org.ntust.app.tigerduck.ui.component.readToggleIcon
+import org.ntust.app.tigerduck.ui.component.rememberAppBarState
+import org.ntust.app.tigerduck.ui.component.rememberChromeContentPadding
+import org.ntust.app.tigerduck.ui.component.rememberSearchRevealState
+import org.ntust.app.tigerduck.ui.component.scrollbar
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AnnouncementsScreen(
     onOpenBulletin: (Int) -> Unit,
@@ -103,41 +114,52 @@ fun AnnouncementsScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val isLoading = state.loadState is AnnouncementsViewModel.LoadState.Loading
+    val appBar = rememberAppBarState()
+    val chromeScope = rememberCoroutineScope()
     LaunchedEffect(state.unreadOnly, state.selectedOrgs, state.selectedTags, state.searchText) {
+        // The bar first, then the jump. `scrollToItem` does not dispatch a single nested-scroll
+        // delta, so a bar left part way up by the scroll that preceded the filter tap would stay
+        // there over a list now at its very top -- a band of bare `contentPadding` where the
+        // chrome belongs, until some later gesture happened to bring it back.
+        appBar.snapToRest()
         listState.scrollToItem(0)
     }
 
-    // Pagination trigger uses the LazyColumn index (not the bulletin id) so
-    // the lookup into `displayed` stays O(1) regardless of list length. The
-    // sticky-header item occupies index 0; bulletins occupy 1..displayed.size.
-    // We filter to Int-keyed items so spinner/spacer (String keys) don't
-    // drive the trigger.
-    val currentDisplayed by rememberUpdatedState(state.displayed)
     val currentOnLastVisible by rememberUpdatedState(viewModel::loadMoreIfNeeded)
     LaunchedEffect(listState) {
-        snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.lastOrNull { it.key is Int }?.index
-        }
+        snapshotFlow { listState.layoutInfo.lastVisibleBulletinId() }
             .filterNotNull()
             .distinctUntilChanged()
-            .collect { lastIndex ->
-                // headers are item 0; bulletinIndex = lastIndex - 1.
-                currentDisplayed.getOrNull(lastIndex - 1)?.let(currentOnLastVisible)
-            }
+            .collect { id -> currentOnLastVisible(id) }
     }
 
-    // Empty-state height = viewport - header. Both are measured via
+    // Empty-state height = viewport - chrome. Both are measured via
     // onSizeChanged, and we hold off rendering the empty state until both
     // measurements have arrived — otherwise the first composition uses 0
-    // for the header and sizes the empty state to the full viewport,
+    // for the chrome and sizes the empty state to the full viewport,
     // briefly making the LazyColumn scrollable past the bottom.
-    var headerHeightPx by remember { mutableIntStateOf(0) }
+    //
+    // The chrome's height is read straight off appBar, which the same
+    // onSizeChanged writes: a second copy of one measurement is a second
+    // thing to keep in step for nothing. The subtraction itself happens in
+    // `fillHeightBelowChrome`, at measure time -- appBar.heightPx changes on
+    // every frame the search drawer moves, and reading it here would recompose
+    // this whole screen for the length of the gesture.
     var viewportHeightPx by remember { mutableIntStateOf(0) }
-    val density = LocalDensity.current
-    val emptyStateHeight = with(density) {
-        (viewportHeightPx - headerHeightPx).coerceAtLeast(0).toDp()
+    // `derivedStateOf` so the same per-frame writes don't invalidate anything either: this is a
+    // one-way latch that flips false -> true once both measurements have landed, and a derived
+    // state only notifies when its *result* changes.
+    val canShowEmptyState by remember {
+        derivedStateOf { viewportHeightPx > 0 && appBar.heightPx > 0f }
     }
-    val canShowEmptyState = viewportHeightPx > 0 && headerHeightPx > 0
+    val chromePadding = rememberChromeContentPadding(appBar)
+
+    val searchReveal = rememberSearchRevealState()
+    var searchFocused by remember { mutableStateOf(false) }
+    // Pinning opens the drawer as well as holding it open, which is what puts the field on screen
+    // for a search the view model was still carrying when this screen composed -- coming back from
+    // a bulletin -- and for a field that takes focus without a gesture having opened anything.
+    searchReveal.pinned = searchFocused || state.searchText.isNotEmpty()
 
     // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
     // re-subcomposes its content lambda whenever incoming constraints change
@@ -155,139 +177,168 @@ fun AnnouncementsScreen(
             onRefresh = viewModel::refresh,
             modifier = Modifier.fillMaxSize(),
             refreshingMessage = stringResource(R.string.refreshing_message),
+            appBar = appBar,
+            searchReveal = searchReveal,
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                // stickyHeader keeps the page title, search field, and filter
-                // chips pinned at the top while the bulletin list scrolls —
-                // matching the always-visible chrome the old non-LazyColumn
-                // layout provided, and preventing the search field from being
-                // disposed (losing IME focus) when it scrolls off.
-                stickyHeader(key = "headers") {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.background)
-                            .onSizeChanged { headerHeightPx = it.height },
-                    ) {
-                        PageHeader(title = stringResource(R.string.feature_announcements)) {
-                            SyncStatusDot(
-                                servers = listOf(ServerKind.BACKEND),
-                                isLoading = isLoading,
-                            )
-                            if (state.unreadOnly && state.hasUnread) {
-                                IconButton(onClick = viewModel::markAllRead) {
-                                    Icon(
-                                        Icons.Filled.DoneAll,
-                                        contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
+            // Clipped, because the chrome overlay hides by translating up past this
+            // box's top edge, and the root Scaffold has already padded that edge down
+            // to the bottom of the status bar. Unclipped, the band of chrome that
+            // lands behind the status bar stayed drawn there, under the clock.
+            Box(Modifier.fillMaxSize().clipToBounds()) {
+                LazyColumn(
+                    state = listState,
+                    // The thumb's track starts where the chrome overlay ends, or the bar would
+                    // hide it whenever the list is near its top.
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .scrollbar(
+                            listState,
+                            topInsetPx = { appBar.heightPx + appBar.offsetPx },
+                            // A fast scroll moves the list without a nested-scroll delta, so a bar it
+                            // left hidden over the very top would uncover bare content padding.
+                            onFastScrollStopped = {
+                                if (!listState.canScrollBackward) chromeScope.launch { appBar.snapToRest() }
+                            },
+                        ),
+                    // The chrome is a sibling overlay now rather than the first
+                    // item, so the list keeps the room for it here instead. The
+                    // overlay translates away on scroll while this padding stays
+                    // put, which is what lets the bulletins travel up under it.
+                    contentPadding = chromePadding,
+                ) {
+                    // The cached bulletins paint first and the refresh lands newer ones ahead of
+                    // them; this is what opens the list on those rather than on the cache's first.
+                    listTopAnchor()
+                    val displayed = state.displayed
+                    val loadState = state.loadState
+                    when {
+                        displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
+                            if (canShowEmptyState) {
+                                item(key = "empty-state") {
+                                    CenteredEmptyState(
+                                        modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
+                                        title = stringResource(
+                                            if (state.unreadOnly) R.string.bulletin_no_unread_title
+                                            else R.string.bulletin_no_bulletins_title
+                                        ),
+                                        message = stringResource(R.string.bulletin_no_bulletins_message),
                                     )
                                 }
                             }
-                            val unreadOnlyLabel =
-                                stringResource(R.string.bulletin_show_unread_only_action)
-                            Box(
-                                modifier = Modifier
-                                    .minimumInteractiveComponentSize()
-                                    .toggleable(
-                                        value = state.unreadOnly,
-                                        role = Role.Switch,
-                                        onValueChange = { viewModel.setUnreadOnly(it) },
+                        }
+
+                        displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
+                            if (canShowEmptyState) {
+                                item(key = "failed-state") {
+                                    CenteredEmptyState(
+                                        modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
+                                        title = stringResource(R.string.bulletin_load_failed_title),
+                                        message = loadState.message,
                                     )
-                                    .semantics {
-                                        contentDescription = unreadOnlyLabel
-                                    },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                                    contentDescription = null,
-                                )
-                            }
-                            IconButton(onClick = onOpenSubscriptions) {
-                                Icon(
-                                    Icons.Filled.Settings,
-                                    contentDescription = stringResource(R.string.bulletin_notifications_title),
-                                )
+                                }
                             }
                         }
-                        SearchBar(
-                            value = state.searchText,
-                            onValueChange = viewModel::setSearch,
-                        )
-                        FilterSection(
-                            taxonomy = state.taxonomy,
-                            selectedOrgs = state.selectedOrgs,
-                            selectedTags = state.selectedTags,
-                            onOrgsChange = viewModel::setOrgFilter,
-                            onTagsChange = viewModel::setTagFilter,
-                        )
+
+                        else -> {
+                            items(displayed, key = { it.id }) { item ->
+                                // 8dp gap above each card stands in for the
+                                // verticalArrangement.spacedBy on the old list-only
+                                // LazyColumn; horizontal padding stays off the
+                                // LazyColumn's contentPadding, which now carries
+                                // the room the chrome overlay needs.
+                                SwipeableBulletinCard(
+                                    item = item,
+                                    taxonomy = state.taxonomy,
+                                    isRead = item.id in state.readIds,
+                                    onClick = { onOpenBulletin(item.id) },
+                                    onToggleRead = { viewModel.toggleRead(item.id) },
+                                    modifier = Modifier.padding(
+                                        start = 16.dp,
+                                        end = 16.dp,
+                                        top = 8.dp,
+                                    ),
+                                )
+                            }
+                            if (state.isPaginating) {
+                                item(key = "pagination-spinner") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) { CircularProgressIndicator() }
+                                }
+                            }
+                            item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+                        }
                     }
                 }
 
-                val displayed = state.displayed
-                val loadState = state.loadState
-                when {
-                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Loaded -> {
-                        if (canShowEmptyState) {
-                            item(key = "empty-state") {
-                                CenteredEmptyState(
-                                    height = emptyStateHeight,
-                                    title = stringResource(
-                                        if (state.unreadOnly) R.string.bulletin_no_unread_title
-                                        else R.string.bulletin_no_bulletins_title
-                                    ),
-                                    message = stringResource(R.string.bulletin_no_bulletins_message),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // One measurement, three readers: the empty state sizes
+                        // itself to the viewport below the chrome, the list pads
+                        // itself by exactly what the chrome covers, and the bar
+                        // knows how far it has to travel to hide.
+                        .onSizeChanged { appBar.heightPx = it.height.toFloat() }
+                        .graphicsLayer { translationY = appBar.offsetPx }
+                        .background(MaterialTheme.colorScheme.background),
+                ) {
+                    PageHeader(title = stringResource(R.string.feature_announcements)) {
+                        SyncStatusDot(
+                            servers = listOf(ServerKind.BACKEND),
+                            isLoading = isLoading,
+                        )
+                        if (state.unreadOnly && state.hasUnread) {
+                            IconButton(onClick = viewModel::markAllRead) {
+                                Icon(
+                                    Icons.Filled.DoneAll,
+                                    contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
                                 )
                             }
                         }
-                    }
-
-                    displayed.isEmpty() && loadState is AnnouncementsViewModel.LoadState.Failed -> {
-                        if (canShowEmptyState) {
-                            item(key = "failed-state") {
-                                CenteredEmptyState(
-                                    height = emptyStateHeight,
-                                    title = stringResource(R.string.bulletin_load_failed_title),
-                                    message = loadState.message,
+                        val unreadOnlyLabel =
+                            stringResource(R.string.bulletin_show_unread_only_action)
+                        Box(
+                            modifier = Modifier
+                                .minimumInteractiveComponentSize()
+                                .toggleable(
+                                    value = state.unreadOnly,
+                                    role = Role.Switch,
+                                    onValueChange = { viewModel.setUnreadOnly(it) },
                                 )
-                            }
-                        }
-                    }
-
-                    else -> {
-                        items(displayed, key = { it.id }) { item ->
-                            // 8dp gap above each card stands in for the
-                            // verticalArrangement.spacedBy on the old list-only
-                            // LazyColumn; horizontal padding moved off the
-                            // (now mixed) LazyColumn's contentPadding so the
-                            // header items keep their edge-to-edge layout.
-                            SwipeableBulletinCard(
-                                item = item,
-                                taxonomy = state.taxonomy,
-                                isRead = item.id in state.readIds,
-                                onClick = { onOpenBulletin(item.id) },
-                                onToggleRead = { viewModel.toggleRead(item.id) },
-                                modifier = Modifier.padding(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = 8.dp,
-                                ),
+                                .semantics {
+                                    contentDescription = unreadOnlyLabel
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
+                                contentDescription = null,
                             )
                         }
-                        if (state.isPaginating) {
-                            item(key = "pagination-spinner") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 16.dp),
-                                    contentAlignment = Alignment.Center,
-                                ) { CircularProgressIndicator() }
-                            }
+                        IconButton(onClick = onOpenSubscriptions) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = stringResource(R.string.bulletin_notifications_title),
+                            )
                         }
-                        item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                     }
+                    SearchDrawer(searchReveal) {
+                        SearchBar(
+                            value = state.searchText,
+                            onValueChange = viewModel::setSearch,
+                            onFocusChanged = { searchFocused = it },
+                        )
+                    }
+                    FilterSection(
+                        taxonomy = state.taxonomy,
+                        selectedOrgs = state.selectedOrgs,
+                        selectedTags = state.selectedTags,
+                        onOrgsChange = viewModel::setOrgFilter,
+                        onTagsChange = viewModel::setTagFilter,
+                    )
                 }
             }
         }
@@ -295,20 +346,18 @@ fun AnnouncementsScreen(
 }
 
 /**
- * Empty / failed state sized to fit exactly the area below the sticky
- * header, so the icon lands at the visual center of the available space
+ * Empty / failed state sized to fit exactly the area below the chrome
+ * overlay, so the icon lands at the visual center of the available space
  * and the LazyColumn doesn't become scrollable past the viewport.
  */
 @Composable
 private fun CenteredEmptyState(
-    height: androidx.compose.ui.unit.Dp,
+    modifier: Modifier,
     title: String,
     message: String,
 ) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(height),
+        modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center,
     ) {
         EmptyStateView(
@@ -319,14 +368,23 @@ private fun CenteredEmptyState(
     }
 }
 
+/**
+ * [onFocusChanged] is what pins the search drawer open: the field must not be scrolled away
+ * from under someone who is typing in it.
+ */
 @Composable
-private fun SearchBar(value: String, onValueChange: (String) -> Unit) {
+private fun SearchBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit,
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .onFocusChanged { onFocusChanged(it.isFocused) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         placeholder = { Text(stringResource(R.string.bulletin_search_prompt)) },
         singleLine = true,
@@ -335,10 +393,10 @@ private fun SearchBar(value: String, onValueChange: (String) -> Unit) {
 }
 
 /**
- * Two labeled chip rows mirroring iOS `BulletinFilterBar` — one for 處室
- * (department / org), one for 類別 (category / tag). Keeping the dimensions
- * visually separate is what tells users that the same bulletin can carry both
- * a department and one or more categories.
+ * Two labeled chip rows mirroring iOS `BulletinFilterBar` — one for the
+ * department (org) dimension, one for the category (tag) dimension. Keeping
+ * the dimensions visually separate is what tells users that the same bulletin
+ * can carry both a department and one or more categories.
  */
 @Composable
 private fun FilterSection(
@@ -413,16 +471,17 @@ private fun ChipRow(
 
 /**
  * Card layout mirrors iOS `BulletinCardView`:
- *  - Top row: unread dot, **filled accent badge for org (處室)**, importance
- *    badge, withdrawn badge, posted date.
+ *  - Top row: unread dot, **filled accent badge for the department (org)**,
+ *    importance badge, withdrawn badge, posted date.
  *  - Title row, semibold when unread.
  *  - Optional summary.
- *  - Bottom-right hashtag strip for content tags (類別).
+ *  - Bottom-right hashtag strip for content categories (tags).
  *
- * The org badge and tag strip are intentionally different visual styles so
- * 處室 reads as the primary source attribution while 類別 reads as
- * secondary metadata. The earlier mash-everything-into-one-line layout was
- * what made the user say "department is mixing with category".
+ * The department badge and the category strip are intentionally different
+ * visual styles so the department reads as the primary source attribution
+ * while the categories read as secondary metadata. The earlier
+ * mash-everything-into-one-line layout was what made the user say "department
+ * is mixing with category".
  */
 @Composable
 private fun BulletinCard(
@@ -430,14 +489,17 @@ private fun BulletinCard(
     taxonomy: TaxonomyResponse?,
     isRead: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val container = MaterialTheme.colorScheme.surfaceVariant
     val cs = MaterialTheme.colorScheme
+    // [modifier] lands on the same layout node as Surface's own clickable, so semantics set on
+    // it merge into the single card node an accessibility service focuses.
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         color = container,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             // --- Top row: unread dot + org + importance + withdrawn + date.
@@ -467,7 +529,7 @@ private fun BulletinCard(
                     Text(
                         text = formatShortDate(it),
                         style = MaterialTheme.typography.labelSmall,
-                        color = cs.outline,
+                        color = cs.onSurfaceVariant,
                     )
                 }
             }
@@ -506,8 +568,8 @@ private fun BulletinCard(
  * SwipeableAssignmentRow pattern on the home screen (100dp threshold,
  * 0.6× drag damping, fling-out + snap-reset on commit, spring-back
  * otherwise). Either swipe direction toggles read state — the leading or
- * trailing icon flips between Check (will mark read) and Undo (will mark
- * unread) based on current state.
+ * trailing icon flips between a "mark read" envelope and a "mark unread"
+ * envelope based on current state.
  */
 @Composable
 private fun SwipeableBulletinCard(
@@ -525,11 +587,17 @@ private fun SwipeableBulletinCard(
     val coroutineScope = rememberCoroutineScope()
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val actionColor = Color(0xFF34C759)
-    val icon = if (isRead) Icons.Filled.Check else Icons.AutoMirrored.Filled.Undo
+    val icon = readToggleIcon(isRead = isRead)
     val iconDesc = stringResource(
         if (isRead) R.string.bulletin_mark_as_unread_action
         else R.string.bulletin_mark_as_read_action
     )
+    // The same localized label the swipe icon announces. An accessibility service cannot
+    // perform a drag, and read state is functional, not decorative, so without this custom
+    // action the card's only reachable action was opening the bulletin.
+    val readActions = remember(iconDesc) {
+        listOf(CustomAccessibilityAction(iconDesc) { latestOnToggleRead(); true })
+    }
 
     Box(modifier = modifier.fillMaxWidth()) {
         val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
@@ -621,6 +689,7 @@ private fun SwipeableBulletinCard(
                 taxonomy = taxonomy,
                 isRead = isRead,
                 onClick = onClick,
+                modifier = Modifier.semantics { customActions = readActions },
             )
         }
     }
@@ -712,3 +781,18 @@ private fun formatShortDate(raw: String): String {
         raw.substringBefore('T')
     }
 }
+
+/**
+ * The id of the last bulletin on screen, which is what asks for the next page.
+ *
+ * By the item's key, not by where the item sits in the list: a place in the list is not a place
+ * among the bulletins. The list carries a top anchor above them, and a header added later would
+ * move them again -- so reading `displayed[index]`, which this used to do, went one past the end
+ * of the bulletins exactly as the last of them came into view, found nothing, and never asked for
+ * the page that was due. The key *is* the id (`key = { it.id }`), so this is still the O(1) it was
+ * meant to be and is right whatever else the list puts above the bulletins. Picking out the Int
+ * keys is what passes over the anchor, the pagination spinner and the bottom spacer, which the
+ * list keys by String.
+ */
+internal fun LazyListLayoutInfo.lastVisibleBulletinId(): Int? =
+    visibleItemsInfo.lastOrNull { it.key is Int }?.key as? Int
