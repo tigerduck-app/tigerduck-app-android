@@ -45,6 +45,18 @@ class ScrollbarFastScrollTest {
         return state
     }
 
+    /** Drags the list and comes to a stop before lifting, so the thumb shows and nothing coasts. */
+    private fun stopTheList() {
+        rule.onNodeWithTag("list").performTouchInput {
+            down(center)
+            moveBy(Offset(0f, -300f), delayMillis = 100)
+            advanceEventTime(300)
+            moveBy(Offset.Zero)
+            up()
+        }
+        rule.mainClock.advanceTimeBy(100)
+    }
+
     /** Long-presses the trailing edge half way down, then drags to the bottom of the track. */
     private fun grabAndDragToBottom() {
         val longPress = rule.onNodeWithTag("list").fetchLongPressTimeout()
@@ -77,18 +89,67 @@ class ScrollbarFastScrollTest {
     }
 
     @Test
+    fun aFingerReportedToJumpAsItSettlesStillTakesHold() {
+        // Where a touch is reported moves as the contact spreads, and at the edge of the screen it
+        // moves far: three slops, a frame in, is what a Galaxy A26 reports. Then it holds still.
+        val state = showList()
+        rule.mainClock.autoAdvance = false
+        stopTheList()
+        var longPress = 0L
+        var slop = 0f
+        rule.onNodeWithTag("list").performTouchInput {
+            longPress = viewConfiguration.longPressTimeoutMillis
+            slop = viewConfiguration.touchSlop
+            down(Offset(width - 20f, height / 2f))
+        }
+        rule.mainClock.advanceTimeBy(16)
+        rule.onNodeWithTag("list").performTouchInput { moveBy(Offset(-2.1f * slop, 2.1f * slop)) }
+        rule.mainClock.advanceTimeBy(longPress + 100)
+        rule.onNodeWithTag("list").performTouchInput { moveTo(Offset(width - 20f, height - 1f)) }
+        rule.mainClock.advanceTimeBy(100)
+
+        rule.runOnIdle {
+            assertTrue("dragged to the bottom, at ${state.firstVisibleItemIndex}", state.firstVisibleItemIndex > 180)
+        }
+        rule.onNodeWithTag("list").performTouchInput { up() }
+    }
+
+    @Test
+    fun aFingerThatKeepsMovingAfterItSettlesIsAScroll() {
+        // The same wander, but it carries on past the settling: the list scrolls and nothing is
+        // taken hold of.
+        val state = showList()
+        rule.mainClock.autoAdvance = false
+        stopTheList()
+        val started = rule.runOnIdle { state.firstVisibleItemIndex }
+        var longPress = 0L
+        var slop = 0f
+        rule.onNodeWithTag("list").performTouchInput {
+            longPress = viewConfiguration.longPressTimeoutMillis
+            slop = viewConfiguration.touchSlop
+            down(Offset(width - 20f, height / 2f))
+        }
+        repeat(8) {
+            rule.mainClock.advanceTimeBy(longPress / 8)
+            rule.onNodeWithTag("list").performTouchInput { moveBy(Offset(0f, -slop)) }
+        }
+        rule.mainClock.advanceTimeBy(200)
+
+        rule.runOnIdle {
+            assertTrue(
+                "scrolled by hand from $started, now at ${state.firstVisibleItemIndex}",
+                state.firstVisibleItemIndex in (started + 1)..(started + 20),
+            )
+        }
+        rule.onNodeWithTag("list").performTouchInput { up() }
+    }
+
+    @Test
     fun aHoldThatRollsALittleStillTakesHold() {
         // A pad pressed against the edge rolls as it settles: one and a half slops, sideways and down.
         val state = showList()
         rule.mainClock.autoAdvance = false
-        rule.onNodeWithTag("list").performTouchInput {
-            down(center)
-            moveBy(Offset(0f, -300f), delayMillis = 100)
-            advanceEventTime(300)
-            moveBy(Offset.Zero)
-            up()
-        }
-        rule.mainClock.advanceTimeBy(100)
+        stopTheList()
         var longPress = 0L
         var slop = 0f
         rule.onNodeWithTag("list").performTouchInput {

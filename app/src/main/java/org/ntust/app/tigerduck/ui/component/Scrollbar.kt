@@ -351,27 +351,42 @@ internal fun isOnTrailingEdge(x: Float, width: Float, edge: Float, direction: La
     if (direction == LayoutDirection.Rtl) x <= edge else x >= width - edge
 
 /**
- * How far a held finger may wander, in touch slops, and still be holding. A pad pressed flat against
- * the edge of the screen rolls as it settles, and one slop -- what a tap or a scroll goes by -- is
- * less than that roll: a press the person meant as perfectly still was read as the start of a
- * scroll, and the thumb never took. A scroll the list could lose to this has to cover under two
- * slops in the whole long-press timeout, slower than anyone reads.
+ * How far a held finger may wander, in touch slops, and still be holding. One slop -- what a tap or
+ * a scroll goes by -- is less than the roll of a pad pressed flat against the edge of a screen. A
+ * scroll the list could lose to this has to cover under two slops in what is left of the long-press
+ * timeout after [SettleMillis], slower than anyone reads.
  */
 private const val LongPressSlops = 2f
 
 /**
+ * How long a finger is given to settle before it is held to staying still.
+ *
+ * Where a finger is reported to be moves once as its contact spreads, and at the very edge of the
+ * screen it moves a long way: a Galaxy A26 reports the touch 68 px from where it first landed 11 ms
+ * in, a POCO C85 drifts 37 px over its first 40. That is the hand settling, not the hand moving,
+ * and measured from the first touch it read as the start of a scroll -- which is why on those two
+ * the thumb could not be taken hold of at all, while phones that report a steadier first touch were
+ * fine. So the point a hold is measured from follows the finger this long, and only then stays put.
+ */
+private const val SettleMillis = 120L
+
+/**
  * Waits out a long press without claiming anything. False as soon as the finger lifts, wanders
- * past [LongPressSlops], or something else takes the event -- a tap or a scroll that merely started
- * on the edge, which the list then handles exactly as it would have without this.
+ * past [LongPressSlops] once it has settled, or something else takes the event -- a tap or a scroll
+ * that merely started on the edge, which the list then handles exactly as it would have without
+ * this.
  */
 private suspend fun AwaitPointerEventScope.awaitLongPressInPlace(down: PointerInputChange): Boolean {
     val slop = viewConfiguration.touchSlop * LongPressSlops
+    var held = down.position
     val interrupted = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
         var gaveUp = false
         while (!gaveUp) {
             val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
+            val settling = change != null && change.uptimeMillis - down.uptimeMillis <= SettleMillis
             gaveUp = change == null || !change.pressed || change.isConsumed ||
-                (change.position - down.position).getDistance() > slop
+                (!settling && (change.position - held).getDistance() > slop)
+            if (settling) held = change.position
         }
         true
     }
