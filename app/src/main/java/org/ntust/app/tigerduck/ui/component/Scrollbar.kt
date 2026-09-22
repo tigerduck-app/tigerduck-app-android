@@ -3,9 +3,11 @@ package org.ntust.app.tigerduck.ui.component
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.lazy.LazyLayoutScrollScope
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +46,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -98,15 +101,23 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
                 if (!awaitLongPressInPlace(down)) return@awaitEachGesture
                 fastScrolling = true
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                // One session at UserInput for the whole drag -- see the LazyListState overload.
+                val targets = Channel<Int>(Channel.CONFLATED)
+                scope.launch {
+                    state.scroll(MutatePriority.UserInput) {
+                        for (target in targets) scrollBy((target - state.value).toFloat())
+                    }
+                }
                 try {
                     followFinger(down) { y ->
                         val viewport = size.height.toFloat()
                         val max = state.maxValue
                         val thumb = thumbHeightPx(viewport, viewport / (viewport + max))
                         val fraction = fastScrollFraction(y, trackTop = 0f, track = viewport, thumbHeight = thumb)
-                        scope.launch { state.scrollTo((fraction * max).roundToInt()) }
+                        targets.trySend((fraction * max).roundToInt())
                     }
                 } finally {
+                    targets.close()
                     fastScrolling = false
                 }
             }
@@ -139,9 +150,9 @@ private fun scrollThumb(state: ScrollState, height: Float): ThumbSpan? {
  * chrome overlay, which would otherwise hide the thumb whenever the list is near its top. Read
  * at draw time, so a moving chrome only redraws the thumb.
  *
- * [onFastScrollStopped] runs when the finger lets go. A fast scroll jumps the list with
- * `scrollToItem`, which dispatches no nested scroll, so anything that follows the list's scrolling
- * -- a hiding app bar -- hears nothing of it and may need putting right.
+ * [onFastScrollStopped] runs when the finger lets go. A fast scroll jumps the list from row to row,
+ * which dispatches no nested scroll, so anything that follows the list's scrolling -- a hiding app
+ * bar -- hears nothing of it and may need putting right.
  */
 @Composable
 fun Modifier.scrollbar(
@@ -189,6 +200,25 @@ fun Modifier.scrollbar(
                 val sizeOf = { index: Int -> sizes.of(index) ?: guess }
                 fastScrolling = true
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                // One scroll session for the whole drag, at the priority a finger on the list gets.
+                // A long press usually lands while the list is still coasting, and touching a
+                // coasting list starts the list's own drag at once, to catch it -- a drag that holds
+                // the list at UserInput until the finger lifts. Each move used to be a
+                // `scrollToItem`, at the lower Default priority, and every one of them was cancelled
+                // against that drag: the thumb took the accent colour and the list never moved.
+                // Taken at UserInput, this session is the one that wins.
+                val targets = Channel<Pair<Int, Int>>(Channel.CONFLATED)
+                scope.launch {
+                    try {
+                        state.scroll(MutatePriority.UserInput) {
+                            val rows = LazyLayoutScrollScope(state, this)
+                            for ((index, offset) in targets) rows.snapToItem(index, offset)
+                        }
+                    } finally {
+                        // After the last jump has landed, so it sees where the list really ended up.
+                        latestOnStopped()
+                    }
+                }
                 try {
                     followFinger(down) { y ->
                         val info = state.layoutInfo
@@ -198,12 +228,11 @@ fun Modifier.scrollbar(
                         val thumb = lazyListScrollbarThumb(info, state.canScrollBackward, state.canScrollForward, sizeOf)
                             ?: return@followFinger
                         val fraction = fastScrollFraction(y, trackTop, track, thumbHeightPx(track, thumb.size))
-                        val (index, offset) = fastScrollTarget(fraction, info, sizeOf)
-                        scope.launch { state.scrollToItem(index, offset) }
+                        targets.trySend(fastScrollTarget(fraction, info, sizeOf))
                     }
                 } finally {
+                    targets.close()
                     fastScrolling = false
-                    latestOnStopped()
                 }
             }
         }
@@ -322,17 +351,27 @@ internal fun isOnTrailingEdge(x: Float, width: Float, edge: Float, direction: La
     if (direction == LayoutDirection.Rtl) x <= edge else x >= width - edge
 
 /**
- * Waits out a long press without claiming anything. False as soon as the finger lifts, moves past
- * touch slop, or something else takes the event -- a tap or a scroll that merely started on the
- * edge, which the list then handles exactly as it would have without this.
+ * How far a held finger may wander, in touch slops, and still be holding. A pad pressed flat against
+ * the edge of the screen rolls as it settles, and one slop -- what a tap or a scroll goes by -- is
+ * less than that roll: a press the person meant as perfectly still was read as the start of a
+ * scroll, and the thumb never took. A scroll the list could lose to this has to cover under two
+ * slops in the whole long-press timeout, slower than anyone reads.
+ */
+private const val LongPressSlops = 2f
+
+/**
+ * Waits out a long press without claiming anything. False as soon as the finger lifts, wanders
+ * past [LongPressSlops], or something else takes the event -- a tap or a scroll that merely started
+ * on the edge, which the list then handles exactly as it would have without this.
  */
 private suspend fun AwaitPointerEventScope.awaitLongPressInPlace(down: PointerInputChange): Boolean {
+    val slop = viewConfiguration.touchSlop * LongPressSlops
     val interrupted = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
         var gaveUp = false
         while (!gaveUp) {
             val change = awaitPointerEvent(PointerEventPass.Initial).changes.firstOrNull { it.id == down.id }
             gaveUp = change == null || !change.pressed || change.isConsumed ||
-                (change.position - down.position).getDistance() > viewConfiguration.touchSlop
+                (change.position - down.position).getDistance() > slop
         }
         true
     }
