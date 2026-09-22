@@ -209,4 +209,44 @@ class ScrollbarTest {
         assertTrue(isOnTrailingEdge(x = 10f, width = 1080f, edge = 60f, direction = LayoutDirection.Rtl))
         assertFalse(isOnTrailingEdge(x = 1070f, width = 1080f, edge = 60f, direction = LayoutDirection.Rtl))
     }
+
+    @Test
+    fun `the thumb travels the track below the inset`() {
+        // A 1000 px list under a 200 px chrome: 800 px of track, a quarter-size thumb of 200 px.
+        val top = thumbSpan(ScrollbarThumb(offset = 0f, size = 0.25f), trackTop = 200f, height = 1000f)!!
+        assertEquals(200f, top.top, 0.01f)
+        assertEquals(200f, top.height, 0.01f)
+        val bottom = thumbSpan(ScrollbarThumb(offset = 1f, size = 0.25f), trackTop = 200f, height = 1000f)!!
+        assertEquals(800f, bottom.top, 0.01f)
+    }
+
+    @Test
+    fun `a chrome covering the whole list leaves no thumb to draw`() {
+        assertNull(thumbSpan(ScrollbarThumb(offset = 0.5f, size = 0.5f), trackTop = 1000f, height = 1000f))
+    }
+
+    @Test
+    fun `the exclusion spans the touch zone across and the thumb with room to spare`() {
+        val thumb = ThumbSpan(top = 400f, height = 100f)
+        val bounds = thumbExclusionBounds(thumb, width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Ltr)
+        assertEquals(960f, bounds.left, 0.01f)
+        assertEquals(1080f, bounds.right, 0.01f)
+        assertEquals(340f, bounds.top, 0.01f)
+        assertEquals(560f, bounds.bottom, 0.01f)
+    }
+
+    @Test
+    fun `the exclusion sits on the left edge right to left`() {
+        val bounds = thumbExclusionBounds(ThumbSpan(400f, 100f), width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Rtl)
+        assertEquals(0f, bounds.left, 0.01f)
+        assertEquals(120f, bounds.right, 0.01f)
+    }
+
+    @Test
+    fun `the exclusion stays inside the list at either end`() {
+        val atTop = thumbExclusionBounds(ThumbSpan(10f, 100f), width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Ltr)
+        assertEquals(0f, atTop.top, 0.01f)
+        val atBottom = thumbExclusionBounds(ThumbSpan(1890f, 100f), width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Ltr)
+        assertEquals(2000f, atBottom.bottom, 0.01f)
+    }
 }

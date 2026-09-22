@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
@@ -29,6 +30,15 @@ import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.findRootCoordinates
+import androidx.compose.ui.node.GlobalPositionAwareModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.node.ObserverModifierNode
+import androidx.compose.ui.node.observeReads
+import androidx.compose.ui.node.requireDensity
+import androidx.compose.ui.node.requireLayoutDirection
+import androidx.compose.ui.node.requireView
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
@@ -43,11 +53,17 @@ private val ScrollbarInset = 2.dp
 private const val MinThumbPx = 40f
 
 /**
- * How far in from the edge a long press still takes hold of the thumb. Wider than the thumb, which
- * is too thin to aim at, and free to overlap the rows: only a long press held in place claims the
- * touch, so a tap, a scroll or a swipe that starts here is still the list's.
+ * How far in from the edge a long press still takes hold of the thumb: the minimum touch target,
+ * where it used to be 20dp. The last few millimetres of a screen are the worst place on a phone to
+ * hold a finger still: at 20dp a long press there took on a Moto G34, barely on a Zenfone 6 and not
+ * at all on a Galaxy A26, and HyperOS lays a back-gesture window over exactly those 20dp. So the
+ * zone reaches well in past all of that.
+ *
+ * It overlaps the rows, and a mail's selectable text, which is why it is only live while the thumb
+ * shows. Even then only a long press held in place claims the touch, so a tap, a scroll or a swipe
+ * that starts here is still the list's.
  */
-private val FastScrollTouchWidth = 20.dp
+private val FastScrollTouchWidth = 48.dp
 
 /**
  * Where the thumb sits, as fractions of its track: [offset] 0 at the top and 1 at the bottom of
@@ -58,7 +74,7 @@ internal data class ScrollbarThumb(val offset: Float, val size: Float)
 /**
  * A thin scroll indicator on the trailing edge of a [verticalScroll][androidx.compose.foundation.verticalScroll]
  * container. It shows while the content moves and fades once it stops, and never appears for
- * content that fits. A long press on the edge takes hold of it for fast scrolling.
+ * content that fits. While it shows, a long press on the edge takes hold of it for fast scrolling.
  *
  * Goes *before* `verticalScroll` in the chain, so it draws over the viewport. After it, it would
  * be laid out and drawn inside the scrolled content, the whole content's height tall and moving
@@ -75,7 +91,7 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
         .pointerInput(state, direction) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                if (state.maxValue <= 0) return@awaitEachGesture
+                if (look.alpha.value <= 0f || state.maxValue <= 0) return@awaitEachGesture
                 if (!isOnTrailingEdge(down.position.x, size.width.toFloat(), FastScrollTouchWidth.toPx(), direction)) {
                     return@awaitEachGesture
                 }
@@ -97,11 +113,17 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
         }
         .drawWithContent {
             drawContent()
-            val max = state.maxValue
-            if (max <= 0) return@drawWithContent
-            val viewport = size.height
-            drawThumb(ScrollbarThumb(state.value.toFloat() / max, viewport / (viewport + max)), 0f, look)
+            scrollThumb(state, size.height)?.let { drawThumb(it, look) }
         }
+        .thumbGestureExclusion { height ->
+            if (look.alpha.value <= 0f || fastScrolling || state.isScrollInProgress) null else scrollThumb(state, height)
+        }
+}
+
+private fun scrollThumb(state: ScrollState, height: Float): ThumbSpan? {
+    val max = state.maxValue
+    if (max <= 0) return null
+    return thumbSpan(ScrollbarThumb(state.value.toFloat() / max, height / (height + max)), trackTop = 0f, height)
 }
 
 /**
@@ -110,8 +132,8 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
  * guessed at, from the average of the ones that were. A message -- a short header over one very
  * tall body -- is exact after its first frame; a long list converges as it is scrolled.
  *
- * A long press on the trailing edge takes hold of it: the thumb widens into the accent colour and
- * the list jumps to wherever the finger is along the track, until it lifts.
+ * While it shows, a long press on the trailing edge takes hold of it: the thumb widens into the
+ * accent colour and the list jumps to wherever the finger is along the track, until it lifts.
  *
  * [topInsetPx] keeps the track clear of anything drawn over the top of the list -- a page's
  * chrome overlay, which would otherwise hide the thumb whenever the list is near its top. Read
@@ -135,10 +157,23 @@ fun Modifier.scrollbar(
     val sizes = remember(state) { ItemSizes() }
     val latestTopInset by rememberUpdatedState(topInsetPx)
     val latestOnStopped by rememberUpdatedState(onFastScrollStopped)
+    fun thumbOf(height: Float): ThumbSpan? {
+        val info = state.layoutInfo
+        sizes.record(info)
+        val guess = sizes.average() ?: return null
+        val thumb = lazyListScrollbarThumb(
+            info,
+            canScrollBackward = state.canScrollBackward,
+            canScrollForward = state.canScrollForward,
+            sizeOf = { sizes.of(it) ?: guess },
+        ) ?: return null
+        return thumbSpan(thumb, latestTopInset().coerceIn(0f, height), height)
+    }
     return this
         .pointerInput(state, direction) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (look.alpha.value <= 0f) return@awaitEachGesture
                 val height = size.height.toFloat()
                 if (!isOnTrailingEdge(down.position.x, size.width.toFloat(), FastScrollTouchWidth.toPx(), direction)) {
                     return@awaitEachGesture
@@ -174,16 +209,10 @@ fun Modifier.scrollbar(
         }
         .drawWithContent {
             drawContent()
-            val info = state.layoutInfo
-            sizes.record(info)
-            val guess = sizes.average() ?: return@drawWithContent
-            val thumb = lazyListScrollbarThumb(
-                info,
-                canScrollBackward = state.canScrollBackward,
-                canScrollForward = state.canScrollForward,
-                sizeOf = { sizes.of(it) ?: guess },
-            ) ?: return@drawWithContent
-            drawThumb(thumb, latestTopInset().coerceIn(0f, size.height), look)
+            thumbOf(size.height)?.let { drawThumb(it, look) }
+        }
+        .thumbGestureExclusion { height ->
+            if (look.alpha.value <= 0f || fastScrolling || state.isScrollInProgress) null else thumbOf(height)
         }
 }
 
@@ -352,19 +381,131 @@ private fun scrollbarLook(scrolling: Boolean, fastScrolling: Boolean): Scrollbar
 private fun thumbHeightPx(track: Float, sizeFraction: Float): Float =
     (track * sizeFraction).coerceIn(minOf(MinThumbPx, track), track)
 
-private fun ContentDrawScope.drawThumb(thumb: ScrollbarThumb, trackTop: Float, look: ScrollbarLook) {
+/** Where a thumb is drawn, in px down its container: its top edge and its height. */
+internal class ThumbSpan(val top: Float, val height: Float)
+
+internal fun thumbSpan(thumb: ScrollbarThumb, trackTop: Float, height: Float): ThumbSpan? {
+    val track = height - trackTop
+    if (track <= 0f) return null
+    val thumbHeight = thumbHeightPx(track, thumb.size)
+    return ThumbSpan(trackTop + thumb.offset * (track - thumbHeight), thumbHeight)
+}
+
+private fun ContentDrawScope.drawThumb(thumb: ThumbSpan, look: ScrollbarLook) {
     val alpha = look.alpha.value
     if (alpha <= 0f) return
-    val track = size.height - trackTop
-    if (track <= 0f) return
-    val thumbHeight = thumbHeightPx(track, thumb.size)
     val width = look.width.value.toPx()
     val inset = ScrollbarInset.toPx()
     val x = if (layoutDirection == LayoutDirection.Rtl) inset else size.width - width - inset
     drawRoundRect(
         color = look.color.copy(alpha = look.color.alpha * alpha),
-        topLeft = Offset(x, trackTop + thumb.offset * (track - thumbHeight)),
-        size = Size(width, thumbHeight),
+        topLeft = Offset(x, thumb.top),
+        size = Size(width, thumb.height),
         cornerRadius = CornerRadius(width / 2f, width / 2f),
     )
+}
+
+/**
+ * The stretch of edge kept from the system's own gestures while the thumb shows, in the container's
+ * px: the whole touch zone across, and down the thumb with half the zone's width to spare above
+ * and below, so a press just off its end still lands in it.
+ */
+internal fun thumbExclusionBounds(
+    thumb: ThumbSpan,
+    width: Float,
+    height: Float,
+    touchWidth: Float,
+    direction: LayoutDirection,
+): Rect {
+    val left = if (direction == LayoutDirection.Rtl) 0f else width - touchWidth
+    val spare = touchWidth / 2f
+    return Rect(
+        left = left.coerceAtLeast(0f),
+        top = (thumb.top - spare).coerceAtLeast(0f),
+        right = (left + touchWidth).coerceAtMost(width),
+        bottom = (thumb.top + thumb.height + spare).coerceAtMost(height),
+    )
+}
+
+/**
+ * Keeps the system's edge gestures off the thumb for as long as [thumb] returns one.
+ *
+ * A thumb on the very edge of the screen is sitting in the back gesture's strip. Stock Android
+ * still hands the app a finger held still there, but HyperOS does not: it lays a window of its own
+ * over the strip that takes every touch, and passes one on only when it lands inside what the app
+ * has declared an exclusion -- which is what this declares.
+ *
+ * Compose's own `systemGestureExclusion` works out its rect only when the node moves, and a list
+ * scrolling does not move the list, only the thumb inside it. This node follows [thumb]'s reads
+ * instead, and leaves any rect declared by anything else on the view where it was.
+ */
+private fun Modifier.thumbGestureExclusion(thumb: (height: Float) -> ThumbSpan?): Modifier =
+    this then ThumbExclusionElement(thumb)
+
+private class ThumbExclusionElement(val thumb: (Float) -> ThumbSpan?) : ModifierNodeElement<ThumbExclusionNode>() {
+    override fun create() = ThumbExclusionNode(thumb)
+
+    override fun update(node: ThumbExclusionNode) {
+        node.thumb = thumb
+        node.refresh()
+    }
+
+    override fun equals(other: Any?) = other is ThumbExclusionElement && other.thumb === thumb
+
+    override fun hashCode() = thumb.hashCode()
+}
+
+private class ThumbExclusionNode(var thumb: (Float) -> ThumbSpan?) :
+    Modifier.Node(), GlobalPositionAwareModifierNode, ObserverModifierNode {
+    private var coordinates: LayoutCoordinates? = null
+    private var excluded: android.graphics.Rect? = null
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        this.coordinates = coordinates
+        refresh()
+    }
+
+    override fun onObservedReadsChanged() = refresh()
+
+    override fun onDetach() {
+        replace(null)
+        coordinates = null
+    }
+
+    fun refresh() {
+        if (!isAttached) return
+        val coordinates = coordinates?.takeIf { it.isAttached } ?: return
+        val width = coordinates.size.width.toFloat()
+        val height = coordinates.size.height.toFloat()
+        var span: ThumbSpan? = null
+        observeReads { span = thumb(height) }
+        val local = span?.let {
+            val touch = with(requireDensity()) { FastScrollTouchWidth.toPx() }
+            thumbExclusionBounds(it, width, height, touch, requireLayoutDirection())
+        }
+        replace(local?.let { inView(coordinates, it) })
+    }
+
+    private fun inView(coordinates: LayoutCoordinates, local: Rect): android.graphics.Rect {
+        val root = coordinates.findRootCoordinates()
+        val topLeft = root.localPositionOf(coordinates, local.topLeft)
+        val bottomRight = root.localPositionOf(coordinates, local.bottomRight)
+        return android.graphics.Rect(
+            minOf(topLeft.x, bottomRight.x).roundToInt(),
+            minOf(topLeft.y, bottomRight.y).roundToInt(),
+            maxOf(topLeft.x, bottomRight.x).roundToInt(),
+            maxOf(topLeft.y, bottomRight.y).roundToInt(),
+        )
+    }
+
+    /** Swaps this node's rect in the view's list, and only when it actually changed: each set is IPC. */
+    private fun replace(rect: android.graphics.Rect?) {
+        if (rect == excluded) return
+        val view = requireView()
+        val rects = view.systemGestureExclusionRects.toMutableList()
+        excluded?.let { rects.remove(it) }
+        if (rect != null && !rect.isEmpty) rects += rect
+        view.systemGestureExclusionRects = rects
+        excluded = rect
+    }
 }
