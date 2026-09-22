@@ -94,6 +94,7 @@ import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.fillHeightBelowChrome
+import org.ntust.app.tigerduck.ui.component.listTopAnchor
 import org.ntust.app.tigerduck.ui.component.readToggleIcon
 import org.ntust.app.tigerduck.ui.component.rememberAppBarState
 import org.ntust.app.tigerduck.ui.component.rememberChromeContentPadding
@@ -214,6 +215,9 @@ fun AnnouncementsScreen(
                     // put, which is what lets the bulletins travel up under it.
                     contentPadding = chromePadding,
                 ) {
+                    // The cached bulletins paint first and the refresh lands newer ones ahead of
+                    // them; this is what opens the list on those rather than on the cache's first.
+                    listTopAnchor()
                     val displayed = state.displayed
                     val loadState = state.loadState
                     when {
@@ -264,22 +268,17 @@ fun AnnouncementsScreen(
                                     ),
                                 )
                             }
-                            // The footer only ever follows real bulletins. On a first load there are
-                            // none yet, and a footer alone at index 0 is the row LazyColumn holds in
-                            // place when the bulletins arrive above it -- opening the list at its end.
-                            if (displayed.isNotEmpty()) {
-                                if (state.isPaginating) {
-                                    item(key = "pagination-spinner") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 16.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) { CircularProgressIndicator() }
-                                    }
+                            if (state.isPaginating) {
+                                item(key = "pagination-spinner") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 16.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) { CircularProgressIndicator() }
                                 }
-                                item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                             }
+                            item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
                         }
                     }
                 }
