@@ -50,8 +50,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private val ScrollbarWidth = 3.dp
-private val FastScrollWidth = 6.dp
+private val ScrollbarWidth = 6.dp
+private val FastScrollWidth = 12.dp
 private val ScrollbarInset = 2.dp
 private const val MinThumbPx = 40f
 
