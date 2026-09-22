@@ -120,7 +120,7 @@ class ScrollbarFastScrollTest {
             moveBy(Offset.Zero)
             up()
         }
-        // Still inside the half second the thumb holds before it starts to fade.
+        // Still inside the two seconds the thumb holds before it starts to fade.
         rule.mainClock.advanceTimeBy(100)
         rule.runOnIdle { assertTrue("the list should have stopped", !state.isScrollInProgress) }
 

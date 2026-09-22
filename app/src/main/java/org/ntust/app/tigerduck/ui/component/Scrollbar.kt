@@ -399,10 +399,10 @@ private fun scrollbarLook(scrolling: Boolean, fastScrolling: Boolean): Scrollbar
     val shown = scrolling || fastScrolling
     val alpha = animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
-        // Twice as long to go as it used to take: held for half a second, then faded over the
-        // next. The hold is what leaves time to long-press it -- a slower fade alone spends most
-        // of its change in the first few frames, so the thumb looked gone almost as soon.
-        animationSpec = if (shown) tween(durationMillis = 150) else tween(durationMillis = 500, delayMillis = 500),
+        // Four seconds to go: held for two, then faded over the next two. The hold is what leaves
+        // time to reach for it and long-press it -- a slower fade alone spends most of its change
+        // in the first few frames, so the thumb looked gone almost as soon.
+        animationSpec = if (shown) tween(durationMillis = 150) else tween(durationMillis = 2_000, delayMillis = 2_000),
         label = "scrollbar_alpha",
     )
     val width = animateDpAsState(
