@@ -82,17 +82,23 @@ object ComposeRules {
         val addresses = mutableListOf<MailAddress>()
         val invalid = mutableListOf<String>()
         AddressParser.splitTopLevel(input).map { it.trim() }.filter { it.isNotEmpty() }.forEach { token ->
-            val parsed = AddressParser.parseOne(token)
-            // `isRoutable` is what rejects a name-only mailbox the parser kept for display
-            // (`Mail Deliver System <MAILER-DAEMON>`): its empty address would vacuously pass the
-            // ASCII check below and go out as a recipient with no mailbox at all.
-            if (parsed != null && parsed.isRoutable && parsed.address.all { it.code < 0x80 }) {
-                addresses.add(parsed)
-            } else {
-                invalid.add(token)
-            }
+            val parsed = sendableAddress(token)
+            if (parsed != null) addresses.add(parsed) else invalid.add(token)
         }
         return RecipientParse(addresses.distinctBy { it.address.lowercase() }, invalid)
+    }
+
+    /**
+     * One recipient token as [parseRecipients] takes it, or null when it would be refused -- the
+     * rule the compose screen's recipient bubbles mark an invalid one by, so a bubble is red
+     * exactly when sending would name it.
+     */
+    fun sendableAddress(token: String): MailAddress? {
+        val parsed = AddressParser.parseOne(token) ?: return null
+        // `isRoutable` is what rejects a name-only mailbox the parser kept for display
+        // (`Mail Deliver System <MAILER-DAEMON>`): its empty address would vacuously pass the
+        // ASCII check below and go out as a recipient with no mailbox at all.
+        return parsed.takeIf { it.isRoutable && it.address.all { c -> c.code < 0x80 } }
     }
 
     fun formatRecipients(list: List<MailAddress>): String =

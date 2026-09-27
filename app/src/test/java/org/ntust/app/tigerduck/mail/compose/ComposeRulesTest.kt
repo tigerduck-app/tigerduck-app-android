@@ -114,6 +114,21 @@ class ComposeRulesTest {
         assertEquals(listOf("中文@x.tw", "王小明 <a@中文.tw>"), parsed.invalid)
     }
 
+    /** The compose screen's bubbles are red by this rule, so it has to be the one sending uses. */
+    @Test
+    fun `a single token is judged by the same rule the send uses`() {
+        assertEquals(MailAddress("Bob", "b@y.tw"), ComposeRules.sendableAddress("Bob <b@y.tw>"))
+        assertEquals(MailAddress(null, "a@x.tw"), ComposeRules.sendableAddress(" a@x.tw "))
+        assertNull(ComposeRules.sendableAddress("not an address"))
+        assertNull(ComposeRules.sendableAddress("王@例子.台灣"))
+        assertNull(ComposeRules.sendableAddress("Mail Deliver System <MAILER-DAEMON>"))
+        val tokens = listOf("a@x.tw", "nope", "王小明 <a@中文.tw>", "Bob <b@y.tw>")
+        assertEquals(
+            ComposeRules.parseRecipients(tokens.joinToString(", ")).invalid,
+            tokens.filter { ComposeRules.sendableAddress(it) == null },
+        )
+    }
+
     @Test
     fun `size limit counts base64 growth`() {
         assertTrue(ComposeRules.fitsSizeLimit("hi", listOf(30L * 1024 * 1024)))
