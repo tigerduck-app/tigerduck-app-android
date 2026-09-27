@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import androidx.compose.ui.graphics.Color
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.ntust.app.tigerduck.mail.model.MailAddress
@@ -36,42 +37,68 @@ class MailHeaderTextTest {
     }
 
     @Test
-    fun `recipients show addresses, iOS-style`() {
-        val list = listOf(
-            MailAddress("王小明", "a@x.tw"),
-            MailAddress(null, "b@x.tw"),
+    fun `recipients are read into name and address`() {
+        val list = MailRecipient.from(
+            listOf(
+                MailAddress("王大明", "a@mail.ntust.edu.tw"),
+                MailAddress(" ", "b@gmail.com"),
+                MailAddress("Mail Deliver System", ""),
+                MailAddress(null, ""),
+            ),
+            ownAddress = null,
         )
-        assertEquals("a@x.tw, b@x.tw", recipientText(list))
-    }
-
-    @Test
-    fun `a non-routable recipient falls back to its name instead of an empty slot`() {
-        val list = listOf(MailAddress("Mail Deliver System", ""), MailAddress(null, "b@x.tw"))
-        assertEquals("Mail Deliver System, b@x.tw", recipientText(list))
-    }
-
-    @Test
-    fun `a recipient with neither name nor address is dropped`() {
-        val list = listOf(MailAddress(null, ""), MailAddress(null, "b@x.tw"))
-        assertEquals("b@x.tw", recipientText(list))
-    }
-
-    @Test
-    fun `the collapsed label names only the first recipient, as iOS does`() {
-        val to = listOf(
-            MailAddress(name = "Alice", address = "alice@mail.ntust.edu.tw"),
-            MailAddress(name = "Bob", address = "bob@mail.ntust.edu.tw"),
+        assertEquals(
+            listOf(
+                MailRecipient("王大明", "a@mail.ntust.edu.tw", isSelf = false),
+                // A blank name counts as none.
+                MailRecipient(null, "b@gmail.com", isSelf = false),
+                // A bounce's name is kept rather than dropped; an entry with neither is.
+                MailRecipient("Mail Deliver System", null, isSelf = false),
+            ),
+            list,
         )
-        // The expanded block prints the whole list; the label printing it too was the same line
-        // twice on screen.
-        assertEquals("alice@mail.ntust.edu.tw", recipientSummary(to))
-        assertEquals("alice@mail.ntust.edu.tw, bob@mail.ntust.edu.tw", recipientText(to))
+        assertEquals(emptyList<MailRecipient>(), MailRecipient.from(emptyList(), ownAddress = null))
     }
 
     @Test
-    fun `the collapsed label falls back to a name, and is empty with no recipients`() {
-        assertEquals("Registry", recipientSummary(listOf(MailAddress(name = "Registry", address = ""))))
-        assertEquals("", recipientSummary(emptyList()))
-        assertEquals("", recipientSummary(listOf(MailAddress(name = null, address = ""))))
+    fun `a recipient reads as name then address, or whichever of the two it has`() {
+        val list = MailRecipient.from(
+            listOf(MailAddress("王大明", "w@x.com"), MailAddress(null, "b@y.com"), MailAddress("Registry", "")),
+            ownAddress = null,
+        )
+        assertEquals(listOf("王大明 <w@x.com>", "b@y.com", "Registry"), list.map { it.displayText })
+    }
+
+    @Test
+    fun `the student's own address is the one marked, whatever its case`() {
+        val list = MailRecipient.from(
+            listOf(MailAddress(null, "B10000000@Mail.NTUST.edu.tw"), MailAddress(null, "b10000001@mail.ntust.edu.tw")),
+            ownAddress = "b10000000@mail.ntust.edu.tw",
+        )
+        assertEquals(listOf(true, false), list.map { it.isSelf })
+        assertEquals(listOf(false), MailRecipient.from(listOf(MailAddress(null, "a@x.com")), ownAddress = null).map { it.isSelf })
+    }
+
+    @Test
+    fun `the field label is the localized line with nothing in the slot`() {
+        assertEquals("To:", fieldLabel("To: %1\$@"))
+        assertEquals("收件者：", fieldLabel("收件者：%1\$@"))
+    }
+
+    @Test
+    fun `every shown recipient starts a line of its own, and the collapsed ones are counted`() {
+        val a = MailRecipient("A", "a@x.tw", isSelf = false)
+        val me = MailRecipient(null, "me@x.tw", isSelf = true)
+        assertEquals("A <a@x.tw>,\nme@x.tw", recipientLine(listOf(a, me), 0, Color.Red).text)
+        assertEquals("A <a@x.tw>  +2", recipientLine(listOf(a), 2, Color.Red).text)
+    }
+
+    @Test
+    fun `only the student's own address is in the accent colour`() {
+        val a = MailRecipient("A", "a@x.tw", isSelf = false)
+        val me = MailRecipient(null, "me@x.tw", isSelf = true)
+        val line = recipientLine(listOf(a, me), 0, Color.Red)
+        val styled = line.spanStyles.map { line.text.substring(it.start, it.end) to it.item.color }
+        assertEquals(listOf("me@x.tw" to Color.Red), styled)
     }
 }

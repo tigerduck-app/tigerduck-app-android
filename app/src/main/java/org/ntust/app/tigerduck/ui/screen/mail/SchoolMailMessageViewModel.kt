@@ -59,6 +59,12 @@ class SchoolMailMessageViewModel @Inject constructor(
     /** The account's own domain, which the External badge and the bounce rule measure against. */
     val mailDomain: String get() = site.domain()
 
+    /**
+     * The signed-in student's own address, which the header's To and Cc lines pick out. Read once:
+     * the header asks on every recomposition, and the answer lives in the credential store.
+     */
+    val selfAddress: String? by lazy { account.credentialsOrNull()?.address }
+
     enum class ViewMode { FORMATTED, PLAIN, SOURCE }
 
     enum class AttachmentAction { OPEN, SAVE }
