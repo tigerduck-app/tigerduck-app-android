@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.cache.PortalLinksCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.MoodleTokenService
@@ -39,6 +40,7 @@ class AuthService @Inject constructor(
     private val moodleTokenService: MoodleTokenService,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
+    private val portalLinksCache: PortalLinksCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
@@ -344,6 +346,11 @@ class AuthService @Inject constructor(
             // so the next session starts coherent instead of half-stale.
             runCatching { bulletinCache.clear() }
                 .onFailure { android.util.Log.w("AuthService", "bulletinCache.clear failed on logout", it) }
+            // The information-system portal shows the account's own student
+            // record / grades / financial-aid links — user-scoped, must not
+            // bleed into the next account on this device.
+            runCatching { portalLinksCache.clear() }
+                .onFailure { android.util.Log.w("AuthService", "portalLinksCache.clear failed on logout", it) }
         }
     }
 

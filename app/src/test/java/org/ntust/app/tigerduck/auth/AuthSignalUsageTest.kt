@@ -46,6 +46,11 @@ class AuthSignalUsageTest {
             // Refuses to scrape the score page without a session rather than
             // parsing NTUST's login redirect as if it were grades.
             "network/NtustScoreService.kt",
+            // Same shape as NtustScoreService: refuses to scrape the
+            // information-system portal, and refuses to open a WebView on
+            // it, without a session rather than treating NTUST's login
+            // redirect as portal content.
+            "network/NtustPortalService.kt",
         )
 
         /** Source roots to scan: every variant that ships in the phone app. */

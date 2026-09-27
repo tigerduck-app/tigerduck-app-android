@@ -127,6 +127,15 @@ class NtustSessionManager @Inject constructor(
 
     val cookieExpiryMs: Long get() = prefs.ssoLoginTimestamp + COOKIE_TTL_MS
 
+    /**
+     * Cookies OkHttp has captured for [host] so far, for bridging into
+     * `android.webkit.CookieManager` before opening an authenticated
+     * `WebView` at that host. Exact-host lookup, same as [CookieJar.loadForRequest]
+     * above — a caller needing a different host (e.g. an SSO bounce through
+     * `ssoam2.ntust.edu.tw`) must ask for that host separately.
+     */
+    fun cookiesForHost(host: String): List<Cookie> = cookieStore[host]?.toList() ?: emptyList()
+
     fun markLoginSuccess() {
         prefs.ssoLoginTimestamp = System.currentTimeMillis()
     }
