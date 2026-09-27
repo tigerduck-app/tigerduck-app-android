@@ -65,21 +65,33 @@ class NtustPortalService @Inject constructor(
         links
     }
 
-    /** Cookies for [PORTAL_HOST], for bridging into the WebView's own cookie
-     *  store right before opening a link — see [NtustSessionManager.cookiesForHost]. */
-    fun sessionCookies() = sessionManager.cookiesForHost(PORTAL_HOST)
+    /** Every cookie the OkHttp session currently holds, for bridging into the
+     *  WebView's own cookie store right before opening a link — see
+     *  [NtustSessionManager.allCookiesByHost]. */
+    fun allSessionCookies() = sessionManager.allCookiesByHost()
 
     /**
-     * Ensures the OkHttp session holds a valid, un-expired cookie for
-     * [PORTAL_HOST] right before opening a link in a WebView — the list
-     * screen may be showing an entirely cache-served snapshot (no network
-     * call, so no chance to refresh the session), and the 1h cookie TTL is
-     * shorter than the 24h link-list cache TTL.
+     * Ensures the OkHttp session holds a valid cookie for [targetUrl]'s own
+     * host, right before opening it in a WebView.
+     *
+     * Deliberately does NOT gate on [NtustSessionManager.cookiesValid]: that
+     * flag is one process-wide "is *some* NTUST session warm" bit, set true
+     * the moment ANY service login succeeds. NTUST's SSO is per-service —
+     * each host (courseselection, stuinfosys, i.ntust.edu.tw, ...) exchanges
+     * its own ticket against the shared CAS session — so a warm session
+     * elsewhere says nothing about whether *this* link's host has ever been
+     * visited. Skipping the call on a "valid" but wrong-host session was
+     * exactly the bug: the portal list itself would load (it primes its own
+     * host), but a tapped link to any other NTUST host opened signed out.
+     *
+     * Calling [SsoLoginService.ensureServiceLogin] unconditionally is cheap
+     * when a host is already authenticated — it is one GET that doesn't land
+     * on the SSO page — and is what actually establishes that host's session
+     * cookie via the live CAS ticket exchange when it is not.
      */
-    suspend fun ensureWebViewSession(studentId: String, password: String): Boolean =
+    suspend fun ensureWebViewSession(targetUrl: String, studentId: String, password: String): Boolean =
         withContext(Dispatchers.IO) {
-            if (sessionManager.cookiesValid) return@withContext true
-            ssoLoginService.ensureServiceLogin(PORTAL_URL_ZH, studentId, password)
+            ssoLoginService.ensureServiceLogin(targetUrl, studentId, password)
         }
 
     private suspend fun fetchHtml(url: String, studentId: String, password: String): String {

@@ -129,9 +129,14 @@ class InformationSystemViewModel @Inject constructor(
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
         viewModelScope.launch {
-            val ready = runCatching { portalService.ensureWebViewSession(studentId, password) }.getOrDefault(false)
+            // link.url's own host, not the portal host: NTUST's SSO is
+            // per-service, so a warm session on i.ntust.edu.tw does not
+            // imply this link's host has ever been visited.
+            val ready = runCatching {
+                portalService.ensureWebViewSession(link.url, studentId, password)
+            }.getOrDefault(false)
             if (!ready) return@launch
-            syncCookiesToWebView(link.url, portalService.sessionCookies())
+            syncCookiesToWebView(portalService.allSessionCookies())
             _state.update { it.copy(pendingLink = link) }
         }
     }
