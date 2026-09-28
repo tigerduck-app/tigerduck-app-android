@@ -50,6 +50,11 @@ class InformationSystemViewModel @Inject constructor(
         /** Set once a tapped link's session is bridged and ready; the screen
          *  observes this to navigate, then calls [consumePendingLink]. */
         val pendingLink: PortalLink? = null,
+        /** Set when [openLink] fails to bridge a session for the tapped link — the screen shows
+         *  this as a snackbar, then calls [consumeOpenLinkError]. Without this, a failed
+         *  [NtustPortalService.ensureWebViewSession] call used to leave the tap looking like it
+         *  did nothing at all. */
+        val openLinkError: String? = null,
     )
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
@@ -132,16 +137,31 @@ class InformationSystemViewModel @Inject constructor(
             // link.url's own host, not the portal host: NTUST's SSO is
             // per-service, so a warm session on i.ntust.edu.tw does not
             // imply this link's host has ever been visited.
-            val ready = runCatching {
+            val result = runCatching {
                 portalService.ensureWebViewSession(link.url, studentId, password)
-            }.getOrDefault(false)
-            if (!ready) return@launch
+            }
+            val ready = result.getOrDefault(false)
+            if (!ready) {
+                // This used to just return@launch — a failed or throwing ensureWebViewSession
+                // left the tap looking like it did nothing at all, with nothing in logcat either.
+                android.util.Log.w(
+                    "InformationSystemViewModel",
+                    "openLink failed for ${link.url}",
+                    result.exceptionOrNull(),
+                )
+                _state.update {
+                    it.copy(openLinkError = context.getString(R.string.information_system_load_failed))
+                }
+                return@launch
+            }
             syncCookiesToWebView(portalService.allSessionCookies())
             _state.update { it.copy(pendingLink = link) }
         }
     }
 
     fun consumePendingLink() = _state.update { it.copy(pendingLink = null) }
+
+    fun consumeOpenLinkError() = _state.update { it.copy(openLinkError = null) }
 
     private fun applyFilters(s: State): State {
         val text = s.searchText.trim()
