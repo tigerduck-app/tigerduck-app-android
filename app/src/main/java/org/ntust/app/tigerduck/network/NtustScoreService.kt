@@ -70,15 +70,15 @@ class NtustScoreService @Inject constructor(
     suspend fun invalidateCache(studentId: String) = dataCache.invalidateScoreReport(studentId)
 
     private suspend fun fetchHtml(studentId: String, password: String): String {
-        val (html, finalUrl) = get(SCORE_DISPLAY_URL)
-        if (!finalUrl.contains("ssoam2.ntust.edu.tw")) return html
+        val (html, finalHost) = get(SCORE_DISPLAY_URL)
+        if (!HtmlParser.isSsoHost(finalHost)) return html
 
         // SSO bounced us — try one silent re-login and retry once.
         val loggedIn = ssoLoginService.ensureServiceLogin(SCORE_ROOT_URL, studentId, password)
         if (!loggedIn) throw NtustScoreError.NotAuthenticated()
 
-        val (retryHtml, retryUrl) = get(SCORE_DISPLAY_URL)
-        if (retryUrl.contains("ssoam2.ntust.edu.tw")) throw NtustScoreError.RedirectedToSSO()
+        val (retryHtml, retryHost) = get(SCORE_DISPLAY_URL)
+        if (HtmlParser.isSsoHost(retryHost)) throw NtustScoreError.RedirectedToSSO()
         return retryHtml
     }
 

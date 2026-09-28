@@ -78,7 +78,7 @@ class CourseService @Inject constructor(
 
             val request = Request.Builder().url(courseListUrl).get().build()
             client.newCall(request).execute().use { response ->
-                if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) {
+                if (HtmlParser.isSsoHost(response.request.url.host)) {
                     throw CourseServiceError.RedirectedToSSO()
                 }
                 val html = response.body.string()

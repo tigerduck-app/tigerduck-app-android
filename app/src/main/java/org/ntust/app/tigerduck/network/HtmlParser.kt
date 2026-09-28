@@ -9,8 +9,19 @@ object HtmlParser {
         val inputs: List<Pair<String, String>>
     )
 
+    /**
+     * NTUST's SSO/CAS front door, observed under two different hostnames — which one a given
+     * service's redirect chain lands on varies per service, and both are the same login system.
+     * Every caller that needs to recognize "we got bounced to the SSO wall" must check both, from
+     * this one place, or silently miss whichever one it forgot (as `courseselection`/`stuinfosys`
+     * working while a portal link bounced to the other host, unrecognized, once did).
+     */
+    private val SSO_HOSTS = setOf("ssoam.ntust.edu.tw", "ssoam2.ntust.edu.tw")
+
+    fun isSsoHost(host: String): Boolean = host in SSO_HOSTS
+
     fun isSSOLoginPage(html: String, url: HttpUrl): Boolean {
-        if (!url.host.contains("ssoam2.ntust.edu.tw")) return false
+        if (!isSsoHost(url.host)) return false
         return html.contains("id=\"loginForm\"") ||
                 (html.contains("name=\"Username\"") && html.contains("name=\"Password\""))
     }
