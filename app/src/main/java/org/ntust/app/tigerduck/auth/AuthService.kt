@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.auth
 
 import android.content.Context
+import android.webkit.CookieManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -326,6 +327,16 @@ class AuthService @Inject constructor(
         // reach whoever signs in next.
         notificationSettingsSync.cancelPendingPushes()
         sessionManager.invalidateSession()
+        // The WebView cookie store is disk-backed and separate from the OkHttp jar cleared above.
+        // The portal WebView is its only authenticated user, so a leftover session cookie there
+        // would open the next account's portal link signed in as this one. Throws when the
+        // system WebView is missing or mid-update; logout must still go through.
+        runCatching {
+            CookieManager.getInstance().apply {
+                removeAllCookies(null)
+                flush()
+            }
+        }.onFailure { android.util.Log.w("AuthService", "WebView cookie wipe failed on logout", it) }
         bulletinReadStateStore.clear()
         _loginError.value = null
         _authState.value = false
