@@ -1,8 +1,14 @@
 package org.ntust.app.tigerduck.ui.screen.informationsystem
 
+import android.util.Log
 import android.webkit.CookieManager
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Cookie
-import org.ntust.app.tigerduck.network.HtmlParser
+import kotlin.coroutines.resume
+
+private const val TAG = "WebViewCookieBridge"
+private const val CLEAR_TIMEOUT_MS = 5_000L
 
 /**
  * Bridges every cookie OkHttp's SSO session currently holds (see
@@ -16,27 +22,29 @@ import org.ntust.app.tigerduck.network.HtmlParser
  * it — covers that without having to track which hosts a given navigation touches.
  * `CookieManager.setCookie` still keys each cookie to the host it's set against, so a cookie for
  * a host the WebView never visits is simply inert, not a broadened attack surface.
+ *
+ * Empties the whole WebView cookie store first, so the WebView holds exactly the current jar.
+ * The store is a disk-backed singleton that outlives every PortalWebView and that the OkHttp jar
+ * never touches, and the portal WebView is the app's only authenticated WebView. Pruning only the
+ * hosts the jar mentions left two things behind: a previous account's cookies for a service the
+ * new account's jar hasn't visited — still on disk if logout's wipe failed to persist — and the
+ * uniquely-named OIDC correlation cookies ssoam2's /connect/authorize flow piles up across
+ * retries, which eventually grow the Cookie header past the server's limit ("400 Bad Request").
+ * TAT's in-app browser clears the same way before setting its cookies.
+ *
+ * Must run on a thread with a Looper, which the removal callback is posted to; openLink calls
+ * it from the main thread.
  */
-fun syncCookiesToWebView(cookiesByHost: Map<String, List<Cookie>>) {
+suspend fun syncCookiesToWebView(cookiesByHost: Map<String, List<Cookie>>) {
     val manager = CookieManager.getInstance()
     manager.setAcceptCookie(true)
-    // Prune whatever this host already has in the WebView's own CookieManager first — a
-    // disk-backed singleton that outlives every PortalWebView instance and that OkHttp's
-    // session-scoped jar never touches. NTUST's stuinfosys OIDC challenge (ssoam2's
-    // /connect/authorize flow) sets a uniquely-named correlation cookie on every attempt and
-    // never clears the previous one; left to accumulate across retries this eventually grows
-    // the Cookie header past the server's limit and every request comes back plain
-    // "400 Bad Request" — a header-size failure, not a login failure. ssoam/ssoam2 are pruned
-    // unconditionally (not just when cookiesByHost happens to mention them) because that is
-    // exactly where this pile-up happens, whether or not OkHttp's own jar currently holds
-    // anything for either host.
-    (cookiesByHost.keys + HtmlParser.ssoHosts).forEach { host ->
-        val originUrl = "https://$host/"
-        manager.getCookie(originUrl)?.split(";")?.forEach { pair ->
-            val name = pair.substringBefore('=').trim()
-            if (name.isNotEmpty()) manager.setCookie(originUrl, "$name=; Max-Age=0")
-        }
+    // removeAllCookies is asynchronous; a cookie set before it finishes could be erased by it.
+    // The callback only fails to arrive if the WebView provider is broken, and a portal tap must
+    // not hang forever on that.
+    val cleared = withTimeoutOrNull(CLEAR_TIMEOUT_MS) {
+        suspendCancellableCoroutine { cont -> manager.removeAllCookies { cont.resume(Unit) } }
     }
+    if (cleared == null) Log.w(TAG, "WebView cookie clear still pending; bridging anyway")
     cookiesByHost.forEach { (host, cookies) ->
         val originUrl = "https://$host/"
         cookies.forEach { cookie -> manager.setCookie(originUrl, cookie.toString()) }
