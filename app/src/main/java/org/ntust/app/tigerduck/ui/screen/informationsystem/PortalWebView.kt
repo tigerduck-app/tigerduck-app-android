@@ -101,6 +101,15 @@ fun PortalWebView(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.MATCH_PARENT,
                 )
+                // The HTTP cache is a disk-backed store shared across every WebView in the
+                // process — a freshly constructed instance does NOT start empty, the same way
+                // CookieManager doesn't (see syncCookiesToWebView). A stale cached redirect or
+                // error response from a previous failed SSO attempt on this same portal link
+                // would otherwise keep being served here instead of a fresh request. This is
+                // the only WebView this screen ever creates, so clearing on every open/retry
+                // (this factory reruns on the initial open and on every key(reloadKey) reload)
+                // never touches Mail's or the library's own WebViews.
+                clearCache(true)
                 setBackgroundColor(backgroundColor)
                 settings.apply {
                     // Suppressed knowingly: this renders NTUST's own portal pages, not
