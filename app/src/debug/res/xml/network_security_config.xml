@@ -58,6 +58,24 @@
         </pin-set>
     </domain-config>
 
+    <!-- suggestionbox.ntust.edu.tw (student suggestion platform): a Let's Encrypt
+         certificate, not the *.ntust.edu.tw wildcard, so the ntust.edu.tw pin-set
+         above rejected it. Pinned at the roots, not the leaf + intermediate like
+         the entries above: Let's Encrypt reissues every ~60 days, usually with a
+         new key, from rotating intermediates (YE1 today), so a leaf pin would
+         break at the next renewal. Root YE is in every chain it serves (as an
+         intermediate or the anchor); ISRG Root X2 is the anchor where Root YE is
+         cross-signed; ISRG Root X1 covers a switch to an RSA certificate.
+         Expires with the other pin-sets so they are all reviewed together. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">suggestionbox.ntust.edu.tw</domain>
+        <pin-set expiration="2027-01-18">
+            <pin digest="SHA-256">sCkq5UWXjg+7mKu9lMhhYF5bGLsy7VI/UNW3tccdR7w=</pin>
+            <pin digest="SHA-256">diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=</pin>
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+        </pin-set>
+    </domain-config>
+
     <!-- App's own backend: cleartext still blocked but not pinned. -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">r.xinshou.tw</domain>
