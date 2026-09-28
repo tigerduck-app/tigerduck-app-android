@@ -186,6 +186,9 @@ class InformationSystemViewModel @Inject constructor(
                 }
                 return@launch
             }
+            // A sign-out's WebView cookie wipe is asynchronous; installing this account's cookies
+            // before it lands would let it erase them.
+            authService.awaitWebViewCookieWipe()
             syncCookiesToWebView(portalService.allSessionCookies())
             _state.update { it.copy(pendingLink = link) }
         }
