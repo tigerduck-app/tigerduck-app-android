@@ -11,14 +11,22 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.network.model.PortalLink
 import java.io.File
+import java.io.IOException
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Snapshot of one language variant of the information-system portal scrape. */
+/**
+ * Snapshot of one language variant of the information-system portal scrape. Every field is
+ * nullable: Gson fills a key missing from an older file with null, and a non-null field would
+ * surface that as an NPE downstream (see the upgrade-safe-persistence skill). Field names are
+ * pinned by the R8 keep rule in proguard-rules.pro.
+ */
 data class PortalLinksSnapshot(
     val links: List<PortalLink>?,
     val fetchedAt: Date?,
+    /** Whose portal this is. A snapshot without one, or for someone else, is never served. */
+    val studentId: String?,
 )
 
 /**
@@ -38,12 +46,18 @@ class PortalLinksCache @Inject constructor(@ApplicationContext context: Context)
 
     private fun fileFor(lang: String) = File(dir, "links_$lang.json")
 
-    suspend fun load(lang: String): PortalLinksSnapshot? = mutex.withLock {
+    /**
+     * Returns the snapshot only if it was saved for [studentId]. Logout's [clear] runs
+     * asynchronously and a delete can fail, so account isolation can't rest on the file being
+     * gone by the time the next account reads it.
+     */
+    suspend fun load(lang: String, studentId: String): PortalLinksSnapshot? = mutex.withLock {
         withContext(Dispatchers.IO) {
             val file = fileFor(lang)
             try {
                 if (!file.exists()) null
                 else gson.fromJson<PortalLinksSnapshot>(file.readText(), type)
+                    ?.takeIf { it.studentId.equals(studentId.trim(), ignoreCase = true) }
             } catch (_: Exception) {
                 null
             }
@@ -56,9 +70,13 @@ class PortalLinksCache @Inject constructor(@ApplicationContext context: Context)
         }
     }
 
+    /** Throws [IOException] naming any file it could not delete, after trying them all. */
     suspend fun clear() = mutex.withLock {
         withContext(Dispatchers.IO) {
-            dir.listFiles()?.forEach { runCatching { it.delete() } }
+            val undeleted = dir.listFiles().orEmpty().filter { it.exists() && !it.delete() }
+            if (undeleted.isNotEmpty()) {
+                throw IOException("could not delete ${undeleted.joinToString { it.name }}")
+            }
         }
     }
 

@@ -20,7 +20,8 @@ sealed class NtustPortalError : Exception() {
 /**
  * Fetches NTUST's own student-portal page ("資訊系統" — Curriculum / Person
  * Info / Campus Life / Financial Support / Activities / Resources), parses it
- * into [PortalLink]s, and caches the result for up to 24h. There is no static
+ * into [PortalLink]s, and keeps the last scrape per account for an instant
+ * first paint (see [cachedPortalLinks]). There is no static
  * link list to ship: NTUST's own portal HTML is the only source of truth, so
  * the links are scraped from it live.
  */
@@ -30,23 +31,17 @@ class NtustPortalService @Inject constructor(
     private val ssoLoginService: SsoLoginService,
     private val cache: PortalLinksCache,
 ) {
+    /** The last scrape saved for [studentId], whatever its age — for an instant first paint.
+     *  Never touches the network; pair it with [fetchPortalLinks] to revalidate. */
+    suspend fun cachedPortalLinks(studentId: String, useEnglish: Boolean): List<PortalLink>? =
+        cache.load(langFor(useEnglish), studentId)?.links
+
+    /** Always scrapes NTUST's portal, then saves the result as [studentId]'s snapshot. */
     suspend fun fetchPortalLinks(
         studentId: String,
         password: String,
         useEnglish: Boolean,
-        forceRefresh: Boolean = false,
     ): List<PortalLink> = withContext(Dispatchers.IO) {
-        val lang = if (useEnglish) "en" else "zh"
-
-        if (!forceRefresh) {
-            val cached = cache.load(lang)
-            val cachedLinks = cached?.links
-            val cachedAt = cached?.fetchedAt
-            if (cachedLinks != null && cachedAt != null &&
-                System.currentTimeMillis() - cachedAt.time < CACHE_TTL_MS
-            ) return@withContext cachedLinks
-        }
-
         val url = if (useEnglish) PORTAL_URL_EN else PORTAL_URL_ZH
 
         if (!sessionManager.cookiesValid) {
@@ -61,9 +56,11 @@ class NtustPortalService @Inject constructor(
         // the SSO wall in disguise — don't cache an empty portal.
         if (links.isEmpty()) throw NtustPortalError.ParseFailed()
 
-        cache.save(PortalLinksSnapshot(links, Date()), lang)
+        cache.save(PortalLinksSnapshot(links, Date(), studentId.trim()), langFor(useEnglish))
         links
     }
+
+    private fun langFor(useEnglish: Boolean) = if (useEnglish) "en" else "zh"
 
     /** Every cookie the OkHttp session currently holds, for bridging into the
      *  WebView's own cookie store right before opening a link — see
@@ -126,9 +123,5 @@ class NtustPortalService @Inject constructor(
         const val PORTAL_HOST = "i.ntust.edu.tw"
         const val PORTAL_URL_ZH = "https://$PORTAL_HOST/student"
         const val PORTAL_URL_EN = "https://$PORTAL_HOST/EN/student"
-
-        /** 24h — the portal's own service list is near-static; a stale-hit-first
-         *  cache matches every other network-backed list in the app. */
-        private const val CACHE_TTL_MS: Long = 24 * 60 * 60 * 1000
     }
 }
