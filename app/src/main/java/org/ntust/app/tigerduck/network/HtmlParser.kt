@@ -18,11 +18,6 @@ object HtmlParser {
      */
     private val SSO_HOSTS = setOf("ssoam.ntust.edu.tw", "ssoam2.ntust.edu.tw")
 
-    /** [SSO_HOSTS], for callers outside this file that need the actual set — not just a
-     *  membership check — such as [org.ntust.app.tigerduck.ui.screen.informationsystem.
-     *  syncCookiesToWebView] pruning stale correlation cookies on both hosts. */
-    val ssoHosts: Set<String> get() = SSO_HOSTS
-
     fun isSsoHost(host: String): Boolean = host in SSO_HOSTS
 
     fun isSSOLoginPage(html: String, url: HttpUrl): Boolean {
