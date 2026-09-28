@@ -43,6 +43,21 @@
         </pin-set>
     </domain-config>
 
+    <!-- cardsystem.ntust.edu.tw (student ID card system) leaf + intermediate.
+         Its own dedicated cert, not the *.ntust.edu.tw wildcard above — issued
+         through a different chain (TWCA SSL Certification Authority / TWCA
+         CYBER Root CA, vs the wildcard's TWCA Secure SSL Certification
+         Authority / TWCA Global Root CA), so without this entry the
+         ntust.edu.tw pin-set above always rejected it.
+         Leaf cert expires 2027-04-07; pins expire a month earlier. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">cardsystem.ntust.edu.tw</domain>
+        <pin-set expiration="2027-03-07">
+            <pin digest="SHA-256">9d/JLaocYyB3ZnEkZvr/kVMudGX8tmPAx5ryrhmqq28=</pin>
+            <pin digest="SHA-256">BxOmElsPeD54MBOb5h+TPNJnBlsAk6spRc/wLnko0cc=</pin>
+        </pin-set>
+    </domain-config>
+
     <!-- App's own backend: cleartext still blocked but not pinned. -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">r.xinshou.tw</domain>
