@@ -48,6 +48,24 @@ class HtmlParserTest {
         assertFalse(HtmlParser.isSSOLoginPage("", url))
     }
 
+    @Test
+    fun `isSSOLoginPage also recognizes the ssoam host without the trailing 2`() {
+        // Some services' redirect chain lands on ssoam.ntust.edu.tw rather than ssoam2 — both
+        // are NTUST's same SSO front door, and missing this one silently skipped credential
+        // submission (and, in the WebView, auto-fill) for whichever service used it.
+        val html = """<form id="loginForm"><input name="Username"><input name="Password"></form>"""
+        val url = "https://ssoam.ntust.edu.tw/login".toHttpUrl()
+        assertTrue(HtmlParser.isSSOLoginPage(html, url))
+    }
+
+    @Test
+    fun `isSsoHost matches both known SSO hostnames and nothing else`() {
+        assertTrue(HtmlParser.isSsoHost("ssoam.ntust.edu.tw"))
+        assertTrue(HtmlParser.isSsoHost("ssoam2.ntust.edu.tw"))
+        assertFalse(HtmlParser.isSsoHost("portal.ntust.edu.tw"))
+        assertFalse(HtmlParser.isSsoHost("evil-ssoam2.ntust.edu.tw.attacker.example"))
+    }
+
     // -------------------------------------------------------------------------
     // findFormById
     // -------------------------------------------------------------------------

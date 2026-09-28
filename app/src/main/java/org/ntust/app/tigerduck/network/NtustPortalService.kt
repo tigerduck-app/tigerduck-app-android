@@ -96,14 +96,14 @@ class NtustPortalService @Inject constructor(
 
     private suspend fun fetchHtml(url: String, studentId: String, password: String): String {
         val (html, finalHost) = get(url)
-        if (!finalHost.contains("ssoam2.ntust.edu.tw")) return html
+        if (!HtmlParser.isSsoHost(finalHost)) return html
 
         // SSO bounced us — try one silent re-login and retry once.
         val loggedIn = ssoLoginService.ensureServiceLogin(url, studentId, password)
         if (!loggedIn) throw NtustPortalError.NotAuthenticated()
 
         val (retryHtml, retryHost) = get(url)
-        if (retryHost.contains("ssoam2.ntust.edu.tw")) throw NtustPortalError.RedirectedToSSO()
+        if (HtmlParser.isSsoHost(retryHost)) throw NtustPortalError.RedirectedToSSO()
         return retryHtml
     }
 
