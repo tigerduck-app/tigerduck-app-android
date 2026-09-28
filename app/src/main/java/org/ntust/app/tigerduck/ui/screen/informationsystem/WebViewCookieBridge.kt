@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.informationsystem
 
 import android.webkit.CookieManager
 import okhttp3.Cookie
+import org.ntust.app.tigerduck.network.HtmlParser
 
 /**
  * Bridges every cookie OkHttp's SSO session currently holds (see
@@ -19,6 +20,23 @@ import okhttp3.Cookie
 fun syncCookiesToWebView(cookiesByHost: Map<String, List<Cookie>>) {
     val manager = CookieManager.getInstance()
     manager.setAcceptCookie(true)
+    // Prune whatever this host already has in the WebView's own CookieManager first — a
+    // disk-backed singleton that outlives every PortalWebView instance and that OkHttp's
+    // session-scoped jar never touches. NTUST's stuinfosys OIDC challenge (ssoam2's
+    // /connect/authorize flow) sets a uniquely-named correlation cookie on every attempt and
+    // never clears the previous one; left to accumulate across retries this eventually grows
+    // the Cookie header past the server's limit and every request comes back plain
+    // "400 Bad Request" — a header-size failure, not a login failure. ssoam/ssoam2 are pruned
+    // unconditionally (not just when cookiesByHost happens to mention them) because that is
+    // exactly where this pile-up happens, whether or not OkHttp's own jar currently holds
+    // anything for either host.
+    (cookiesByHost.keys + HtmlParser.ssoHosts).forEach { host ->
+        val originUrl = "https://$host/"
+        manager.getCookie(originUrl)?.split(";")?.forEach { pair ->
+            val name = pair.substringBefore('=').trim()
+            if (name.isNotEmpty()) manager.setCookie(originUrl, "$name=; Max-Age=0")
+        }
+    }
     cookiesByHost.forEach { (host, cookies) ->
         val originUrl = "https://$host/"
         cookies.forEach { cookie -> manager.setCookie(originUrl, cookie.toString()) }
