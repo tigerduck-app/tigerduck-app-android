@@ -66,8 +66,17 @@ class SsoLoginService @Inject constructor(
         }
 
         // Step 5: Submit login form
-        val form = HtmlParser.findFormById(html, "loginForm")
-            ?: throw SsoLoginError.LoginFormNotFound()
+        val form = HtmlParser.findFormById(html, "loginForm") ?: run {
+            // ssoam's NetIQ Access Manager page (`id="IDPLogin"`) binds its submit control to an
+            // invisible reCAPTCHA that only resolves on a genuine click (see
+            // NtustSsoAutoFill.buildSsoAutoFillScript's doc comment) — a bare OkHttp POST can
+            // never produce a passing token, so there is no form submission worth attempting
+            // here. Rather than fail the whole navigation, leave the session as-is: the caller
+            // still opens the WebView, which lands on this same page and finishes the real login
+            // there with a real click.
+            if (HtmlParser.findFormById(html, "IDPLogin") != null) return@withContext true
+            throw SsoLoginError.LoginFormNotFound()
+        }
 
         val fields = form.inputs.toMutableList().apply {
             replaceOrAppend("Username", studentId)
