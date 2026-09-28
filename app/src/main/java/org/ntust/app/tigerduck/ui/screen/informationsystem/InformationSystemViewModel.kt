@@ -5,11 +5,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.demo.DemoAccount
@@ -62,26 +67,48 @@ class InformationSystemViewModel @Inject constructor(
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
+    // Everything done on the signed-in account's behalf runs in this scope, so an account
+    // change can cancel whatever the previous account still has in flight before it lands
+    // in the next account's state.
+    private var accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
+    private val accountScope get() = viewModelScope + accountJob
+
     private var hasLoaded = false
+    private var lastUseEnglish: Boolean? = null
 
-    fun load(useEnglish: Boolean) {
-        if (hasLoaded) return
-        hasLoaded = true
-        val studentId = authService.storedStudentId ?: return
-        val password = authService.storedPassword ?: return
-
+    init {
+        // This screen can be a retained tab that outlives a sign-out, so it has to forget the
+        // previous account itself. drop(1): the current value is where this ViewModel starts,
+        // not a change.
         viewModelScope.launch {
-            val cached = runCatching {
-                portalService.fetchPortalLinks(studentId, password, useEnglish, forceRefresh = false)
-            }.getOrNull()
-            if (cached != null) {
-                _state.update { applyFilters(it.copy(items = cached, loadState = LoadState.Loaded)) }
+            authService.authState.drop(1).collect { signedIn ->
+                accountJob.cancel()
+                accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
+                hasLoaded = false
+                _state.value = State()
+                if (signedIn) lastUseEnglish?.let(::load)
             }
-            refresh(useEnglish, force = false)
         }
     }
 
-    fun refresh(useEnglish: Boolean, force: Boolean = true) {
+    fun load(useEnglish: Boolean) {
+        lastUseEnglish = useEnglish
+        if (hasLoaded) return
+        val studentId = authService.storedStudentId ?: return
+        if (authService.storedPassword == null) return
+        // Only once there is an account to load for: a visit while signed out must not stop
+        // the load that signing in triggers.
+        hasLoaded = true
+
+        accountScope.launch {
+            portalService.cachedPortalLinks(studentId, useEnglish)?.let { cached ->
+                _state.update { applyFilters(it.copy(items = cached, loadState = LoadState.Loaded)) }
+            }
+            refresh(useEnglish)
+        }
+    }
+
+    fun refresh(useEnglish: Boolean) {
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId == null || password == null) {
@@ -92,12 +119,14 @@ class InformationSystemViewModel @Inject constructor(
         // leave whatever's on screen (nothing) rather than reporting a failure.
         if (demoAccount.isActive) return
 
-        viewModelScope.launch {
+        accountScope.launch {
             if (!networkChecker.isAvailable()) return@launch
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
-                val links = portalService.fetchPortalLinks(studentId, password, useEnglish, forceRefresh = force)
+                val links = portalService.fetchPortalLinks(studentId, password, useEnglish)
                 _state.update { applyFilters(it.copy(items = links, loadState = LoadState.Loaded)) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: NtustPortalError) {
                 _state.update {
                     it.copy(
@@ -133,13 +162,16 @@ class InformationSystemViewModel @Inject constructor(
     fun openLink(link: PortalLink) {
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
-        viewModelScope.launch {
+        accountScope.launch {
             // link.url's own host, not the portal host: NTUST's SSO is
             // per-service, so a warm session on i.ntust.edu.tw does not
             // imply this link's host has ever been visited.
             val result = runCatching {
                 portalService.ensureWebViewSession(link.url, studentId, password)
             }
+            // runCatching also catches the cancellation an account change sends; that must
+            // end this coroutine, not show an error in the next account's screen.
+            (result.exceptionOrNull() as? CancellationException)?.let { throw it }
             val ready = result.getOrDefault(false)
             if (!ready) {
                 // This used to just return@launch — a failed or throwing ensureWebViewSession
