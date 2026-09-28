@@ -396,7 +396,10 @@ class AuthService @Inject constructor(
         runCatching {
             val manager = CookieManager.getInstance()
             manager.removeAllCookies {
-                manager.flush()
+                // Runs later on the main looper, outside the runCatching around it: a throwing
+                // flush() would otherwise crash the app and leave `done` incomplete.
+                runCatching { manager.flush() }
+                    .onFailure { android.util.Log.w("AuthService", "WebView cookie flush failed on logout", it) }
                 done.complete(Unit)
             }
         }.onFailure {

@@ -41,9 +41,20 @@ object NtustPortalTreeParser {
             }
     }
 
+    /** Swaps only the host. Rebuilt from the raw (still-encoded) components: the decoded
+     *  getters would turn an escaped `%26` or `%2F` into a real query separator or path
+     *  segment, changing which resource the link opens. */
     private fun fixStaleHost(url: String): String {
         val uri = runCatching { URI(url) }.getOrNull() ?: return url
         if (uri.host != STALE_HOST) return url
-        return URI(uri.scheme, uri.userInfo, CORRECT_HOST, uri.port, uri.path, uri.query, uri.fragment).toString()
+        return buildString {
+            append(uri.scheme).append("://")
+            uri.rawUserInfo?.let { append(it).append('@') }
+            append(CORRECT_HOST)
+            if (uri.port != -1) append(':').append(uri.port)
+            uri.rawPath?.let { append(it) }
+            uri.rawQuery?.let { append('?').append(it) }
+            uri.rawFragment?.let { append('#').append(it) }
+        }
     }
 }

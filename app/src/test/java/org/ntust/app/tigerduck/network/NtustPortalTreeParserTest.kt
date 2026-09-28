@@ -32,6 +32,14 @@ class NtustPortalTreeParserTest {
     }
 
     @Test
+    fun `parse keeps escaped separators intact when rewriting the stale host`() {
+        val html = serviceHtml("學術研究倫理課程報名" to "https://ae.ntust.edu.tw/a%2Fb?x=1%26y=2#top")
+        val links = NtustPortalTreeParser.parse(html, "https://i.ntust.edu.tw/student")
+
+        assertEquals("https://ae.cge.ntust.edu.tw/a%2Fb?x=1%26y=2#top", links.single().url)
+    }
+
+    @Test
     fun `parse leaves every other host untouched`() {
         val html = serviceHtml("課程資訊" to "https://courseselection.ntust.edu.tw/")
         val links = NtustPortalTreeParser.parse(html, "https://i.ntust.edu.tw/student")
