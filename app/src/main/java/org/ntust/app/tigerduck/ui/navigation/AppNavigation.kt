@@ -482,9 +482,11 @@ fun MainNavigation(
                     navArgument("url") { type = NavType.StringType },
                 ),
             ) { entry ->
+                // Navigation already decoded these path arguments once; decoding again would turn
+                // a literal %252F in a portal URL into %2F and open the wrong resource.
                 PortalBrowserScreen(
-                    title = Uri.decode(entry.arguments?.getString("title").orEmpty()),
-                    url = Uri.decode(entry.arguments?.getString("url").orEmpty()),
+                    title = entry.arguments?.getString("title").orEmpty(),
+                    url = entry.arguments?.getString("url").orEmpty(),
                     browserPreference = appState.browserPreference,
                     onBack = { navController.popBackStack() },
                 )
