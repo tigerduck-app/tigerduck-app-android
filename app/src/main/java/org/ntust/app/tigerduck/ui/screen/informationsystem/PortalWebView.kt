@@ -42,6 +42,11 @@ class PortalWebViewState {
     var pageTitle by mutableStateOf<String?>(null)
         internal set
 
+    /** The page actually on screen right now — not the tapped link's URL, which an SSO
+     *  redirect can leave stale for as long as the login bounce is in progress. */
+    var currentUrl by mutableStateOf<String?>(null)
+        internal set
+
     internal var webView: WebView? = null
 
     /** True if a page-internal back navigation was performed (caller should not pop the screen). */
@@ -128,12 +133,14 @@ fun PortalWebView(
                     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
                         state.isLoading = true
                         state.canGoBack = view.canGoBack()
+                        state.currentUrl = url
                     }
 
                     override fun onPageFinished(view: WebView, url: String?) {
                         state.isLoading = false
                         state.canGoBack = view.canGoBack()
                         state.pageTitle = view.title
+                        state.currentUrl = url
 
                         val user = latestStudentId
                         val pass = latestPassword
