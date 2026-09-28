@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -74,6 +75,7 @@ class InformationSystemViewModel @Inject constructor(
     private val accountScope get() = viewModelScope + accountJob
 
     private var hasLoaded = false
+    private var openLinkJob: Job? = null
     private var lastUseEnglish: Boolean? = null
 
     init {
@@ -160,9 +162,13 @@ class InformationSystemViewModel @Inject constructor(
      * to navigate to synchronously.
      */
     fun openLink(link: PortalLink) {
+        // One open at a time. Each open empties the shared WebView cookie store before installing
+        // the session, so a second tap's clear would wipe the session the first tap's page is
+        // loading with.
+        if (openLinkJob?.isActive == true) return
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
-        accountScope.launch {
+        openLinkJob = accountScope.launch {
             // link.url's own host, not the portal host: NTUST's SSO is
             // per-service, so a warm session on i.ntust.edu.tw does not
             // imply this link's host has ever been visited.
@@ -176,21 +182,24 @@ class InformationSystemViewModel @Inject constructor(
             if (!ready) {
                 // This used to just return@launch — a failed or throwing ensureWebViewSession
                 // left the tap looking like it did nothing at all, with nothing in logcat either.
-                android.util.Log.w(
-                    "InformationSystemViewModel",
-                    "openLink failed for ${link.url}",
-                    result.exceptionOrNull(),
-                )
-                _state.update {
-                    it.copy(openLinkError = context.getString(R.string.information_system_load_failed))
-                }
+                reportOpenLinkFailure(link, result.exceptionOrNull())
                 return@launch
             }
             // A sign-out's WebView cookie wipe is asynchronous; installing this account's cookies
             // before it lands would let it erase them.
             authService.awaitWebViewCookieWipe()
-            syncCookiesToWebView(portalService.allSessionCookies())
+            if (!syncCookiesToWebView(portalService.allSessionCookies())) {
+                reportOpenLinkFailure(link, null)
+                return@launch
+            }
             _state.update { it.copy(pendingLink = link) }
+        }
+    }
+
+    private fun reportOpenLinkFailure(link: PortalLink, cause: Throwable?) {
+        android.util.Log.w("InformationSystemViewModel", "openLink failed for ${link.url}", cause)
+        _state.update {
+            it.copy(openLinkError = context.getString(R.string.information_system_load_failed))
         }
     }
 
