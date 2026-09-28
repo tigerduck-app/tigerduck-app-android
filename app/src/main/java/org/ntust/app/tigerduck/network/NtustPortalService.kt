@@ -91,7 +91,13 @@ class NtustPortalService @Inject constructor(
      */
     suspend fun ensureWebViewSession(targetUrl: String, studentId: String, password: String): Boolean =
         withContext(Dispatchers.IO) {
-            ssoLoginService.ensureServiceLogin(targetUrl, studentId, password)
+            try {
+                ssoLoginService.ensureServiceLogin(targetUrl, studentId, password)
+            } catch (_: SsoLoginError.InteractiveLoginRequired) {
+                // The WebView lands on that same NetIQ page and PortalWebView's auto-fill
+                // finishes the login with a real click, so opening it is still correct here.
+                true
+            }
         }
 
     private suspend fun fetchHtml(url: String, studentId: String, password: String): String {
