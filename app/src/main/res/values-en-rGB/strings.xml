@@ -442,7 +442,7 @@
     <string name="information_system_category_curriculum_description">Enrollment, course search, evaluation</string>
     <string name="information_system_category_financial_support">Financial Support</string>
     <string name="information_system_category_financial_support_description">Scholarships, fee waivers, work-study</string>
-    <string name="information_system_category_person_info">Person Information</string>
+    <string name="information_system_category_person_info">Personal Information</string>
     <string name="information_system_category_person_info_description">Student record, conduct, leaving procedures</string>
     <string name="information_system_category_resources">Resources</string>
     <string name="information_system_category_resources_description">Licensed software, campus documents</string>
