@@ -32,22 +32,28 @@ private const val CLEAR_TIMEOUT_MS = 5_000L
  * retries, which eventually grow the Cookie header past the server's limit ("400 Bad Request").
  * TAT's in-app browser clears the same way before setting its cookies.
  *
- * Must run on a thread with a Looper, which the removal callback is posted to; openLink calls
- * it from the main thread.
+ * Returns false — having installed nothing — when the store could not be confirmed empty; the
+ * caller must not open the page then. Must run on a thread with a Looper, which the removal
+ * callback is posted to; openLink calls it from the main thread.
  */
-suspend fun syncCookiesToWebView(cookiesByHost: Map<String, List<Cookie>>) {
+suspend fun syncCookiesToWebView(cookiesByHost: Map<String, List<Cookie>>): Boolean {
     val manager = CookieManager.getInstance()
     manager.setAcceptCookie(true)
     // removeAllCookies is asynchronous; a cookie set before it finishes could be erased by it.
-    // The callback only fails to arrive if the WebView provider is broken, and a portal tap must
-    // not hang forever on that.
+    // The callback only fails to arrive if the WebView provider is broken. That case fails
+    // closed: installing anyway could hand a previous account's surviving cookie to the page,
+    // and a clear that lands later would erase this session.
     val cleared = withTimeoutOrNull(CLEAR_TIMEOUT_MS) {
         suspendCancellableCoroutine { cont -> manager.removeAllCookies { cont.resume(Unit) } }
     }
-    if (cleared == null) Log.w(TAG, "WebView cookie clear still pending; bridging anyway")
+    if (cleared == null) {
+        Log.w(TAG, "WebView cookie clear did not finish; not opening the portal page")
+        return false
+    }
     cookiesByHost.forEach { (host, cookies) ->
         val originUrl = "https://$host/"
         cookies.forEach { cookie -> manager.setCookie(originUrl, cookie.toString()) }
     }
     manager.flush()
+    return true
 }
