@@ -22,6 +22,7 @@
     <string name="action_clear_text">Мәтінді тазалау</string>
     <string name="action_close">Жабу</string>
     <string name="action_confirm">Растау</string>
+    <string name="action_copy_link">Сілтемені көшіру</string>
     <string name="action_done">Дайын</string>
     <string name="action_go_to_settings">Параметрлерге өту</string>
     <string name="action_got_it">Түсінікті</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Қайта әрекеттену</string>
     <string name="action_save">Сақтау</string>
     <string name="action_search">Іздеу</string>
+    <string name="action_share">Бөлісу</string>
     <string name="action_sign_in">Кіру</string>
     <string name="action_sign_in_again">Қайта кіру</string>
     <string name="action_sign_out">Шығу</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Студент жазбасы, тәртіп, шығу процедуралары</string>
     <string name="information_system_category_resources">Ресурстар</string>
     <string name="information_system_category_resources_description">Лицензиялық бағдарламалық жасақтама, кампус құжаттары</string>
+    <string name="information_system_link_copied">Сілтеме көшірілді</string>
     <string name="information_system_load_failed">Ақпараттық жүйе жүктелмеді</string>
     <string name="information_system_search_empty">Қызметтер табылмады</string>
     <string name="information_system_search_hint">Қызметтерді іздеу</string>

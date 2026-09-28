@@ -22,6 +22,7 @@
     <string name="action_clear_text">వచనాన్ని క్లియర్ చేయండి</string>
     <string name="action_close">మూసివేయండి</string>
     <string name="action_confirm">నిర్ధారించండి</string>
+    <string name="action_copy_link">లింక్‌ను కాపీ చేయి</string>
     <string name="action_done">పూర్తయింది</string>
     <string name="action_go_to_settings">సెట్టింగ్స్‌కు వెళ్ళండి</string>
     <string name="action_got_it">అర్థమైంది</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">మళ్లీ ప్రయత్నించండి</string>
     <string name="action_save">సేవ్ చేయండి</string>
     <string name="action_search">శోధించు</string>
+    <string name="action_share">షేర్ చేయి</string>
     <string name="action_sign_in">సైన్ ఇన్</string>
     <string name="action_sign_in_again">మళ్లీ సైన్ ఇన్ చేయండి</string>
     <string name="action_sign_out">సైన్ అవుట్</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">విద్యార్థి రికార్డు, ప్రవర్తన, నిష్క్రమణ ప్రక్రియలు</string>
     <string name="information_system_category_resources">వనరులు</string>
     <string name="information_system_category_resources_description">లైసెన్స్ పొందిన సాఫ్ట్‌వేర్, క్యాంపస్ పత్రాలు</string>
+    <string name="information_system_link_copied">లింక్ కాపీ చేయబడింది</string>
     <string name="information_system_load_failed">సమాచార వ్యవస్థను లోడ్ చేయలేకపోయింది</string>
     <string name="information_system_search_empty">ఏ సేవలు కనుగొనబడలేదు</string>
     <string name="information_system_search_hint">సేవల కోసం శోధించండి</string>

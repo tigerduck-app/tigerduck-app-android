@@ -22,6 +22,7 @@
     <string name="action_clear_text">Esborrar text</string>
     <string name="action_close">Tanca</string>
     <string name="action_confirm">Confirma</string>
+    <string name="action_copy_link">Copia l\'enllaç</string>
     <string name="action_done">Fet</string>
     <string name="action_go_to_settings">Ves a la configuració</string>
     <string name="action_got_it">Entès</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Torna-ho a provar</string>
     <string name="action_save">Desa</string>
     <string name="action_search">Cerca</string>
+    <string name="action_share">Comparteix</string>
     <string name="action_sign_in">Inicia la sessió</string>
     <string name="action_sign_in_again">Torna a iniciar la sessió</string>
     <string name="action_sign_out">Tanca la sessió</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Expedient de l\'estudiant, conducta, tràmits de sortida</string>
     <string name="information_system_category_resources">Recursos</string>
     <string name="information_system_category_resources_description">Programari amb llicència, documents del campus</string>
+    <string name="information_system_link_copied">Enllaç copiat</string>
     <string name="information_system_load_failed">No s\'ha pogut carregar el sistema d\'informació</string>
     <string name="information_system_search_empty">No s\'ha trobat cap servei</string>
     <string name="information_system_search_hint">Cerca serveis</string>

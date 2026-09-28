@@ -22,6 +22,7 @@
     <string name="action_clear_text">Izbriši tekst</string>
     <string name="action_close">Zatvori</string>
     <string name="action_confirm">Potvrdi</string>
+    <string name="action_copy_link">Kopiraj poveznicu</string>
     <string name="action_done">Gotovo</string>
     <string name="action_go_to_settings">Idi na postavke</string>
     <string name="action_got_it">Razumijem</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Pokušaj ponovno</string>
     <string name="action_save">Spremi</string>
     <string name="action_search">Pretraži</string>
+    <string name="action_share">Podijeli</string>
     <string name="action_sign_in">Prijava</string>
     <string name="action_sign_in_again">Ponovno se prijavi</string>
     <string name="action_sign_out">Odjava</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Studentski zapis, ponašanje, postupci odlaska</string>
     <string name="information_system_category_resources">Resursi</string>
     <string name="information_system_category_resources_description">Licencirani softver, dokumenti kampusa</string>
+    <string name="information_system_link_copied">Poveznica kopirana</string>
     <string name="information_system_load_failed">Informacijski sustav nije moguće učitati</string>
     <string name="information_system_search_empty">Nema pronađenih usluga</string>
     <string name="information_system_search_hint">Pretraži usluge</string>

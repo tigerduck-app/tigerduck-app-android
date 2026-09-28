@@ -22,6 +22,7 @@
     <string name="action_clear_text">Vymazať text</string>
     <string name="action_close">Zavrieť</string>
     <string name="action_confirm">Potvrdiť</string>
+    <string name="action_copy_link">Kopírovať odkaz</string>
     <string name="action_done">Hotovo</string>
     <string name="action_go_to_settings">Prejsť do nastavení</string>
     <string name="action_got_it">Rozumiem</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Skúsiť znova</string>
     <string name="action_save">Uložiť</string>
     <string name="action_search">Vyhľadať</string>
+    <string name="action_share">Zdieľať</string>
     <string name="action_sign_in">Prihlásiť sa</string>
     <string name="action_sign_in_again">Prihlásiť sa znova</string>
     <string name="action_sign_out">Odhlásiť sa</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Študentský záznam, správanie, postupy pri odchode</string>
     <string name="information_system_category_resources">Zdroje</string>
     <string name="information_system_category_resources_description">Licencovaný softvér, dokumenty kampusu</string>
+    <string name="information_system_link_copied">Odkaz skopírovaný</string>
     <string name="information_system_load_failed">Informačný systém sa nepodarilo načítať</string>
     <string name="information_system_search_empty">Nenašli sa žiadne služby</string>
     <string name="information_system_search_hint">Hľadať služby</string>

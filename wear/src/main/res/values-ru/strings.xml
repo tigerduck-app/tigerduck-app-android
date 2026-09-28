@@ -22,6 +22,7 @@
     <string name="action_clear_text">Очистить текст</string>
     <string name="action_close">Закрыть</string>
     <string name="action_confirm">Подтвердить</string>
+    <string name="action_copy_link">Скопировать ссылку</string>
     <string name="action_done">Готово</string>
     <string name="action_go_to_settings">Перейти в настройки</string>
     <string name="action_got_it">Понятно</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Повторить</string>
     <string name="action_save">Сохранить</string>
     <string name="action_search">Поиск</string>
+    <string name="action_share">Поделиться</string>
     <string name="action_sign_in">Войти</string>
     <string name="action_sign_in_again">Войти снова</string>
     <string name="action_sign_out">Выйти</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Личное дело студента, поведение, процедуры отчисления</string>
     <string name="information_system_category_resources">Ресурсы</string>
     <string name="information_system_category_resources_description">Лицензионное программное обеспечение, документы кампуса</string>
+    <string name="information_system_link_copied">Ссылка скопирована</string>
     <string name="information_system_load_failed">Не удалось загрузить информационную систему</string>
     <string name="information_system_search_empty">Услуги не найдены</string>
     <string name="information_system_search_hint">Поиск услуг</string>

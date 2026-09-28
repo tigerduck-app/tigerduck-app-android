@@ -22,6 +22,7 @@
     <string name="action_clear_text">清除文字</string>
     <string name="action_close">關閉</string>
     <string name="action_confirm">確認</string>
+    <string name="action_copy_link">複製連結</string>
     <string name="action_done">完成</string>
     <string name="action_go_to_settings">前往設定</string>
     <string name="action_got_it">收到！</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">重試</string>
     <string name="action_save">儲存</string>
     <string name="action_search">搜尋</string>
+    <string name="action_share">分享</string>
     <string name="action_sign_in">登入</string>
     <string name="action_sign_in_again">重新登入</string>
     <string name="action_sign_out">登出</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">學籍、操行成績、離校手續</string>
     <string name="information_system_category_resources">校園資訊</string>
     <string name="information_system_category_resources_description">授權軟體、校內文件</string>
+    <string name="information_system_link_copied">已複製連結</string>
     <string name="information_system_load_failed">無法載入資訊系統</string>
     <string name="information_system_search_empty">未搜尋到任何服務</string>
     <string name="information_system_search_hint">搜尋服務</string>

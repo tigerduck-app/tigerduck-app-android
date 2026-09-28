@@ -22,6 +22,7 @@
     <string name="action_clear_text">Εκκαθάριση κειμένου</string>
     <string name="action_close">Κλείσιμο</string>
     <string name="action_confirm">Επιβεβαίωση</string>
+    <string name="action_copy_link">Αντιγραφή συνδέσμου</string>
     <string name="action_done">Τέλος</string>
     <string name="action_go_to_settings">Μετάβαση στις ρυθμίσεις</string>
     <string name="action_got_it">Κατάλαβα</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Δοκιμάζω πάλι</string>
     <string name="action_save">Αποθήκευση</string>
     <string name="action_search">Αναζήτηση</string>
+    <string name="action_share">Κοινή χρήση</string>
     <string name="action_sign_in">Σύνδεση</string>
     <string name="action_sign_in_again">Συνδεθείτε ξανά</string>
     <string name="action_sign_out">Αποσύνδεση</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Φοιτητικό μητρώο, διαγωγή, διαδικασίες αποφοίτησης</string>
     <string name="information_system_category_resources">Πόροι</string>
     <string name="information_system_category_resources_description">Αδειοδοτημένο λογισμικό, έγγραφα πανεπιστημιούπολης</string>
+    <string name="information_system_link_copied">Ο σύνδεσμος αντιγράφηκε</string>
     <string name="information_system_load_failed">Δεν ήταν δυνατή η φόρτωση του συστήματος πληροφοριών</string>
     <string name="information_system_search_empty">Δεν βρέθηκαν υπηρεσίες</string>
     <string name="information_system_search_hint">Αναζήτηση υπηρεσιών</string>

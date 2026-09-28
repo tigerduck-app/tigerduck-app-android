@@ -22,6 +22,7 @@
     <string name="action_clear_text">ล้างข้อความ</string>
     <string name="action_close">ปิด</string>
     <string name="action_confirm">ยืนยัน</string>
+    <string name="action_copy_link">คัดลอกลิงก์</string>
     <string name="action_done">เสร็จสิ้น</string>
     <string name="action_go_to_settings">ไปที่การตั้งค่า</string>
     <string name="action_got_it">เข้าใจแล้ว</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">ลองอีกครั้ง</string>
     <string name="action_save">บันทึก</string>
     <string name="action_search">ค้นหา</string>
+    <string name="action_share">แชร์</string>
     <string name="action_sign_in">เข้าสู่ระบบ</string>
     <string name="action_sign_in_again">เข้าสู่ระบบอีกครั้ง</string>
     <string name="action_sign_out">ออกจากระบบ</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">ประวัตินักศึกษา, ความประพฤติ, ขั้นตอนการลาออก</string>
     <string name="information_system_category_resources">แหล่งข้อมูล</string>
     <string name="information_system_category_resources_description">ซอฟต์แวร์ที่มีลิขสิทธิ์, เอกสารมหาวิทยาลัย</string>
+    <string name="information_system_link_copied">คัดลอกลิงก์แล้ว</string>
     <string name="information_system_load_failed">ไม่สามารถโหลดระบบสารสนเทศได้</string>
     <string name="information_system_search_empty">ไม่พบบริการ</string>
     <string name="information_system_search_hint">ค้นหาบริการ</string>

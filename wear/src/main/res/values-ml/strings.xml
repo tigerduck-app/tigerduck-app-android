@@ -22,6 +22,7 @@
     <string name="action_clear_text">ടെക്സ്റ്റ് മായ്ക്കുക</string>
     <string name="action_close">അടക്കുക</string>
     <string name="action_confirm">സ്ഥിരീകരിക്കുക</string>
+    <string name="action_copy_link">ലിങ്ക് പകർത്തുക</string>
     <string name="action_done">പൂർത്തിയായി</string>
     <string name="action_go_to_settings">ക്രമീകരണങ്ങളിലേക്ക് പോകുക</string>
     <string name="action_got_it">മനസ്സിലായി</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">വീണ്ടും ശ്രമിക്കുക</string>
     <string name="action_save">സേവ് ചെയ്യുക</string>
     <string name="action_search">തിരയുക</string>
+    <string name="action_share">പങ്കിടുക</string>
     <string name="action_sign_in">സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="action_sign_in_again">വീണ്ടും സൈൻ ഇൻ ചെയ്യുക</string>
     <string name="action_sign_out">സൈൻ ഔട്ട് ചെയ്യുക</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">വിദ്യാർത്ഥി രേഖ, പെരുമാറ്റം, പുറത്തുപോകൽ നടപടിക്രമങ്ങൾ</string>
     <string name="information_system_category_resources">വിഭവങ്ങൾ</string>
     <string name="information_system_category_resources_description">ലൈസൻസുള്ള സോഫ്റ്റ്‌വെയർ, കാമ്പസ് രേഖകൾ</string>
+    <string name="information_system_link_copied">ലിങ്ക് പകർത്തി</string>
     <string name="information_system_load_failed">വിവര സംവിധാനം ലോഡ് ചെയ്യാൻ കഴിഞ്ഞില്ല</string>
     <string name="information_system_search_empty">സേവനങ്ങളൊന്നും കണ്ടെത്തിയില്ല</string>
     <string name="information_system_search_hint">സേവനങ്ങൾ തിരയുക</string>

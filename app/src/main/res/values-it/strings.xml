@@ -22,6 +22,7 @@
     <string name="action_clear_text">Cancella testo</string>
     <string name="action_close">Chiudi</string>
     <string name="action_confirm">Conferma</string>
+    <string name="action_copy_link">Copia link</string>
     <string name="action_done">Fatto</string>
     <string name="action_go_to_settings">Vai alle impostazioni</string>
     <string name="action_got_it">Ho capito</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Riprova</string>
     <string name="action_save">Salva</string>
     <string name="action_search">Cerca</string>
+    <string name="action_share">Condividi</string>
     <string name="action_sign_in">Accedi</string>
     <string name="action_sign_in_again">Accedi di nuovo</string>
     <string name="action_sign_out">Esci</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Fascicolo studente, condotta, procedure di uscita</string>
     <string name="information_system_category_resources">Risorse</string>
     <string name="information_system_category_resources_description">Software con licenza, documenti del campus</string>
+    <string name="information_system_link_copied">Link copiato</string>
     <string name="information_system_load_failed">Impossibile caricare il sistema informativo</string>
     <string name="information_system_search_empty">Nessun servizio trovato</string>
     <string name="information_system_search_hint">Cerca servizi</string>

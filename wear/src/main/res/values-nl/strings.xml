@@ -22,6 +22,7 @@
     <string name="action_clear_text">Tekst wissen</string>
     <string name="action_close">Sluiten</string>
     <string name="action_confirm">Bevestigen</string>
+    <string name="action_copy_link">Link kopiëren</string>
     <string name="action_done">Klaar</string>
     <string name="action_go_to_settings">Ga naar instellingen</string>
     <string name="action_got_it">Begrepen</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Opnieuw proberen</string>
     <string name="action_save">Opslaan</string>
     <string name="action_search">Zoeken</string>
+    <string name="action_share">Delen</string>
     <string name="action_sign_in">Inloggen</string>
     <string name="action_sign_in_again">Opnieuw aanmelden</string>
     <string name="action_sign_out">Uitloggen</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Studentendossier, gedrag, uitschrijvingsprocedures</string>
     <string name="information_system_category_resources">Bronnen</string>
     <string name="information_system_category_resources_description">Gelicentieerde software, campusdocumenten</string>
+    <string name="information_system_link_copied">Link gekopieerd</string>
     <string name="information_system_load_failed">Informatiesysteem kon niet worden geladen</string>
     <string name="information_system_search_empty">Geen diensten gevonden</string>
     <string name="information_system_search_hint">Diensten zoeken</string>

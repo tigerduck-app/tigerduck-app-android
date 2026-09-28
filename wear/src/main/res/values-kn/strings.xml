@@ -22,6 +22,7 @@
     <string name="action_clear_text">ಪಠ್ಯ ಅಳಿಸಿ</string>
     <string name="action_close">ಮುಚ್ಚಿ</string>
     <string name="action_confirm">ದೃಢಪಡಿಸಿ</string>
+    <string name="action_copy_link">ಲಿಂಕ್ ನಕಲಿಸಿ</string>
     <string name="action_done">ಮುಗಿಯಿತು</string>
     <string name="action_go_to_settings">ಸೆಟ್ಟಿಂಗ್‌ಗಳಿಗೆ ಹೋಗಿ</string>
     <string name="action_got_it">ತಿಳಿಯಿತು</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ</string>
     <string name="action_save">ಉಳಿಸಿ</string>
     <string name="action_search">ಹುಡುಕಿ</string>
+    <string name="action_share">ಹಂಚಿಕೊಳ್ಳಿ</string>
     <string name="action_sign_in">ಸೈನ್ ಇನ್</string>
     <string name="action_sign_in_again">ಮತ್ತೆ ಲಾಗಿನ್ ಮಾಡಿ</string>
     <string name="action_sign_out">ಸೈನ್ ಔಟ್</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">ವಿದ್ಯಾರ್ಥಿ ದಾಖಲೆ, ವರ್ತನೆ, ನಿರ್ಗಮನ ಪ್ರಕ್ರಿಯೆಗಳು</string>
     <string name="information_system_category_resources">ಸಂಪನ್ಮೂಲಗಳು</string>
     <string name="information_system_category_resources_description">ಲೈಸೆನ್ಸ್ ಪಡೆದ ಸಾಫ್ಟ್‌ವೇರ್, ಕ್ಯಾಂಪಸ್ ದಾಖಲೆಗಳು</string>
+    <string name="information_system_link_copied">ಲಿಂಕ್ ನಕಲಿಸಲಾಗಿದೆ</string>
     <string name="information_system_load_failed">ಮಾಹಿತಿ ವ್ಯವಸ್ಥೆ ಲೋಡ್ ಆಗಲಿಲ್ಲ</string>
     <string name="information_system_search_empty">ಯಾವುದೇ ಸೇವೆಗಳು ಕಂಡುಬಂದಿಲ್ಲ</string>
     <string name="information_system_search_hint">ಸೇವೆಗಳನ್ನು ಹುಡುಕಿ</string>

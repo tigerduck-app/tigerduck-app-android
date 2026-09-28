@@ -22,6 +22,7 @@
     <string name="action_clear_text">Hreinsa texta</string>
     <string name="action_close">Loka</string>
     <string name="action_confirm">Staðfesta</string>
+    <string name="action_copy_link">Afrita tengil</string>
     <string name="action_done">Lokið</string>
     <string name="action_go_to_settings">Fara í stillingar</string>
     <string name="action_got_it">Skil</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Reyndu aftur</string>
     <string name="action_save">Vista</string>
     <string name="action_search">Leita</string>
+    <string name="action_share">Deila</string>
     <string name="action_sign_in">Innskrá</string>
     <string name="action_sign_in_again">Skrá þig inn aftur</string>
     <string name="action_sign_out">Útskrá</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Nemandaskrá, hegðun, útskráningarferli</string>
     <string name="information_system_category_resources">Úrræði</string>
     <string name="information_system_category_resources_description">Leyfisbundinn hugbúnaður, skjöl háskólasvæðis</string>
+    <string name="information_system_link_copied">Tengill afritaður</string>
     <string name="information_system_load_failed">Ekki tókst að hlaða upplýsingakerfið</string>
     <string name="information_system_search_empty">Engin þjónusta fannst</string>
     <string name="information_system_search_hint">Leita að þjónustu</string>

@@ -22,6 +22,7 @@
     <string name="action_clear_text">Ryd tekst</string>
     <string name="action_close">Luk</string>
     <string name="action_confirm">Bekræft</string>
+    <string name="action_copy_link">Kopiér link</string>
     <string name="action_done">Færdig</string>
     <string name="action_go_to_settings">Gå til indstillinger</string>
     <string name="action_got_it">Forstået</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Prøv igen</string>
     <string name="action_save">Gem</string>
     <string name="action_search">Søg</string>
+    <string name="action_share">Del</string>
     <string name="action_sign_in">Log ind</string>
     <string name="action_sign_in_again">Log ind igen</string>
     <string name="action_sign_out">Log ud</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Studiejournal, adfærd, udmeldelsesprocedurer</string>
     <string name="information_system_category_resources">Ressourcer</string>
     <string name="information_system_category_resources_description">Licenseret software, campusdokumenter</string>
+    <string name="information_system_link_copied">Link kopieret</string>
     <string name="information_system_load_failed">Informationssystemet kunne ikke indlæses</string>
     <string name="information_system_search_empty">Ingen tjenester fundet</string>
     <string name="information_system_search_hint">Søg tjenester</string>

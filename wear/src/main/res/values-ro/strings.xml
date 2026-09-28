@@ -22,6 +22,7 @@
     <string name="action_clear_text">Șterge textul</string>
     <string name="action_close">Închide</string>
     <string name="action_confirm">Confirmă</string>
+    <string name="action_copy_link">Copiază linkul</string>
     <string name="action_done">Finalizat</string>
     <string name="action_go_to_settings">Mergi la setări</string>
     <string name="action_got_it">Înțeles</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Încercați din nou</string>
     <string name="action_save">Salvează</string>
     <string name="action_search">Caută</string>
+    <string name="action_share">Distribuie</string>
     <string name="action_sign_in">Autentificare</string>
     <string name="action_sign_in_again">Autentificați-vă din nou</string>
     <string name="action_sign_out">Deconectare</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Dosar de student, conduită, proceduri de plecare</string>
     <string name="information_system_category_resources">Resurse</string>
     <string name="information_system_category_resources_description">Software licențiat, documente de campus</string>
+    <string name="information_system_link_copied">Link copiat</string>
     <string name="information_system_load_failed">Sistemul informatic nu s-a putut încărca</string>
     <string name="information_system_search_empty">Niciun serviciu găsit</string>
     <string name="information_system_search_hint">Caută servicii</string>

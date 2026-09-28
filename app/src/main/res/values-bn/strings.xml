@@ -22,6 +22,7 @@
     <string name="action_clear_text">টেক্সট পরিষ্কার করুন</string>
     <string name="action_close">বন্ধ করুন</string>
     <string name="action_confirm">নিশ্চিত করুন</string>
+    <string name="action_copy_link">লিঙ্ক কপি করুন</string>
     <string name="action_done">সম্পন্ন</string>
     <string name="action_go_to_settings">সেটিংসে যান</string>
     <string name="action_got_it">বুঝেছি</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">আবার চেষ্টা করুন</string>
     <string name="action_save">সংরক্ষণ করুন</string>
     <string name="action_search">অনুসন্ধান</string>
+    <string name="action_share">শেয়ার করুন</string>
     <string name="action_sign_in">সাইন ইন</string>
     <string name="action_sign_in_again">আবার সাইন ইন করুন</string>
     <string name="action_sign_out">সাইন আউট</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">শিক্ষার্থী রেকর্ড, আচরণ, প্রস্থান পদ্ধতি</string>
     <string name="information_system_category_resources">সম্পদ</string>
     <string name="information_system_category_resources_description">লাইসেন্সপ্রাপ্ত সফটওয়্যার, ক্যাম্পাস নথি</string>
+    <string name="information_system_link_copied">লিঙ্ক কপি করা হয়েছে</string>
     <string name="information_system_load_failed">তথ্য ব্যবস্থা লোড করা যায়নি</string>
     <string name="information_system_search_empty">কোনো পরিষেবা পাওয়া যায়নি</string>
     <string name="information_system_search_hint">পরিষেবা অনুসন্ধান করুন</string>

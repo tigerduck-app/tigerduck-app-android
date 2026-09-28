@@ -22,6 +22,7 @@
     <string name="action_clear_text">Text löschen</string>
     <string name="action_close">Schließen</string>
     <string name="action_confirm">Bestätigen</string>
+    <string name="action_copy_link">Link kopieren</string>
     <string name="action_done">Fertig</string>
     <string name="action_go_to_settings">Zu den Einstellungen</string>
     <string name="action_got_it">Verstanden</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Wiederholen</string>
     <string name="action_save">Speichern</string>
     <string name="action_search">Suchen</string>
+    <string name="action_share">Teilen</string>
     <string name="action_sign_in">Anmelden</string>
     <string name="action_sign_in_again">Melden Sie sich erneut an</string>
     <string name="action_sign_out">Abmelden</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Studierendenakte, Verhalten, Exmatrikulationsverfahren</string>
     <string name="information_system_category_resources">Ressourcen</string>
     <string name="information_system_category_resources_description">Lizenzierte Software, Campus-Dokumente</string>
+    <string name="information_system_link_copied">Link kopiert</string>
     <string name="information_system_load_failed">Informationssystem konnte nicht geladen werden</string>
     <string name="information_system_search_empty">Keine Dienste gefunden</string>
     <string name="information_system_search_hint">Dienste suchen</string>

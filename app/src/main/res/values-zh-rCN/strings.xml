@@ -22,6 +22,7 @@
     <string name="action_clear_text">清除文字</string>
     <string name="action_close">关闭</string>
     <string name="action_confirm">确认</string>
+    <string name="action_copy_link">复制链接</string>
     <string name="action_done">完成</string>
     <string name="action_go_to_settings">前往设置</string>
     <string name="action_got_it">收到！</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">重试</string>
     <string name="action_save">保存</string>
     <string name="action_search">搜索</string>
+    <string name="action_share">分享</string>
     <string name="action_sign_in">登录</string>
     <string name="action_sign_in_again">重新登录</string>
     <string name="action_sign_out">注销</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">学籍、操行成绩、离校手续</string>
     <string name="information_system_category_resources">校园资源</string>
     <string name="information_system_category_resources_description">授权软件、校园文件</string>
+    <string name="information_system_link_copied">链接已复制</string>
     <string name="information_system_load_failed">无法加载信息系统</string>
     <string name="information_system_search_empty">未找到任何服务</string>
     <string name="information_system_search_hint">搜索服务</string>

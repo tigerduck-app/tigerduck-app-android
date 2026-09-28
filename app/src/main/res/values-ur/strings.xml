@@ -22,6 +22,7 @@
     <string name="action_clear_text">متن صاف کریں</string>
     <string name="action_close">بند کریں</string>
     <string name="action_confirm">تصدیق کریں</string>
+    <string name="action_copy_link">لنک کاپی کریں</string>
     <string name="action_done">مکمل</string>
     <string name="action_go_to_settings">ترتیبات پر جائیں</string>
     <string name="action_got_it">سمجھ گیا</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">دوبارہ کوشش کریں</string>
     <string name="action_save">محفوظ کریں</string>
     <string name="action_search">تلاش کریں</string>
+    <string name="action_share">شیئر کریں</string>
     <string name="action_sign_in">سائن ان</string>
     <string name="action_sign_in_again">دوبارہ سائن ان کریں</string>
     <string name="action_sign_out">سائن آؤٹ</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">طالب علم ریکارڈ، طرزعمل، اخراج کے طریقہ کار</string>
     <string name="information_system_category_resources">وسائل</string>
     <string name="information_system_category_resources_description">لائسنس یافتہ سافٹ ویئر، کیمپس دستاویزات</string>
+    <string name="information_system_link_copied">لنک کاپی ہو گیا</string>
     <string name="information_system_load_failed">معلوماتی نظام لوڈ نہیں ہو سکا</string>
     <string name="information_system_search_empty">کوئی خدمات نہیں ملیں</string>
     <string name="information_system_search_hint">خدمات تلاش کریں</string>

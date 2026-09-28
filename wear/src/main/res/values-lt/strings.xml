@@ -22,6 +22,7 @@
     <string name="action_clear_text">Išvalyti tekstą</string>
     <string name="action_close">Uždaryti</string>
     <string name="action_confirm">Patvirtinti</string>
+    <string name="action_copy_link">Kopijuoti nuorodą</string>
     <string name="action_done">Atlikta</string>
     <string name="action_go_to_settings">Eiti į nustatymus</string>
     <string name="action_got_it">Supratau</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Bandyti dar kartą</string>
     <string name="action_save">Išsaugoti</string>
     <string name="action_search">Ieškoti</string>
+    <string name="action_share">Bendrinti</string>
     <string name="action_sign_in">Prisijungti</string>
     <string name="action_sign_in_again">Prisijungti iš naujo</string>
     <string name="action_sign_out">Atsijungti</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Studento byla, elgesys, išvykimo procedūros</string>
     <string name="information_system_category_resources">Ištekliai</string>
     <string name="information_system_category_resources_description">Licencijuota programinė įranga, kampuso dokumentai</string>
+    <string name="information_system_link_copied">Nuoroda nukopijuota</string>
     <string name="information_system_load_failed">Nepavyko įkelti informacinės sistemos</string>
     <string name="information_system_search_empty">Paslaugų nerasta</string>
     <string name="information_system_search_hint">Ieškoti paslaugų</string>
