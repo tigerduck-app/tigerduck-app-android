@@ -22,6 +22,7 @@
     <string name="action_clear_text">Borrar texto</string>
     <string name="action_close">Cerrar</string>
     <string name="action_confirm">Confirmar</string>
+    <string name="action_copy_link">Copiar enlace</string>
     <string name="action_done">Listo</string>
     <string name="action_go_to_settings">Ir a la configuración</string>
     <string name="action_got_it">Entendido</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Rever</string>
     <string name="action_save">Guardar</string>
     <string name="action_search">Buscar</string>
+    <string name="action_share">Compartir</string>
     <string name="action_sign_in">Iniciar sesión</string>
     <string name="action_sign_in_again">Iniciar sesión nuevamente</string>
     <string name="action_sign_out">Cerrar sesión</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Expediente del estudiante, conducta, trámites de salida</string>
     <string name="information_system_category_resources">Recursos</string>
     <string name="information_system_category_resources_description">Software con licencia, documentos del campus</string>
+    <string name="information_system_link_copied">Enlace copiado</string>
     <string name="information_system_load_failed">No se pudo cargar el sistema de información</string>
     <string name="information_system_search_empty">No se encontraron servicios</string>
     <string name="information_system_search_hint">Buscar servicios</string>

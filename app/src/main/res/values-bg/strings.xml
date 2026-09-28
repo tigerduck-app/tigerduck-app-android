@@ -22,6 +22,7 @@
     <string name="action_clear_text">Изчистване на текста</string>
     <string name="action_close">Затвори</string>
     <string name="action_confirm">Потвърди</string>
+    <string name="action_copy_link">Копирай връзка</string>
     <string name="action_done">Готово</string>
     <string name="action_go_to_settings">Към настройките</string>
     <string name="action_got_it">Разбрах</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Опитайте отново</string>
     <string name="action_save">Запази</string>
     <string name="action_search">Търсене</string>
+    <string name="action_share">Сподели</string>
     <string name="action_sign_in">Влизане</string>
     <string name="action_sign_in_again">Влезте отново</string>
     <string name="action_sign_out">Излизане</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Студентско досие, поведение, процедури за напускане</string>
     <string name="information_system_category_resources">Ресурси</string>
     <string name="information_system_category_resources_description">Лицензиран софтуер, документи на кампуса</string>
+    <string name="information_system_link_copied">Връзката е копирана</string>
     <string name="information_system_load_failed">Информационната система не можа да се зареди</string>
     <string name="information_system_search_empty">Не са намерени услуги</string>
     <string name="information_system_search_hint">Търсене на услуги</string>

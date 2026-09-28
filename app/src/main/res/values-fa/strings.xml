@@ -22,6 +22,7 @@
     <string name="action_clear_text">پاک کردن متن</string>
     <string name="action_close">بستن</string>
     <string name="action_confirm">تأیید</string>
+    <string name="action_copy_link">کپی پیوند</string>
     <string name="action_done">انجام شد</string>
     <string name="action_go_to_settings">رفتن به تنظیمات</string>
     <string name="action_got_it">متوجه شدم</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">دوباره امتحان کنید</string>
     <string name="action_save">ذخیره</string>
     <string name="action_search">جست‌وجو</string>
+    <string name="action_share">اشتراک‌گذاری</string>
     <string name="action_sign_in">ورود</string>
     <string name="action_sign_in_again">دوباره وارد شوید</string>
     <string name="action_sign_out">خروج از حساب</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">سابقه دانشجویی، رفتار، فرآیندهای ترک تحصیل</string>
     <string name="information_system_category_resources">منابع</string>
     <string name="information_system_category_resources_description">نرم‌افزار دارای مجوز، اسناد پردیس</string>
+    <string name="information_system_link_copied">پیوند کپی شد</string>
     <string name="information_system_load_failed">سیستم اطلاعات بار نشد</string>
     <string name="information_system_search_empty">هیچ خدماتی یافت نشد</string>
     <string name="information_system_search_hint">جستجوی خدمات</string>

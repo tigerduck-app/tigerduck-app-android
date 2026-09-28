@@ -22,6 +22,7 @@
     <string name="action_clear_text">テキストをクリア</string>
     <string name="action_close">閉じる</string>
     <string name="action_confirm">確認</string>
+    <string name="action_copy_link">リンクをコピー</string>
     <string name="action_done">完了</string>
     <string name="action_go_to_settings">設定を開く</string>
     <string name="action_got_it">了解！</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">再試行</string>
     <string name="action_save">保存</string>
     <string name="action_search">検索</string>
+    <string name="action_share">共有</string>
     <string name="action_sign_in">サインイン</string>
     <string name="action_sign_in_again">再度ログインしてください</string>
     <string name="action_sign_out">サインアウト</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">学籍、素行、退学手続き</string>
     <string name="information_system_category_resources">リソース</string>
     <string name="information_system_category_resources_description">ライセンスソフトウェア、キャンパス文書</string>
+    <string name="information_system_link_copied">リンクをコピーしました</string>
     <string name="information_system_load_failed">情報システムを読み込めませんでした</string>
     <string name="information_system_search_empty">サービスが見つかりません</string>
     <string name="information_system_search_hint">サービスを検索</string>

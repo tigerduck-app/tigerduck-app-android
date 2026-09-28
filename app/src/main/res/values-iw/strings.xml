@@ -22,6 +22,7 @@
     <string name="action_clear_text">נקה טקסט</string>
     <string name="action_close">סגור</string>
     <string name="action_confirm">אישור</string>
+    <string name="action_copy_link">העתק קישור</string>
     <string name="action_done">סיום</string>
     <string name="action_go_to_settings">עבור להגדרות</string>
     <string name="action_got_it">הבנתי</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">נסה שוב</string>
     <string name="action_save">שמור</string>
     <string name="action_search">חפש</string>
+    <string name="action_share">שתף</string>
     <string name="action_sign_in">כניסה</string>
     <string name="action_sign_in_again">התחברות מחדש</string>
     <string name="action_sign_out">יציאה</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">תיק סטודנט, התנהגות, הליכי עזיבה</string>
     <string name="information_system_category_resources">משאבים</string>
     <string name="information_system_category_resources_description">תוכנה מורשית, מסמכי קמפוס</string>
+    <string name="information_system_link_copied">הקישור הועתק</string>
     <string name="information_system_load_failed">לא ניתן היה לטעון את מערכת המידע</string>
     <string name="information_system_search_empty">לא נמצאו שירותים</string>
     <string name="information_system_search_hint">חפש שירותים</string>

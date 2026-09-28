@@ -22,6 +22,7 @@
     <string name="action_clear_text">I-clear ang teksto</string>
     <string name="action_close">Isara</string>
     <string name="action_confirm">Kumpirmahin</string>
+    <string name="action_copy_link">Kopyahin ang link</string>
     <string name="action_done">Tapos na</string>
     <string name="action_go_to_settings">Pumunta sa settings</string>
     <string name="action_got_it">Naintindihan ko</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Subukan muli</string>
     <string name="action_save">I-save</string>
     <string name="action_search">Maghanap</string>
+    <string name="action_share">Ibahagi</string>
     <string name="action_sign_in">Mag-sign in</string>
     <string name="action_sign_in_again">Mag-sign in muli</string>
     <string name="action_sign_out">Mag-sign out</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Record ng estudyante, asal, proseso ng paglabas</string>
     <string name="information_system_category_resources">Mga Mapagkukunan</string>
     <string name="information_system_category_resources_description">Lisensyadong software, mga dokumento ng campus</string>
+    <string name="information_system_link_copied">Nakopya ang link</string>
     <string name="information_system_load_failed">Hindi ma-load ang sistema ng impormasyon</string>
     <string name="information_system_search_empty">Walang nakitang serbisyo</string>
     <string name="information_system_search_hint">Maghanap ng serbisyo</string>

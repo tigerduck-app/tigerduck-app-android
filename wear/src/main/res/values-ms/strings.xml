@@ -22,6 +22,7 @@
     <string name="action_clear_text">Padam teks</string>
     <string name="action_close">Tutup</string>
     <string name="action_confirm">Sahkan</string>
+    <string name="action_copy_link">Salin pautan</string>
     <string name="action_done">Selesai</string>
     <string name="action_go_to_settings">Pergi ke tetapan</string>
     <string name="action_got_it">Faham</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Coba Lagi</string>
     <string name="action_save">Simpan</string>
     <string name="action_search">Cari</string>
+    <string name="action_share">Kongsi</string>
     <string name="action_sign_in">Log masuk</string>
     <string name="action_sign_in_again">Log Masuk Lagi</string>
     <string name="action_sign_out">Log keluar</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Rekod pelajar, kelakuan, prosedur keluar</string>
     <string name="information_system_category_resources">Sumber</string>
     <string name="information_system_category_resources_description">Perisian berlesen, dokumen kampus</string>
+    <string name="information_system_link_copied">Pautan disalin</string>
     <string name="information_system_load_failed">Sistem maklumat gagal dimuatkan</string>
     <string name="information_system_search_empty">Tiada perkhidmatan ditemui</string>
     <string name="information_system_search_hint">Cari perkhidmatan</string>

@@ -22,6 +22,7 @@
     <string name="action_clear_text">مسح النص</string>
     <string name="action_close">إغلاق</string>
     <string name="action_confirm">تأكيد</string>
+    <string name="action_copy_link">نسخ الرابط</string>
     <string name="action_done">تم</string>
     <string name="action_go_to_settings">الانتقال إلى الإعدادات</string>
     <string name="action_got_it">حسنًا</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">أعد المحاولة</string>
     <string name="action_save">حفظ</string>
     <string name="action_search">بحث</string>
+    <string name="action_share">مشاركة</string>
     <string name="action_sign_in">تسجيل الدخول</string>
     <string name="action_sign_in_again">قم بتسجيل الدخول مرة أخرى</string>
     <string name="action_sign_out">تسجيل الخروج</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">السجل الطلابي، السلوك، إجراءات مغادرة الجامعة</string>
     <string name="information_system_category_resources">الموارد</string>
     <string name="information_system_category_resources_description">البرامج المرخصة، الوثائق الجامعية</string>
+    <string name="information_system_link_copied">تم نسخ الرابط</string>
     <string name="information_system_load_failed">تعذر تحميل نظام المعلومات</string>
     <string name="information_system_search_empty">لم يتم العثور على أي خدمة</string>
     <string name="information_system_search_hint">البحث عن الخدمات</string>

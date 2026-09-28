@@ -22,6 +22,7 @@
     <string name="action_clear_text">Szöveg törlése</string>
     <string name="action_close">Bezárás</string>
     <string name="action_confirm">Megerősítés</string>
+    <string name="action_copy_link">Link másolása</string>
     <string name="action_done">Kész</string>
     <string name="action_go_to_settings">Beállítások megnyitása</string>
     <string name="action_got_it">Értem</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Próbálkozzon újra</string>
     <string name="action_save">Mentés</string>
     <string name="action_search">Keresés</string>
+    <string name="action_share">Megosztás</string>
     <string name="action_sign_in">Bejelentkezés</string>
     <string name="action_sign_in_again">Újra bejelentkezés</string>
     <string name="action_sign_out">Kijelentkezés</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Hallgatói nyilvántartás, magatartás, kilépési eljárások</string>
     <string name="information_system_category_resources">Erőforrások</string>
     <string name="information_system_category_resources_description">Licencelt szoftverek, campus dokumentumok</string>
+    <string name="information_system_link_copied">Link kimásolva</string>
     <string name="information_system_load_failed">Az információs rendszert nem sikerült betölteni</string>
     <string name="information_system_search_empty">Nem található szolgáltatás</string>
     <string name="information_system_search_hint">Szolgáltatások keresése</string>

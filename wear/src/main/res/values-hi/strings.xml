@@ -22,6 +22,7 @@
     <string name="action_clear_text">टेक्स्ट साफ़ करें</string>
     <string name="action_close">बंद करें</string>
     <string name="action_confirm">पुष्टि करें</string>
+    <string name="action_copy_link">लिंक कॉपी करें</string>
     <string name="action_done">हो गया</string>
     <string name="action_go_to_settings">सेटिंग पर जाएँ</string>
     <string name="action_got_it">समझ गया</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">पुनः प्रयास करें</string>
     <string name="action_save">सेव करें</string>
     <string name="action_search">खोजें</string>
+    <string name="action_share">शेयर करें</string>
     <string name="action_sign_in">साइन इन</string>
     <string name="action_sign_in_again">फिर से लॉगिन करें</string>
     <string name="action_sign_out">साइन आउट</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">छात्र रिकॉर्ड, व्यवहार, निकासी प्रक्रिया</string>
     <string name="information_system_category_resources">संसाधन</string>
     <string name="information_system_category_resources_description">लाइसेंस प्राप्त सॉफ़्टवेयर, कैंपस दस्तावेज़</string>
+    <string name="information_system_link_copied">लिंक कॉपी हो गया</string>
     <string name="information_system_load_failed">सूचना प्रणाली लोड नहीं हो सकी</string>
     <string name="information_system_search_empty">कोई सेवा नहीं मिली</string>
     <string name="information_system_search_hint">सेवाएं खोजें</string>

@@ -22,6 +22,7 @@
     <string name="action_clear_text">Notīrīt tekstu</string>
     <string name="action_close">Aizvērt</string>
     <string name="action_confirm">Apstiprināt</string>
+    <string name="action_copy_link">Kopēt saiti</string>
     <string name="action_done">Gatavs</string>
     <string name="action_go_to_settings">Doties uz iestatījumiem</string>
     <string name="action_got_it">Sapratu</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Mēģināt vēlreiz</string>
     <string name="action_save">Saglabāt</string>
     <string name="action_search">Meklēt</string>
+    <string name="action_share">Kopīgot</string>
     <string name="action_sign_in">Pieteikties</string>
     <string name="action_sign_in_again">Pierakstīties atkārtoti</string>
     <string name="action_sign_out">Izrakstīties</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Studenta lieta, uzvedība, izstāšanās procedūras</string>
     <string name="information_system_category_resources">Resursi</string>
     <string name="information_system_category_resources_description">Licencēta programmatūra, kampusa dokumenti</string>
+    <string name="information_system_link_copied">Saite nokopēta</string>
     <string name="information_system_load_failed">Neizdevās ielādēt informācijas sistēmu</string>
     <string name="information_system_search_empty">Pakalpojumi netika atrasti</string>
     <string name="information_system_search_hint">Meklēt pakalpojumus</string>

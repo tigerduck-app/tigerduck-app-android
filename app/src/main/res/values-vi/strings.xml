@@ -22,6 +22,7 @@
     <string name="action_clear_text">Xóa văn bản</string>
     <string name="action_close">Đóng</string>
     <string name="action_confirm">Xác nhận</string>
+    <string name="action_copy_link">Sao chép liên kết</string>
     <string name="action_done">Xong</string>
     <string name="action_go_to_settings">Đến cài đặt</string>
     <string name="action_got_it">Đã hiểu</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Thử lại</string>
     <string name="action_save">Lưu</string>
     <string name="action_search">Tìm kiếm</string>
+    <string name="action_share">Chia sẻ</string>
     <string name="action_sign_in">Đăng nhập</string>
     <string name="action_sign_in_again">Đăng nhập lại</string>
     <string name="action_sign_out">Đăng xuất</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Hồ sơ sinh viên, hạnh kiểm, thủ tục ra trường</string>
     <string name="information_system_category_resources">Tài nguyên</string>
     <string name="information_system_category_resources_description">Phần mềm có bản quyền, tài liệu trường</string>
+    <string name="information_system_link_copied">Đã sao chép liên kết</string>
     <string name="information_system_load_failed">Không thể tải hệ thống thông tin</string>
     <string name="information_system_search_empty">Không tìm thấy dịch vụ nào</string>
     <string name="information_system_search_hint">Tìm kiếm dịch vụ</string>

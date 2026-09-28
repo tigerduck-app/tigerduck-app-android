@@ -22,6 +22,7 @@
     <string name="action_clear_text">உரையை அழி</string>
     <string name="action_close">மூடு</string>
     <string name="action_confirm">உறுதிப்படுத்து</string>
+    <string name="action_copy_link">இணைப்பை நகலெடு</string>
     <string name="action_done">முடிந்தது</string>
     <string name="action_go_to_settings">அமைப்புகளுக்கு செல்</string>
     <string name="action_got_it">புரிந்தது</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">மீண்டும் முயற்சி செய்யவும்</string>
     <string name="action_save">சேமி</string>
     <string name="action_search">தேடு</string>
+    <string name="action_share">பகிர்</string>
     <string name="action_sign_in">உள்நுழைவு</string>
     <string name="action_sign_in_again">மீண்டும் உள்நுழைக</string>
     <string name="action_sign_out">வெளியேறு</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">மாணவர் பதிவு, நடத்தை, வெளியேறும் நடைமுறைகள்</string>
     <string name="information_system_category_resources">வளங்கள்</string>
     <string name="information_system_category_resources_description">உரிமம் பெற்ற மென்பொருள், வளாக ஆவணங்கள்</string>
+    <string name="information_system_link_copied">இணைப்பு நகலெடுக்கப்பட்டது</string>
     <string name="information_system_load_failed">தகவல் அமைப்பை ஏற்ற முடியவில்லை</string>
     <string name="information_system_search_empty">சேவைகள் எதுவும் கிடைக்கவில்லை</string>
     <string name="information_system_search_hint">சேவைகளைத் தேடு</string>

@@ -22,6 +22,7 @@
     <string name="action_clear_text">Rensa text</string>
     <string name="action_close">Stäng</string>
     <string name="action_confirm">Bekräfta</string>
+    <string name="action_copy_link">Kopiera länk</string>
     <string name="action_done">Klar</string>
     <string name="action_go_to_settings">Gå till inställningar</string>
     <string name="action_got_it">Förstår</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Försök igen</string>
     <string name="action_save">Spara</string>
     <string name="action_search">Sök</string>
+    <string name="action_share">Dela</string>
     <string name="action_sign_in">Logga in</string>
     <string name="action_sign_in_again">Logga in igen</string>
     <string name="action_sign_out">Logga ut</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Studentjournal, uppförande, avregistreringsförfaranden</string>
     <string name="information_system_category_resources">Resurser</string>
     <string name="information_system_category_resources_description">Licensierad programvara, campusdokument</string>
+    <string name="information_system_link_copied">Länk kopierad</string>
     <string name="information_system_load_failed">Det gick inte att läsa in informationssystemet</string>
     <string name="information_system_search_empty">Inga tjänster hittades</string>
     <string name="information_system_search_hint">Sök tjänster</string>

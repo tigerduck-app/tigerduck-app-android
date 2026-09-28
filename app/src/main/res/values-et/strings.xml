@@ -22,6 +22,7 @@
     <string name="action_clear_text">Kustuta tekst</string>
     <string name="action_close">Sulge</string>
     <string name="action_confirm">Kinnita</string>
+    <string name="action_copy_link">Kopeeri link</string>
     <string name="action_done">Valmis</string>
     <string name="action_go_to_settings">Mine seadetesse</string>
     <string name="action_got_it">Selge</string>
@@ -33,6 +34,7 @@
     <string name="action_retry">Proovi uuesti</string>
     <string name="action_save">Salvesta</string>
     <string name="action_search">Otsi</string>
+    <string name="action_share">Jaga</string>
     <string name="action_sign_in">Logi sisse</string>
     <string name="action_sign_in_again">Logige uuesti sisse</string>
     <string name="action_sign_out">Logi välja</string>
@@ -446,6 +448,7 @@
     <string name="information_system_category_person_info_description">Üliõpilastoimik, käitumine, lõpetamise protseduurid</string>
     <string name="information_system_category_resources">Ressursid</string>
     <string name="information_system_category_resources_description">Litsentseeritud tarkvara, kampuse dokumendid</string>
+    <string name="information_system_link_copied">Link kopeeritud</string>
     <string name="information_system_load_failed">Infosüsteemi laadimine ebaõnnestus</string>
     <string name="information_system_search_empty">Teenuseid ei leitud</string>
     <string name="information_system_search_hint">Otsi teenuseid</string>
