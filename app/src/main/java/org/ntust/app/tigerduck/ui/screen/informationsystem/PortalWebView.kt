@@ -75,11 +75,27 @@ fun PortalWebView(
     backgroundColor: Int,
     onError: () -> Unit,
     modifier: Modifier = Modifier,
+    /**
+     * Credentials for [buildSsoAutoFillScript]'s one-shot fill-and-submit, or null to disable
+     * auto-fill entirely (e.g. no signed-in session to auto-fill with). Read fresh out of
+     * [rememberUpdatedState] on every recomposition rather than captured once, same as
+     * [onError] below — a stale closure would auto-fill with whatever credentials were live
+     * when the WebView was first created.
+     */
+    studentId: String? = null,
+    password: String? = null,
 ) {
     val latestOnError by rememberUpdatedState(onError)
+    val latestStudentId by rememberUpdatedState(studentId)
+    val latestPassword by rememberUpdatedState(password)
     AndroidView(
         modifier = modifier,
         factory = { context ->
+            // Per-WebView, not per-composition: this must survive exactly as long as the
+            // WebViewClient does, to guard the one thing that matters — never auto-submitting
+            // the same login page twice in a row (a wrong stored password would otherwise
+            // retry forever against NTUST's own login endpoint).
+            var lastAutoFillUrl: String? = null
             WebView(context).apply {
                 layoutParams = ViewGroup.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -109,6 +125,24 @@ fun PortalWebView(
                         state.isLoading = false
                         state.canGoBack = view.canGoBack()
                         state.pageTitle = view.title
+
+                        val user = latestStudentId
+                        val pass = latestPassword
+                        val isSso = isSsoLoginUrl(url)
+                        android.util.Log.d(
+                            "PortalWebView",
+                            "onPageFinished url=$url isSso=$isSso hasCreds=${user != null && pass != null} lastAutoFillUrl=$lastAutoFillUrl",
+                        )
+                        if (isSso && user != null && pass != null && url != lastAutoFillUrl) {
+                            // Marked before the async evaluateJavascript call resolves, not
+                            // after: a slow page could otherwise fire onPageFinished a second
+                            // time (a redirect, a resource still settling) before the first
+                            // fill's callback returns, and both would submit the form.
+                            lastAutoFillUrl = url
+                            view.evaluateJavascript(buildSsoAutoFillScript(user, pass)) { result ->
+                                android.util.Log.d("PortalWebView", "autofill result=$result")
+                            }
+                        }
                     }
 
                     override fun onReceivedError(

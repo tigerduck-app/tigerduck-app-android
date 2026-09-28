@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
@@ -54,6 +55,7 @@ fun PortalBrowserScreen(
     url: String,
     browserPreference: String,
     onBack: () -> Unit,
+    viewModel: PortalBrowserViewModel = hiltViewModel(),
 ) {
     SecureScreen(secure = true)
     val context = LocalContext.current
@@ -133,6 +135,8 @@ fun PortalBrowserScreen(
                     backgroundColor = cs.background.toArgb(),
                     onError = { failed = true },
                     modifier = Modifier.fillMaxSize().padding(padding),
+                    studentId = viewModel.studentId,
+                    password = viewModel.password,
                 )
             }
         }
