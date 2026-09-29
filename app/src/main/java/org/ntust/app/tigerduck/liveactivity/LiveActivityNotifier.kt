@@ -1,8 +1,6 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import android.Manifest
-import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -19,6 +17,7 @@ import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.DeviceSkin
+import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -74,10 +73,6 @@ class LiveActivityNotifier @Inject constructor(
 
     /** Fixed for the life of the process; see [samsungNowBarExtras]. */
     private val deviceSkin = DeviceSkin.current()
-
-    init {
-        ensureChannel()
-    }
 
     fun apply(snapshot: LiveActivitySnapshot?) {
         if (snapshot == null) {
@@ -291,35 +286,12 @@ class LiveActivityNotifier @Inject constructor(
         return if (snapshot.subtitle.isNotBlank()) "$prefix · ${snapshot.subtitle}" else prefix
     }
 
-    private fun ensureChannel() {
-        // Drop legacy channels so the new defaults (lockscreen visibility +
-        // importance) are actually applied; both attributes are frozen after
-        // channel creation on API 26+.
-        for (old in LEGACY_CHANNEL_IDS) {
-            if (manager.getNotificationChannel(old) != null) {
-                manager.deleteNotificationChannel(old)
-            }
-        }
-        val existing = manager.getNotificationChannel(CHANNEL_ID)
-        if (existing != null) return
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.live_activity_channel_name),
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply {
-            description = context.getString(R.string.live_activity_channel_description)
-            setShowBadge(false)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-        }
-        manager.createNotificationChannel(channel)
-    }
-
     companion object {
         private const val TAG = "LiveActivity"
-        const val CHANNEL_ID = "live_activity_v3"
+        /** Created with the others at launch; see [NotificationChannels.registerAll]. */
+        const val CHANNEL_ID = NotificationChannels.LIVE_ACTIVITY
         /** Denominator for [NotificationCompat.Builder.setProgress]; percent reads well enough. */
         private const val PROGRESS_MAX = 100
-        private val LEGACY_CHANNEL_IDS = listOf("live_activity", "live_activity_v2")
 
         /** Samsung's undocumented Now Bar allowlist bypass; see [samsungNowBarExtras]. */
         private const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"

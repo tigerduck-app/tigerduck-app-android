@@ -237,7 +237,7 @@ class PushRegistrationService @Inject constructor(
 
     /**
      * BCP-47 tag for the language the app is actually displaying, mirroring
-     * `TigerDuckApp.createNotificationChannels()`'s resolution of
+     * `NotificationChannels.registerAll`'s resolution of
      * [AppPreferences.appLanguage]. Falls back to the system locale only
      * when the preference means "follow system" — see
      * [AppLanguageManager.resolveExplicitLocale].

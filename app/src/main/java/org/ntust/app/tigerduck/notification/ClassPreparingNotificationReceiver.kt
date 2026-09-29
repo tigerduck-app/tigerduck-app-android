@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.notification
 
 import android.Manifest
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -34,9 +33,12 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         // Receiver contexts carry the SYSTEM locale, not the user's in-app
         // language choice (AppCompat per-app locales don't reach broadcast
         // contexts when the alarm wakes a dead process). Resolve the chosen
-        // language explicitly so the channel name and notification text match
-        // the rest of the app — same pattern as TigerDuckApp.localizedContext.
-        val context = localizedContext(rawContext)
+        // language explicitly so the notification text matches the rest of the
+        // app.
+        val context = AppLanguageManager.localizedContext(
+            rawContext,
+            AppPreferences(rawContext).appLanguage,
+        )
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: return
         val classroom = intent.getStringExtra(EXTRA_CLASSROOM).orEmpty()
         val instructor = intent.getStringExtra(EXTRA_INSTRUCTOR).orEmpty()
@@ -79,7 +81,6 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         }
 
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        ensureChannel(context, nm)
 
         val timeRange = formatTimeRange(startMs, endMs)
         val detail = listOfNotNull(
@@ -121,30 +122,6 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         nm.notify(notificationId, notification)
     }
 
-    private fun localizedContext(context: Context): Context {
-        val language = AppPreferences(context).appLanguage
-        val locale = AppLanguageManager.resolveExplicitLocale(language) ?: return context
-        val config = android.content.res.Configuration(context.resources.configuration)
-        config.setLocale(locale)
-        return context.createConfigurationContext(config)
-    }
-
-    private fun ensureChannel(context: Context, nm: NotificationManager) {
-        // No existence early-return: re-creating with the same id is cheap and
-        // legally updates name/description, so a language change propagates to
-        // the channel instead of freezing it in the locale of first creation.
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.notification_class_preparing_channel_name),
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description =
-                context.getString(R.string.notification_class_preparing_channel_description)
-            setShowBadge(false)
-        }
-        nm.createNotificationChannel(channel)
-    }
-
     private fun formatTimeRange(startMs: Long, endMs: Long): String {
         if (startMs <= 0 || endMs <= 0) return ""
         val zone: ZoneId = AppConstants.TAIPEI_ZONE
@@ -154,7 +131,8 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val CHANNEL_ID = "class_preparing"
+        /** Created with the others at launch; see [NotificationChannels.registerAll]. */
+        const val CHANNEL_ID = NotificationChannels.CLASS_PREPARING
         const val EXTRA_COURSE_NAME = "course_name"
         const val EXTRA_CLASSROOM = "classroom"
         const val EXTRA_INSTRUCTOR = "instructor"

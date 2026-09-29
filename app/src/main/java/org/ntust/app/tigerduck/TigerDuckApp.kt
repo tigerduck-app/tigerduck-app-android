@@ -1,9 +1,6 @@
 package org.ntust.app.tigerduck
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
@@ -22,7 +19,6 @@ import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
-import android.content.res.Configuration as ResConfiguration
 
 @HiltAndroidApp
 class TigerDuckApp : Application(), Configuration.Provider {
@@ -84,7 +80,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
-        createNotificationChannels()
+        NotificationChannels.registerAll(this, appPreferences.appLanguage)
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
 
@@ -121,6 +117,14 @@ class TigerDuckApp : Application(), Configuration.Provider {
         appScope.launch {
             appPreferences.appLanguageChanged.collect { wearBridge.publish() }
         }
+        // Switching language recreates the Activities but not the process, so
+        // without this the channel names in system Settings would stay in the
+        // old language until the next cold start.
+        appScope.launch {
+            appPreferences.appLanguageChanged.collect {
+                NotificationChannels.registerAll(this@TigerDuckApp, appPreferences.appLanguage)
+            }
+        }
         // Mirror the debug screen-capture override so flipping the toggle
         // takes effect on the paired watch's LibraryQR window without a
         // wear-app restart. No-op in release builds (the toggle row is
@@ -150,95 +154,6 @@ class TigerDuckApp : Application(), Configuration.Provider {
                 "NTUST cert pins EXPIRED ${-daysUntilExpiry} day(s) ago — rotation overdue",
             )
         }
-    }
-
-    /**
-     * Channel names are cached by Android the first time
-     * `createNotificationChannel` is called for an id, so we MUST emit them
-     * in the user's chosen language. `setApplicationLocales` above is async
-     * and doesn't reach `getString()` in this same onCreate, so explicitly
-     * resolve the user's locale and look up strings against it.
-     */
-    private fun createNotificationChannels() {
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        val ctx = localizedContext(appPreferences.appLanguage)
-        notificationManager.createNotificationChannel(
-            NotificationChannel(
-                NotificationChannels.ASSIGNMENT_DUE,
-                ctx.getString(R.string.notification_assignment_due_channel_name),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description =
-                    ctx.getString(R.string.notification_assignment_due_channel_description)
-            }
-        )
-        notificationManager.createNotificationChannel(
-            NotificationChannel(
-                NotificationChannels.BULLETINS,
-                ctx.getString(R.string.notification_bulletin_channel_name),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = ctx.getString(R.string.notification_bulletin_channel_description)
-            }
-        )
-        // High-importance: heads-up banner + default sound. Used when the
-        // operator picks `force_ring=true` on a custom push.
-        notificationManager.createNotificationChannel(
-            NotificationChannel(
-                NotificationChannels.BULLETINS_SOUND,
-                ctx.getString(R.string.notification_bulletin_sound_channel_name),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = ctx.getString(R.string.notification_bulletin_sound_channel_description)
-            }
-        )
-        // Default-importance silent: banner shows but no sound or vibration.
-        // Used when the operator picks `force_ring=false`.
-        notificationManager.createNotificationChannel(
-            NotificationChannel(
-                NotificationChannels.BULLETINS_SILENT,
-                ctx.getString(R.string.notification_bulletin_silent_channel_name),
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply {
-                description = ctx.getString(R.string.notification_bulletin_silent_channel_description)
-                setSound(null, null)
-                enableVibration(false)
-            }
-        )
-        // Account and sync failures the user has to act on — same importance
-        // as a force_ring bulletin, because a silently dead sync is worse
-        // than an interruption.
-        notificationManager.createNotificationChannel(
-            NotificationChannel(
-                NotificationChannels.SYSTEM,
-                ctx.getString(R.string.notification_system_channel_name),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                description = ctx.getString(R.string.notification_system_channel_description)
-            }
-        )
-        // New school mail. Default importance: a banner without an alarm-style
-        // interruption — the checks run every few minutes, never "instantly".
-        notificationManager.createNotificationChannel(
-            NotificationChannel(
-                NotificationChannels.SCHOOL_MAIL,
-                ctx.getString(R.string.notification_school_mail_channel_name),
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply {
-                description = ctx.getString(R.string.notification_school_mail_channel_description)
-            }
-        )
-    }
-
-    @android.annotation.SuppressLint("AppBundleLocaleChanges")
-    private fun localizedContext(language: String): Context {
-        // Narrow, one-shot use for notification-channel name lookup before
-        // AppCompatDelegate.setApplicationLocales propagates. Not dynamic UI
-        // locale switching, so the AppBundleLocaleChanges lint doesn't apply.
-        val locale = AppLanguageManager.resolveExplicitLocale(language) ?: return this
-        val config = ResConfiguration(resources.configuration)
-        config.setLocale(locale)
-        return createConfigurationContext(config)
     }
 
 }
