@@ -6,12 +6,14 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -52,10 +54,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
     @Inject
     lateinit var debugClockController: DebugClockController
 
-    // Lazy: only a language change needs it, and building it at launch would
-    // start its preference collector on every cold start, background wakes too.
     @Inject
-    lateinit var liveActivityManager: dagger.Lazy<LiveActivityManager>
+    lateinit var liveActivityManager: LiveActivityManager
+
+    @Inject
+    lateinit var uiLanguage: UiLanguageMonitor
 
     /** Last seen by [onConfigurationChanged]; main thread only. */
     private var lastLocales: LocaleList? = null
@@ -90,11 +93,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
-        NotificationChannels.registerAll(this, appPreferences.appLanguage)
-        if (!appPreferences.legacyNotificationChannelsDeleted) {
-            NotificationChannels.deleteLegacyChannels(this)
-            appPreferences.legacyNotificationChannelsDeleted = true
-        }
+        registerNotificationChannels()
         lastLocales = resources.configuration.locales
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
@@ -134,11 +133,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
         }
         // Switching language recreates the Activities but not the process, so
         // without this the channel names in system Settings would stay in the
-        // old language until the next cold start. Below API 33 this is the
-        // only signal there is: AppCompat applies an in-app language to
-        // Activities alone, and onConfigurationChanged below never fires.
+        // old language until the next cold start. One collector, so renames
+        // run one after another and each reads the language as it is when it
+        // runs; conflated, because only the last of a burst matters.
         appScope.launch {
-            appPreferences.appLanguageChanged.collect { relocalizeNotifications() }
+            uiLanguage.changes.conflate().collect { relocalizeNotifications() }
         }
         // Mirror the debug screen-capture override so flipping the toggle
         // takes effect on the paired watch's LibraryQR window without a
@@ -155,34 +154,47 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        // Under "Follow system" a change of phone language arrives only here:
-        // the stored setting is still "system", so appLanguageChanged never
-        // fires, and the process can outlive the change. On API 33+ an in-app
-        // switch lands here too, once the new language has taken effect.
+        // What a locale change here stands for is in UiLanguageMonitor.
         // Rotation, dark mode and font scale come through as well, hence the
         // comparison.
         val locales = newConfig.locales
         if (locales == lastLocales) return
         lastLocales = locales
-        appScope.launch { relocalizeNotifications() }
+        uiLanguage.onLocalesChanged()
     }
 
     /**
      * Rename the notification channels and redraw the Live Update, the two
      * system-drawn surfaces that keep whatever language they were last given.
-     *
-     * Caught here rather than left to [appScope]'s handler: a throw from the
-     * NotificationManager — a system_server restart, an OEM SecurityException
-     * — would otherwise end the appLanguageChanged collector for good, and no
-     * later switch would reach the channels.
+     * Quietly: a new language is no reason to chime, see
+     * [org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier.apply].
      */
     private fun relocalizeNotifications() {
+        registerNotificationChannels()
+        liveActivityManager.refresh(quiet = true)
+    }
+
+    /**
+     * Create every channel, named in the current language, and on the first
+     * launch to get here drop the old Live Update channels.
+     *
+     * Caught rather than left to throw. A NotificationManager call fails while
+     * system_server restarts; from onCreate that would crash the launch,
+     * background wakes included, and from the collector above it would end it
+     * for good, so no later switch would reach the channels. Caught, the cost
+     * is names in the old language, or on a first launch no channels yet,
+     * until the next launch or switch.
+     */
+    private fun registerNotificationChannels() {
         runCatching {
             NotificationChannels.registerAll(this, appPreferences.appLanguage)
+            if (!appPreferences.legacyNotificationChannelsDeleted) {
+                NotificationChannels.deleteLegacyChannels(this)
+                appPreferences.legacyNotificationChannelsDeleted = true
+            }
         }.onFailure {
-            android.util.Log.w("TigerDuckApp", "Could not rename notification channels", it)
+            android.util.Log.w("TigerDuckApp", "Could not register notification channels", it)
         }
-        liveActivityManager.get().refresh()
     }
 
     private fun warnIfPinsNearExpiry() {

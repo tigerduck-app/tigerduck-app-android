@@ -2,9 +2,7 @@ package org.ntust.app.tigerduck.data.preferences
 
 import android.content.Context
 import android.content.res.Resources
-import android.os.LocaleList
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.app.LocaleManagerCompat
 import androidx.core.os.LocaleListCompat
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager.resolvedSystemLanguage
 import java.util.Locale
@@ -124,36 +122,25 @@ object AppLanguageManager {
      * running the app in English that means Chinese strings on an otherwise
      * English screen.
      *
-     * "Follow system" resolves to the phone's own languages, read from the
-     * system rather than from [base]. On API 33+ an application context keeps
-     * the previous in-app language until the switch to "Follow system" reaches
-     * the process as a configuration change. A caller acting on the change at
-     * once, as [org.ntust.app.tigerduck.notification.NotificationChannels]
-     * does, would otherwise get the language the user just left. [base] is
-     * returned unchanged only when the system reports no languages at all.
+     * Returns [base] unchanged for "Follow system", where the platform default
+     * is already the right answer — including a language picked for this app
+     * in the phone's own Settings on API 33+, which reaches [base] and nothing
+     * else. On API 33+ that answer lags a switch to "Follow system" until it
+     * reaches the process as a configuration change, which is why anything
+     * that must follow a switch listens to [UiLanguageMonitor] rather than to
+     * the setting itself.
+     *
+     * A caller that also needs the tag, to pick between `zh`/`en` copy, should
+     * read it from the returned context's configuration, so the two cannot
+     * come from different languages.
      */
     @android.annotation.SuppressLint("AppBundleLocaleChanges")
     fun localizedContext(base: Context, language: String): Context {
+        val locale = resolveExplicitLocale(language) ?: return base
         val config = android.content.res.Configuration(base.resources.configuration)
-        val explicit = resolveExplicitLocale(language)
-        if (explicit != null) {
-            config.setLocale(explicit)
-        } else {
-            val system = LocaleManagerCompat.getSystemLocales(base)
-            if (system.isEmpty) return base
-            config.setLocales(LocaleList.forLanguageTags(system.toLanguageTags()))
-        }
+        config.setLocale(locale)
         return base.createConfigurationContext(config)
     }
-
-    /**
-     * The [Locale] the UI is actually running in, for callers that need the tag
-     * rather than a Context — picking between server-supplied `zh`/`en` copy,
-     * say. Same reasoning as [localizedContext]: derived from the app's own
-     * stored choice, not from `Locale.getDefault()`.
-     */
-    fun currentLocale(language: String): Locale =
-        resolveExplicitLocale(language) ?: Locale.getDefault()
 
     /**
      * The BCP-47 tag of the language the phone UI renders in, for a second

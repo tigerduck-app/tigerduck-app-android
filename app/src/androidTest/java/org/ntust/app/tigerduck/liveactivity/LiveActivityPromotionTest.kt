@@ -17,8 +17,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.DeviceSkin
+import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 
@@ -58,6 +60,14 @@ class LiveActivityPromotionTest {
             InstrumentationRegistry.getInstrumentation().uiAutomation
                 .grantRuntimePermission(context.packageName, POST_NOTIFICATIONS)
         }
+    }
+
+    @Before
+    fun registerChannels() {
+        // The notifier posts to a channel it no longer creates itself. Done
+        // here rather than left to TigerDuckApp.onCreate, so the test does not
+        // depend on which Application the runner starts.
+        NotificationChannels.registerAll(context, AppLanguageManager.SYSTEM)
     }
 
     @After

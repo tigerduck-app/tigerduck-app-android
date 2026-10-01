@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -54,6 +55,7 @@ class PushRegistrationService @Inject constructor(
     private val api: PushApiClient,
     private val authTokenManager: AuthTokenManager,
     private val appPreferences: AppPreferences,
+    private val uiLanguage: UiLanguageMonitor,
     @param:ApplicationScope private val scope: CoroutineScope,
     private val fixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
 ) {
@@ -87,13 +89,16 @@ class PushRegistrationService @Inject constructor(
         // Moodle-reauth notification most of all — it targets a device the
         // user hasn't opened lately, exactly the device most likely to be
         // stale) in the language the device happened to register with.
-        // Mirrors the wear-bridge collector on this same signal at
-        // TigerDuckApp.kt's onCreate. PushRegistrationService is always
-        // constructed at app start (AuthService depends on it and
-        // TigerDuckApp field-injects AuthService eagerly), on both flavors,
-        // so this collector is live before the language picker can fire.
+        // UiLanguageMonitor rather than the setting: on API 33+ the setting
+        // changes before the new language reaches the context that
+        // currentLocaleTag reads "Follow system" from, and a phone-language
+        // change under "Follow system" never touches the setting at all.
+        // PushRegistrationService is always constructed at app start
+        // (AuthService depends on it and TigerDuckApp field-injects
+        // AuthService eagerly), on both flavors, so this collector is live
+        // before the language picker can fire.
         scope.launch {
-            appPreferences.appLanguageChanged.collect { syncLocalePreference() }
+            uiLanguage.changes.collect { syncLocalePreference() }
         }
     }
 
@@ -236,10 +241,10 @@ class PushRegistrationService @Inject constructor(
     }
 
     /**
-     * BCP-47 tag for the language the app is actually displaying, mirroring
-     * `NotificationChannels.registerAll`'s resolution of
-     * [AppPreferences.appLanguage]. Falls back to the system locale only
-     * when the preference means "follow system" — see
+     * BCP-47 tag for the language the app is actually displaying: the same
+     * answer [AppLanguageManager.localizedContext] gives for
+     * [AppPreferences.appLanguage]. Falls back to the application context's
+     * locale only when the preference means "follow system" — see
      * [AppLanguageManager.resolveExplicitLocale].
      */
     private fun currentLocaleTag(): String? =
@@ -267,7 +272,7 @@ class PushRegistrationService @Inject constructor(
      *
      * Silent and non-fatal by design: a failure here is never shown to the
      * user. Both lookups above sit inside the same runCatching as the PATCH
-     * itself, so a failure here can't kill the appLanguageChanged collector
+     * itself, so a failure here can't kill the language-change collector
      * in init — it stays alive and retries on the next language change.
      */
     private suspend fun syncLocalePreference() {

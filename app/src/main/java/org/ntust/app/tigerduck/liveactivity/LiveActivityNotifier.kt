@@ -77,7 +77,23 @@ class LiveActivityNotifier @Inject constructor(
     /** Fixed for the life of the process; see [samsungNowBarExtras]. */
     private val deviceSkin = DeviceSkin.current()
 
-    fun apply(snapshot: LiveActivitySnapshot?) {
+    // Kept between posts, which come every minute or two through a class: a
+    // configuration context is a new Resources. Keyed by the setting alone:
+    // only its locale is read, and for "Follow system" it is the application
+    // context itself, which follows the phone on its own.
+    @Volatile
+    private var localized: Pair<String, Context>? = null
+
+    /**
+     * Post [snapshot], or clear the Live Update when it is null.
+     *
+     * [quiet] covers a redraw in a process that has not posted yet. A Live
+     * Update left by an earlier process may well be showing, and with nothing
+     * to compare it against every post looks like a new scenario — cancelled,
+     * re-posted and chimed. A quiet one takes it for the scenario already
+     * showing instead. A real transition seen in this process still alerts.
+     */
+    fun apply(snapshot: LiveActivitySnapshot?, quiet: Boolean = false) {
         if (snapshot == null) {
             manager.cancel(NOTIFICATION_ID)
             lastScenario = null
@@ -113,18 +129,19 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         val scenarioChanged = lastScenario != snapshot.scenario
-        val soundWanted = scenarioChanged && wantsSoundFor(snapshot.scenario)
+        val alerting = scenarioChanged && !(quiet && lastScenario == null)
+        val soundWanted = alerting && wantsSoundFor(snapshot.scenario)
 
         // For sound to play on a scenario transition we need to (a) drop the
         // prior notification so the system re-arms alert-once, and (b) not
         // call setSilent(true). Same-scenario updates skip the cancel and stay
         // silent regardless of pref — the chronometer tick shouldn't chime.
-        if (scenarioChanged) manager.cancel(NOTIFICATION_ID)
+        if (alerting) manager.cancel(NOTIFICATION_ID)
 
         // The injected context is the application's, which below API 33 never
         // sees the in-app language, so the status line came out in the
         // phone's language under an otherwise translated UI.
-        val localized = AppLanguageManager.localizedContext(context, appPreferences.appLanguage)
+        val localized = localizedContext()
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
@@ -280,6 +297,13 @@ class LiveActivityNotifier @Inject constructor(
             context,
             Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun localizedContext(): Context {
+        val language = appPreferences.appLanguage
+        localized?.let { (cachedFor, cached) -> if (cachedFor == language) return cached }
+        return AppLanguageManager.localizedContext(context, language)
+            .also { localized = language to it }
     }
 
     private fun statusLine(snapshot: LiveActivitySnapshot, localized: Context): String {

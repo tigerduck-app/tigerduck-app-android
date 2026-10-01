@@ -43,10 +43,11 @@ object NotificationChannels {
      * posted to; that is how two of them stayed in English under a Chinese UI.
      *
      * [language] is resolved through [AppLanguageManager.localizedContext]
-     * rather than read from [context]'s resources: below API 33 the per-app
-     * locale never reaches an application context, and on API 33+ it reaches
-     * it late — after this has already run on a cold launch, and after the
-     * setting has changed on a switch.
+     * rather than read from [context]'s resources, because below API 33 an
+     * in-app language never reaches an application context. "Follow system"
+     * does read [context] as it stands, so after a switch this has to run
+     * once the new language has reached it — the caller listens to
+     * [org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor] for that.
      */
     fun registerAll(context: Context, language: String) {
         val manager = context.getSystemService(NotificationManager::class.java)
