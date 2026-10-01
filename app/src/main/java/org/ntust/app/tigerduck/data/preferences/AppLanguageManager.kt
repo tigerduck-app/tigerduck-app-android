@@ -2,7 +2,9 @@ package org.ntust.app.tigerduck.data.preferences
 
 import android.content.Context
 import android.content.res.Resources
+import android.os.LocaleList
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.app.LocaleManagerCompat
 import androidx.core.os.LocaleListCompat
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager.resolvedSystemLanguage
 import java.util.Locale
@@ -122,14 +124,25 @@ object AppLanguageManager {
      * running the app in English that means Chinese strings on an otherwise
      * English screen.
      *
-     * Returns [base] unchanged for "Follow system", where the platform default
-     * is already the right answer.
+     * "Follow system" resolves to the phone's own languages, read from the
+     * system rather than from [base]. On API 33+ an application context keeps
+     * the previous in-app language until the switch to "Follow system" reaches
+     * the process as a configuration change. A caller acting on the change at
+     * once, as [org.ntust.app.tigerduck.notification.NotificationChannels]
+     * does, would otherwise get the language the user just left. [base] is
+     * returned unchanged only when the system reports no languages at all.
      */
     @android.annotation.SuppressLint("AppBundleLocaleChanges")
     fun localizedContext(base: Context, language: String): Context {
-        val locale = resolveExplicitLocale(language) ?: return base
         val config = android.content.res.Configuration(base.resources.configuration)
-        config.setLocale(locale)
+        val explicit = resolveExplicitLocale(language)
+        if (explicit != null) {
+            config.setLocale(explicit)
+        } else {
+            val system = LocaleManagerCompat.getSystemLocales(base)
+            if (system.isEmpty) return base
+            config.setLocales(LocaleList.forLanguageTags(system.toLanguageTags()))
+        }
         return base.createConfigurationContext(config)
     }
 

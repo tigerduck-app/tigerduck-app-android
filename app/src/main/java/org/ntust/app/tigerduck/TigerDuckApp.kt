@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck
 
 import android.app.Application
+import android.os.LocaleList
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
@@ -14,6 +15,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.push.FcmBootstrap
@@ -50,6 +52,14 @@ class TigerDuckApp : Application(), Configuration.Provider {
     @Inject
     lateinit var debugClockController: DebugClockController
 
+    // Lazy: only a language change needs it, and building it at launch would
+    // start its preference collector on every cold start, background wakes too.
+    @Inject
+    lateinit var liveActivityManager: dagger.Lazy<LiveActivityManager>
+
+    /** Last seen by [onConfigurationChanged]; main thread only. */
+    private var lastLocales: LocaleList? = null
+
     // The DI singleton, not a private scope: it carries a logging
     // CoroutineExceptionHandler (see CoroutineModule) so a failure in the
     // safety-net publishes below can't crash the process pre-first-frame.
@@ -81,6 +91,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
         NotificationChannels.registerAll(this, appPreferences.appLanguage)
+        if (!appPreferences.legacyNotificationChannelsDeleted) {
+            NotificationChannels.deleteLegacyChannels(this)
+            appPreferences.legacyNotificationChannelsDeleted = true
+        }
+        lastLocales = resources.configuration.locales
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
 
@@ -119,11 +134,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
         }
         // Switching language recreates the Activities but not the process, so
         // without this the channel names in system Settings would stay in the
-        // old language until the next cold start.
+        // old language until the next cold start. Below API 33 this is the
+        // only signal there is: AppCompat applies an in-app language to
+        // Activities alone, and onConfigurationChanged below never fires.
         appScope.launch {
-            appPreferences.appLanguageChanged.collect {
-                NotificationChannels.registerAll(this@TigerDuckApp, appPreferences.appLanguage)
-            }
+            appPreferences.appLanguageChanged.collect { relocalizeNotifications() }
         }
         // Mirror the debug screen-capture override so flipping the toggle
         // takes effect on the paired watch's LibraryQR window without a
@@ -136,6 +151,38 @@ class TigerDuckApp : Application(), Configuration.Provider {
         }
         appScope.launch { wearBridge.publish() }  // safety-net publish at launch
         appScope.launch { wearBridge.publishLibraryCredentials() }
+    }
+
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Under "Follow system" a change of phone language arrives only here:
+        // the stored setting is still "system", so appLanguageChanged never
+        // fires, and the process can outlive the change. On API 33+ an in-app
+        // switch lands here too, once the new language has taken effect.
+        // Rotation, dark mode and font scale come through as well, hence the
+        // comparison.
+        val locales = newConfig.locales
+        if (locales == lastLocales) return
+        lastLocales = locales
+        appScope.launch { relocalizeNotifications() }
+    }
+
+    /**
+     * Rename the notification channels and redraw the Live Update, the two
+     * system-drawn surfaces that keep whatever language they were last given.
+     *
+     * Caught here rather than left to [appScope]'s handler: a throw from the
+     * NotificationManager — a system_server restart, an OEM SecurityException
+     * — would otherwise end the appLanguageChanged collector for good, and no
+     * later switch would reach the channels.
+     */
+    private fun relocalizeNotifications() {
+        runCatching {
+            NotificationChannels.registerAll(this, appPreferences.appLanguage)
+        }.onFailure {
+            android.util.Log.w("TigerDuckApp", "Could not rename notification channels", it)
+        }
+        liveActivityManager.get().refresh()
     }
 
     private fun warnIfPinsNearExpiry() {

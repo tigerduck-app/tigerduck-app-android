@@ -34,26 +34,23 @@ object NotificationChannels {
      * Create every channel the app posts to, named in [language].
      *
      * The system shows whatever name a channel was last created with and never
-     * re-resolves it, so this runs on every launch and again whenever the app
-     * language changes — re-creating an existing id is allowed and updates its
-     * name and description, and leaves importance, sound and anything else the
-     * user has changed alone. A channel created anywhere else, only when it was
-     * first posted to, keeps the language of that moment until it is next
+     * re-resolves it, so this runs on every launch and again whenever the
+     * language the app shows changes — the in-app setting, or the phone's own
+     * under "Follow system". Re-creating an existing id is allowed and updates
+     * its name and description, and leaves importance, sound and anything else
+     * the user has changed alone. A channel created anywhere else, only when it
+     * was first posted to, keeps the language of that moment until it is next
      * posted to; that is how two of them stayed in English under a Chinese UI.
      *
-     * [language] is resolved explicitly rather than read from [context]'s
-     * resources: below API 33 the per-app locale never reaches an application
-     * context, and on a cold launch `setApplicationLocales` has not taken effect
-     * yet when this first runs.
+     * [language] is resolved through [AppLanguageManager.localizedContext]
+     * rather than read from [context]'s resources: below API 33 the per-app
+     * locale never reaches an application context, and on API 33+ it reaches
+     * it late — after this has already run on a cold launch, and after the
+     * setting has changed on a switch.
      */
     fun registerAll(context: Context, language: String) {
         val manager = context.getSystemService(NotificationManager::class.java)
         val ctx = AppLanguageManager.localizedContext(context, language)
-        for (old in LEGACY_LIVE_ACTIVITY) {
-            if (manager.getNotificationChannel(old) != null) {
-                manager.deleteNotificationChannel(old)
-            }
-        }
         manager.createNotificationChannels(
             listOf(
                 NotificationChannel(
@@ -133,5 +130,20 @@ object NotificationChannels {
                 },
             )
         )
+    }
+
+    /**
+     * Drop the [LEGACY_LIVE_ACTIVITY] channels. Only installs upgraded from
+     * a build that created them have any, so the caller runs this once per
+     * install rather than on every launch, where it would cost two binder
+     * calls on the main thread before the first frame.
+     */
+    fun deleteLegacyChannels(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        for (old in LEGACY_LIVE_ACTIVITY) {
+            if (manager.getNotificationChannel(old) != null) {
+                manager.deleteNotificationChannel(old)
+            }
+        }
     }
 }

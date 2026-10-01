@@ -15,6 +15,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannels
@@ -63,6 +65,7 @@ import kotlin.math.roundToInt
 class LiveActivityNotifier @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val preferences: LiveActivityPreferences,
+    private val appPreferences: AppPreferences,
 ) {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
@@ -118,10 +121,15 @@ class LiveActivityNotifier @Inject constructor(
         // silent regardless of pref — the chronometer tick shouldn't chime.
         if (scenarioChanged) manager.cancel(NOTIFICATION_ID)
 
+        // The injected context is the application's, which below API 33 never
+        // sees the in-app language, so the status line came out in the
+        // phone's language under an otherwise translated UI.
+        val localized = AppLanguageManager.localizedContext(context, appPreferences.appLanguage)
+
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(snapshot.title)
-            .setContentText(statusLine(snapshot))
+            .setContentText(statusLine(snapshot, localized))
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -155,7 +163,7 @@ class LiveActivityNotifier @Inject constructor(
                 builder.setShortCriticalText(
                     StaticCountdown.format(
                         StaticCountdown.minutesLeft(target, now),
-                        context.resources.configuration.locales[0],
+                        localized.resources.configuration.locales[0],
                     )
                 )
             }
@@ -274,14 +282,15 @@ class LiveActivityNotifier @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun statusLine(snapshot: LiveActivitySnapshot): String {
+    private fun statusLine(snapshot: LiveActivitySnapshot, localized: Context): String {
         val prefix = when (snapshot.scenario) {
-            LiveActivityScenario.IN_CLASS -> context.getString(R.string.live_activity_status_in_class)
+            LiveActivityScenario.IN_CLASS ->
+                localized.getString(R.string.live_activity_status_in_class)
             LiveActivityScenario.CLASS_PREPARING ->
-                context.getString(R.string.live_activity_status_class_preparing)
+                localized.getString(R.string.live_activity_status_class_preparing)
 
             LiveActivityScenario.ASSIGNMENT_URGENT ->
-                context.getString(R.string.live_activity_status_assignment_urgent)
+                localized.getString(R.string.live_activity_status_assignment_urgent)
         }
         return if (snapshot.subtitle.isNotBlank()) "$prefix · ${snapshot.subtitle}" else prefix
     }

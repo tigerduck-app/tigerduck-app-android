@@ -17,6 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
@@ -172,7 +173,11 @@ class LiveActivityPromotionTest {
     }
 
     private fun postInClass(): Notification {
-        val notifier = LiveActivityNotifier(context, LiveActivityPreferences(context))
+        val notifier = LiveActivityNotifier(
+            context,
+            LiveActivityPreferences(context),
+            AppPreferences(context),
+        )
         notifier.apply(
             LiveActivitySnapshot(
                 scenario = LiveActivityScenario.IN_CLASS,

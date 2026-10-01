@@ -27,18 +27,10 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
     @InstallIn(SingletonComponent::class)
     internal interface Deps {
         fun academicCalendar(): AcademicCalendarStore
+        fun appPreferences(): AppPreferences
     }
 
     override fun onReceive(rawContext: Context, intent: Intent) {
-        // Receiver contexts carry the SYSTEM locale, not the user's in-app
-        // language choice (AppCompat per-app locales don't reach broadcast
-        // contexts when the alarm wakes a dead process). Resolve the chosen
-        // language explicitly so the notification text matches the rest of the
-        // app.
-        val context = AppLanguageManager.localizedContext(
-            rawContext,
-            AppPreferences(rawContext).appLanguage,
-        )
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: return
         val classroom = intent.getStringExtra(EXTRA_CLASSROOM).orEmpty()
         val instructor = intent.getStringExtra(EXTRA_INSTRUCTOR).orEmpty()
@@ -62,11 +54,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val startDate = runCatching {
             Instant.ofEpochMilli(startMs).atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
         }.getOrNull() ?: return
-        val calendar = EntryPointAccessors
+        val deps = EntryPointAccessors
             .fromApplication(rawContext.applicationContext, Deps::class.java)
-            .academicCalendar()
-            .current()
-        if (!calendar.isInSession(startDate)) return
+        if (!deps.academicCalendar().current().isInSession(startDate)) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual
@@ -74,12 +64,21 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val leadTimeMs = intent.getLongExtra(EXTRA_LEAD_TIME_MS, 0L)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            ContextCompat.checkSelfPermission(rawContext, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) {
             return
         }
 
+        // Receiver contexts carry the SYSTEM locale, not the user's in-app
+        // language choice (AppCompat per-app locales don't reach broadcast
+        // contexts when the alarm wakes a dead process). Resolve the chosen
+        // language explicitly so the notification text matches the rest of the
+        // app.
+        val context = AppLanguageManager.localizedContext(
+            rawContext,
+            deps.appPreferences().appLanguage,
+        )
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         val timeRange = formatTimeRange(startMs, endMs)
