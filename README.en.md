@@ -29,9 +29,7 @@
 
 TigerDuck is a campus companion app built by a group of students at **NTUST**.  
 It was created to solve common pain points: scattered resources, delayed notifications, and
-unintuitive interfaces.  
-Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to make TigerDuck feel
-even more OAO!
+unintuitive interfaces.
 
 > The project is under active development; some features are still being polished.
 
