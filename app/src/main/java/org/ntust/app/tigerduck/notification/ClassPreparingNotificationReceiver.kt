@@ -28,6 +28,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
     internal interface Deps {
         fun academicCalendar(): AcademicCalendarStore
         fun appPreferences(): AppPreferences
+        fun notificationChannels(): NotificationChannelRegistrar
     }
 
     override fun onReceive(rawContext: Context, intent: Intent) {
@@ -80,6 +81,8 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             deps.appPreferences().appLanguage,
         )
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        // One shot: if the channel is missing, the reminder is dropped for good.
+        deps.notificationChannels().ensureRegistered()
 
         val timeRange = formatTimeRange(startMs, endMs)
         val detail = listOfNotNull(

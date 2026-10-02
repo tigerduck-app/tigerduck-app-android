@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck
 
 import android.app.Application
-import android.os.LocaleList
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import dagger.hilt.android.HiltAndroidApp
@@ -18,7 +17,7 @@ import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
-import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.push.FcmBootstrap
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
@@ -60,8 +59,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
     @Inject
     lateinit var uiLanguage: UiLanguageMonitor
 
-    /** Last seen by [onConfigurationChanged]; main thread only. */
-    private var lastLocales: LocaleList? = null
+    @Inject
+    lateinit var notificationChannels: NotificationChannelRegistrar
 
     // The DI singleton, not a private scope: it carries a logging
     // CoroutineExceptionHandler (see CoroutineModule) so a failure in the
@@ -93,8 +92,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
         analyticsLogger.setUserProperty("app_version", BuildConfig.VERSION_NAME)
         debugClockController.bootstrap()
         AppLanguageManager.apply(appPreferences.appLanguage)
-        registerNotificationChannels()
-        lastLocales = resources.configuration.locales
+        notificationChannels.register()
+        uiLanguage.onLocales(resources.configuration.locales.toLanguageTags())
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
 
@@ -154,13 +153,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
         super.onConfigurationChanged(newConfig)
-        // What a locale change here stands for is in UiLanguageMonitor.
-        // Rotation, dark mode and font scale come through as well, hence the
-        // comparison.
-        val locales = newConfig.locales
-        if (locales == lastLocales) return
-        lastLocales = locales
-        uiLanguage.onLocalesChanged()
+        // What a change of locales here stands for is in UiLanguageMonitor.
+        uiLanguage.onLocales(newConfig.locales.toLanguageTags())
     }
 
     /**
@@ -170,31 +164,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
      * [org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier.apply].
      */
     private fun relocalizeNotifications() {
-        registerNotificationChannels()
+        notificationChannels.register()
         liveActivityManager.refresh(quiet = true)
-    }
-
-    /**
-     * Create every channel, named in the current language, and on the first
-     * launch to get here drop the old Live Update channels.
-     *
-     * Caught rather than left to throw. A NotificationManager call fails while
-     * system_server restarts; from onCreate that would crash the launch,
-     * background wakes included, and from the collector above it would end it
-     * for good, so no later switch would reach the channels. Caught, the cost
-     * is names in the old language, or on a first launch no channels yet,
-     * until the next launch or switch.
-     */
-    private fun registerNotificationChannels() {
-        runCatching {
-            NotificationChannels.registerAll(this, appPreferences.appLanguage)
-            if (!appPreferences.legacyNotificationChannelsDeleted) {
-                NotificationChannels.deleteLegacyChannels(this)
-                appPreferences.legacyNotificationChannelsDeleted = true
-            }
-        }.onFailure {
-            android.util.Log.w("TigerDuckApp", "Could not register notification channels", it)
-        }
     }
 
     private fun warnIfPinsNearExpiry() {

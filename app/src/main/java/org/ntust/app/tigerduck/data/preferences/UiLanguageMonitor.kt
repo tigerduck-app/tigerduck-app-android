@@ -15,9 +15,9 @@ import javax.inject.Singleton
  * names, the Live Update, the server's push copy, the calendar's built rows.
  *
  * Two sources, because neither covers every case:
- * - [onLocalesChanged], from `Application.onConfigurationChanged`: a change of
- *   phone language under "Follow system", which never touches the stored
- *   setting, and on API 33+ an in-app switch once it has reached the process.
+ * - [onLocales], from `Application.onConfigurationChanged`: a change of phone
+ *   language under "Follow system", which never touches the stored setting,
+ *   and on API 33+ an in-app switch once it has reached the process.
  * - [AppPreferences.appLanguageChanged], below API 33 only. There AppCompat
  *   applies an in-app language to Activities alone, so the Application never
  *   sees a configuration change for it.
@@ -26,23 +26,41 @@ import javax.inject.Singleton
  * language reaches the application context, so a listener reading "Follow
  * system" from that context at once gets the language the user just left —
  * and the configuration change follows anyway.
+ *
+ * @param sdkInt a parameter only so the JVM tests can try both sides of 33.
  */
 @Singleton
-class UiLanguageMonitor @Inject constructor(prefs: AppPreferences) {
+class UiLanguageMonitor internal constructor(
+    settingChanged: Flow<Unit>,
+    sdkInt: Int,
+) {
+    @Inject
+    constructor(prefs: AppPreferences) : this(prefs.appLanguageChanged, Build.VERSION.SDK_INT)
+
     private val localesChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
 
+    /** Last reported by [onLocales]; main thread only. */
+    private var locales: String? = null
+
     val changes: Flow<Unit> =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
             localesChanged.asSharedFlow()
         } else {
-            merge(localesChanged, prefs.appLanguageChanged)
+            merge(localesChanged, settingChanged)
         }
 
-    /** The application's locales changed. Called by `TigerDuckApp` alone. */
-    fun onLocalesChanged() {
-        localesChanged.tryEmit(Unit)
+    /**
+     * The application's locales as language tags, reported by `TigerDuckApp`
+     * once at launch and on every configuration change after. Fires [changes]
+     * only when they differ from the last report: rotation, dark mode and
+     * font scale arrive as configuration changes too.
+     */
+    fun onLocales(languageTags: String) {
+        val previous = locales
+        locales = languageTags
+        if (previous != null && previous != languageTags) localesChanged.tryEmit(Unit)
     }
 }

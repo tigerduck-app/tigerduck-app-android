@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.DeviceSkin
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
@@ -66,6 +67,7 @@ class LiveActivityNotifier @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val preferences: LiveActivityPreferences,
     private val appPreferences: AppPreferences,
+    private val notificationChannels: NotificationChannelRegistrar,
 ) {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
@@ -210,6 +212,7 @@ class LiveActivityNotifier @Inject constructor(
 
         samsungNowBarExtras()?.let { builder.addExtras(it) }
 
+        notificationChannels.ensureRegistered()
         manager.notify(NOTIFICATION_ID, builder.build())
 
         // Once the class is actually ongoing, the alarm-driven "即將上課" banner

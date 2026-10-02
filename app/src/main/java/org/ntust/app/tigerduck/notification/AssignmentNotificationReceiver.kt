@@ -20,6 +20,9 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
     @Inject
     lateinit var appPreferences: AppPreferences
 
+    @Inject
+    lateinit var notificationChannels: NotificationChannelRegistrar
+
     override fun onReceive(context: Context, intent: Intent) {
         val title = intent.getStringExtra(EXTRA_TITLE) ?: return
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: ""
@@ -44,6 +47,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
 
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationChannels.ensureRegistered()
 
         val (titleText, bodyText) = if (kind == KIND_SAFETY_NET) {
             context.getString(R.string.notification_assignment_safety_net_title) to

@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.util.replaceIosArg
 import javax.inject.Inject
@@ -23,6 +24,7 @@ import javax.inject.Singleton
 @Singleton
 class AndroidMailNotifier @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val notificationChannels: NotificationChannelRegistrar,
 ) : MailNotifier {
     private val manager get() = NotificationManagerCompat.from(context)
 
@@ -54,6 +56,7 @@ class AndroidMailNotifier @Inject constructor(
     @android.annotation.SuppressLint("MissingPermission")
     override fun postNewMail(folder: String, messages: List<MailSummary>) {
         if (!allowed()) return
+        notificationChannels.ensureRegistered()
         val plan = MailNotificationPlanner.plan(
             messages,
             context.getString(R.string.school_mail_no_sender),
@@ -88,6 +91,7 @@ class AndroidMailNotifier @Inject constructor(
     @android.annotation.SuppressLint("MissingPermission")
     override fun postAuthFailure() {
         if (!allowed()) return
+        notificationChannels.ensureRegistered()
         manager.notify(
             MailNotificationPlanner.AUTH_FAILED_ID,
             NotificationCompat.Builder(context, NotificationChannels.SYSTEM)
