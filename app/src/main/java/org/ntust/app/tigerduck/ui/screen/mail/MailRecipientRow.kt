@@ -6,7 +6,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
@@ -17,19 +16,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.mail.model.MailAddress
-import org.ntust.app.tigerduck.util.replaceIosArg
 
 /** One recipient of a mail, as the header's To and Cc lines show it. */
 internal data class MailRecipient(
@@ -65,10 +65,11 @@ internal data class MailRecipient(
 }
 
 /**
- * "To:" / "Cc:" on their own, in the reader's language: the localized "To: %1$@" with nothing in
- * the slot. Every translation puts the value last, so what is left is the label.
+ * The order the header shows recipients in: the student's own address first, so "this one is me"
+ * reads at a glance in a mail sent to a whole class -- collapsed as well, where only the first is
+ * shown -- and the rest as the mail lists them.
  */
-internal fun fieldLabel(template: String): String = template.replaceIosArg(1, "").trim()
+internal fun headerOrder(recipients: List<MailRecipient>): List<MailRecipient> = recipients.sortedByDescending { it.isSelf }
 
 /**
  * The shown recipients, one per line after a comma, then "+N" for the ones collapsed away. The
@@ -91,13 +92,19 @@ internal fun recipientLine(shown: List<MailRecipient>, hiddenCount: Int, accent:
     }
 
 /**
- * A "To:" or "Cc:" line of the mail being read.
+ * A To or Cc line of the mail being read.
  *
  * More than one recipient collapses to the first and a count, behind its own arrow, so a mail sent
- * to a whole class does not push the message off the screen; To and Cc open independently, and
- * the whole line is what opens it. One recipient is simply shown, with no arrow. Nothing is ever
- * cut short: a recipient too long for the line wraps onto the next one, and collapsing only hides
- * the other recipients.
+ * to a whole class does not push the message off the screen; To and Cc open independently.
+ * Collapsed, the whole line is what opens it and nothing in it is selectable; open, the recipients
+ * are selectable by a long press and only the label and the arrow close it -- the tap that clears
+ * a selection would otherwise fold the list away under it as well. One recipient is simply shown,
+ * selectable, with no arrow. Nothing is ever cut short: a recipient too long for the line wraps
+ * onto the next one, and collapsing only hides the other recipients.
+ *
+ * Every line is laid out the same, one recipient or many, so To and Cc sit as evenly as the
+ * header's other lines. A target shorter than a finger's 48dp is widened to it for touch, and
+ * reported so to accessibility, as long as it does not overlap another target.
  */
 @Composable
 internal fun MailRecipientRow(label: String, recipients: List<MailRecipient>, modifier: Modifier = Modifier) {
@@ -105,33 +112,36 @@ internal fun MailRecipientRow(label: String, recipients: List<MailRecipient>, mo
     val style = MaterialTheme.typography.labelMedium
     var expanded by rememberSaveable { mutableStateOf(false) }
     val collapsible = recipients.size > 1
-    val shown = if (expanded || !collapsible) recipients else recipients.take(1)
+    val collapsed = collapsible && !expanded
+    val ordered = remember(recipients) { headerOrder(recipients) }
+    val shown = if (collapsed) ordered.take(1) else ordered
+    val line = recipientLine(shown, recipients.size - shown.size, cs.primary)
     val chevronAngle by animateFloatAsState(if (expanded) 180f else 0f, label = "recipientChevron")
+    val toggle = Modifier.clickable(role = Role.Button) { expanded = !expanded }
+    val closes = if (collapsible && expanded) toggle else Modifier
     Row(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize()
-            .then(if (collapsible) Modifier.clickable(role = Role.Button) { expanded = !expanded } else Modifier)
-            // The platform's 48dp touch height comes from fixed padding around a one-line row, not
-            // minimumInteractiveComponentSize: that centres the content, so the one collapsed line
-            // started below the top, and once opened the text outgrew the minimum and its first
-            // line jumped up. With padding the first line stays exactly where it was and opening
-            // only adds lines beneath it.
-            .padding(vertical = if (collapsible) 16.dp else 0.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+            .then(if (collapsed) toggle else Modifier),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(label, style = style, color = cs.outline)
-        // Selectable by a long press; a tap still reaches the row, since text selection only
-        // claims a press once it has been held.
-        SelectionContainer(Modifier.weight(1f)) {
-            Text(recipientLine(shown, recipients.size - shown.size, cs.primary), style = style, color = cs.outline)
+        Text(label, style = style, color = cs.outline, modifier = closes)
+        if (collapsed) {
+            Text(line, style = style, color = cs.outline, modifier = Modifier.weight(1f))
+        } else {
+            SelectionContainer(Modifier.weight(1f)) {
+                Text(line, style = style, color = cs.outline)
+            }
         }
         if (collapsible) {
             Icon(
                 Icons.Filled.ExpandMore,
                 contentDescription = null,
                 tint = cs.outline,
-                modifier = Modifier.size(18.dp).rotate(chevronAngle),
+                // Open, the label is the button TalkBack reads; the arrow beside it is only a
+                // bigger place to tap, not a second, unnamed button.
+                modifier = Modifier.clearAndSetSemantics {}.then(closes).size(18.dp).rotate(chevronAngle),
             )
         }
     }

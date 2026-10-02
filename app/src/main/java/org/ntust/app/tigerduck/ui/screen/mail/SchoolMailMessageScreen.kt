@@ -237,7 +237,7 @@ fun SchoolMailMessageScreen(
                 )
             }
             is Content.LoadingBody -> Column(Modifier.fillMaxSize().padding(padding)) {
-                MessageHeader(content.summary, viewModel.mailDomain, viewModel.selfAddress)
+                MessageHeader(content.summary, viewModel.mailDomain, state.selfAddress)
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -256,7 +256,7 @@ fun SchoolMailMessageScreen(
                     modifier = Modifier.fillMaxSize().padding(padding).scrollbar(listState),
                     contentPadding = PaddingValues(bottom = 32.dp),
                 ) {
-                    item(key = "header") { MessageHeader(content.summary, viewModel.mailDomain, viewModel.selfAddress) }
+                    item(key = "header") { MessageHeader(content.summary, viewModel.mailDomain, state.selfAddress) }
                     if (state.parseFailed) {
                         item(key = "parse-failed") { WarningCard(stringResource(R.string.school_mail_parse_failed), null) }
                     }
@@ -548,8 +548,8 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String, selfAddress:
         // line or the message off the screen. An empty field gets no line at all.
         val to = MailRecipient.from(summary.to, selfAddress)
         val cc = MailRecipient.from(summary.cc, selfAddress)
-        if (to.isNotEmpty()) MailRecipientRow(fieldLabel(stringResource(R.string.school_mail_details_to)), to)
-        if (cc.isNotEmpty()) MailRecipientRow(fieldLabel(stringResource(R.string.school_mail_details_cc)), cc)
+        if (to.isNotEmpty()) MailRecipientRow(stringResource(R.string.school_mail_to), to)
+        if (cc.isNotEmpty()) MailRecipientRow(stringResource(R.string.school_mail_cc), cc)
     }
 }
 

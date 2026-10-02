@@ -79,10 +79,15 @@ class MailHeaderTextTest {
         assertEquals(listOf(false), MailRecipient.from(listOf(MailAddress(null, "a@x.com")), ownAddress = null).map { it.isSelf })
     }
 
+    /** Collapsed, only the first is shown: the student's own address is that one, wherever the mail lists it. */
     @Test
-    fun `the field label is the localized line with nothing in the slot`() {
-        assertEquals("To:", fieldLabel("To: %1\$@"))
-        assertEquals("收件者：", fieldLabel("收件者：%1\$@"))
+    fun `the student's own address comes first, the rest as the mail lists them`() {
+        val a = MailRecipient("A", "a@x.tw", isSelf = false)
+        val b = MailRecipient("B", "b@x.tw", isSelf = false)
+        val c = MailRecipient("C", "c@x.tw", isSelf = false)
+        val me = MailRecipient(null, "me@x.tw", isSelf = true)
+        assertEquals(listOf(me, a, b, c), headerOrder(listOf(a, b, me, c)))
+        assertEquals(listOf(a, b, c), headerOrder(listOf(a, b, c)))
     }
 
     @Test
