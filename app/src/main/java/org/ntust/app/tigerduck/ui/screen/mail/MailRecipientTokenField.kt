@@ -72,6 +72,15 @@ private val BubbleShape = RoundedCornerShape(16.dp)
 private val TouchHeight = 48.dp
 
 /**
+ * How far a line's contents sit above the middle of its [TouchHeight]. The field already keeps
+ * the floated label's lower half clear above the first line and nothing below the last, so a line
+ * centred in its own 48dp sat that much low in the field. Raised by half of it, a line of bubbles
+ * sits in the middle of the field the way Subject's text does, without the field growing a padding
+ * of its own -- which it would only have while the label is floated, and so would jump on focus.
+ */
+private val LineRaise = 4.dp
+
+/**
  * A To, Cc or Bcc field that turns each recipient into a bubble as it is typed: `,`, `;`, a space
  * after an address, the keyboard's Next, or leaving the field finishes one. A bubble sending would
  * refuse is red, by [ComposeRules.sendableAddress]. Tapping a bubble takes it back into the text,
@@ -215,7 +224,10 @@ internal fun MailRecipientTokenField(
                             // and the keyboard on it stay put as bubbles pass from one side to the
                             // other. Wide enough to type into; it moves to a line of its own once
                             // the bubbles leave it less than that.
-                            Box(Modifier.widthIn(min = 120.dp).heightIn(min = TouchHeight), contentAlignment = Alignment.CenterStart) {
+                            Box(
+                                Modifier.widthIn(min = 120.dp).heightIn(min = TouchHeight).padding(bottom = LineRaise * 2),
+                                contentAlignment = Alignment.CenterStart,
+                            ) {
                                 innerTextField()
                             }
                             field.tokens.subList(at, field.tokens.size).forEach { key(it.id) { Bubble(it) } }
@@ -263,8 +275,9 @@ private fun RecipientBubble(token: String, enabled: Boolean, removeLabel: String
             color = if (valid) cs.primary.copy(alpha = 0.25f) else cs.error.copy(alpha = 0.15f),
             contentColor = if (valid) cs.onSurface else cs.error,
             border = if (valid) null else BorderStroke(1.dp, cs.error.copy(alpha = 0.6f)),
+            // Raised by [LineRaise] in its 48dp, which so reaches further below it than above.
             // Read from the touch targets below instead, each named for what it does.
-            modifier = Modifier.clearAndSetSemantics {},
+            modifier = Modifier.padding(bottom = LineRaise * 2).clearAndSetSemantics {},
         ) {
             Row(Modifier.indication(editInteraction, ripple()), verticalAlignment = Alignment.CenterVertically) {
                 // Wraps rather than truncating, so a long address is never shown cut short.
