@@ -9,10 +9,30 @@ object HtmlParser {
         val inputs: List<Pair<String, String>>
     )
 
+    /**
+     * NTUST's SSO/CAS front door, observed under two different hostnames — which one a given
+     * service's redirect chain lands on varies per service, and both are the same login system.
+     * Every caller that needs to recognize "we got bounced to the SSO wall" must check both, from
+     * this one place, or silently miss whichever one it forgot (as `courseselection`/`stuinfosys`
+     * working while a portal link bounced to the other host, unrecognized, once did).
+     */
+    private val SSO_HOSTS = setOf("ssoam.ntust.edu.tw", "ssoam2.ntust.edu.tw")
+
+    fun isSsoHost(host: String): Boolean = host in SSO_HOSTS
+
     fun isSSOLoginPage(html: String, url: HttpUrl): Boolean {
-        if (!url.host.contains("ssoam2.ntust.edu.tw")) return false
+        if (!isSsoHost(url.host)) return false
+        // Two different login products live under the two SSO hosts (see
+        // NtustSsoAutoFill.kt's doc comment): ssoam2's #loginForm with
+        // Username/Password, and ssoam's NetIQ Access Manager #IDPLogin with
+        // Ecom_User_ID/Ecom_Password. Missing the second shape here used to
+        // make this function report "not an SSO page" for a service that
+        // bounced to ssoam, which SsoLoginService then took as a false
+        // "already logged in".
         return html.contains("id=\"loginForm\"") ||
-                (html.contains("name=\"Username\"") && html.contains("name=\"Password\""))
+                html.contains("id=\"IDPLogin\"") ||
+                (html.contains("name=\"Username\"") && html.contains("name=\"Password\"")) ||
+                (html.contains("name=\"Ecom_User_ID\"") && html.contains("name=\"Ecom_Password\""))
     }
 
     fun findFormById(html: String, id: String): FormData? {

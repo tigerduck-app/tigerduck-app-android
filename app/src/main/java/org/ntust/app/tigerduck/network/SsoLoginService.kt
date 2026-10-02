@@ -13,6 +13,10 @@ sealed class SsoLoginError : Exception() {
     class LoginFailed : SsoLoginError()
     class InvalidResponse : SsoLoginError()
     data class NetworkError(val cause_: Exception) : SsoLoginError()
+
+    /** The service bounced to a login page OkHttp cannot complete (ssoam's NetIQ form, gated
+     *  by a click-only reCAPTCHA). No session was established — only a WebView can finish it. */
+    class InteractiveLoginRequired : SsoLoginError()
 }
 
 @Singleton
@@ -66,8 +70,18 @@ class SsoLoginService @Inject constructor(
         }
 
         // Step 5: Submit login form
-        val form = HtmlParser.findFormById(html, "loginForm")
-            ?: throw SsoLoginError.LoginFormNotFound()
+        val form = HtmlParser.findFormById(html, "loginForm") ?: run {
+            // ssoam's NetIQ Access Manager page (`id="IDPLogin"`) binds its submit control to an
+            // invisible reCAPTCHA that only resolves on a genuine click (see
+            // NtustSsoAutoFill.buildSsoAutoFillScript's doc comment) — a bare OkHttp POST can
+            // never produce a passing token. Nothing was authenticated, so this must not read
+            // as success: sign-in and scrapers need a real session. Only a caller about to hand
+            // the page to a WebView (NtustPortalService.ensureWebViewSession) may accept it.
+            if (HtmlParser.findFormById(html, "IDPLogin") != null) {
+                throw SsoLoginError.InteractiveLoginRequired()
+            }
+            throw SsoLoginError.LoginFormNotFound()
+        }
 
         val fields = form.inputs.toMutableList().apply {
             replaceOrAppend("Username", studentId)

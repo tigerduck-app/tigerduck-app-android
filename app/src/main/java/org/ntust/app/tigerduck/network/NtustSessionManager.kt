@@ -127,6 +127,19 @@ class NtustSessionManager @Inject constructor(
 
     val cookieExpiryMs: Long get() = prefs.ssoLoginTimestamp + COOKIE_TTL_MS
 
+    /**
+     * A snapshot of every cookie OkHttp has captured so far, grouped by the
+     * host it was set for — for bridging into `android.webkit.CookieManager`
+     * before opening an authenticated `WebView`. Whole-jar rather than a
+     * single host: NTUST's SSO is per-service (each host gets its own ticket
+     * exchange against the shared CAS session), and a page can pull
+     * sub-resources or redirect through a host the caller never explicitly
+     * asked about. `CookieManager.setCookie` still scopes each cookie by the
+     * host it is set against, so handing over cookies for hosts the WebView
+     * never visits is inert, not a broadened attack surface.
+     */
+    fun allCookiesByHost(): Map<String, List<Cookie>> = cookieStore.mapValues { it.value.toList() }
+
     fun markLoginSuccess() {
         prefs.ssoLoginTimestamp = System.currentTimeMillis()
     }

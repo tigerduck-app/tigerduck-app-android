@@ -185,8 +185,9 @@ class MoodleTokenService @Inject constructor(
             )
         }
 
-        // SSO login step: we landed on ssoam2.ntust.edu.tw with a form.
-        if (responseUrl.host.contains("ssoam2.ntust.edu.tw")) {
+        // SSO login step: we landed on NTUST's SSO front door with a form. (Which hostname
+        // varies per account/service — see HtmlParser.isSsoHost.)
+        if (HtmlParser.isSsoHost(responseUrl.host)) {
             val fields = parseSSOLoginFields(html)
             if (fields.antiforgery.isEmpty()) {
                 if (responseUrl.encodedPath.contains("/account/login")) {
@@ -213,7 +214,10 @@ class MoodleTokenService @Inject constructor(
                 url = postUrl,
                 fields = payload,
                 referer = responseUrl.toString(),
-                origin = "https://ssoam2.ntust.edu.tw",
+                // The actual host we landed on, not a hardcoded one: this branch now runs for
+                // either SSO hostname (see HtmlParser.isSsoHost), and an Origin header naming
+                // the wrong one could get the POST rejected by a strict same-origin check.
+                origin = "https://${responseUrl.host}",
             )
 
             // If we're still at /account/login and neither a token nor an OIDC

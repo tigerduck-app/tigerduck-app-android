@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.navigation
 
 import android.app.Activity
 import android.content.Context
+import android.net.Uri
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -73,6 +74,8 @@ import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableViewModel
 import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeViewModel
+import org.ntust.app.tigerduck.ui.screen.informationsystem.InformationSystemScreen
+import org.ntust.app.tigerduck.ui.screen.informationsystem.PortalBrowserScreen
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
@@ -107,6 +110,11 @@ sealed class Screen(val route: String) {
     object AnnouncementSubscriptions : Screen("announcements/subscriptions")
     object Library : Screen("library")
     object Score : Screen("score")
+    object InformationSystem : Screen("informationSystem")
+    object PortalBrowser : Screen("portalBrowser/{title}/{url}") {
+        fun route(title: String, url: String) =
+            "portalBrowser/${Uri.encode(title)}/${Uri.encode(url)}"
+    }
     object More : Screen("more")
     object Settings : Screen("settings")
     object TabEditor : Screen("tabEditor")
@@ -461,6 +469,28 @@ fun MainNavigation(
             composable(Screen.Score.route) {
                 ScoreScreen(onOpenSignInSettings = openSignInSettings)
             }
+            composable(Screen.InformationSystem.route) {
+                InformationSystemScreen(
+                    onOpenLink = { title, url -> navController.navigate(Screen.PortalBrowser.route(title, url)) },
+                    onOpenSignInSettings = openSignInSettings,
+                )
+            }
+            composable(
+                Screen.PortalBrowser.route,
+                arguments = listOf(
+                    navArgument("title") { type = NavType.StringType },
+                    navArgument("url") { type = NavType.StringType },
+                ),
+            ) { entry ->
+                // Navigation already decoded these path arguments once; decoding again would turn
+                // a literal %252F in a portal URL into %2F and open the wrong resource.
+                PortalBrowserScreen(
+                    title = entry.arguments?.getString("title").orEmpty(),
+                    url = entry.arguments?.getString("url").orEmpty(),
+                    browserPreference = appState.browserPreference,
+                    onBack = { navController.popBackStack() },
+                )
+            }
             composable(Screen.More.route) { MoreScreen(navController, appState) }
             composable(Screen.Settings.route) {
                 SettingsScreen(
@@ -653,6 +683,7 @@ fun AppFeature.toRoute(): String = when (this) {
     AppFeature.SCHOOL_MAIL -> Screen.SchoolMail.route
     AppFeature.LIBRARY -> Screen.Library.route
     AppFeature.SCORE -> Screen.Score.route
+    AppFeature.INFORMATION_SYSTEM -> Screen.InformationSystem.route
     AppFeature.MORE -> Screen.More.route
     AppFeature.SETTINGS -> Screen.Settings.route
     else -> "placeholder/$id"
