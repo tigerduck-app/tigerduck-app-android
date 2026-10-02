@@ -57,6 +57,7 @@ import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
+import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.RecipientSlot
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.util.replaceIosArg
 
@@ -168,10 +169,10 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
             }
             state.loadError?.let { LoadErrorBanner(it, onRetry = { viewModel.retryPrefill(labels) }) }
             state.error?.let { ErrorText(it) }
-            MailRecipientTokenField(stringResource(R.string.school_mail_to), state.to, viewModel::setTo, enabled = fieldsEnabled)
+            MailRecipientTokenField(stringResource(R.string.school_mail_to), state.to, { viewModel.updateRecipients(RecipientSlot.TO, it) }, enabled = fieldsEnabled)
             if (state.showCcBcc) {
-                MailRecipientTokenField(stringResource(R.string.school_mail_cc), state.cc, viewModel::setCc, enabled = fieldsEnabled)
-                MailRecipientTokenField(stringResource(R.string.school_mail_bcc), state.bcc, viewModel::setBcc, enabled = fieldsEnabled)
+                MailRecipientTokenField(stringResource(R.string.school_mail_cc), state.cc, { viewModel.updateRecipients(RecipientSlot.CC, it) }, enabled = fieldsEnabled)
+                MailRecipientTokenField(stringResource(R.string.school_mail_bcc), state.bcc, { viewModel.updateRecipients(RecipientSlot.BCC, it) }, enabled = fieldsEnabled)
             } else {
                 TextButton(onClick = viewModel::showCcBcc, enabled = fieldsEnabled) { Text(stringResource(R.string.school_mail_show_cc_bcc)) }
             }

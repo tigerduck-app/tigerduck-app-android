@@ -129,6 +129,15 @@ class ComposeRulesTest {
         )
     }
 
+    /** Joined into one string, the open quote would carry on through the comma and take bob with it. */
+    @Test
+    fun `recipients already apart are read one by one`() {
+        val parsed = ComposeRules.parseRecipients(listOf("\"Chen", "bob@x.tw", "Bob <b@y.tw", " ", "BOB@x.tw"))
+        assertEquals(listOf("bob@x.tw"), parsed.addresses.map { it.address })
+        assertEquals(listOf("\"Chen", "Bob <b@y.tw"), parsed.invalid)
+        assertEquals(listOf("\"Chen, bob@x.tw"), ComposeRules.parseRecipients("\"Chen, bob@x.tw").invalid)
+    }
+
     @Test
     fun `size limit counts base64 growth`() {
         assertTrue(ComposeRules.fitsSizeLimit("hi", listOf(30L * 1024 * 1024)))

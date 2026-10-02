@@ -78,10 +78,17 @@ object ComposeRules {
      *  deliverable here, so compose reports it the same as any other malformed token -- unlike
      *  [AddressParser] itself, which stays permissive so reading already-delivered mail (whose
      *  sender compose never chose) still shows a "From" instead of hiding it. */
-    fun parseRecipients(input: String): RecipientParse {
+    fun parseRecipients(input: String): RecipientParse = parseRecipients(AddressParser.splitTopLevel(input))
+
+    /**
+     * Recipients already apart -- the compose screen's bubbles, each its own entry. Each is read
+     * on its own, never joined and split again: one with a quote or `<` left open would otherwise
+     * swallow every recipient after it.
+     */
+    fun parseRecipients(tokens: List<String>): RecipientParse {
         val addresses = mutableListOf<MailAddress>()
         val invalid = mutableListOf<String>()
-        AddressParser.splitTopLevel(input).map { it.trim() }.filter { it.isNotEmpty() }.forEach { token ->
+        tokens.map { it.trim() }.filter { it.isNotEmpty() }.forEach { token ->
             val parsed = sendableAddress(token)
             if (parsed != null) addresses.add(parsed) else invalid.add(token)
         }
