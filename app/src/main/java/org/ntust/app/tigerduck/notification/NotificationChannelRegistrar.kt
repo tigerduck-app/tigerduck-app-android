@@ -33,7 +33,12 @@ class NotificationChannelRegistrar @Inject constructor(
      * background wakes included, and from a collector it would end it for
      * good. Caught, the cost is names in the old language until the next
      * launch or switch, and missing channels until the next post retries.
+     *
+     * Synchronized because a poster's retry and a language change can call
+     * this at once: unserialized, the one that read the old language could
+     * finish last and leave its names standing.
      */
+    @Synchronized
     fun register() {
         runCatching {
             NotificationChannels.registerAll(context, prefs.appLanguage)
