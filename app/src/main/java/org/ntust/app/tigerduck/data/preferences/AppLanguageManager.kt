@@ -123,7 +123,16 @@ object AppLanguageManager {
      * English screen.
      *
      * Returns [base] unchanged for "Follow system", where the platform default
-     * is already the right answer.
+     * is already the right answer — including a language picked for this app
+     * in the phone's own Settings on API 33+, which reaches [base] and nothing
+     * else. On API 33+ that answer lags a switch to "Follow system" until it
+     * reaches the process as a configuration change, which is why anything
+     * that must follow a switch listens to [UiLanguageMonitor] rather than to
+     * the setting itself.
+     *
+     * A caller that also needs the tag, to pick between `zh`/`en` copy, should
+     * read it from the returned context's configuration, so the two cannot
+     * come from different languages.
      */
     @android.annotation.SuppressLint("AppBundleLocaleChanges")
     fun localizedContext(base: Context, language: String): Context {
@@ -132,15 +141,6 @@ object AppLanguageManager {
         config.setLocale(locale)
         return base.createConfigurationContext(config)
     }
-
-    /**
-     * The [Locale] the UI is actually running in, for callers that need the tag
-     * rather than a Context — picking between server-supplied `zh`/`en` copy,
-     * say. Same reasoning as [localizedContext]: derived from the app's own
-     * stored choice, not from `Locale.getDefault()`.
-     */
-    fun currentLocale(language: String): Locale =
-        resolveExplicitLocale(language) ?: Locale.getDefault()
 
     /**
      * The BCP-47 tag of the language the phone UI renders in, for a second

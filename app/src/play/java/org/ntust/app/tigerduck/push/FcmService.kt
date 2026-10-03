@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import javax.inject.Inject
@@ -34,6 +35,8 @@ class FcmService : FirebaseMessagingService() {
     lateinit var scope: CoroutineScope
     @Inject
     lateinit var intentToken: ServerPushIntentToken
+    @Inject
+    lateinit var notificationChannels: NotificationChannelRegistrar
 
     // Deprecated in firebase-messaging 25.1.2 with no replacement callback —
     // see the note in FcmBootstrap.start(). Suppressed rather than marked
@@ -145,6 +148,7 @@ class FcmService : FirebaseMessagingService() {
         // POST_NOTIFICATIONS permission is denied; an uncaught throw here
         // would crash FirebaseMessagingService and the whole process.
         if (!manager.areNotificationsEnabled()) return
+        notificationChannels.ensureRegistered()
         val notification = NotificationCompat.Builder(this, channelId)
             // Status-bar small icon must be a transparent monochrome
             // silhouette; passing the full-color launcher mipmap lets
@@ -210,6 +214,7 @@ class FcmService : FirebaseMessagingService() {
         )
         val manager = NotificationManagerCompat.from(this)
         if (!manager.areNotificationsEnabled()) return
+        notificationChannels.ensureRegistered()
         val channelId =
             if (forceRing) NotificationChannels.BULLETINS_SOUND
             else NotificationChannels.BULLETINS_SILENT
@@ -260,6 +265,7 @@ class FcmService : FirebaseMessagingService() {
         )
         val manager = NotificationManagerCompat.from(this)
         if (!manager.areNotificationsEnabled()) return
+        notificationChannels.ensureRegistered()
         val notification = NotificationCompat.Builder(this, NotificationChannels.SYSTEM)
             .setSmallIcon(R.drawable.ic_notification)
             // Brand tint for the shade badge; the status-bar glyph stays mono.

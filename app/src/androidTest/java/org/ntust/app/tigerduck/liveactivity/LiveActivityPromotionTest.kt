@@ -17,7 +17,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.DeviceSkin
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 
@@ -172,7 +174,16 @@ class LiveActivityPromotionTest {
     }
 
     private fun postInClass(): Notification {
-        val notifier = LiveActivityNotifier(context, LiveActivityPreferences(context))
+        val prefs = AppPreferences(context)
+        // Its own registrar, which has not registered yet: the notifier
+        // creates the channel itself before posting, whichever Application
+        // the runner starts.
+        val notifier = LiveActivityNotifier(
+            context,
+            LiveActivityPreferences(context),
+            prefs,
+            NotificationChannelRegistrar(context, prefs),
+        )
         notifier.apply(
             LiveActivitySnapshot(
                 scenario = LiveActivityScenario.IN_CLASS,

@@ -593,6 +593,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }
 
     /**
+     * Set once [org.ntust.app.tigerduck.notification.NotificationChannels.deleteLegacyChannels]
+     * has run on this install. A flag rather than a [dataSchemaVersion] step:
+     * bumping the schema would make a later downgrade show the reset prompt,
+     * and a stale notification channel is not worth that.
+     */
+    var legacyNotificationChannelsDeleted: Boolean
+        get() = prefs.getBoolean("legacyNotificationChannelsDeleted", false)
+        set(value) = prefs.edit().putBoolean("legacyNotificationChannelsDeleted", value).apply()
+
+    /**
      * Monotonic version for on-device user-data layout. Bumped whenever the
      * app ships a change that needs a one-shot migration (see DataMigration).
      * 0 covers every pre-migration-system build (fresh install or upgrade).

@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -41,6 +42,7 @@ class CalendarViewModel @Inject constructor(
     private val authService: AuthService,
     private val dataCache: DataCache,
     private val prefs: AppPreferences,
+    private val uiLanguage: UiLanguageMonitor,
     @param:dagger.hilt.android.qualifiers.ApplicationContext
     private val context: android.content.Context,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
@@ -84,12 +86,12 @@ class CalendarViewModel @Inject constructor(
         // keep reporting the *device* language: on a Taiwanese phone running
         // the app in English or Japanese every holiday came back as its
         // Chinese name and every term boundary as "115-1 開始", on a screen
-        // that was otherwise correctly translated.
-        val language = prefs.appLanguage
-        val localized = AppLanguageManager.localizedContext(context, language)
+        // that was otherwise correctly translated. The tag comes from the
+        // same context as the titles, so the two cannot disagree.
+        val localized = AppLanguageManager.localizedContext(context, prefs.appLanguage)
         return org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
             calendar = academicCalendar.current(),
-            languageTag = AppLanguageManager.currentLocale(language).toLanguageTag(),
+            languageTag = localized.resources.configuration.locales[0].toLanguageTag(),
             startTitle = { localized.getString(R.string.calendar_semester_start, it) },
             endTitle = { localized.getString(R.string.calendar_semester_end, it) },
             formatCode = { code ->
@@ -154,8 +156,10 @@ class CalendarViewModel @Inject constructor(
             // Switching language recreates the Activity, but this ViewModel is
             // retained across that, so the already-built rows would keep the
             // titles of the language they were built in. They are cheap to
-            // rebuild and nothing else refreshes them.
-            prefs.appLanguageChanged.collect {
+            // rebuild and nothing else refreshes them. UiLanguageMonitor, not
+            // the setting: on API 33+ the setting changes before the new
+            // language reaches the context the titles are read from.
+            uiLanguage.changes.collect {
                 _events.value = withAcademicEvents(_events.value)
             }
         }
