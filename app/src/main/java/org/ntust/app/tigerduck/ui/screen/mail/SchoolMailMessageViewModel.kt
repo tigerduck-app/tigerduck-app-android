@@ -116,12 +116,26 @@ class SchoolMailMessageViewModel @Inject constructor(
         val actionError: MailError? = null,
         /** Moved, deleted or marked unread: the screen pops. */
         val closed: Boolean = false,
+        /**
+         * The signed-in student's own address, which the header's To and Cc lines pick out. Read
+         * off the main thread when the screen opens: it comes out of the encrypted credential store.
+         */
+        val selfAddress: String? = null,
     ) {
         val folderKind: SpecialFolder? get() = folders?.kindOf(folder)
     }
 
     private val _state = MutableStateFlow(UiState(folder = folder))
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    init {
+        // Beside the load rather than ahead of it: the header never waits for it, and only gains
+        // the accent once it is in.
+        viewModelScope.launch {
+            val self = withContext(io) { account.ownAddress }
+            update { it.copy(selfAddress = self) }
+        }
+    }
 
     /**
      * The app's own colours for the mail HTML page (spec §9.3 no longer means white paper). There
