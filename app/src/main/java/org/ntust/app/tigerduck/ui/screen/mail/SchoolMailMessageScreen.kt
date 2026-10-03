@@ -548,8 +548,11 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String, selfAddress:
         // line or the message off the screen. An empty field gets no line at all.
         val to = MailRecipient.from(summary.to, selfAddress)
         val cc = MailRecipient.from(summary.cc, selfAddress)
-        if (to.isNotEmpty()) MailRecipientRow(stringResource(R.string.school_mail_to), to)
-        if (cc.isNotEmpty()) MailRecipientRow(stringResource(R.string.school_mail_cc), cc)
+        val toLabel = stringResource(R.string.school_mail_to)
+        val ccLabel = stringResource(R.string.school_mail_cc)
+        val labelWidth = recipientLabelWidth(toLabel, ccLabel)
+        if (to.isNotEmpty()) MailRecipientRow(toLabel, to, labelWidth = labelWidth)
+        if (cc.isNotEmpty()) MailRecipientRow(ccLabel, cc, labelWidth = labelWidth)
     }
 }
 

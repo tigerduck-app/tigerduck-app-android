@@ -27,12 +27,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.mail.model.MailAddress
 
@@ -111,9 +114,14 @@ internal fun recipientLine(shown: List<MailRecipient>, hiddenCount: Int, accent:
  * onto the next one, and collapsing only hides the other recipients.
  *
  * A line is one line tall whether it holds one recipient or many, so To and Cc sit as evenly as the
- * header's other lines; collapsed, the whole width of it is the target. Open, the label and the
- * arrow are each a finger's 48dp square, so a short "Cc" is still easy to close: the first line
- * stays where it was and only the space beneath it grows.
+ * header's other lines; collapsed, the whole width of it is the target. Open, the arrow is a
+ * finger's 48dp square and the label a finger tall, so a short "Cc" is still easy to close: the
+ * first line stays where it was and only the space beneath it grows. The label's column is only
+ * as wide as [labelWidth] -- the wider of the To and Cc labels, see [recipientLabelWidth] -- so
+ * the To and Cc recipients line up without a short "To" holding its recipients a finger's width
+ * away. That leaves the label a narrower target than the arrow, and nothing widens it: the line
+ * clips to its bounds while it animates, which keeps a touch in the margin beside it from
+ * reaching it.
  *
  * The label and the recipients share a baseline, not a top edge. A line with Chinese characters
  * in it is taller than one of Latin letters alone -- the fallback font's ascent and descent widen
@@ -121,7 +129,12 @@ internal fun recipientLine(shown: List<MailRecipient>, hiddenCount: Int, accent:
  * Chinese name.
  */
 @Composable
-internal fun MailRecipientRow(label: String, recipients: List<MailRecipient>, modifier: Modifier = Modifier) {
+internal fun MailRecipientRow(
+    label: String,
+    recipients: List<MailRecipient>,
+    modifier: Modifier = Modifier,
+    labelWidth: Dp = Dp.Unspecified,
+) {
     val cs = MaterialTheme.colorScheme
     val style = MaterialTheme.typography.labelMedium
     var expanded by rememberSaveable { mutableStateOf(false) }
@@ -140,8 +153,8 @@ internal fun MailRecipientRow(label: String, recipients: List<MailRecipient>, mo
             .then(if (collapsed) toggle else Modifier),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // A finger wide whatever the label, which also lines the To and Cc recipients up.
-        Box(Modifier.alignByBaseline().widthIn(min = TouchTarget).then(closes)) {
+        // As wide as the wider label, which lines the To and Cc recipients up.
+        Box(Modifier.alignByBaseline().widthIn(min = labelWidth).then(closes)) {
             Text(label, style = style, color = cs.outline)
         }
         if (collapsed) {
@@ -163,5 +176,21 @@ internal fun MailRecipientRow(label: String, recipients: List<MailRecipient>, mo
                 )
             }
         }
+    }
+}
+
+/**
+ * The width of the label column shared by the To and Cc lines: that of the widest of [labels], in
+ * the style [MailRecipientRow] draws a label in. Passed to each line as its `labelWidth`, so the
+ * recipients of both start at the same place whatever their labels are called in this language.
+ */
+@Composable
+internal fun recipientLabelWidth(vararg labels: String): Dp {
+    val measurer = rememberTextMeasurer()
+    val style = MaterialTheme.typography.labelMedium
+    val density = LocalDensity.current
+    val keys = labels.toList()
+    return remember(measurer, style, density, keys) {
+        with(density) { keys.maxOfOrNull { measurer.measure(it, style).size.width }?.toDp() ?: 0.dp }
     }
 }
