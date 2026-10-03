@@ -114,6 +114,11 @@ internal fun recipientLine(shown: List<MailRecipient>, hiddenCount: Int, accent:
  * header's other lines; collapsed, the whole width of it is the target. Open, the label and the
  * arrow are each a finger's 48dp square, so a short "Cc" is still easy to close: the first line
  * stays where it was and only the space beneath it grows.
+ *
+ * The label and the recipients share a baseline, not a top edge. A line with Chinese characters
+ * in it is taller than one of Latin letters alone -- the fallback font's ascent and descent widen
+ * it -- so lined up by their tops, "收件者" sat visibly below a bare address and "To" above a
+ * Chinese name.
  */
 @Composable
 internal fun MailRecipientRow(label: String, recipients: List<MailRecipient>, modifier: Modifier = Modifier) {
@@ -136,13 +141,13 @@ internal fun MailRecipientRow(label: String, recipients: List<MailRecipient>, mo
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         // A finger wide whatever the label, which also lines the To and Cc recipients up.
-        Box(Modifier.widthIn(min = TouchTarget).then(closes)) {
+        Box(Modifier.alignByBaseline().widthIn(min = TouchTarget).then(closes)) {
             Text(label, style = style, color = cs.outline)
         }
         if (collapsed) {
-            Text(line, style = style, color = cs.outline, modifier = Modifier.weight(1f))
+            Text(line, style = style, color = cs.outline, modifier = Modifier.weight(1f).alignByBaseline())
         } else {
-            SelectionContainer(Modifier.weight(1f)) {
+            SelectionContainer(Modifier.weight(1f).alignByBaseline()) {
                 Text(line, style = style, color = cs.outline)
             }
         }
