@@ -66,13 +66,14 @@ class SchoolMailMessageViewModelTest {
 
     private val repo = FakeSchoolMailRepository()
     private val notifier = RecordingNotifier()
+    private val credentials = InMemoryCredentialStore()
     private lateinit var account: MailAccount
     private lateinit var cache: MailCache
 
     @Before
     fun setUp() {
         cache = MailCache(tmp.newFolder("cache"))
-        account = MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), FakeMailServer().factory(), cache,
+        account = MailAccount(credentials, InMemoryMailStateStore(), FakeMailServer().factory(), cache,
             FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
     }
 
@@ -105,6 +106,24 @@ class SchoolMailMessageViewModelTest {
     }
 
     // --- none of the parsing happens on the main thread --------------------------------------
+
+    /** The header's To and Cc lines pick it out; it comes out of the encrypted credential store. */
+    @Test
+    fun `the student's own address is read off the main thread, without holding up the mail`() {
+        credentials.mailStudentId = "B10000001"
+        credentials.mailPassword = "pw"
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hi", emptyList(), emptyMap())
+        val io = HeldDispatcher()
+        val vm = vm(io = io)
+        vm.load()
+        assertEquals(null, vm.state.value.selfAddress)
+        // The header is already up.
+        assertTrue(vm.state.value.content is Content.LoadingBody)
+
+        io.drain()
+        assertEquals("b10000001@mail.ntust.edu.tw", vm.state.value.selfAddress)
+    }
 
     @Test
     fun `sanitizing, the document build and the plain-text pass all wait on the IO dispatcher`() {

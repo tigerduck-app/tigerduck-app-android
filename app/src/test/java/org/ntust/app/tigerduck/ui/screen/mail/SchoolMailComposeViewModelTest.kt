@@ -32,8 +32,13 @@ import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
+import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.RecipientSlot
 import java.io.ByteArrayInputStream
 import org.ntust.app.tigerduck.mail.schoolMailSite
+
+/** The To field as it hands [value] over once it has been typed and the field left: one bubble per recipient. */
+private fun SchoolMailComposeViewModel.setTo(value: String) =
+    updateRecipients(RecipientSlot.TO) { RecipientField.of(value) }
 
 class SchoolMailComposeViewModelTest {
     @get:Rule val main = MainDispatcherRule()
@@ -84,7 +89,7 @@ class SchoolMailComposeViewModelTest {
         repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
         val vm = vm(ComposeMode.REPLY, "INBOX", 5)
         val s = vm.state.value
-        assertEquals("教務處 <office@mail.ntust.edu.tw>", s.to)
+        assertEquals("教務處 <office@mail.ntust.edu.tw>", s.to.text)
         assertEquals("Re: 期中考", s.subject)
         assertFalse(s.dirty)
 
@@ -159,7 +164,7 @@ class SchoolMailComposeViewModelTest {
 
         vm.setTo("typed@x.tw")
         assertTrue(vm.state.value.loadError != null)
-        assertEquals("typed@x.tw", vm.state.value.to)
+        assertEquals("typed@x.tw", vm.state.value.to.text)
 
         vm.addAttachments(listOf(ComposeAttachment("p", "p.txt", "text/plain", 2,
             ComposeAttachment.Source.Local { ByteArrayInputStream("hi".toByteArray()) })))
@@ -227,7 +232,7 @@ class SchoolMailComposeViewModelTest {
         val vm = vm(ComposeMode.NEW)
         vm.setTo("a@x.tw")
         vm.addPicked(emptyList())
-        assertEquals("a@x.tw", vm.state.value.to)
+        assertEquals("a@x.tw", vm.state.value.to.text)
         assertEquals(null, vm.state.value.error)
     }
 
@@ -318,7 +323,7 @@ class SchoolMailComposeViewModelTest {
         repo.add("草稿匣", mailSummary(9, subject = "draft", to = listOf(MailAddress(null, "a@x.tw"))))
         repo.bodies[9] = MailBody(null, "draft body", emptyList(), emptyMap())
         val saving = vm(ComposeMode.DRAFT, "草稿匣", 9)
-        assertEquals("a@x.tw", saving.state.value.to)
+        assertEquals("a@x.tw", saving.state.value.to.text)
         assertEquals("draft body", saving.state.value.body)
         saving.saveDraft()
         assertEquals(9L, repo.drafts.single().second)
@@ -382,13 +387,13 @@ class SchoolMailComposeViewModelTest {
         val vm = vm(ComposeMode.REPLY, "INBOX", 5)
         assertTrue(vm.state.value.loadError != null)
         assertFalse(vm.state.value.loading)
-        assertEquals("", vm.state.value.to)
+        assertEquals("", vm.state.value.to.text)
 
         repo.bodyError = null
         repo.bodies[5] = MailBody(null, "line1", emptyList(), emptyMap())
         vm.retryPrefill(labels)
         assertEquals(null, vm.state.value.loadError)
-        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm.state.value.to)
+        assertEquals("教務處 <office@mail.ntust.edu.tw>", vm.state.value.to.text)
     }
 
     @Test
@@ -490,5 +495,34 @@ class SchoolMailComposeViewModelTest {
         vm.discard()
         assertTrue(vm.state.value.done)
         assertTrue(repo.drafts.isEmpty())
+    }
+
+    /** Tapping a bubble to look at it takes it back into the text in its own place: nothing to save. */
+    @Test
+    fun `opening a recipient to edit it and leaving it again is not an edit`() {
+        val to = listOf(MailAddress(null, "a@x.tw"), MailAddress(null, "b@x.tw"), MailAddress(null, "c@x.tw"))
+        repo.add("草稿匣", mailSummary(9, subject = "draft", to = to))
+        repo.bodies[9] = MailBody(null, "draft body", emptyList(), emptyMap())
+        val vm = vm(ComposeMode.DRAFT, "草稿匣", 9)
+
+        val opened = vm.updateRecipients(RecipientSlot.TO) { it.edit(it.tokens.first().id) }
+        assertEquals("a@x.tw", opened.draft)
+        assertEquals("a@x.tw, b@x.tw, c@x.tw", vm.state.value.to.text)
+        assertFalse(vm.state.value.dirty)
+
+        vm.updateRecipients(RecipientSlot.TO) { it.finishDraft() }
+        assertEquals(listOf("a@x.tw", "b@x.tw", "c@x.tw"), vm.state.value.to.tokens.map { it.text })
+        assertFalse(vm.state.value.dirty)
+        vm.send()
+        assertEquals(listOf("a@x.tw", "b@x.tw", "c@x.tw"), repo.sent.single().first.to.map { it.address })
+    }
+
+    /** Each bubble is read on its own, so one with its quote left open is refused alone. */
+    @Test
+    fun `a recipient left unfinished does not swallow the ones after it`() {
+        val vm = vm(ComposeMode.NEW)
+        vm.updateRecipients(RecipientSlot.TO) { it.typed(listOf("\"Chen"), "").typed(listOf("bob@x.tw"), "") }
+        vm.send()
+        assertEquals(ComposeError.InvalidRecipients(listOf("\"Chen")), vm.state.value.error)
     }
 }

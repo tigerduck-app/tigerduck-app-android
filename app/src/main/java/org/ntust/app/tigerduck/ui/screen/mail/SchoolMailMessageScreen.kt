@@ -10,7 +10,6 @@ import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,8 +33,6 @@ import androidx.compose.material.icons.automirrored.filled.Forward
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.ReplyAll
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.ExpandLess
-import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ButtonDefaults
@@ -53,7 +50,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -67,7 +63,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -242,7 +237,7 @@ fun SchoolMailMessageScreen(
                 )
             }
             is Content.LoadingBody -> Column(Modifier.fillMaxSize().padding(padding)) {
-                MessageHeader(content.summary, viewModel.mailDomain)
+                MessageHeader(content.summary, viewModel.mailDomain, state.selfAddress)
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -261,7 +256,7 @@ fun SchoolMailMessageScreen(
                     modifier = Modifier.fillMaxSize().padding(padding).scrollbar(listState),
                     contentPadding = PaddingValues(bottom = 32.dp),
                 ) {
-                    item(key = "header") { MessageHeader(content.summary, viewModel.mailDomain) }
+                    item(key = "header") { MessageHeader(content.summary, viewModel.mailDomain, state.selfAddress) }
                     if (state.parseFailed) {
                         item(key = "parse-failed") { WarningCard(stringResource(R.string.school_mail_parse_failed), null) }
                     }
@@ -512,38 +507,12 @@ internal fun senderLines(from: MailAddress?): Pair<String?, String?> {
 }
 
 /**
- * Recipients as iOS prints them (`MailMessageView.swift`): the addresses, comma-joined. The name
- * stands in only where there is no address to show -- a `MailAddress` can legitimately carry a
- * display name and nothing routable -- and an entry with neither is dropped rather than
- * contributing an empty slot and a stray ", ,".
- */
-internal fun recipientText(addresses: List<MailAddress>): String =
-    recipientParts(addresses).joinToString(", ")
-
-/**
- * The *first* recipient alone, for the collapsed disclosure label.
- *
- * iOS's `DisclosureGroup` label is `summary.to?.first`, its content the whole joined list. Giving
- * the label the joined list too printed the identical line twice the moment it was expanded --
- * once ellipsised in the label, once in full underneath -- which is the same duplication the
- * sender lines were just fixed for.
- *
- * Empty when there is no recipient to name, which is exactly what iOS's `?? ""` produces.
- */
-internal fun recipientSummary(addresses: List<MailAddress>): String =
-    recipientParts(addresses).firstOrNull().orEmpty()
-
-private fun recipientParts(addresses: List<MailAddress>): List<String> =
-    addresses.mapNotNull { it.address.takeIf { a -> a.isNotBlank() } ?: it.name?.takeIf { n -> n.isNotBlank() } }
-
-/**
  * Sender name over its address, or just the address alone when there is no name to put it under;
- * recipients collapsed behind a tap, with the revealed addresses selectable.
+ * then a To and a Cc line, each only when it has somebody in it (see [MailRecipientRow]).
  */
 @Composable
-private fun MessageHeader(summary: MailSummary, mailDomain: String) {
+private fun MessageHeader(summary: MailSummary, mailDomain: String, selfAddress: String?) {
     val cs = MaterialTheme.colorScheme
-    var expanded by rememberSaveable { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             summary.subject.ifBlank { stringResource(R.string.school_mail_no_subject) },
@@ -575,56 +544,15 @@ private fun MessageHeader(summary: MailSummary, mailDomain: String) {
             }
         }
         Text(MailDateFormat.full(summary.sentAt ?: summary.receivedAt), style = MaterialTheme.typography.labelSmall, color = cs.outline)
-        val to = recipientText(summary.to)
-        val cc = recipientText(summary.cc)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            // minimumInteractiveComponentSize because this used to be a TextButton, which carried
-            // one: a labelMedium line and an 18dp chevron measure about 20dp, well under the 48dp
-            // a finger is entitled to. Role.Button so the row announces as something to press
-            // rather than as a stray line of text that happens to react.
-            modifier = Modifier
-                .minimumInteractiveComponentSize()
-                .clickable(role = Role.Button) { expanded = !expanded },
-        ) {
-            Text(
-                // The first recipient only, as iOS's DisclosureGroup label does. The full list
-                // lives in the expanded block below; printing it here as well showed the same
-                // line twice whenever the details were open.
-                stringResource(R.string.school_mail_details_to)
-                    .replaceIosArg(1, recipientSummary(summary.to)),
-                style = MaterialTheme.typography.labelMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                contentDescription = null,
-                tint = cs.outline,
-                modifier = Modifier.size(18.dp),
-            )
-        }
-        // The tap target above is the collapsed summary only, never selectable; the full
-        // addresses revealed here are selectable and never a tap target -- the same split as
-        // iOS's DisclosureGroup label vs. content, so there is no gesture conflict between
-        // toggling and selecting.
-        if (expanded) {
-            SelectionContainer {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        stringResource(R.string.school_mail_details_to).replaceIosArg(1, to),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                    if (cc.isNotEmpty()) {
-                        Text(
-                            stringResource(R.string.school_mail_details_cc).replaceIosArg(1, cc),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                }
-            }
-        }
+        // Each field has its own line and opens on its own, so a long Cc list never pushes the To
+        // line or the message off the screen. An empty field gets no line at all.
+        val to = MailRecipient.from(summary.to, selfAddress)
+        val cc = MailRecipient.from(summary.cc, selfAddress)
+        val toLabel = stringResource(R.string.school_mail_to)
+        val ccLabel = stringResource(R.string.school_mail_cc)
+        val labelWidth = recipientLabelWidth(toLabel, ccLabel)
+        if (to.isNotEmpty()) MailRecipientRow(toLabel, to, labelWidth = labelWidth)
+        if (cc.isNotEmpty()) MailRecipientRow(ccLabel, cc, labelWidth = labelWidth)
     }
 }
 
