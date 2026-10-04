@@ -14,11 +14,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -194,7 +199,24 @@ fun OnboardingScreen(
         // Scaffold with its own top bar and back affordance, and the
         // onboarding BackHandler above would otherwise page backwards out
         // from under it.
-        ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        //
+        // The editor's top bar takes no window insets of its own, because in
+        // the main app it is a NavHost destination the root Scaffold has
+        // already padded by the system bars. Nothing does that up here, so
+        // without this Box the back button and title sit under the status
+        // bar and the camera cutout. The padding mirrors the root Scaffold's
+        // — top and sides, over the page background — so the editor looks
+        // the same as when it is opened from Settings.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(
+                    WindowInsets.systemBars.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                )
+        ) {
+            ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        }
         return
     }
 
