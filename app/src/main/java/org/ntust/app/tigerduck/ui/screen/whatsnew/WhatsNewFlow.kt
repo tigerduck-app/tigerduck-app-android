@@ -28,6 +28,9 @@ class WhatsNewFlow(
          * are skipped: an answer the user already gave can flip a check, and
          * re-filtering would shift every page after it under their thumb.
          *
+         * Otherwise a page is dropped when it doesn't apply — on a replay
+         * too.
+         *
          * Null when nothing is left to show.
          */
         fun from(
@@ -39,7 +42,6 @@ class WhatsNewFlow(
             val pages = WhatsNewGate.collectPages(plan.pageVersions, catalog) { page ->
                 when {
                     restoredPageIds != null -> page.id in restoredPageIds
-                    plan.replay -> true
                     else -> page.isApplicable()
                 }
             }

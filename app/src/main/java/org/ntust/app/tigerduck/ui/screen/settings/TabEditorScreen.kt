@@ -56,8 +56,6 @@ import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
-private const val MAX_CUSTOM_TABS = 4
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TabEditorScreen(
@@ -235,7 +233,7 @@ fun TabEditorScreen(
 
             item {
                 Text(
-                    stringResource(R.string.tab_editor_max_items_hint, MAX_CUSTOM_TABS + 1),
+                    stringResource(R.string.tab_editor_max_items_hint, AppFeature.MAX_CUSTOM_TABS + 1),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -254,7 +252,7 @@ fun TabEditorScreen(
                             availableTabs.forEachIndexed { index, feature ->
                                 AvailableTabRow(
                                     feature = feature,
-                                    canAdd = activeTabs.size < MAX_CUSTOM_TABS,
+                                    canAdd = activeTabs.size < AppFeature.MAX_CUSTOM_TABS,
                                     onAdd = {
                                         save(activeTabs + feature)
                                     }

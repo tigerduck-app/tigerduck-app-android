@@ -36,13 +36,13 @@ class WhatsNewFlowTest {
     }
 
     @Test
-    fun `replay keeps every page`() {
+    fun `replay drops pages that do not apply too`() {
         val flow = WhatsNewFlow.from(
             Plan.Show(listOf(27), summaryVersion = null, replay = true),
             catalog,
             emptyMap(),
         )
-        assertEquals(listOf("a", "b"), flow?.pageIds)
+        assertEquals(listOf("a"), flow?.pageIds)
     }
 
     @Test

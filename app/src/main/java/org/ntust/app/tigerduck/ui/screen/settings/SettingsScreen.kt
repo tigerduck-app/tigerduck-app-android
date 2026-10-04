@@ -161,18 +161,32 @@ fun SettingsScreen(
     // unrelated config changes — font scale, screen size, dark-mode flip —
     // don't pointlessly re-parse the asset.
     val languageTag = context.resources.configuration.locales[0].toLanguageTag()
-    // The newest registered version's pages and summary, up to the installed
-    // one, with the pages' "only if this applies" checks skipped — the user
-    // asked to see it all.
-    val latestWhatsNew: WhatsNewFlow? = remember(whatsNewRepo, languageTag) {
-        val catalog = WhatsNewCatalog.pages(viewModel.appState)
-        val summaries = whatsNewRepo.summaries(languageTag)
-        WhatsNewGate.replay(catalog.keys, summaries.keys, upTo = BuildConfig.VERSION_CODE)
-            ?.let { WhatsNewFlow.from(it, catalog, summaries) }
+    val whatsNewCatalog = remember(viewModel.appState) { WhatsNewCatalog.pages(viewModel.appState) }
+    val whatsNewSummaries = remember(whatsNewRepo, languageTag) { whatsNewRepo.summaries(languageTag) }
+    val whatsNewReplay = remember(whatsNewCatalog, whatsNewSummaries) {
+        WhatsNewGate.replay(whatsNewCatalog.keys, whatsNewSummaries.keys, upTo = BuildConfig.VERSION_CODE)
     }
-    // Saveable so a rotation mid-replay keeps the sheet up; the flow itself
-    // is rebuilt from the catalog and asset above.
-    var manualWhatsNewVisible by rememberSaveable { mutableStateOf(false) }
+    // The newest registered version's pages and summary, up to the installed
+    // one, minus pages whose "only if this applies" check fails — the same
+    // pages an upgrade would show. Keyed on the bottom bar, which those checks
+    // read, so the row follows a change made since (in the tab editor, or by
+    // answering a page of this very replay).
+    val configuredTabs = viewModel.appState.configuredTabs
+    val latestWhatsNew: WhatsNewFlow? = remember(whatsNewReplay, configuredTabs, libraryEnabled) {
+        whatsNewReplay?.let { WhatsNewFlow.from(it, whatsNewCatalog, whatsNewSummaries) }
+    }
+    // The open sheet's page ids: fixed when the row is tapped and saved across
+    // a rotation, so the sheet keeps the same pages even after an answer in
+    // it flips a page's check — re-filtering would shift every page after it
+    // under the user's thumb. Null while the sheet is closed.
+    var manualWhatsNewPageIds by rememberSaveable { mutableStateOf<ArrayList<String>?>(null) }
+    val manualWhatsNew: WhatsNewFlow? = remember(whatsNewReplay, manualWhatsNewPageIds) {
+        manualWhatsNewPageIds?.let { ids ->
+            whatsNewReplay?.let {
+                WhatsNewFlow.from(it, whatsNewCatalog, whatsNewSummaries, restoredPageIds = ids)
+            }
+        }
+    }
 
     // Show network error as snackbar; clear after display so navigating
     // away and back doesn't re-surface a stale error.
@@ -569,7 +583,7 @@ fun SettingsScreen(
                         if (latestWhatsNew != null) {
                             HorizontalDivider()
                             SettingsLinkRow(stringResource(R.string.settings_whats_new)) {
-                                manualWhatsNewVisible = true
+                                manualWhatsNewPageIds = ArrayList(latestWhatsNew.pageIds)
                             }
                         }
                         HorizontalDivider()
@@ -751,10 +765,10 @@ fun SettingsScreen(
     // lastSeenWhatsNewVersionCode: this is a re-visit surface, and stamping
     // here would silently suppress the next auto-prompt after the user
     // browsed release notes from Settings.
-    if (manualWhatsNewVisible && latestWhatsNew != null) {
+    manualWhatsNew?.let { flow ->
         WhatsNewSheet(
-            flow = latestWhatsNew,
-            onDismiss = { manualWhatsNewVisible = false },
+            flow = flow,
+            onDismiss = { manualWhatsNewPageIds = null },
         )
     }
 }

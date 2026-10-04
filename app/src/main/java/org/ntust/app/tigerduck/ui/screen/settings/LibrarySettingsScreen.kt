@@ -114,7 +114,7 @@ fun LibrarySettingsScreen(
             onConfirm = {
                 viewModel.appState.libraryFeatureEnabled = true
                 if (!viewModel.appState.configuredTabs.contains(AppFeature.LIBRARY) &&
-                    viewModel.appState.configuredTabs.size < 4
+                    viewModel.appState.configuredTabs.size < AppFeature.MAX_CUSTOM_TABS
                 ) {
                     viewModel.appState.configuredTabs =
                         viewModel.appState.configuredTabs + AppFeature.LIBRARY

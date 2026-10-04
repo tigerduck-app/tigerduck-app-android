@@ -412,6 +412,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             prefs.edit().putString("configuredTabs", gson.toJson(value.map { it.id })).apply()
         }
 
+    /** Whether a bottom bar is stored at all — an untouched one isn't, and follows the default. */
+    val hasStoredConfiguredTabs: Boolean
+        get() = prefs.contains("configuredTabs")
+
+    /**
+     * Set once this install has been checked for an untouched bottom bar to
+     * keep when the default changed in 2.3.0 (see `AppState`). A flag rather
+     * than a [dataSchemaVersion] step, like [legacyNotificationChannelsDeleted]:
+     * a downgrade shouldn't get the reset prompt over a tab bar.
+     */
+    var previousDefaultTabsChecked: Boolean
+        get() = prefs.getBoolean("previousDefaultTabsChecked", false)
+        set(value) = prefs.edit().putBoolean("previousDefaultTabsChecked", value).apply()
+
     var invertSliderDirection: Boolean
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
