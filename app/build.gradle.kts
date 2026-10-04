@@ -140,6 +140,9 @@ android {
         create("play") {
             dimension = "distribution"
             // No suffix — this is the canonical applicationId.
+            // The variant Android Studio opens on. Without this AGP picks the
+            // first flavor alphabetically, which is fdroid.
+            isDefault = true
         }
         create("fdroid") {
             dimension = "distribution"

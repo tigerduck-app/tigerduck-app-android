@@ -216,10 +216,10 @@ cd tigerduck-app-android
 # Already cloned without --recurse-submodules? Pull them in:
 git submodule update --init --recursive
 
-# Open in Android Studio, or build directly with Gradle.
-# There are two product flavors — fdroid and play — pick one:
-./gradlew :app:assembleFdroidDebug   # or :app:assemblePlayDebug
-./gradlew :app:installFdroidDebug    # or :app:installPlayDebug
+# Open in Android Studio (it opens on playDebug), or build directly with Gradle.
+# There are two product flavors — play and fdroid — pick one:
+./gradlew :app:assemblePlayDebug     # or :app:assembleFdroidDebug
+./gradlew :app:installPlayDebug      # or :app:installFdroidDebug
 ```
 
 > 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (
