@@ -114,8 +114,10 @@ fun TriggersDebugScreen(
                 header = "What's New sample",
                 footer = "Opens the paged sheet with one page of every kind — feature, " +
                     "custom demo, opt-in, permission, pick-between-looks, toggle and a " +
-                    "custom page — then a sample summary. Answers change nothing; they " +
-                    "show up below.",
+                    "custom page — then a sample summary. Answers change no setting and " +
+                    "show up below, except the permission page: on Android 13+ it asks " +
+                    "for the real notification permission, which stays granted until " +
+                    "revoked in system settings.",
             ) {
                 Button(
                     onClick = { showWhatsNewSample = true },
