@@ -22,4 +22,17 @@ class WhatsNewTextTest {
             assertEquals(tag, "Reset Defaults", text.resolve(WhatsNewLanguage.of(tag)))
         }
     }
+
+    @Test
+    fun `the page position reads in the sheet's language, with the heading when there is one`() {
+        assertEquals(
+            "Page 2 of 4: Reset your bottom bar?",
+            pagePositionDescription(1, 4, "Reset your bottom bar?", WhatsNewLanguage.En),
+        )
+        assertEquals(
+            "第 2 頁，共 4 頁：要恢復預設的底部功能列嗎？",
+            pagePositionDescription(1, 4, "要恢復預設的底部功能列嗎？", WhatsNewLanguage.ZhHant),
+        )
+        assertEquals("Page 3 of 3", pagePositionDescription(2, 3, null, WhatsNewLanguage.En))
+    }
 }

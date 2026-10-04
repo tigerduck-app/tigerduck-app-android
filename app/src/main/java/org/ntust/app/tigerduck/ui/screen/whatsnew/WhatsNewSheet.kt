@@ -75,9 +75,12 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -158,9 +161,16 @@ private fun WhatsNewFlowContent(flow: WhatsNewFlow, onFinish: () -> Unit) {
                 }
             }
             if (flow.stepCount > 1) {
+                val language = LocalWhatsNewLanguage.current
                 PageDots(
                     count = flow.stepCount,
                     current = current,
+                    description = pagePositionDescription(
+                        step = current,
+                        count = flow.stepCount,
+                        title = stepTitle(flow, current, language),
+                        language = language,
+                    ),
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -647,11 +657,20 @@ private fun SummaryRow(item: WhatsNewSummaryItem) {
 
 // --- Shared pieces ---
 
+/**
+ * The dots stand in for the page position with TalkBack: one node reading
+ * [description] ("Page 2 of 4: <title>"). It stays put while pages slide
+ * under it, so as a polite live region its description changing is what
+ * announces each new page — focus otherwise stays on the Next button, which
+ * sits in the same place on every page.
+ */
 @Composable
-private fun PageDots(count: Int, current: Int, modifier: Modifier = Modifier) {
-    // Decorative: the page content itself is what a screen reader reads.
+private fun PageDots(count: Int, current: Int, description: String, modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.clearAndSetSemantics {},
+        modifier = modifier.clearAndSetSemantics {
+            contentDescription = description
+            liveRegion = LiveRegionMode.Polite
+        },
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -688,6 +707,42 @@ private fun ButtonArea(content: @Composable ColumnScope.() -> Unit) {
         verticalArrangement = Arrangement.spacedBy(4.dp),
         content = content,
     )
+}
+
+/**
+ * The page position TalkBack reads, in What's New's own two languages rather
+ * than through `app-translation`, followed by the step's heading when it has
+ * one (a custom page draws its own).
+ */
+internal fun pagePositionDescription(
+    step: Int,
+    count: Int,
+    title: String?,
+    language: WhatsNewLanguage,
+): String {
+    val position = WhatsNewText(
+        en = "Page ${step + 1} of $count",
+        zhHant = "第 ${step + 1} 頁，共 $count 頁",
+    ).resolve(language)
+    if (title == null) return position
+    return when (language) {
+        WhatsNewLanguage.ZhHant -> "$position：$title"
+        WhatsNewLanguage.En -> "$position: $title"
+    }
+}
+
+/** The heading of step [step]: a page's title, or the summary's. */
+private fun stepTitle(flow: WhatsNewFlow, step: Int, language: WhatsNewLanguage): String? {
+    val page = flow.pages.getOrNull(step) ?: return flow.summary?.title
+    val title = when (page) {
+        is WhatsNewPage.Feature -> page.title
+        is WhatsNewPage.OptIn -> page.title
+        is WhatsNewPage.Permission -> page.title
+        is WhatsNewPage.Choice -> page.title
+        is WhatsNewPage.Toggle -> page.title
+        is WhatsNewPage.Custom -> null
+    }
+    return title?.resolve(language)
 }
 
 /**
