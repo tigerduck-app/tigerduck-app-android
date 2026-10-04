@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Не вдалося додати</string>
     <string name="class_table_course_name">Назва курсу</string>
     <string name="class_table_delete">Видалити</string>
-    <string name="class_table_empty_message">Потягніть для оновлення, торкніться +, щоб додати курс, або перемкніться на інший семестр</string>
+    <string name="class_table_empty_message">Потягніть для оновлення, торкніться ⋯, щоб додати курс, або перемкніться на інший семестр</string>
+    <string name="class_table_export_failed">Не вдалося експортувати розклад</string>
+    <string name="class_table_export_screenshot">Експортувати знімок розкладу</string>
+    <string name="class_table_more_actions">Інші дії</string>
     <string name="class_table_pick_color">Вибрати колір</string>
     <string name="class_table_rename_default_label">За замовчуванням: %1$s</string>
     <string name="class_table_rename_revert">Повернути до типового</string>

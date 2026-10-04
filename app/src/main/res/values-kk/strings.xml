@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Қосу мүмкін емес</string>
     <string name="class_table_course_name">Курс атауы</string>
     <string name="class_table_delete">Жою</string>
-    <string name="class_table_empty_message">Жаңарту үшін төмен тартыңыз, курс қосу үшін + түймесін түртіңіз немесе басқа семестрге ауысыңыз</string>
+    <string name="class_table_empty_message">Жаңарту үшін төмен тартыңыз, курс қосу үшін ⋯ түймесін түртіңіз немесе басқа семестрге ауысыңыз</string>
+    <string name="class_table_export_failed">Сабақ кестесін экспорттау мүмкін болмады</string>
+    <string name="class_table_export_screenshot">Сабақ кестесінің скриншотын экспорттау</string>
+    <string name="class_table_more_actions">Көбірек әрекеттер</string>
     <string name="class_table_pick_color">Түс таңдау</string>
     <string name="class_table_rename_default_label">Әдепкі: %1$s</string>
     <string name="class_table_rename_revert">Әдепкіге қайтару</string>

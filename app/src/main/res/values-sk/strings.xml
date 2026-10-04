@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nedá sa pridať</string>
     <string name="class_table_course_name">Názov kurzu</string>
     <string name="class_table_delete">Odstrániť</string>
-    <string name="class_table_empty_message">Potiahnutím obnovíte, klepnutím na + pridajte kurz alebo prepnite na iný semester</string>
+    <string name="class_table_empty_message">Potiahnutím obnovíte, klepnutím na ⋯ pridajte kurz alebo prepnite na iný semester</string>
+    <string name="class_table_export_failed">Rozvrh sa nepodarilo exportovať</string>
+    <string name="class_table_export_screenshot">Exportovať snímku rozvrhu</string>
+    <string name="class_table_more_actions">Ďalšie akcie</string>
     <string name="class_table_pick_color">Vybrať farbu</string>
     <string name="class_table_rename_default_label">Predvolené: %1$s</string>
     <string name="class_table_rename_revert">Obnoviť predvolené</string>

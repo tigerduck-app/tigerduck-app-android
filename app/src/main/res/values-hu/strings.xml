@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nem adható hozzá</string>
     <string name="class_table_course_name">Kurzus neve</string>
     <string name="class_table_delete">Törlés</string>
-    <string name="class_table_empty_message">Húzza le a frissítéshez, koppintson a + gombra kurzus hozzáadásához, vagy váltson másik félévre</string>
+    <string name="class_table_empty_message">Húzza le a frissítéshez, koppintson a ⋯ gombra kurzus hozzáadásához, vagy váltson másik félévre</string>
+    <string name="class_table_export_failed">Az órarend exportálása nem sikerült</string>
+    <string name="class_table_export_screenshot">Órarend exportálása képként</string>
+    <string name="class_table_more_actions">További műveletek</string>
     <string name="class_table_pick_color">Szín kiválasztása</string>
     <string name="class_table_rename_default_label">Alapértelmezett: %1$s</string>
     <string name="class_table_rename_revert">Alapértelmezett visszaállítása</string>

@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Αδύνατη η προσθήκη</string>
     <string name="class_table_course_name">Όνομα μαθήματος</string>
     <string name="class_table_delete">Διαγραφή</string>
-    <string name="class_table_empty_message">Τραβήξτε για ανανέωση, πατήστε το + για προσθήκη μαθήματος ή αλλάξτε σε άλλο εξάμηνο</string>
+    <string name="class_table_empty_message">Τραβήξτε για ανανέωση, πατήστε το ⋯ για προσθήκη μαθήματος ή αλλάξτε σε άλλο εξάμηνο</string>
+    <string name="class_table_export_failed">Δεν ήταν δυνατή η εξαγωγή του προγράμματος μαθημάτων</string>
+    <string name="class_table_export_screenshot">Εξαγωγή στιγμιότυπου του προγράμματος μαθημάτων</string>
+    <string name="class_table_more_actions">Περισσότερες ενέργειες</string>
     <string name="class_table_pick_color">Επιλογή χρώματος</string>
     <string name="class_table_rename_default_label">Προεπιλογή: %1$s</string>
     <string name="class_table_rename_revert">Επαναφορά προεπιλογής</string>

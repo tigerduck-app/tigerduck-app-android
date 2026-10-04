@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">ਜੋੜਨ ਵਿੱਚ ਅਸਮਰੱਥ</string>
     <string name="class_table_course_name">ਕੋਰਸ ਦਾ ਨਾਂ</string>
     <string name="class_table_delete">ਮਿਟਾਓ</string>
-    <string name="class_table_empty_message">ਰਿਫ੍ਰੈਸ਼ ਕਰਨ ਲਈ ਖਿੱਚੋ, ਕੋਰਸ ਜੋੜਨ ਲਈ + ਟੈਪ ਕਰੋ, ਜਾਂ ਕਿਸੇ ਹੋਰ ਸਮੈਸਟਰ \'ਤੇ ਸਵਿੱਚ ਕਰੋ</string>
+    <string name="class_table_empty_message">ਰਿਫ੍ਰੈਸ਼ ਕਰਨ ਲਈ ਖਿੱਚੋ, ਕੋਰਸ ਜੋੜਨ ਲਈ ⋯ ਟੈਪ ਕਰੋ, ਜਾਂ ਕਿਸੇ ਹੋਰ ਸਮੈਸਟਰ \'ਤੇ ਸਵਿੱਚ ਕਰੋ</string>
+    <string name="class_table_export_failed">ਕਲਾਸ ਸਾਰਣੀ ਨਿਰਯਾਤ ਨਹੀਂ ਹੋ ਸਕੀ</string>
+    <string name="class_table_export_screenshot">ਕਲਾਸ ਸਾਰਣੀ ਦਾ ਸਕ੍ਰੀਨਸ਼ਾਟ ਨਿਰਯਾਤ ਕਰੋ</string>
+    <string name="class_table_more_actions">ਹੋਰ ਕਾਰਵਾਈਆਂ</string>
     <string name="class_table_pick_color">ਰੰਗ ਚੁਣੋ</string>
     <string name="class_table_rename_default_label">ਡਿਫਾਲਟ: %1$s</string>
     <string name="class_table_rename_revert">ਡਿਫਾਲਟ \'ਤੇ ਵਾਪਸ ਜਾਓ</string>

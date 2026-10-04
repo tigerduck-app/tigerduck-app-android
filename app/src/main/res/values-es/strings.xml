@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">No se puede agregar</string>
     <string name="class_table_course_name">Nombre del curso</string>
     <string name="class_table_delete">Eliminar</string>
-    <string name="class_table_empty_message">Desliza hacia abajo para actualizar, toca + para añadir un curso o cambia a otro semestre</string>
+    <string name="class_table_empty_message">Desliza hacia abajo para actualizar, toca ⋯ para añadir un curso o cambia a otro semestre</string>
+    <string name="class_table_export_failed">No se pudo exportar el horario</string>
+    <string name="class_table_export_screenshot">Exportar captura del horario</string>
+    <string name="class_table_more_actions">Más acciones</string>
     <string name="class_table_pick_color">Elegir color</string>
     <string name="class_table_rename_default_label">Predeterminado: %1$s</string>
     <string name="class_table_rename_revert">Restablecer predeterminado</string>

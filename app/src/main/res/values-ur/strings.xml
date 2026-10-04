@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">شامل نہیں کیا جا سکتا</string>
     <string name="class_table_course_name">کورس کا نام</string>
     <string name="class_table_delete">حذف کریں</string>
-    <string name="class_table_empty_message">ریفریش کے لیے کھینچیں، کورس شامل کرنے کے لیے + پر ٹیپ کریں، یا کسی اور سمسٹر میں تبدیل کریں</string>
+    <string name="class_table_empty_message">ریفریش کے لیے کھینچیں، کورس شامل کرنے کے لیے ⋯ پر ٹیپ کریں، یا کسی اور سمسٹر میں تبدیل کریں</string>
+    <string name="class_table_export_failed">کلاس شیڈول برآمد نہیں ہو سکا</string>
+    <string name="class_table_export_screenshot">کلاس شیڈول کا اسکرین شاٹ برآمد کریں</string>
+    <string name="class_table_more_actions">مزید کارروائیاں</string>
     <string name="class_table_pick_color">رنگ چنیں</string>
     <string name="class_table_rename_default_label">ڈیفالٹ: %1$s</string>
     <string name="class_table_rename_revert">ڈیفالٹ پر واپس جائیں</string>

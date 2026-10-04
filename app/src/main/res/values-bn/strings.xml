@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">যোগ করা যাচ্ছে না</string>
     <string name="class_table_course_name">কোর্সের নাম</string>
     <string name="class_table_delete">মুছুন</string>
-    <string name="class_table_empty_message">রিফ্রেশ করতে টানুন, কোর্স যোগ করতে + চাপুন, অথবা অন্য সেমিস্টারে পরিবর্তন করুন</string>
+    <string name="class_table_empty_message">রিফ্রেশ করতে টানুন, কোর্স যোগ করতে ⋯ চাপুন, অথবা অন্য সেমিস্টারে পরিবর্তন করুন</string>
+    <string name="class_table_export_failed">ক্লাস তালিকা রপ্তানি করা যায়নি</string>
+    <string name="class_table_export_screenshot">ক্লাস তালিকার স্ক্রিনশট রপ্তানি করুন</string>
+    <string name="class_table_more_actions">আরও কার্যক্রম</string>
     <string name="class_table_pick_color">রং বেছে নিন</string>
     <string name="class_table_rename_default_label">ডিফল্ট: %1$s</string>
     <string name="class_table_rename_revert">ডিফল্টে ফিরে যান</string>

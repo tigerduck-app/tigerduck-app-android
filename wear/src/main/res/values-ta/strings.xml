@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">சேர்க்க முடியவில்லை</string>
     <string name="class_table_course_name">வகுப்பின் பெயர்</string>
     <string name="class_table_delete">நீக்கு</string>
-    <string name="class_table_empty_message">புதுப்பிக்க இழுக்கவும், வகுப்பு சேர்க்க + தட்டவும், அல்லது வேறு பருவத்திற்கு மாறவும்</string>
+    <string name="class_table_empty_message">புதுப்பிக்க இழுக்கவும், வகுப்பு சேர்க்க ⋯ தட்டவும், அல்லது வேறு பருவத்திற்கு மாறவும்</string>
+    <string name="class_table_export_failed">வகுப்பு அட்டவணையை ஏற்றுமதி செய்ய முடியவில்லை</string>
+    <string name="class_table_export_screenshot">வகுப்பு அட்டவணையின் திரைப்பிடிப்பை ஏற்றுமதி செய்</string>
+    <string name="class_table_more_actions">மேலும் செயல்கள்</string>
     <string name="class_table_pick_color">நிறம் தேர்வு</string>
     <string name="class_table_rename_default_label">இயல்புநிலை: %1$s</string>
     <string name="class_table_rename_revert">இயல்புநிலைக்கு மீட்டமை</string>

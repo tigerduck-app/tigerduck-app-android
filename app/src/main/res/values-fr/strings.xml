@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Impossible d\'ajouter</string>
     <string name="class_table_course_name">Nom du cours</string>
     <string name="class_table_delete">Supprimer</string>
-    <string name="class_table_empty_message">Tirez vers le bas pour actualiser, appuyez sur + pour ajouter un cours, ou changez de semestre</string>
+    <string name="class_table_empty_message">Tirez vers le bas pour actualiser, appuyez sur ⋯ pour ajouter un cours, ou changez de semestre</string>
+    <string name="class_table_export_failed">Impossible d\'exporter l\'emploi du temps</string>
+    <string name="class_table_export_screenshot">Exporter une capture de l\'emploi du temps</string>
+    <string name="class_table_more_actions">Plus d\'actions</string>
     <string name="class_table_pick_color">Choisir une couleur</string>
     <string name="class_table_rename_default_label">Par défaut : %1$s</string>
     <string name="class_table_rename_revert">Rétablir par défaut</string>

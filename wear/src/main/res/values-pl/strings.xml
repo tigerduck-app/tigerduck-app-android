@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nie można dodać</string>
     <string name="class_table_course_name">Nazwa przedmiotu</string>
     <string name="class_table_delete">Usuń</string>
-    <string name="class_table_empty_message">Pociągnij, aby odświeżyć, stuknij +, aby dodać kurs, lub przełącz się na inny semestr</string>
+    <string name="class_table_empty_message">Pociągnij, aby odświeżyć, stuknij ⋯, aby dodać kurs, lub przełącz się na inny semestr</string>
+    <string name="class_table_export_failed">Nie udało się wyeksportować planu zajęć</string>
+    <string name="class_table_export_screenshot">Eksportuj zrzut ekranu planu zajęć</string>
+    <string name="class_table_more_actions">Więcej działań</string>
     <string name="class_table_pick_color">Wybierz kolor</string>
     <string name="class_table_rename_default_label">Domyślnie: %1$s</string>
     <string name="class_table_rename_revert">Przywróć domyślne</string>
