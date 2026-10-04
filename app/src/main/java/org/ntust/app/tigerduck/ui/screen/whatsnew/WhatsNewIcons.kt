@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.TableChart
@@ -43,6 +44,7 @@ object WhatsNewIcons {
         "qr" to Icons.Filled.QrCode2,
         "search" to Icons.Filled.Search,
         "settings" to Icons.Filled.Settings,
+        "share" to Icons.Filled.Share,
         "sparkles" to Icons.Filled.AutoAwesome,
         "speed" to Icons.Filled.Speed,
         "sync" to Icons.Filled.Sync,
