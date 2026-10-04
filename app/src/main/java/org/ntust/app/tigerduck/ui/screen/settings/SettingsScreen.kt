@@ -63,12 +63,14 @@ import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.mail.ForgotMailPasswordLink
 import org.ntust.app.tigerduck.ui.screen.mail.MailAccountViewModel
 import org.ntust.app.tigerduck.ui.screen.mail.messageRes
-import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.data.model.ManualCheckResult
 import org.ntust.app.tigerduck.update.UpdateChecker
-import org.ntust.app.tigerduck.data.model.WhatsNewContent
+import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
 import org.ntust.app.tigerduck.util.replaceIosArg
 import java.util.Locale
@@ -158,8 +160,13 @@ fun SettingsScreen(
     // unrelated config changes — font scale, screen size, dark-mode flip —
     // don't pointlessly re-parse the asset.
     val languageTag = context.resources.configuration.locales[0].toLanguageTag()
-    val latestWhatsNew: WhatsNewContent? = remember(whatsNewRepo, languageTag) {
-        whatsNewRepo.latestEntry(languageTag)
+    // The newest registered version's pages and summary, with the pages'
+    // "only if this applies" checks skipped — the user asked to see it all.
+    val latestWhatsNew: WhatsNewFlow? = remember(whatsNewRepo, languageTag) {
+        val catalog = WhatsNewCatalog.pages(viewModel.appState)
+        val summaries = whatsNewRepo.summaries(languageTag)
+        WhatsNewGate.replay(catalog.keys, summaries.keys)
+            ?.let { WhatsNewFlow.from(it, catalog, summaries) }
     }
     var manualWhatsNewVisible by remember { mutableStateOf(false) }
 
@@ -550,9 +557,9 @@ fun SettingsScreen(
                         SettingsLinkRow(stringResource(R.string.settings_check_server_status)) {
                             openUrl(context, "https://status.tigerduck.app/", browserPreference)
                         }
-                        // What's New — only when an entry is registered for
-                        // the resolved locale. During early bring-up of a
-                        // release the asset may not yet have an entry; in
+                        // What's New — only when pages or a summary are
+                        // registered for the resolved locale. During early
+                        // bring-up of a release there may be neither; in
                         // that case we hide the row instead of routing the
                         // user to an empty sheet.
                         if (latestWhatsNew != null) {
@@ -735,14 +742,14 @@ fun SettingsScreen(
         )
     }
 
-    // Manual "What's New" — always opens the latest authored entry, even
-    // if the auto-launch path already showed it. Does NOT stamp
+    // Manual "What's New" — always opens the latest registered version,
+    // even if the auto-launch path already showed it. Does NOT stamp
     // lastSeenWhatsNewVersionCode: this is a re-visit surface, and stamping
     // here would silently suppress the next auto-prompt after the user
     // browsed release notes from Settings.
     if (manualWhatsNewVisible && latestWhatsNew != null) {
-        WhatsNewDialog(
-            content = latestWhatsNew,
+        WhatsNewSheet(
+            flow = latestWhatsNew,
             onDismiss = { manualWhatsNewVisible = false },
         )
     }

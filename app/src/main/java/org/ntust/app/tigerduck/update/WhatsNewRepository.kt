@@ -6,14 +6,19 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.model.WhatsNewContent
+import org.ntust.app.tigerduck.data.model.WhatsNewItemContent
+import org.ntust.app.tigerduck.data.model.WhatsNewSummary
+import org.ntust.app.tigerduck.data.model.WhatsNewSummaryItem
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
-import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.parse
+import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.parseAll
 import org.ntust.app.tigerduck.update.WhatsNewRepository.Companion.select
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Loads maintainer-authored "What's new" content from `assets/whatsnew.json`.
+ * Loads the maintainer-authored summary page ("What's new in X") from
+ * `assets/whatsnew.json`. The feature pages shown before it live in code, in
+ * `WhatsNewCatalog`.
  *
  * The JSON is an object keyed by versionCode string; each version holds a
  * per-locale map (`zh-Hant`, `en`) of [WhatsNewContent].
@@ -23,25 +28,12 @@ class WhatsNewRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
     /**
-     * The [WhatsNewContent] for [versionCode] in the locale implied by
-     * [languageTag], or null if the asset is missing/malformed, has no entry
-     * for the version, or the entry is empty.
+     * Every usable summary in the locale implied by [languageTag], keyed by
+     * versionCode. Empty if the asset is missing or malformed.
      */
-    fun entryFor(versionCode: Int, languageTag: String): WhatsNewContent? {
-        val json = readAsset() ?: return null
-        return parse(json, versionCode, languageTag)
-    }
-
-    /**
-     * The [WhatsNewContent] for the newest versionCode present in the asset,
-     * ignoring the running build's versionCode. Backs the debug "Replay What's
-     * new" action, which must preview the latest authored entry even on a build
-     * whose versionCode predates it. Null if the asset is missing/malformed or
-     * holds no usable entry.
-     */
-    fun latestEntry(languageTag: String): WhatsNewContent? {
-        val json = readAsset() ?: return null
-        return parseLatest(json, languageTag)
+    fun summaries(languageTag: String): Map<Int, WhatsNewSummary> {
+        val json = readAsset() ?: return emptyMap()
+        return parseAll(json, languageTag)
     }
 
     private fun readAsset(): String? = runCatching {
@@ -57,25 +49,24 @@ class WhatsNewRepository @Inject constructor(
         private val gson = Gson()
 
         /**
-         * Pure parse step for [entryFor] — no Android dependencies,
-         * unit-testable. See [select] for locale resolution.
+         * Pure parse step for [summaries] — no Android dependencies,
+         * unit-testable. A version whose key isn't a number, or whose entry
+         * has no usable text in the resolved locale, is left out. See [select]
+         * for locale resolution.
          */
-        fun parse(json: String, versionCode: Int, languageTag: String): WhatsNewContent? {
-            val byVersion = deserialize(json) ?: return null
-            return select(byVersion[versionCode.toString()], languageTag)
+        fun parseAll(json: String, languageTag: String): Map<Int, WhatsNewSummary> {
+            val byVersion = deserialize(json) ?: return emptyMap()
+            return buildMap {
+                for ((key, versionEntry) in byVersion) {
+                    val versionCode = key.toIntOrNull() ?: continue
+                    select(versionEntry, versionCode, languageTag)?.let { put(versionCode, it) }
+                }
+            }
         }
 
-        /**
-         * Pure variant of [parse] for the highest versionCode present in the
-         * asset — see [latestEntry]. Null if the asset is malformed or has no
-         * numeric version key.
-         */
-        fun parseLatest(json: String, languageTag: String): WhatsNewContent? {
-            val byVersion = deserialize(json) ?: return null
-            val latestKey =
-                byVersion.keys.mapNotNull(String::toIntOrNull).maxOrNull() ?: return null
-            return select(byVersion[latestKey.toString()], languageTag)
-        }
+        /** [parseAll] narrowed to one version. */
+        fun parse(json: String, versionCode: Int, languageTag: String): WhatsNewSummary? =
+            parseAll(json, languageTag)[versionCode]
 
         private fun deserialize(json: String): Map<String, Map<String, WhatsNewContent>>? {
             val type = object : TypeToken<Map<String, Map<String, WhatsNewContent>>>() {}.type
@@ -86,21 +77,47 @@ class WhatsNewRepository @Inject constructor(
 
         /**
          * Picks the localized [WhatsNewContent] out of one version's per-locale
-         * map. Any Chinese [languageTag] — `zh-*` and Cantonese `yue-HK`
-         * alike, per [AppLanguageManager.isChineseLanguageTag] — maps to the
-         * `zh-Hant` block; everything else falls back to `en`. An entry with
-         * no usable text is treated as absent.
+         * map and resolves it into a [WhatsNewSummary]. Any Chinese
+         * [languageTag] — `zh-*` and Cantonese `yue-HK` alike, per
+         * [AppLanguageManager.isChineseLanguageTag] — maps to the `zh-Hant`
+         * block; everything else falls back to `en`. An entry with a blank
+         * title or no usable row is treated as absent.
          */
         private fun select(
             versionEntry: Map<String, WhatsNewContent>?,
+            versionCode: Int,
             languageTag: String,
-        ): WhatsNewContent? {
+        ): WhatsNewSummary? {
             versionEntry ?: return null
             val localeKey =
                 if (AppLanguageManager.isChineseLanguageTag(languageTag)) "zh-Hant" else "en"
             val content = versionEntry[localeKey] ?: versionEntry["en"] ?: return null
-            if (content.title.isNullOrBlank() || content.highlights.isNullOrEmpty()) return null
-            return content
+            val title = content.title.trimToNull() ?: return null
+            val items = resolveItems(content)
+            if (items.isEmpty()) return null
+            return WhatsNewSummary(versionCode = versionCode, title = title, items = items)
         }
+
+        /**
+         * [WhatsNewContent.items] when it has a usable row, otherwise the
+         * legacy [WhatsNewContent.highlights] as body-only rows. Gson fills a
+         * stray `null` array element with null despite the non-null element
+         * type, hence the nullable lambda parameters.
+         */
+        private fun resolveItems(content: WhatsNewContent): List<WhatsNewSummaryItem> {
+            val items = content.items.orEmpty().mapNotNull { item: Any? ->
+                val row = item as? WhatsNewItemContent ?: return@mapNotNull null
+                val title = row.title.trimToNull()
+                val body = row.body.trimToNull()
+                if (title == null && body == null) return@mapNotNull null
+                WhatsNewSummaryItem(title = title, body = body, icon = row.icon.trimToNull())
+            }
+            if (items.isNotEmpty()) return items
+            return content.highlights.orEmpty()
+                .mapNotNull { line: String? -> line.trimToNull() }
+                .map { WhatsNewSummaryItem(title = null, body = it, icon = null) }
+        }
+
+        private fun String?.trimToNull(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
     }
 }
