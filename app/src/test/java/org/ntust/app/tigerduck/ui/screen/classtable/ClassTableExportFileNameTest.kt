@@ -12,13 +12,23 @@ class ClassTableExportFileNameTest {
 
     @Test
     fun `the name carries the title, the term and the student id`() {
-        assertEquals("課表 114-2 B11315000.png", classTableExportFileName("課表", "114-2", "B11315000"))
+        assertEquals("課表_114-2_B11315000.png", classTableExportFileName("課表", "114-2", "B11315000"))
     }
 
     @Test
-    fun `a missing student id is dropped, not left as a trailing space`() {
-        assertEquals("課表 114-2.png", classTableExportFileName("課表", "114-2", null))
-        assertEquals("課表 114-2.png", classTableExportFileName("課表", "114-2", ""))
+    fun `a missing student id is dropped, not left as a trailing underscore`() {
+        assertEquals("課表_114-2.png", classTableExportFileName("課表", "114-2", null))
+        assertEquals("課表_114-2.png", classTableExportFileName("課表", "114-2", ""))
+    }
+
+    /**
+     * The English title is "Class table": a space inside a part has to go as
+     * well, not only the ones between parts.
+     */
+    @Test
+    fun `spaces become underscores, runs and ends included`() {
+        assertEquals("Class_table_114-2.png", classTableExportFileName("Class table", "114-2", null))
+        assertEquals("Class_table_114-2.png", classTableExportFileName(" Class   table ", "114-2", null))
     }
 
     /**
@@ -26,11 +36,10 @@ class ClassTableExportFileNameTest {
      * put the file in a directory that does not exist.
      */
     @Test
-    fun `path characters are stripped, spaces inside a part are kept`() {
+    fun `path characters are stripped`() {
         assertEquals(
-            "Class tableTimetable 114-2 B11315000.png",
+            "Class_tableTimetable_114-2_B11315000.png",
             classTableExportFileName("Class table/Timetable", "114-2", "B11315000"),
         )
-        assertEquals("Class table 114-2.png", classTableExportFileName("Class table", "114-2", null))
     }
 }

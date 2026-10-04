@@ -163,18 +163,26 @@ internal fun OffscreenCapture(
 }
 
 /**
- * "課表 114-2 B11315000.png": the name the file keeps wherever it is saved or
- * sent, so it says what it is and whose. Spaces between the parts, because
- * the term label already carries a dash. The student id is left out, not
- * left as a trailing space, when there is none.
+ * "課表_114-2_B11315000.png": the name the file keeps wherever it is saved or
+ * sent, so it says what it is and whose. Underscores, never spaces — between
+ * the parts and inside them ("Class_table") — so the name survives a URL or a
+ * command line without quoting or %20. The student id is left out, not left
+ * as a trailing underscore, when there is none.
  */
 internal fun classTableExportFileName(title: String, semesterLabel: String, studentId: String?): String =
     listOf(title, semesterLabel, studentId.orEmpty())
         // Path separators, the characters FAT-formatted storage refuses, and
-        // line breaks — a translation could carry any of them.
-        .map { part -> part.filterNot { it in "/\\:*?\"<>|" || it.isISOControl() }.trim() }
+        // control characters — a translation could carry any of them.
+        .map { part ->
+            part.filterNot { it in "/\\:*?\"<>|" || it.isISOControl() }
+                .split(WHITESPACE)
+                .filter { it.isNotEmpty() }
+                .joinToString("_")
+        }
         .filter { it.isNotEmpty() }
-        .joinToString(" ") + ".png"
+        .joinToString("_") + ".png"
+
+private val WHITESPACE = Regex("\\s+")
 
 /** Writes [bitmap] as a PNG under the export directory and returns the file. */
 internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap, fileName: String): File =
