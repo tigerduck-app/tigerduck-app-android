@@ -9,8 +9,6 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -70,9 +68,8 @@ class FcmService : FirebaseMessagingService() {
         val forceRing = data["force_ring"]?.lowercase() in setOf("true", "1")
         when (data["kind"]) {
             "sync_trigger" -> {
-                Log.d(TAG, "Silent sync trigger received — enqueuing background sync")
-                WorkManager.getInstance(this)
-                    .enqueue(OneTimeWorkRequestBuilder<BackgroundSyncWorker>().build())
+                Log.d(TAG, "Silent sync trigger received — requesting background sync")
+                BackgroundSyncWorker.requestSync(this)
                 return
             }
             "custom_push_bulletin" -> {

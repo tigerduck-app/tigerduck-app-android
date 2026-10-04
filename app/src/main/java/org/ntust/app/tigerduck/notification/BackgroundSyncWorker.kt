@@ -3,13 +3,19 @@ package org.ntust.app.tigerduck.notification
 import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
+import androidx.work.ListenableWorker
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -81,7 +87,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
         widgetUpdater.updateAll()
         dataCache.notifyBackgroundSyncComplete()
 
-        return if (coursesOk && assignmentsOk) Result.success() else Result.retry()
+        if (coursesOk && assignmentsOk) return Result.success()
+        return resultForFailedSync(inputData.getBoolean(KEY_TRIGGERED, false), runAttemptCount)
     }
 
     private suspend fun syncOverridesFromBackend() {
@@ -429,8 +436,100 @@ class BackgroundSyncWorker @AssistedInject constructor(
             )
         }
 
+        // Called on sign-out, so it stops the triggered syncs as well as the
+        // periodic one: a triggered sync left running went on writing the
+        // departing account's courses and assignments over the cache
+        // AuthService.logout() was clearing.
         fun cancel(context: Context) {
-            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_NAME)
+            val workManager = WorkManager.getInstance(context)
+            workManager.cancelUniqueWork(UNIQUE_NAME)
+            workManager.cancelUniqueWork(TRIGGER_UNIQUE_NAME)
         }
+
+        // A server sync trigger asks for a sync rather than adding one: FCM
+        // can deliver several in a burst, and each run syncs the backend and
+        // Moodle in full. Network-bound, so a run never starts offline only
+        // to fail.
+        private const val TRIGGER_UNIQUE_NAME = "sync_trigger"
+        private const val KEY_TRIGGERED = "triggered"
+
+        // Under the backoff requestSync sets, a triggered run that keeps
+        // failing tries again after 30 s, 1 min and 2 min, then gives up:
+        // three and a half minutes of waiting in all, against the hours an
+        // unbounded retry reaches.
+        private const val TRIGGERED_RETRIES = 3
+        private const val TRIGGERED_BACKOFF_SECONDS = 30L
+
+        fun requestSync(context: Context) {
+            val workManager = WorkManager.getInstance(context)
+            // Called from FcmService, where a throw takes the process down,
+            // and which hands over one message at a time, so a wait here
+            // holds up every push behind this one; the read gives up after
+            // two seconds.
+            val states = runCatching {
+                workManager.getWorkInfosForUniqueWork(TRIGGER_UNIQUE_NAME)
+                    .get(2, TimeUnit.SECONDS)
+                    .map { it.state }
+            }.getOrElse { e ->
+                Log.w(TAG, "could not read queued syncs", e)
+                null
+            }
+            // Unread, the queue is appended to rather than kept: KEEP would
+            // drop this trigger whenever a sync is running, though that sync
+            // may have fetched before the change it announces. Appending
+            // queues a sync when none is queued and a follow-up when one is
+            // running, and with one already waiting it costs one extra sync,
+            // but it never drops a trigger.
+            val policy = if (states == null) {
+                ExistingWorkPolicy.APPEND_OR_REPLACE
+            } else {
+                triggerPolicy(states) ?: return
+            }
+            val request = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .setInputData(workDataOf(KEY_TRIGGERED to true))
+                // WorkManager's default today, set here because the bound
+                // on a triggered run's retries is reasoned from it.
+                .setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    TRIGGERED_BACKOFF_SECONDS, TimeUnit.SECONDS,
+                )
+                .build()
+            workManager.enqueueUniqueWork(TRIGGER_UNIQUE_NAME, policy, request)
+        }
+
+        /**
+         * How a sync trigger joins the triggered syncs in [states], or null
+         * when it need not queue one. A sync still waiting to start fetches
+         * whatever the trigger announces. One already running may have
+         * fetched before that change landed, so the trigger queues one
+         * follow-up behind it — which the next trigger then finds waiting.
+         */
+        internal fun triggerPolicy(states: List<WorkInfo.State>): ExistingWorkPolicy? = when {
+            states.any { it == WorkInfo.State.ENQUEUED || it == WorkInfo.State.BLOCKED } -> null
+            WorkInfo.State.RUNNING in states -> ExistingWorkPolicy.APPEND_OR_REPLACE
+            else -> ExistingWorkPolicy.KEEP
+        }
+
+        /**
+         * What a run that could not fetch courses or assignments reports.
+         * The periodic run retries on its own schedule. A triggered run
+         * retries [TRIGGERED_RETRIES] times and then gives up: given up at
+         * once, a school server that was down for a minute left the change
+         * the trigger announced missing until the next trigger or the
+         * hourly run; retried without end, its backoff grows to hours, and
+         * every trigger in the meantime is dropped behind it (requestSync
+         * drops one that finds a sync queued).
+         */
+        internal fun resultForFailedSync(triggered: Boolean, runAttemptCount: Int): ListenableWorker.Result =
+            if (triggered && runAttemptCount >= TRIGGERED_RETRIES) {
+                ListenableWorker.Result.success()
+            } else {
+                ListenableWorker.Result.retry()
+            }
     }
 }
