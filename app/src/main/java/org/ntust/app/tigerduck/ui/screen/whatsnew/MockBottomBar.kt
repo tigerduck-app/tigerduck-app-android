@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -27,27 +28,36 @@ import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.navigation.icon
 
+private val yoursCaption = WhatsNewText(en = "Your bottom bar", zhHant = "目前的底部功能列")
+private val beforeCaption = WhatsNewText(en = "Before", zhHant = "調整前")
+private val afterCaption = WhatsNewText(en = "After", zhHant = "調整後")
+
 /**
  * The demo for a page that offers to change the bottom bar: [before] above
  * [after], both on screen at once. Tabs leaving are drawn selected in Before,
  * tabs arriving in After. When the two match — a replay on a bar that
  * already is the offered one, or Back after confirming — just the one bar
- * shows.
+ * shows. TalkBack reads it as one node listing both bars
+ * ([spokenBarChange]), so the tab a change would remove is heard, not just
+ * seen.
  */
 @Composable
 internal fun BottomBarChangeDemo(before: List<AppFeature>, after: List<AppFeature>) {
+    val beforeNames = (before + AppFeature.MORE).map { stringResource(it.shortDisplayNameRes) }
+    val afterNames = (after + AppFeature.MORE).map { stringResource(it.shortDisplayNameRes) }
+    val description = spokenBarChange(beforeNames, afterNames, LocalWhatsNewLanguage.current)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clearAndSetSemantics {},
+            .clearAndSetSemantics { contentDescription = description },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (before == after) {
-            BarCaption(WhatsNewText(en = "Your bottom bar", zhHant = "目前的底部功能列"))
+            BarCaption(yoursCaption)
             MockBottomBar(before, highlighted = emptySet())
         } else {
-            BarCaption(WhatsNewText(en = "Before", zhHant = "調整前"))
+            BarCaption(beforeCaption)
             MockBottomBar(before, highlighted = before.toSet() - after.toSet())
             Icon(
                 Icons.Filled.ArrowDownward,
@@ -55,9 +65,31 @@ internal fun BottomBarChangeDemo(before: List<AppFeature>, after: List<AppFeatur
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(20.dp),
             )
-            BarCaption(WhatsNewText(en = "After", zhHant = "調整後"))
+            BarCaption(afterCaption)
             MockBottomBar(after, highlighted = after.toSet() - before.toSet())
         }
+    }
+}
+
+/**
+ * "Before: Home, Class table, Calendar, More. After: Home, Class table, Mail,
+ * More." from the bars' tab names, More included — or just the one bar when
+ * nothing changes.
+ */
+internal fun spokenBarChange(
+    before: List<String>,
+    after: List<String>,
+    language: WhatsNewLanguage,
+): String {
+    fun spoken(caption: WhatsNewText, names: List<String>) = when (language) {
+        WhatsNewLanguage.ZhHant -> caption.resolve(language) + "：" + names.joinToString("、")
+        WhatsNewLanguage.En -> caption.resolve(language) + ": " + names.joinToString(", ")
+    }
+    if (before == after) return spoken(yoursCaption, before)
+    val sentences = listOf(spoken(beforeCaption, before), spoken(afterCaption, after))
+    return when (language) {
+        WhatsNewLanguage.ZhHant -> sentences.joinToString("。") + "。"
+        WhatsNewLanguage.En -> sentences.joinToString(". ") + "."
     }
 }
 

@@ -78,4 +78,24 @@ class SchoolMailPagesTest {
         assertEquals(AppFeature.defaultTabs, visibleBottomBarTabs(stored, libraryEnabled = false))
         assertEquals(stored, visibleBottomBarTabs(stored, libraryEnabled = true))
     }
+
+    @Test
+    fun `the preview tells a screen reader which tab leaves`() {
+        val before = listOf("Home", "Class table", "Calendar", "More")
+        val after = listOf("Home", "Class table", "Mail", "More")
+        assertEquals(
+            "Before: Home, Class table, Calendar, More. After: Home, Class table, Mail, More.",
+            spokenBarChange(before, after, WhatsNewLanguage.En),
+        )
+        assertEquals(
+            "調整前：首頁、課表、行事曆、更多。調整後：首頁、課表、信箱、更多。",
+            spokenBarChange(
+                listOf("首頁", "課表", "行事曆", "更多"),
+                listOf("首頁", "課表", "信箱", "更多"),
+                WhatsNewLanguage.ZhHant,
+            ),
+        )
+        val unchanged = listOf("Home", "Mail", "More")
+        assertEquals("Your bottom bar: Home, Mail, More", spokenBarChange(unchanged, unchanged, WhatsNewLanguage.En))
+    }
 }
