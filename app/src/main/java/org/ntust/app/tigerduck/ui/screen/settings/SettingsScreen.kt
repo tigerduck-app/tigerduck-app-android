@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -168,7 +169,9 @@ fun SettingsScreen(
         WhatsNewGate.replay(catalog.keys, summaries.keys)
             ?.let { WhatsNewFlow.from(it, catalog, summaries) }
     }
-    var manualWhatsNewVisible by remember { mutableStateOf(false) }
+    // Saveable so a rotation mid-replay keeps the sheet up; the flow itself
+    // is rebuilt from the catalog and asset above.
+    var manualWhatsNewVisible by rememberSaveable { mutableStateOf(false) }
 
     // Show network error as snackbar; clear after display so navigating
     // away and back doesn't re-surface a stale error.
