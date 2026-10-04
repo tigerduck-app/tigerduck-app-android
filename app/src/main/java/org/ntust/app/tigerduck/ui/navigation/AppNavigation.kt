@@ -5,9 +5,6 @@ import android.content.Context
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.consumeWindowInsets
@@ -46,7 +43,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
@@ -267,6 +263,7 @@ fun MainNavigation(
     val backPressExitHint = stringResource(R.string.app_exit_confirm_toast)
     val nonTaipeiTimezoneHint = stringResource(R.string.app_non_taipei_timezone_hint)
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
+    val tabRoutes = bottomItems.map { it.toRoute() }.toSet()
     // NavHost startDestination must not change mid-session, so freeze it on
     // first composition. popUpTo, in contrast, needs the *current* first tab
     // so reordering via TabEditor doesn't pop to a removed route.
@@ -380,10 +377,12 @@ fun MainNavigation(
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
-            enterTransition = { fadeIn(tween(150)) },
-            exitTransition = { fadeOut(tween(100)) },
-            popEnterTransition = { fadeIn(tween(150)) },
-            popExitTransition = { fadeOut(tween(100)) }
+            enterTransition = { pushEnter(tabRoutes) },
+            exitTransition = { pushExit(tabRoutes) },
+            popEnterTransition = { popEnter(tabRoutes) },
+            popExitTransition = { popExit(tabRoutes) },
+            predictivePopEnterTransition = { popEnter(tabRoutes) },
+            predictivePopExitTransition = { popExit(tabRoutes) },
         ) {
             // Shared by every screen that renders the signed-out lock empty
             // state: tapping the lock should land the user on Settings with
@@ -393,26 +392,26 @@ fun MainNavigation(
                 appState.pendingNtustSignInHighlight = true
                 navController.navigate(Screen.Settings.route)
             }
-            composable(Screen.Home.route) {
+            page(Screen.Home.route) {
                 HomeScreen(
                     appState = appState,
                     viewModel = homeViewModel,
                     onOpenSignInSettings = openSignInSettings,
                 )
             }
-            composable(Screen.ClassTable.route) {
+            page(Screen.ClassTable.route) {
                 ClassTableScreen(
                     viewModel = classTableViewModel,
                     onOpenSignInSettings = openSignInSettings,
                 )
             }
-            composable(Screen.Calendar.route) {
+            page(Screen.Calendar.route) {
                 CalendarScreen(
                     viewModel = calendarViewModel,
                     onOpenSignInSettings = openSignInSettings,
                 )
             }
-            composable(Screen.Announcements.route) {
+            page(Screen.Announcements.route) {
                 AnnouncementsScreen(
                     onOpenBulletin = { id ->
                         navController.navigate(Screen.AnnouncementDetail.route(id))
@@ -422,17 +421,17 @@ fun MainNavigation(
                     },
                 )
             }
-            composable(
+            page(
                 Screen.AnnouncementDetail.route,
                 arguments = listOf(navArgument("id") { type = NavType.IntType }),
             ) {
                 AnnouncementDetailScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.AnnouncementSubscriptions.route) {
+            page(Screen.AnnouncementSubscriptions.route) {
                 SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.Library.route) { LibraryScreen() }
-            composable(Screen.SchoolMail.route) {
+            page(Screen.Library.route) { LibraryScreen() }
+            page(Screen.SchoolMail.route) {
                 org.ntust.app.tigerduck.ui.screen.mail.SchoolMailScreen(
                     browserPreference = appState.browserPreference,
                     onOpenMessage = { folder, uid -> navController.navigate(Screen.SchoolMailMessage.route(folder, uid)) },
@@ -441,7 +440,7 @@ fun MainNavigation(
                     onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
                 )
             }
-            composable(
+            page(
                 Screen.SchoolMailMessage.route,
                 arguments = listOf(
                     navArgument("folder") { type = NavType.StringType },
@@ -454,7 +453,7 @@ fun MainNavigation(
                     onCompose = { mode, folder, uid -> navController.navigate(Screen.SchoolMailCompose.route(mode, folder, uid)) },
                 )
             }
-            composable(
+            page(
                 Screen.SchoolMailCompose.route,
                 arguments = listOf(
                     navArgument("mode") { type = NavType.StringType; defaultValue = ComposeMode.NEW.name },
@@ -464,11 +463,11 @@ fun MainNavigation(
             ) {
                 org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeScreen(onDone = { navController.popBackStack() })
             }
-            composable(Screen.Score.route) {
+            page(Screen.Score.route) {
                 ScoreScreen(onOpenSignInSettings = openSignInSettings)
             }
-            composable(Screen.More.route) { MoreScreen(navController, appState) }
-            composable(Screen.Settings.route) {
+            page(Screen.More.route) { MoreScreen(navController, appState) }
+            page(Screen.Settings.route) {
                 SettingsScreen(
                     onNavigateToTabEditor = { navController.navigate(Screen.TabEditor.route) },
                     onNavigateToLanguagePicker = { navController.navigate(Screen.LanguagePicker.route) },
@@ -509,28 +508,28 @@ fun MainNavigation(
                 )
             }
             if (BuildConfig.DEBUG) {
-                composable(Screen.Debug.route) {
+                page(Screen.Debug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.DebugScreen(
                         onBack = { navController.popBackStack() },
                     )
                 }
-                composable(Screen.NotificationDebug.route) {
+                page(Screen.NotificationDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.NotificationDebugScreen(
                         onBack = { navController.popBackStack() },
                     )
                 }
-                composable(Screen.TriggersDebug.route) {
+                page(Screen.TriggersDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.TriggersDebugScreen(
                         appState = appState,
                         onBack = { navController.popBackStack() },
                     )
                 }
-                composable(Screen.ServerFailureDebug.route) {
+                page(Screen.ServerFailureDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.ServerFailureDebugScreen(
                         onBack = { navController.popBackStack() },
                     )
                 }
-                composable(Screen.MailDevServerDebug.route) {
+                page(Screen.MailDevServerDebug.route) {
                     org.ntust.app.tigerduck.ui.screen.debug.MailDevServerDebugScreen(
                         onBack = { navController.popBackStack() },
                     )
@@ -542,12 +541,12 @@ fun MainNavigation(
             // at a self-hosted backend is a supported setting, so what keeps
             // a release build honest is `OverrideValidator`'s HTTPS floor
             // plus the pre-save health probe, not the absence of the screen.
-            composable(Screen.ApiEndpointDebug.route) {
+            page(Screen.ApiEndpointDebug.route) {
                 org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(Screen.OtherSettings.route) {
+            page(Screen.OtherSettings.route) {
                 OtherSettingsScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToApiEndpoint = {
@@ -557,20 +556,20 @@ fun MainNavigation(
                     onNavigateToCourseNameSize = { navController.navigate(Screen.CourseNameSizeSettings.route) },
                 )
             }
-            composable(Screen.AboutOthers.route) {
+            page(Screen.AboutOthers.route) {
                 AboutOthersScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToSourceCode = { navController.navigate(Screen.SourceCodePicker.route) },
                     onNavigateToLicenses = { navController.navigate(Screen.OpenSourceLicenses.route) },
                 )
             }
-            composable(Screen.OpenSourceLicenses.route) {
+            page(Screen.OpenSourceLicenses.route) {
                 OpenSourceLicensesScreen(
                     onBack = { navController.popBackStack() },
                     onOpenLicense = { key -> navController.navigate(Screen.LicenseDetail.route(key)) },
                 )
             }
-            composable(
+            page(
                 Screen.LicenseDetail.route,
                 arguments = listOf(navArgument("key") { type = NavType.StringType }),
             ) { entry ->
@@ -579,37 +578,37 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(Screen.LibrarySettings.route) {
+            page(Screen.LibrarySettings.route) {
                 LibrarySettingsScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.SchoolMailSettings.route) {
+            page(Screen.SchoolMailSettings.route) {
                 org.ntust.app.tigerduck.ui.screen.mail.SchoolMailSettingsScreen(
                     onBack = { navController.popBackStack() },
                     onOpenGuide = { navController.navigate(Screen.SchoolMailGuide.route) },
                 )
             }
-            composable(Screen.SchoolMailGuide.route) {
+            page(Screen.SchoolMailGuide.route) {
                 org.ntust.app.tigerduck.ui.screen.mail.SchoolMailGuideScreen(
                     browserPreference = appState.browserPreference,
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(Screen.VibrationSettings.route) {
+            page(Screen.VibrationSettings.route) {
                 VibrationSettingsScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.CourseNameSizeSettings.route) {
+            page(Screen.CourseNameSizeSettings.route) {
                 CourseNameSizeSettingsScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.LanguagePicker.route) {
+            page(Screen.LanguagePicker.route) {
                 LanguagePickerScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.TabEditor.route) {
+            page(Screen.TabEditor.route) {
                 TabEditorScreen(
                     appState = appState,
                     onBack = { navController.popBackStack() }
                 )
             }
-            composable(Screen.LiveActivitySettings.route) {
+            page(Screen.LiveActivitySettings.route) {
                 LiveActivitySettingsScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToNotificationPermissionSettings = {
@@ -617,30 +616,30 @@ fun MainNavigation(
                     },
                 )
             }
-            composable(Screen.SchoolMailNotificationSettings.route) {
+            page(Screen.SchoolMailNotificationSettings.route) {
                 org.ntust.app.tigerduck.ui.screen.mail.SchoolMailNotificationSettingsScreen(
                     onBack = { navController.popBackStack() },
                 )
             }
-            composable(Screen.NotificationPermissionSettings.route) {
+            page(Screen.NotificationPermissionSettings.route) {
                 NotificationPermissionSettingsScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.AssignmentReminderSettings.route) {
+            page(Screen.AssignmentReminderSettings.route) {
                 AssignmentReminderSettingsScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.CloudSync.route) {
+            page(Screen.CloudSync.route) {
                 CloudSyncSettingsScreen(
                     onBack = { navController.popBackStack() },
                     onNavigateToSyncContent = { navController.navigate(Screen.SyncContent.route) },
                 )
             }
-            composable(Screen.SyncContent.route) {
+            page(Screen.SyncContent.route) {
                 SyncContentScreen(onBack = { navController.popBackStack() })
             }
-            composable(Screen.SourceCodePicker.route) {
+            page(Screen.SourceCodePicker.route) {
                 SourceCodePickerScreen(onBack = { navController.popBackStack() })
             }
-            composable(
+            page(
                 "placeholder/{feature}",
                 arguments = listOf(navArgument("feature") { type = NavType.StringType })
             ) { backStackEntry ->
