@@ -28,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -74,7 +75,10 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
     val healthCheck = remember(entryPoint) { entryPoint.endpointHealthCheck() }
     val scope = rememberCoroutineScope()
 
-    var draft by remember { mutableStateOf(prefs.announcementApiBaseUrlOverride.orEmpty()) }
+    // Saveable so an Activity recreation (a dark-mode switch) keeps a URL
+    // the user is still typing; onboarding keeps the editor itself open
+    // across one the same way.
+    var draft by rememberSaveable { mutableStateOf(prefs.announcementApiBaseUrlOverride.orEmpty()) }
     var error by remember { mutableStateOf<String?>(null) }
     var resolved by remember { mutableStateOf(resolveAnnouncementEndpoint(prefs)) }
     var stored by remember { mutableStateOf(prefs.announcementApiBaseUrlOverride) }

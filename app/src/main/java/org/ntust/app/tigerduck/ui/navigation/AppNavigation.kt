@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -373,7 +374,12 @@ fun MainNavigation(
         NavHost(
             navController = navController,
             startDestination = startDest,
-            modifier = Modifier.padding(innerPadding),
+            // Consume what the padding covers, so a destination's own
+            // Scaffold doesn't inset by the navigation bar (or, in landscape,
+            // the side bars and cutout) a second time.
+            modifier = Modifier
+                .padding(innerPadding)
+                .consumeWindowInsets(innerPadding),
             enterTransition = { fadeIn(tween(150)) },
             exitTransition = { fadeOut(tween(100)) },
             popEnterTransition = { fadeIn(tween(150)) },

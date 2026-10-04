@@ -14,11 +14,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -42,6 +45,7 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -120,7 +124,9 @@ fun OnboardingScreen(
     // Covers the pager with the API-endpoint editor. Someone running their
     // own backend has to point the app at it *before* signing in, because
     // the sign-in round-trip is one of the calls that goes there.
-    var showEndpointEditor by remember { mutableStateOf(false) }
+    // Saveable so an Activity recreation (a system dark-mode switch is not in
+    // the manifest's configChanges) doesn't drop the user out of the editor.
+    var showEndpointEditor by rememberSaveable { mutableStateOf(false) }
 
     // Track the furthest page the user has reached. The bottom-left forward
     // arrow is enabled only for pages already visited, so per-page gating
@@ -167,7 +173,7 @@ fun OnboardingScreen(
     val context = LocalContext.current
     val backPressExitHint = stringResource(R.string.app_exit_confirm_toast)
     var lastBackPressMs by remember { mutableLongStateOf(0L) }
-    BackHandler {
+    BackHandler(enabled = !showEndpointEditor) {
         if (pagerState.currentPage > 0) {
             goToPage(pagerState.currentPage - 1)
         } else {
@@ -184,17 +190,41 @@ fun OnboardingScreen(
     // Block screenshots / screen-recording while the NTUST password is
     // revealed as plaintext on the login page (issue #88). FLAG_SECURE is
     // window-wide, so it is only raised while the eye toggle is on AND the
-    // login page is the one on screen.
+    // login page is the one on screen — which it is not while the endpoint
+    // editor has replaced the pager.
     // Login page index shifts depending on whether the sync page is present.
     val loginPageIndex = if (showSyncPage) 4 else 3
-    SecureScreen(secure = passwordVisible && pagerState.currentPage == loginPageIndex)
+    SecureScreen(
+        secure = passwordVisible && pagerState.currentPage == loginPageIndex && !showEndpointEditor
+    )
 
     if (showEndpointEditor) {
         // Replaces the pager rather than layering over it: the editor owns a
-        // Scaffold with its own top bar and back affordance, and the
-        // onboarding BackHandler above would otherwise page backwards out
-        // from under it.
-        ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        // Scaffold with its own top bar and back affordance. In the main app
+        // system back is the NavHost's pop, so the editor has no BackHandler
+        // of its own; this one closes it, and the onboarding BackHandler
+        // above is disabled meanwhile so back doesn't page the hidden pager.
+        BackHandler { showEndpointEditor = false }
+
+        // The editor's top bar takes no window insets of its own, because in
+        // the main app it is a NavHost destination the root Scaffold has
+        // already padded by the system bars. Nothing does that up here, so
+        // without this Box the back button and title sit under the status
+        // bar and the camera cutout. The padding is the root Scaffold's own
+        // insets (system bars plus display cutout) — top and sides, over the
+        // page background — so the editor looks the same as when it is
+        // opened from Settings.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(
+                    ScaffoldDefaults.contentWindowInsets
+                        .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                )
+        ) {
+            ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        }
         return
     }
 
@@ -424,7 +454,13 @@ fun OnboardingScreen(
                                 TextButton(onClick = { openUrl(context, URL_SERVER_STATUS) }) {
                                     Text(stringResource(R.string.settings_check_server_status))
                                 }
-                                TextButton(onClick = { showEndpointEditor = true }) {
+                                // Not while a sign-in is in flight: it would
+                                // repoint the backend mid-round-trip, and its
+                                // completion pages the hidden pager on.
+                                TextButton(
+                                    onClick = { showEndpointEditor = true },
+                                    enabled = !isLoggingIn,
+                                ) {
                                     Text(stringResource(R.string.onboarding_custom_endpoint_button))
                                 }
                                 TextButton(onClick = { goToPage(permissionsPageIndex) }) {
