@@ -16,7 +16,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.Manifest
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
@@ -40,12 +39,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -53,6 +51,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dagger.hilt.android.lifecycle.HiltViewModel
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
@@ -71,23 +70,32 @@ fun NotificationPermissionSettingsScreen(
     onBack: () -> Unit,
     viewModel: NotificationPermissionSettingsViewModel = hiltViewModel(),
 ) {
-    val context = LocalContext.current
     val systemPermissions = viewModel.systemPermissions
     var permissions by remember { mutableStateOf(systemPermissions.states()) }
+    // Saved, so the arrival prompt is asked once per visit: uiMode, fontScale
+    // and density are not in the manifest's configChanges, so a dark-mode
+    // switch recreates the Activity and re-runs the LaunchedEffect below —
+    // and HyperOS raises the prompt again on every request.
+    var askedOnArrival by rememberSaveable { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) systemPermissions.recordCurrentGrants()
+        if (granted) {
+            systemPermissions.recordCurrentGrants()
+        } else {
+            systemPermissions.recordDeclined(AppPermission.NOTIFICATIONS)
+        }
         permissions = systemPermissions.states()
     }
 
+    // Only while the OS will still show the prompt: once the user has had
+    // notifications on or turned a prompt down, a request may come back as a
+    // silent denial, and the rows below lead to the settings page instead.
     LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val granted = ContextCompat.checkSelfPermission(
-                context, Manifest.permission.POST_NOTIFICATIONS
-            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-            if (!granted) permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (!askedOnArrival && systemPermissions.canPromptForNotifications()) {
+            askedOnArrival = true
+            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
@@ -135,20 +143,15 @@ fun NotificationPermissionSettingsScreen(
                     Column {
                         permissions.forEachIndexed { idx, ps ->
                             if (idx > 0) HorizontalDivider()
+                            // Straight to the settings page, even for
+                            // notifications: the LaunchedEffect above already
+                            // asked on arrival if it still could, so a prompt
+                            // here could only repeat it — and the OS may
+                            // answer a repeat with a silent denial, leaving
+                            // the tap dead.
                             PermissionRow(
                                 state = ps,
-                                onClick = {
-                                    openPermissionPrompt(
-                                        context = context,
-                                        permission = ps.permission,
-                                        systemPermissions = systemPermissions,
-                                        askNotification = {
-                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                                            }
-                                        },
-                                    )
-                                },
+                                onClick = { systemPermissions.openSettings(ps.permission) },
                             )
                         }
                     }

@@ -6,16 +6,21 @@
 // at all now, only the one-line PermissionGapLinkRow below that points back
 // here when something it needs is off.
 //
-// The routing is the part worth reading: for notifications on API 33+ we ask
-// for the runtime permission first, because the settings deep link is a worse
-// experience when the OS would still show the prompt. Android silently
-// ignores the request once the user has denied twice, which is why the caller
-// re-reads the permission states on every ON_RESUME instead of trusting the
-// launcher callback.
+// A tap on a row always opens the permission's settings page, notifications
+// included. The screen asks for the runtime permission once, on arrival, and
+// only while the OS will still show it; a tap that asked again was dead
+// whenever the OS answered with a silent
+// denial — stock Android after two refusals, HyperOS with notifications
+// switched off — though the row says "tap to go to settings". The caller
+// re-reads the permission states on every ON_RESUME, which covers the user
+// coming back from that page. The "allow notifications" buttons elsewhere
+// share one routing too — rememberAllowNotificationsAction below.
 
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.os.Build
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -33,6 +38,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,22 +60,38 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 /** iOS systemRed, the "off" dot on every permission surface in the app. */
 private val NotGrantedDotColor = Color(0xFFFF3B30)
 
-internal fun openPermissionPrompt(
-    context: android.content.Context,
-    permission: AppPermission,
+/**
+ * What an "allow notifications" button does, for the surfaces that offer one
+ * (onboarding, 公告訂閱). One prompt per visit, and only while
+ * [SystemPermissions.canPromptForNotifications] says the OS will still show
+ * it; every other tap opens the settings page. A second request can come back
+ * as a silent denial and leave the tap dead. [onResult] runs after the prompt
+ * answers, for the caller to re-read its permission state.
+ */
+@Composable
+internal fun rememberAllowNotificationsAction(
     systemPermissions: SystemPermissions,
-    askNotification: () -> Unit,
-) {
-    if (permission == AppPermission.NOTIFICATIONS &&
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-        !systemPermissions.isGranted(AppPermission.NOTIFICATIONS)
-    ) {
-        // Runtime prompt first; if system decides not to show it (user denied
-        // twice) Android silently ignores and we fall back to settings.
-        askNotification()
-        return
+    onResult: () -> Unit,
+): () -> Unit {
+    var askedHere by rememberSaveable { mutableStateOf(false) }
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            systemPermissions.recordCurrentGrants()
+        } else {
+            systemPermissions.recordDeclined(AppPermission.NOTIFICATIONS)
+        }
+        onResult()
     }
-    systemPermissions.openSettings(permission)
+    return {
+        if (!askedHere && systemPermissions.canPromptForNotifications()) {
+            askedHere = true
+            launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            systemPermissions.openSettings(AppPermission.NOTIFICATIONS)
+        }
+    }
 }
 
 /**
