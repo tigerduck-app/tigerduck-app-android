@@ -80,58 +80,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             rawContext,
             deps.appPreferences().appLanguage,
         )
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         // One shot: if the channel is missing, the reminder is dropped for good.
         deps.notificationChannels().ensureRegistered()
-
-        val timeRange = formatTimeRange(startMs, endMs)
-        val detail = listOfNotNull(
-            timeRange.takeIf { it.isNotBlank() },
-            classroom.takeIf { it.isNotBlank() },
-            instructor.takeIf { it.isNotBlank() },
-        ).joinToString(" · ")
-
-        // Anchor the auto-dismiss to actual class-start time rather than
-        // post-time + leadTimeMs. When the alarm is delivered via the inexact
-        // fallback, post-time can drift up to ~5 min late, which would leave
-        // the banner up past class start.
-        val timeout = when {
-            startMs > 0L -> (startMs - System.currentTimeMillis()).coerceAtLeast(1_000L)
-            leadTimeMs > 0L -> leadTimeMs
-            else -> 0L
-        }
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
-            .setContentTitle(
-                context.getString(R.string.notification_class_preparing_title, courseName)
-            )
-            .setContentText(
-                detail.ifBlank {
-                    context.getString(R.string.notification_class_preparing_content_fallback)
-                }
-            )
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setAutoCancel(true)
-            .setGroup(NotificationGroup.CLASS.key)
-            .apply { if (timeout > 0L) setTimeoutAfter(timeout) }
-            .build()
-
-        nm.notify(notificationId, notification)
-        // Expires with the reminder, or it would outlive it as an empty row.
-        NotificationGroup.CLASS.postSummary(context, CHANNEL_ID, timeoutAfterMs = timeout)
-    }
-
-    private fun formatTimeRange(startMs: Long, endMs: Long): String {
-        if (startMs <= 0 || endMs <= 0) return ""
-        val zone: ZoneId = AppConstants.TAIPEI_ZONE
-        val s = Instant.ofEpochMilli(startMs).atZone(zone).toLocalTime()
-        val e = Instant.ofEpochMilli(endMs).atZone(zone).toLocalTime()
-        return "%02d:%02d–%02d:%02d".format(s.hour, s.minute, e.hour, e.minute)
+        post(context, notificationId, courseName, classroom, instructor, startMs, endMs, leadTimeMs)
     }
 
     companion object {
@@ -144,5 +95,72 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         const val EXTRA_END_MS = "end_ms"
         const val EXTRA_NOTIFICATION_ID = "notification_id"
         const val EXTRA_LEAD_TIME_MS = "lead_time_ms"
+
+        /**
+         * Post the reminder, past every check onReceive makes first; the
+         * developer menu's preview posts through here too. [context] must
+         * already carry the app's language, and the channels must exist.
+         */
+        fun post(
+            context: Context,
+            notificationId: Int,
+            courseName: String,
+            classroom: String,
+            instructor: String,
+            startMs: Long,
+            endMs: Long,
+            leadTimeMs: Long,
+        ) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val timeRange = formatTimeRange(startMs, endMs)
+            val detail = listOfNotNull(
+                timeRange.takeIf { it.isNotBlank() },
+                classroom.takeIf { it.isNotBlank() },
+                instructor.takeIf { it.isNotBlank() },
+            ).joinToString(" · ")
+
+            // Anchor the auto-dismiss to actual class-start time rather than
+            // post-time + leadTimeMs. When the alarm is delivered via the inexact
+            // fallback, post-time can drift up to ~5 min late, which would leave
+            // the banner up past class start.
+            val timeout = when {
+                startMs > 0L -> (startMs - System.currentTimeMillis()).coerceAtLeast(1_000L)
+                leadTimeMs > 0L -> leadTimeMs
+                else -> 0L
+            }
+
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
+                // Brand tint for the shade badge; the status-bar glyph stays mono.
+                .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
+                .setContentTitle(
+                    context.getString(R.string.notification_class_preparing_title, courseName)
+                )
+                .setContentText(
+                    detail.ifBlank {
+                        context.getString(R.string.notification_class_preparing_content_fallback)
+                    }
+                )
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setAutoCancel(true)
+                .setGroup(NotificationGroup.CLASS.key)
+                .apply { if (timeout > 0L) setTimeoutAfter(timeout) }
+                .build()
+
+            nm.notify(notificationId, notification)
+            // Expires with the reminder, or it would outlive it as an empty row.
+            NotificationGroup.CLASS.postSummary(context, CHANNEL_ID, timeoutAfterMs = timeout)
+        }
+
+        private fun formatTimeRange(startMs: Long, endMs: Long): String {
+            if (startMs <= 0 || endMs <= 0) return ""
+            val zone: ZoneId = AppConstants.TAIPEI_ZONE
+            val s = Instant.ofEpochMilli(startMs).atZone(zone).toLocalTime()
+            val e = Instant.ofEpochMilli(endMs).atZone(zone).toLocalTime()
+            return "%02d:%02d–%02d:%02d".format(s.hour, s.minute, e.hour, e.minute)
+        }
     }
 }
