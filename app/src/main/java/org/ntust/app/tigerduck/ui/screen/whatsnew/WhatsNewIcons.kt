@@ -43,6 +43,7 @@ object WhatsNewIcons {
         "qr" to Icons.Filled.QrCode2,
         "search" to Icons.Filled.Search,
         "settings" to Icons.Filled.Settings,
+        "sparkles" to Icons.Filled.AutoAwesome,
         "speed" to Icons.Filled.Speed,
         "sync" to Icons.Filled.Sync,
         "cloud" to Icons.Filled.CloudSync,
