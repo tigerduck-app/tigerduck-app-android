@@ -421,6 +421,7 @@ class MainActivity : AppCompatActivity() {
             freshStart = savedInstanceState == null,
             pageVersions = { catalog.keys },
             summaryVersions = { summaries.keys },
+            wasShowing = savedInstanceState?.containsKey(KEY_WHATS_NEW_PAGE_IDS) == true,
         )
         when (plan) {
             WhatsNewGate.Plan.Defer -> Unit

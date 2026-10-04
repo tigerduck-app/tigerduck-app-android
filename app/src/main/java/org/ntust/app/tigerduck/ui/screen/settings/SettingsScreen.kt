@@ -161,12 +161,13 @@ fun SettingsScreen(
     // unrelated config changes — font scale, screen size, dark-mode flip —
     // don't pointlessly re-parse the asset.
     val languageTag = context.resources.configuration.locales[0].toLanguageTag()
-    // The newest registered version's pages and summary, with the pages'
-    // "only if this applies" checks skipped — the user asked to see it all.
+    // The newest registered version's pages and summary, up to the installed
+    // one, with the pages' "only if this applies" checks skipped — the user
+    // asked to see it all.
     val latestWhatsNew: WhatsNewFlow? = remember(whatsNewRepo, languageTag) {
         val catalog = WhatsNewCatalog.pages(viewModel.appState)
         val summaries = whatsNewRepo.summaries(languageTag)
-        WhatsNewGate.replay(catalog.keys, summaries.keys)
+        WhatsNewGate.replay(catalog.keys, summaries.keys, upTo = BuildConfig.VERSION_CODE)
             ?.let { WhatsNewFlow.from(it, catalog, summaries) }
     }
     // Saveable so a rotation mid-replay keeps the sheet up; the flow itself

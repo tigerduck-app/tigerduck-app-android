@@ -29,7 +29,8 @@ object WhatsNewGate {
 
         /**
          * Leave everything untouched — the replay sentinel on a config-change
-         * recreation, which must fire on the next process start instead.
+         * recreation when no replay sheet was up, which must fire on the next
+         * process start instead.
          */
         data object Defer : Plan
 
@@ -66,12 +67,18 @@ object WhatsNewGate {
         freshStart: Boolean,
         pageVersions: () -> Set<Int>,
         summaryVersions: () -> Set<Int>,
+        wasShowing: Boolean = false,
     ): Plan {
-        // Replay ("What's new" in Settings, or the debug trigger): the newest
-        // registered version, even one newer than this build — whatsnew.json
-        // is usually written ahead of the version bump.
+        // Replay (the debug trigger): the newest registered version, even one
+        // newer than this build — whatsnew.json is usually written ahead of the
+        // version bump. A recreation defers an armed replay to the next
+        // process start, unless its sheet is the one being recreated
+        // ([wasShowing]): then it comes back, on the page it was on.
         if (lastSeen == AppPreferences.WHATS_NEW_REPLAY) {
-            if (!freshStart) return Plan.Defer
+            if (!freshStart) {
+                return if (wasShowing) replay(pageVersions(), summaryVersions()) ?: Plan.Defer
+                else Plan.Defer
+            }
             return replay(pageVersions(), summaryVersions()) ?: Plan.RecordOnly
         }
 
@@ -99,12 +106,16 @@ object WhatsNewGate {
     fun recordedAfter(lastSeen: Int, current: Int): Int = maxOf(lastSeen, current)
 
     /**
-     * The newest registered version's pages and summary, ignoring the
-     * running build's versionCode. Backs the Settings "What's new" row and
-     * the replay sentinel. Null when nothing is registered at all.
+     * The newest registered version's pages and summary — at most [upTo] when
+     * given. The Settings "What's new" row passes the running versionCode, so
+     * a build carrying the next release's pages ahead of its bump keeps
+     * replaying its own; the debug replay sentinel passes none, to preview
+     * what's coming. Null when nothing qualifies.
      */
-    fun replay(pageVersions: Set<Int>, summaryVersions: Set<Int>): Plan.Show? {
-        val latest = (pageVersions + summaryVersions).maxOrNull() ?: return null
+    fun replay(pageVersions: Set<Int>, summaryVersions: Set<Int>, upTo: Int? = null): Plan.Show? {
+        val latest = (pageVersions + summaryVersions)
+            .filter { upTo == null || it <= upTo }
+            .maxOrNull() ?: return null
         return Plan.Show(
             pageVersions = listOfNotNull(latest.takeIf { it in pageVersions }),
             summaryVersion = latest.takeIf { it in summaryVersions },

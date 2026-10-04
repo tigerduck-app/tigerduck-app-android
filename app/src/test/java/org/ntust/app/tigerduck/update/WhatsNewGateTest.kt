@@ -52,6 +52,7 @@ class WhatsNewGateTest {
         current: Int = 30,
         onboarded: Boolean = true,
         freshStart: Boolean = true,
+        wasShowing: Boolean = false,
         pages: Set<Int> = emptySet(),
         summaries: Set<Int> = emptySet(),
     ) = WhatsNewGate.plan(
@@ -61,6 +62,7 @@ class WhatsNewGateTest {
         freshStart = freshStart,
         pageVersions = { pages },
         summaryVersions = { summaries },
+        wasShowing = wasShowing,
     )
 
     @Test
@@ -170,6 +172,35 @@ class WhatsNewGateTest {
             summaries = setOf(30),
         )
         assertEquals(Plan.Defer, result)
+    }
+
+    @Test
+    fun `a replay sheet that was up comes back on a config-change recreation`() {
+        val result = plan(
+            lastSeen = AppPreferences.WHATS_NEW_REPLAY,
+            freshStart = false,
+            wasShowing = true,
+            pages = setOf(30),
+            summaries = setOf(30),
+        )
+        assertEquals(Plan.Show(listOf(30), summaryVersion = 30, replay = true), result)
+    }
+
+    @Test
+    fun `settings replay stops at the installed version`() {
+        assertEquals(
+            Plan.Show(listOf(28), summaryVersion = 28, replay = true),
+            WhatsNewGate.replay(pageVersions = setOf(28, 29), summaryVersions = setOf(27, 28), upTo = 28),
+        )
+        assertEquals(null, WhatsNewGate.replay(pageVersions = setOf(29), summaryVersions = emptySet(), upTo = 28))
+    }
+
+    @Test
+    fun `the debug replay previews versions ahead of the build`() {
+        assertEquals(
+            Plan.Show(listOf(29), summaryVersion = null, replay = true),
+            WhatsNewGate.replay(pageVersions = setOf(28, 29), summaryVersions = setOf(28)),
+        )
     }
 
     @Test
