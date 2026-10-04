@@ -63,6 +63,14 @@ private const val EXPORT_DENSITY = 3f
 private const val EXPORT_DIR = "class_table_export"
 
 /**
+ * How long an export stays readable after it is shared. The share sheet
+ * reports no end, and a recipient may read late — an attachment sent minutes
+ * later, an upload that waits for Wi-Fi — so it is generous, and the next
+ * export sweeps out anything older.
+ */
+private const val EXPORT_RETENTION_MS = 24 * 60 * 60 * 1000L
+
+/**
  * The class table as it goes into an exported image: whose it is and which
  * term above, then the same grid the screen draws.
  *
@@ -232,22 +240,20 @@ private val WHITESPACE = Regex("\\s+")
 /**
  * Writes [bitmap] as a PNG in a directory of its own and returns the file.
  *
- * A fresh directory per export, every earlier one deleted first. The name
- * repeats for the same term and student, so at a shared path a share target
- * still holding the previous export's grant could open this one through it;
- * at a new path that grant reaches nothing. An app already reading the
- * previous file keeps its open handle — only reopening it fails — and no
- * export carrying a student id outlives the next.
- *
- * A write that fails takes its directory with it.
+ * A fresh directory per export: the name repeats for the same term and
+ * student, so at a shared path a share target still holding the previous
+ * export's grant could open this one through it; at a new path that grant
+ * reaches only the image it was given. Earlier exports stay for
+ * [EXPORT_RETENTION_MS] so a recipient that has not read its image yet still
+ * can, and are swept only after this one is written — a failed export takes
+ * nothing with it but its own directory.
  */
 internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap, fileName: String): File =
     withContext(Dispatchers.IO) {
         val root = File(context.cacheDir, EXPORT_DIR)
-        root.listFiles()?.forEach { it.deleteRecursively() }
         val dir = File(root, UUID.randomUUID().toString()).apply { mkdirs() }
+        val file = File(dir, fileName)
         try {
-            val file = File(dir, fileName)
             // A layer may hand back a hardware bitmap, whose pixels live on
             // the GPU; copy them down before encoding.
             val android = bitmap.asAndroidBitmap().let {
@@ -255,11 +261,15 @@ internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap,
             }
             val written = file.outputStream().use { android.compress(Bitmap.CompressFormat.PNG, 100, it) }
             check(written) { "PNG encoding failed" }
-            file
         } catch (e: Throwable) {
             dir.deleteRecursively()
             throw e
         }
+        val cutoff = System.currentTimeMillis() - EXPORT_RETENTION_MS
+        root.listFiles()
+            ?.filter { it != dir && it.lastModified() < cutoff }
+            ?.forEach { it.deleteRecursively() }
+        file
     }
 
 /**
