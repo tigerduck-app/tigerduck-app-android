@@ -10,8 +10,10 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CancellationException
@@ -83,7 +85,13 @@ class BackgroundSyncWorker @AssistedInject constructor(
         widgetUpdater.updateAll()
         dataCache.notifyBackgroundSyncComplete()
 
-        return if (coursesOk && assignmentsOk) Result.success() else Result.retry()
+        if (coursesOk && assignmentsOk) return Result.success()
+        // A run a sync trigger queued is not retried. The periodic run
+        // retries on its own schedule, while a triggered run in retry
+        // backoff — up to hours once the school's servers have failed it a
+        // few times, and no end to the retries — would hold every later
+        // trigger behind it (requestSync drops one that finds a sync queued).
+        return if (inputData.getBoolean(KEY_TRIGGERED, false)) Result.success() else Result.retry()
     }
 
     private suspend fun syncOverridesFromBackend() {
@@ -437,26 +445,45 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
         // A server sync trigger asks for a sync rather than adding one: FCM
         // can deliver several in a burst, and each run syncs the backend and
-        // Moodle in full. A trigger that finds a sync already queued or
-        // running is dropped, so one that lands after a running sync fetched
-        // waits for the next trigger or the periodic run. Network-bound,
-        // because a run that fails offline goes into retry backoff, and
-        // every trigger would be held behind it.
+        // Moodle in full. Network-bound, so a run never starts offline only
+        // to fail.
         private const val TRIGGER_UNIQUE_NAME = "sync_trigger"
+        private const val KEY_TRIGGERED = "triggered"
 
         fun requestSync(context: Context) {
+            val workManager = WorkManager.getInstance(context)
+            // Called from FcmService, where a throw takes the process down;
+            // unreadable, the queue is treated as empty and KEEP still
+            // holds a burst to one sync.
+            val states = runCatching {
+                workManager.getWorkInfosForUniqueWork(TRIGGER_UNIQUE_NAME).get().map { it.state }
+            }.getOrElse { e ->
+                Log.w(TAG, "could not read queued syncs", e)
+                emptyList()
+            }
+            val policy = triggerPolicy(states) ?: return
             val request = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
                 .setConstraints(
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.CONNECTED)
                         .build()
                 )
+                .setInputData(workDataOf(KEY_TRIGGERED to true))
                 .build()
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                TRIGGER_UNIQUE_NAME,
-                ExistingWorkPolicy.KEEP,
-                request,
-            )
+            workManager.enqueueUniqueWork(TRIGGER_UNIQUE_NAME, policy, request)
+        }
+
+        /**
+         * How a sync trigger joins the triggered syncs in [states], or null
+         * when it need not queue one. A sync still waiting to start fetches
+         * whatever the trigger announces. One already running may have
+         * fetched before that change landed, so the trigger queues one
+         * follow-up behind it — which the next trigger then finds waiting.
+         */
+        internal fun triggerPolicy(states: List<WorkInfo.State>): ExistingWorkPolicy? = when {
+            states.any { it == WorkInfo.State.ENQUEUED || it == WorkInfo.State.BLOCKED } -> null
+            WorkInfo.State.RUNNING in states -> ExistingWorkPolicy.APPEND_OR_REPLACE
+            else -> ExistingWorkPolicy.KEEP
         }
     }
 }

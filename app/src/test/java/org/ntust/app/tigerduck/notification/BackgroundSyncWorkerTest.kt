@@ -2,12 +2,14 @@ package org.ntust.app.tigerduck.notification
 
 import android.app.Application
 import androidx.work.Configuration
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.testing.SynchronousExecutor
 import androidx.work.testing.WorkManagerTestInitHelper
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,6 +50,27 @@ class BackgroundSyncWorkerTest {
         repeat(5) { BackgroundSyncWorker.requestSync(context) }
 
         assertEquals(1, syncs().size)
+    }
+
+    @Test
+    fun `a trigger during a running sync queues one follow-up behind it`() {
+        // The running sync may have fetched before the change this trigger
+        // announces; dropped, that change waited for the hourly run.
+        assertEquals(
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            BackgroundSyncWorker.triggerPolicy(listOf(WorkInfo.State.RUNNING)),
+        )
+        // The follow-up, waiting behind it, covers every later trigger.
+        assertNull(
+            BackgroundSyncWorker.triggerPolicy(
+                listOf(WorkInfo.State.RUNNING, WorkInfo.State.BLOCKED),
+            ),
+        )
+        assertNull(BackgroundSyncWorker.triggerPolicy(listOf(WorkInfo.State.ENQUEUED)))
+        assertEquals(
+            ExistingWorkPolicy.KEEP,
+            BackgroundSyncWorker.triggerPolicy(listOf(WorkInfo.State.SUCCEEDED)),
+        )
     }
 
     @Test
