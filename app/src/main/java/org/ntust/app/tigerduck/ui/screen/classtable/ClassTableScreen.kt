@@ -480,19 +480,19 @@ fun ClassTableScreen(
             val studentId = viewModel.studentId
             OffscreenCapture(
                 onCaptured = { bitmap ->
-                    runCatching {
-                        val file = writeClassTableImage(
-                            context,
-                            bitmap,
-                            classTableExportFileName(classTableTitle, semesterLabel, studentId),
-                        )
-                        shareClassTableImage(context, file, exportTitle)
-                    }.onFailure {
-                        // In the screen's scope: this one ends with the
-                        // export, and the snackbar outlives it.
-                        scope.launch { snackbarHostState.showSnackbar(exportFailedMessage) }
-                    }
+                    val file = writeClassTableImage(
+                        context,
+                        bitmap,
+                        classTableExportFileName(classTableTitle, semesterLabel, studentId),
+                    )
+                    shareClassTableImage(context, file, exportTitle)
                     exporting = false
+                },
+                onFailed = {
+                    exporting = false
+                    // In the screen's scope: the capture's own ends with the
+                    // export, and the snackbar outlives it.
+                    scope.launch { snackbarHostState.showSnackbar(exportFailedMessage) }
                 },
             ) {
                 ClassTableExportCard(
