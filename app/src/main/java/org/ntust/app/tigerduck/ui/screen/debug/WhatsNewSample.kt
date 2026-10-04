@@ -229,17 +229,22 @@ private fun text(en: String, zhHant: String) = WhatsNewText(en = en, zhHant = zh
 
 @Composable
 private fun SampleInboxDemo(animate: Boolean) {
-    val transition = rememberInfiniteTransition(label = "sampleInbox")
-    val arrival by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(1600, easing = FastOutSlowInEasing),
-            RepeatMode.Reverse,
-        ),
-        label = "arrival",
-    )
-    val progress = if (animate) arrival else 1f
+    // With animations off, no infinite transition runs at all: the rows just
+    // sit where they land.
+    val progress = if (animate) {
+        val arrival by rememberInfiniteTransition(label = "sampleInbox").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                tween(1600, easing = FastOutSlowInEasing),
+                RepeatMode.Reverse,
+            ),
+            label = "arrival",
+        )
+        arrival
+    } else {
+        1f
+    }
     Column(
         modifier = Modifier
             .fillMaxWidth(0.8f)
