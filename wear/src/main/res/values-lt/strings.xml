@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Rodyti tik neskaitytus</string>
     <string name="school_mail_use_other_app">Naudoti kitą programėlę</string>
     <string name="school_mail_view_formatted">Formatuota</string>
+    <string name="school_mail_view_light_mode">Rodyti šviesiu režimu</string>
     <string name="school_mail_view_mode">Rodinys</string>
     <string name="school_mail_view_plain">Grynasis tekstas</string>
     <string name="school_mail_view_source">Pirminis kodas</string>

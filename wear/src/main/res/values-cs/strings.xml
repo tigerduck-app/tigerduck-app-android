@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Zobrazit jen nepřečtené</string>
     <string name="school_mail_use_other_app">Použít jinou aplikaci</string>
     <string name="school_mail_view_formatted">Formátovaný</string>
+    <string name="school_mail_view_light_mode">Zobrazit ve světlém režimu</string>
     <string name="school_mail_view_mode">Zobrazení</string>
     <string name="school_mail_view_plain">Prostý text</string>
     <string name="school_mail_view_source">Zdrojový kód</string>

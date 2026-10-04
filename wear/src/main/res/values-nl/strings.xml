@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Alleen ongelezen tonen</string>
     <string name="school_mail_use_other_app">Andere app gebruiken</string>
     <string name="school_mail_view_formatted">Opgemaakt</string>
+    <string name="school_mail_view_light_mode">Weergeven in lichte modus</string>
     <string name="school_mail_view_mode">Weergave</string>
     <string name="school_mail_view_plain">Platte tekst</string>
     <string name="school_mail_view_source">Broncode</string>

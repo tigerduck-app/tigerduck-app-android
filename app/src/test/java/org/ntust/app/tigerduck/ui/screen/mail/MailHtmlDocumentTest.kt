@@ -71,6 +71,13 @@ class MailHtmlDocumentTest {
         assertFalse(html, html.contains("background:#fff;"))
     }
 
+    @Test
+    fun `view in light mode is white paper with black text in the light scheme`() {
+        val html = MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, MailHtmlTheme.LIGHT).html
+        assertTrue(html, html.contains("color-scheme:light"))
+        assertTrue(html, html.contains("background:#ffffff;color:#000000"))
+    }
+
     // --- rewriteLinks: every <a href> becomes its index into the links it returns -------------
 
     @Test

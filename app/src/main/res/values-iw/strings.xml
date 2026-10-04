@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">הצג רק הודעות שלא נקראו</string>
     <string name="school_mail_use_other_app">השתמש באפליקציה אחרת</string>
     <string name="school_mail_view_formatted">מעוצב</string>
+    <string name="school_mail_view_light_mode">הצג במצב בהיר</string>
     <string name="school_mail_view_mode">תצוגה</string>
     <string name="school_mail_view_plain">טקסט רגיל</string>
     <string name="school_mail_view_source">מקור</string>

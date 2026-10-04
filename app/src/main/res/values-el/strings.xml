@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Εμφάνιση μόνο μη αναγνωσμένων</string>
     <string name="school_mail_use_other_app">Χρήση άλλης εφαρμογής</string>
     <string name="school_mail_view_formatted">Μορφοποιημένο</string>
+    <string name="school_mail_view_light_mode">Προβολή σε φωτεινή λειτουργία</string>
     <string name="school_mail_view_mode">Προβολή</string>
     <string name="school_mail_view_plain">Απλό κείμενο</string>
     <string name="school_mail_view_source">Πηγαίος κώδικας</string>

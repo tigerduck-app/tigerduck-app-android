@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Näytä vain lukemattomat</string>
     <string name="school_mail_use_other_app">Käytä toista sovellusta</string>
     <string name="school_mail_view_formatted">Muotoiltu</string>
+    <string name="school_mail_view_light_mode">Näytä vaaleassa tilassa</string>
     <string name="school_mail_view_mode">Näkymä</string>
     <string name="school_mail_view_plain">Pelkkä teksti</string>
     <string name="school_mail_view_source">Lähde</string>

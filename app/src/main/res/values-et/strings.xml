@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Kuva ainult lugemata</string>
     <string name="school_mail_use_other_app">Kasuta teist rakendust</string>
     <string name="school_mail_view_formatted">Vormindatud</string>
+    <string name="school_mail_view_light_mode">Kuva heledas režiimis</string>
     <string name="school_mail_view_mode">Vaade</string>
     <string name="school_mail_view_plain">Lihttekst</string>
     <string name="school_mail_view_source">Lähtekood</string>

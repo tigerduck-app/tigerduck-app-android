@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Chỉ hiện thư chưa đọc</string>
     <string name="school_mail_use_other_app">Dùng ứng dụng khác</string>
     <string name="school_mail_view_formatted">Có định dạng</string>
+    <string name="school_mail_view_light_mode">Xem ở chế độ sáng</string>
     <string name="school_mail_view_mode">Chế độ xem</string>
     <string name="school_mail_view_plain">Văn bản thuần</string>
     <string name="school_mail_view_source">Mã nguồn</string>

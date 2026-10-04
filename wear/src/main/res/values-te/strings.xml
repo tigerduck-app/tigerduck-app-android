@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">చదవనివి మాత్రమే చూపించు</string>
     <string name="school_mail_use_other_app">వేరే యాప్ ఉపయోగించండి</string>
     <string name="school_mail_view_formatted">ఫార్మాట్ చేయబడింది</string>
+    <string name="school_mail_view_light_mode">లైట్ మోడ్‌లో చూడండి</string>
     <string name="school_mail_view_mode">వీక్షణ</string>
     <string name="school_mail_view_plain">సాదా టెక్స్ట్</string>
     <string name="school_mail_view_source">మూలం</string>

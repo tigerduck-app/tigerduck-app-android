@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">إظهار غير المقروءة فقط</string>
     <string name="school_mail_use_other_app">استخدام تطبيق آخر</string>
     <string name="school_mail_view_formatted">منسّق</string>
+    <string name="school_mail_view_light_mode">عرض في الوضع الفاتح</string>
     <string name="school_mail_view_mode">طريقة العرض</string>
     <string name="school_mail_view_plain">نص عادي</string>
     <string name="school_mail_view_source">المصدر</string>

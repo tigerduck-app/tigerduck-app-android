@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">읽지 않은 메일만 보기</string>
     <string name="school_mail_use_other_app">다른 앱 사용</string>
     <string name="school_mail_view_formatted">서식 있음</string>
+    <string name="school_mail_view_light_mode">라이트 모드로 보기</string>
     <string name="school_mail_view_mode">보기</string>
     <string name="school_mail_view_plain">일반 텍스트</string>
     <string name="school_mail_view_source">소스</string>

@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Vis bare uleste</string>
     <string name="school_mail_use_other_app">Bruk en annen app</string>
     <string name="school_mail_view_formatted">Formatert</string>
+    <string name="school_mail_view_light_mode">Vis i lys modus</string>
     <string name="school_mail_view_mode">Visning</string>
     <string name="school_mail_view_plain">Ren tekst</string>
     <string name="school_mail_view_source">Kildekode</string>

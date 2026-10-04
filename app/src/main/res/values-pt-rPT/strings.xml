@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Mostrar apenas não lidos</string>
     <string name="school_mail_use_other_app">Usar outra aplicação</string>
     <string name="school_mail_view_formatted">Formatado</string>
+    <string name="school_mail_view_light_mode">Ver no modo claro</string>
     <string name="school_mail_view_mode">Visualização</string>
     <string name="school_mail_view_plain">Texto simples</string>
     <string name="school_mail_view_source">Código-fonte</string>

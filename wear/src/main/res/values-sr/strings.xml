@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Прикажи само непрочитано</string>
     <string name="school_mail_use_other_app">Користи другу апликацију</string>
     <string name="school_mail_view_formatted">Форматирано</string>
+    <string name="school_mail_view_light_mode">Прикажи у светлом режиму</string>
     <string name="school_mail_view_mode">Приказ</string>
     <string name="school_mail_view_plain">Обичан текст</string>
     <string name="school_mail_view_source">Изворни код</string>
