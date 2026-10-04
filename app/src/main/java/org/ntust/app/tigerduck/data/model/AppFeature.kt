@@ -105,7 +105,19 @@ enum class AppFeature(val id: String) {
         }
 
     companion object {
-        val defaultTabs = listOf(HOME, CLASS_TABLE, CALENDAR)
+        /**
+         * The bar a new install starts with, and what the tab editor's reset
+         * restores. Calendar until 2.3.0, when Mail took its place — an
+         * existing user who never customized keeps Calendar (see
+         * [previousDefaultTabs]) and is asked about Mail in What's New.
+         */
+        val defaultTabs = listOf(HOME, CLASS_TABLE, SCHOOL_MAIL)
+
+        /** [defaultTabs] before 2.3.0, kept for installs that never customized. */
+        val previousDefaultTabs = listOf(HOME, CLASS_TABLE, CALENDAR)
+
+        /** The most tabs a user can pin; the bottom bar adds MORE after them. */
+        const val MAX_CUSTOM_TABS = 4
 
         /**
          * Every feature that could be pinned to the bottom bar, in display

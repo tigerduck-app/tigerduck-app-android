@@ -15,6 +15,9 @@ class AppFeatureSchoolMailTest {
         assertTrue(AppFeature.SCHOOL_MAIL in AppFeature.pinnableFeatures)
         assertTrue(AppFeature.SCHOOL_MAIL in AppFeature.moreFeatures)
         assertFalse(AppFeature.SCHOOL_MAIL in AppFeature.unfinishedFeatures)
-        assertFalse("default tabs are unchanged", AppFeature.SCHOOL_MAIL in AppFeature.defaultTabs)
+        assertEquals(
+            listOf(AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.SCHOOL_MAIL),
+            AppFeature.defaultTabs,
+        )
     }
 }
