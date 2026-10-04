@@ -25,11 +25,10 @@ object AppLanguageManager {
     }
 
     /**
-     * Returns "zh" or "en" — the language code the app should use when the
-     * user has chosen "Follow system". The device's primary locale wins if
-     * it's one we localize for; otherwise we fall back to English so a
-     * Japanese (or any other unsupported) device doesn't get the default
-     * Chinese strings.
+     * Returns "zh" or "en" — the course-API language for "Follow system".
+     * The NTUST course APIs only serve Chinese and English, so any Sinitic
+     * device language maps to "zh" and every other language, translated UI
+     * or not, maps to "en".
      */
     fun resolvedSystemLanguage(): String {
         val device = Resources.getSystem().configuration.locales[0] ?: Locale.getDefault()
