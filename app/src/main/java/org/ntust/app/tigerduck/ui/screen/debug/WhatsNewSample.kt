@@ -42,58 +42,62 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.data.model.WhatsNewSummary
 import org.ntust.app.tigerduck.data.model.WhatsNewSummaryItem
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewEffect
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewLanguage
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewPage
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewText
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewVisual
 
 /**
  * A What's New flow with one page of every kind and a summary, so the sheet
- * can be exercised before any release registers real pages. Debug-only copy,
- * hardcoded English like the rest of this screen. Answers change nothing in
- * the app; they are reported through [onEvent].
+ * can be exercised before any release registers real pages. Copy is written
+ * in both What's New languages, as a real page's is, so the sample also shows
+ * the language switch. Answers change nothing in the app; they are reported
+ * through [onEvent].
  */
 @Composable
 fun rememberWhatsNewSampleFlow(onEvent: (String) -> Unit): WhatsNewFlow {
     val report by rememberUpdatedState(onEvent)
     val layout = remember { mutableStateOf("classic") }
     val switch = remember { mutableStateOf(false) }
-    return remember {
+    val language = WhatsNewLanguage.of(LocalConfiguration.current.locales[0].toLanguageTag())
+    return remember(language) {
         WhatsNewFlow(
             pages = listOf(
                 WhatsNewPage.Feature(
                     id = "sample-feature-icon",
                     visual = WhatsNewVisual.Icon(Icons.Filled.Email, WhatsNewEffect.Bounce),
-                    title = raw("Feature page"),
-                    body = raw("An icon with a looping effect, a title and a few lines of text."),
+                    title = text("Feature page", "功能頁"),
+                    body = text("An icon with a looping effect, a title and a few lines of text.", "一個帶循環動畫的圖示，加上標題與幾行說明。"),
                 ),
                 WhatsNewPage.Feature(
                     id = "sample-feature-demo",
                     visual = WhatsNewVisual.Custom { animate -> SampleInboxDemo(animate) },
-                    title = raw("Custom demo"),
-                    body = raw("A hand-built mock of a screen in place of the icon."),
+                    title = text("Custom demo", "自訂示範"),
+                    body = text("A hand-built mock of a screen in place of the icon.", "以手刻的畫面示意取代圖示。"),
                 ),
                 WhatsNewPage.OptIn(
                     id = "sample-opt-in",
                     visual = WhatsNewVisual.Icon(Icons.Filled.Dashboard, WhatsNewEffect.Wiggle),
-                    title = raw("Opt in"),
-                    body = raw("Offers a change. Turn On applies it, Not Now leaves things as they are."),
-                    confirmLabel = raw("Turn On"),
-                    declineLabel = raw("Not Now"),
+                    title = text("Opt in", "選擇加入"),
+                    body = text("Offers a change. Turn On applies it, Not Now leaves things as they are.", "提供一項變更。「開啟」會套用，「暫時不要」則維持原狀。"),
+                    confirmLabel = text("Turn On", "開啟"),
+                    declineLabel = text("Not Now", "暫時不要"),
                     apply = { report("Opt-in page: applied.") },
                 ),
                 WhatsNewPage.Permission(
                     id = "sample-permission",
                     visual = WhatsNewVisual.Icon(Icons.Filled.Notifications, WhatsNewEffect.Pulse),
-                    title = raw("Ask for a permission"),
-                    body = raw("Turn On brings up the system notification prompt (Android 13+)."),
-                    confirmLabel = raw("Turn On Notifications"),
-                    declineLabel = raw("Not Now"),
+                    title = text("Ask for a permission", "請求權限"),
+                    body = text("Turn On brings up the system notification prompt (Android 13+).", "「開啟通知」會跳出系統的通知權限提示（Android 13 以上）。"),
+                    confirmLabel = text("Turn On Notifications", "開啟通知"),
+                    declineLabel = text("Not Now", "暫時不要"),
                     permissions = listOfNotNull(
                         Manifest.permission.POST_NOTIFICATIONS
                             .takeIf { Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU },
@@ -104,12 +108,12 @@ fun rememberWhatsNewSampleFlow(onEvent: (String) -> Unit): WhatsNewFlow {
                 WhatsNewPage.Choice(
                     id = "sample-choice",
                     visual = WhatsNewVisual.Icon(Icons.Filled.Sync, WhatsNewEffect.Rotate),
-                    title = raw("Pick between looks"),
-                    body = raw("Selecting a card applies it right away."),
+                    title = text("Pick between looks", "選擇外觀"),
+                    body = text("Selecting a card applies it right away.", "點選卡片後會立即套用。"),
                     options = listOf(
                         WhatsNewPage.Choice.Option(
                             id = "classic",
-                            label = raw("Classic"),
+                            label = text("Classic", "經典"),
                             preview = {
                                 SampleBottomBar(
                                     listOf(
@@ -122,7 +126,7 @@ fun rememberWhatsNewSampleFlow(onEvent: (String) -> Unit): WhatsNewFlow {
                         ),
                         WhatsNewPage.Choice.Option(
                             id = "recommended",
-                            label = raw("Recommended"),
+                            label = text("Recommended", "推薦"),
                             preview = {
                                 SampleBottomBar(
                                     listOf(
@@ -143,9 +147,9 @@ fun rememberWhatsNewSampleFlow(onEvent: (String) -> Unit): WhatsNewFlow {
                 WhatsNewPage.Toggle(
                     id = "sample-toggle",
                     visual = WhatsNewVisual.Icon(Icons.Filled.Palette, WhatsNewEffect.Breathe),
-                    title = raw("Toggle"),
-                    body = raw("A switch under the demo, applied as it's flipped."),
-                    label = raw("Sample setting"),
+                    title = text("Toggle", "開關"),
+                    body = text("A switch under the demo, applied as it's flipped.", "示範下方的開關，切換時立即套用。"),
+                    label = text("Sample setting", "範例設定"),
                     get = { switch.value },
                     set = {
                         switch.value = it
@@ -163,37 +167,65 @@ fun rememberWhatsNewSampleFlow(onEvent: (String) -> Unit): WhatsNewFlow {
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
                         ) {
+                            // A custom page picks its own copy with the
+                            // flow's language.
                             Text(
-                                "Custom page",
+                                text("Custom page", "自訂頁面").resolve(context.language),
                                 style = MaterialTheme.typography.headlineSmall,
                             )
                             Text(
-                                "Draws its own body and hides the standard Next button. " +
-                                    "This one moves on from its own button.",
+                                text(
+                                    "Draws its own body and hides the standard Next button. " +
+                                        "This one moves on from its own button.",
+                                    "自行繪製內容並隱藏標準的「下一步」按鈕，由頁面自己的按鈕前往下一頁。",
+                                ).resolve(context.language),
                                 style = MaterialTheme.typography.bodyLarge,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Button(onClick = context.advance) { Text("Go to the summary") }
+                            Button(onClick = context.advance) {
+                                Text(text("Go to the summary", "前往摘要").resolve(context.language))
+                            }
                         }
                     },
                 ),
             ),
+            // A real summary arrives already resolved from whatsnew.json;
+            // the sample resolves its own the same way.
             summary = WhatsNewSummary(
                 versionCode = 0,
-                title = "What's new in the sample",
+                title = text("What's new in the sample", "範例的新功能").resolve(language),
                 items = listOf(
-                    WhatsNewSummaryItem("School Mail", "Send and receive your NTUST mail.", "mail"),
-                    WhatsNewSummaryItem("New bottom bar", "A recommended set of tabs.", "layout"),
-                    WhatsNewSummaryItem("Unknown icon name", "Falls back to a neutral glyph.", "nope"),
-                    WhatsNewSummaryItem(null, "A legacy plain-text highlight gets a dot.", null),
+                    WhatsNewSummaryItem(
+                        text("School Mail", "校園信箱").resolve(language),
+                        text("Send and receive your NTUST mail.", "收發臺科大信件。").resolve(language),
+                        "mail",
+                    ),
+                    WhatsNewSummaryItem(
+                        text("New bottom bar", "新的底部功能列").resolve(language),
+                        text("A recommended set of tabs.", "一組推薦的項目。").resolve(language),
+                        "layout",
+                    ),
+                    WhatsNewSummaryItem(
+                        text("Unknown icon name", "未知的圖示名稱").resolve(language),
+                        text("Falls back to a neutral glyph.", "改用中性的預設圖示。").resolve(language),
+                        "nope",
+                    ),
+                    WhatsNewSummaryItem(
+                        null,
+                        text(
+                            "A legacy plain-text highlight gets a dot.",
+                            "舊格式的純文字重點會顯示圓點。",
+                        ).resolve(language),
+                        null,
+                    ),
                 ),
             ),
         )
     }
 }
 
-private fun raw(text: String) = WhatsNewText.Raw(text)
+private fun text(en: String, zhHant: String) = WhatsNewText(en = en, zhHant = zhHant)
 
 @Composable
 private fun SampleInboxDemo(animate: Boolean) {

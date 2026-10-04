@@ -59,6 +59,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +71,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
@@ -99,18 +101,24 @@ fun WhatsNewSheet(flow: WhatsNewFlow, onDismiss: () -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var finishing by remember { mutableStateOf(false) }
+    // Read here, in the activity's composition, from the same app-locale-aware
+    // configuration the summary was looked up with — so page copy and the
+    // summary always agree on the language.
+    val language = WhatsNewLanguage.of(LocalConfiguration.current.locales[0].toLanguageTag())
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        WhatsNewFlowContent(
-            flow = flow,
-            onFinish = {
-                // Animate the sheet away before dropping it; guarded so a
-                // double tap on the last button can't dismiss twice.
-                if (!finishing) {
-                    finishing = true
-                    scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                }
-            },
-        )
+        CompositionLocalProvider(LocalWhatsNewLanguage provides language) {
+            WhatsNewFlowContent(
+                flow = flow,
+                onFinish = {
+                    // Animate the sheet away before dropping it; guarded so a
+                    // double tap on the last button can't dismiss twice.
+                    if (!finishing) {
+                        finishing = true
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    }
+                },
+            )
+        }
     }
 }
 
@@ -242,7 +250,13 @@ private fun PageStep(page: WhatsNewPage, isLast: Boolean, animate: Boolean, adva
                         .weight(1f)
                         .fillMaxWidth(),
                 ) {
-                    page.content(WhatsNewPageContext(advance = advance, animate = animate))
+                    page.content(
+                        WhatsNewPageContext(
+                            advance = advance,
+                            animate = animate,
+                            language = LocalWhatsNewLanguage.current,
+                        ),
+                    )
                 }
                 if (page.showsNextButton) PrimaryButton(primaryLabel, advance)
             }

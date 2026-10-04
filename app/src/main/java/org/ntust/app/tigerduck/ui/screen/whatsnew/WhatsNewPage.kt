@@ -1,24 +1,44 @@
 package org.ntust.app.tigerduck.ui.screen.whatsnew
 
-import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 
 /**
- * Copy on a What's New page: a string resource for real pages (translated in
- * `app-translation`), or a raw string for the debug sample.
+ * The two languages What's New is written in, like `assets/whatsnew.json`:
+ * Traditional Chinese for every Chinese-family UI language, English for the
+ * rest. Page copy deliberately stays out of `app-translation` — release copy
+ * is written once in these two languages, not machine-spread to every locale.
  */
-sealed interface WhatsNewText {
-    data class Res(@param:StringRes val id: Int) : WhatsNewText
-    data class Raw(val text: String) : WhatsNewText
+enum class WhatsNewLanguage {
+    ZhHant, En;
+
+    companion object {
+        /**
+         * Same rule the summary lookup uses
+         * ([AppLanguageManager.isChineseLanguageTag]): Mandarin in either
+         * script, Cantonese, Min Nan, Hakka, Wu and Classical Chinese read
+         * the Traditional copy; everyone else reads English.
+         */
+        fun of(languageTag: String): WhatsNewLanguage =
+            if (AppLanguageManager.isChineseLanguageTag(languageTag)) ZhHant else En
+    }
 }
 
-@Composable
-fun WhatsNewText.resolve(): String = when (this) {
-    is WhatsNewText.Res -> stringResource(id)
-    is WhatsNewText.Raw -> text
+/** Copy on a What's New page, written in both [WhatsNewLanguage]s. */
+data class WhatsNewText(val en: String, val zhHant: String) {
+    fun resolve(language: WhatsNewLanguage): String = when (language) {
+        WhatsNewLanguage.ZhHant -> zhHant
+        WhatsNewLanguage.En -> en
+    }
 }
+
+/** The language [WhatsNewSheet] resolved for the flow on screen. */
+val LocalWhatsNewLanguage = staticCompositionLocalOf { WhatsNewLanguage.En }
+
+@Composable
+fun WhatsNewText.resolve(): String = resolve(LocalWhatsNewLanguage.current)
 
 /**
  * The small looping animation an [WhatsNewVisual.Icon] plays. Dropped
@@ -48,6 +68,8 @@ class WhatsNewPageContext(
     val advance: () -> Unit,
     /** Whether the system allows animations right now. */
     val animate: Boolean,
+    /** The language the rest of the flow is shown in; pick copy with it. */
+    val language: WhatsNewLanguage,
 )
 
 /**
