@@ -219,8 +219,10 @@ class MainActivity : AppCompatActivity() {
                                     // recreation before this runs is re-shown
                                     // on the next onCreate (issue #89). Any
                                     // dismissal counts, from any page.
-                                    appPreferences.lastSeenWhatsNewVersionCode =
-                                        BuildConfig.VERSION_CODE
+                                    recordWhatsNewSeen(
+                                        appPreferences.lastSeenWhatsNewVersionCode,
+                                        BuildConfig.VERSION_CODE,
+                                    )
                                 },
                             )
                         }
@@ -400,20 +402,25 @@ class MainActivity : AppCompatActivity() {
      * page applies; the debug replay sentinel is only consumed on a genuine
      * process start, so rotating after tapping the debug row can't pop the
      * sheet mid-session.
+     *
+     * The catalog and `whatsnew.json` are only built and read when the plan
+     * needs them, so the everyday launch — already on the version last seen —
+     * costs a preference read and nothing more.
      */
     private fun resolveWhatsNew(savedInstanceState: Bundle?) {
         val current = BuildConfig.VERSION_CODE
+        val lastSeen = appPreferences.lastSeenWhatsNewVersionCode
         val languageTag = resources.configuration.locales[0].toLanguageTag()
-        val catalog = WhatsNewCatalog.pages(appState)
-        val summaries = whatsNewRepository.summaries(languageTag)
+        val catalog by lazy { WhatsNewCatalog.pages(appState) }
+        val summaries by lazy { whatsNewRepository.summaries(languageTag) }
 
         val plan = WhatsNewGate.plan(
-            lastSeen = appPreferences.lastSeenWhatsNewVersionCode,
+            lastSeen = lastSeen,
             current = current,
             hasCompletedOnboarding = appPreferences.hasCompletedOnboarding,
             freshStart = savedInstanceState == null,
-            pageVersions = catalog.keys,
-            summaryVersions = summaries.keys,
+            pageVersions = { catalog.keys },
+            summaryVersions = { summaries.keys },
         )
         when (plan) {
             WhatsNewGate.Plan.Defer -> Unit
@@ -421,8 +428,7 @@ class MainActivity : AppCompatActivity() {
             // Nothing to show — record now so the lookup doesn't re-run on
             // every launch, and so the next upgrade only stacks the versions
             // after this one.
-            WhatsNewGate.Plan.RecordOnly ->
-                appPreferences.lastSeenWhatsNewVersionCode = current
+            WhatsNewGate.Plan.RecordOnly -> recordWhatsNewSeen(lastSeen, current)
 
             is WhatsNewGate.Plan.Show -> {
                 val flow = WhatsNewFlow.from(
@@ -434,9 +440,19 @@ class MainActivity : AppCompatActivity() {
                 whatsNewFlow.value = flow
                 // Every page was filtered out by its "only if this applies"
                 // check and there's no summary: same as nothing to show.
-                if (flow == null) appPreferences.lastSeenWhatsNewVersionCode = current
+                if (flow == null) recordWhatsNewSeen(lastSeen, current)
             }
         }
+    }
+
+    /**
+     * Stores [WhatsNewGate.recordedAfter]: the running versionCode, or the
+     * newer one already on record after a downgrade. Skips the write when
+     * nothing changes, which is every launch after the first on a version.
+     */
+    private fun recordWhatsNewSeen(lastSeen: Int, current: Int) {
+        val recorded = WhatsNewGate.recordedAfter(lastSeen, current)
+        if (recorded != lastSeen) appPreferences.lastSeenWhatsNewVersionCode = recorded
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

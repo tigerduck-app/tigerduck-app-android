@@ -49,6 +49,10 @@ object WhatsNewGate {
     /**
      * Decides what the sheet shows on this launch.
      *
+     * The version sets are suppliers, asked for only on the branches that
+     * need them: the common launch — already on the version last seen —
+     * decides without building the catalog or reading `whatsnew.json`.
+     *
      * @param pageVersions versionCodes with feature pages in the catalog.
      * @param summaryVersions versionCodes with a usable summary in the
      *   user's locale.
@@ -60,15 +64,15 @@ object WhatsNewGate {
         current: Int,
         hasCompletedOnboarding: Boolean,
         freshStart: Boolean,
-        pageVersions: Set<Int>,
-        summaryVersions: Set<Int>,
+        pageVersions: () -> Set<Int>,
+        summaryVersions: () -> Set<Int>,
     ): Plan {
         // Replay ("What's new" in Settings, or the debug trigger): the newest
         // registered version, even one newer than this build — whatsnew.json
         // is usually written ahead of the version bump.
         if (lastSeen == AppPreferences.WHATS_NEW_REPLAY) {
             if (!freshStart) return Plan.Defer
-            return replay(pageVersions, summaryVersions) ?: Plan.RecordOnly
+            return replay(pageVersions(), summaryVersions()) ?: Plan.RecordOnly
         }
 
         // No versionCode on record. A genuine fresh install shows nothing. A
@@ -77,13 +81,22 @@ object WhatsNewGate {
         // version, never the whole history.
         if (lastSeen == AppPreferences.WHATS_NEW_UNSET) {
             if (!hasCompletedOnboarding) return Plan.RecordOnly
-            return show(listOf(current).filter { it in pageVersions }, current, summaryVersions)
+            return show(listOf(current).filter { it in pageVersions() }, current, summaryVersions())
         }
 
         if (!shouldShow(lastSeen, current)) return Plan.RecordOnly
-        val skipped = pageVersions.filter { it in (lastSeen + 1)..current }.sorted()
-        return show(skipped, current, summaryVersions)
+        val skipped = pageVersions().filter { it in (lastSeen + 1)..current }.sorted()
+        return show(skipped, current, summaryVersions())
     }
+
+    /**
+     * The last-seen versionCode to store once this launch is handled: the
+     * running one, unless the record is already newer (a downgrade), so a
+     * later re-upgrade doesn't show pages the user has already seen. The
+     * [AppPreferences.WHATS_NEW_UNSET] and [AppPreferences.WHATS_NEW_REPLAY]
+     * sentinels sit below every real versionCode, so they give way to it.
+     */
+    fun recordedAfter(lastSeen: Int, current: Int): Int = maxOf(lastSeen, current)
 
     /**
      * The newest registered version's pages and summary, ignoring the

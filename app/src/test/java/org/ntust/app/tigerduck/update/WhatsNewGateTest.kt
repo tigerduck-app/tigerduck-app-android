@@ -59,8 +59,8 @@ class WhatsNewGateTest {
         current = current,
         hasCompletedOnboarding = onboarded,
         freshStart = freshStart,
-        pageVersions = pages,
-        summaryVersions = summaries,
+        pageVersions = { pages },
+        summaryVersions = { summaries },
     )
 
     @Test
@@ -170,6 +170,53 @@ class WhatsNewGateTest {
             summaries = setOf(30),
         )
         assertEquals(Plan.Defer, result)
+    }
+
+    @Test
+    fun `an up-to-date launch never asks for the version sets`() {
+        val untouched: () -> Set<Int> = { throw AssertionError("version set read on a no-op launch") }
+        listOf(30, 31).forEach { lastSeen ->
+            val result = WhatsNewGate.plan(
+                lastSeen = lastSeen,
+                current = 30,
+                hasCompletedOnboarding = true,
+                freshStart = true,
+                pageVersions = untouched,
+                summaryVersions = untouched,
+            )
+            assertEquals(Plan.RecordOnly, result)
+        }
+    }
+
+    @Test
+    fun `a fresh install never asks for the version sets`() {
+        val untouched: () -> Set<Int> = { throw AssertionError("version set read on a fresh install") }
+        val result = WhatsNewGate.plan(
+            lastSeen = AppPreferences.WHATS_NEW_UNSET,
+            current = 30,
+            hasCompletedOnboarding = false,
+            freshStart = true,
+            pageVersions = untouched,
+            summaryVersions = untouched,
+        )
+        assertEquals(Plan.RecordOnly, result)
+    }
+
+    @Test
+    fun `recording keeps a newer marker after a downgrade`() {
+        assertEquals(31, WhatsNewGate.recordedAfter(lastSeen = 31, current = 30))
+    }
+
+    @Test
+    fun `recording moves the marker up to the running version`() {
+        assertEquals(30, WhatsNewGate.recordedAfter(lastSeen = 28, current = 30))
+        assertEquals(30, WhatsNewGate.recordedAfter(lastSeen = 30, current = 30))
+    }
+
+    @Test
+    fun `recording replaces either sentinel with the running version`() {
+        assertEquals(30, WhatsNewGate.recordedAfter(AppPreferences.WHATS_NEW_UNSET, current = 30))
+        assertEquals(30, WhatsNewGate.recordedAfter(AppPreferences.WHATS_NEW_REPLAY, current = 30))
     }
 
     @Test
