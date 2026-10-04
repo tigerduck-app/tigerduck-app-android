@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">डिफ़ॉल्ट रीसेट करें</string>
     <string name="tab_editor_section_available_tabs">उपलब्ध Tabs</string>
     <string name="tab_editor_section_current_tabs">वर्तमान Tabs</string>
-    <string name="tab_editor_title">Tab संपादक</string>
+    <string name="tab_editor_title">नीचे का नेविगेशन बार कस्टमाइज़ करें</string>
     <string name="tag_server_notification">सर्वर सूचना</string>
     <string name="update_action_later">बाद में</string>
     <string name="update_action_skip_version">इस संस्करण को छोड़ें</string>

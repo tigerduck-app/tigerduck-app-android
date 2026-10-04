@@ -398,8 +398,8 @@
     <string name="haptic_scenario_flip_to_library">翻轉開圖書館</string>
     <string name="haptic_scenario_library_warning">圖書館警告視窗</string>
     <string name="haptic_scenario_pull_to_refresh">下拉重新整理</string>
-    <string name="haptic_scenario_tab_reorder">分頁編輯器重新排列</string>
-    <string name="haptic_scenario_tab_switch">底部分頁切換</string>
+    <string name="haptic_scenario_tab_reorder">底部功能列重新排列</string>
+    <string name="haptic_scenario_tab_switch">底部功能列切換</string>
     <string name="haptic_scenario_time_slider_tick">時間滑桿刻度</string>
     <string name="home_add_section_title">新增區塊</string>
     <string name="home_assignments_all_good">一切順利</string>
@@ -926,11 +926,11 @@
     <string name="tab_editor_apply_action">套用</string>
     <string name="tab_editor_drag_reorder">拖動排序</string>
     <string name="tab_editor_locked">固定</string>
-    <string name="tab_editor_max_items_hint">底部導覽列最多 %1$d 個項目（含「更多」）。長按拖動可調整順序。</string>
+    <string name="tab_editor_max_items_hint">底部功能列最多 %1$d 個項目（含「更多」）。長按拖動可調整順序。</string>
     <string name="tab_editor_reset_default">恢復預設</string>
-    <string name="tab_editor_section_available_tabs">其他可用的 Tab</string>
-    <string name="tab_editor_section_current_tabs">目前的 Tab</string>
-    <string name="tab_editor_title">Tab 編輯器</string>
+    <string name="tab_editor_section_available_tabs">可新增的項目</string>
+    <string name="tab_editor_section_current_tabs">目前顯示的項目</string>
+    <string name="tab_editor_title">自訂底部功能列</string>
     <string name="tag_server_notification">伺服器通知</string>
     <string name="update_action_later">稍後</string>
     <string name="update_action_skip_version">跳過此版本</string>

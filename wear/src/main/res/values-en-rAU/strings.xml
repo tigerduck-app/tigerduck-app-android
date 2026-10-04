@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Reset defaults</string>
     <string name="tab_editor_section_available_tabs">Available tabs</string>
     <string name="tab_editor_section_current_tabs">Current tabs</string>
-    <string name="tab_editor_title">Tab editor</string>
+    <string name="tab_editor_title">Customise bottom bar</string>
     <string name="tag_server_notification">Server notification</string>
     <string name="update_action_later">Later</string>
     <string name="update_action_skip_version">Skip this version</string>

@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Khôi phục mặc định</string>
     <string name="tab_editor_section_available_tabs">Tab có sẵn</string>
     <string name="tab_editor_section_current_tabs">Tab hiện tại</string>
-    <string name="tab_editor_title">Trình chỉnh sửa Tab</string>
+    <string name="tab_editor_title">Tùy chỉnh thanh điều hướng dưới</string>
     <string name="tag_server_notification">Thông báo máy chủ</string>
     <string name="update_action_later">Để sau</string>
     <string name="update_action_skip_version">Bỏ qua phiên bản này</string>

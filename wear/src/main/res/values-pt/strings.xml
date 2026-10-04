@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Repor predefinições</string>
     <string name="tab_editor_section_available_tabs">Separadores disponíveis</string>
     <string name="tab_editor_section_current_tabs">Separadores atuais</string>
-    <string name="tab_editor_title">Editor de separadores</string>
+    <string name="tab_editor_title">Personalizar barra inferior</string>
     <string name="tag_server_notification">Notificação do servidor</string>
     <string name="update_action_later">Mais tarde</string>
     <string name="update_action_skip_version">Ignorar esta versão</string>

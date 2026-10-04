@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Palauta oletukset</string>
     <string name="tab_editor_section_available_tabs">Saatavilla olevat välilehdet</string>
     <string name="tab_editor_section_current_tabs">Nykyiset välilehdet</string>
-    <string name="tab_editor_title">Välilehtieditori</string>
+    <string name="tab_editor_title">Mukauta alapalkkia</string>
     <string name="tag_server_notification">Palvelimilmoitus</string>
     <string name="update_action_later">Myöhemmin</string>
     <string name="update_action_skip_version">Ohita tämä versio</string>

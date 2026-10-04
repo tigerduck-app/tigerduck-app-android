@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Atkurti numatytuosius</string>
     <string name="tab_editor_section_available_tabs">Galimi skirtukai</string>
     <string name="tab_editor_section_current_tabs">Dabartiniai skirtukai</string>
-    <string name="tab_editor_title">Skirtukų redaktorius</string>
+    <string name="tab_editor_title">Tinkinti apatinę juostą</string>
     <string name="tag_server_notification">Serverio pranešimas</string>
     <string name="update_action_later">Vėliau</string>
     <string name="update_action_skip_version">Praleisti šią versiją</string>

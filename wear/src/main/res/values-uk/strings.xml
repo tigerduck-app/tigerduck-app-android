@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Скинути до типових</string>
     <string name="tab_editor_section_available_tabs">Доступні вкладки</string>
     <string name="tab_editor_section_current_tabs">Поточні вкладки</string>
-    <string name="tab_editor_title">Редактор вкладок</string>
+    <string name="tab_editor_title">Налаштувати нижню панель</string>
     <string name="tag_server_notification">Сповіщення сервера</string>
     <string name="update_action_later">Пізніше</string>
     <string name="update_action_skip_version">Пропустити цю версію</string>

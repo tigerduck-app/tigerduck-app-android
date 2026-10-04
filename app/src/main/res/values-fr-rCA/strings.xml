@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Réinitialiser</string>
     <string name="tab_editor_section_available_tabs">Onglets disponibles</string>
     <string name="tab_editor_section_current_tabs">Onglets actuels</string>
-    <string name="tab_editor_title">Éditeur d\'onglets</string>
+    <string name="tab_editor_title">Personnaliser la barre inférieure</string>
     <string name="tag_server_notification">Notification serveur</string>
     <string name="update_action_later">Plus tard</string>
     <string name="update_action_skip_version">Ignorer cette version</string>

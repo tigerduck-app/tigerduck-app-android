@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Нулиране по подразбиране</string>
     <string name="tab_editor_section_available_tabs">Налични табове</string>
     <string name="tab_editor_section_current_tabs">Текущи табове</string>
-    <string name="tab_editor_title">Редактор на табове</string>
+    <string name="tab_editor_title">Персонализиране на долната лента</string>
     <string name="tag_server_notification">Сървърно известие</string>
     <string name="update_action_later">По-късно</string>
     <string name="update_action_skip_version">Пропусни тази версия</string>

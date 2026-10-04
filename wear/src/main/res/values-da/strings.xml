@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Nulstil standard</string>
     <string name="tab_editor_section_available_tabs">Tilgængelige faneblade</string>
     <string name="tab_editor_section_current_tabs">Aktuelle faneblade</string>
-    <string name="tab_editor_title">Fanebladseditor</string>
+    <string name="tab_editor_title">Tilpas bundnavigationen</string>
     <string name="tag_server_notification">Servernotifikation</string>
     <string name="update_action_later">Senere</string>
     <string name="update_action_skip_version">Spring denne version over</string>

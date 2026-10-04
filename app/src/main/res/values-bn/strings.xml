@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">ডিফল্টে ফিরিয়ে আনুন</string>
     <string name="tab_editor_section_available_tabs">উপলব্ধ ট্যাবসমূহ</string>
     <string name="tab_editor_section_current_tabs">বর্তমান ট্যাবসমূহ</string>
-    <string name="tab_editor_title">ট্যাব এডিটর</string>
+    <string name="tab_editor_title">নিচের নেভিগেশন বার কাস্টমাইজ করুন</string>
     <string name="tag_server_notification">সার্ভার বিজ্ঞপ্তি</string>
     <string name="update_action_later">পরে</string>
     <string name="update_action_skip_version">এই সংস্করণ এড়িয়ে যান</string>

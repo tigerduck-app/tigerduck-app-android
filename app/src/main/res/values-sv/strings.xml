@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Återställ standardvärden</string>
     <string name="tab_editor_section_available_tabs">Tillgängliga flikar</string>
     <string name="tab_editor_section_current_tabs">Nuvarande flikar</string>
-    <string name="tab_editor_title">Flikredigerare</string>
+    <string name="tab_editor_title">Anpassa navigeringsfältet</string>
     <string name="tag_server_notification">Serveravisering</string>
     <string name="update_action_later">Senare</string>
     <string name="update_action_skip_version">Hoppa över den här versionen</string>

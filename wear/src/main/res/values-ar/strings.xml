@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">استعادة الافتراضي</string>
     <string name="tab_editor_section_available_tabs">التبويبات المتاحة</string>
     <string name="tab_editor_section_current_tabs">التبويبات الحالية</string>
-    <string name="tab_editor_title">محرر التبويبات</string>
+    <string name="tab_editor_title">تخصيص شريط التنقل السفلي</string>
     <string name="tag_server_notification">إشعار الخادم</string>
     <string name="update_action_later">لاحقاً</string>
     <string name="update_action_skip_version">تخطّي هذا الإصدار</string>

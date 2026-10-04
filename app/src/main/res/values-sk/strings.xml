@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Obnoviť predvolené</string>
     <string name="tab_editor_section_available_tabs">Dostupné karty</string>
     <string name="tab_editor_section_current_tabs">Aktuálne karty</string>
-    <string name="tab_editor_title">Editor kariet</string>
+    <string name="tab_editor_title">Prispôsobiť spodnú lištu</string>
     <string name="tag_server_notification">Serverové oznámenie</string>
     <string name="update_action_later">Neskôr</string>
     <string name="update_action_skip_version">Preskočiť túto verziu</string>

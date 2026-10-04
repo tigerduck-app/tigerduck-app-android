@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Standaard herstellen</string>
     <string name="tab_editor_section_available_tabs">Beschikbare tabbladen</string>
     <string name="tab_editor_section_current_tabs">Huidige tabbladen</string>
-    <string name="tab_editor_title">Tabbladeditor</string>
+    <string name="tab_editor_title">Onderste balk aanpassen</string>
     <string name="tag_server_notification">Servermelding</string>
     <string name="update_action_later">Later</string>
     <string name="update_action_skip_version">Deze versie overslaan</string>

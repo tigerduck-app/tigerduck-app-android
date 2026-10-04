@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">รีเซ็ตเป็นค่าเริ่มต้น</string>
     <string name="tab_editor_section_available_tabs">แท็บที่ใช้ได้</string>
     <string name="tab_editor_section_current_tabs">แท็บปัจจุบัน</string>
-    <string name="tab_editor_title">ตัวแก้ไขแท็บ</string>
+    <string name="tab_editor_title">ปรับแต่งแถบด้านล่าง</string>
     <string name="tag_server_notification">การแจ้งเตือนเซิร์ฟเวอร์</string>
     <string name="update_action_later">ภายหลัง</string>
     <string name="update_action_skip_version">ข้ามเวอร์ชันนี้</string>

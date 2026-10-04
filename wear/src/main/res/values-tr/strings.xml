@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Varsayılanlara sıfırla</string>
     <string name="tab_editor_section_available_tabs">Kullanılabilir sekmeler</string>
     <string name="tab_editor_section_current_tabs">Mevcut sekmeler</string>
-    <string name="tab_editor_title">Sekme düzenleyici</string>
+    <string name="tab_editor_title">Alt çubuğu özelleştir</string>
     <string name="tag_server_notification">Sunucu bildirimi</string>
     <string name="update_action_later">Daha sonra</string>
     <string name="update_action_skip_version">Bu sürümü atla</string>

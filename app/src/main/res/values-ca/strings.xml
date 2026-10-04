@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Restableix els valors predeterminats</string>
     <string name="tab_editor_section_available_tabs">Pestanyes disponibles</string>
     <string name="tab_editor_section_current_tabs">Pestanyes actuals</string>
-    <string name="tab_editor_title">Editor de pestanyes</string>
+    <string name="tab_editor_title">Personalitza la barra inferior</string>
     <string name="tag_server_notification">Notificació del servidor</string>
     <string name="update_action_later">Més tard</string>
     <string name="update_action_skip_version">Omet aquesta versió</string>

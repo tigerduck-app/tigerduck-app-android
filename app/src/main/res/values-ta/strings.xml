@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">இயல்புநிலைக்கு மீட்டமை</string>
     <string name="tab_editor_section_available_tabs">கிடைக்கக்கூடிய Tab-கள்</string>
     <string name="tab_editor_section_current_tabs">தற்போதைய Tab-கள்</string>
-    <string name="tab_editor_title">Tab திருத்தி</string>
+    <string name="tab_editor_title">கீழ் வழிசெலுத்தல் பட்டியைத் தனிப்பயனாக்கு</string>
     <string name="tag_server_notification">சேவையக அறிவிப்பு</string>
     <string name="update_action_later">பின்னர்</string>
     <string name="update_action_skip_version">இந்த பதிப்பை தவிர்</string>

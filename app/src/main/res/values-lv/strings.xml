@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Atjaunot noklusējumu</string>
     <string name="tab_editor_section_available_tabs">Pieejamie cilņi</string>
     <string name="tab_editor_section_current_tabs">Pašreizējie cilņi</string>
-    <string name="tab_editor_title">Ciļņu redaktors</string>
+    <string name="tab_editor_title">Pielāgot apakšējo joslu</string>
     <string name="tag_server_notification">Servera paziņojums</string>
     <string name="update_action_later">Vēlāk</string>
     <string name="update_action_skip_version">Izlaist šo versiju</string>

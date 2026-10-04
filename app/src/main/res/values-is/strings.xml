@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Endurstilla sjálfgefið</string>
     <string name="tab_editor_section_available_tabs">Tiltækir flipar</string>
     <string name="tab_editor_section_current_tabs">Núverandi flipar</string>
-    <string name="tab_editor_title">Fliparitill</string>
+    <string name="tab_editor_title">Sérsníða neðri stikuna</string>
     <string name="tag_server_notification">Þjónatilkynning</string>
     <string name="update_action_later">Seinna</string>
     <string name="update_action_skip_version">Sleppa þessari útgáfu</string>

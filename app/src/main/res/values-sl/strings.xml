@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Ponastavi privzeto</string>
     <string name="tab_editor_section_available_tabs">Razpoložljivi zavihki</string>
     <string name="tab_editor_section_current_tabs">Trenutni zavihki</string>
-    <string name="tab_editor_title">Urejevalnik zavihkov</string>
+    <string name="tab_editor_title">Prilagodi spodnjo vrstico</string>
     <string name="tag_server_notification">Strežniško obvestilo</string>
     <string name="update_action_later">Pozneje</string>
     <string name="update_action_skip_version">Preskoči to različico</string>

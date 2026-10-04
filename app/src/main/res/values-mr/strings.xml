@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">डीफॉल्ट पुनर्स्थापित करा</string>
     <string name="tab_editor_section_available_tabs">उपलब्ध Tabs</string>
     <string name="tab_editor_section_current_tabs">सध्याचे Tabs</string>
-    <string name="tab_editor_title">Tab संपादक</string>
+    <string name="tab_editor_title">खालील नेव्हिगेशन बार कस्टमाइझ करा</string>
     <string name="tag_server_notification">सर्व्हर सूचना</string>
     <string name="update_action_later">नंतर</string>
     <string name="update_action_skip_version">ही आवृत्ती वगळा</string>

@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Әдепкіні қалпына келтіру</string>
     <string name="tab_editor_section_available_tabs">Қол жетімді қойындылар</string>
     <string name="tab_editor_section_current_tabs">Ағымдағы қойындылар</string>
-    <string name="tab_editor_title">Қойынды редакторы</string>
+    <string name="tab_editor_title">Төменгі навигация жолағын реттеу</string>
     <string name="tag_server_notification">Сервер хабарландыруы</string>
     <string name="update_action_later">Кейінірек</string>
     <string name="update_action_skip_version">Бұл нұсқаны өткізіп жіберу</string>

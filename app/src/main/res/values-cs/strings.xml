@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Obnovit výchozí</string>
     <string name="tab_editor_section_available_tabs">Dostupné záložky</string>
     <string name="tab_editor_section_current_tabs">Aktuální záložky</string>
-    <string name="tab_editor_title">Editor záložek</string>
+    <string name="tab_editor_title">Přizpůsobit spodní lištu</string>
     <string name="tag_server_notification">Serverové oznámení</string>
     <string name="update_action_later">Později</string>
     <string name="update_action_skip_version">Přeskočit tuto verzi</string>

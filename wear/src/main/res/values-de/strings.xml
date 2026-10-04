@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Standard wiederherstellen</string>
     <string name="tab_editor_section_available_tabs">Verfügbare Tabs</string>
     <string name="tab_editor_section_current_tabs">Aktuelle Tabs</string>
-    <string name="tab_editor_title">Tab-Editor</string>
+    <string name="tab_editor_title">Untere Navigation anpassen</string>
     <string name="tag_server_notification">Serverbenachrichtigung</string>
     <string name="update_action_later">Später</string>
     <string name="update_action_skip_version">Diese Version überspringen</string>

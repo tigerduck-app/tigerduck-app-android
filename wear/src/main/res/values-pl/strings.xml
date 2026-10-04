@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Przywróć ustawienia domyślne</string>
     <string name="tab_editor_section_available_tabs">Dostępne zakładki</string>
     <string name="tab_editor_section_current_tabs">Bieżące zakładki</string>
-    <string name="tab_editor_title">Edytor zakładek</string>
+    <string name="tab_editor_title">Dostosuj dolny pasek</string>
     <string name="tag_server_notification">Powiadomienie serwera</string>
     <string name="update_action_later">Później</string>
     <string name="update_action_skip_version">Pomiń tę wersję</string>

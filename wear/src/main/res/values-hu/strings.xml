@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Alapértelmezések visszaállítása</string>
     <string name="tab_editor_section_available_tabs">Elérhető lapok</string>
     <string name="tab_editor_section_current_tabs">Jelenlegi lapok</string>
-    <string name="tab_editor_title">Lap szerkesztő</string>
+    <string name="tab_editor_title">Alsó sáv testreszabása</string>
     <string name="tag_server_notification">Szerver-értesítés</string>
     <string name="update_action_later">Később</string>
     <string name="update_action_skip_version">Verzió kihagyása</string>

@@ -930,7 +930,7 @@
     <string name="tab_editor_reset_default">Setel ulang ke default</string>
     <string name="tab_editor_section_available_tabs">Tab yang tersedia</string>
     <string name="tab_editor_section_current_tabs">Tab saat ini</string>
-    <string name="tab_editor_title">Editor tab</string>
+    <string name="tab_editor_title">Sesuaikan menu bawah</string>
     <string name="tag_server_notification">Notifikasi server</string>
     <string name="update_action_later">Nanti</string>
     <string name="update_action_skip_version">Lewati versi ini</string>
