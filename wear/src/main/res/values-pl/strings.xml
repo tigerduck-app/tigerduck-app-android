@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Brak nadawcy)</string>
     <string name="school_mail_no_subject">(Brak tematu)</string>
     <string name="school_mail_notification_settings_title">Powiadomienia poczty uczelnianej</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Otwórz</string>
     <string name="school_mail_parse_failed">Nie udało się odczytać formatu wiadomości. Wyświetlono jej kod źródłowy.</string>
     <string name="school_mail_quote_header">W dniu %1$@ użytkownik %2$@ napisał:</string>

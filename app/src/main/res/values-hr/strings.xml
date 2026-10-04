@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Nema pošiljatelja)</string>
     <string name="school_mail_no_subject">(Nema predmeta)</string>
     <string name="school_mail_notification_settings_title">Obavijesti školske pošte</string>
-    <string name="school_mail_notification_title">Poruka: %1$@</string>
     <string name="school_mail_open">Otvori</string>
     <string name="school_mail_parse_failed">Format ove poruke nije moguće pročitati. Umjesto toga prikazuje se izvorni kod.</string>
     <string name="school_mail_quote_header">Dana %1$@, %2$@ piše:</string>

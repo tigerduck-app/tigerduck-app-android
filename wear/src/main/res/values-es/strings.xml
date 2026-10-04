@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Sin remitente)</string>
     <string name="school_mail_no_subject">(Sin asunto)</string>
     <string name="school_mail_notification_settings_title">Notificaciones de Correo universitario</string>
-    <string name="school_mail_notification_title">Correo: %1$@</string>
     <string name="school_mail_open">Abrir</string>
     <string name="school_mail_parse_failed">No se pudo leer el formato de este correo. Se muestra su código fuente.</string>
     <string name="school_mail_quote_header">El %1$@, %2$@ escribió:</string>

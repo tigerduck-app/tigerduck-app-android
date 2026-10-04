@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Ingen avsender)</string>
     <string name="school_mail_no_subject">(Intet emne)</string>
     <string name="school_mail_notification_settings_title">Varsler for Skolepost</string>
-    <string name="school_mail_notification_title">E-post: %1$@</string>
     <string name="school_mail_open">Åpne</string>
     <string name="school_mail_parse_failed">Kunne ikke lese formatet til denne e-posten. Viser kildekoden i stedet.</string>
     <string name="school_mail_quote_header">Den %1$@ skrev %2$@:</string>

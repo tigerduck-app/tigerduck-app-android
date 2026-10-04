@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(אין שולח)</string>
     <string name="school_mail_no_subject">(אין נושא)</string>
     <string name="school_mail_notification_settings_title">התראות דואר בית הספר</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">פתח</string>
     <string name="school_mail_parse_failed">לא ניתן היה לקרוא את הפורמט של ההודעה הזו. במקום זאת מוצג המקור שלה.</string>
     <string name="school_mail_quote_header">בתאריך %1$@, %2$@ כתב/ה:</string>

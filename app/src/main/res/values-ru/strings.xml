@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Нет отправителя)</string>
     <string name="school_mail_no_subject">(Без темы)</string>
     <string name="school_mail_notification_settings_title">Уведомления университетской почты</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Открыть</string>
     <string name="school_mail_parse_failed">Не удалось распознать формат письма. Показан исходный код.</string>
     <string name="school_mail_quote_header">%1$@, пользователь %2$@ писал:</string>

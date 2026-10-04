@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Enginn sendandi)</string>
     <string name="school_mail_no_subject">(Ekkert efni)</string>
     <string name="school_mail_notification_settings_title">Tilkynningar frá Skólapósti</string>
-    <string name="school_mail_notification_title">Póstur: %1$@</string>
     <string name="school_mail_open">Opna</string>
     <string name="school_mail_parse_failed">Ekki tókst að lesa snið þessa pósts. Frumkóði er sýndur í staðinn.</string>
     <string name="school_mail_quote_header">Þann %1$@ skrifaði %2$@:</string>

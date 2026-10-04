@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(보낸 사람 없음)</string>
     <string name="school_mail_no_subject">(제목 없음)</string>
     <string name="school_mail_notification_settings_title">학교 메일 알림</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">열기</string>
     <string name="school_mail_parse_failed">이 메일의 형식을 읽을 수 없습니다. 대신 소스를 표시합니다.</string>
     <string name="school_mail_quote_header">%1$@에 %2$@님이 작성:</string>

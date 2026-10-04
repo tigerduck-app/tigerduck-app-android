@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(प्रेषक नाही)</string>
     <string name="school_mail_no_subject">(विषय नाही)</string>
     <string name="school_mail_notification_settings_title">शाळा मेल नोटिफिकेशन</string>
-    <string name="school_mail_notification_title">मेल: %1$@</string>
     <string name="school_mail_open">उघडा</string>
     <string name="school_mail_parse_failed">या मेलचा फॉरमॅट वाचता आला नाही. त्याऐवजी त्याचा सोर्स दाखवला जात आहे.</string>
     <string name="school_mail_quote_header">%1$@ रोजी %2$@ यांनी लिहिले:</string>

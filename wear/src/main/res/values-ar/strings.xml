@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(بلا مرسل)</string>
     <string name="school_mail_no_subject">(بلا موضوع)</string>
     <string name="school_mail_notification_settings_title">إشعارات البريد المدرسي</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">فتح</string>
     <string name="school_mail_parse_failed">تعذّرت قراءة تنسيق هذه الرسالة، سيتم عرض مصدرها بدلاً من ذلك.</string>
     <string name="school_mail_quote_header">في %1$@، كتب %2$@:</string>

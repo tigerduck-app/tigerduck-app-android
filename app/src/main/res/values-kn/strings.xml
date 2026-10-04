@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(ಕಳುಹಿಸಿದವರು ಇಲ್ಲ)</string>
     <string name="school_mail_no_subject">(ವಿಷಯ ಇಲ್ಲ)</string>
     <string name="school_mail_notification_settings_title">ಶಾಲಾ ಇಮೇಲ್ ಅಧಿಸೂಚನೆಗಳು</string>
-    <string name="school_mail_notification_title">ಇಮೇಲ್: %1$@</string>
     <string name="school_mail_open">ತೆರೆಯಿರಿ</string>
     <string name="school_mail_parse_failed">ಈ ಇಮೇಲ್‌ನ ಫಾರ್ಮ್ಯಾಟ್ ಓದಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಬದಲಿಗೆ ಅದರ ಮೂಲವನ್ನು ತೋರಿಸಲಾಗುತ್ತಿದೆ.</string>
     <string name="school_mail_quote_header">ದಿನಾಂಕ: %1$@ — ಬರೆದವರು: %2$@</string>

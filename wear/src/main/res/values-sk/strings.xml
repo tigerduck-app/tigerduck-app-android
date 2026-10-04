@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Bez odosielateľa)</string>
     <string name="school_mail_no_subject">(Bez predmetu)</string>
     <string name="school_mail_notification_settings_title">Oznámenia školskej pošty</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Otvoriť</string>
     <string name="school_mail_parse_failed">Formát správy sa nepodarilo rozpoznať. Zobrazuje sa jej zdrojový kód.</string>
     <string name="school_mail_quote_header">Dňa %1$@ používateľ %2$@ napísal:</string>

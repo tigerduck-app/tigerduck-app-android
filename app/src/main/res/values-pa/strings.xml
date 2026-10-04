@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(ਕੋਈ ਭੇਜਣ ਵਾਲਾ ਨਹੀਂ)</string>
     <string name="school_mail_no_subject">(ਕੋਈ ਵਿਸ਼ਾ ਨਹੀਂ)</string>
     <string name="school_mail_notification_settings_title">ਸਕੂਲ ਮੇਲ ਸੂਚਨਾਵਾਂ</string>
-    <string name="school_mail_notification_title">ਮੇਲ: %1$@</string>
     <string name="school_mail_open">ਖੋਲ੍ਹੋ</string>
     <string name="school_mail_parse_failed">ਇਸ ਮੇਲ ਦਾ ਫਾਰਮੈਟ ਨਹੀਂ ਪੜ੍ਹਿਆ ਜਾ ਸਕਿਆ। ਇਸ ਦੀ ਥਾਂ ਇਸਦਾ ਸੋਰਸ ਦਿਖਾਇਆ ਜਾ ਰਿਹਾ ਹੈ।</string>
     <string name="school_mail_quote_header">%1$@ ਨੂੰ, %2$@ ਨੇ ਲਿਖਿਆ:</string>

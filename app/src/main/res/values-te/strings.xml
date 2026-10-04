@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(పంపినవారు లేరు)</string>
     <string name="school_mail_no_subject">(విషయం లేదు)</string>
     <string name="school_mail_notification_settings_title">స్కూల్ ఇమెయిల్ నోటిఫికేషన్‌లు</string>
-    <string name="school_mail_notification_title">ఇమెయిల్: %1$@</string>
     <string name="school_mail_open">తెరవండి</string>
     <string name="school_mail_parse_failed">ఈ ఇమెయిల్ ఫార్మాట్‌ను చదవలేకపోయింది. బదులుగా దాని మూలాన్ని చూపిస్తోంది.</string>
     <string name="school_mail_quote_header">తేదీ: %1$@ — రాసినవారు: %2$@</string>

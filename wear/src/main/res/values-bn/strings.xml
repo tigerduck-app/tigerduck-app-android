@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(কোনো প্রেরক নেই)</string>
     <string name="school_mail_no_subject">(কোনো বিষয় নেই)</string>
     <string name="school_mail_notification_settings_title">স্কুল মেইল বিজ্ঞপ্তি</string>
-    <string name="school_mail_notification_title">মেইল: %1$@</string>
     <string name="school_mail_open">খুলুন</string>
     <string name="school_mail_parse_failed">এই মেইলের ফরম্যাট পড়া যায়নি। পরিবর্তে এর সোর্স দেখানো হচ্ছে।</string>
     <string name="school_mail_quote_header">%1$@-এ %2$@ লিখেছেন:</string>

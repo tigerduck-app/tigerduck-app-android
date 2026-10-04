@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Χωρίς αποστολέα)</string>
     <string name="school_mail_no_subject">(Χωρίς θέμα)</string>
     <string name="school_mail_notification_settings_title">Ειδοποιήσεις Πανεπιστημιακού email</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Άνοιγμα</string>
     <string name="school_mail_parse_failed">Δεν ήταν δυνατή η ανάγνωση της μορφής αυτού του email. Εμφανίζεται ο πηγαίος κώδικας.</string>
     <string name="school_mail_quote_header">Στις %1$@, ο/η %2$@ έγραψε:</string>

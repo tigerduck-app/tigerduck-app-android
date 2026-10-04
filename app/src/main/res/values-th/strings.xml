@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(ไม่มีผู้ส่ง)</string>
     <string name="school_mail_no_subject">(ไม่มีหัวเรื่อง)</string>
     <string name="school_mail_notification_settings_title">การแจ้งเตือนอีเมลมหาวิทยาลัย</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">เปิด</string>
     <string name="school_mail_parse_failed">ไม่สามารถอ่านรูปแบบของอีเมลนี้ได้ กำลังแสดงซอร์สโค้ดแทน</string>
     <string name="school_mail_quote_header">เมื่อ %1$@ %2$@ เขียนว่า:</string>

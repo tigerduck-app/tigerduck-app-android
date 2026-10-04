@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Không có người gửi)</string>
     <string name="school_mail_no_subject">(Không có chủ đề)</string>
     <string name="school_mail_notification_settings_title">Thông báo Email trường</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Mở</string>
     <string name="school_mail_parse_failed">Không thể đọc định dạng của thư này. Đang hiển thị mã nguồn thay thế.</string>
     <string name="school_mail_quote_header">Vào %1$@, %2$@ đã viết:</string>

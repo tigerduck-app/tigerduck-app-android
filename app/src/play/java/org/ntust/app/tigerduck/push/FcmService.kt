@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.NotificationGroup
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import javax.inject.Inject
 
@@ -167,8 +168,12 @@ class FcmService : FirebaseMessagingService() {
                 if (forceRing) NotificationCompat.PRIORITY_HIGH
                 else NotificationCompat.PRIORITY_DEFAULT,
             )
+            .setGroup(NotificationGroup.OTHER.key)
             .build()
+        // The summary only once there is something under it, or a failed
+        // notify leaves it standing as an empty row.
         runCatching { manager.notify(id, notification) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
             .onFailure { Log.w(TAG, "notify failed for bulletin $id", it) }
     }
 
@@ -232,12 +237,14 @@ class FcmService : FirebaseMessagingService() {
                 if (forceRing) NotificationCompat.PRIORITY_HIGH
                 else NotificationCompat.PRIORITY_DEFAULT,
             )
+            .setGroup(NotificationGroup.OTHER.key)
             .build()
         // Use the raw notificationId as the notify() tag with a fixed int id
         // so distinct nids never collide in the shade — relying on
         // nid.hashCode() as the int id alone would let two different popups
         // overwrite each other on a 32-bit hash collision.
         runCatching { manager.notify(notificationId, NOTIFY_ID_SERVER_POPUP, notification) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
             .onFailure { Log.w(TAG, "notify failed for popup $notificationId", it) }
     }
 
@@ -279,8 +286,10 @@ class FcmService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setGroup(NotificationGroup.OTHER.key)
             .build()
         runCatching { manager.notify(REAUTH_NOTIFICATION_ID, notification) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
             .onFailure { Log.w(TAG, "notify failed for reauth", it) }
     }
 

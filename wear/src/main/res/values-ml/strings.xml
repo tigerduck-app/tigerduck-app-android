@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(അയച്ചയാൾ ഇല്ല)</string>
     <string name="school_mail_no_subject">(വിഷയം ഇല്ല)</string>
     <string name="school_mail_notification_settings_title">സ്കൂൾ ഇമെയിൽ അറിയിപ്പുകൾ</string>
-    <string name="school_mail_notification_title">ഇമെയിൽ: %1$@</string>
     <string name="school_mail_open">തുറക്കുക</string>
     <string name="school_mail_parse_failed">ഈ ഇമെയിലിന്റെ ഫോർമാറ്റ് വായിക്കാനായില്ല. പകരം അതിന്റെ സോഴ്‌സ് കാണിക്കുന്നു.</string>
     <string name="school_mail_quote_header">തീയതി: %1$@ — എഴുതിയത്: %2$@</string>
