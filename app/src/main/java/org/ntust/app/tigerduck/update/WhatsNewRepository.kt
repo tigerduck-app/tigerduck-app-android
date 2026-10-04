@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.update
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.model.WhatsNewContent
@@ -50,9 +51,9 @@ class WhatsNewRepository @Inject constructor(
 
         /**
          * Pure parse step for [summaries] — no Android dependencies,
-         * unit-testable. A version whose key isn't a number, or whose entry
-         * has no usable text in the resolved locale, is left out. See [select]
-         * for locale resolution.
+         * unit-testable. A version whose key isn't a number, whose entry
+         * doesn't decode, or whose entry has no usable text in the resolved
+         * locale, is left out. See [select] for locale resolution.
          */
         fun parseAll(json: String, languageTag: String): Map<Int, WhatsNewSummary> {
             val byVersion = deserialize(json) ?: return emptyMap()
@@ -68,11 +69,23 @@ class WhatsNewRepository @Inject constructor(
         fun parse(json: String, versionCode: Int, languageTag: String): WhatsNewSummary? =
             parseAll(json, languageTag)[versionCode]
 
+        /**
+         * Decodes each version on its own, so one malformed entry (say
+         * `items` written as an object) drops only that version instead of
+         * every summary in the file. Null only when the file isn't a JSON
+         * object at all.
+         */
         private fun deserialize(json: String): Map<String, Map<String, WhatsNewContent>>? {
-            val type = object : TypeToken<Map<String, Map<String, WhatsNewContent>>>() {}.type
-            return runCatching {
-                gson.fromJson<Map<String, Map<String, WhatsNewContent>>>(json, type)
-            }.getOrNull()
+            val root = runCatching { JsonParser.parseString(json).asJsonObject }.getOrNull()
+                ?: return null
+            val type = object : TypeToken<Map<String, WhatsNewContent>>() {}.type
+            return buildMap {
+                for ((key, value) in root.entrySet()) {
+                    runCatching { gson.fromJson<Map<String, WhatsNewContent>?>(value, type) }
+                        .getOrNull()
+                        ?.let { put(key, it) }
+                }
+            }
         }
 
         /**

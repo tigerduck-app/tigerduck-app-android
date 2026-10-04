@@ -1,10 +1,15 @@
 package org.ntust.app.tigerduck.update
 
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.data.model.WhatsNewSummaryItem
+import java.io.File
 
 class WhatsNewRepositoryTest {
 
@@ -63,6 +68,42 @@ class WhatsNewRepositoryTest {
     fun `returns null for malformed json`() {
         assertNull(WhatsNewRepository.parse("{ not json", versionCode = 21, languageTag = "en-US"))
         assertTrue(WhatsNewRepository.parseAll("{ not json", languageTag = "en-US").isEmpty())
+    }
+
+    @Test
+    fun `a malformed version entry drops only that version`() {
+        val mixed = """
+            {
+              "27": { "en": { "title": "Good", "highlights": ["One"] } },
+              "28": { "en": { "title": "Broken", "items": { "title": "not a list" } } }
+            }
+        """.trimIndent()
+        val summaries = WhatsNewRepository.parseAll(mixed, languageTag = "en-US")
+        assertEquals(setOf(27), summaries.keys)
+        assertEquals("Good", summaries[27]?.title)
+    }
+
+    @Test
+    fun `a json root that is not an object is empty`() {
+        assertTrue(WhatsNewRepository.parseAll("[1, 2]", languageTag = "en-US").isEmpty())
+    }
+
+    /**
+     * The runtime parse forgives a malformed entry by dropping it, which
+     * would let a broken release note ship silently. This decodes the shipped
+     * asset strictly instead, so the mistake fails the build.
+     */
+    @Test
+    fun `the shipped whatsnew json decodes strictly and every version has a summary in both languages`() {
+        val json = File("src/main/assets/whatsnew.json").readText()
+        val type = object : TypeToken<Map<String, Map<String, WhatsNewContent>>>() {}.type
+        val strict: Map<String, Map<String, WhatsNewContent>> = Gson().fromJson(json, type)
+        assertNotNull(strict)
+        val versions = strict.keys.map { key ->
+            key.toIntOrNull() ?: throw AssertionError("version key \"$key\" is not a versionCode")
+        }.toSet()
+        assertEquals(versions, WhatsNewRepository.parseAll(json, languageTag = "en").keys)
+        assertEquals(versions, WhatsNewRepository.parseAll(json, languageTag = "zh-Hant-TW").keys)
     }
 
     @Test
