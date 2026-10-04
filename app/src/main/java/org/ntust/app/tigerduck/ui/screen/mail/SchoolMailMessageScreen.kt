@@ -66,6 +66,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
@@ -527,6 +528,12 @@ private fun ModeItem(label: String, selected: Boolean, onClick: () -> Unit) {
     DropdownMenuItem(
         text = { Text(label) },
         onClick = onClick,
+        // As with the light mode checkbox: a RadioButton with no onClick exposes no state, so the
+        // item carries it and TalkBack reads which view is the selected one.
+        modifier = Modifier.semantics {
+            role = Role.RadioButton
+            this.selected = selected
+        },
         leadingIcon = {
             RadioButton(
                 selected = selected,
