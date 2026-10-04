@@ -190,7 +190,7 @@ TigerDuck 是由一群學生共同開發的校園助手
 
 - Android Studio（建議最新版）
 - Android SDK Platform 37
-- JDK 21（Gradle 9.7 / AGP 9.3 需要 JDK 17 以上）
+- JDK 21（Gradle 9.8 / AGP 9.4 需要 JDK 17 以上）
 
 ### Android App
 
@@ -245,18 +245,22 @@ F-Droid 變體**，也不會出現在 F-Droid 商店上。
 - 翻譯原始檔在 `app-translation/source/`，共 55 份（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、
   `ar.json` …）
 - 共用翻譯輸出在 `app-translation/generated/`：
-    - Android：`android/values/strings.xml`（繁中預設）、`android/values-<lang>/strings.xml`
+    - Android：`android/values/strings.xml`（英文預設）、`android/values-<lang>/strings.xml`
     - Apple（iOS / macOS）：`apple/<lang>.lproj/Localizable.strings`
-- Android App 使用的 `app/src/main/res/values*/strings.xml` 會由同一支腳本同步覆寫，請不要手動改動生成檔。
+- 手機的 `app/src/main/res/values*/strings.xml` 與手錶的 `wear/src/main/res/values*/strings.xml`
+  都是從 Android 輸出複製過來、一併提交的副本，每次同步都會被覆寫，請不要手動改動生成檔。
 
-手動同步一次翻譯：
+手動同步一次翻譯（重新產生輸出，再複製進 `app/` 與 `wear/`）：
 
 ```bash
-python3 tools/localization/sync_localizations.py
+./debug/sync-localizations.sh
 ```
 
-Gradle 也能在編譯前自動跑一次，但**預設不啟用**——要加上 `-PsyncLocalizations`，
-`syncLocalizations` 才會掛到 `preBuild` 上（見 `app/build.gradle.kts`、`wear/build.gradle.kts`）：
+單獨跑 `python3 tools/localization/sync_localizations.py` 只會重新產生 `app-translation/generated/`
+與 `locales_config.xml`，不會更新兩個模組的 `strings.xml`。
+
+Gradle 也能在編譯前自動同步，但**預設不啟用**——要加上 `-PsyncLocalizations`，
+同步與複製的 task 才會掛到 `preBuild` 上（見 `app/build.gradle.kts`、`wear/build.gradle.kts`）：
 
 ```bash
 ./gradlew :app:assemblePlayDebug -PsyncLocalizations
@@ -333,13 +337,13 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 ├── shared/                             # 手機 + 手錶共用模組（`:shared`）
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock 抽象（可被 debug 時鐘覆寫）
-│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver
+│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver / 圖書館 QR / WearProtocol
 ├── wear/                               # ⌚ Wear OS App（Play 限定，`:wear`）
 │   └── src/main/java/org/ntust/app/tigerduck/wear/
-│       ├── ui/                         # Now & Next / Today / 課程詳情 / 設定
+│       ├── ui/                         # Now & Next / Today / 課程詳情 / 圖書館 QR / 設定
 │       ├── tile/                       # NextClassTileService
 │       ├── complication/               # NextClassComplicationService
-│       └── data/                       # DataLayerListener / SchedulePersistence / Repository / SyncRequester
+│       └── data/                       # DataLayerListener / SchedulePersistence / SyncRequester / 圖書館憑證
 ├── debug/                              # 一鍵安裝腳本與 [DEBUG.md](debug/DEBUG.md)（build variants、debug 時鐘、push 等）
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
@@ -360,9 +364,9 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 2. 至少完成一次 `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` 或
    `:app:assembleFdroidDebug` / `:app:assemblePlayDebug`
 3. 以 `feature/your-feature` 或 `fix/your-fix` 命名分支
-4. 發布 PR 時目標分支為 `dev`，並把機器人留言的 pre-merge checklist 逐項勾完
-   （送 `main` 的版本另外要求跑過 `debug/` 三支腳本、驗過從舊版升級的路徑，並更新
-   `app/src/main/assets/whatsnew.json`）
+4. 發布 PR 時目標分支為 `dev`，並確認符合 [`CONTRIBUTING.md`](CONTRIBUTING.md) 的 pre-merge checklist
+   （送 `main` 的 PR 另外要求跑過 `debug/` 三支腳本、驗過從舊版升級的路徑；CI 也會檢查版本號已提升，
+   且 `app/src/main/assets/whatsnew.json` 有對應的條目）
 5. 翻譯字串請改 [`app-translation/`](https://github.com/tigerduck-app/app-translation) 子模組（透過獨立
    PR），不要直接改生成檔
 
