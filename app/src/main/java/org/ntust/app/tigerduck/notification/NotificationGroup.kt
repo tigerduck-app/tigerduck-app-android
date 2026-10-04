@@ -27,24 +27,45 @@ enum class NotificationGroup(
     val key: String,
     private val summaryId: Int,
     /**
-     * The summary's channel, the same one whatever channel the notification
-     * just posted into the stack is on. Turning a channel off cancels what is
-     * on it, and a cancelled summary takes every member with it: a summary
-     * that followed the latest member onto, say, the System channel would take
-     * all the mail down when that channel went off. On the stack's own channel
-     * only turning that one off can, and while it is off the members go
-     * without a summary rather than without each other.
+     * Every channel the stack's members post on, the stack's own first. The
+     * summary goes on the first of them that is still turned on, in this
+     * order rather than following whichever member came last: on a channel
+     * that is off it would never show, and the members under it would go
+     * without one.
      */
-    private val channelId: String,
+    private val channels: List<String>,
     /** Names the stack in its header; [OTHER] goes by the app's name alone. */
     @param:StringRes private val label: Int?,
 ) {
-    CLASS("class", 1, NotificationChannels.CLASS_PREPARING, R.string.notification_class_preparing_channel_name),
-    ASSIGNMENT("assignment", 2, NotificationChannels.ASSIGNMENT_DUE, R.string.notification_assignment_due_channel_name),
+    CLASS(
+        "class", 1,
+        listOf(NotificationChannels.CLASS_PREPARING),
+        R.string.notification_class_preparing_channel_name,
+    ),
+    ASSIGNMENT(
+        "assignment", 2,
+        listOf(NotificationChannels.ASSIGNMENT_DUE),
+        R.string.notification_assignment_due_channel_name,
+    ),
     // The key mail notifications were already posted under, so ones still in
-    // the shade from before stack with the new.
-    MAIL("school_mail", 3, NotificationChannels.SCHOOL_MAIL, R.string.notification_school_mail_channel_name),
-    OTHER("other", 4, NotificationChannels.BULLETINS, null);
+    // the shade from before stack with the new. The sign-in failure is on System.
+    MAIL(
+        "school_mail", 3,
+        listOf(NotificationChannels.SCHOOL_MAIL, NotificationChannels.SYSTEM),
+        R.string.notification_school_mail_channel_name,
+    ),
+    // Scraped bulletins, the portal's pushes with and without sound, and the
+    // sign-in notice.
+    OTHER(
+        "other", 4,
+        listOf(
+            NotificationChannels.BULLETINS,
+            NotificationChannels.BULLETINS_SOUND,
+            NotificationChannels.BULLETINS_SILENT,
+            NotificationChannels.SYSTEM,
+        ),
+        null,
+    );
 
     /**
      * Post this stack's summary, which is what holds it together; call it
@@ -66,6 +87,11 @@ enum class NotificationGroup(
         contentIntent: PendingIntent? = null,
         timeoutAfterMs: Long = 0L,
     ) {
+        val manager = NotificationManagerCompat.from(context)
+        val channelId = channels.firstOrNull { id ->
+            manager.getNotificationChannelCompat(id)
+                ?.let { it.importance != NotificationManagerCompat.IMPORTANCE_NONE } == true
+        } ?: return
         val name = context.getString(label ?: R.string.app_name)
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_notification)
@@ -86,7 +112,7 @@ enum class NotificationGroup(
         if (timeout > 0L) builder.setTimeoutAfter(timeout)
         // Tagged, so the id cannot collide with any untagged one the posters
         // pick for themselves.
-        runCatching { NotificationManagerCompat.from(context).notify(SUMMARY_TAG, summaryId, builder.build()) }
+        runCatching { manager.notify(SUMMARY_TAG, summaryId, builder.build()) }
             .onFailure { Log.w(TAG, "notify failed for the $key summary", it) }
     }
 

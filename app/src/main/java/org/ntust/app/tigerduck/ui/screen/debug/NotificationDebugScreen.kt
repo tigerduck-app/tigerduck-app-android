@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.ui.screen.debug
 
 import android.Manifest
 import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,14 +34,12 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier
 import org.ntust.app.tigerduck.liveactivity.LiveActivityScenario
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySnapshot
-import org.ntust.app.tigerduck.mail.model.MailAddress
-import org.ntust.app.tigerduck.mail.model.MailFlags
-import org.ntust.app.tigerduck.mail.model.MailSummary
-import org.ntust.app.tigerduck.mail.notify.MailNotifier
+import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.notification.AssignmentNotificationReceiver
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
@@ -67,9 +67,9 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
     // way to check a rendering change.
     val liveNotifier = remember(deps) { deps.liveActivityNotifier() }
 
-    // Class, homework and mail go through the code their real triggers post
-    // with, past the checks in front of it (term dates, the homework switch),
-    // so what lands in each stack is what production puts there.
+    // Class and homework go through the code their real triggers post with,
+    // past the checks in front of it (term dates, the homework switch), so
+    // what lands in each stack is what production puts there.
     val sendClass = {
         deps.notificationChannels().ensureRegistered()
         val now = System.currentTimeMillis()
@@ -95,9 +95,31 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
             offset = AssignmentReminderOffset.HR24,
         )
     }
-    // Tapping it opens a mail that does not exist; the notification is the point.
+    // Mirrors AndroidMailNotifier rather than going through it: every id it
+    // posts a mail under is some real mail's, which the preview would replace.
+    // A tap opens the inbox, as on iOS.
     val sendMail = {
-        deps.mailNotifier().postNewMail("INBOX", listOf(previewMail(DEBUG_MAIL_UID_BASE + sent.incrementAndGet())))
+        deps.notificationChannels().ensureRegistered()
+        val id = DEBUG_MAIL_ID_BASE + sent.incrementAndGet()
+        val inbox = PendingIntent.getActivity(
+            context,
+            id,
+            Intent(context, MainActivity::class.java)
+                .putExtra("start_route", MailRoutes.LIST)
+                .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = NotificationCompat.Builder(context, NotificationChannels.SCHOOL_MAIL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("Preview mail")
+            .setContentText("Debug Menu")
+            .setAutoCancel(true)
+            .setGroup(NotificationGroup.MAIL.key)
+            .setCategory(NotificationCompat.CATEGORY_EMAIL)
+            .setContentIntent(inbox)
+            .build()
+        context.getSystemService(NotificationManager::class.java).notify(id, notification)
+        NotificationGroup.MAIL.postSummary(context, contentIntent = inbox)
     }
     // Bulletins arrive over FCM, whose builders are play-only, so this mirrors them.
     val sendOther = {
@@ -183,23 +205,6 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
     }
 }
 
-private fun previewMail(uid: Long) = MailSummary(
-    uid = uid,
-    from = MailAddress("Debug Menu", "debug@example.com"),
-    replyTo = emptyList(),
-    to = emptyList(),
-    cc = emptyList(),
-    subject = "Preview mail",
-    sentAt = null,
-    receivedAt = null,
-    flags = MailFlags.NONE,
-    sizeBytes = 0,
-    hasAttachments = false,
-    messageId = null,
-    inReplyTo = null,
-    references = null,
-)
-
 /**
  * A synthetic mid-class snapshot: a third of the way through a 50-minute
  * period, so both the countdown and a partly filled progress bar have
@@ -224,7 +229,6 @@ private fun previewInClassSnapshot(): LiveActivitySnapshot {
 @InstallIn(SingletonComponent::class)
 internal interface NotificationDebugEntryPoint {
     fun liveActivityNotifier(): LiveActivityNotifier
-    fun mailNotifier(): MailNotifier
     fun notificationChannels(): NotificationChannelRegistrar
 }
 
@@ -236,4 +240,4 @@ private val sent = AtomicInteger()
 
 private const val TEST_NOTIFICATION_ID = 0x7F00_0001
 private const val DEBUG_CLASS_ID_BASE = 0x7F10_0000
-private const val DEBUG_MAIL_UID_BASE = 90_000L
+private const val DEBUG_MAIL_ID_BASE = 0x7F20_0000
