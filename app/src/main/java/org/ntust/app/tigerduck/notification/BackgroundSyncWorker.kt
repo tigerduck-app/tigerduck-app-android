@@ -464,18 +464,27 @@ class BackgroundSyncWorker @AssistedInject constructor(
             val workManager = WorkManager.getInstance(context)
             // Called from FcmService, where a throw takes the process down,
             // and which hands over one message at a time, so a wait here
-            // holds up every push behind this one. Unreadable, or not read
-            // within two seconds, the queue is treated as empty, and KEEP
-            // still holds a burst to one sync.
+            // holds up every push behind this one; the read gives up after
+            // two seconds.
             val states = runCatching {
                 workManager.getWorkInfosForUniqueWork(TRIGGER_UNIQUE_NAME)
                     .get(2, TimeUnit.SECONDS)
                     .map { it.state }
             }.getOrElse { e ->
                 Log.w(TAG, "could not read queued syncs", e)
-                emptyList()
+                null
             }
-            val policy = triggerPolicy(states) ?: return
+            // Unread, the queue is appended to rather than kept: KEEP would
+            // drop this trigger whenever a sync is running, though that sync
+            // may have fetched before the change it announces. Appending
+            // queues a sync when none is queued and a follow-up when one is
+            // running, and with one already waiting it costs one extra sync,
+            // but it never drops a trigger.
+            val policy = if (states == null) {
+                ExistingWorkPolicy.APPEND_OR_REPLACE
+            } else {
+                triggerPolicy(states) ?: return
+            }
             val request = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
                 .setConstraints(
                     Constraints.Builder()

@@ -116,16 +116,16 @@ class BackgroundSyncWorkerTest {
     }
 
     /**
-     * A WorkManager task executor that has stopped: it holds every task it
-     * is given until [resume], as a busy executor or a slow database would.
+     * A WorkManager task executor that can stall: from [stall] on, it holds
+     * every task it is given until [resume], as a busy executor or a slow
+     * database would. Until then, it runs each task on the spot.
      */
-    private class StalledExecutor : Executor {
+    private class StallingExecutor(private var stalled: Boolean) : Executor {
         private val held = ArrayDeque<Runnable>()
-        private var resumed = false
 
         override fun execute(command: Runnable) {
             synchronized(this) {
-                if (!resumed) {
+                if (stalled) {
                     held.addLast(command)
                     return
                 }
@@ -133,13 +133,29 @@ class BackgroundSyncWorkerTest {
             command.run()
         }
 
+        fun stall() {
+            synchronized(this) { stalled = true }
+        }
+
         fun resume() {
             while (true) {
                 val next = synchronized(this) {
-                    held.removeFirstOrNull() ?: run { resumed = true; null }
+                    held.removeFirstOrNull() ?: run { stalled = false; null }
                 } ?: return
                 next.run()
             }
+        }
+    }
+
+    // Sends a trigger the way FcmService does, off the test's thread, and
+    // fails if it is still waiting after ten seconds.
+    private fun requestSyncFromFcm() {
+        val fcmThread = Executors.newSingleThreadExecutor()
+        try {
+            fcmThread.submit { BackgroundSyncWorker.requestSync(context) }
+                .get(10, TimeUnit.SECONDS)
+        } finally {
+            fcmThread.shutdown()
         }
     }
 
@@ -190,25 +206,53 @@ class BackgroundSyncWorkerTest {
 
     @Test
     fun `a trigger does not wait on a stalled queue`() {
-        val stalled = StalledExecutor()
+        val tasks = StallingExecutor(stalled = true)
         WorkManagerTestInitHelper.initializeTestWorkManager(
             context,
-            Configuration.Builder().setTaskExecutor(stalled).build(),
+            Configuration.Builder().setTaskExecutor(tasks).build(),
         )
         workManager = WorkManager.getInstance(context)
-        val fcmThread = Executors.newSingleThreadExecutor()
         try {
             // FCM hands over one message at a time, so a trigger stuck here
             // held up every push behind it.
-            fcmThread.submit { BackgroundSyncWorker.requestSync(context) }
-                .get(10, TimeUnit.SECONDS)
+            requestSyncFromFcm()
         } finally {
-            stalled.resume()
-            fcmThread.shutdown()
+            tasks.resume()
         }
 
         // Its sync was queued all the same, once WorkManager caught up.
         assertEquals(1, syncs().size)
+    }
+
+    @Test
+    fun `a trigger that cannot read the queue still follows up a running sync`() {
+        val tasks = StallingExecutor(stalled = false)
+        WorkManagerTestInitHelper.initializeTestWorkManager(
+            context,
+            Configuration.Builder()
+                .setTaskExecutor(tasks)
+                .setExecutor(syncThread)
+                .setWorkerFactory(HeldSyncFactory())
+                .build(),
+        )
+        workManager = WorkManager.getInstance(context)
+        BackgroundSyncWorker.requestSync(context)
+        val running = syncs().single().id
+        startSync(running)
+
+        tasks.stall()
+        try {
+            requestSyncFromFcm()
+        } finally {
+            tasks.resume()
+        }
+
+        // An unread queue was taken for an empty one, and its KEEP, meeting
+        // the running sync, dropped this trigger: a change that sync had
+        // fetched too early to see waited for the hourly run.
+        val followUps = syncs().map { it.id }.minus(running)
+        assertEquals("follow-ups queued", 1, followUps.size)
+        assertEquals(WorkInfo.State.BLOCKED, state(followUps.single()))
     }
 
     @Test
