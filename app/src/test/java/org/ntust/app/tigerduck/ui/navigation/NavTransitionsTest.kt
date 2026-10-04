@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Covers [slidesBetween] — which moves slide and which keep the tab
+ * Covers [slidesBetween] and [TabTap] — which moves slide and which keep the tab
  * crossfade. Routes are written out literally; the bar here is Home,
  * Announcements and More.
  */
@@ -29,8 +29,40 @@ class NavTransitionsTest {
     }
 
     @Test
-    fun `tapping a tab from inside a pushed screen fades`() {
-        assertFalse(slidesBetween(from = "announcements/detail/{id}", to = "home", isPop = false, tabRoutes = tabs))
+    fun `tapping a later tab from inside a pushed screen fades`() {
+        // popUpTo removes the pushed screen, then the tab is pushed: not a pop.
+        assertFalse(slidesBetween(from = "announcements/detail/{id}", to = "more", isPop = false, tabRoutes = tabs))
+    }
+
+    @Test
+    fun `tapping the first tab from inside a pushed screen fades`() {
+        // popUpTo lands on the first tab itself and nothing is pushed, so
+        // Navigation Compose reports the tap as a pop.
+        assertFalse(
+            slidesBetween(from = "announcements/detail/{id}", to = "home", isPop = true, tabRoutes = tabs, tabTapped = true),
+        )
+    }
+
+    @Test
+    fun `backing out of a pushed screen onto the first tab slides`() {
+        assertTrue(slidesBetween(from = "settings", to = "home", isPop = true, tabRoutes = tabs))
+    }
+
+    @Test
+    fun `a tab tap is matched by the entries it moved between`() {
+        val tap = TabTap()
+        tap.record(fromId = "settings-entry", toId = "home-entry")
+        assertTrue(tap.made(fromId = "settings-entry", toId = "home-entry"))
+        assertFalse(tap.made(fromId = "other-settings-entry", toId = "home-entry"))
+        assertFalse(tap.made(fromId = "home-entry", toId = "settings-entry"))
+    }
+
+    @Test
+    fun `a tab tap with no entry on either side records nothing`() {
+        val tap = TabTap()
+        tap.record(fromId = "settings-entry", toId = "home-entry")
+        tap.record(fromId = null, toId = "home-entry")
+        assertFalse(tap.made(fromId = "settings-entry", toId = "home-entry"))
     }
 
     @Test

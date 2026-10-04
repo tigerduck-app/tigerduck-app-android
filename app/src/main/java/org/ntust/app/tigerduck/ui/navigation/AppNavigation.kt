@@ -263,7 +263,8 @@ fun MainNavigation(
     val backPressExitHint = stringResource(R.string.app_exit_confirm_toast)
     val nonTaipeiTimezoneHint = stringResource(R.string.app_non_taipei_timezone_hint)
     val bottomItems = configuredTabs + listOf(AppFeature.MORE)
-    val tabRoutes = bottomItems.map { it.toRoute() }.toSet()
+    val tabRoutes = remember(bottomItems) { bottomItems.map { it.toRoute() }.toSet() }
+    val tabTap = remember { TabTap() }
     // NavHost startDestination must not change mid-session, so freeze it on
     // first composition. popUpTo, in contrast, needs the *current* first tab
     // so reordering via TabEditor doesn't pop to a removed route.
@@ -354,6 +355,7 @@ fun MainNavigation(
                                     context,
                                     HapticScenario.TabSwitch,
                                 )
+                                val fromId = navController.currentBackStackEntry?.id
                                 navController.navigate(route) {
                                     popUpTo(popUpToDest) {
                                         inclusive = false
@@ -361,6 +363,7 @@ fun MainNavigation(
                                     launchSingleTop = true
                                     restoreState = route != Screen.More.route
                                 }
+                                tabTap.record(fromId, navController.currentBackStackEntry?.id)
                             }
                         )
                     }
@@ -377,12 +380,12 @@ fun MainNavigation(
             modifier = Modifier
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding),
-            enterTransition = { pushEnter(tabRoutes) },
-            exitTransition = { pushExit(tabRoutes) },
-            popEnterTransition = { popEnter(tabRoutes) },
-            popExitTransition = { popExit(tabRoutes) },
-            predictivePopEnterTransition = { popEnter(tabRoutes) },
-            predictivePopExitTransition = { popExit(tabRoutes) },
+            enterTransition = { pushEnter(tabRoutes, tabTap) },
+            exitTransition = { pushExit(tabRoutes, tabTap) },
+            popEnterTransition = { popEnter(tabRoutes, tabTap) },
+            popExitTransition = { popExit(tabRoutes, tabTap) },
+            predictivePopEnterTransition = { popEnter(tabRoutes, tabTap) },
+            predictivePopExitTransition = { popExit(tabRoutes, tabTap) },
         ) {
             // Shared by every screen that renders the signed-out lock empty
             // state: tapping the lock should land the user on Settings with
