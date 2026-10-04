@@ -67,10 +67,6 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
     // way to check a rendering change.
     val liveNotifier = remember(deps) { deps.liveActivityNotifier() }
 
-    // A new notification on every press rather than a replacement, so pressing
-    // one twice shows how its stack collapses.
-    val sent = remember { AtomicInteger() }
-
     // Class, homework and mail go through the code their real triggers post
     // with, past the checks in front of it (term dates, the homework switch),
     // so what lands in each stack is what production puts there.
@@ -117,7 +113,7 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
             .build()
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.notify(TEST_NOTIFICATION_ID + sent.incrementAndGet(), notification)
-        NotificationGroup.OTHER.postSummary(context, NotificationChannels.BULLETINS)
+        NotificationGroup.OTHER.postSummary(context)
     }
 
     var pending by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -231,6 +227,12 @@ internal interface NotificationDebugEntryPoint {
     fun mailNotifier(): MailNotifier
     fun notificationChannels(): NotificationChannelRegistrar
 }
+
+// A new notification on every press rather than a replacement, so pressing
+// one twice shows how its stack collapses. Held for the process rather than
+// the screen, or reopening the menu would start over and replace the
+// previews still in the shade.
+private val sent = AtomicInteger()
 
 private const val TEST_NOTIFICATION_ID = 0x7F00_0001
 private const val DEBUG_CLASS_ID_BASE = 0x7F10_0000

@@ -78,12 +78,11 @@ class AndroidMailNotifier @Inject constructor(
                 )
             }
         }
-        postGroupSummary(NotificationChannels.SCHOOL_MAIL)
+        postGroupSummary()
     }
 
-    private fun postGroupSummary(channelId: String) = NotificationGroup.MAIL.postSummary(
+    private fun postGroupSummary() = NotificationGroup.MAIL.postSummary(
         context,
-        channelId,
         contentIntent = tap(MailRoutes.LIST, MailNotificationPlanner.SUMMARY_ID),
     )
 
@@ -105,7 +104,7 @@ class AndroidMailNotifier @Inject constructor(
                 .setContentIntent(tap(MailRoutes.LIST, MailNotificationPlanner.AUTH_FAILED_ID))
                 .build(),
         )
-        postGroupSummary(NotificationChannels.SYSTEM)
+        postGroupSummary()
     }
 
     override fun cancelMessage(uid: Long) = NotificationGroup.MAIL.cancel(context, MailNotificationPlanner.notificationId(uid))

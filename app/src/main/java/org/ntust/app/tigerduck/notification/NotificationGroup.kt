@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.notification
 
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.PendingIntent
 import android.content.Context
+import android.service.notification.StatusBarNotification
 import android.util.Log
 import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
@@ -24,32 +26,43 @@ import org.ntust.app.tigerduck.R
 enum class NotificationGroup(
     val key: String,
     private val summaryId: Int,
+    /**
+     * The summary's channel, the same one whatever channel the notification
+     * just posted into the stack is on. Turning a channel off cancels what is
+     * on it, and a cancelled summary takes every member with it: a summary
+     * that followed the latest member onto, say, the System channel would take
+     * all the mail down when that channel went off. On the stack's own channel
+     * only turning that one off can, and while it is off the members go
+     * without a summary rather than without each other.
+     */
+    private val channelId: String,
     /** Names the stack in its header; [OTHER] goes by the app's name alone. */
     @param:StringRes private val label: Int?,
 ) {
-    CLASS("class", 1, R.string.notification_class_preparing_channel_name),
-    ASSIGNMENT("assignment", 2, R.string.notification_assignment_due_channel_name),
+    CLASS("class", 1, NotificationChannels.CLASS_PREPARING, R.string.notification_class_preparing_channel_name),
+    ASSIGNMENT("assignment", 2, NotificationChannels.ASSIGNMENT_DUE, R.string.notification_assignment_due_channel_name),
     // The key mail notifications were already posted under, so ones still in
     // the shade from before stack with the new.
-    MAIL("school_mail", 3, R.string.notification_school_mail_channel_name),
-    OTHER("other", 4, null);
+    MAIL("school_mail", 3, NotificationChannels.SCHOOL_MAIL, R.string.notification_school_mail_channel_name),
+    OTHER("other", 4, NotificationChannels.BULLETINS, null);
 
     /**
      * Post this stack's summary, which is what holds it together; call it
-     * right after posting into the stack. The summary goes on [channelId], that
-     * notification's own channel, so it is never on a channel the person has
-     * turned off while the one they just let through is on. It never sounds
-     * itself — the notification under it already has.
+     * right after posting into the stack. It never sounds itself — the
+     * notification under it already has.
      *
      * Android leaves a summary standing as an empty row once everything under
      * it is gone by any way but the person's own hand, so a stack whose
      * members expire passes their [timeoutAfterMs], and one that cancels its
      * own goes through [cancel].
+     *
+     * A summary that expires takes every member still under it down with it,
+     * so it is given the longest time any member has left rather than the
+     * newest member's alone, and none at all while a member never expires.
      */
     @SuppressLint("MissingPermission")
     fun postSummary(
         context: Context,
-        channelId: String,
         contentIntent: PendingIntent? = null,
         timeoutAfterMs: Long = 0L,
     ) {
@@ -63,8 +76,14 @@ enum class NotificationGroup(
             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
             .setAutoCancel(true)
             .setContentIntent(contentIntent)
+            // It says nothing but the stack's name. A private summary on a
+            // lock screen that hides sensitive content stands in, redacted,
+            // for the whole stack, hiding members that are public themselves,
+            // such as class reminders.
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         if (label != null) builder.setSubText(name)
-        if (timeoutAfterMs > 0L) builder.setTimeoutAfter(timeoutAfterMs)
+        val timeout = if (timeoutAfterMs > 0L) longestTimeLeft(context, timeoutAfterMs) else 0L
+        if (timeout > 0L) builder.setTimeoutAfter(timeout)
         // Tagged, so the id cannot collide with any untagged one the posters
         // pick for themselves.
         runCatching { NotificationManagerCompat.from(context).notify(SUMMARY_TAG, summaryId, builder.build()) }
@@ -77,10 +96,31 @@ enum class NotificationGroup(
         manager.cancel(tag, id)
         // The cancel is still on its way to the system, so the notification
         // it names is skipped by hand rather than trusted to be gone.
-        val othersLeft = manager.activeNotifications.any {
-            it.notification.group == key && it.tag != SUMMARY_TAG && !(it.id == id && it.tag == tag)
+        val rest = manager.activeNotifications.filter {
+            it.notification.group == key && !(it.id == id && it.tag == tag)
         }
-        if (!othersLeft) manager.cancel(SUMMARY_TAG, summaryId)
+        if (rest.any { !it.isSummary }) return
+        manager.cancel(SUMMARY_TAG, summaryId)
+        // Any other summary too: the one mail was stacked under before this
+        // one had a tag can still be standing beside it.
+        rest.forEach { manager.cancel(it.tag, it.id) }
+    }
+
+    /**
+     * The longest any member of this stack has left before it expires, at
+     * least [newest] — the member just posted, which the system may not list
+     * yet — or 0 if a member never expires.
+     */
+    private fun longestTimeLeft(context: Context, newest: Long): Long {
+        val now = System.currentTimeMillis()
+        var longest = newest
+        for (sbn in NotificationManagerCompat.from(context).activeNotifications) {
+            if (sbn.notification.group != key || sbn.isSummary) continue
+            val after = sbn.notification.timeoutAfter
+            if (after <= 0L) return 0L
+            longest = maxOf(longest, sbn.postTime + after - now)
+        }
+        return longest
     }
 
     private companion object {
@@ -88,3 +128,6 @@ enum class NotificationGroup(
         const val TAG = "NotificationGroup"
     }
 }
+
+private val StatusBarNotification.isSummary: Boolean
+    get() = (notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0

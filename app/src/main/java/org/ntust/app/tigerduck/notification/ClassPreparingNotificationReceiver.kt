@@ -152,7 +152,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
             nm.notify(notificationId, notification)
             // Expires with the reminder, or it would outlive it as an empty row.
-            NotificationGroup.CLASS.postSummary(context, CHANNEL_ID, timeoutAfterMs = timeout)
+            NotificationGroup.CLASS.postSummary(context, timeoutAfterMs = timeout)
         }
 
         private fun formatTimeRange(startMs: Long, endMs: Long): String {

@@ -170,9 +170,11 @@ class FcmService : FirebaseMessagingService() {
             )
             .setGroup(NotificationGroup.OTHER.key)
             .build()
+        // The summary only once there is something under it, or a failed
+        // notify leaves it standing as an empty row.
         runCatching { manager.notify(id, notification) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
             .onFailure { Log.w(TAG, "notify failed for bulletin $id", it) }
-        NotificationGroup.OTHER.postSummary(this, channelId)
     }
 
     private fun showServerPopupNotification(
@@ -242,8 +244,8 @@ class FcmService : FirebaseMessagingService() {
         // nid.hashCode() as the int id alone would let two different popups
         // overwrite each other on a 32-bit hash collision.
         runCatching { manager.notify(notificationId, NOTIFY_ID_SERVER_POPUP, notification) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
             .onFailure { Log.w(TAG, "notify failed for popup $notificationId", it) }
-        NotificationGroup.OTHER.postSummary(this, channelId)
     }
 
     /**
@@ -287,8 +289,8 @@ class FcmService : FirebaseMessagingService() {
             .setGroup(NotificationGroup.OTHER.key)
             .build()
         runCatching { manager.notify(REAUTH_NOTIFICATION_ID, notification) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
             .onFailure { Log.w(TAG, "notify failed for reauth", it) }
-        NotificationGroup.OTHER.postSummary(this, NotificationChannels.SYSTEM)
     }
 
     companion object {

@@ -115,7 +115,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
             // assignment don't collapse into one another in the shade.
             val notifId = (assignmentId + "::" + (offset?.rawValue ?: "legacy")).hashCode() and 0x7FFFFFFF
             notificationManager.notify(notifId, notification)
-            NotificationGroup.ASSIGNMENT.postSummary(context, CHANNEL_ID)
+            NotificationGroup.ASSIGNMENT.postSummary(context)
         }
     }
 }
