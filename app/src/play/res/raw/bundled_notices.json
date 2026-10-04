@@ -41,6 +41,12 @@
                 "hash": "a01b712fbb30"
             }
         ],
+        "androidx.glance:glance-appwidget-external-protobuf": [
+            {
+                "name": "LICENSE.txt",
+                "hash": "a01b712fbb30"
+            }
+        ],
         "com.google.android.datatransport:transport-runtime": [
             {
                 "name": "Dagger",
