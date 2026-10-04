@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">فقط خوانده‌نشده‌ها را نشان بده</string>
     <string name="school_mail_use_other_app">استفاده از برنامه‌ای دیگر</string>
     <string name="school_mail_view_formatted">قالب‌بندی‌شده</string>
+    <string name="school_mail_view_light_mode">مشاهده در حالت روشن</string>
     <string name="school_mail_view_mode">نما</string>
     <string name="school_mail_view_plain">متن ساده</string>
     <string name="school_mail_view_source">منبع</string>

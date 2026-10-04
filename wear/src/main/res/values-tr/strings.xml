@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Yalnızca okunmamışları göster</string>
     <string name="school_mail_use_other_app">Başka bir uygulama kullan</string>
     <string name="school_mail_view_formatted">Biçimli</string>
+    <string name="school_mail_view_light_mode">Açık modda görüntüle</string>
     <string name="school_mail_view_mode">Görünüm</string>
     <string name="school_mail_view_plain">Düz metin</string>
     <string name="school_mail_view_source">Kaynak</string>

@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Papar yang belum dibaca sahaja</string>
     <string name="school_mail_use_other_app">Guna aplikasi lain</string>
     <string name="school_mail_view_formatted">Diformat</string>
+    <string name="school_mail_view_light_mode">Lihat dalam mod cerah</string>
     <string name="school_mail_view_mode">Paparan</string>
     <string name="school_mail_view_plain">Teks biasa</string>
     <string name="school_mail_view_source">Kod sumber</string>

@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Mostra només els no llegits</string>
     <string name="school_mail_use_other_app">Fes servir una altra app</string>
     <string name="school_mail_view_formatted">Amb format</string>
+    <string name="school_mail_view_light_mode">Mostra en mode clar</string>
     <string name="school_mail_view_mode">Visualització</string>
     <string name="school_mail_view_plain">Text sense format</string>
     <string name="school_mail_view_source">Codi font</string>

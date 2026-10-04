@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">सिर्फ़ अपठित दिखाएं</string>
     <string name="school_mail_use_other_app">दूसरा ऐप इस्तेमाल करें</string>
     <string name="school_mail_view_formatted">फ़ॉर्मेट किया गया</string>
+    <string name="school_mail_view_light_mode">लाइट मोड में देखें</string>
     <string name="school_mail_view_mode">व्यू</string>
     <string name="school_mail_view_plain">प्लेन टेक्स्ट</string>
     <string name="school_mail_view_source">सोर्स</string>

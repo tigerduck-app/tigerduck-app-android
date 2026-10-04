@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Тек оқылмағандарды көрсету</string>
     <string name="school_mail_use_other_app">Басқа қолданбаны пайдалану</string>
     <string name="school_mail_view_formatted">Пішімделген</string>
+    <string name="school_mail_view_light_mode">Жарық режимде көру</string>
     <string name="school_mail_view_mode">Көрініс</string>
     <string name="school_mail_view_plain">Кәдімгі мәтін</string>
     <string name="school_mail_view_source">Бастапқы код</string>

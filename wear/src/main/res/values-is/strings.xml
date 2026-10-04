@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Sýna aðeins ólesið</string>
     <string name="school_mail_use_other_app">Nota annað forrit</string>
     <string name="school_mail_view_formatted">Sniðið</string>
+    <string name="school_mail_view_light_mode">Skoða í ljósu þema</string>
     <string name="school_mail_view_mode">Skoðun</string>
     <string name="school_mail_view_plain">Hreinn texti</string>
     <string name="school_mail_view_source">Frumkóði</string>

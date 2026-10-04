@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">ਸਿਰਫ਼ ਨਾ ਪੜ੍ਹੀਆਂ ਦਿਖਾਓ</string>
     <string name="school_mail_use_other_app">ਹੋਰ ਐਪ ਵਰਤੋ</string>
     <string name="school_mail_view_formatted">ਫਾਰਮੈਟ ਕੀਤਾ</string>
+    <string name="school_mail_view_light_mode">ਲਾਈਟ ਮੋਡ ਵਿੱਚ ਵੇਖੋ</string>
     <string name="school_mail_view_mode">ਵਿਊ</string>
     <string name="school_mail_view_plain">ਪਲੇਨ ਟੈਕਸਟ</string>
     <string name="school_mail_view_source">ਸੋਰਸ</string>

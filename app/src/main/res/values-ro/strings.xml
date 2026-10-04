@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Afișează doar cele necitite</string>
     <string name="school_mail_use_other_app">Folosește altă aplicație</string>
     <string name="school_mail_view_formatted">Formatat</string>
+    <string name="school_mail_view_light_mode">Vizualizează în modul luminos</string>
     <string name="school_mail_view_mode">Vizualizare</string>
     <string name="school_mail_view_plain">Text simplu</string>
     <string name="school_mail_view_source">Sursă</string>

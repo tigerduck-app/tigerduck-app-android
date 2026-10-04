@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Visa bara olästa</string>
     <string name="school_mail_use_other_app">Använd en annan app</string>
     <string name="school_mail_view_formatted">Formaterat</string>
+    <string name="school_mail_view_light_mode">Visa i ljust läge</string>
     <string name="school_mail_view_mode">Visning</string>
     <string name="school_mail_view_plain">Vanlig text</string>
     <string name="school_mail_view_source">Källkod</string>

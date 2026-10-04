@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">படிக்காதவை மட்டும் காட்டு</string>
     <string name="school_mail_use_other_app">வேறு ஆப்பைப் பயன்படுத்து</string>
     <string name="school_mail_view_formatted">வடிவமைக்கப்பட்டது</string>
+    <string name="school_mail_view_light_mode">ஒளிரும் பயன்முறையில் காட்டு</string>
     <string name="school_mail_view_mode">காட்சி</string>
     <string name="school_mail_view_plain">எளிய உரை</string>
     <string name="school_mail_view_source">மூலம்</string>

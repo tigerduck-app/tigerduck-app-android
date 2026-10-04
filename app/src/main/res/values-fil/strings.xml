@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Ipakita lang ang hindi pa nababasa</string>
     <string name="school_mail_use_other_app">Gumamit ng ibang app</string>
     <string name="school_mail_view_formatted">Naka-format</string>
+    <string name="school_mail_view_light_mode">Tingnan sa maliwanag na mode</string>
     <string name="school_mail_view_mode">Pagtingin</string>
     <string name="school_mail_view_plain">Plain text</string>
     <string name="school_mail_view_source">Source</string>

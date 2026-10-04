@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Csak olvasatlanok megjelenítése</string>
     <string name="school_mail_use_other_app">Másik alkalmazás használata</string>
     <string name="school_mail_view_formatted">Formázott</string>
+    <string name="school_mail_view_light_mode">Megtekintés világos módban</string>
     <string name="school_mail_view_mode">Nézet</string>
     <string name="school_mail_view_plain">Egyszerű szöveg</string>
     <string name="school_mail_view_source">Forrás</string>

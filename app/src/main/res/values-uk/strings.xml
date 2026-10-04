@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Показувати лише непрочитані</string>
     <string name="school_mail_use_other_app">Використати інший додаток</string>
     <string name="school_mail_view_formatted">Форматований</string>
+    <string name="school_mail_view_light_mode">Переглянути у світлому режимі</string>
     <string name="school_mail_view_mode">Перегляд</string>
     <string name="school_mail_view_plain">Звичайний текст</string>
     <string name="school_mail_view_source">Вихідний код</string>

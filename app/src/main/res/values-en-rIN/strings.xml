@@ -708,6 +708,7 @@
     <string name="school_mail_unread_only">Show unread only</string>
     <string name="school_mail_use_other_app">Use another app</string>
     <string name="school_mail_view_formatted">Formatted</string>
+    <string name="school_mail_view_light_mode">View in light mode</string>
     <string name="school_mail_view_mode">View</string>
     <string name="school_mail_view_plain">Plain text</string>
     <string name="school_mail_view_source">Source</string>
