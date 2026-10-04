@@ -132,5 +132,25 @@
         "Improved scrolling and search on the bulletins page"
       ]
     }
+  },
+  "28": {
+    "zh-Hant": {
+      "title": "2.3.0 新功能",
+      "items": [
+        { "icon": "sparkles", "title": "全新的新功能介紹", "body": "更新後會逐頁介紹新功能，跳過的版本也會一併補上。" },
+        { "icon": "layout", "title": "恢復預設底部功能列", "body": "自訂過底部功能列的話，可以一鍵回到預設的項目。" },
+        { "icon": "mail", "title": "收件人變成泡泡", "body": "寫信時輸入的收件人會變成泡泡，收件者與副本各自一行。" },
+        { "icon": "notification", "title": "通知跟著語言走", "body": "通知類別與即時更新的文字會使用 App 的語言，切換語言後也會跟著改。" }
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.3.0",
+      "items": [
+        { "icon": "sparkles", "title": "A new What's New", "body": "New features are introduced page by page after an update, including any versions you skipped." },
+        { "icon": "layout", "title": "Reset the bottom bar", "body": "If you've customized your bottom bar, you can go back to the default tabs in one tap." },
+        { "icon": "mail", "title": "Recipients as bubbles", "body": "Recipients you type turn into bubbles, with To and Cc on lines of their own." },
+        { "icon": "notification", "title": "Notifications follow your language", "body": "Notification categories and Live Update text use the app's language, and follow it when you switch." }
+      ]
+    }
   }
 }

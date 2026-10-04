@@ -33,6 +33,7 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
 import org.ntust.app.tigerduck.update.UpdateChecker
 
 /**
@@ -65,6 +66,8 @@ fun TriggersDebugScreen(
 
     val isFlipArmed by arming.isFlipArmed.collectAsStateWithLifecycle()
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    var showWhatsNewSample by remember { mutableStateOf(false) }
+    val whatsNewSample = rememberWhatsNewSampleFlow(onEvent = { statusMessage = it })
 
     // Both must be on for the steady-state flip to even register, so the replay
     // is only meaningful when they are.
@@ -92,9 +95,9 @@ fun TriggersDebugScreen(
         ) {
             TriggerSection(
                 header = "What's New",
-                footer = "Sets the replay sentinel so the newest whatsnew.json " +
-                    "entry shows on the next process start, regardless of this " +
-                    "build's versionCode.",
+                footer = "Sets the replay sentinel so the newest registered version's " +
+                    "pages and whatsnew.json summary show on the next process start, " +
+                    "regardless of this build's versionCode.",
             ) {
                 Button(
                     onClick = {
@@ -103,6 +106,23 @@ fun TriggersDebugScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Trigger What's New on next open") }
+            }
+
+            HorizontalDivider()
+
+            TriggerSection(
+                header = "What's New sample",
+                footer = "Opens the paged sheet with one page of every kind — feature, " +
+                    "custom demo, opt-in, permission, pick-between-looks, toggle and a " +
+                    "custom page — then a sample summary. Answers change no setting and " +
+                    "show up below, except the permission page: on Android 13+ it asks " +
+                    "for the real notification permission, which stays granted until " +
+                    "revoked in system settings.",
+            ) {
+                Button(
+                    onClick = { showWhatsNewSample = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Preview the sample flow") }
             }
 
             HorizontalDivider()
@@ -163,6 +183,10 @@ fun TriggersDebugScreen(
                 )
             }
         }
+    }
+
+    if (showWhatsNewSample) {
+        WhatsNewSheet(flow = whatsNewSample, onDismiss = { showWhatsNewSample = false })
     }
 }
 
