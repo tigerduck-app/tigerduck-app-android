@@ -436,8 +436,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
             )
         }
 
+        // Called on sign-out, so it stops the triggered syncs as well as the
+        // periodic one: a triggered sync left running went on writing the
+        // departing account's courses and assignments over the cache
+        // AuthService.logout() was clearing.
         fun cancel(context: Context) {
-            WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_NAME)
+            val workManager = WorkManager.getInstance(context)
+            workManager.cancelUniqueWork(UNIQUE_NAME)
+            workManager.cancelUniqueWork(TRIGGER_UNIQUE_NAME)
         }
 
         // A server sync trigger asks for a sync rather than adding one: FCM
@@ -456,11 +462,15 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
         fun requestSync(context: Context) {
             val workManager = WorkManager.getInstance(context)
-            // Called from FcmService, where a throw takes the process down;
-            // unreadable, the queue is treated as empty and KEEP still
-            // holds a burst to one sync.
+            // Called from FcmService, where a throw takes the process down,
+            // and which hands over one message at a time, so a wait here
+            // holds up every push behind this one. Unreadable, or not read
+            // within two seconds, the queue is treated as empty, and KEEP
+            // still holds a burst to one sync.
             val states = runCatching {
-                workManager.getWorkInfosForUniqueWork(TRIGGER_UNIQUE_NAME).get().map { it.state }
+                workManager.getWorkInfosForUniqueWork(TRIGGER_UNIQUE_NAME)
+                    .get(2, TimeUnit.SECONDS)
+                    .map { it.state }
             }.getOrElse { e ->
                 Log.w(TAG, "could not read queued syncs", e)
                 emptyList()
