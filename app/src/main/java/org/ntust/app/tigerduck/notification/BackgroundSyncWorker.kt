@@ -6,7 +6,9 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -431,6 +433,30 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
         fun cancel(context: Context) {
             WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_NAME)
+        }
+
+        // A server sync trigger asks for a sync rather than adding one: FCM
+        // can deliver several in a burst, and each run syncs the backend and
+        // Moodle in full. A trigger that finds a sync already queued or
+        // running is dropped, so one that lands after a running sync fetched
+        // waits for the next trigger or the periodic run. Network-bound,
+        // because a run that fails offline goes into retry backoff, and
+        // every trigger would be held behind it.
+        private const val TRIGGER_UNIQUE_NAME = "sync_trigger"
+
+        fun requestSync(context: Context) {
+            val request = OneTimeWorkRequestBuilder<BackgroundSyncWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                TRIGGER_UNIQUE_NAME,
+                ExistingWorkPolicy.KEEP,
+                request,
+            )
         }
     }
 }

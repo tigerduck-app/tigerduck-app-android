@@ -593,6 +593,11 @@ dependencies {
     testImplementation(libs.greenmail) {
         exclude(group = "org.eclipse.angus", module = "jakarta.mail")
     }
+    // A real WorkManager on the JVM, for what BackgroundSyncWorker queues.
+    // work-testing supplies the in-process WorkManager; Robolectric the
+    // Context and SQLite it runs on.
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
