@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">无法加入</string>
     <string name="class_table_course_name">课程名称</string>
     <string name="class_table_delete">删除</string>
-    <string name="class_table_empty_message">下拉以刷新，或使用右上角的 + 添加课程，或切换到其他学期</string>
+    <string name="class_table_empty_message">下拉以刷新，或使用右上角的 ⋯ 添加课程，或切换到其他学期</string>
+    <string name="class_table_export_failed">无法导出课表</string>
+    <string name="class_table_export_screenshot">导出课表截图</string>
+    <string name="class_table_more_actions">更多操作</string>
     <string name="class_table_pick_color">选择颜色</string>
     <string name="class_table_rename_default_label">默认：%1$s</string>
     <string name="class_table_rename_revert">恢复默认</string>

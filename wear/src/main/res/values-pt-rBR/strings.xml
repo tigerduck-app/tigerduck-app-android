@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Não foi possível adicionar</string>
     <string name="class_table_course_name">Nome da disciplina</string>
     <string name="class_table_delete">Excluir</string>
-    <string name="class_table_empty_message">Puxe para atualizar, toque em + para adicionar uma disciplina ou mude de semestre</string>
+    <string name="class_table_empty_message">Puxe para atualizar, toque em ⋯ para adicionar uma disciplina ou mude de semestre</string>
+    <string name="class_table_export_failed">Não foi possível exportar a grade horária</string>
+    <string name="class_table_export_screenshot">Exportar captura da grade horária</string>
+    <string name="class_table_more_actions">Mais ações</string>
     <string name="class_table_pick_color">Escolher cor</string>
     <string name="class_table_rename_default_label">Padrão: %1$s</string>
     <string name="class_table_rename_revert">Restaurar padrão</string>

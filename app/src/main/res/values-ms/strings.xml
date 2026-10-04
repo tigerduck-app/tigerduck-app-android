@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Tidak dapat ditambah</string>
     <string name="class_table_course_name">Nama kursus</string>
     <string name="class_table_delete">Padam</string>
-    <string name="class_table_empty_message">Tarik untuk menyegarkan, ketik + untuk menambah kursus, atau tukar ke semester lain</string>
+    <string name="class_table_empty_message">Tarik untuk menyegarkan, ketik ⋯ untuk menambah kursus, atau tukar ke semester lain</string>
+    <string name="class_table_export_failed">Tidak dapat mengeksport jadual kelas</string>
+    <string name="class_table_export_screenshot">Eksport tangkapan skrin jadual kelas</string>
+    <string name="class_table_more_actions">Tindakan lain</string>
     <string name="class_table_pick_color">Pilih warna</string>
     <string name="class_table_rename_default_label">Lalai: %1$s</string>
     <string name="class_table_rename_revert">Kembalikan ke lalai</string>

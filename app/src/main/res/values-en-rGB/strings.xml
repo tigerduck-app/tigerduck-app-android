@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Unable to add</string>
     <string name="class_table_course_name">Course name</string>
     <string name="class_table_delete">Delete</string>
-    <string name="class_table_empty_message">Pull to refresh, tap + to add a course, or switch to another semester</string>
+    <string name="class_table_empty_message">Pull to refresh, tap ⋯ to add a course, or switch to another semester</string>
+    <string name="class_table_export_failed">Couldn\'t export the class table</string>
+    <string name="class_table_export_screenshot">Export class table screenshot</string>
+    <string name="class_table_more_actions">More actions</string>
     <string name="class_table_pick_color">Pick colour</string>
     <string name="class_table_rename_default_label">Default: %1$s</string>
     <string name="class_table_rename_revert">Revert to default</string>

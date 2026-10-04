@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">ઉમેરી શકાતું નથી</string>
     <string name="class_table_course_name">કોર્સ નામ</string>
     <string name="class_table_delete">ડિલીટ</string>
-    <string name="class_table_empty_message">રિફ્રેશ કરવા ખેંચો, કોર્સ ઉમેરવા + ટેપ કરો, અથવા બીજા સેમેસ્ટર પર સ્વિચ કરો</string>
+    <string name="class_table_empty_message">રિફ્રેશ કરવા ખેંચો, કોર્સ ઉમેરવા ⋯ ટેપ કરો, અથવા બીજા સેમેસ્ટર પર સ્વિચ કરો</string>
+    <string name="class_table_export_failed">ક્લાસ ટાઇમટેબલ નિકાસ કરી શકાયું નહીં</string>
+    <string name="class_table_export_screenshot">ક્લાસ ટાઇમટેબલનો સ્ક્રીનશૉટ નિકાસ કરો</string>
+    <string name="class_table_more_actions">વધુ ક્રિયાઓ</string>
     <string name="class_table_pick_color">રંગ પસંદ કરો</string>
     <string name="class_table_rename_default_label">ડિફૉલ્ટ: %1$s</string>
     <string name="class_table_rename_revert">ડિફૉલ્ટ પર પાછા ફરો</string>

@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nepavyksta pridėti</string>
     <string name="class_table_course_name">Kurso pavadinimas</string>
     <string name="class_table_delete">Ištrinti</string>
-    <string name="class_table_empty_message">Atnaujinkite tempiant žemyn, bakstelėkite + kad pridėtumėte kursą, arba pasirinkite kitą semestrą</string>
+    <string name="class_table_empty_message">Atnaujinkite tempiant žemyn, bakstelėkite ⋯ kad pridėtumėte kursą, arba pasirinkite kitą semestrą</string>
+    <string name="class_table_export_failed">Nepavyko eksportuoti tvarkaraščio</string>
+    <string name="class_table_export_screenshot">Eksportuoti tvarkaraščio ekrano kopiją</string>
+    <string name="class_table_more_actions">Daugiau veiksmų</string>
     <string name="class_table_pick_color">Pasirinkti spalvą</string>
     <string name="class_table_rename_default_label">Numatytasis: %1$s</string>
     <string name="class_table_rename_revert">Atkurti numatytąjį</string>

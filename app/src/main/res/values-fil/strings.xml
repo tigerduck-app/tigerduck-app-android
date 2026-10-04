@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Hindi maidagdag</string>
     <string name="class_table_course_name">Pangalan ng kurso</string>
     <string name="class_table_delete">Burahin</string>
-    <string name="class_table_empty_message">I-pull para mag-refresh, i-tap ang + para magdagdag ng kurso, o lumipat sa ibang semestre</string>
+    <string name="class_table_empty_message">I-pull para mag-refresh, i-tap ang ⋯ para magdagdag ng kurso, o lumipat sa ibang semestre</string>
+    <string name="class_table_export_failed">Hindi ma-export ang iskedyul ng klase</string>
+    <string name="class_table_export_screenshot">I-export ang screenshot ng iskedyul ng klase</string>
+    <string name="class_table_more_actions">Higit pang mga aksyon</string>
     <string name="class_table_pick_color">Pumili ng kulay</string>
     <string name="class_table_rename_default_label">Default: %1$s</string>
     <string name="class_table_rename_revert">Ibalik sa default</string>

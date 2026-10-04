@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">追加できません</string>
     <string name="class_table_course_name">授業名</string>
     <string name="class_table_delete">削除</string>
-    <string name="class_table_empty_message">下に引っ張って更新するか、+ をタップして授業を追加するか、別の学期に切り替えてください</string>
+    <string name="class_table_empty_message">下に引っ張って更新するか、⋯ をタップして授業を追加するか、別の学期に切り替えてください</string>
+    <string name="class_table_export_failed">時間割を書き出せませんでした</string>
+    <string name="class_table_export_screenshot">時間割のスクリーンショットを書き出す</string>
+    <string name="class_table_more_actions">その他の操作</string>
     <string name="class_table_pick_color">色を選択</string>
     <string name="class_table_rename_default_label">デフォルト：%1$s</string>
     <string name="class_table_rename_revert">デフォルトに戻す</string>

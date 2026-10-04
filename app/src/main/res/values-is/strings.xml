@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Ekki hægt að bæta við</string>
     <string name="class_table_course_name">Nafn námskeiðs</string>
     <string name="class_table_delete">Eyða</string>
-    <string name="class_table_empty_message">Dragðu til að uppfæra, ýttu á + til að bæta við námskeiði, eða skiptu í annað semester</string>
+    <string name="class_table_empty_message">Dragðu til að uppfæra, ýttu á ⋯ til að bæta við námskeiði, eða skiptu í annað semester</string>
+    <string name="class_table_export_failed">Ekki tókst að flytja út stundaskrána</string>
+    <string name="class_table_export_screenshot">Flytja út skjámynd af stundaskrá</string>
+    <string name="class_table_more_actions">Fleiri aðgerðir</string>
     <string name="class_table_pick_color">Velja lit</string>
     <string name="class_table_rename_default_label">Sjálfgefið: %1$s</string>
     <string name="class_table_rename_revert">Endurstilla á sjálfgefið</string>

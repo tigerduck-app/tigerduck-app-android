@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">జోడించడం సాధ్యం కాలేదు</string>
     <string name="class_table_course_name">కోర్సు పేరు</string>
     <string name="class_table_delete">తొలగించు</string>
-    <string name="class_table_empty_message">రిఫ్రెష్ చేయడానికి లాగండి, కోర్సు జోడించడానికి + నొక్కండి, లేదా వేరే సెమిస్టర్‌కు మారండి</string>
+    <string name="class_table_empty_message">రిఫ్రెష్ చేయడానికి లాగండి, కోర్సు జోడించడానికి ⋯ నొక్కండి, లేదా వేరే సెమిస్టర్‌కు మారండి</string>
+    <string name="class_table_export_failed">తరగతి షెడ్యూల్‌ను ఎగుమతి చేయలేకపోయాము</string>
+    <string name="class_table_export_screenshot">తరగతి షెడ్యూల్ స్క్రీన్‌షాట్‌ను ఎగుమతి చేయండి</string>
+    <string name="class_table_more_actions">మరిన్ని చర్యలు</string>
     <string name="class_table_pick_color">రంగు ఎంచుకోండి</string>
     <string name="class_table_rename_default_label">డిఫాల్ట్: %1$s</string>
     <string name="class_table_rename_revert">డిఫాల్ట్‌కు తిరిగి వెళ్ళు</string>

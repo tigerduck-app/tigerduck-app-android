@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">تعذّرت الإضافة</string>
     <string name="class_table_course_name">اسم المقرر</string>
     <string name="class_table_delete">حذف</string>
-    <string name="class_table_empty_message">اسحب للتحديث، انقر على + لإضافة مقرر، أو بدّل إلى فصل دراسي آخر</string>
+    <string name="class_table_empty_message">اسحب للتحديث، انقر على ⋯ لإضافة مقرر، أو بدّل إلى فصل دراسي آخر</string>
+    <string name="class_table_export_failed">تعذّر تصدير الجدول الدراسي</string>
+    <string name="class_table_export_screenshot">تصدير لقطة شاشة للجدول الدراسي</string>
+    <string name="class_table_more_actions">المزيد من الإجراءات</string>
     <string name="class_table_pick_color">اختر لونًا</string>
     <string name="class_table_rename_default_label">الافتراضي: %1$s</string>
     <string name="class_table_rename_revert">العودة إلى الافتراضي</string>

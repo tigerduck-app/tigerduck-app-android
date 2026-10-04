@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">לא ניתן להוסיף</string>
     <string name="class_table_course_name">שם קורס</string>
     <string name="class_table_delete">מחק</string>
-    <string name="class_table_empty_message">יש למשוך כדי לרענן, להקיש על + כדי להוסיף קורס, או לעבור לסמסטר אחר</string>
+    <string name="class_table_empty_message">יש למשוך כדי לרענן, להקיש על ⋯ כדי להוסיף קורס, או לעבור לסמסטר אחר</string>
+    <string name="class_table_export_failed">לא ניתן היה לייצא את מערכת השעות</string>
+    <string name="class_table_export_screenshot">ייצוא צילום מסך של מערכת השעות</string>
+    <string name="class_table_more_actions">פעולות נוספות</string>
     <string name="class_table_pick_color">בחר צבע</string>
     <string name="class_table_rename_default_label">ברירת מחדל: %1$s</string>
     <string name="class_table_rename_revert">חזור לברירת המחדל</string>

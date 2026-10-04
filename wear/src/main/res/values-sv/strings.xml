@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Kan inte lägga till</string>
     <string name="class_table_course_name">Kursnamn</string>
     <string name="class_table_delete">Ta bort</string>
-    <string name="class_table_empty_message">Dra för att uppdatera, tryck på + för att lägga till en kurs, eller byt till en annan semester</string>
+    <string name="class_table_empty_message">Dra för att uppdatera, tryck på ⋯ för att lägga till en kurs, eller byt till en annan semester</string>
+    <string name="class_table_export_failed">Det gick inte att exportera schemat</string>
+    <string name="class_table_export_screenshot">Exportera skärmbild av schemat</string>
+    <string name="class_table_more_actions">Fler åtgärder</string>
     <string name="class_table_pick_color">Välj färg</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Återställ till standard</string>

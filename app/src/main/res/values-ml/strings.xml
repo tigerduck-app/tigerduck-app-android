@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">ചേർക്കാൻ കഴിയില്ല</string>
     <string name="class_table_course_name">കോഴ്‌സ് നാമം</string>
     <string name="class_table_delete">ഇല്ലാതാക്കുക</string>
-    <string name="class_table_empty_message">പുതുക്കാൻ വലിക്കുക, കോഴ്‌സ് ചേർക്കാൻ + ടാപ്പ് ചെയ്യുക, അല്ലെങ്കിൽ മറ്റൊരു സെമസ്റ്ററിലേക്ക് മാറുക</string>
+    <string name="class_table_empty_message">പുതുക്കാൻ വലിക്കുക, കോഴ്‌സ് ചേർക്കാൻ ⋯ ടാപ്പ് ചെയ്യുക, അല്ലെങ്കിൽ മറ്റൊരു സെമസ്റ്ററിലേക്ക് മാറുക</string>
+    <string name="class_table_export_failed">ക്ലാസ് ടൈംടേബിൾ എക്സ്പോർട്ട് ചെയ്യാനായില്ല</string>
+    <string name="class_table_export_screenshot">ക്ലാസ് ടൈംടേബിളിന്റെ സ്ക്രീൻഷോട്ട് എക്സ്പോർട്ട് ചെയ്യുക</string>
+    <string name="class_table_more_actions">കൂടുതൽ പ്രവർത്തനങ്ങൾ</string>
     <string name="class_table_pick_color">നിറം തിരഞ്ഞെടുക്കുക</string>
     <string name="class_table_rename_default_label">സ്ഥിരസ്ഥിതി: %1$s</string>
     <string name="class_table_rename_revert">സ്ഥിരസ്ഥിതിയിലേക്ക് മടങ്ങുക</string>

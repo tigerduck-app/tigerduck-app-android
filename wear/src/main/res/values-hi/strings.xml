@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">जोड़ने में असमर्थ</string>
     <string name="class_table_course_name">कोर्स का नाम</string>
     <string name="class_table_delete">हटाएँ</string>
-    <string name="class_table_empty_message">रीफ़्रेश करने के लिए खींचें, कोर्स जोड़ने के लिए + दबाएँ, या किसी अन्य सेमेस्टर पर स्विच करें</string>
+    <string name="class_table_empty_message">रीफ़्रेश करने के लिए खींचें, कोर्स जोड़ने के लिए ⋯ दबाएँ, या किसी अन्य सेमेस्टर पर स्विच करें</string>
+    <string name="class_table_export_failed">कक्षा सारणी निर्यात नहीं की जा सकी</string>
+    <string name="class_table_export_screenshot">कक्षा सारणी का स्क्रीनशॉट निर्यात करें</string>
+    <string name="class_table_more_actions">अधिक कार्रवाइयां</string>
     <string name="class_table_pick_color">रंग चुनें</string>
     <string name="class_table_rename_default_label">डिफ़ॉल्ट: %1$s</string>
     <string name="class_table_rename_revert">डिफ़ॉल्ट पर लौटें</string>

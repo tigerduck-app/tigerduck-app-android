@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Kan ikke legge til</string>
     <string name="class_table_course_name">Fagnavn</string>
     <string name="class_table_delete">Slett</string>
-    <string name="class_table_empty_message">Dra ned for å oppdatere, trykk på + for å legge til et fag, eller bytt til et annet semester</string>
+    <string name="class_table_empty_message">Dra ned for å oppdatere, trykk på ⋯ for å legge til et fag, eller bytt til et annet semester</string>
+    <string name="class_table_export_failed">Kunne ikke eksportere timeplanen</string>
+    <string name="class_table_export_screenshot">Eksporter skjermbilde av timeplanen</string>
+    <string name="class_table_more_actions">Flere handlinger</string>
     <string name="class_table_pick_color">Velg farge</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Tilbakestill til standard</string>
