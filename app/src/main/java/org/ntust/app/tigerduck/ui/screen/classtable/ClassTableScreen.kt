@@ -23,13 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +45,7 @@ import org.ntust.app.tigerduck.ui.component.CurrentClassCardWidth
 import org.ntust.app.tigerduck.ui.component.CourseCardWidth
 import org.ntust.app.tigerduck.ui.component.CourseCardGap
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +53,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -170,8 +172,11 @@ fun ClassTableScreen(
     val activePeriods = remember(courses, alwaysShowAllPeriods) { viewModel.activePeriods }
     val activeWeekdays = remember(courses) { viewModel.activeWeekdays }
     val showClassroomInClassTable by viewModel.showClassroomInClassTable.collectAsStateWithLifecycle()
+    val hasGrid = isLoggedIn && activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty() && courses.isNotEmpty()
+    var showMoreMenu by remember { mutableStateOf(false) }
     var showAddCourse by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
+    var exporting by remember { mutableStateOf(false) }
     var courseToRename by remember { mutableStateOf<Course?>(null) }
     var renameText by remember { mutableStateOf("") }
     var courseToRecolor by remember { mutableStateOf<Course?>(null) }
@@ -182,6 +187,11 @@ fun ClassTableScreen(
         )
     }
     val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val classTableTitle = stringResource(R.string.feature_class_table)
+    val exportTitle = stringResource(R.string.class_table_export_screenshot)
+    val exportFailedMessage = stringResource(R.string.class_table_export_failed)
     val errorNetworkUnavailable = stringResource(R.string.error_network_unavailable)
     val refreshingMessage = stringResource(R.string.refreshing_message)
     val weekdayShortLabels = listOf(
@@ -227,29 +237,47 @@ fun ClassTableScreen(
                         ),
                         isLoading = isLoading,
                     )
-                    IconButton(
-                        onClick = { showResetConfirm = true },
-                        enabled = isLoggedIn
-                    ) {
-                        Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = stringResource(R.string.class_table_reset_title),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = if (isLoggedIn) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
+                    // Everything that acts on the timetable, behind one ⋮ —
+                    // the same shape as a mail message's actions. A third
+                    // glyph would have made a row of unlabelled icons, and
+                    // export is not something an icon alone can say.
+                    Box {
+                        IconButton(
+                            onClick = { showMoreMenu = true },
+                            enabled = isLoggedIn
+                        ) {
+                            Icon(
+                                Icons.Filled.MoreVert,
+                                contentDescription = stringResource(R.string.class_table_more_actions),
+                                tint = MaterialTheme.colorScheme.onSurface.copy(
+                                    alpha = if (isLoggedIn) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
+                                )
                             )
-                        )
-                    }
-                    IconButton(
-                        onClick = { showAddCourse = true },
-                        enabled = isLoggedIn
-                    ) {
-                        Icon(
-                            Icons.Filled.Add,
-                            contentDescription = stringResource(R.string.add_course_title),
-                            tint = MaterialTheme.colorScheme.onSurface.copy(
-                                alpha = if (isLoggedIn) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
+                        }
+                        DropdownMenu(
+                            expanded = showMoreMenu,
+                            onDismissRequest = { showMoreMenu = false },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.add_course_title)) },
+                                onClick = { showMoreMenu = false; showAddCourse = true },
                             )
-                        )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.class_table_reset_title)) },
+                                onClick = { showMoreMenu = false; showResetConfirm = true },
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.class_table_export_screenshot)) },
+                                onClick = { showMoreMenu = false; exporting = true },
+                                // Only exportable while the grid below is
+                                // drawn; anything else would export a header
+                                // over nothing. Also off while one is in
+                                // flight.
+                                enabled = hasGrid && !exporting,
+                            )
+                        }
                     }
                 }
 
@@ -417,7 +445,7 @@ fun ClassTableScreen(
                 }
 
                 // Timetable
-                if (activePeriods.isNotEmpty() && activeWeekdays.isNotEmpty() && courses.isNotEmpty()) {
+                if (hasGrid) {
                     TimetableGrid(
                         viewModel = viewModel,
                         courses = courses,
@@ -446,10 +474,41 @@ fun ClassTableScreen(
 
         }
         SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+
+        if (exporting) {
+            val semesterLabel = viewModel.displayLabel(selectedSemester)
+            val studentId = viewModel.studentId
+            OffscreenCapture(
+                onCaptured = { bitmap ->
+                    runCatching {
+                        val file = writeClassTableImage(
+                            context,
+                            bitmap,
+                            classTableExportFileName(classTableTitle, semesterLabel, studentId),
+                        )
+                        shareClassTableImage(context, file, exportTitle)
+                    }.onFailure {
+                        // In the screen's scope: this one ends with the
+                        // export, and the snackbar outlives it.
+                        scope.launch { snackbarHostState.showSnackbar(exportFailedMessage) }
+                    }
+                    exporting = false
+                },
+            ) {
+                ClassTableExportCard(
+                    viewModel = viewModel,
+                    courses = courses,
+                    semesterLabel = semesterLabel,
+                    studentId = studentId,
+                    showRoomHints = showClassroomInClassTable,
+                    weekdays = activeWeekdays,
+                    periods = activePeriods,
+                )
+            }
+        }
     } // Box
 
     selectedCourse?.let { course ->
-        val context = androidx.compose.ui.platform.LocalContext.current
         CourseDetailDialog(
             course = course,
             title = viewModel.selectedCourseFullName ?: course.displayName,

@@ -733,7 +733,7 @@ private fun openAttachment(context: Context, request: SchoolMailMessageViewModel
     // configured provider path, same as a startActivity failure -- both belong inside this one
     // guarded block so either shows the same error toast instead of crashing.
     runCatching {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.mailfiles", request.file)
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", request.file)
         val mimeType = resolveAttachmentMimeType(request.contentType, request.file.name)
         val view = Intent(Intent.ACTION_VIEW)
             .setDataAndTypeAndNormalize(uri, mimeType)
