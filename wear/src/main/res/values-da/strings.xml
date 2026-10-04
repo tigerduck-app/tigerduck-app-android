@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Ingen afsender)</string>
     <string name="school_mail_no_subject">(Intet emne)</string>
     <string name="school_mail_notification_settings_title">Notifikationer for Skolemail</string>
-    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Åbn</string>
     <string name="school_mail_parse_failed">Formatet på denne mail kunne ikke læses. Viser kildekoden i stedet.</string>
     <string name="school_mail_quote_header">Den %1$@ skrev %2$@:</string>

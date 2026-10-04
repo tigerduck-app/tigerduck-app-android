@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(بدون فرستنده)</string>
     <string name="school_mail_no_subject">(بدون موضوع)</string>
     <string name="school_mail_notification_settings_title">اعلان‌های ایمیل مدرسه</string>
-    <string name="school_mail_notification_title">ایمیل: %1$@</string>
     <string name="school_mail_open">باز کردن</string>
     <string name="school_mail_parse_failed">قالب این ایمیل خوانده نشد. به‌جای آن، منبع آن نمایش داده می‌شود.</string>
     <string name="school_mail_quote_header">در %1$@، %2$@ نوشت:</string>

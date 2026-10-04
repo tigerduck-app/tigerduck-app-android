@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Нема пошиљаоца)</string>
     <string name="school_mail_no_subject">(Нема теме)</string>
     <string name="school_mail_notification_settings_title">Обавештења за школску пошту</string>
-    <string name="school_mail_notification_title">Порука: %1$@</string>
     <string name="school_mail_open">Отвори</string>
     <string name="school_mail_parse_failed">Формат ове поруке није могуће прочитати. Уместо тога приказује се изворни код.</string>
     <string name="school_mail_quote_header">Дана %1$@, %2$@ пише:</string>

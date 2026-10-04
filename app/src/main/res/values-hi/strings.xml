@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(कोई प्रेषक नहीं)</string>
     <string name="school_mail_no_subject">(कोई विषय नहीं)</string>
     <string name="school_mail_notification_settings_title">स्कूल मेल नोटिफिकेशन</string>
-    <string name="school_mail_notification_title">मेल: %1$@</string>
     <string name="school_mail_open">खोलें</string>
     <string name="school_mail_parse_failed">इस मेल का फ़ॉर्मेट नहीं पढ़ा जा सका। इसके बजाय इसका सोर्स दिखाया जा रहा है।</string>
     <string name="school_mail_quote_header">%1$@ को %2$@ ने लिखा:</string>

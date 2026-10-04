@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">（差出人なし）</string>
     <string name="school_mail_no_subject">（件名なし）</string>
     <string name="school_mail_notification_settings_title">学内メール通知</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">開く</string>
     <string name="school_mail_parse_failed">このメールの形式を読み取れませんでした。代わりにソースを表示します。</string>
     <string name="school_mail_quote_header">%1$@ %2$@さんは書きました：</string>

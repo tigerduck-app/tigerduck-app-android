@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Sense remitent)</string>
     <string name="school_mail_no_subject">(Sense assumpte)</string>
     <string name="school_mail_notification_settings_title">Notificacions del Correu universitari</string>
-    <string name="school_mail_notification_title">Correu: %1$@</string>
     <string name="school_mail_open">Obre</string>
     <string name="school_mail_parse_failed">No s\'ha pogut llegir el format d\'aquest correu. Es mostra el seu codi font.</string>
     <string name="school_mail_quote_header">El %1$@, %2$@ va escriure:</string>

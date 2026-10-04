@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(کوئی بھیجنے والا نہیں)</string>
     <string name="school_mail_no_subject">(کوئی موضوع نہیں)</string>
     <string name="school_mail_notification_settings_title">اسکول ای میل اطلاعات</string>
-    <string name="school_mail_notification_title">ای میل: %1$@</string>
     <string name="school_mail_open">کھولیں</string>
     <string name="school_mail_parse_failed">اس ای میل کا فارمیٹ نہیں پڑھا جا سکا۔ اس کے بجائے اس کا سورس دکھایا جا رہا ہے۔</string>
     <string name="school_mail_quote_header">%1$@ کو %2$@ نے لکھا:</string>

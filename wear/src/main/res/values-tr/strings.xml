@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Gönderen yok)</string>
     <string name="school_mail_no_subject">(Konu yok)</string>
     <string name="school_mail_notification_settings_title">Okul Postası bildirimleri</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Aç</string>
     <string name="school_mail_parse_failed">Bu postanın biçimi okunamadı. Bunun yerine kaynağı gösteriliyor.</string>
     <string name="school_mail_quote_header">%1$@ tarihinde %2$@ şunu yazdı:</string>

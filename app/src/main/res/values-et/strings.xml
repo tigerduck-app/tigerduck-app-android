@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Saatja puudub)</string>
     <string name="school_mail_no_subject">(Teema puudub)</string>
     <string name="school_mail_notification_settings_title">Kooli e-posti teavitused</string>
-    <string name="school_mail_notification_title">Kiri: %1$@</string>
     <string name="school_mail_open">Ava</string>
     <string name="school_mail_parse_failed">Selle kirja vormingut ei õnnestunud lugeda. Selle asemel kuvatakse lähtekoodi.</string>
     <string name="school_mail_quote_header">%1$@, %2$@ kirjutas:</string>

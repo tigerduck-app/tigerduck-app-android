@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Geen afzender)</string>
     <string name="school_mail_no_subject">(Geen onderwerp)</string>
     <string name="school_mail_notification_settings_title">Schoolmail-meldingen</string>
-    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Openen</string>
     <string name="school_mail_parse_failed">De opmaak van deze mail kon niet worden gelezen. De broncode wordt in plaats daarvan getoond.</string>
     <string name="school_mail_quote_header">Op %1$@ schreef %2$@:</string>

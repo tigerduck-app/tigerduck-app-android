@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Немає відправника)</string>
     <string name="school_mail_no_subject">(Без теми)</string>
     <string name="school_mail_notification_settings_title">Сповіщення університетської пошти</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Відкрити</string>
     <string name="school_mail_parse_failed">Не вдалося розпізнати формат листа. Показано вихідний код.</string>
     <string name="school_mail_quote_header">%1$@, користувач %2$@ писав:</string>

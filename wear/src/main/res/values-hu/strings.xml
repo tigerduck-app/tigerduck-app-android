@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Nincs feladó)</string>
     <string name="school_mail_no_subject">(Nincs tárgy)</string>
     <string name="school_mail_notification_settings_title">Iskolai posta értesítések</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Megnyitás</string>
     <string name="school_mail_parse_failed">Nem sikerült beolvasni ennek az üzenetnek a formátumát. Helyette a forrása jelenik meg.</string>
     <string name="school_mail_quote_header">%2$@ ezt írta (%1$@):</string>

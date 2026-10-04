@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Tidak ada pengirim)</string>
     <string name="school_mail_no_subject">(Tidak ada subjek)</string>
     <string name="school_mail_notification_settings_title">Notifikasi email sekolah</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Buka</string>
     <string name="school_mail_parse_failed">Tidak dapat membaca format email ini. Menampilkan kode sumbernya.</string>
     <string name="school_mail_quote_header">Pada %1$@, %2$@ menulis:</string>

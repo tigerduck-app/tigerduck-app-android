@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Жіберуші жоқ)</string>
     <string name="school_mail_no_subject">(Тақырыбы жоқ)</string>
     <string name="school_mail_notification_settings_title">Мектеп поштасы хабарландырулары</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Ашу</string>
     <string name="school_mail_parse_failed">Бұл хаттың пішімін оқу мүмкін болмады. Оның орнына бастапқы коды көрсетілуде.</string>
     <string name="school_mail_quote_header">%1$@ күні %2$@ былай деп жазды:</string>

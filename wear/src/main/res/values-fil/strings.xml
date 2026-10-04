@@ -672,7 +672,6 @@
     <string name="school_mail_no_sender">(Walang nagpadala)</string>
     <string name="school_mail_no_subject">(Walang paksa)</string>
     <string name="school_mail_notification_settings_title">Mga notification ng mail ng paaralan</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Buksan</string>
     <string name="school_mail_parse_failed">Hindi mabasa ang format ng mail na ito. Ipinapakita na lang ang source nito.</string>
     <string name="school_mail_quote_header">Noong %1$@, sumulat si %2$@:</string>
