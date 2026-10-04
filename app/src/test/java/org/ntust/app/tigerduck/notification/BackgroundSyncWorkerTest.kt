@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.notification
 import android.app.Application
 import androidx.work.Configuration
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ListenableWorker
 import androidx.work.NetworkType
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
@@ -78,5 +79,36 @@ class BackgroundSyncWorkerTest {
         BackgroundSyncWorker.requestSync(context)
 
         assertEquals(NetworkType.CONNECTED, syncs().single().constraints.requiredNetworkType)
+    }
+
+    @Test
+    fun `a failed triggered sync retries a few times, then gives up`() {
+        // Not retried at all, a trigger that met a briefly unreachable school
+        // server left its change missing until the next trigger or the
+        // hourly run.
+        for (attempt in 0..2) {
+            assertEquals(
+                "attempt $attempt",
+                ListenableWorker.Result.retry(),
+                BackgroundSyncWorker.resultForFailedSync(triggered = true, runAttemptCount = attempt),
+            )
+        }
+        // Retried without end, its backoff grew to hours with every trigger
+        // in the meantime dropped behind it.
+        assertEquals(
+            ListenableWorker.Result.success(),
+            BackgroundSyncWorker.resultForFailedSync(triggered = true, runAttemptCount = 3),
+        )
+    }
+
+    @Test
+    fun `a failed periodic sync keeps retrying`() {
+        for (attempt in listOf(0, 3, 10)) {
+            assertEquals(
+                "attempt $attempt",
+                ListenableWorker.Result.retry(),
+                BackgroundSyncWorker.resultForFailedSync(triggered = false, runAttemptCount = attempt),
+            )
+        }
     }
 }

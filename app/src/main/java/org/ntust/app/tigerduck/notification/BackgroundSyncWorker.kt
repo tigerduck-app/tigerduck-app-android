@@ -3,10 +3,12 @@ package org.ntust.app.tigerduck.notification
 import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
+import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.ListenableWorker
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
@@ -86,12 +88,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         dataCache.notifyBackgroundSyncComplete()
 
         if (coursesOk && assignmentsOk) return Result.success()
-        // A run a sync trigger queued is not retried. The periodic run
-        // retries on its own schedule, while a triggered run in retry
-        // backoff — up to hours once the school's servers have failed it a
-        // few times, and no end to the retries — would hold every later
-        // trigger behind it (requestSync drops one that finds a sync queued).
-        return if (inputData.getBoolean(KEY_TRIGGERED, false)) Result.success() else Result.retry()
+        return resultForFailedSync(inputData.getBoolean(KEY_TRIGGERED, false), runAttemptCount)
     }
 
     private suspend fun syncOverridesFromBackend() {
@@ -450,6 +447,13 @@ class BackgroundSyncWorker @AssistedInject constructor(
         private const val TRIGGER_UNIQUE_NAME = "sync_trigger"
         private const val KEY_TRIGGERED = "triggered"
 
+        // Under the backoff requestSync sets, a triggered run that keeps
+        // failing tries again after 30 s, 1 min and 2 min, then gives up:
+        // three and a half minutes of waiting in all, against the hours an
+        // unbounded retry reaches.
+        private const val TRIGGERED_RETRIES = 3
+        private const val TRIGGERED_BACKOFF_SECONDS = 30L
+
         fun requestSync(context: Context) {
             val workManager = WorkManager.getInstance(context)
             // Called from FcmService, where a throw takes the process down;
@@ -469,6 +473,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
                         .build()
                 )
                 .setInputData(workDataOf(KEY_TRIGGERED to true))
+                // WorkManager's default today, set here because the bound
+                // on a triggered run's retries is reasoned from it.
+                .setBackoffCriteria(
+                    BackoffPolicy.EXPONENTIAL,
+                    TRIGGERED_BACKOFF_SECONDS, TimeUnit.SECONDS,
+                )
                 .build()
             workManager.enqueueUniqueWork(TRIGGER_UNIQUE_NAME, policy, request)
         }
@@ -485,5 +495,22 @@ class BackgroundSyncWorker @AssistedInject constructor(
             WorkInfo.State.RUNNING in states -> ExistingWorkPolicy.APPEND_OR_REPLACE
             else -> ExistingWorkPolicy.KEEP
         }
+
+        /**
+         * What a run that could not fetch courses or assignments reports.
+         * The periodic run retries on its own schedule. A triggered run
+         * retries [TRIGGERED_RETRIES] times and then gives up: given up at
+         * once, a school server that was down for a minute left the change
+         * the trigger announced missing until the next trigger or the
+         * hourly run; retried without end, its backoff grows to hours, and
+         * every trigger in the meantime is dropped behind it (requestSync
+         * drops one that finds a sync queued).
+         */
+        internal fun resultForFailedSync(triggered: Boolean, runAttemptCount: Int): ListenableWorker.Result =
+            if (triggered && runAttemptCount >= TRIGGERED_RETRIES) {
+                ListenableWorker.Result.success()
+            } else {
+                ListenableWorker.Result.retry()
+            }
     }
 }
