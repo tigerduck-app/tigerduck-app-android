@@ -126,6 +126,11 @@ android {
             // real android.util.Log call throws "not mocked", which would
             // limit migration and cache coverage to log-free code paths.
             isReturnDefaultValues = true
+            // Merged resources and manifest for Robolectric, so a Compose UI
+            // test can resolve stringResource and launch the ui-test-manifest
+            // ComponentActivity. CI runs the debug unit tests only, the
+            // variant that manifest is added to.
+            isIncludeAndroidResources = true
         }
     }
 
@@ -601,6 +606,11 @@ dependencies {
     // Context and SQLite it runs on.
     testImplementation(libs.androidx.work.testing)
     testImplementation(libs.robolectric)
+    // Compose UI tests on Robolectric, for composables whose behaviour hangs
+    // on permission state the JVM can fake and a device cannot: revoking a
+    // runtime permission kills the instrumented process.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

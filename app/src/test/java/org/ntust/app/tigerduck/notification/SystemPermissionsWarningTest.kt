@@ -53,7 +53,7 @@ class SystemPermissionsWarningTest {
     fun `notifications turned down at launch are warned about though never granted`() {
         // Denied on the onboarding page, then again at launch: never granted.
         denyNotifications()
-        systemPermissions.recordNotificationsDeclinedAtLaunch()
+        systemPermissions.recordLaunchPromptResult(granted = false)
 
         assertEquals(listOf(AppPermission.NOTIFICATIONS), systemPermissions.revokedOrDeclinedUnmuted())
     }
@@ -63,7 +63,7 @@ class SystemPermissionsWarningTest {
         // The popup re-reads its list on every ON_RESUME. Keyed on a stored
         // flag it came back after each trip to another app until muted.
         denyNotifications()
-        systemPermissions.recordNotificationsDeclinedAtLaunch()
+        systemPermissions.recordLaunchPromptResult(granted = false)
         systemPermissions.dismissRefusalWarnings()
 
         assertFalse(warnsAboutNotifications())

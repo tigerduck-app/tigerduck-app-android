@@ -154,13 +154,16 @@ class SystemPermissions @Inject constructor(
     }
 
     /**
-     * The launch prompt came back refused: [recordDeclined], and have the
-     * warning popup show notifications until it is closed — see
-     * [dismissRefusalWarnings]. Only the launch prompt does this; the in-app
-     * surfaces that ask (onboarding, 通知權限設定, 公告訂閱) already show the
-     * permission's state, so a popup on top would only repeat it.
+     * MainActivity's launch prompt answered. A refusal is [recordDeclined],
+     * and the warning popup shows notifications until it is closed — see
+     * [dismissRefusalWarnings] — even if they were never on, so the user can
+     * reach its 以後不再提醒. The result is delivered before onResume, whose
+     * re-check then shows the popup. Only the launch prompt does this; the
+     * in-app surfaces that ask (onboarding, 通知權限設定, 公告訂閱) already
+     * show the permission's state, so a popup on top would only repeat it.
      */
-    fun recordNotificationsDeclinedAtLaunch() {
+    fun recordLaunchPromptResult(granted: Boolean) {
+        if (granted) return
         recordDeclined(AppPermission.NOTIFICATIONS)
         unacknowledgedRefusals += AppPermission.NOTIFICATIONS
     }

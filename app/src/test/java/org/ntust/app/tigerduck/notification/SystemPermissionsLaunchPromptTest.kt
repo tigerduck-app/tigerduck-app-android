@@ -23,9 +23,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 // A plain Application: the real one is a Hilt app these tests do not need.
-// The SDK is pinned because, with no merged manifest to read a target from,
-// Robolectric falls back to API 23 — where POST_NOTIFICATIONS does not exist,
-// every case reads "not applicable", and nothing here is tested.
+// The SDK is pinned though robolectric.properties defaults to the same one:
+// below API 33 POST_NOTIFICATIONS does not exist, every case reads "not
+// applicable", and nothing here is tested — so these must not follow a
+// change of the project default.
 @Config(application = Application::class, sdk = [Build.VERSION_CODES.TIRAMISU])
 class SystemPermissionsLaunchPromptTest {
 

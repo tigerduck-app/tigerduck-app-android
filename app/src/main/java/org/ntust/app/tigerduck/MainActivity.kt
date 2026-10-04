@@ -117,14 +117,8 @@ class MainActivity : AppCompatActivity() {
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) {
-                liveActivityManager.refresh()
-            } else {
-                // Puts notifications in the warning popup even if they were
-                // never on, so the user can reach its 以後不再提醒. Delivered
-                // before onResume, whose re-check then shows the popup.
-                appState.systemPermissions.recordNotificationsDeclinedAtLaunch()
-            }
+            appState.systemPermissions.recordLaunchPromptResult(granted)
+            if (granted) liveActivityManager.refresh()
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
