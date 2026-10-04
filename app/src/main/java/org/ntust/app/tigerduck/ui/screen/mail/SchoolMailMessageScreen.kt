@@ -75,6 +75,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import org.ntust.app.tigerduck.util.fileProviderAuthority
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
@@ -733,7 +734,7 @@ private fun openAttachment(context: Context, request: SchoolMailMessageViewModel
     // configured provider path, same as a startActivity failure -- both belong inside this one
     // guarded block so either shows the same error toast instead of crashing.
     runCatching {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", request.file)
+        val uri = FileProvider.getUriForFile(context, fileProviderAuthority(context), request.file)
         val mimeType = resolveAttachmentMimeType(request.contentType, request.file.name)
         val view = Intent(Intent.ACTION_VIEW)
             .setDataAndTypeAndNormalize(uri, mimeType)

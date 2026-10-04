@@ -185,10 +185,11 @@
         </provider>
 
         <!-- Hands files to other apps (opened School Mail attachments, exported class table
-             images), read-only, one grant per intent. -->
+             images), read-only, one grant per intent. The authority keeps its mail-era name so
+             URIs granted before an update still resolve; see util/FileProviderAuthority.kt. -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.files"
+            android:authorities="${applicationId}.mailfiles"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data

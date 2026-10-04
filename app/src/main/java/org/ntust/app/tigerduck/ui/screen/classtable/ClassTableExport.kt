@@ -43,7 +43,9 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.util.fileProviderAuthority
 import java.io.File
+import java.util.UUID
 
 /**
  * A phone's width whatever the device, so an export from a tablet or a
@@ -228,26 +230,36 @@ internal fun classTableExportFileName(title: String, semesterLabel: String, stud
 private val WHITESPACE = Regex("\\s+")
 
 /**
- * Writes [bitmap] as a PNG under the export directory and returns the file.
+ * Writes [bitmap] as a PNG in a directory of its own and returns the file.
  *
- * Into a temporary file, then renamed over [fileName]: the name repeats for
- * the same term and student, and an app still reading the previous export
- * keeps reading that one rather than a file being rewritten underneath it.
+ * A fresh directory per export, every earlier one deleted first. The name
+ * repeats for the same term and student, so at a shared path a share target
+ * still holding the previous export's grant could open this one through it;
+ * at a new path that grant reaches nothing. An app already reading the
+ * previous file keeps its open handle — only reopening it fails — and no
+ * export carrying a student id outlives the next.
+ *
+ * A write that fails takes its directory with it.
  */
 internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap, fileName: String): File =
     withContext(Dispatchers.IO) {
-        val dir = File(context.cacheDir, EXPORT_DIR).apply { mkdirs() }
-        val file = File(dir, fileName)
-        val partial = File(dir, "$fileName.partial")
-        // A layer may hand back a hardware bitmap, whose pixels live on the
-        // GPU; copy them down before encoding.
-        val android = bitmap.asAndroidBitmap().let {
-            if (it.config == Bitmap.Config.HARDWARE) it.copy(Bitmap.Config.ARGB_8888, false) else it
+        val root = File(context.cacheDir, EXPORT_DIR)
+        root.listFiles()?.forEach { it.deleteRecursively() }
+        val dir = File(root, UUID.randomUUID().toString()).apply { mkdirs() }
+        try {
+            val file = File(dir, fileName)
+            // A layer may hand back a hardware bitmap, whose pixels live on
+            // the GPU; copy them down before encoding.
+            val android = bitmap.asAndroidBitmap().let {
+                if (it.config == Bitmap.Config.HARDWARE) it.copy(Bitmap.Config.ARGB_8888, false) else it
+            }
+            val written = file.outputStream().use { android.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            check(written) { "PNG encoding failed" }
+            file
+        } catch (e: Throwable) {
+            dir.deleteRecursively()
+            throw e
         }
-        val written = partial.outputStream().use { android.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        check(written) { "PNG encoding failed" }
-        check(partial.renameTo(file)) { "Could not move the PNG into place" }
-        file
     }
 
 /**
@@ -255,7 +267,7 @@ internal suspend fun writeClassTableImage(context: Context, bitmap: ImageBitmap,
  * Photos, Drive) or send it anywhere.
  */
 internal fun shareClassTableImage(context: Context, file: File, chooserTitle: String) {
-    val uri = FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+    val uri = FileProvider.getUriForFile(context, fileProviderAuthority(context), file)
     val send = Intent(Intent.ACTION_SEND)
         .setType("image/png")
         .putExtra(Intent.EXTRA_STREAM, uri)
