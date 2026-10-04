@@ -34,6 +34,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier
 import org.ntust.app.tigerduck.liveactivity.LiveActivityScenario
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySnapshot
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.NotificationGroup
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import java.util.Date
@@ -63,9 +64,11 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
             .setContentText("This is a test notification from the developer menu.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setGroup(NotificationGroup.OTHER.key)
             .build()
         val nm = context.getSystemService(NotificationManager::class.java)
         nm.notify(TEST_NOTIFICATION_ID, notification)
+        NotificationGroup.OTHER.postSummary(context, NotificationChannels.BULLETINS)
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(

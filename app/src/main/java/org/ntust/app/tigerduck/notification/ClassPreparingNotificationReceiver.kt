@@ -91,6 +91,16 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             instructor.takeIf { it.isNotBlank() },
         ).joinToString(" · ")
 
+        // Anchor the auto-dismiss to actual class-start time rather than
+        // post-time + leadTimeMs. When the alarm is delivered via the inexact
+        // fallback, post-time can drift up to ~5 min late, which would leave
+        // the banner up past class start.
+        val timeout = when {
+            startMs > 0L -> (startMs - System.currentTimeMillis()).coerceAtLeast(1_000L)
+            leadTimeMs > 0L -> leadTimeMs
+            else -> 0L
+        }
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             // Brand tint for the shade badge; the status-bar glyph stays mono.
@@ -107,21 +117,13 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
-            .apply {
-                // Anchor the auto-dismiss to actual class-start time rather
-                // than post-time + leadTimeMs. When the alarm is delivered
-                // via the inexact fallback, post-time can drift up to ~5 min
-                // late, which would leave the banner up past class start.
-                val timeout = when {
-                    startMs > 0L -> (startMs - System.currentTimeMillis()).coerceAtLeast(1_000L)
-                    leadTimeMs > 0L -> leadTimeMs
-                    else -> 0L
-                }
-                if (timeout > 0L) setTimeoutAfter(timeout)
-            }
+            .setGroup(NotificationGroup.CLASS.key)
+            .apply { if (timeout > 0L) setTimeoutAfter(timeout) }
             .build()
 
         nm.notify(notificationId, notification)
+        // Expires with the reminder, or it would outlive it as an empty row.
+        NotificationGroup.CLASS.postSummary(context, CHANNEL_ID, timeoutAfterMs = timeout)
     }
 
     private fun formatTimeRange(startMs: Long, endMs: Long): String {

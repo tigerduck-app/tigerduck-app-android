@@ -74,16 +74,14 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
             .setContentText(bodyText)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
-            // Stack reminders for the same assignment under a single group on
-            // the lock screen / shade — matches the iOS `threadIdentifier`
-            // behaviour.
-            .setGroup("assignment-$assignmentId")
+            .setGroup(NotificationGroup.ASSIGNMENT.key)
             .build()
 
         // Unique per (assignment × offset) so reminders for the same
         // assignment don't collapse into one another in the shade.
         val notifId = (assignmentId + "::" + (offset?.rawValue ?: "legacy")).hashCode() and 0x7FFFFFFF
         notificationManager.notify(notifId, notification)
+        NotificationGroup.ASSIGNMENT.postSummary(context, CHANNEL_ID)
     }
 
     companion object {
