@@ -3848,7 +3848,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib",
-            "artifactVersion": "2.4.10",
+            "artifactVersion": "2.4.20",
             "name": "Kotlin Stdlib",
             "description": "Kotlin Standard Library",
             "website": "https://kotlinlang.org/",
@@ -3872,7 +3872,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib-common",
-            "artifactVersion": "2.4.10",
+            "artifactVersion": "2.4.20",
             "name": "Kotlin Stdlib Common",
             "description": "Kotlin Common Standard Library (legacy, use kotlin-stdlib instead)",
             "website": "https://kotlinlang.org/",
