@@ -83,9 +83,19 @@ internal fun bottomBarDiffersFromDefault(
 ): Boolean = visibleBottomBarTabs(configured, libraryEnabled) != AppFeature.defaultTabs
 
 /**
+ * Whether the demo loops between the user's bar and the default one. Not
+ * with animations off, and not when the two are the same bar — a replay for
+ * someone on the defaults, or Back after confirming the reset — where a loop
+ * would only swap a bar for itself.
+ */
+internal fun resetDemoLoops(visible: List<AppFeature>, animate: Boolean): Boolean =
+    animate && visible != AppFeature.defaultTabs
+
+/**
  * A mock bottom bar showing the user's tabs, then the default ones, and
- * back, on a loop. With animations off it holds still on the default bar —
- * the outcome the page offers.
+ * back, on a loop. With animations off, or when the user's bar already is
+ * the default one, it holds still on the default bar — the outcome the page
+ * offers.
  */
 @Composable
 private fun BottomBarResetDemo(appState: AppState, animate: Boolean) {
@@ -93,8 +103,9 @@ private fun BottomBarResetDemo(appState: AppState, animate: Boolean) {
     val current = remember {
         visibleBottomBarTabs(appState.configuredTabs, appState.libraryFeatureEnabled)
     }
-    var showDefault by remember { mutableStateOf(!animate) }
-    if (animate) {
+    val loops = resetDemoLoops(current, animate)
+    var showDefault by remember { mutableStateOf(!loops) }
+    if (loops) {
         LaunchedEffect(Unit) {
             while (true) {
                 delay(DEMO_HOLD_MS)

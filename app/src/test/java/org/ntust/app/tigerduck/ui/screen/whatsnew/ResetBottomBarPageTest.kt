@@ -35,4 +35,12 @@ class ResetBottomBarPageTest {
         assertFalse(bottomBarDiffersFromDefault(stored, libraryEnabled = false))
         assertEquals(AppFeature.defaultTabs, visibleBottomBarTabs(stored, libraryEnabled = false))
     }
+
+    @Test
+    fun `the demo loops only between two different bars, with animations on`() {
+        val customized = listOf(CALENDAR, HOME)
+        assertTrue(resetDemoLoops(customized, animate = true))
+        assertFalse(resetDemoLoops(customized, animate = false))
+        assertFalse(resetDemoLoops(AppFeature.defaultTabs, animate = true))
+    }
 }
