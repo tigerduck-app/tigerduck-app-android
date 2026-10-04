@@ -80,8 +80,7 @@ class WhatsNewPageContext(
  * Every page has a stable [id] (kept across a config-change recreation so
  * the flow doesn't reshuffle) and an [isApplicable] check — return false to
  * leave the page out for this user, e.g. a "switch to the new layout?" page
- * for someone already on it. The check is skipped when the user replays
- * What's New from Settings.
+ * for someone already on it. Replays from Settings check it too.
  */
 sealed class WhatsNewPage {
     abstract val id: String

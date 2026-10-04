@@ -37,8 +37,7 @@ object WhatsNewGate {
         /**
          * Show the feature pages registered for [pageVersions] (oldest first),
          * then the summary of [summaryVersion] if it isn't null. [replay]
-         * means the user asked to see it again, so the pages' "only if this
-         * applies" checks are skipped.
+         * means the user asked to see it again.
          */
         data class Show(
             val pageVersions: List<Int>,
