@@ -152,7 +152,7 @@ class SchoolMailMessageViewModel @Inject constructor(
      * built with -- a stale, wrongly-coloured page inside a freshly-coloured frame, which is
      * exactly what this theming exists to prevent.
      */
-    private var mailTheme = MailHtmlTheme(background = "#ffffff", foreground = "#000000", isDark = false)
+    private var mailTheme = MailHtmlTheme.LIGHT
 
     fun setMailTheme(theme: MailHtmlTheme) {
         if (theme == mailTheme) return

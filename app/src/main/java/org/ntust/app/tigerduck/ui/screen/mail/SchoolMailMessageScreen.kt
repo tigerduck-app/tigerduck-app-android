@@ -64,6 +64,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -112,7 +117,8 @@ fun SchoolMailMessageScreen(
     var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingSavePart by rememberSaveable { mutableStateOf<String?>(null) }
     // "View in light mode". Kept by this screen alone, like the view mode is by its view model --
-    // never saved -- so the next mail opens on the app's own surface again.
+    // never persisted to preferences (rememberSaveable only carries it across a rotation or a
+    // process restore of this same screen) -- so the next mail opens on the app's own surface again.
     var viewInLight by rememberSaveable { mutableStateOf(false) }
 
     val cs = MaterialTheme.colorScheme
@@ -125,7 +131,7 @@ fun SchoolMailMessageScreen(
     // Only a dark app has a darker page to leave: in light theme the surface already is one, and
     // the item is not offered. A choice made in dark theme comes back if the app turns dark again.
     val onLightPaper = viewInLight && isDark
-    val pageColor = if (onLightPaper) Color.White else cs.surface
+    val pageColor = if (onLightPaper) MailHtmlTheme.LIGHT_PAPER else cs.surface
     val mailTheme = if (onLightPaper) {
         MailHtmlTheme.LIGHT
     } else {
@@ -158,6 +164,7 @@ fun SchoolMailMessageScreen(
     }
 
     val ready = state.content as? Content.Ready
+    val canFormat = ready?.html != null
     val saveLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val partId = pendingSavePart
         pendingSavePart = null
@@ -219,8 +226,8 @@ fun SchoolMailMessageScreen(
                             MessageMenu(
                                 expanded = menuOpen,
                                 mode = state.mode,
-                                canFormat = ready?.html != null,
-                                offersLightMode = offersLightMode(isDark, state.mode, canFormat = ready?.html != null),
+                                canFormat = canFormat,
+                                offersLightMode = offersLightMode(isDark, state.mode, canFormat),
                                 viewInLight = viewInLight,
                                 onDismiss = { menuOpen = false },
                                 onMode = { menuOpen = false; viewModel.selectMode(it) },
@@ -482,6 +489,12 @@ private fun MessageMenu(
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.school_mail_view_light_mode)) },
                 onClick = onViewInLight,
+                // A Checkbox with no onCheckedChange draws its state but exposes none, so the
+                // item itself carries it: TalkBack then reads "checkbox, checked/not checked".
+                modifier = Modifier.semantics {
+                    role = Role.Checkbox
+                    toggleableState = ToggleableState(viewInLight)
+                },
                 leadingIcon = {
                     Checkbox(
                         checked = viewInLight,

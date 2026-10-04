@@ -19,19 +19,23 @@ data class LinkedHtml(val html: String, val links: List<MailLink>)
 
 /**
  * The page's own surface, so a mail reads as part of the app rather than as white paper in a
- * dark room. Only the page is themed: a sender's own colours are never rewritten, because the
- * alternative distorts logos, screenshots and branded mail with no way for the reader to tell.
+ * dark room -- or [LIGHT]'s white paper, when the reader asks for it. Only the page is themed: a
+ * sender's own colours are never rewritten, because the alternative distorts logos, screenshots
+ * and branded mail with no way for the reader to tell.
  * [isDark] drives `color-scheme`, which is what makes mail that opts into `prefers-color-scheme`
  * follow along, and makes UA-default form controls legible.
  */
 data class MailHtmlTheme(val background: String, val foreground: String, val isDark: Boolean) {
     companion object {
+        /** [LIGHT]'s paper, for the Surface and WebView drawn behind its document. */
+        val LIGHT_PAPER = Color.White
+
         /**
          * White paper: "View in light mode". Leaving the sender's colours alone means a mail that
          * sets dark text and no background of its own reads as nothing on a dark surface; this is
          * the page such a mail was written against, and the reader's way back to it.
          */
-        val LIGHT = MailHtmlTheme(background = Color.White.toCssHex(), foreground = Color.Black.toCssHex(), isDark = false)
+        val LIGHT = MailHtmlTheme(background = LIGHT_PAPER.toCssHex(), foreground = Color.Black.toCssHex(), isDark = false)
     }
 }
 
