@@ -390,6 +390,26 @@ class SchoolMailMessageViewModelTest {
     }
 
     @Test
+    fun `view in light mode redraws an open mail on white paper, and turning it off redraws it dark`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("<p>hi</p>", null, emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        val dark = MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true)
+        vm.setMailTheme(dark)
+
+        vm.setMailTheme(MailHtmlTheme.LIGHT)
+        val light = ready(vm).document!!.html
+        assertTrue(light, light.contains("background:#ffffff;color:#000000"))
+        assertTrue(light, light.contains("color-scheme:light"))
+
+        vm.setMailTheme(dark)
+        val back = ready(vm).document!!.html
+        assertTrue(back, back.contains("background:#121212;color:#e6e6e6"))
+        assertTrue(back, back.contains("color-scheme:dark"))
+    }
+
+    @Test
     fun `setting the same theme twice does not rebuild the document`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody("<p>hi</p>", null, emptyList(), emptyMap())

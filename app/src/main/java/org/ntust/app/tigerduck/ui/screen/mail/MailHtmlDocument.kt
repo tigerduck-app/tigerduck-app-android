@@ -24,7 +24,16 @@ data class LinkedHtml(val html: String, val links: List<MailLink>)
  * [isDark] drives `color-scheme`, which is what makes mail that opts into `prefers-color-scheme`
  * follow along, and makes UA-default form controls legible.
  */
-data class MailHtmlTheme(val background: String, val foreground: String, val isDark: Boolean)
+data class MailHtmlTheme(val background: String, val foreground: String, val isDark: Boolean) {
+    companion object {
+        /**
+         * White paper: "View in light mode". Leaving the sender's colours alone means a mail that
+         * sets dark text and no background of its own reads as nothing on a dark surface; this is
+         * the page such a mail was written against, and the reader's way back to it.
+         */
+        val LIGHT = MailHtmlTheme(background = Color.White.toCssHex(), foreground = Color.Black.toCssHex(), isDark = false)
+    }
+}
 
 /** Wraps sanitized mail HTML for the locked-down WebView (spec §9.3): CSP, paper styling, inlined cid images. */
 object MailHtmlDocument {

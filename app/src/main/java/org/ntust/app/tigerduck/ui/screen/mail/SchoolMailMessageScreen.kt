@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -110,18 +111,26 @@ fun SchoolMailMessageScreen(
     var showMove by remember { mutableStateOf(false) }
     var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
     var pendingSavePart by rememberSaveable { mutableStateOf<String?>(null) }
+    // "View in light mode". Kept by this screen alone, like the view mode is by its view model --
+    // never saved -- so the next mail opens on the app's own surface again.
+    var viewInLight by rememberSaveable { mutableStateOf(false) }
 
     val cs = MaterialTheme.colorScheme
-    val mailTheme = MailHtmlTheme(
-        background = cs.surface.toCssHex(),
-        foreground = cs.onSurface.toCssHex(),
-        // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.surface/cs.onSurface
-        // above follow the app's own resolved theme (MainActivity's themeMode override -- "dark"
-        // or "light" -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same
-        // Compose-observable value MainActivity mirrors that resolved theme into, so this stays
-        // in lockstep with the colours right next to it instead of just the OS half of the time.
-        isDark = TigerDuckTheme.isDarkMode,
-    )
+    // Not isSystemInDarkTheme(): that's the OS setting alone, while cs.surface/cs.onSurface
+    // below follow the app's own resolved theme (MainActivity's themeMode override -- "dark"
+    // or "light" -- can disagree with the OS). TigerDuckTheme.isDarkMode is the same
+    // Compose-observable value MainActivity mirrors that resolved theme into, so this stays
+    // in lockstep with the colours right next to it instead of just the OS half of the time.
+    val isDark = TigerDuckTheme.isDarkMode
+    // Only a dark app has a darker page to leave: in light theme the surface already is one, and
+    // the item is not offered. A choice made in dark theme comes back if the app turns dark again.
+    val onLightPaper = viewInLight && isDark
+    val pageColor = if (onLightPaper) Color.White else cs.surface
+    val mailTheme = if (onLightPaper) {
+        MailHtmlTheme.LIGHT
+    } else {
+        MailHtmlTheme(background = cs.surface.toCssHex(), foreground = cs.onSurface.toCssHex(), isDark = isDark)
+    }
     // Keyed on mailTheme (a data class, so this only relaunches on a genuine colour change, not
     // every recomposition): pushing it into the view model directly from the composable body
     // would be an unguarded side effect of composition, which can run speculatively or be
@@ -211,8 +220,11 @@ fun SchoolMailMessageScreen(
                                 expanded = menuOpen,
                                 mode = state.mode,
                                 canFormat = ready?.html != null,
+                                offersLightMode = offersLightMode(isDark, state.mode, canFormat = ready?.html != null),
+                                viewInLight = viewInLight,
                                 onDismiss = { menuOpen = false },
                                 onMode = { menuOpen = false; viewModel.selectMode(it) },
+                                onViewInLight = { menuOpen = false; viewInLight = !viewInLight },
                                 onMarkUnread = { menuOpen = false; viewModel.markUnread() },
                                 onMove = { menuOpen = false; showMove = true },
                                 onDelete = { menuOpen = false; viewModel.delete() },
@@ -290,17 +302,18 @@ fun SchoolMailMessageScreen(
                                 }
                             }
                             // Spec §9.3: the HTML sits on the app's own surface colour, not
-                            // hardcoded white paper, so it reads as part of the app in dark theme.
+                            // hardcoded white paper, so it reads as part of the app in dark theme
+                            // -- unless the reader asked for white paper ("View in light mode").
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = cs.surface,
+                                color = pageColor,
                                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                             ) {
                                 MailWebView(
                                     document = document.html,
                                     allowedRemoteUrls = allowedRemoteUrls,
                                     linkCount = document.links.size,
-                                    backgroundColor = cs.surface.toArgb(),
+                                    backgroundColor = pageColor.toArgb(),
                                     onLink = { pendingLink = it },
                                     modifier = Modifier.fillMaxWidth(),
                                 )
@@ -430,13 +443,25 @@ fun SchoolMailMessageScreen(
     }
 }
 
+/**
+ * Whether the menu offers "View in light mode": only while the app is drawn dark -- a light app's
+ * surface is already a light page -- and only over the formatted view of a mail with an HTML part,
+ * the one view drawn on a page at all. Plain text and source are the app's own text, where the
+ * item would change nothing on screen.
+ */
+internal fun offersLightMode(isDark: Boolean, mode: ViewMode, canFormat: Boolean): Boolean =
+    isDark && canFormat && mode == ViewMode.FORMATTED
+
 @Composable
 private fun MessageMenu(
     expanded: Boolean,
     mode: ViewMode,
     canFormat: Boolean,
+    offersLightMode: Boolean,
+    viewInLight: Boolean,
     onDismiss: () -> Unit,
     onMode: (ViewMode) -> Unit,
+    onViewInLight: () -> Unit,
     onMarkUnread: () -> Unit,
     onMove: () -> Unit,
     onDelete: () -> Unit,
@@ -451,6 +476,20 @@ private fun MessageMenu(
         }
         ModeItem(stringResource(R.string.school_mail_view_plain), mode == ViewMode.PLAIN) { onMode(ViewMode.PLAIN) }
         ModeItem(stringResource(R.string.school_mail_view_source), mode == ViewMode.SOURCE) { onMode(ViewMode.SOURCE) }
+        // A checkbox item, with the views it changes: on, the HTML is redrawn on white paper;
+        // off, back on the app's surface.
+        if (offersLightMode) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.school_mail_view_light_mode)) },
+                onClick = onViewInLight,
+                leadingIcon = {
+                    Checkbox(
+                        checked = viewInLight,
+                        onCheckedChange = null
+                    )
+                }
+            )
+        }
         HorizontalDivider()
         DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_mark_unread)) }, onClick = onMarkUnread)
         DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_move_to)) }, onClick = onMove)
