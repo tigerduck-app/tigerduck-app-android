@@ -4,10 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.media.AudioManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
@@ -120,7 +117,14 @@ class MainActivity : AppCompatActivity() {
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted) liveActivityManager.refresh()
+            if (granted) {
+                liveActivityManager.refresh()
+            } else {
+                // Puts notifications in the warning popup even if they were
+                // never on, so the user can reach its 以後不再提醒. Delivered
+                // before onResume, whose re-check then shows the popup.
+                appState.systemPermissions.recordNotificationsDeclinedAtLaunch()
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,7 +133,10 @@ class MainActivity : AppCompatActivity() {
         volumeControlStream = AudioManager.STREAM_NOTIFICATION
 
         applyRotationPreference()
-        requestNotificationPermissionIfNeeded()
+        // Fresh start only. uiMode, fontScale and density are not in the
+        // manifest's configChanges, so a dark-mode switch recreates this
+        // Activity — and HyperOS raises the prompt again on every request.
+        if (savedInstanceState == null) requestNotificationPermissionIfNeeded()
         // Only schedule on the first Activity creation. WorkManager.UPDATE would
         // be idempotent, but re-enqueuing on every rotation/config change is
         // wasted work (and thrashes WorkManager's internal bookkeeping DB).
@@ -464,15 +471,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         // During onboarding, the dedicated permission page triggers the prompt
         // with context. Skip the bare auto-prompt on cold start until that's
         // done — including an upgrade re-run, which shows that page again.
         if (appState.showOnboarding) return
-        val granted = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.POST_NOTIFICATIONS,
-        ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) {
+        if (appState.systemPermissions.shouldRequestNotificationsAtLaunch()) {
             requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }

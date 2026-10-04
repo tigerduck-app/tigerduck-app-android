@@ -10,6 +10,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.StringRes
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -57,6 +58,13 @@ class SystemPermissions @Inject constructor(
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     /**
+     * Launch-prompt refusals the warning popup has yet to be closed on. In
+     * memory on purpose: a refusal is shown once, not on every ON_RESUME re-read
+     * of the list, and the next cold start asks — and so records — afresh.
+     */
+    private val unacknowledgedRefusals = mutableSetOf<AppPermission>()
+
+    /**
      * Read once: none of the inputs — API level, manufacturer, skin version —
      * can change without the process being restarted, and the lookup reaches
      * for `SystemProperties` by reflection, which is not worth repeating on
@@ -93,7 +101,7 @@ class SystemPermissions @Inject constructor(
             // No chip surface on this device. isApplicable reports false and
             // the row is painted grey; "granted" is this class's convention
             // for a permission that does not apply, and keeps the permission
-            // out of revokedSinceGrantUnmuted().
+            // out of revokedOrDeclinedUnmuted().
             StatusBarChipSupport.UNSUPPORTED -> true
 
             // ColorOS renders the chip while the capability API returns false.
@@ -129,7 +137,50 @@ class SystemPermissions @Inject constructor(
     fun wasPreviouslyGranted(p: AppPermission): Boolean =
         prefs.getBoolean(keyGranted(p), false)
 
-    /** Snapshot of current grant state into the "previously granted" flag. */
+    /** True if the user turned down the app's own prompt for this (tracked by us). */
+    fun wasDeclined(p: AppPermission): Boolean =
+        prefs.getBoolean(keyDeclined(p), false)
+
+    /**
+     * Any of the app's own prompts for [p] came back refused; from now on an
+     * "allow" tap opens the settings page — see [canPromptForNotifications].
+     * RequestPermission reports a dismissed prompt (back, tap outside) the
+     * same as a refusal, so that counts too. The cost of a wrong guess is a
+     * tap that opens the settings page where the prompt could still have
+     * shown; the cost of the other guess is a tap that does nothing.
+     */
+    fun recordDeclined(p: AppPermission) {
+        prefs.edit().putBoolean(keyDeclined(p), true).apply()
+    }
+
+    /**
+     * The launch prompt came back refused: [recordDeclined], and have the
+     * warning popup show notifications until it is closed — see
+     * [dismissRefusalWarnings]. Only the launch prompt does this; the in-app
+     * surfaces that ask (onboarding, 通知權限設定, 公告訂閱) already show the
+     * permission's state, so a popup on top would only repeat it.
+     */
+    fun recordNotificationsDeclinedAtLaunch() {
+        recordDeclined(AppPermission.NOTIFICATIONS)
+        unacknowledgedRefusals += AppPermission.NOTIFICATIONS
+    }
+
+    /** The warning popup was closed: stop listing the refusals it showed. */
+    fun dismissRefusalWarnings() {
+        unacknowledgedRefusals.clear()
+    }
+
+    /**
+     * Snapshot of current grant state into the "previously granted" flag, and
+     * lift the notifications mute once they are granted: the mute answered
+     * "they're off — keep reminding me?", and once the user turns them back
+     * on, a later revoke is a new question. Without this, nothing could ever
+     * un-mute — the popup row that holds the checkbox disappears the moment it
+     * is ticked — and the mute also silences the launch prompt. Notifications
+     * only: background restriction and the rest can be flipped by the OS or
+     * an OEM battery manager without the user doing anything, and that must
+     * not undo a mute the user chose.
+     */
     fun recordCurrentGrants() {
         val editor = prefs.edit()
         for (p in AppPermission.entries) {
@@ -137,12 +188,20 @@ class SystemPermissions @Inject constructor(
             // have. Banking that would make a later OS upgrade — where the
             // permission appears, ungranted — look like the user revoked
             // something they were never asked about, and fire the warning popup.
-            if (isApplicable(p) && isGranted(p)) editor.putBoolean(keyGranted(p), true)
+            if (isApplicable(p) && isGranted(p)) {
+                editor.putBoolean(keyGranted(p), true)
+                if (p == AppPermission.NOTIFICATIONS) editor.remove(keyMuted(p))
+            }
         }
         editor.apply()
     }
 
-    /** User-facing opt-out per permission for the revocation popup. */
+    /**
+     * User-facing opt-out per permission for the warning popup. For
+     * [AppPermission.NOTIFICATIONS] it also stops the launch prompt — see
+     * [shouldRequestNotificationsAtLaunch] — and [recordCurrentGrants] lifts
+     * it once they are granted again.
+     */
     fun isMuted(p: AppPermission): Boolean =
         prefs.getBoolean(keyMuted(p), false)
 
@@ -151,18 +210,53 @@ class SystemPermissions @Inject constructor(
     }
 
     /**
-     * Permissions the user previously had on but are now off AND have not
-     * been muted. Feeds the resume-time warning popup.
+     * Whether a cold start should raise the system notification prompt on its
+     * own. A muted permission is not asked for: stock Android stops showing
+     * the prompt after two denials anyway, but HyperOS shows it on every
+     * launch, so the user's "以後不再提醒" is the only thing that ends it.
+     *
+     * True implies API 33+ (via [isApplicable]); the annotation tells lint so,
+     * which keeps the POST_NOTIFICATIONS reference at the call site clean.
      */
-    fun revokedSinceGrantUnmuted(): List<AppPermission> =
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU)
+    fun shouldRequestNotificationsAtLaunch(): Boolean =
+        isApplicable(AppPermission.NOTIFICATIONS) &&
+            !isGranted(AppPermission.NOTIFICATIONS) &&
+            !isMuted(AppPermission.NOTIFICATIONS)
+
+    /**
+     * Whether an "allow notifications" tap should raise the runtime prompt
+     * rather than open the settings page: only while the app has never had
+     * the permission and the user has never turned one of its prompts down.
+     * Past either, the OS may answer the prompt with a silent denial — stock
+     * Android after two refusals, HyperOS with notifications switched off —
+     * and a tap that only asked would do nothing at all.
+     */
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU)
+    fun canPromptForNotifications(): Boolean =
+        isApplicable(AppPermission.NOTIFICATIONS) &&
+            !isGranted(AppPermission.NOTIFICATIONS) &&
+            !wasPreviouslyGranted(AppPermission.NOTIFICATIONS) &&
+            !wasDeclined(AppPermission.NOTIFICATIONS)
+
+    /**
+     * Permissions that are off after the user had them on or just turned the
+     * launch prompt down, AND have not been muted. Feeds the resume-time
+     * warning popup. The "turned down" half matters for someone who never
+     * granted notifications: without it they never see the popup, never get
+     * its 以後不再提醒, and HyperOS prompts them on every launch for good.
+     */
+    fun revokedOrDeclinedUnmuted(): List<AppPermission> =
         AppPermission.entries.filter { p ->
-            isApplicable(p) && wasPreviouslyGranted(p) && !isGranted(p) && !isMuted(p)
+            isApplicable(p) && (wasPreviouslyGranted(p) || p in unacknowledgedRefusals) &&
+                !isGranted(p) && !isMuted(p)
         }
 
     /**
      * Intent to take the user to the right system settings page to fix [p].
-     * NOTIFICATIONS returns null when the runtime prompt is still possible —
-     * caller should use ActivityResultContracts.RequestPermission instead.
+     * For NOTIFICATIONS that is the app's notification page, which works
+     * whether or not the runtime prompt can still be shown; callers that want
+     * the prompt while it is possible launch RequestPermission themselves.
      */
     fun settingsIntent(p: AppPermission): Intent? = when (p) {
         AppPermission.NOTIFICATIONS -> Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
@@ -238,6 +332,7 @@ class SystemPermissions @Inject constructor(
 
     private fun keyGranted(p: AppPermission) = "granted_${p.name}"
     private fun keyMuted(p: AppPermission) = "muted_${p.name}"
+    private fun keyDeclined(p: AppPermission) = "declined_${p.name}"
 
     companion object {
         private const val PREFS_NAME = "tigerduck_permissions"
