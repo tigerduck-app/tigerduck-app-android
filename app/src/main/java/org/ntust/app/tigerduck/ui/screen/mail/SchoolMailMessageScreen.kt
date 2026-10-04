@@ -460,8 +460,9 @@ fun SchoolMailMessageScreen(
 internal fun offersLightMode(isDark: Boolean, mode: ViewMode, canFormat: Boolean): Boolean =
     isDark && canFormat && mode == ViewMode.FORMATTED
 
+/** The message's ⋮ menu. Internal so [MailMessageMenuTest] can open it and read what TalkBack is told. */
 @Composable
-private fun MessageMenu(
+internal fun MessageMenu(
     expanded: Boolean,
     mode: ViewMode,
     canFormat: Boolean,
