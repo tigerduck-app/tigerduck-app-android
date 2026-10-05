@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Није могуће додати</string>
     <string name="class_table_course_name">Назив курса</string>
     <string name="class_table_delete">Обриши</string>
-    <string name="class_table_empty_message">Повуците да освежите, додирните + да додате курс или пребаците се на други семестар</string>
+    <string name="class_table_empty_message">Повуците да освежите, додирните ⋯ да додате курс или пребаците се на други семестар</string>
+    <string name="class_table_export_failed">Није могуће извести распоред</string>
+    <string name="class_table_export_screenshot">Извези снимак екрана распореда</string>
+    <string name="class_table_more_actions">Још радњи</string>
     <string name="class_table_pick_color">Одабери боју</string>
     <string name="class_table_rename_default_label">Подразумевано: %1$s</string>
     <string name="class_table_rename_revert">Врати на подразумевано</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Нема пошиљаоца)</string>
     <string name="school_mail_no_subject">(Нема теме)</string>
     <string name="school_mail_notification_settings_title">Обавештења за школску пошту</string>
-    <string name="school_mail_notification_title">Порука: %1$@</string>
     <string name="school_mail_open">Отвори</string>
     <string name="school_mail_parse_failed">Формат ове поруке није могуће прочитати. Уместо тога приказује се изворни код.</string>
     <string name="school_mail_quote_header">Дана %1$@, %2$@ пише:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Прикажи само непрочитано</string>
     <string name="school_mail_use_other_app">Користи другу апликацију</string>
     <string name="school_mail_view_formatted">Форматирано</string>
+    <string name="school_mail_view_light_mode">Прикажи у светлом режиму</string>
     <string name="school_mail_view_mode">Приказ</string>
     <string name="school_mail_view_plain">Обичан текст</string>
     <string name="school_mail_view_source">Изворни код</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Ресетуј на подразумевано</string>
     <string name="tab_editor_section_available_tabs">Доступне картице</string>
     <string name="tab_editor_section_current_tabs">Тренутне картице</string>
-    <string name="tab_editor_title">Уређивач картица</string>
+    <string name="tab_editor_title">Прилагоди доњу траку</string>
     <string name="tag_server_notification">Серверско обавештење</string>
     <string name="update_action_later">Касније</string>
     <string name="update_action_skip_version">Прескочи ову верзију</string>

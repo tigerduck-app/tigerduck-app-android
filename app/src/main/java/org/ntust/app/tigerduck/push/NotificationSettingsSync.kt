@@ -1139,7 +1139,7 @@ class NotificationSettingsSync internal constructor(
         }
         // Turning "同步內容 → 即時更新" back on doesn't itself change any of
         // the five synced values, so nothing else here would ever notice
-        // and (re-)push them. Mirrors the appLanguageChanged collector in
+        // and (re-)push them. Mirrors the language-change collector in
         // PushRegistrationService.init.
         scope.launch {
             syncLiveActivityChanged.collect {

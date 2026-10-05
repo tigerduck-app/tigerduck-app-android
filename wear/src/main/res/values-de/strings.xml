@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Hinzufügen nicht möglich</string>
     <string name="class_table_course_name">Kursname</string>
     <string name="class_table_delete">Löschen</string>
-    <string name="class_table_empty_message">Ziehen Sie zum Aktualisieren, tippen Sie auf +, um einen Kurs hinzuzufügen, oder wechseln Sie zu einem anderen Semester</string>
+    <string name="class_table_empty_message">Ziehen Sie zum Aktualisieren, tippen Sie auf ⋯, um einen Kurs hinzuzufügen, oder wechseln Sie zu einem anderen Semester</string>
+    <string name="class_table_export_failed">Stundenplan konnte nicht exportiert werden</string>
+    <string name="class_table_export_screenshot">Stundenplan als Bild exportieren</string>
+    <string name="class_table_more_actions">Weitere Aktionen</string>
     <string name="class_table_pick_color">Farbe wählen</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Auf Standard zurücksetzen</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Kein Absender)</string>
     <string name="school_mail_no_subject">(Kein Betreff)</string>
     <string name="school_mail_notification_settings_title">Uni-Mail-Benachrichtigungen</string>
-    <string name="school_mail_notification_title">E-Mail: %1$@</string>
     <string name="school_mail_open">Öffnen</string>
     <string name="school_mail_parse_failed">Das Format dieser E-Mail konnte nicht gelesen werden. Es wird stattdessen der Quelltext angezeigt.</string>
     <string name="school_mail_quote_header">Am %1$@ schrieb %2$@:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Nur Ungelesene anzeigen</string>
     <string name="school_mail_use_other_app">Andere App verwenden</string>
     <string name="school_mail_view_formatted">Formatiert</string>
+    <string name="school_mail_view_light_mode">Im hellen Modus anzeigen</string>
     <string name="school_mail_view_mode">Ansicht</string>
     <string name="school_mail_view_plain">Nur Text</string>
     <string name="school_mail_view_source">Quelltext</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Standard wiederherstellen</string>
     <string name="tab_editor_section_available_tabs">Verfügbare Tabs</string>
     <string name="tab_editor_section_current_tabs">Aktuelle Tabs</string>
-    <string name="tab_editor_title">Tab-Editor</string>
+    <string name="tab_editor_title">Untere Navigation anpassen</string>
     <string name="tag_server_notification">Serverbenachrichtigung</string>
     <string name="update_action_later">Später</string>
     <string name="update_action_skip_version">Diese Version überspringen</string>

@@ -62,6 +62,12 @@ class MailAccount @Inject constructor(
 
     val studentId: String? get() = credentials.mailStudentId
 
+    /**
+     * The signed-in student's own address, without decrypting the password the way
+     * [credentialsOrNull] does. Still a read of the encrypted store, so not for the main thread.
+     */
+    val ownAddress: String? get() = credentials.mailStudentId?.takeIf { it.isNotBlank() }?.let { MailCredentials.addressOf(it, site.domain()) }
+
     /** True for the mail demo mailbox itself, or whenever the app-wide demo is active -- either way, nothing may open a socket. */
     val isDemo: Boolean get() = state.demoMailbox || demo.appDemoActive
 

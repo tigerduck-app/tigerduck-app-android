@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">జోడించడం సాధ్యం కాలేదు</string>
     <string name="class_table_course_name">కోర్సు పేరు</string>
     <string name="class_table_delete">తొలగించు</string>
-    <string name="class_table_empty_message">రిఫ్రెష్ చేయడానికి లాగండి, కోర్సు జోడించడానికి + నొక్కండి, లేదా వేరే సెమిస్టర్‌కు మారండి</string>
+    <string name="class_table_empty_message">రిఫ్రెష్ చేయడానికి లాగండి, కోర్సు జోడించడానికి ⋯ నొక్కండి, లేదా వేరే సెమిస్టర్‌కు మారండి</string>
+    <string name="class_table_export_failed">తరగతి షెడ్యూల్‌ను ఎగుమతి చేయలేకపోయాము</string>
+    <string name="class_table_export_screenshot">తరగతి షెడ్యూల్ స్క్రీన్‌షాట్‌ను ఎగుమతి చేయండి</string>
+    <string name="class_table_more_actions">మరిన్ని చర్యలు</string>
     <string name="class_table_pick_color">రంగు ఎంచుకోండి</string>
     <string name="class_table_rename_default_label">డిఫాల్ట్: %1$s</string>
     <string name="class_table_rename_revert">డిఫాల్ట్‌కు తిరిగి వెళ్ళు</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(పంపినవారు లేరు)</string>
     <string name="school_mail_no_subject">(విషయం లేదు)</string>
     <string name="school_mail_notification_settings_title">స్కూల్ ఇమెయిల్ నోటిఫికేషన్‌లు</string>
-    <string name="school_mail_notification_title">ఇమెయిల్: %1$@</string>
     <string name="school_mail_open">తెరవండి</string>
     <string name="school_mail_parse_failed">ఈ ఇమెయిల్ ఫార్మాట్‌ను చదవలేకపోయింది. బదులుగా దాని మూలాన్ని చూపిస్తోంది.</string>
     <string name="school_mail_quote_header">తేదీ: %1$@ — రాసినవారు: %2$@</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">చదవనివి మాత్రమే చూపించు</string>
     <string name="school_mail_use_other_app">వేరే యాప్ ఉపయోగించండి</string>
     <string name="school_mail_view_formatted">ఫార్మాట్ చేయబడింది</string>
+    <string name="school_mail_view_light_mode">లైట్ మోడ్‌లో చూడండి</string>
     <string name="school_mail_view_mode">వీక్షణ</string>
     <string name="school_mail_view_plain">సాదా టెక్స్ట్</string>
     <string name="school_mail_view_source">మూలం</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">డిఫాల్ట్‌లు రీసెట్ చేయండి</string>
     <string name="tab_editor_section_available_tabs">అందుబాటులో ఉన్న ట్యాబ్‌లు</string>
     <string name="tab_editor_section_current_tabs">ప్రస్తుత ట్యాబ్‌లు</string>
-    <string name="tab_editor_title">ట్యాబ్ ఎడిటర్</string>
+    <string name="tab_editor_title">బాటమ్ నావిగేషన్‌ను కస్టమైజ్ చేయండి</string>
     <string name="tag_server_notification">సర్వర్ నోటిఫికేషన్</string>
     <string name="update_action_later">తర్వాత</string>
     <string name="update_action_skip_version">ఈ వెర్షన్ దాటవేయండి</string>

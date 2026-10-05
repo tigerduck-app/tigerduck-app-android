@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Không thể thêm</string>
     <string name="class_table_course_name">Tên môn học</string>
     <string name="class_table_delete">Xóa</string>
-    <string name="class_table_empty_message">Kéo để làm mới, nhấn + để thêm môn học, hoặc chuyển sang học kỳ khác</string>
+    <string name="class_table_empty_message">Kéo để làm mới, nhấn ⋯ để thêm môn học, hoặc chuyển sang học kỳ khác</string>
+    <string name="class_table_export_failed">Không thể xuất thời khóa biểu</string>
+    <string name="class_table_export_screenshot">Xuất ảnh chụp thời khóa biểu</string>
+    <string name="class_table_more_actions">Thêm thao tác</string>
     <string name="class_table_pick_color">Chọn màu</string>
     <string name="class_table_rename_default_label">Mặc định: %1$s</string>
     <string name="class_table_rename_revert">Khôi phục mặc định</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Không có người gửi)</string>
     <string name="school_mail_no_subject">(Không có chủ đề)</string>
     <string name="school_mail_notification_settings_title">Thông báo Email trường</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Mở</string>
     <string name="school_mail_parse_failed">Không thể đọc định dạng của thư này. Đang hiển thị mã nguồn thay thế.</string>
     <string name="school_mail_quote_header">Vào %1$@, %2$@ đã viết:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Chỉ hiện thư chưa đọc</string>
     <string name="school_mail_use_other_app">Dùng ứng dụng khác</string>
     <string name="school_mail_view_formatted">Có định dạng</string>
+    <string name="school_mail_view_light_mode">Xem ở chế độ sáng</string>
     <string name="school_mail_view_mode">Chế độ xem</string>
     <string name="school_mail_view_plain">Văn bản thuần</string>
     <string name="school_mail_view_source">Mã nguồn</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Khôi phục mặc định</string>
     <string name="tab_editor_section_available_tabs">Tab có sẵn</string>
     <string name="tab_editor_section_current_tabs">Tab hiện tại</string>
-    <string name="tab_editor_title">Trình chỉnh sửa Tab</string>
+    <string name="tab_editor_title">Tùy chỉnh thanh điều hướng dưới</string>
     <string name="tag_server_notification">Thông báo máy chủ</string>
     <string name="update_action_later">Để sau</string>
     <string name="update_action_skip_version">Bỏ qua phiên bản này</string>

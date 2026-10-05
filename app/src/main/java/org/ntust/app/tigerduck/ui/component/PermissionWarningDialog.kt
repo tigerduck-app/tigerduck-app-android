@@ -1,9 +1,5 @@
 package org.ntust.app.tigerduck.ui.component
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,21 +39,16 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
  * Watches the device's notification / exact-alarm / battery-optimisation
  * permission states while any part of the app is on-screen. If a permission
  * that the user previously granted has been silently revoked (e.g. from the
- * system settings), surface a single unified warning with per-permission
- * "fix it" buttons and a "以後不再提醒" checkbox per row.
+ * system settings), or one they turned down when the app asked, surface a
+ * single unified warning with per-permission "fix it" buttons and a
+ * "以後不再提醒" checkbox per row.
  */
 @Composable
 fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
     var revoked by remember { mutableStateOf<List<AppPermission>>(emptyList()) }
-    val notificationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) systemPermissions.recordCurrentGrants()
-        revoked = systemPermissions.revokedSinceGrantUnmuted()
-    }
 
     LaunchedEffect(Unit) {
-        revoked = systemPermissions.revokedSinceGrantUnmuted()
+        revoked = systemPermissions.revokedOrDeclinedUnmuted()
     }
 
     // Re-check each time the activity returns to the foreground — that covers
@@ -67,7 +58,7 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 systemPermissions.recordCurrentGrants()
-                revoked = systemPermissions.revokedSinceGrantUnmuted()
+                revoked = systemPermissions.revokedOrDeclinedUnmuted()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -76,12 +67,19 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
 
     if (revoked.isEmpty()) return
 
+    // Closing the popup acknowledges any launch-prompt refusal it showed, so
+    // that refusal is not listed again on the next ON_RESUME; a revoke after
+    // grant still is, until muted.
+    val close = {
+        systemPermissions.dismissRefusalWarnings()
+        revoked = emptyList()
+    }
     TigerDuckDialog(
-        onDismissRequest = { revoked = emptyList() },
+        onDismissRequest = close,
         icon = { Icon(Icons.Filled.Warning, contentDescription = null) },
         title = stringResource(R.string.permission_warning_title),
         confirmText = stringResource(R.string.permission_warning_action_later),
-        onConfirm = { revoked = emptyList() },
+        onConfirm = close,
         content = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -96,18 +94,17 @@ fun PermissionWarningDialogHost(systemPermissions: SystemPermissions) {
                     RevokedPermissionItem(
                         permission = p,
                         systemPermissions = systemPermissions,
-                        onOpenSettings = {
-                            if (p == AppPermission.NOTIFICATIONS &&
-                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                            ) {
-                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                systemPermissions.openSettings(p)
-                            }
-                        },
+                        // The settings page even for notifications, never the
+                        // runtime prompt: this row shows once the user has
+                        // switched the permission off or refused it — usually
+                        // the launch prompt moments ago — and from there stock
+                        // Android answers the prompt with a silent denial (a
+                        // dead button) while HyperOS shows it all over again.
+                        // ON_RESUME re-checks once they come back.
+                        onOpenSettings = { systemPermissions.openSettings(p) },
                         onMute = {
                             systemPermissions.setMuted(p, true)
-                            revoked = systemPermissions.revokedSinceGrantUnmuted()
+                            revoked = systemPermissions.revokedOrDeclinedUnmuted()
                         },
                     )
                 }

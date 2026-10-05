@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Dodajanje ni mogoče</string>
     <string name="class_table_course_name">Ime predmeta</string>
     <string name="class_table_delete">Izbriši</string>
-    <string name="class_table_empty_message">Povlecite za osvežitev, tapnite +, da dodate predmet, ali preklopite na drug semester</string>
+    <string name="class_table_empty_message">Povlecite za osvežitev, tapnite ⋯, da dodate predmet, ali preklopite na drug semester</string>
+    <string name="class_table_export_failed">Urnika ni bilo mogoče izvoziti</string>
+    <string name="class_table_export_screenshot">Izvozi posnetek zaslona urnika</string>
+    <string name="class_table_more_actions">Več dejanj</string>
     <string name="class_table_pick_color">Izberi barvo</string>
     <string name="class_table_rename_default_label">Privzeto: %1$s</string>
     <string name="class_table_rename_revert">Obnovi privzeto</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Ni pošiljatelja)</string>
     <string name="school_mail_no_subject">(Ni zadeve)</string>
     <string name="school_mail_notification_settings_title">Obvestila šolske pošte</string>
-    <string name="school_mail_notification_title">Sporočilo: %1$@</string>
     <string name="school_mail_open">Odpri</string>
     <string name="school_mail_parse_failed">Oblike tega sporočila ni bilo mogoče prebrati. Namesto tega je prikazana izvorna koda.</string>
     <string name="school_mail_quote_header">Dne %1$@, %2$@ piše:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Prikaži samo neprebrano</string>
     <string name="school_mail_use_other_app">Uporabi drugo aplikacijo</string>
     <string name="school_mail_view_formatted">Oblikovano</string>
+    <string name="school_mail_view_light_mode">Prikaži v svetlem načinu</string>
     <string name="school_mail_view_mode">Pogled</string>
     <string name="school_mail_view_plain">Navadno besedilo</string>
     <string name="school_mail_view_source">Izvorna koda</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Ponastavi privzeto</string>
     <string name="tab_editor_section_available_tabs">Razpoložljivi zavihki</string>
     <string name="tab_editor_section_current_tabs">Trenutni zavihki</string>
-    <string name="tab_editor_title">Urejevalnik zavihkov</string>
+    <string name="tab_editor_title">Prilagodi spodnjo vrstico</string>
     <string name="tag_server_notification">Strežniško obvestilo</string>
     <string name="update_action_later">Pozneje</string>
     <string name="update_action_skip_version">Preskoči to različico</string>

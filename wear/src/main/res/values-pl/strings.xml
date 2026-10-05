@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nie można dodać</string>
     <string name="class_table_course_name">Nazwa przedmiotu</string>
     <string name="class_table_delete">Usuń</string>
-    <string name="class_table_empty_message">Pociągnij, aby odświeżyć, stuknij +, aby dodać kurs, lub przełącz się na inny semestr</string>
+    <string name="class_table_empty_message">Pociągnij, aby odświeżyć, stuknij ⋯, aby dodać kurs, lub przełącz się na inny semestr</string>
+    <string name="class_table_export_failed">Nie udało się wyeksportować planu zajęć</string>
+    <string name="class_table_export_screenshot">Eksportuj zrzut ekranu planu zajęć</string>
+    <string name="class_table_more_actions">Więcej działań</string>
     <string name="class_table_pick_color">Wybierz kolor</string>
     <string name="class_table_rename_default_label">Domyślnie: %1$s</string>
     <string name="class_table_rename_revert">Przywróć domyślne</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Brak nadawcy)</string>
     <string name="school_mail_no_subject">(Brak tematu)</string>
     <string name="school_mail_notification_settings_title">Powiadomienia poczty uczelnianej</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Otwórz</string>
     <string name="school_mail_parse_failed">Nie udało się odczytać formatu wiadomości. Wyświetlono jej kod źródłowy.</string>
     <string name="school_mail_quote_header">W dniu %1$@ użytkownik %2$@ napisał:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Pokaż tylko nieprzeczytane</string>
     <string name="school_mail_use_other_app">Użyj innej aplikacji</string>
     <string name="school_mail_view_formatted">Sformatowany</string>
+    <string name="school_mail_view_light_mode">Wyświetl w trybie jasnym</string>
     <string name="school_mail_view_mode">Widok</string>
     <string name="school_mail_view_plain">Zwykły tekst</string>
     <string name="school_mail_view_source">Kod źródłowy</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Przywróć ustawienia domyślne</string>
     <string name="tab_editor_section_available_tabs">Dostępne zakładki</string>
     <string name="tab_editor_section_current_tabs">Bieżące zakładki</string>
-    <string name="tab_editor_title">Edytor zakładek</string>
+    <string name="tab_editor_title">Dostosuj dolny pasek</string>
     <string name="tag_server_notification">Powiadomienie serwera</string>
     <string name="update_action_later">Później</string>
     <string name="update_action_skip_version">Pomiń tę wersję</string>

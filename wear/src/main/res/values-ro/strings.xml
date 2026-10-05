@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nu se poate adăuga</string>
     <string name="class_table_course_name">Denumire curs</string>
     <string name="class_table_delete">Șterge</string>
-    <string name="class_table_empty_message">Trage pentru reîmprospătare, atinge + pentru a adăuga un curs sau schimbă semestrul</string>
+    <string name="class_table_empty_message">Trage pentru reîmprospătare, atinge ⋯ pentru a adăuga un curs sau schimbă semestrul</string>
+    <string name="class_table_export_failed">Orarul nu a putut fi exportat</string>
+    <string name="class_table_export_screenshot">Exportă o captură a orarului</string>
+    <string name="class_table_more_actions">Mai multe acțiuni</string>
     <string name="class_table_pick_color">Alege culoare</string>
     <string name="class_table_rename_default_label">Implicit: %1$s</string>
     <string name="class_table_rename_revert">Revenire la implicit</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Fără expeditor)</string>
     <string name="school_mail_no_subject">(Fără subiect)</string>
     <string name="school_mail_notification_settings_title">Notificări E-mail universitar</string>
-    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Deschide</string>
     <string name="school_mail_parse_failed">Formatul acestui e-mail nu a putut fi citit. Se afișează sursa în schimb.</string>
     <string name="school_mail_quote_header">Pe %1$@, %2$@ a scris:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Afișează doar cele necitite</string>
     <string name="school_mail_use_other_app">Folosește altă aplicație</string>
     <string name="school_mail_view_formatted">Formatat</string>
+    <string name="school_mail_view_light_mode">Vizualizează în modul luminos</string>
     <string name="school_mail_view_mode">Vizualizare</string>
     <string name="school_mail_view_plain">Text simplu</string>
     <string name="school_mail_view_source">Sursă</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Resetează implicit</string>
     <string name="tab_editor_section_available_tabs">File disponibile</string>
     <string name="tab_editor_section_current_tabs">File curente</string>
-    <string name="tab_editor_title">Editor file</string>
+    <string name="tab_editor_title">Personalizează bara inferioară</string>
     <string name="tag_server_notification">Notificare server</string>
     <string name="update_action_later">Mai târziu</string>
     <string name="update_action_skip_version">Omiteți această versiune</string>

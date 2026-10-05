@@ -35,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
@@ -63,12 +64,14 @@ import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.mail.ForgotMailPasswordLink
 import org.ntust.app.tigerduck.ui.screen.mail.MailAccountViewModel
 import org.ntust.app.tigerduck.ui.screen.mail.messageRes
-import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.data.model.ManualCheckResult
 import org.ntust.app.tigerduck.update.UpdateChecker
-import org.ntust.app.tigerduck.data.model.WhatsNewContent
+import org.ntust.app.tigerduck.update.WhatsNewGate
 import org.ntust.app.tigerduck.update.WhatsNewRepository
 import org.ntust.app.tigerduck.util.replaceIosArg
 import java.util.Locale
@@ -158,10 +161,32 @@ fun SettingsScreen(
     // unrelated config changes — font scale, screen size, dark-mode flip —
     // don't pointlessly re-parse the asset.
     val languageTag = context.resources.configuration.locales[0].toLanguageTag()
-    val latestWhatsNew: WhatsNewContent? = remember(whatsNewRepo, languageTag) {
-        whatsNewRepo.latestEntry(languageTag)
+    val whatsNewCatalog = remember(viewModel.appState) { WhatsNewCatalog.pages(viewModel.appState) }
+    val whatsNewSummaries = remember(whatsNewRepo, languageTag) { whatsNewRepo.summaries(languageTag) }
+    val whatsNewReplay = remember(whatsNewCatalog, whatsNewSummaries) {
+        WhatsNewGate.replay(whatsNewCatalog.keys, whatsNewSummaries.keys, upTo = BuildConfig.VERSION_CODE)
     }
-    var manualWhatsNewVisible by remember { mutableStateOf(false) }
+    // The newest registered version's pages and summary, up to the installed
+    // one, minus pages whose "only if this applies" check fails — the same
+    // pages an upgrade would show. Keyed on the bottom bar, which those checks
+    // read, so the row follows a change made since (in the tab editor, or by
+    // answering a page of this very replay).
+    val configuredTabs = viewModel.appState.configuredTabs
+    val latestWhatsNew: WhatsNewFlow? = remember(whatsNewReplay, configuredTabs, libraryEnabled) {
+        whatsNewReplay?.let { WhatsNewFlow.from(it, whatsNewCatalog, whatsNewSummaries) }
+    }
+    // The open sheet's page ids: fixed when the row is tapped and saved across
+    // a rotation, so the sheet keeps the same pages even after an answer in
+    // it flips a page's check — re-filtering would shift every page after it
+    // under the user's thumb. Null while the sheet is closed.
+    var manualWhatsNewPageIds by rememberSaveable { mutableStateOf<ArrayList<String>?>(null) }
+    val manualWhatsNew: WhatsNewFlow? = remember(whatsNewReplay, manualWhatsNewPageIds) {
+        manualWhatsNewPageIds?.let { ids ->
+            whatsNewReplay?.let {
+                WhatsNewFlow.from(it, whatsNewCatalog, whatsNewSummaries, restoredPageIds = ids)
+            }
+        }
+    }
 
     // Show network error as snackbar; clear after display so navigating
     // away and back doesn't re-surface a stale error.
@@ -550,15 +575,15 @@ fun SettingsScreen(
                         SettingsLinkRow(stringResource(R.string.settings_check_server_status)) {
                             openUrl(context, "https://status.tigerduck.app/", browserPreference)
                         }
-                        // What's New — only when an entry is registered for
-                        // the resolved locale. During early bring-up of a
-                        // release the asset may not yet have an entry; in
+                        // What's New — only when pages or a summary are
+                        // registered for the resolved locale. During early
+                        // bring-up of a release there may be neither; in
                         // that case we hide the row instead of routing the
                         // user to an empty sheet.
                         if (latestWhatsNew != null) {
                             HorizontalDivider()
                             SettingsLinkRow(stringResource(R.string.settings_whats_new)) {
-                                manualWhatsNewVisible = true
+                                manualWhatsNewPageIds = ArrayList(latestWhatsNew.pageIds)
                             }
                         }
                         HorizontalDivider()
@@ -735,15 +760,15 @@ fun SettingsScreen(
         )
     }
 
-    // Manual "What's New" — always opens the latest authored entry, even
-    // if the auto-launch path already showed it. Does NOT stamp
+    // Manual "What's New" — always opens the latest registered version,
+    // even if the auto-launch path already showed it. Does NOT stamp
     // lastSeenWhatsNewVersionCode: this is a re-visit surface, and stamping
     // here would silently suppress the next auto-prompt after the user
     // browsed release notes from Settings.
-    if (manualWhatsNewVisible && latestWhatsNew != null) {
-        WhatsNewDialog(
-            content = latestWhatsNew,
-            onDismiss = { manualWhatsNewVisible = false },
+    manualWhatsNew?.let { flow ->
+        WhatsNewSheet(
+            flow = flow,
+            onDismiss = { manualWhatsNewPageIds = null },
         )
     }
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Every file the app hands to another app, through the one FileProvider in the manifest. -->
+<paths>
+    <!-- Opened School Mail attachments (MailCache.attachmentsDir = cacheDir/mail/attachments). -->
+    <cache-path name="mail_attachments" path="mail/attachments/" />
+    <!-- Exported class table images (ClassTableExport.kt). -->
+    <cache-path name="class_table_export" path="class_table_export/" />
+</paths>

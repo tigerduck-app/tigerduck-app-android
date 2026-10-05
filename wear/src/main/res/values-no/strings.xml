@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Kan ikke legge til</string>
     <string name="class_table_course_name">Fagnavn</string>
     <string name="class_table_delete">Slett</string>
-    <string name="class_table_empty_message">Dra ned for å oppdatere, trykk på + for å legge til et fag, eller bytt til et annet semester</string>
+    <string name="class_table_empty_message">Dra ned for å oppdatere, trykk på ⋯ for å legge til et fag, eller bytt til et annet semester</string>
+    <string name="class_table_export_failed">Kunne ikke eksportere timeplanen</string>
+    <string name="class_table_export_screenshot">Eksporter skjermbilde av timeplanen</string>
+    <string name="class_table_more_actions">Flere handlinger</string>
     <string name="class_table_pick_color">Velg farge</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Tilbakestill til standard</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Ingen avsender)</string>
     <string name="school_mail_no_subject">(Intet emne)</string>
     <string name="school_mail_notification_settings_title">Varsler for Skolepost</string>
-    <string name="school_mail_notification_title">E-post: %1$@</string>
     <string name="school_mail_open">Åpne</string>
     <string name="school_mail_parse_failed">Kunne ikke lese formatet til denne e-posten. Viser kildekoden i stedet.</string>
     <string name="school_mail_quote_header">Den %1$@ skrev %2$@:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Vis bare uleste</string>
     <string name="school_mail_use_other_app">Bruk en annen app</string>
     <string name="school_mail_view_formatted">Formatert</string>
+    <string name="school_mail_view_light_mode">Vis i lys modus</string>
     <string name="school_mail_view_mode">Visning</string>
     <string name="school_mail_view_plain">Ren tekst</string>
     <string name="school_mail_view_source">Kildekode</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Tilbakestill standard</string>
     <string name="tab_editor_section_available_tabs">Tilgjengelige faner</string>
     <string name="tab_editor_section_current_tabs">Gjeldende faner</string>
-    <string name="tab_editor_title">Faneredaktør</string>
+    <string name="tab_editor_title">Tilpass bunnavigasjonen</string>
     <string name="tag_server_notification">Servervarsling</string>
     <string name="update_action_later">Senere</string>
     <string name="update_action_skip_version">Hopp over denne versjonen</string>

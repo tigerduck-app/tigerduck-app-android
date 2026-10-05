@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">ઉમેરી શકાતું નથી</string>
     <string name="class_table_course_name">કોર્સ નામ</string>
     <string name="class_table_delete">ડિલીટ</string>
-    <string name="class_table_empty_message">રિફ્રેશ કરવા ખેંચો, કોર્સ ઉમેરવા + ટેપ કરો, અથવા બીજા સેમેસ્ટર પર સ્વિચ કરો</string>
+    <string name="class_table_empty_message">રિફ્રેશ કરવા ખેંચો, કોર્સ ઉમેરવા ⋯ ટેપ કરો, અથવા બીજા સેમેસ્ટર પર સ્વિચ કરો</string>
+    <string name="class_table_export_failed">ક્લાસ ટાઇમટેબલ નિકાસ કરી શકાયું નહીં</string>
+    <string name="class_table_export_screenshot">ક્લાસ ટાઇમટેબલનો સ્ક્રીનશૉટ નિકાસ કરો</string>
+    <string name="class_table_more_actions">વધુ ક્રિયાઓ</string>
     <string name="class_table_pick_color">રંગ પસંદ કરો</string>
     <string name="class_table_rename_default_label">ડિફૉલ્ટ: %1$s</string>
     <string name="class_table_rename_revert">ડિફૉલ્ટ પર પાછા ફરો</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(કોઈ પ્રેષક નથી)</string>
     <string name="school_mail_no_subject">(કોઈ વિષય નથી)</string>
     <string name="school_mail_notification_settings_title">શાળા મેઇલ નોટિફિકેશન</string>
-    <string name="school_mail_notification_title">મેઇલ: %1$@</string>
     <string name="school_mail_open">ખોલો</string>
     <string name="school_mail_parse_failed">આ મેઇલનું ફોર્મેટ વાંચી શકાયું નહીં. તેના બદલે તેનો સોર્સ બતાવવામાં આવી રહ્યો છે.</string>
     <string name="school_mail_quote_header">%1$@ ના રોજ %2$@ એ લખ્યું:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">ફક્ત ન વાંચેલ બતાવો</string>
     <string name="school_mail_use_other_app">બીજી એપ વાપરો</string>
     <string name="school_mail_view_formatted">ફોર્મેટેડ</string>
+    <string name="school_mail_view_light_mode">લાઇટ મોડમાં જુઓ</string>
     <string name="school_mail_view_mode">વ્યૂ</string>
     <string name="school_mail_view_plain">પ્લેન ટેક્સ્ટ</string>
     <string name="school_mail_view_source">સોર્સ</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">ડિફૉલ્ટ પુનઃસ્થાપિત કરો</string>
     <string name="tab_editor_section_available_tabs">ઉપલબ્ધ ટૅબ</string>
     <string name="tab_editor_section_current_tabs">વર્તમાન ટૅબ</string>
-    <string name="tab_editor_title">ટૅબ એડિટર</string>
+    <string name="tab_editor_title">બૉટમ નૅવિગેશન કસ્ટમાઇઝ કરો</string>
     <string name="tag_server_notification">સર્વર સૂચના</string>
     <string name="update_action_later">પછી</string>
     <string name="update_action_skip_version">આ વર્ઝન છોડો</string>

@@ -6,8 +6,9 @@ description: Use when the user asks to generate, draft, or write release notes f
 # Generating Release Notes
 
 This skill drafts bilingual release notes for TigerDuck Android in the
-established format used on GitHub Releases (`gh release view v1.4.2`,
-`v1.4.1`, `v1.4.0`, `v1.3.x` are the canonical references).
+established format used on GitHub Releases (`gh release view v2.2.0`
+is the latest reference; `v1.4.2`, `v1.4.1`, `v1.4.0`, `v1.3.x` set the
+format).
 
 Output is **always reviewed by the user before publishing** — never call
 `gh release create` or `gh release edit --notes` directly. Print the
@@ -140,8 +141,11 @@ write it to a file or use `gh release edit <tag> --notes-file -`.
 - **Drop the `注意 / Notes` bullet about Wear OS / F-Droid push** if the
   release predates Wear OS (pre-v1.4.0) or has no F-Droid-relevant
   change. Keep the signing-key bullet on every release.
-- **Watch versionCode/versionName line:** only include for releases that
-  ship a `:wear` change. v1.3.x releases didn't have it.
+- **Watch versionCode/versionName line:** include it on every release from
+  v2.0 on, whether or not `:wear` changed. `version-bumped.yaml` makes each
+  `main` PR bump the watch with the phone: the same `versionName`, and a
+  `versionCode` of phone + 10000 (v2.2.0: phone 26 → 27, watch
+  10026 → 10027). Releases before v1.4.0 had no watch, so no line.
 
 ## Emoji vocabulary
 

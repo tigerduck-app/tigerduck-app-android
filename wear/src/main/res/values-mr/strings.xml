@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">जोडता येत नाही</string>
     <string name="class_table_course_name">अभ्यासक्रमाचे नाव</string>
     <string name="class_table_delete">हटवा</string>
-    <string name="class_table_empty_message">रिफ्रेश करण्यासाठी ओढा, कोर्स जोडण्यासाठी + टॅप करा, किंवा दुसऱ्या सेमिस्टरवर स्विच करा</string>
+    <string name="class_table_empty_message">रिफ्रेश करण्यासाठी ओढा, कोर्स जोडण्यासाठी ⋯ टॅप करा, किंवा दुसऱ्या सेमिस्टरवर स्विच करा</string>
+    <string name="class_table_export_failed">वर्ग वेळापत्रक निर्यात करता आले नाही</string>
+    <string name="class_table_export_screenshot">वर्ग वेळापत्रकाचा स्क्रीनशॉट निर्यात करा</string>
+    <string name="class_table_more_actions">आणखी क्रिया</string>
     <string name="class_table_pick_color">रंग निवडा</string>
     <string name="class_table_rename_default_label">डीफॉल्ट: %1$s</string>
     <string name="class_table_rename_revert">डीफॉल्टवर परत जा</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(प्रेषक नाही)</string>
     <string name="school_mail_no_subject">(विषय नाही)</string>
     <string name="school_mail_notification_settings_title">शाळा मेल नोटिफिकेशन</string>
-    <string name="school_mail_notification_title">मेल: %1$@</string>
     <string name="school_mail_open">उघडा</string>
     <string name="school_mail_parse_failed">या मेलचा फॉरमॅट वाचता आला नाही. त्याऐवजी त्याचा सोर्स दाखवला जात आहे.</string>
     <string name="school_mail_quote_header">%1$@ रोजी %2$@ यांनी लिहिले:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">फक्त न वाचलेले दाखवा</string>
     <string name="school_mail_use_other_app">दुसरे ॲप वापरा</string>
     <string name="school_mail_view_formatted">फॉरमॅट केलेले</string>
+    <string name="school_mail_view_light_mode">लाइट मोडमध्ये पहा</string>
     <string name="school_mail_view_mode">व्ह्यू</string>
     <string name="school_mail_view_plain">प्लेन टेक्स्ट</string>
     <string name="school_mail_view_source">सोर्स</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">डीफॉल्ट पुनर्स्थापित करा</string>
     <string name="tab_editor_section_available_tabs">उपलब्ध Tabs</string>
     <string name="tab_editor_section_current_tabs">सध्याचे Tabs</string>
-    <string name="tab_editor_title">Tab संपादक</string>
+    <string name="tab_editor_title">खालील नेव्हिगेशन बार कस्टमाइझ करा</string>
     <string name="tag_server_notification">सर्व्हर सूचना</string>
     <string name="update_action_later">नंतर</string>
     <string name="update_action_skip_version">ही आवृत्ती वगळा</string>

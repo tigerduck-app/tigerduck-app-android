@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">ചേർക്കാൻ കഴിയില്ല</string>
     <string name="class_table_course_name">കോഴ്‌സ് നാമം</string>
     <string name="class_table_delete">ഇല്ലാതാക്കുക</string>
-    <string name="class_table_empty_message">പുതുക്കാൻ വലിക്കുക, കോഴ്‌സ് ചേർക്കാൻ + ടാപ്പ് ചെയ്യുക, അല്ലെങ്കിൽ മറ്റൊരു സെമസ്റ്ററിലേക്ക് മാറുക</string>
+    <string name="class_table_empty_message">പുതുക്കാൻ വലിക്കുക, കോഴ്‌സ് ചേർക്കാൻ ⋯ ടാപ്പ് ചെയ്യുക, അല്ലെങ്കിൽ മറ്റൊരു സെമസ്റ്ററിലേക്ക് മാറുക</string>
+    <string name="class_table_export_failed">ക്ലാസ് ടൈംടേബിൾ എക്സ്പോർട്ട് ചെയ്യാനായില്ല</string>
+    <string name="class_table_export_screenshot">ക്ലാസ് ടൈംടേബിളിന്റെ സ്ക്രീൻഷോട്ട് എക്സ്പോർട്ട് ചെയ്യുക</string>
+    <string name="class_table_more_actions">കൂടുതൽ പ്രവർത്തനങ്ങൾ</string>
     <string name="class_table_pick_color">നിറം തിരഞ്ഞെടുക്കുക</string>
     <string name="class_table_rename_default_label">സ്ഥിരസ്ഥിതി: %1$s</string>
     <string name="class_table_rename_revert">സ്ഥിരസ്ഥിതിയിലേക്ക് മടങ്ങുക</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(അയച്ചയാൾ ഇല്ല)</string>
     <string name="school_mail_no_subject">(വിഷയം ഇല്ല)</string>
     <string name="school_mail_notification_settings_title">സ്കൂൾ ഇമെയിൽ അറിയിപ്പുകൾ</string>
-    <string name="school_mail_notification_title">ഇമെയിൽ: %1$@</string>
     <string name="school_mail_open">തുറക്കുക</string>
     <string name="school_mail_parse_failed">ഈ ഇമെയിലിന്റെ ഫോർമാറ്റ് വായിക്കാനായില്ല. പകരം അതിന്റെ സോഴ്‌സ് കാണിക്കുന്നു.</string>
     <string name="school_mail_quote_header">തീയതി: %1$@ — എഴുതിയത്: %2$@</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">വായിക്കാത്തവ മാത്രം കാണിക്കുക</string>
     <string name="school_mail_use_other_app">മറ്റൊരു ആപ്പ് ഉപയോഗിക്കുക</string>
     <string name="school_mail_view_formatted">ഫോർമാറ്റ് ചെയ്തത്</string>
+    <string name="school_mail_view_light_mode">ലൈറ്റ് മോഡിൽ കാണുക</string>
     <string name="school_mail_view_mode">കാഴ്ച</string>
     <string name="school_mail_view_plain">പ്ലെയിൻ ടെക്സ്റ്റ്</string>
     <string name="school_mail_view_source">സോഴ്‌സ്</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">ഡിഫോൾട്ട് പുനഃസ്ഥാപിക്കുക</string>
     <string name="tab_editor_section_available_tabs">ലഭ്യമായ ടാബുകൾ</string>
     <string name="tab_editor_section_current_tabs">നിലവിലെ ടാബുകൾ</string>
-    <string name="tab_editor_title">ടാബ് എഡിറ്റർ</string>
+    <string name="tab_editor_title">ബോട്ടം നാവിഗേഷൻ കസ്റ്റമൈസ് ചെയ്യുക</string>
     <string name="tag_server_notification">സെർവർ അറിയിപ്പ്</string>
     <string name="update_action_later">പിന്നീട്</string>
     <string name="update_action_skip_version">ഈ പതിപ്പ് ഒഴിവാക്കുക</string>

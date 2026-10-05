@@ -66,13 +66,14 @@ class SchoolMailMessageViewModelTest {
 
     private val repo = FakeSchoolMailRepository()
     private val notifier = RecordingNotifier()
+    private val credentials = InMemoryCredentialStore()
     private lateinit var account: MailAccount
     private lateinit var cache: MailCache
 
     @Before
     fun setUp() {
         cache = MailCache(tmp.newFolder("cache"))
-        account = MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), FakeMailServer().factory(), cache,
+        account = MailAccount(credentials, InMemoryMailStateStore(), FakeMailServer().factory(), cache,
             FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
     }
 
@@ -105,6 +106,24 @@ class SchoolMailMessageViewModelTest {
     }
 
     // --- none of the parsing happens on the main thread --------------------------------------
+
+    /** The header's To and Cc lines pick it out; it comes out of the encrypted credential store. */
+    @Test
+    fun `the student's own address is read off the main thread, without holding up the mail`() {
+        credentials.mailStudentId = "B10000001"
+        credentials.mailPassword = "pw"
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hi", emptyList(), emptyMap())
+        val io = HeldDispatcher()
+        val vm = vm(io = io)
+        vm.load()
+        assertEquals(null, vm.state.value.selfAddress)
+        // The header is already up.
+        assertTrue(vm.state.value.content is Content.LoadingBody)
+
+        io.drain()
+        assertEquals("b10000001@mail.ntust.edu.tw", vm.state.value.selfAddress)
+    }
 
     @Test
     fun `sanitizing, the document build and the plain-text pass all wait on the IO dispatcher`() {
@@ -368,6 +387,26 @@ class SchoolMailMessageViewModelTest {
         // The rebuild reads allowRemoteImages back off state rather than hardcoding false, so
         // remote images already allowed before the theme changed are not silently re-blocked.
         assertTrue(document.html, document.html.contains("img-src data: https: http:"))
+    }
+
+    @Test
+    fun `view in light mode redraws an open mail on white paper, and turning it off redraws it dark`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("<p>hi</p>", null, emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        val dark = MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true)
+        vm.setMailTheme(dark)
+
+        vm.setMailTheme(MailHtmlTheme.LIGHT)
+        val light = ready(vm).document!!.html
+        assertTrue(light, light.contains("background:#ffffff;color:#000000"))
+        assertTrue(light, light.contains("color-scheme:light"))
+
+        vm.setMailTheme(dark)
+        val back = ready(vm).document!!.html
+        assertTrue(back, back.contains("background:#121212;color:#e6e6e6"))
+        assertTrue(back, back.contains("color-scheme:dark"))
     }
 
     @Test

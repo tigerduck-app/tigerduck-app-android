@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">जोड़ने में असमर्थ</string>
     <string name="class_table_course_name">कोर्स का नाम</string>
     <string name="class_table_delete">हटाएँ</string>
-    <string name="class_table_empty_message">रीफ़्रेश करने के लिए खींचें, कोर्स जोड़ने के लिए + दबाएँ, या किसी अन्य सेमेस्टर पर स्विच करें</string>
+    <string name="class_table_empty_message">रीफ़्रेश करने के लिए खींचें, कोर्स जोड़ने के लिए ⋯ दबाएँ, या किसी अन्य सेमेस्टर पर स्विच करें</string>
+    <string name="class_table_export_failed">कक्षा सारणी निर्यात नहीं की जा सकी</string>
+    <string name="class_table_export_screenshot">कक्षा सारणी का स्क्रीनशॉट निर्यात करें</string>
+    <string name="class_table_more_actions">अधिक कार्रवाइयां</string>
     <string name="class_table_pick_color">रंग चुनें</string>
     <string name="class_table_rename_default_label">डिफ़ॉल्ट: %1$s</string>
     <string name="class_table_rename_revert">डिफ़ॉल्ट पर लौटें</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(कोई प्रेषक नहीं)</string>
     <string name="school_mail_no_subject">(कोई विषय नहीं)</string>
     <string name="school_mail_notification_settings_title">स्कूल मेल नोटिफिकेशन</string>
-    <string name="school_mail_notification_title">मेल: %1$@</string>
     <string name="school_mail_open">खोलें</string>
     <string name="school_mail_parse_failed">इस मेल का फ़ॉर्मेट नहीं पढ़ा जा सका। इसके बजाय इसका सोर्स दिखाया जा रहा है।</string>
     <string name="school_mail_quote_header">%1$@ को %2$@ ने लिखा:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">सिर्फ़ अपठित दिखाएं</string>
     <string name="school_mail_use_other_app">दूसरा ऐप इस्तेमाल करें</string>
     <string name="school_mail_view_formatted">फ़ॉर्मेट किया गया</string>
+    <string name="school_mail_view_light_mode">लाइट मोड में देखें</string>
     <string name="school_mail_view_mode">व्यू</string>
     <string name="school_mail_view_plain">प्लेन टेक्स्ट</string>
     <string name="school_mail_view_source">सोर्स</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">डिफ़ॉल्ट रीसेट करें</string>
     <string name="tab_editor_section_available_tabs">उपलब्ध Tabs</string>
     <string name="tab_editor_section_current_tabs">वर्तमान Tabs</string>
-    <string name="tab_editor_title">Tab संपादक</string>
+    <string name="tab_editor_title">नीचे का नेविगेशन बार कस्टमाइज़ करें</string>
     <string name="tag_server_notification">सर्वर सूचना</string>
     <string name="update_action_later">बाद में</string>
     <string name="update_action_skip_version">इस संस्करण को छोड़ें</string>

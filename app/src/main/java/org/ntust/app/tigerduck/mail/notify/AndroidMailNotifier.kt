@@ -14,7 +14,9 @@ import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.mail.model.MailSummary
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.NotificationGroup
 import org.ntust.app.tigerduck.util.replaceIosArg
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,6 +25,7 @@ import javax.inject.Singleton
 @Singleton
 class AndroidMailNotifier @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val notificationChannels: NotificationChannelRegistrar,
 ) : MailNotifier {
     private val manager get() = NotificationManagerCompat.from(context)
 
@@ -47,47 +50,46 @@ class AndroidMailNotifier @Inject constructor(
             .setContentTitle(title)
             .setContentText(text)
             .setAutoCancel(true)
-            .setGroup(GROUP)
+            .setGroup(NotificationGroup.MAIL.key)
             .setCategory(NotificationCompat.CATEGORY_EMAIL)
             .setContentIntent(tap(route, requestCode))
 
     @android.annotation.SuppressLint("MissingPermission")
     override fun postNewMail(folder: String, messages: List<MailSummary>) {
         if (!allowed()) return
+        notificationChannels.ensureRegistered()
         val plan = MailNotificationPlanner.plan(
             messages,
             context.getString(R.string.school_mail_no_sender),
             context.getString(R.string.school_mail_no_subject),
-            context.getString(R.string.school_mail_notification_title),
         ) ?: return
         when (plan) {
-            is MailNotificationPlanner.Plan.Individual -> {
-                plan.items.forEach { item ->
-                    manager.notify(
-                        MailNotificationPlanner.notificationId(item.uid),
-                        base(item.title, item.text, MailRoutes.message(folder, item.uid), MailNotificationPlanner.notificationId(item.uid)).build(),
-                    )
-                }
-                if (plan.items.size > 1) postSummary(plan.items.size)
+            is MailNotificationPlanner.Plan.Individual -> plan.items.forEach { item ->
+                manager.notify(
+                    MailNotificationPlanner.notificationId(item.uid),
+                    base(item.title, item.text, MailRoutes.message(folder, item.uid), MailNotificationPlanner.notificationId(item.uid)).build(),
+                )
             }
-            is MailNotificationPlanner.Plan.Summary -> postSummary(plan.count)
+            is MailNotificationPlanner.Plan.Summary -> {
+                val title = context.getString(R.string.school_mail_new_mail_count).replaceIosArg(1, plan.count.toString())
+                manager.notify(
+                    MailNotificationPlanner.SUMMARY_ID,
+                    base(title, context.getString(R.string.feature_school_mail), MailRoutes.LIST, MailNotificationPlanner.SUMMARY_ID).build(),
+                )
+            }
         }
+        postGroupSummary()
     }
 
-    @android.annotation.SuppressLint("MissingPermission")
-    private fun postSummary(count: Int) {
-        val title = context.getString(R.string.school_mail_new_mail_count).replaceIosArg(1, count.toString())
-        manager.notify(
-            MailNotificationPlanner.SUMMARY_ID,
-            base(title, context.getString(R.string.feature_school_mail), MailRoutes.LIST, MailNotificationPlanner.SUMMARY_ID)
-                .setGroupSummary(true)
-                .build(),
-        )
-    }
+    private fun postGroupSummary() = NotificationGroup.MAIL.postSummary(
+        context,
+        contentIntent = tap(MailRoutes.LIST, MailNotificationPlanner.SUMMARY_ID),
+    )
 
     @android.annotation.SuppressLint("MissingPermission")
     override fun postAuthFailure() {
         if (!allowed()) return
+        notificationChannels.ensureRegistered()
         manager.notify(
             MailNotificationPlanner.AUTH_FAILED_ID,
             NotificationCompat.Builder(context, NotificationChannels.SYSTEM)
@@ -95,20 +97,22 @@ class AndroidMailNotifier @Inject constructor(
                 .setContentTitle(context.getString(R.string.school_mail_auth_failed_notification_title))
                 .setContentText(context.getString(R.string.school_mail_auth_failed_notification_text))
                 .setAutoCancel(true)
+                // In the mail stack, since mail is what it stops, but still on
+                // the System channel: a sync that has died quietly is worse
+                // than an interruption.
+                .setGroup(NotificationGroup.MAIL.key)
                 .setContentIntent(tap(MailRoutes.LIST, MailNotificationPlanner.AUTH_FAILED_ID))
                 .build(),
         )
+        postGroupSummary()
     }
 
-    override fun cancelMessage(uid: Long) = manager.cancel(MailNotificationPlanner.notificationId(uid))
+    override fun cancelMessage(uid: Long) = NotificationGroup.MAIL.cancel(context, MailNotificationPlanner.notificationId(uid))
 
     override fun cancelAll() {
+        // By id as well as group: an auth failure posted before it joined the stack has no group.
         manager.activeNotifications
-            .filter { it.id == MailNotificationPlanner.AUTH_FAILED_ID || it.notification.group == GROUP }
-            .forEach { manager.cancel(it.id) }
-    }
-
-    private companion object {
-        const val GROUP = "school_mail"
+            .filter { it.id == MailNotificationPlanner.AUTH_FAILED_ID || it.notification.group == NotificationGroup.MAIL.key }
+            .forEach { manager.cancel(it.tag, it.id) }
     }
 }

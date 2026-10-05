@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Impossibile aggiungere</string>
     <string name="class_table_course_name">Nome corso</string>
     <string name="class_table_delete">Elimina</string>
-    <string name="class_table_empty_message">Trascina per aggiornare, tocca + per aggiungere un corso, o cambia semestre</string>
+    <string name="class_table_empty_message">Trascina per aggiornare, tocca ⋯ per aggiungere un corso, o cambia semestre</string>
+    <string name="class_table_export_failed">Impossibile esportare l\'orario</string>
+    <string name="class_table_export_screenshot">Esporta screenshot dell\'orario</string>
+    <string name="class_table_more_actions">Altre azioni</string>
     <string name="class_table_pick_color">Scegli colore</string>
     <string name="class_table_rename_default_label">Predefinito: %1$s</string>
     <string name="class_table_rename_revert">Ripristina predefinito</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Nessun mittente)</string>
     <string name="school_mail_no_subject">(Nessun oggetto)</string>
     <string name="school_mail_notification_settings_title">Notifiche di Posta universitaria</string>
-    <string name="school_mail_notification_title">Posta: %1$@</string>
     <string name="school_mail_open">Apri</string>
     <string name="school_mail_parse_failed">Impossibile leggere il formato di questo messaggio. Viene mostrato il codice sorgente.</string>
     <string name="school_mail_quote_header">Il %1$@, %2$@ ha scritto:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Mostra solo da leggere</string>
     <string name="school_mail_use_other_app">Usa un\'altra app</string>
     <string name="school_mail_view_formatted">Formattato</string>
+    <string name="school_mail_view_light_mode">Visualizza in modalità chiara</string>
     <string name="school_mail_view_mode">Visualizza</string>
     <string name="school_mail_view_plain">Testo semplice</string>
     <string name="school_mail_view_source">Codice sorgente</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Ripristina predefiniti</string>
     <string name="tab_editor_section_available_tabs">Schede disponibili</string>
     <string name="tab_editor_section_current_tabs">Schede attuali</string>
-    <string name="tab_editor_title">Editor schede</string>
+    <string name="tab_editor_title">Personalizza barra inferiore</string>
     <string name="tag_server_notification">Notifica del server</string>
     <string name="update_action_later">Più tardi</string>
     <string name="update_action_skip_version">Salta questa versione</string>

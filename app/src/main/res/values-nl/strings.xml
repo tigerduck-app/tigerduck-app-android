@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Kan niet toevoegen</string>
     <string name="class_table_course_name">Vaknaam</string>
     <string name="class_table_delete">Verwijderen</string>
-    <string name="class_table_empty_message">Trek om te vernieuwen, tik op + om een vak toe te voegen, of wissel naar een ander semester</string>
+    <string name="class_table_empty_message">Trek om te vernieuwen, tik op ⋯ om een vak toe te voegen, of wissel naar een ander semester</string>
+    <string name="class_table_export_failed">Kan rooster niet exporteren</string>
+    <string name="class_table_export_screenshot">Screenshot van rooster exporteren</string>
+    <string name="class_table_more_actions">Meer acties</string>
     <string name="class_table_pick_color">Kleur kiezen</string>
     <string name="class_table_rename_default_label">Standaard: %1$s</string>
     <string name="class_table_rename_revert">Standaard herstellen</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Geen afzender)</string>
     <string name="school_mail_no_subject">(Geen onderwerp)</string>
     <string name="school_mail_notification_settings_title">Schoolmail-meldingen</string>
-    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Openen</string>
     <string name="school_mail_parse_failed">De opmaak van deze mail kon niet worden gelezen. De broncode wordt in plaats daarvan getoond.</string>
     <string name="school_mail_quote_header">Op %1$@ schreef %2$@:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Alleen ongelezen tonen</string>
     <string name="school_mail_use_other_app">Andere app gebruiken</string>
     <string name="school_mail_view_formatted">Opgemaakt</string>
+    <string name="school_mail_view_light_mode">Weergeven in lichte modus</string>
     <string name="school_mail_view_mode">Weergave</string>
     <string name="school_mail_view_plain">Platte tekst</string>
     <string name="school_mail_view_source">Broncode</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Standaard herstellen</string>
     <string name="tab_editor_section_available_tabs">Beschikbare tabbladen</string>
     <string name="tab_editor_section_current_tabs">Huidige tabbladen</string>
-    <string name="tab_editor_title">Tabbladeditor</string>
+    <string name="tab_editor_title">Onderste balk aanpassen</string>
     <string name="tag_server_notification">Servermelding</string>
     <string name="update_action_later">Later</string>
     <string name="update_action_skip_version">Deze versie overslaan</string>

@@ -29,9 +29,7 @@
 
 TigerDuck is a campus companion app built by a group of students at **NTUST**.  
 It was created to solve common pain points: scattered resources, delayed notifications, and
-unintuitive interfaces.  
-Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to make TigerDuck feel
-even more OAO!
+unintuitive interfaces.
 
 > The project is under active development; some features are still being polished.
 
@@ -206,7 +204,7 @@ even more OAO!
 
 - Android Studio (latest preferred)
 - Android SDK Platform 37
-- JDK 21 (Gradle 9.7 / AGP 9.3 require JDK 17+)
+- JDK 21 (Gradle 9.8 / AGP 9.4 require JDK 17+)
 
 ### Android App
 
@@ -218,10 +216,10 @@ cd tigerduck-app-android
 # Already cloned without --recurse-submodules? Pull them in:
 git submodule update --init --recursive
 
-# Open in Android Studio, or build directly with Gradle.
-# There are two product flavors — fdroid and play — pick one:
-./gradlew :app:assembleFdroidDebug   # or :app:assemblePlayDebug
-./gradlew :app:installFdroidDebug    # or :app:installPlayDebug
+# Open in Android Studio (it opens on playDebug), or build directly with Gradle.
+# There are two product flavors — play and fdroid — pick one:
+./gradlew :app:assemblePlayDebug     # or :app:assembleFdroidDebug
+./gradlew :app:installPlayDebug      # or :app:installFdroidDebug
 ```
 
 > 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (
@@ -264,19 +262,24 @@ submodule and are shared with the iOS client.
 - Source files in `app-translation/source/` — 55 files (`en.json`, `zh-Hant.json`, `ja.json`,
   `ko.json`, `ar.json`, …)
 - Generated outputs in `app-translation/generated/`:
-    - Android: `android/values/strings.xml` (Traditional Chinese as default),
+    - Android: `android/values/strings.xml` (English as default),
       `android/values-<lang>/strings.xml`
     - Apple (iOS / macOS): `apple/<lang>.lproj/Localizable.strings`
-- The Android app's `app/src/main/res/values*/strings.xml` is overwritten by the same script — **do
-  not** edit generated files by hand.
+- The app's `app/src/main/res/values*/strings.xml` and the watch's `wear/src/main/res/values*/strings.xml`
+  are copies of the Android output, committed and overwritten on every sync — **do not** edit
+  generated files by hand.
 
-Run a one-shot sync:
+Run a one-shot sync (regenerates the outputs, then copies them into both `app/` and `wear/`):
 
 ```bash
-python3 tools/localization/sync_localizations.py
+./debug/sync-localizations.sh
 ```
 
-Gradle can also run it before a build, but this is **opt-in**: `syncLocalizations` is only wired
+`python3 tools/localization/sync_localizations.py` on its own only regenerates
+`app-translation/generated/` and `locales_config.xml`; it does not touch either module's
+`strings.xml`.
+
+Gradle can also sync before a build, but this is **opt-in**: the sync and copy tasks are only wired
 into `preBuild` when you pass `-PsyncLocalizations` (see `app/build.gradle.kts` and
 `wear/build.gradle.kts`):
 
@@ -358,13 +361,13 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 ├── shared/                             # Phone + watch shared module (`:shared`)
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock abstraction (overridable by debug clock)
-│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver
+│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver / library QR / WearProtocol
 ├── wear/                               # ⌚ Wear OS app (Play only, `:wear`)
 │   └── src/main/java/org/ntust/app/tigerduck/wear/
-│       ├── ui/                         # Now & Next / Today / course detail / settings
+│       ├── ui/                         # Now & Next / Today / course detail / library QR / settings
 │       ├── tile/                       # NextClassTileService
 │       ├── complication/               # NextClassComplicationService
-│       └── data/                       # DataLayerListener / SchedulePersistence / Repository / SyncRequester
+│       └── data/                       # DataLayerListener / SchedulePersistence / SyncRequester / library credentials
 ├── debug/                              # Quick install scripts and [DEBUG.md](debug/DEBUG.md) (build variants, debug clock, push)
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
@@ -385,9 +388,10 @@ Before submitting, please make sure to:
 2. Run at least `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` or
    `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` once
 3. Name your branch using `feature/your-feature` or `fix/your-fix`
-4. Target the `dev` branch when opening a PR, and tick every box on the pre-merge checklist the bot
-   posts (the `main` variant additionally asks you to run the three `debug/` scripts, verify the
-   upgrade path from the previous release, and update `app/src/main/assets/whatsnew.json`)
+4. Target the `dev` branch when opening a PR, and meet the pre-merge checklist in
+   [`CONTRIBUTING.md`](CONTRIBUTING.md) (a PR into `main` additionally asks you to run the three
+   `debug/` scripts and verify the upgrade path from the previous release; CI also requires a
+   version bump and an `app/src/main/assets/whatsnew.json` entry for it)
 5. For translation strings, open a separate PR against the
    [`app-translation/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
    generated files

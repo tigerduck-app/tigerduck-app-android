@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Eklenemiyor</string>
     <string name="class_table_course_name">Ders adı</string>
     <string name="class_table_delete">Sil</string>
-    <string name="class_table_empty_message">Yenilemek için çekin, ders eklemek için + öğesine dokunun veya başka bir döneme geçin</string>
+    <string name="class_table_empty_message">Yenilemek için çekin, ders eklemek için ⋯ öğesine dokunun veya başka bir döneme geçin</string>
+    <string name="class_table_export_failed">Ders programı dışa aktarılamadı</string>
+    <string name="class_table_export_screenshot">Ders programının ekran görüntüsünü dışa aktar</string>
+    <string name="class_table_more_actions">Diğer işlemler</string>
     <string name="class_table_pick_color">Renk seç</string>
     <string name="class_table_rename_default_label">Varsayılan: %1$s</string>
     <string name="class_table_rename_revert">Varsayılana döndür</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Gönderen yok)</string>
     <string name="school_mail_no_subject">(Konu yok)</string>
     <string name="school_mail_notification_settings_title">Okul Postası bildirimleri</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Aç</string>
     <string name="school_mail_parse_failed">Bu postanın biçimi okunamadı. Bunun yerine kaynağı gösteriliyor.</string>
     <string name="school_mail_quote_header">%1$@ tarihinde %2$@ şunu yazdı:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Yalnızca okunmamışları göster</string>
     <string name="school_mail_use_other_app">Başka bir uygulama kullan</string>
     <string name="school_mail_view_formatted">Biçimli</string>
+    <string name="school_mail_view_light_mode">Açık modda görüntüle</string>
     <string name="school_mail_view_mode">Görünüm</string>
     <string name="school_mail_view_plain">Düz metin</string>
     <string name="school_mail_view_source">Kaynak</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Varsayılanlara sıfırla</string>
     <string name="tab_editor_section_available_tabs">Kullanılabilir sekmeler</string>
     <string name="tab_editor_section_current_tabs">Mevcut sekmeler</string>
-    <string name="tab_editor_title">Sekme düzenleyici</string>
+    <string name="tab_editor_title">Alt çubuğu özelleştir</string>
     <string name="tag_server_notification">Sunucu bildirimi</string>
     <string name="update_action_later">Daha sonra</string>
     <string name="update_action_skip_version">Bu sürümü atla</string>

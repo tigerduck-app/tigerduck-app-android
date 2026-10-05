@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Tidak dapat ditambahkan</string>
     <string name="class_table_course_name">Nama mata kuliah</string>
     <string name="class_table_delete">Hapus</string>
-    <string name="class_table_empty_message">Tarik untuk menyegarkan, ketuk + untuk menambahkan mata kuliah, atau beralih ke semester lain</string>
+    <string name="class_table_empty_message">Tarik untuk menyegarkan, ketuk ⋯ untuk menambahkan mata kuliah, atau beralih ke semester lain</string>
+    <string name="class_table_export_failed">Tidak dapat mengekspor jadwal kuliah</string>
+    <string name="class_table_export_screenshot">Ekspor tangkapan layar jadwal kuliah</string>
+    <string name="class_table_more_actions">Tindakan lainnya</string>
     <string name="class_table_pick_color">Pilih warna</string>
     <string name="class_table_rename_default_label">Bawaan: %1$s</string>
     <string name="class_table_rename_revert">Kembalikan ke default</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Tidak ada pengirim)</string>
     <string name="school_mail_no_subject">(Tidak ada subjek)</string>
     <string name="school_mail_notification_settings_title">Notifikasi email sekolah</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Buka</string>
     <string name="school_mail_parse_failed">Tidak dapat membaca format email ini. Menampilkan kode sumbernya.</string>
     <string name="school_mail_quote_header">Pada %1$@, %2$@ menulis:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Tampilkan yang belum dibaca saja</string>
     <string name="school_mail_use_other_app">Gunakan aplikasi lain</string>
     <string name="school_mail_view_formatted">Terformat</string>
+    <string name="school_mail_view_light_mode">Lihat dalam mode terang</string>
     <string name="school_mail_view_mode">Tampilan</string>
     <string name="school_mail_view_plain">Teks polos</string>
     <string name="school_mail_view_source">Kode sumber</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Setel ulang ke default</string>
     <string name="tab_editor_section_available_tabs">Tab yang tersedia</string>
     <string name="tab_editor_section_current_tabs">Tab saat ini</string>
-    <string name="tab_editor_title">Editor tab</string>
+    <string name="tab_editor_title">Sesuaikan menu bawah</string>
     <string name="tag_server_notification">Notifikasi server</string>
     <string name="update_action_later">Nanti</string>
     <string name="update_action_skip_version">Lewati versi ini</string>

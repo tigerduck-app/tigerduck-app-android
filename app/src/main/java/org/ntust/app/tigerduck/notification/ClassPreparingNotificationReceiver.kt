@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.notification
 
 import android.Manifest
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -28,15 +27,11 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
     @InstallIn(SingletonComponent::class)
     internal interface Deps {
         fun academicCalendar(): AcademicCalendarStore
+        fun appPreferences(): AppPreferences
+        fun notificationChannels(): NotificationChannelRegistrar
     }
 
     override fun onReceive(rawContext: Context, intent: Intent) {
-        // Receiver contexts carry the SYSTEM locale, not the user's in-app
-        // language choice (AppCompat per-app locales don't reach broadcast
-        // contexts when the alarm wakes a dead process). Resolve the chosen
-        // language explicitly so the channel name and notification text match
-        // the rest of the app — same pattern as TigerDuckApp.localizedContext.
-        val context = localizedContext(rawContext)
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: return
         val classroom = intent.getStringExtra(EXTRA_CLASSROOM).orEmpty()
         val instructor = intent.getStringExtra(EXTRA_INSTRUCTOR).orEmpty()
@@ -60,11 +55,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val startDate = runCatching {
             Instant.ofEpochMilli(startMs).atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
         }.getOrNull() ?: return
-        val calendar = EntryPointAccessors
+        val deps = EntryPointAccessors
             .fromApplication(rawContext.applicationContext, Deps::class.java)
-            .academicCalendar()
-            .current()
-        if (!calendar.isInSession(startDate)) return
+        if (!deps.academicCalendar().current().isInSession(startDate)) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual
@@ -72,89 +65,29 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val leadTimeMs = intent.getLongExtra(EXTRA_LEAD_TIME_MS, 0L)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
+            ContextCompat.checkSelfPermission(rawContext, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) {
             return
         }
 
-        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        ensureChannel(context, nm)
-
-        val timeRange = formatTimeRange(startMs, endMs)
-        val detail = listOfNotNull(
-            timeRange.takeIf { it.isNotBlank() },
-            classroom.takeIf { it.isNotBlank() },
-            instructor.takeIf { it.isNotBlank() },
-        ).joinToString(" · ")
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
-            .setContentTitle(
-                context.getString(R.string.notification_class_preparing_title, courseName)
-            )
-            .setContentText(
-                detail.ifBlank {
-                    context.getString(R.string.notification_class_preparing_content_fallback)
-                }
-            )
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setAutoCancel(true)
-            .apply {
-                // Anchor the auto-dismiss to actual class-start time rather
-                // than post-time + leadTimeMs. When the alarm is delivered
-                // via the inexact fallback, post-time can drift up to ~5 min
-                // late, which would leave the banner up past class start.
-                val timeout = when {
-                    startMs > 0L -> (startMs - System.currentTimeMillis()).coerceAtLeast(1_000L)
-                    leadTimeMs > 0L -> leadTimeMs
-                    else -> 0L
-                }
-                if (timeout > 0L) setTimeoutAfter(timeout)
-            }
-            .build()
-
-        nm.notify(notificationId, notification)
-    }
-
-    private fun localizedContext(context: Context): Context {
-        val language = AppPreferences(context).appLanguage
-        val locale = AppLanguageManager.resolveExplicitLocale(language) ?: return context
-        val config = android.content.res.Configuration(context.resources.configuration)
-        config.setLocale(locale)
-        return context.createConfigurationContext(config)
-    }
-
-    private fun ensureChannel(context: Context, nm: NotificationManager) {
-        // No existence early-return: re-creating with the same id is cheap and
-        // legally updates name/description, so a language change propagates to
-        // the channel instead of freezing it in the locale of first creation.
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.notification_class_preparing_channel_name),
-            NotificationManager.IMPORTANCE_HIGH,
-        ).apply {
-            description =
-                context.getString(R.string.notification_class_preparing_channel_description)
-            setShowBadge(false)
-        }
-        nm.createNotificationChannel(channel)
-    }
-
-    private fun formatTimeRange(startMs: Long, endMs: Long): String {
-        if (startMs <= 0 || endMs <= 0) return ""
-        val zone: ZoneId = AppConstants.TAIPEI_ZONE
-        val s = Instant.ofEpochMilli(startMs).atZone(zone).toLocalTime()
-        val e = Instant.ofEpochMilli(endMs).atZone(zone).toLocalTime()
-        return "%02d:%02d–%02d:%02d".format(s.hour, s.minute, e.hour, e.minute)
+        // Receiver contexts carry the SYSTEM locale, not the user's in-app
+        // language choice (AppCompat per-app locales don't reach broadcast
+        // contexts when the alarm wakes a dead process). Resolve the chosen
+        // language explicitly so the notification text matches the rest of the
+        // app.
+        val context = AppLanguageManager.localizedContext(
+            rawContext,
+            deps.appPreferences().appLanguage,
+        )
+        // One shot: if the channel is missing, the reminder is dropped for good.
+        deps.notificationChannels().ensureRegistered()
+        post(context, notificationId, courseName, classroom, instructor, startMs, endMs, leadTimeMs)
     }
 
     companion object {
-        const val CHANNEL_ID = "class_preparing"
+        /** Created with the others at launch; see [NotificationChannels.registerAll]. */
+        const val CHANNEL_ID = NotificationChannels.CLASS_PREPARING
         const val EXTRA_COURSE_NAME = "course_name"
         const val EXTRA_CLASSROOM = "classroom"
         const val EXTRA_INSTRUCTOR = "instructor"
@@ -162,5 +95,72 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         const val EXTRA_END_MS = "end_ms"
         const val EXTRA_NOTIFICATION_ID = "notification_id"
         const val EXTRA_LEAD_TIME_MS = "lead_time_ms"
+
+        /**
+         * Post the reminder, past every check onReceive makes first; the
+         * developer menu's preview posts through here too. [context] must
+         * already carry the app's language, and the channels must exist.
+         */
+        fun post(
+            context: Context,
+            notificationId: Int,
+            courseName: String,
+            classroom: String,
+            instructor: String,
+            startMs: Long,
+            endMs: Long,
+            leadTimeMs: Long,
+        ) {
+            val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val timeRange = formatTimeRange(startMs, endMs)
+            val detail = listOfNotNull(
+                timeRange.takeIf { it.isNotBlank() },
+                classroom.takeIf { it.isNotBlank() },
+                instructor.takeIf { it.isNotBlank() },
+            ).joinToString(" · ")
+
+            // Anchor the auto-dismiss to actual class-start time rather than
+            // post-time + leadTimeMs. When the alarm is delivered via the inexact
+            // fallback, post-time can drift up to ~5 min late, which would leave
+            // the banner up past class start.
+            val timeout = when {
+                startMs > 0L -> (startMs - System.currentTimeMillis()).coerceAtLeast(1_000L)
+                leadTimeMs > 0L -> leadTimeMs
+                else -> 0L
+            }
+
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
+                // Brand tint for the shade badge; the status-bar glyph stays mono.
+                .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
+                .setContentTitle(
+                    context.getString(R.string.notification_class_preparing_title, courseName)
+                )
+                .setContentText(
+                    detail.ifBlank {
+                        context.getString(R.string.notification_class_preparing_content_fallback)
+                    }
+                )
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setAutoCancel(true)
+                .setGroup(NotificationGroup.CLASS.key)
+                .apply { if (timeout > 0L) setTimeoutAfter(timeout) }
+                .build()
+
+            nm.notify(notificationId, notification)
+            // Expires with the reminder, or it would outlive it as an empty row.
+            NotificationGroup.CLASS.postSummary(context, timeoutAfterMs = timeout)
+        }
+
+        private fun formatTimeRange(startMs: Long, endMs: Long): String {
+            if (startMs <= 0 || endMs <= 0) return ""
+            val zone: ZoneId = AppConstants.TAIPEI_ZONE
+            val s = Instant.ofEpochMilli(startMs).atZone(zone).toLocalTime()
+            val e = Instant.ofEpochMilli(endMs).atZone(zone).toLocalTime()
+            return "%02d:%02d–%02d:%02d".format(s.hour, s.minute, e.hour, e.minute)
+        }
     }
 }

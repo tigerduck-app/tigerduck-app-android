@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Kan ikke tilføje</string>
     <string name="class_table_course_name">Kursusnavn</string>
     <string name="class_table_delete">Slet</string>
-    <string name="class_table_empty_message">Træk for at opdatere, tryk på + for at tilføje et kursus, eller skift til et andet semester</string>
+    <string name="class_table_empty_message">Træk for at opdatere, tryk på ⋯ for at tilføje et kursus, eller skift til et andet semester</string>
+    <string name="class_table_export_failed">Skemaet kunne ikke eksporteres</string>
+    <string name="class_table_export_screenshot">Eksportér skærmbillede af skemaet</string>
+    <string name="class_table_more_actions">Flere handlinger</string>
     <string name="class_table_pick_color">Vælg farve</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Gendan standard</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Ingen afsender)</string>
     <string name="school_mail_no_subject">(Intet emne)</string>
     <string name="school_mail_notification_settings_title">Notifikationer for Skolemail</string>
-    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Åbn</string>
     <string name="school_mail_parse_failed">Formatet på denne mail kunne ikke læses. Viser kildekoden i stedet.</string>
     <string name="school_mail_quote_header">Den %1$@ skrev %2$@:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Vis kun ulæste</string>
     <string name="school_mail_use_other_app">Brug en anden app</string>
     <string name="school_mail_view_formatted">Formateret</string>
+    <string name="school_mail_view_light_mode">Vis i lys tilstand</string>
     <string name="school_mail_view_mode">Visning</string>
     <string name="school_mail_view_plain">Almindelig tekst</string>
     <string name="school_mail_view_source">Kildekode</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Nulstil standard</string>
     <string name="tab_editor_section_available_tabs">Tilgængelige faneblade</string>
     <string name="tab_editor_section_current_tabs">Aktuelle faneblade</string>
-    <string name="tab_editor_title">Fanebladseditor</string>
+    <string name="tab_editor_title">Tilpas bundnavigationen</string>
     <string name="tag_server_notification">Servernotifikation</string>
     <string name="update_action_later">Senere</string>
     <string name="update_action_skip_version">Spring denne version over</string>

@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">추가할 수 없습니다</string>
     <string name="class_table_course_name">수업 이름</string>
     <string name="class_table_delete">삭제</string>
-    <string name="class_table_empty_message">당겨서 새로고침하거나, +를 눌러 수업을 추가하거나, 다른 학기로 전환하세요</string>
+    <string name="class_table_empty_message">당겨서 새로고침하거나, ⋯를 눌러 수업을 추가하거나, 다른 학기로 전환하세요</string>
+    <string name="class_table_export_failed">시간표를 내보낼 수 없습니다</string>
+    <string name="class_table_export_screenshot">시간표 스크린샷 내보내기</string>
+    <string name="class_table_more_actions">기타 작업</string>
     <string name="class_table_pick_color">색상 선택</string>
     <string name="class_table_rename_default_label">기본값: %1$s</string>
     <string name="class_table_rename_revert">기본값으로 되돌리기</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(보낸 사람 없음)</string>
     <string name="school_mail_no_subject">(제목 없음)</string>
     <string name="school_mail_notification_settings_title">학교 메일 알림</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">열기</string>
     <string name="school_mail_parse_failed">이 메일의 형식을 읽을 수 없습니다. 대신 소스를 표시합니다.</string>
     <string name="school_mail_quote_header">%1$@에 %2$@님이 작성:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">읽지 않은 메일만 보기</string>
     <string name="school_mail_use_other_app">다른 앱 사용</string>
     <string name="school_mail_view_formatted">서식 있음</string>
+    <string name="school_mail_view_light_mode">라이트 모드로 보기</string>
     <string name="school_mail_view_mode">보기</string>
     <string name="school_mail_view_plain">일반 텍스트</string>
     <string name="school_mail_view_source">소스</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">기본값으로 재설정</string>
     <string name="tab_editor_section_available_tabs">사용 가능한 탭</string>
     <string name="tab_editor_section_current_tabs">현재 탭</string>
-    <string name="tab_editor_title">탭 편집기</string>
+    <string name="tab_editor_title">하단 탭 편집</string>
     <string name="tag_server_notification">서버 알림</string>
     <string name="update_action_later">나중에</string>
     <string name="update_action_skip_version">이 버전 건너뛰기</string>

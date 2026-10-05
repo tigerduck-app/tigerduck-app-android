@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nem adható hozzá</string>
     <string name="class_table_course_name">Kurzus neve</string>
     <string name="class_table_delete">Törlés</string>
-    <string name="class_table_empty_message">Húzza le a frissítéshez, koppintson a + gombra kurzus hozzáadásához, vagy váltson másik félévre</string>
+    <string name="class_table_empty_message">Húzza le a frissítéshez, koppintson a ⋯ gombra kurzus hozzáadásához, vagy váltson másik félévre</string>
+    <string name="class_table_export_failed">Az órarend exportálása nem sikerült</string>
+    <string name="class_table_export_screenshot">Órarend exportálása képként</string>
+    <string name="class_table_more_actions">További műveletek</string>
     <string name="class_table_pick_color">Szín kiválasztása</string>
     <string name="class_table_rename_default_label">Alapértelmezett: %1$s</string>
     <string name="class_table_rename_revert">Alapértelmezett visszaállítása</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Nincs feladó)</string>
     <string name="school_mail_no_subject">(Nincs tárgy)</string>
     <string name="school_mail_notification_settings_title">Iskolai posta értesítések</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Megnyitás</string>
     <string name="school_mail_parse_failed">Nem sikerült beolvasni ennek az üzenetnek a formátumát. Helyette a forrása jelenik meg.</string>
     <string name="school_mail_quote_header">%2$@ ezt írta (%1$@):</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Csak olvasatlanok megjelenítése</string>
     <string name="school_mail_use_other_app">Másik alkalmazás használata</string>
     <string name="school_mail_view_formatted">Formázott</string>
+    <string name="school_mail_view_light_mode">Megtekintés világos módban</string>
     <string name="school_mail_view_mode">Nézet</string>
     <string name="school_mail_view_plain">Egyszerű szöveg</string>
     <string name="school_mail_view_source">Forrás</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Alapértelmezések visszaállítása</string>
     <string name="tab_editor_section_available_tabs">Elérhető lapok</string>
     <string name="tab_editor_section_current_tabs">Jelenlegi lapok</string>
-    <string name="tab_editor_title">Lap szerkesztő</string>
+    <string name="tab_editor_title">Alsó sáv testreszabása</string>
     <string name="tag_server_notification">Szerver-értesítés</string>
     <string name="update_action_later">Később</string>
     <string name="update_action_skip_version">Verzió kihagyása</string>

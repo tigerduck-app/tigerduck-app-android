@@ -412,6 +412,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             prefs.edit().putString("configuredTabs", gson.toJson(value.map { it.id })).apply()
         }
 
+    /** Whether a bottom bar is stored at all — an untouched one isn't, and follows the default. */
+    val hasStoredConfiguredTabs: Boolean
+        get() = prefs.contains("configuredTabs")
+
+    /**
+     * Set once this install has been checked for an untouched bottom bar to
+     * keep when the default changed in 2.3.0 (see `AppState`). A flag rather
+     * than a [dataSchemaVersion] step, like [legacyNotificationChannelsDeleted]:
+     * a downgrade shouldn't get the reset prompt over a tab bar.
+     */
+    var previousDefaultTabsChecked: Boolean
+        get() = prefs.getBoolean("previousDefaultTabsChecked", false)
+        set(value) = prefs.edit().putBoolean("previousDefaultTabsChecked", value).apply()
+
     var invertSliderDirection: Boolean
         get() = prefs.getBoolean("invertSliderDirection", false)
         set(value) = prefs.edit().putBoolean("invertSliderDirection", value).apply()
@@ -591,6 +605,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             else editor.putString("announcementApiBaseUrlOverride", value)
             editor.apply()
         }
+
+    /**
+     * Set once [org.ntust.app.tigerduck.notification.NotificationChannels.deleteLegacyChannels]
+     * has run on this install. A flag rather than a [dataSchemaVersion] step:
+     * bumping the schema would make a later downgrade show the reset prompt,
+     * and a stale notification channel is not worth that.
+     */
+    var legacyNotificationChannelsDeleted: Boolean
+        get() = prefs.getBoolean("legacyNotificationChannelsDeleted", false)
+        set(value) = prefs.edit().putBoolean("legacyNotificationChannelsDeleted", value).apply()
 
     /**
      * Monotonic version for on-device user-data layout. Bumped whenever the

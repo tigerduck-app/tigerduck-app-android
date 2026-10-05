@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">追加できません</string>
     <string name="class_table_course_name">授業名</string>
     <string name="class_table_delete">削除</string>
-    <string name="class_table_empty_message">下に引っ張って更新するか、+ をタップして授業を追加するか、別の学期に切り替えてください</string>
+    <string name="class_table_empty_message">下に引っ張って更新するか、⋯ をタップして授業を追加するか、別の学期に切り替えてください</string>
+    <string name="class_table_export_failed">時間割を書き出せませんでした</string>
+    <string name="class_table_export_screenshot">時間割のスクリーンショットを書き出す</string>
+    <string name="class_table_more_actions">その他の操作</string>
     <string name="class_table_pick_color">色を選択</string>
     <string name="class_table_rename_default_label">デフォルト：%1$s</string>
     <string name="class_table_rename_revert">デフォルトに戻す</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">（差出人なし）</string>
     <string name="school_mail_no_subject">（件名なし）</string>
     <string name="school_mail_notification_settings_title">学内メール通知</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">開く</string>
     <string name="school_mail_parse_failed">このメールの形式を読み取れませんでした。代わりにソースを表示します。</string>
     <string name="school_mail_quote_header">%1$@ %2$@さんは書きました：</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">未読のみ表示</string>
     <string name="school_mail_use_other_app">他のアプリを使う</string>
     <string name="school_mail_view_formatted">書式付き</string>
+    <string name="school_mail_view_light_mode">ライトモードで表示</string>
     <string name="school_mail_view_mode">表示</string>
     <string name="school_mail_view_plain">プレーンテキスト</string>
     <string name="school_mail_view_source">ソース</string>
@@ -927,10 +930,10 @@
     <string name="tab_editor_drag_reorder">ドラッグして並び替え</string>
     <string name="tab_editor_locked">固定</string>
     <string name="tab_editor_max_items_hint">下部ナビゲーションは最大 %1$d 項目（「もっと見る」を含む）まで対応します。長押ししてドラッグすると並び替えできます。</string>
-    <string name="tab_editor_reset_default">デフォルトに戻す</string>
+    <string name="tab_editor_reset_default">リセット</string>
     <string name="tab_editor_section_available_tabs">その他の利用可能なタブ</string>
     <string name="tab_editor_section_current_tabs">現在のタブ</string>
-    <string name="tab_editor_title">タブエディタ</string>
+    <string name="tab_editor_title">下部タブの編集</string>
     <string name="tag_server_notification">サーバー通知</string>
     <string name="update_action_later">後で</string>
     <string name="update_action_skip_version">このバージョンをスキップ</string>

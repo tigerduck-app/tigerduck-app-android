@@ -1,8 +1,6 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import android.Manifest
-import android.app.Notification
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -17,8 +15,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.DeviceSkin
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
+import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -64,6 +66,8 @@ import kotlin.math.roundToInt
 class LiveActivityNotifier @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val preferences: LiveActivityPreferences,
+    private val appPreferences: AppPreferences,
+    private val notificationChannels: NotificationChannelRegistrar,
 ) {
     private val manager = context.getSystemService(NotificationManager::class.java)
 
@@ -75,11 +79,23 @@ class LiveActivityNotifier @Inject constructor(
     /** Fixed for the life of the process; see [samsungNowBarExtras]. */
     private val deviceSkin = DeviceSkin.current()
 
-    init {
-        ensureChannel()
-    }
+    // Kept between posts, which come every minute or two through a class: a
+    // configuration context is a new Resources. Keyed by the setting alone:
+    // only its locale is read, and for "Follow system" it is the application
+    // context itself, which follows the phone on its own.
+    @Volatile
+    private var localized: Pair<String, Context>? = null
 
-    fun apply(snapshot: LiveActivitySnapshot?) {
+    /**
+     * Post [snapshot], or clear the Live Update when it is null.
+     *
+     * [quiet] covers a redraw in a process that has not posted yet. A Live
+     * Update left by an earlier process may well be showing, and with nothing
+     * to compare it against every post looks like a new scenario — cancelled,
+     * re-posted and chimed. A quiet one takes it for the scenario already
+     * showing instead. A real transition seen in this process still alerts.
+     */
+    fun apply(snapshot: LiveActivitySnapshot?, quiet: Boolean = false) {
         if (snapshot == null) {
             manager.cancel(NOTIFICATION_ID)
             lastScenario = null
@@ -115,18 +131,24 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         val scenarioChanged = lastScenario != snapshot.scenario
-        val soundWanted = scenarioChanged && wantsSoundFor(snapshot.scenario)
+        val alerting = scenarioChanged && !(quiet && lastScenario == null)
+        val soundWanted = alerting && wantsSoundFor(snapshot.scenario)
 
         // For sound to play on a scenario transition we need to (a) drop the
         // prior notification so the system re-arms alert-once, and (b) not
         // call setSilent(true). Same-scenario updates skip the cancel and stay
         // silent regardless of pref — the chronometer tick shouldn't chime.
-        if (scenarioChanged) manager.cancel(NOTIFICATION_ID)
+        if (alerting) manager.cancel(NOTIFICATION_ID)
+
+        // The injected context is the application's, which below API 33 never
+        // sees the in-app language, so the status line came out in the
+        // phone's language under an otherwise translated UI.
+        val localized = localizedContext()
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(snapshot.title)
-            .setContentText(statusLine(snapshot))
+            .setContentText(statusLine(snapshot, localized))
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -160,7 +182,7 @@ class LiveActivityNotifier @Inject constructor(
                 builder.setShortCriticalText(
                     StaticCountdown.format(
                         StaticCountdown.minutesLeft(target, now),
-                        context.resources.configuration.locales[0],
+                        localized.resources.configuration.locales[0],
                     )
                 )
             }
@@ -190,6 +212,7 @@ class LiveActivityNotifier @Inject constructor(
 
         samsungNowBarExtras()?.let { builder.addExtras(it) }
 
+        notificationChannels.ensureRegistered()
         manager.notify(NOTIFICATION_ID, builder.build())
 
         // Once the class is actually ongoing, the alarm-driven "即將上課" banner
@@ -279,47 +302,32 @@ class LiveActivityNotifier @Inject constructor(
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun statusLine(snapshot: LiveActivitySnapshot): String {
+    private fun localizedContext(): Context {
+        val language = appPreferences.appLanguage
+        localized?.let { (cachedFor, cached) -> if (cachedFor == language) return cached }
+        return AppLanguageManager.localizedContext(context, language)
+            .also { localized = language to it }
+    }
+
+    private fun statusLine(snapshot: LiveActivitySnapshot, localized: Context): String {
         val prefix = when (snapshot.scenario) {
-            LiveActivityScenario.IN_CLASS -> context.getString(R.string.live_activity_status_in_class)
+            LiveActivityScenario.IN_CLASS ->
+                localized.getString(R.string.live_activity_status_in_class)
             LiveActivityScenario.CLASS_PREPARING ->
-                context.getString(R.string.live_activity_status_class_preparing)
+                localized.getString(R.string.live_activity_status_class_preparing)
 
             LiveActivityScenario.ASSIGNMENT_URGENT ->
-                context.getString(R.string.live_activity_status_assignment_urgent)
+                localized.getString(R.string.live_activity_status_assignment_urgent)
         }
         return if (snapshot.subtitle.isNotBlank()) "$prefix · ${snapshot.subtitle}" else prefix
     }
 
-    private fun ensureChannel() {
-        // Drop legacy channels so the new defaults (lockscreen visibility +
-        // importance) are actually applied; both attributes are frozen after
-        // channel creation on API 26+.
-        for (old in LEGACY_CHANNEL_IDS) {
-            if (manager.getNotificationChannel(old) != null) {
-                manager.deleteNotificationChannel(old)
-            }
-        }
-        val existing = manager.getNotificationChannel(CHANNEL_ID)
-        if (existing != null) return
-        val channel = NotificationChannel(
-            CHANNEL_ID,
-            context.getString(R.string.live_activity_channel_name),
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply {
-            description = context.getString(R.string.live_activity_channel_description)
-            setShowBadge(false)
-            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-        }
-        manager.createNotificationChannel(channel)
-    }
-
     companion object {
         private const val TAG = "LiveActivity"
-        const val CHANNEL_ID = "live_activity_v3"
+        /** Created with the others at launch; see [NotificationChannels.registerAll]. */
+        const val CHANNEL_ID = NotificationChannels.LIVE_ACTIVITY
         /** Denominator for [NotificationCompat.Builder.setProgress]; percent reads well enough. */
         private const val PROGRESS_MAX = 100
-        private val LEGACY_CHANNEL_IDS = listOf("live_activity", "live_activity_v2")
 
         /** Samsung's undocumented Now Bar allowlist bypass; see [samsungNowBarExtras]. */
         private const val SAMSUNG_AUTOMATION = "android.ongoingActivityNoti.automation"

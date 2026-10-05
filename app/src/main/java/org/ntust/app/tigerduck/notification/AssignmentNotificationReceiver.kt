@@ -20,6 +20,9 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
     @Inject
     lateinit var appPreferences: AppPreferences
 
+    @Inject
+    lateinit var notificationChannels: NotificationChannelRegistrar
+
     override fun onReceive(context: Context, intent: Intent) {
         val title = intent.getStringExtra(EXTRA_TITLE) ?: return
         val courseName = intent.getStringExtra(EXTRA_COURSE_NAME) ?: ""
@@ -42,44 +45,8 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
             return
         }
 
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val (titleText, bodyText) = if (kind == KIND_SAFETY_NET) {
-            context.getString(R.string.notification_assignment_safety_net_title) to
-                context.getString(R.string.notification_assignment_safety_net_body, courseName, title)
-        } else if (offset != null) {
-            // Per-offset wording (mirrors iOS). `notification_assignment_reminder_title`
-            // takes the course name; the body templates take (course, title).
-            context.getString(R.string.notification_assignment_reminder_title, courseName) to
-                context.getString(offset.bodyRes, courseName, title)
-        } else {
-            // Legacy single-shot reminder (pre-upgrade pending alarms with no
-            // EXTRA_OFFSET) keeps the original "due soon" wording so users
-            // who upgrade mid-week still see something coherent for alarms
-            // we didn't get a chance to re-arm.
-            context.getString(R.string.notification_assignment_due_title) to
-                context.getString(R.string.notification_assignment_due_body, courseName, title)
-        }
-
-        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
-            .setContentTitle(titleText)
-            .setContentText(bodyText)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            // Stack reminders for the same assignment under a single group on
-            // the lock screen / shade — matches the iOS `threadIdentifier`
-            // behaviour.
-            .setGroup("assignment-$assignmentId")
-            .build()
-
-        // Unique per (assignment × offset) so reminders for the same
-        // assignment don't collapse into one another in the shade.
-        val notifId = (assignmentId + "::" + (offset?.rawValue ?: "legacy")).hashCode() and 0x7FFFFFFF
-        notificationManager.notify(notifId, notification)
+        notificationChannels.ensureRegistered()
+        post(context, title, courseName, assignmentId, kind, offset)
     }
 
     companion object {
@@ -99,5 +66,56 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
         // reminder; null on legacy single-shot intents pending from before
         // per-offset scheduling shipped.
         const val EXTRA_OFFSET = "offset"
+
+        /**
+         * Post the reminder, past every check onReceive makes first; the
+         * developer menu's preview posts through here too. The channels must
+         * already exist.
+         */
+        fun post(
+            context: Context,
+            title: String,
+            courseName: String,
+            assignmentId: String,
+            kind: Int,
+            offset: AssignmentReminderOffset?,
+        ) {
+            val notificationManager =
+                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val (titleText, bodyText) = if (kind == KIND_SAFETY_NET) {
+                context.getString(R.string.notification_assignment_safety_net_title) to
+                    context.getString(R.string.notification_assignment_safety_net_body, courseName, title)
+            } else if (offset != null) {
+                // Per-offset wording (mirrors iOS). `notification_assignment_reminder_title`
+                // takes the course name; the body templates take (course, title).
+                context.getString(R.string.notification_assignment_reminder_title, courseName) to
+                    context.getString(offset.bodyRes, courseName, title)
+            } else {
+                // Legacy single-shot reminder (pre-upgrade pending alarms with no
+                // EXTRA_OFFSET) keeps the original "due soon" wording so users
+                // who upgrade mid-week still see something coherent for alarms
+                // we didn't get a chance to re-arm.
+                context.getString(R.string.notification_assignment_due_title) to
+                    context.getString(R.string.notification_assignment_due_body, courseName, title)
+            }
+
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
+                // Brand tint for the shade badge; the status-bar glyph stays mono.
+                .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
+                .setContentTitle(titleText)
+                .setContentText(bodyText)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setAutoCancel(true)
+                .setGroup(NotificationGroup.ASSIGNMENT.key)
+                .build()
+
+            // Unique per (assignment × offset) so reminders for the same
+            // assignment don't collapse into one another in the shade.
+            val notifId = (assignmentId + "::" + (offset?.rawValue ?: "legacy")).hashCode() and 0x7FFFFFFF
+            notificationManager.notify(notifId, notification)
+            NotificationGroup.ASSIGNMENT.postSummary(context)
+        }
     }
 }

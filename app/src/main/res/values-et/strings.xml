@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Lisamine ebaõnnestus</string>
     <string name="class_table_course_name">Kursuse nimi</string>
     <string name="class_table_delete">Kustuta</string>
-    <string name="class_table_empty_message">Tõmmake värskendamiseks, puudutage + kursuse lisamiseks või vahetage semestrit</string>
+    <string name="class_table_empty_message">Tõmmake värskendamiseks, puudutage ⋯ kursuse lisamiseks või vahetage semestrit</string>
+    <string name="class_table_export_failed">Tunniplaani ei õnnestunud eksportida</string>
+    <string name="class_table_export_screenshot">Ekspordi tunniplaani ekraanipilt</string>
+    <string name="class_table_more_actions">Rohkem toiminguid</string>
     <string name="class_table_pick_color">Vali värv</string>
     <string name="class_table_rename_default_label">Vaikimisi: %1$s</string>
     <string name="class_table_rename_revert">Lähtesta vaikimisi</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Saatja puudub)</string>
     <string name="school_mail_no_subject">(Teema puudub)</string>
     <string name="school_mail_notification_settings_title">Kooli e-posti teavitused</string>
-    <string name="school_mail_notification_title">Kiri: %1$@</string>
     <string name="school_mail_open">Ava</string>
     <string name="school_mail_parse_failed">Selle kirja vormingut ei õnnestunud lugeda. Selle asemel kuvatakse lähtekoodi.</string>
     <string name="school_mail_quote_header">%1$@, %2$@ kirjutas:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Kuva ainult lugemata</string>
     <string name="school_mail_use_other_app">Kasuta teist rakendust</string>
     <string name="school_mail_view_formatted">Vormindatud</string>
+    <string name="school_mail_view_light_mode">Kuva heledas režiimis</string>
     <string name="school_mail_view_mode">Vaade</string>
     <string name="school_mail_view_plain">Lihttekst</string>
     <string name="school_mail_view_source">Lähtekood</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Lähtesta vaikimisi</string>
     <string name="tab_editor_section_available_tabs">Saadaval olevad vahekaardid</string>
     <string name="tab_editor_section_current_tabs">Praegused vahekaardid</string>
-    <string name="tab_editor_title">Vahekaartide redaktor</string>
+    <string name="tab_editor_title">Kohanda alumist riba</string>
     <string name="tag_server_notification">Serveriteatis</string>
     <string name="update_action_later">Hiljem</string>
     <string name="update_action_skip_version">Jäta see versioon vahele</string>

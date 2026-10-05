@@ -83,20 +83,23 @@ class SchoolMailComposeViewModel @Inject constructor(
         data class DraftFailed(val error: MailError) : ComposeError
     }
 
+    /** What leaving compares against; recipients as their [RecipientField.entries]. */
     data class Fields(
-        val to: String = "",
-        val cc: String = "",
-        val bcc: String = "",
+        val to: List<String> = emptyList(),
+        val cc: List<String> = emptyList(),
+        val bcc: List<String> = emptyList(),
         val subject: String = "",
         val body: String = "",
         val attachmentIds: List<String> = emptyList(),
     )
 
+    enum class RecipientSlot { TO, CC, BCC }
+
     data class UiState(
         val loading: Boolean = false,
-        val to: String = "",
-        val cc: String = "",
-        val bcc: String = "",
+        val to: RecipientField = RecipientField(),
+        val cc: RecipientField = RecipientField(),
+        val bcc: RecipientField = RecipientField(),
         val showCcBcc: Boolean = false,
         val subject: String = "",
         val body: String = "",
@@ -128,7 +131,7 @@ class SchoolMailComposeViewModel @Inject constructor(
         val sentCopyMissing: Boolean = false,
         internal val baseline: Fields = Fields(),
     ) {
-        internal val fields get() = Fields(to, cc, bcc, subject, body, attachments.map { it.id })
+        internal val fields get() = Fields(to.entries, cc.entries, bcc.entries, subject, body, attachments.map { it.id })
         /** Anything changed since the screen opened — leaving asks to save a draft (spec §6.4). */
         val dirty: Boolean get() = fields != baseline
     }
@@ -207,22 +210,30 @@ class SchoolMailComposeViewModel @Inject constructor(
                 references = draft.references
                 sourceLoaded = true
                 _state.update {
-                    val to = if (edited.to) it.to else draft.to
-                    val cc = if (edited.cc) it.cc else draft.cc
+                    // A recipient field nobody has typed into has no text being typed either, so
+                    // replacing it whole cannot take anything out from under the field on screen
+                    // (see RecipientField.draft).
+                    val to = if (edited.to) it.to else RecipientField.of(draft.to)
+                    val cc = if (edited.cc) it.cc else RecipientField.of(draft.cc)
                     val subject = if (edited.subject) it.subject else draft.subject
                     val body2 = if (edited.body) it.body else draft.body
                     val next = it.copy(
                         loading = false, to = to, cc = cc, subject = subject, body = body2,
-                        showCcBcc = it.showCcBcc || cc.isNotBlank() || it.bcc.isNotBlank(),
+                        showCcBcc = it.showCcBcc || cc.entries.isNotEmpty() || it.bcc.entries.isNotEmpty(),
                         // Local picks made while the load had failed are kept; the carried
                         // originals are simply added alongside them, never replacing the list.
                         attachments = it.attachments + carried,
                     )
                     // The baseline is always this fresh prefill's own fields, never the user's
                     // edits -- an edit made before or after a retry must still leave the form
-                    // dirty. Bcc is never part of a prefilled draft (spec §8.4), so it stays "" in
-                    // the baseline regardless of what's currently typed there.
-                    next.copy(baseline = Fields(draft.to, draft.cc, "", draft.subject, draft.body, carried.map { c -> c.id }))
+                    // dirty. Bcc is never part of a prefilled draft (spec §8.4), so it stays empty
+                    // in the baseline regardless of what's currently typed there.
+                    next.copy(
+                        baseline = Fields(
+                            RecipientField.of(draft.to).entries, RecipientField.of(draft.cc).entries, emptyList(),
+                            draft.subject, draft.body, carried.map { c -> c.id },
+                        ),
+                    )
                 }
             } catch (e: MailError) {
                 if (e is MailError.AuthFailed) account.onAuthFailure()
@@ -231,9 +242,42 @@ class SchoolMailComposeViewModel @Inject constructor(
         }
     }
 
-    fun setTo(value: String) { edited.to = true; _state.update { it.copy(to = value, error = null, errorAcknowledged = false) } }
-    fun setCc(value: String) { edited.cc = true; _state.update { it.copy(cc = value, error = null, errorAcknowledged = false) } }
-    fun setBcc(value: String) = _state.update { it.copy(bcc = value, error = null, errorAcknowledged = false) }
+    /**
+     * Applies [change] to one recipient field and returns what the field became. The field on
+     * screen hands every edit over as a change rather than a finished value, so it always applies
+     * to the latest state, never to the copy the screen last drew, which trails the typing by a
+     * frame. Only a change to the recipients themselves counts as an edit: finishing a bubble or
+     * opening one to look at it moves nothing that would be sent.
+     */
+    fun updateRecipients(slot: RecipientSlot, change: (RecipientField) -> RecipientField): RecipientField {
+        var updated = RecipientField()
+        var changed = false
+        _state.update { s ->
+            val before = s.recipients(slot)
+            updated = change(before)
+            changed = updated.entries != before.entries
+            val next = when (slot) {
+                RecipientSlot.TO -> s.copy(to = updated)
+                RecipientSlot.CC -> s.copy(cc = updated)
+                RecipientSlot.BCC -> s.copy(bcc = updated)
+            }
+            if (changed) next.copy(error = null, errorAcknowledged = false) else next
+        }
+        if (changed) {
+            when (slot) {
+                RecipientSlot.TO -> edited.to = true
+                RecipientSlot.CC -> edited.cc = true
+                RecipientSlot.BCC -> Unit
+            }
+        }
+        return updated
+    }
+
+    private fun UiState.recipients(slot: RecipientSlot) = when (slot) {
+        RecipientSlot.TO -> to
+        RecipientSlot.CC -> cc
+        RecipientSlot.BCC -> bcc
+    }
     fun setSubject(value: String) { edited.subject = true; _state.update { it.copy(subject = value) } }
     fun setBody(value: String) { edited.body = true; _state.update { it.copy(body = value) } }
     fun showCcBcc() = _state.update { it.copy(showCcBcc = true) }
@@ -272,9 +316,9 @@ class SchoolMailComposeViewModel @Inject constructor(
     /** The validation [send] always runs before it actually ships the mail, shared with
      *  [requestSend] so the confirmation prompt sees exactly the same verdict a bare [send] would. */
     private fun sendValidationError(s: UiState): ComposeError? {
-        val to = ComposeRules.parseRecipients(s.to)
-        val cc = ComposeRules.parseRecipients(s.cc)
-        val bcc = ComposeRules.parseRecipients(s.bcc)
+        val to = ComposeRules.parseRecipients(s.to.entries)
+        val cc = ComposeRules.parseRecipients(s.cc.entries)
+        val bcc = ComposeRules.parseRecipients(s.bcc.entries)
         val invalid = to.invalid + cc.invalid + bcc.invalid
         return when {
             invalid.isNotEmpty() -> ComposeError.InvalidRecipients(invalid)
@@ -307,9 +351,9 @@ class SchoolMailComposeViewModel @Inject constructor(
             _state.update { it.copy(error = error, errorAcknowledged = false) }
             return
         }
-        val to = ComposeRules.parseRecipients(s.to)
-        val cc = ComposeRules.parseRecipients(s.cc)
-        val bcc = ComposeRules.parseRecipients(s.bcc)
+        val to = ComposeRules.parseRecipients(s.to.entries)
+        val cc = ComposeRules.parseRecipients(s.cc.entries)
+        val bcc = ComposeRules.parseRecipients(s.bcc.entries)
         withStaged(onError = { ComposeError.SendFailed(it) }) { attachments ->
             val mail = OutgoingMail(repository.selfAddress(), to.addresses, cc.addresses, bcc.addresses,
                 s.subject.trim(), s.body, attachments, inReplyTo, references)
@@ -343,9 +387,9 @@ class SchoolMailComposeViewModel @Inject constructor(
     fun saveDraft() {
         val s = _state.value
         if (s.sending || s.loading || s.pendingPicks > 0) return
-        val to = ComposeRules.parseRecipients(s.to)
-        val cc = ComposeRules.parseRecipients(s.cc)
-        val bcc = ComposeRules.parseRecipients(s.bcc)
+        val to = ComposeRules.parseRecipients(s.to.entries)
+        val cc = ComposeRules.parseRecipients(s.cc.entries)
+        val bcc = ComposeRules.parseRecipients(s.bcc.entries)
         val invalid = to.invalid + cc.invalid + bcc.invalid
         // A draft may legitimately have no recipients yet -- only a token that couldn't be read
         // at all, or an over-budget attachment, blocks saving.

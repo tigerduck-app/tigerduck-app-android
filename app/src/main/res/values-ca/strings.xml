@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">No s\'ha pogut afegir</string>
     <string name="class_table_course_name">Nom del curs</string>
     <string name="class_table_delete">Elimina</string>
-    <string name="class_table_empty_message">Estira per actualitzar, toca + per afegir un curs, o canvia a un altre semestre</string>
+    <string name="class_table_empty_message">Estira per actualitzar, toca ⋯ per afegir un curs, o canvia a un altre semestre</string>
+    <string name="class_table_export_failed">No s\'ha pogut exportar l\'horari</string>
+    <string name="class_table_export_screenshot">Exporta una captura de l\'horari</string>
+    <string name="class_table_more_actions">Més accions</string>
     <string name="class_table_pick_color">Tria un color</string>
     <string name="class_table_rename_default_label">Per defecte: %1$s</string>
     <string name="class_table_rename_revert">Restablir per defecte</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Sense remitent)</string>
     <string name="school_mail_no_subject">(Sense assumpte)</string>
     <string name="school_mail_notification_settings_title">Notificacions del Correu universitari</string>
-    <string name="school_mail_notification_title">Correu: %1$@</string>
     <string name="school_mail_open">Obre</string>
     <string name="school_mail_parse_failed">No s\'ha pogut llegir el format d\'aquest correu. Es mostra el seu codi font.</string>
     <string name="school_mail_quote_header">El %1$@, %2$@ va escriure:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Mostra només els no llegits</string>
     <string name="school_mail_use_other_app">Fes servir una altra app</string>
     <string name="school_mail_view_formatted">Amb format</string>
+    <string name="school_mail_view_light_mode">Mostra en mode clar</string>
     <string name="school_mail_view_mode">Visualització</string>
     <string name="school_mail_view_plain">Text sense format</string>
     <string name="school_mail_view_source">Codi font</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Restableix els valors predeterminats</string>
     <string name="tab_editor_section_available_tabs">Pestanyes disponibles</string>
     <string name="tab_editor_section_current_tabs">Pestanyes actuals</string>
-    <string name="tab_editor_title">Editor de pestanyes</string>
+    <string name="tab_editor_title">Personalitza la barra inferior</string>
     <string name="tag_server_notification">Notificació del servidor</string>
     <string name="update_action_later">Més tard</string>
     <string name="update_action_skip_version">Omet aquesta versió</string>

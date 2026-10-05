@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Не може да се добави</string>
     <string name="class_table_course_name">Наименование на курса</string>
     <string name="class_table_delete">Изтриване</string>
-    <string name="class_table_empty_message">Издърпайте, за да опресните, докоснете +, за да добавите курс, или превключете на друг семестър</string>
+    <string name="class_table_empty_message">Издърпайте, за да опресните, докоснете ⋯, за да добавите курс, или превключете на друг семестър</string>
+    <string name="class_table_export_failed">Разписанието не можа да бъде експортирано</string>
+    <string name="class_table_export_screenshot">Експортиране на екранна снимка на разписанието</string>
+    <string name="class_table_more_actions">Още действия</string>
     <string name="class_table_pick_color">Избор на цвят</string>
     <string name="class_table_rename_default_label">По подразбиране: %1$s</string>
     <string name="class_table_rename_revert">Връщане към подразбиране</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Няма подател)</string>
     <string name="school_mail_no_subject">(Няма тема)</string>
     <string name="school_mail_notification_settings_title">Известия за училищната поща</string>
-    <string name="school_mail_notification_title">Имейл: %1$@</string>
     <string name="school_mail_open">Отвори</string>
     <string name="school_mail_parse_failed">Форматът на този имейл не можа да бъде разчетен. Вместо това се показва изходният код.</string>
     <string name="school_mail_quote_header">На %1$@, %2$@ написа:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Показвай само непрочетените</string>
     <string name="school_mail_use_other_app">Използвай друго приложение</string>
     <string name="school_mail_view_formatted">Форматиран</string>
+    <string name="school_mail_view_light_mode">Покажи в светъл режим</string>
     <string name="school_mail_view_mode">Изглед</string>
     <string name="school_mail_view_plain">Обикновен текст</string>
     <string name="school_mail_view_source">Изходен код</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Нулиране по подразбиране</string>
     <string name="tab_editor_section_available_tabs">Налични табове</string>
     <string name="tab_editor_section_current_tabs">Текущи табове</string>
-    <string name="tab_editor_title">Редактор на табове</string>
+    <string name="tab_editor_title">Персонализиране на долната лента</string>
     <string name="tag_server_notification">Сървърно известие</string>
     <string name="update_action_later">По-късно</string>
     <string name="update_action_skip_version">Пропусни тази версия</string>

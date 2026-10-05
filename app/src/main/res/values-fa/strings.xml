@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">امکان افزودن نیست</string>
     <string name="class_table_course_name">نام درس</string>
     <string name="class_table_delete">حذف</string>
-    <string name="class_table_empty_message">برای بازخوانی بکشید، برای افزودن درس روی + ضربه بزنید، یا به ترم دیگری تغییر دهید</string>
+    <string name="class_table_empty_message">برای بازخوانی بکشید، برای افزودن درس روی ⋯ ضربه بزنید، یا به ترم دیگری تغییر دهید</string>
+    <string name="class_table_export_failed">خروجی گرفتن از برنامه کلاس‌ها ممکن نشد</string>
+    <string name="class_table_export_screenshot">خروجی گرفتن از تصویر برنامه کلاس‌ها</string>
+    <string name="class_table_more_actions">اقدامات بیشتر</string>
     <string name="class_table_pick_color">انتخاب رنگ</string>
     <string name="class_table_rename_default_label">پیش‌فرض: %1$s</string>
     <string name="class_table_rename_revert">بازگرداندن به پیش‌فرض</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(بدون فرستنده)</string>
     <string name="school_mail_no_subject">(بدون موضوع)</string>
     <string name="school_mail_notification_settings_title">اعلان‌های ایمیل مدرسه</string>
-    <string name="school_mail_notification_title">ایمیل: %1$@</string>
     <string name="school_mail_open">باز کردن</string>
     <string name="school_mail_parse_failed">قالب این ایمیل خوانده نشد. به‌جای آن، منبع آن نمایش داده می‌شود.</string>
     <string name="school_mail_quote_header">در %1$@، %2$@ نوشت:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">فقط خوانده‌نشده‌ها را نشان بده</string>
     <string name="school_mail_use_other_app">استفاده از برنامه‌ای دیگر</string>
     <string name="school_mail_view_formatted">قالب‌بندی‌شده</string>
+    <string name="school_mail_view_light_mode">مشاهده در حالت روشن</string>
     <string name="school_mail_view_mode">نما</string>
     <string name="school_mail_view_plain">متن ساده</string>
     <string name="school_mail_view_source">منبع</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">بازنشانی پیش‌فرض‌ها</string>
     <string name="tab_editor_section_available_tabs">تب‌های در دسترس</string>
     <string name="tab_editor_section_current_tabs">تب‌های فعلی</string>
-    <string name="tab_editor_title">ویرایشگر تب‌ها</string>
+    <string name="tab_editor_title">شخصی‌سازی نوار پایین</string>
     <string name="tag_server_notification">اعلان سرور</string>
     <string name="update_action_later">بعداً</string>
     <string name="update_action_skip_version">از این نسخه بگذر</string>

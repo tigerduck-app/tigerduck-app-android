@@ -445,7 +445,7 @@ private fun FolderChips(state: SchoolMailListViewModel.UiState, onSelect: (Folde
                         selected = otherSelected,
                         onClick = { showOthers = true },
                         label = {
-                            Text(if (otherSelected && selectedName != null) selectedName else stringResource(R.string.school_mail_folder_more))
+                            Text(if (otherSelected) selectedName else stringResource(R.string.school_mail_folder_more))
                         },
                     )
                     DropdownMenu(

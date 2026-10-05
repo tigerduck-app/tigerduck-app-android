@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nelze přidat</string>
     <string name="class_table_course_name">Název kurzu</string>
     <string name="class_table_delete">Smazat</string>
-    <string name="class_table_empty_message">Zatažením obnovte, klepnutím na + přidejte kurz nebo přepněte na jiný semestr</string>
+    <string name="class_table_empty_message">Zatažením obnovte, klepnutím na ⋯ přidejte kurz nebo přepněte na jiný semestr</string>
+    <string name="class_table_export_failed">Rozvrh se nepodařilo exportovat</string>
+    <string name="class_table_export_screenshot">Exportovat snímek rozvrhu</string>
+    <string name="class_table_more_actions">Další akce</string>
     <string name="class_table_pick_color">Vybrat barvu</string>
     <string name="class_table_rename_default_label">Výchozí: %1$s</string>
     <string name="class_table_rename_revert">Obnovit výchozí</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Bez odesílatele)</string>
     <string name="school_mail_no_subject">(Bez předmětu)</string>
     <string name="school_mail_notification_settings_title">Oznámení školní pošty</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Otevřít</string>
     <string name="school_mail_parse_failed">Formát zprávy se nepodařilo rozpoznat. Zobrazuje se její zdrojový kód.</string>
     <string name="school_mail_quote_header">Dne %1$@ uživatel %2$@ napsal:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Zobrazit jen nepřečtené</string>
     <string name="school_mail_use_other_app">Použít jinou aplikaci</string>
     <string name="school_mail_view_formatted">Formátovaný</string>
+    <string name="school_mail_view_light_mode">Zobrazit ve světlém režimu</string>
     <string name="school_mail_view_mode">Zobrazení</string>
     <string name="school_mail_view_plain">Prostý text</string>
     <string name="school_mail_view_source">Zdrojový kód</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Obnovit výchozí</string>
     <string name="tab_editor_section_available_tabs">Dostupné záložky</string>
     <string name="tab_editor_section_current_tabs">Aktuální záložky</string>
-    <string name="tab_editor_title">Editor záložek</string>
+    <string name="tab_editor_title">Přizpůsobit spodní lištu</string>
     <string name="tag_server_notification">Serverové oznámení</string>
     <string name="update_action_later">Později</string>
     <string name="update_action_skip_version">Přeskočit tuto verzi</string>

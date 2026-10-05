@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">ਜੋੜਨ ਵਿੱਚ ਅਸਮਰੱਥ</string>
     <string name="class_table_course_name">ਕੋਰਸ ਦਾ ਨਾਂ</string>
     <string name="class_table_delete">ਮਿਟਾਓ</string>
-    <string name="class_table_empty_message">ਰਿਫ੍ਰੈਸ਼ ਕਰਨ ਲਈ ਖਿੱਚੋ, ਕੋਰਸ ਜੋੜਨ ਲਈ + ਟੈਪ ਕਰੋ, ਜਾਂ ਕਿਸੇ ਹੋਰ ਸਮੈਸਟਰ \'ਤੇ ਸਵਿੱਚ ਕਰੋ</string>
+    <string name="class_table_empty_message">ਰਿਫ੍ਰੈਸ਼ ਕਰਨ ਲਈ ਖਿੱਚੋ, ਕੋਰਸ ਜੋੜਨ ਲਈ ⋯ ਟੈਪ ਕਰੋ, ਜਾਂ ਕਿਸੇ ਹੋਰ ਸਮੈਸਟਰ \'ਤੇ ਸਵਿੱਚ ਕਰੋ</string>
+    <string name="class_table_export_failed">ਕਲਾਸ ਸਾਰਣੀ ਨਿਰਯਾਤ ਨਹੀਂ ਹੋ ਸਕੀ</string>
+    <string name="class_table_export_screenshot">ਕਲਾਸ ਸਾਰਣੀ ਦਾ ਸਕ੍ਰੀਨਸ਼ਾਟ ਨਿਰਯਾਤ ਕਰੋ</string>
+    <string name="class_table_more_actions">ਹੋਰ ਕਾਰਵਾਈਆਂ</string>
     <string name="class_table_pick_color">ਰੰਗ ਚੁਣੋ</string>
     <string name="class_table_rename_default_label">ਡਿਫਾਲਟ: %1$s</string>
     <string name="class_table_rename_revert">ਡਿਫਾਲਟ \'ਤੇ ਵਾਪਸ ਜਾਓ</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(ਕੋਈ ਭੇਜਣ ਵਾਲਾ ਨਹੀਂ)</string>
     <string name="school_mail_no_subject">(ਕੋਈ ਵਿਸ਼ਾ ਨਹੀਂ)</string>
     <string name="school_mail_notification_settings_title">ਸਕੂਲ ਮੇਲ ਸੂਚਨਾਵਾਂ</string>
-    <string name="school_mail_notification_title">ਮੇਲ: %1$@</string>
     <string name="school_mail_open">ਖੋਲ੍ਹੋ</string>
     <string name="school_mail_parse_failed">ਇਸ ਮੇਲ ਦਾ ਫਾਰਮੈਟ ਨਹੀਂ ਪੜ੍ਹਿਆ ਜਾ ਸਕਿਆ। ਇਸ ਦੀ ਥਾਂ ਇਸਦਾ ਸੋਰਸ ਦਿਖਾਇਆ ਜਾ ਰਿਹਾ ਹੈ।</string>
     <string name="school_mail_quote_header">%1$@ ਨੂੰ, %2$@ ਨੇ ਲਿਖਿਆ:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">ਸਿਰਫ਼ ਨਾ ਪੜ੍ਹੀਆਂ ਦਿਖਾਓ</string>
     <string name="school_mail_use_other_app">ਹੋਰ ਐਪ ਵਰਤੋ</string>
     <string name="school_mail_view_formatted">ਫਾਰਮੈਟ ਕੀਤਾ</string>
+    <string name="school_mail_view_light_mode">ਲਾਈਟ ਮੋਡ ਵਿੱਚ ਵੇਖੋ</string>
     <string name="school_mail_view_mode">ਵਿਊ</string>
     <string name="school_mail_view_plain">ਪਲੇਨ ਟੈਕਸਟ</string>
     <string name="school_mail_view_source">ਸੋਰਸ</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">ਡਿਫੌਲਟ ਰੀਸੈੱਟ ਕਰੋ</string>
     <string name="tab_editor_section_available_tabs">ਉਪਲਬਧ ਟੈਬ</string>
     <string name="tab_editor_section_current_tabs">ਮੌਜੂਦਾ ਟੈਬ</string>
-    <string name="tab_editor_title">ਟੈਬ ਸੰਪਾਦਕ</string>
+    <string name="tab_editor_title">ਹੇਠਲੀ ਨੈਵੀਗੇਸ਼ਨ ਨੂੰ ਕਸਟਮਾਈਜ਼ ਕਰੋ</string>
     <string name="tag_server_notification">ਸਰਵਰ ਸੂਚਨਾ</string>
     <string name="update_action_later">ਬਾਅਦ ਵਿੱਚ</string>
     <string name="update_action_skip_version">ਇਸ ਵਰਜ਼ਨ ਨੂੰ ਛੱਡੋ</string>

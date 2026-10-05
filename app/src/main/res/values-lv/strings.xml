@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nevar pievienot</string>
     <string name="class_table_course_name">Kursa nosaukums</string>
     <string name="class_table_delete">Dzēst</string>
-    <string name="class_table_empty_message">Velciet, lai atjauninātu, pieskarieties +, lai pievienotu kursu, vai pārslēdzieties uz citu semestri</string>
+    <string name="class_table_empty_message">Velciet, lai atjauninātu, pieskarieties ⋯, lai pievienotu kursu, vai pārslēdzieties uz citu semestri</string>
+    <string name="class_table_export_failed">Neizdevās eksportēt stundu plānu</string>
+    <string name="class_table_export_screenshot">Eksportēt stundu plāna ekrānuzņēmumu</string>
+    <string name="class_table_more_actions">Vairāk darbību</string>
     <string name="class_table_pick_color">Izvēlēties krāsu</string>
     <string name="class_table_rename_default_label">Noklusējums: %1$s</string>
     <string name="class_table_rename_revert">Atjaunot noklusējumu</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Nav sūtītāja)</string>
     <string name="school_mail_no_subject">(Nav tēmas)</string>
     <string name="school_mail_notification_settings_title">Skolas pasta paziņojumi</string>
-    <string name="school_mail_notification_title">Vēstule: %1$@</string>
     <string name="school_mail_open">Atvērt</string>
     <string name="school_mail_parse_failed">Neizdevās nolasīt šīs vēstules formātu. Tā vietā tiek rādīts tās pirmkods.</string>
     <string name="school_mail_quote_header">%1$@, %2$@ rakstīja:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Rādīt tikai nelasītās</string>
     <string name="school_mail_use_other_app">Izmantot citu lietotni</string>
     <string name="school_mail_view_formatted">Formatēts</string>
+    <string name="school_mail_view_light_mode">Skatīt gaišajā režīmā</string>
     <string name="school_mail_view_mode">Skats</string>
     <string name="school_mail_view_plain">Vienkāršs teksts</string>
     <string name="school_mail_view_source">Pirmkods</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Atjaunot noklusējumu</string>
     <string name="tab_editor_section_available_tabs">Pieejamie cilņi</string>
     <string name="tab_editor_section_current_tabs">Pašreizējie cilņi</string>
-    <string name="tab_editor_title">Ciļņu redaktors</string>
+    <string name="tab_editor_title">Pielāgot apakšējo joslu</string>
     <string name="tag_server_notification">Servera paziņojums</string>
     <string name="update_action_later">Vēlāk</string>
     <string name="update_action_skip_version">Izlaist šo versiju</string>

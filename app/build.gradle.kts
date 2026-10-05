@@ -49,8 +49,8 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 27
-        versionName = "2.2.0"
+        versionCode = 28
+        versionName = "2.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -126,6 +126,11 @@ android {
             // real android.util.Log call throws "not mocked", which would
             // limit migration and cache coverage to log-free code paths.
             isReturnDefaultValues = true
+            // Merged resources and manifest for Robolectric, so a Compose UI
+            // test can resolve stringResource and launch the ui-test-manifest
+            // ComponentActivity. CI runs the debug unit tests only, the
+            // variant that manifest is added to.
+            isIncludeAndroidResources = true
         }
     }
 
@@ -140,6 +145,9 @@ android {
         create("play") {
             dimension = "distribution"
             // No suffix — this is the canonical applicationId.
+            // The variant Android Studio opens on. Without this AGP picks the
+            // first flavor alphabetically, which is fdroid.
+            isDefault = true
         }
         create("fdroid") {
             dimension = "distribution"
@@ -593,6 +601,16 @@ dependencies {
     testImplementation(libs.greenmail) {
         exclude(group = "org.eclipse.angus", module = "jakarta.mail")
     }
+    // A real WorkManager on the JVM, for what BackgroundSyncWorker queues.
+    // work-testing supplies the in-process WorkManager; Robolectric the
+    // Context and SQLite it runs on.
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.robolectric)
+    // Compose UI tests on Robolectric, for composables whose behaviour hangs
+    // on permission state the JVM can fake and a device cannot: revoking a
+    // runtime permission kills the instrumented process.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

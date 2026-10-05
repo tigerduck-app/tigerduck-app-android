@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Hindi maidagdag</string>
     <string name="class_table_course_name">Pangalan ng kurso</string>
     <string name="class_table_delete">Burahin</string>
-    <string name="class_table_empty_message">I-pull para mag-refresh, i-tap ang + para magdagdag ng kurso, o lumipat sa ibang semestre</string>
+    <string name="class_table_empty_message">I-pull para mag-refresh, i-tap ang ⋯ para magdagdag ng kurso, o lumipat sa ibang semestre</string>
+    <string name="class_table_export_failed">Hindi ma-export ang iskedyul ng klase</string>
+    <string name="class_table_export_screenshot">I-export ang screenshot ng iskedyul ng klase</string>
+    <string name="class_table_more_actions">Higit pang mga aksyon</string>
     <string name="class_table_pick_color">Pumili ng kulay</string>
     <string name="class_table_rename_default_label">Default: %1$s</string>
     <string name="class_table_rename_revert">Ibalik sa default</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Walang nagpadala)</string>
     <string name="school_mail_no_subject">(Walang paksa)</string>
     <string name="school_mail_notification_settings_title">Mga notification ng mail ng paaralan</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Buksan</string>
     <string name="school_mail_parse_failed">Hindi mabasa ang format ng mail na ito. Ipinapakita na lang ang source nito.</string>
     <string name="school_mail_quote_header">Noong %1$@, sumulat si %2$@:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Ipakita lang ang hindi pa nababasa</string>
     <string name="school_mail_use_other_app">Gumamit ng ibang app</string>
     <string name="school_mail_view_formatted">Naka-format</string>
+    <string name="school_mail_view_light_mode">Tingnan sa maliwanag na mode</string>
     <string name="school_mail_view_mode">Pagtingin</string>
     <string name="school_mail_view_plain">Plain text</string>
     <string name="school_mail_view_source">Source</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">I-reset sa default</string>
     <string name="tab_editor_section_available_tabs">Mga available na tab</string>
     <string name="tab_editor_section_current_tabs">Mga kasalukuyang tab</string>
-    <string name="tab_editor_title">Editor ng tab</string>
+    <string name="tab_editor_title">I-customize ang bottom navigation</string>
     <string name="tag_server_notification">Abiso ng server</string>
     <string name="update_action_later">Mamaya</string>
     <string name="update_action_skip_version">Laktawan ang bersyong ito</string>

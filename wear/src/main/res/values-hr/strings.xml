@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Nije moguće dodati</string>
     <string name="class_table_course_name">Naziv kolegija</string>
     <string name="class_table_delete">Obriši</string>
-    <string name="class_table_empty_message">Povucite za osvježavanje, dodirnite + za dodavanje kolegija ili prijeđite na drugi semestar</string>
+    <string name="class_table_empty_message">Povucite za osvježavanje, dodirnite ⋯ za dodavanje kolegija ili prijeđite na drugi semestar</string>
+    <string name="class_table_export_failed">Raspored nije moguće izvesti</string>
+    <string name="class_table_export_screenshot">Izvezi snimku zaslona rasporeda</string>
+    <string name="class_table_more_actions">Više radnji</string>
     <string name="class_table_pick_color">Odaberi boju</string>
     <string name="class_table_rename_default_label">Zadano: %1$s</string>
     <string name="class_table_rename_revert">Vrati na zadano</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Nema pošiljatelja)</string>
     <string name="school_mail_no_subject">(Nema predmeta)</string>
     <string name="school_mail_notification_settings_title">Obavijesti školske pošte</string>
-    <string name="school_mail_notification_title">Poruka: %1$@</string>
     <string name="school_mail_open">Otvori</string>
     <string name="school_mail_parse_failed">Format ove poruke nije moguće pročitati. Umjesto toga prikazuje se izvorni kod.</string>
     <string name="school_mail_quote_header">Dana %1$@, %2$@ piše:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Prikaži samo nepročitano</string>
     <string name="school_mail_use_other_app">Koristi drugu aplikaciju</string>
     <string name="school_mail_view_formatted">Formatirano</string>
+    <string name="school_mail_view_light_mode">Prikaži u svijetlom načinu</string>
     <string name="school_mail_view_mode">Prikaz</string>
     <string name="school_mail_view_plain">Obični tekst</string>
     <string name="school_mail_view_source">Izvorni kod</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Vrati zadano</string>
     <string name="tab_editor_section_available_tabs">Dostupne kartice</string>
     <string name="tab_editor_section_current_tabs">Trenutne kartice</string>
-    <string name="tab_editor_title">Urednik kartica</string>
+    <string name="tab_editor_title">Prilagodi donju traku</string>
     <string name="tag_server_notification">Obavijest poslužitelja</string>
     <string name="update_action_later">Kasnije</string>
     <string name="update_action_skip_version">Preskoči ovu verziju</string>

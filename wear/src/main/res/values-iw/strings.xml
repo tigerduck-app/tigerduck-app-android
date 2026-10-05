@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">לא ניתן להוסיף</string>
     <string name="class_table_course_name">שם קורס</string>
     <string name="class_table_delete">מחק</string>
-    <string name="class_table_empty_message">יש למשוך כדי לרענן, להקיש על + כדי להוסיף קורס, או לעבור לסמסטר אחר</string>
+    <string name="class_table_empty_message">יש למשוך כדי לרענן, להקיש על ⋯ כדי להוסיף קורס, או לעבור לסמסטר אחר</string>
+    <string name="class_table_export_failed">לא ניתן היה לייצא את מערכת השעות</string>
+    <string name="class_table_export_screenshot">ייצוא צילום מסך של מערכת השעות</string>
+    <string name="class_table_more_actions">פעולות נוספות</string>
     <string name="class_table_pick_color">בחר צבע</string>
     <string name="class_table_rename_default_label">ברירת מחדל: %1$s</string>
     <string name="class_table_rename_revert">חזור לברירת המחדל</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(אין שולח)</string>
     <string name="school_mail_no_subject">(אין נושא)</string>
     <string name="school_mail_notification_settings_title">התראות דואר בית הספר</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">פתח</string>
     <string name="school_mail_parse_failed">לא ניתן היה לקרוא את הפורמט של ההודעה הזו. במקום זאת מוצג המקור שלה.</string>
     <string name="school_mail_quote_header">בתאריך %1$@, %2$@ כתב/ה:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">הצג רק הודעות שלא נקראו</string>
     <string name="school_mail_use_other_app">השתמש באפליקציה אחרת</string>
     <string name="school_mail_view_formatted">מעוצב</string>
+    <string name="school_mail_view_light_mode">הצג במצב בהיר</string>
     <string name="school_mail_view_mode">תצוגה</string>
     <string name="school_mail_view_plain">טקסט רגיל</string>
     <string name="school_mail_view_source">מקור</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">אפס לברירות מחדל</string>
     <string name="tab_editor_section_available_tabs">טאבים זמינים</string>
     <string name="tab_editor_section_current_tabs">טאבים נוכחיים</string>
-    <string name="tab_editor_title">עורך טאבים</string>
+    <string name="tab_editor_title">התאמה אישית של הסרגל התחתון</string>
     <string name="tag_server_notification">התראת שרת</string>
     <string name="update_action_later">מאוחר יותר</string>
     <string name="update_action_skip_version">דלג על גרסה זו</string>

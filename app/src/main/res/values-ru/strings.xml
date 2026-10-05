@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Не удалось добавить</string>
     <string name="class_table_course_name">Название курса</string>
     <string name="class_table_delete">Удалить</string>
-    <string name="class_table_empty_message">Потяните для обновления, нажмите +, чтобы добавить курс, или переключитесь на другой семестр</string>
+    <string name="class_table_empty_message">Потяните для обновления, нажмите ⋯, чтобы добавить курс, или переключитесь на другой семестр</string>
+    <string name="class_table_export_failed">Не удалось экспортировать расписание</string>
+    <string name="class_table_export_screenshot">Экспортировать снимок расписания</string>
+    <string name="class_table_more_actions">Другие действия</string>
     <string name="class_table_pick_color">Выбрать цвет</string>
     <string name="class_table_rename_default_label">По умолчанию: %1$s</string>
     <string name="class_table_rename_revert">Вернуть по умолчанию</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Нет отправителя)</string>
     <string name="school_mail_no_subject">(Без темы)</string>
     <string name="school_mail_notification_settings_title">Уведомления университетской почты</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Открыть</string>
     <string name="school_mail_parse_failed">Не удалось распознать формат письма. Показан исходный код.</string>
     <string name="school_mail_quote_header">%1$@, пользователь %2$@ писал:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Показывать только непрочитанные</string>
     <string name="school_mail_use_other_app">Использовать другое приложение</string>
     <string name="school_mail_view_formatted">Форматированный</string>
+    <string name="school_mail_view_light_mode">Показать в светлом режиме</string>
     <string name="school_mail_view_mode">Просмотр</string>
     <string name="school_mail_view_plain">Обычный текст</string>
     <string name="school_mail_view_source">Исходный код</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Сбросить по умолчанию</string>
     <string name="tab_editor_section_available_tabs">Доступные вкладки</string>
     <string name="tab_editor_section_current_tabs">Текущие вкладки</string>
-    <string name="tab_editor_title">Редактор вкладок</string>
+    <string name="tab_editor_title">Настроить нижнюю панель</string>
     <string name="tag_server_notification">Уведомление сервера</string>
     <string name="update_action_later">Позже</string>
     <string name="update_action_skip_version">Пропустить эту версию</string>

@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Kan inte lägga till</string>
     <string name="class_table_course_name">Kursnamn</string>
     <string name="class_table_delete">Ta bort</string>
-    <string name="class_table_empty_message">Dra för att uppdatera, tryck på + för att lägga till en kurs, eller byt till en annan semester</string>
+    <string name="class_table_empty_message">Dra för att uppdatera, tryck på ⋯ för att lägga till en kurs, eller byt till en annan semester</string>
+    <string name="class_table_export_failed">Det gick inte att exportera schemat</string>
+    <string name="class_table_export_screenshot">Exportera skärmbild av schemat</string>
+    <string name="class_table_more_actions">Fler åtgärder</string>
     <string name="class_table_pick_color">Välj färg</string>
     <string name="class_table_rename_default_label">Standard: %1$s</string>
     <string name="class_table_rename_revert">Återställ till standard</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Ingen avsändare)</string>
     <string name="school_mail_no_subject">(Inget ämne)</string>
     <string name="school_mail_notification_settings_title">Aviseringar för Skolmejl</string>
-    <string name="school_mail_notification_title">E-post: %1$@</string>
     <string name="school_mail_open">Öppna</string>
     <string name="school_mail_parse_failed">Det här mejlets format kunde inte läsas. Visar källkoden i stället.</string>
     <string name="school_mail_quote_header">Den %1$@ skrev %2$@:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Visa bara olästa</string>
     <string name="school_mail_use_other_app">Använd en annan app</string>
     <string name="school_mail_view_formatted">Formaterat</string>
+    <string name="school_mail_view_light_mode">Visa i ljust läge</string>
     <string name="school_mail_view_mode">Visning</string>
     <string name="school_mail_view_plain">Vanlig text</string>
     <string name="school_mail_view_source">Källkod</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Återställ standardvärden</string>
     <string name="tab_editor_section_available_tabs">Tillgängliga flikar</string>
     <string name="tab_editor_section_current_tabs">Nuvarande flikar</string>
-    <string name="tab_editor_title">Flikredigerare</string>
+    <string name="tab_editor_title">Anpassa navigeringsfältet</string>
     <string name="tag_server_notification">Serveravisering</string>
     <string name="update_action_later">Senare</string>
     <string name="update_action_skip_version">Hoppa över den här versionen</string>

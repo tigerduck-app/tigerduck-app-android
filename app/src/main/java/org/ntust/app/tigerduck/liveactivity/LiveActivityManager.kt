@@ -54,12 +54,17 @@ class LiveActivityManager @Inject constructor(
         }
     }
 
-    /** Recompute the scenario and push the result to the notifier. */
-    fun refresh() {
+    /**
+     * Recompute the scenario and push the result to the notifier.
+     *
+     * [quiet] is for a redraw nobody should hear, such as a change of
+     * language; see [LiveActivityNotifier.apply].
+     */
+    fun refresh(quiet: Boolean = false) {
         if (!managerJob.isActive) return
         refreshJob?.cancel()
         refreshJob = scope.launch {
-            refreshInternal()
+            refreshInternal(quiet)
         }
     }
 
@@ -82,7 +87,7 @@ class LiveActivityManager @Inject constructor(
         managerJob.cancel()
     }
 
-    private suspend fun refreshInternal() {
+    private suspend fun refreshInternal(quiet: Boolean = false) {
         // authState, not a session-liveness check: everything below reads local
         // JSON and the academic calendar, so what matters is whether a user
         // is signed in at all — not whether an SSO cookie happens to be warm.
@@ -144,7 +149,7 @@ class LiveActivityManager @Inject constructor(
                     "assignments=${assignments.size} quietToday=$quietToday",
             )
         }
-        notifier.apply(snapshot)
+        notifier.apply(snapshot, quiet)
 
         // Keep the class-preparing alarm set in sync with the current
         // course list + lead-time preference so reminders fire even when

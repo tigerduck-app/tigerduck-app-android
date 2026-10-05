@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Unable to add</string>
     <string name="class_table_course_name">Course name</string>
     <string name="class_table_delete">Delete</string>
-    <string name="class_table_empty_message">Pull to refresh, tap + to add a course, or switch to another semester</string>
+    <string name="class_table_empty_message">Pull to refresh, tap ⋯ to add a course, or switch to another semester</string>
+    <string name="class_table_export_failed">Couldn\'t export the class table</string>
+    <string name="class_table_export_screenshot">Export class table screenshot</string>
+    <string name="class_table_more_actions">More actions</string>
     <string name="class_table_pick_color">Pick colour</string>
     <string name="class_table_rename_default_label">Default: %1$s</string>
     <string name="class_table_rename_revert">Revert to default</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(No sender)</string>
     <string name="school_mail_no_subject">(No subject)</string>
     <string name="school_mail_notification_settings_title">School Mail notifications</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Open</string>
     <string name="school_mail_parse_failed">Couldn\'t read this mail\'s format. Showing its source instead.</string>
     <string name="school_mail_quote_header">On %1$@, %2$@ wrote:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Show unread only</string>
     <string name="school_mail_use_other_app">Use another app</string>
     <string name="school_mail_view_formatted">Formatted</string>
+    <string name="school_mail_view_light_mode">View in light mode</string>
     <string name="school_mail_view_mode">View</string>
     <string name="school_mail_view_plain">Plain text</string>
     <string name="school_mail_view_source">Source</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Reset defaults</string>
     <string name="tab_editor_section_available_tabs">Available tabs</string>
     <string name="tab_editor_section_current_tabs">Current tabs</string>
-    <string name="tab_editor_title">Tab editor</string>
+    <string name="tab_editor_title">Customise bottom bar</string>
     <string name="tag_server_notification">Server notification</string>
     <string name="update_action_later">Later</string>
     <string name="update_action_skip_version">Skip this version</string>

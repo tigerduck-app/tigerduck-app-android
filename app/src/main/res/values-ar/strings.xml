@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">تعذّرت الإضافة</string>
     <string name="class_table_course_name">اسم المقرر</string>
     <string name="class_table_delete">حذف</string>
-    <string name="class_table_empty_message">اسحب للتحديث، انقر على + لإضافة مقرر، أو بدّل إلى فصل دراسي آخر</string>
+    <string name="class_table_empty_message">اسحب للتحديث، انقر على ⋯ لإضافة مقرر، أو بدّل إلى فصل دراسي آخر</string>
+    <string name="class_table_export_failed">تعذّر تصدير الجدول الدراسي</string>
+    <string name="class_table_export_screenshot">تصدير لقطة شاشة للجدول الدراسي</string>
+    <string name="class_table_more_actions">المزيد من الإجراءات</string>
     <string name="class_table_pick_color">اختر لونًا</string>
     <string name="class_table_rename_default_label">الافتراضي: %1$s</string>
     <string name="class_table_rename_revert">العودة إلى الافتراضي</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(بلا مرسل)</string>
     <string name="school_mail_no_subject">(بلا موضوع)</string>
     <string name="school_mail_notification_settings_title">إشعارات البريد المدرسي</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">فتح</string>
     <string name="school_mail_parse_failed">تعذّرت قراءة تنسيق هذه الرسالة، سيتم عرض مصدرها بدلاً من ذلك.</string>
     <string name="school_mail_quote_header">في %1$@، كتب %2$@:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">إظهار غير المقروءة فقط</string>
     <string name="school_mail_use_other_app">استخدام تطبيق آخر</string>
     <string name="school_mail_view_formatted">منسّق</string>
+    <string name="school_mail_view_light_mode">عرض في الوضع الفاتح</string>
     <string name="school_mail_view_mode">طريقة العرض</string>
     <string name="school_mail_view_plain">نص عادي</string>
     <string name="school_mail_view_source">المصدر</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">استعادة الافتراضي</string>
     <string name="tab_editor_section_available_tabs">التبويبات المتاحة</string>
     <string name="tab_editor_section_current_tabs">التبويبات الحالية</string>
-    <string name="tab_editor_title">محرر التبويبات</string>
+    <string name="tab_editor_title">تخصيص شريط التنقل السفلي</string>
     <string name="tag_server_notification">إشعار الخادم</string>
     <string name="update_action_later">لاحقاً</string>
     <string name="update_action_skip_version">تخطّي هذا الإصدار</string>

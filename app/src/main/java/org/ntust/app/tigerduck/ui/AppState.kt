@@ -56,6 +56,15 @@ import javax.inject.Singleton
 internal fun effectiveCloudSyncWrite(requested: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
     effectiveCloudSyncEnabled(storedValue = requested, flavor = flavor)
 
+/**
+ * Whether to store [AppFeature.previousDefaultTabs] as this install's bar now
+ * that the default has Mail in Calendar's place: only for an install that
+ * predates the change ([hasCompletedOnboarding]) and only when its bar is
+ * untouched — a stored bar is the user's own and stays as it is.
+ */
+internal fun keepsPreviousDefaultTabs(hasCompletedOnboarding: Boolean, hasStoredTabs: Boolean): Boolean =
+    hasCompletedOnboarding && !hasStoredTabs
+
 @Singleton
 class AppState @Inject constructor(
     val authService: AuthService,
@@ -114,6 +123,18 @@ class AppState @Inject constructor(
         when (dataMigration.run()) {
             DataMigration.Outcome.NeedsUserReset -> _needsUserReset.value = true
             DataMigration.Outcome.Ok -> Unit
+        }
+        // An untouched bottom bar isn't stored — it follows
+        // AppFeature.defaultTabs — so when 2.3.0 swapped the default's Calendar
+        // for Mail, an existing user's bar would change under them. Keep their
+        // old default once instead; 2.3.0's What's New asks whether to
+        // switch. Checked once per install: a fresh install's first launch,
+        // before onboarding, has nothing to keep and gets the new default.
+        if (!prefs.previousDefaultTabsChecked) {
+            if (keepsPreviousDefaultTabs(prefs.hasCompletedOnboarding, prefs.hasStoredConfiguredTabs)) {
+                prefs.configuredTabs = AppFeature.previousDefaultTabs
+            }
+            prefs.previousDefaultTabsChecked = true
         }
         // TODO: remove in a future release once unfinished features ship (or
         // enough time has passed that no users still have these entries
@@ -521,6 +542,10 @@ class AppState @Inject constructor(
             prefs.clearAllPrefs()
             // Re-stamp the schema so the dialog doesn't re-fire on next launch.
             prefs.dataSchemaVersion = DataMigration.CURRENT_SCHEMA
+            // Same for the pre-2.3.0 bottom-bar check: once the user onboards
+            // again, the next launch would otherwise pin the old Calendar bar
+            // on what is now a fresh start.
+            prefs.previousDefaultTabsChecked = true
 
             // The mutableState caches above were seeded from prefs at init
             // time. Re-read so the UI shows defaults instead of ghost values

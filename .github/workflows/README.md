@@ -40,8 +40,7 @@ pushes to the Play Store production track at 10% staged rollout.
 
 Currently suspended.
 
-### `release-manual-playstore-internal.yaml` — Release (Manual + Play Store (Internal)) — *
-*suspended**
+### `release-manual-playstore-internal.yaml` — Release (Manual + Play Store (Internal)) — **suspended**
 
 Manual dispatch by tag. Same as the production variant but uploads to the Play
 Store **internal** track with `status: completed` (no staged rollout). Accepts
@@ -73,7 +72,7 @@ submodule references.
 Runs on PRs to `main` and `dev`. Regenerates the Open-source licences data from
 each release variant's dependency graph and fails if it differs from what is
 committed, so a dependency change cannot ship with a stale list. Two files per
-flavor, both written by the one export command:
+flavor, plus the watch's pair on play, all written by the one export command:
 
 - `res/raw/aboutlibraries.json` — the libraries and the licences they are
   published under, read from their POMs.

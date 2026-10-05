@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Impossible d\'ajouter</string>
     <string name="class_table_course_name">Nom du cours</string>
     <string name="class_table_delete">Supprimer</string>
-    <string name="class_table_empty_message">Tirez vers le bas pour actualiser, appuyez sur + pour ajouter un cours, ou changez de semestre</string>
+    <string name="class_table_empty_message">Tirez vers le bas pour actualiser, appuyez sur ⋯ pour ajouter un cours, ou changez de semestre</string>
+    <string name="class_table_export_failed">Impossible d\'exporter l\'emploi du temps</string>
+    <string name="class_table_export_screenshot">Exporter une capture de l\'emploi du temps</string>
+    <string name="class_table_more_actions">Plus d\'actions</string>
     <string name="class_table_pick_color">Choisir une couleur</string>
     <string name="class_table_rename_default_label">Par défaut : %1$s</string>
     <string name="class_table_rename_revert">Rétablir par défaut</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Aucun expéditeur)</string>
     <string name="school_mail_no_subject">(Aucun objet)</string>
     <string name="school_mail_notification_settings_title">Notifications de Messagerie universitaire</string>
-    <string name="school_mail_notification_title">Mail : %1$@</string>
     <string name="school_mail_open">Ouvrir</string>
     <string name="school_mail_parse_failed">Impossible de lire le format de ce message. Affichage de son code source à la place.</string>
     <string name="school_mail_quote_header">Le %1$@, %2$@ a écrit :</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Afficher uniquement les non lus</string>
     <string name="school_mail_use_other_app">Utiliser une autre application</string>
     <string name="school_mail_view_formatted">Mis en forme</string>
+    <string name="school_mail_view_light_mode">Afficher en mode clair</string>
     <string name="school_mail_view_mode">Affichage</string>
     <string name="school_mail_view_plain">Texte brut</string>
     <string name="school_mail_view_source">Code source</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Réinitialiser</string>
     <string name="tab_editor_section_available_tabs">Onglets disponibles</string>
     <string name="tab_editor_section_current_tabs">Onglets actuels</string>
-    <string name="tab_editor_title">Éditeur d\'onglets</string>
+    <string name="tab_editor_title">Personnaliser la barre inférieure</string>
     <string name="tag_server_notification">Notification serveur</string>
     <string name="update_action_later">Plus tard</string>
     <string name="update_action_skip_version">Ignorer cette version</string>

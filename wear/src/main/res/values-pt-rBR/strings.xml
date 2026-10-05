@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Não foi possível adicionar</string>
     <string name="class_table_course_name">Nome da disciplina</string>
     <string name="class_table_delete">Excluir</string>
-    <string name="class_table_empty_message">Puxe para atualizar, toque em + para adicionar uma disciplina ou mude de semestre</string>
+    <string name="class_table_empty_message">Puxe para atualizar, toque em ⋯ para adicionar uma disciplina ou mude de semestre</string>
+    <string name="class_table_export_failed">Não foi possível exportar a grade horária</string>
+    <string name="class_table_export_screenshot">Exportar captura da grade horária</string>
+    <string name="class_table_more_actions">Mais ações</string>
     <string name="class_table_pick_color">Escolher cor</string>
     <string name="class_table_rename_default_label">Padrão: %1$s</string>
     <string name="class_table_rename_revert">Restaurar padrão</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Sem remetente)</string>
     <string name="school_mail_no_subject">(Sem assunto)</string>
     <string name="school_mail_notification_settings_title">Notificações do E-mail universitário</string>
-    <string name="school_mail_notification_title">E-mail: %1$@</string>
     <string name="school_mail_open">Abrir</string>
     <string name="school_mail_parse_failed">Não foi possível ler o formato deste e-mail. Mostrando o código-fonte.</string>
     <string name="school_mail_quote_header">Em %1$@, %2$@ escreveu:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Mostrar somente não lidos</string>
     <string name="school_mail_use_other_app">Usar outro aplicativo</string>
     <string name="school_mail_view_formatted">Formatado</string>
+    <string name="school_mail_view_light_mode">Ver no modo claro</string>
     <string name="school_mail_view_mode">Visualização</string>
     <string name="school_mail_view_plain">Texto sem formatação</string>
     <string name="school_mail_view_source">Código-fonte</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Restaurar padrões</string>
     <string name="tab_editor_section_available_tabs">Abas disponíveis</string>
     <string name="tab_editor_section_current_tabs">Abas atuais</string>
-    <string name="tab_editor_title">Editor de abas</string>
+    <string name="tab_editor_title">Personalizar barra inferior</string>
     <string name="tag_server_notification">Notificação do servidor</string>
     <string name="update_action_later">Depois</string>
     <string name="update_action_skip_version">Pular esta versão</string>

@@ -170,7 +170,10 @@
     <string name="class_table_conflict_add_failed_title">Tidak dapat ditambah</string>
     <string name="class_table_course_name">Nama kursus</string>
     <string name="class_table_delete">Padam</string>
-    <string name="class_table_empty_message">Tarik untuk menyegarkan, ketik + untuk menambah kursus, atau tukar ke semester lain</string>
+    <string name="class_table_empty_message">Tarik untuk menyegarkan, ketik ⋯ untuk menambah kursus, atau tukar ke semester lain</string>
+    <string name="class_table_export_failed">Tidak dapat mengeksport jadual kelas</string>
+    <string name="class_table_export_screenshot">Eksport tangkapan skrin jadual kelas</string>
+    <string name="class_table_more_actions">Tindakan lain</string>
     <string name="class_table_pick_color">Pilih warna</string>
     <string name="class_table_rename_default_label">Lalai: %1$s</string>
     <string name="class_table_rename_revert">Kembalikan ke lalai</string>
@@ -672,7 +675,6 @@
     <string name="school_mail_no_sender">(Tiada penghantar)</string>
     <string name="school_mail_no_subject">(Tiada subjek)</string>
     <string name="school_mail_notification_settings_title">Pemberitahuan e-mel sekolah</string>
-    <string name="school_mail_notification_title">Email: %1$@</string>
     <string name="school_mail_open">Buka</string>
     <string name="school_mail_parse_failed">Tidak dapat membaca format e-mel ini. Memaparkan kod sumbernya sebagai gantinya.</string>
     <string name="school_mail_quote_header">Pada %1$@, %2$@ telah menulis:</string>
@@ -708,6 +710,7 @@
     <string name="school_mail_unread_only">Papar yang belum dibaca sahaja</string>
     <string name="school_mail_use_other_app">Guna aplikasi lain</string>
     <string name="school_mail_view_formatted">Diformat</string>
+    <string name="school_mail_view_light_mode">Lihat dalam mod cerah</string>
     <string name="school_mail_view_mode">Paparan</string>
     <string name="school_mail_view_plain">Teks biasa</string>
     <string name="school_mail_view_source">Kod sumber</string>
@@ -930,7 +933,7 @@
     <string name="tab_editor_reset_default">Tetapkan semula lalai</string>
     <string name="tab_editor_section_available_tabs">Tab tersedia</string>
     <string name="tab_editor_section_current_tabs">Tab semasa</string>
-    <string name="tab_editor_title">Editor tab</string>
+    <string name="tab_editor_title">Sesuaikan bar navigasi bawah</string>
     <string name="tag_server_notification">Pemberitahuan pelayan</string>
     <string name="update_action_later">Kemudian</string>
     <string name="update_action_skip_version">Langkau versi ini</string>

@@ -29,7 +29,7 @@ The app ships in two **distribution flavors** crossed with the standard
 
 | Variant         | Distribution channel          | FCM push | Cleartext to dev backend                                  | Use when                                                                 |
 |-----------------|-------------------------------|----------|-----------------------------------------------------------|--------------------------------------------------------------------------|
-| `playDebug`     | Sideload + dev                | Yes      | Yes (one LAN IP allowlisted — see *Cleartext HTTP* below) | Day-to-day local dev with the laptop backend. Default in Android Studio. |
+| `playDebug`     | Sideload + dev                | Yes      | Yes (any unpinned host — see *Cleartext HTTP* below)      | Day-to-day local dev with the laptop backend. Default in Android Studio. |
 | `playRelease`   | Google Play Store             | Yes      | No                                                        | Producing the Play Store APK / bundle.                                   |
 | `fdroidDebug`   | Sideload of the F-Droid build | No       | Yes                                                       | Smoke-testing the FOSS variant locally.                                  |
 | `fdroidRelease` | F-Droid (anti-features-clean) | No       | No                                                        | The artifact F-Droid's buildserver actually produces.                    |
@@ -161,8 +161,8 @@ adb devices                                        # confirm phone listed
 ./debug/install-play.sh                            # build + push the APK
 
 adb logcat -c && adb logcat \
-  TigerDuck-Push:V Push.Register:V \
-  TigerDuck-Bulletin:V FirebaseMessaging:I *:S
+  Push.Register:V Push.FcmBootstrap:V \
+  FcmService:V FirebaseMessaging:I *:S
 ```
 
 For a watch, repeat the pair/connect over ADB-over-Bluetooth or its own
@@ -171,72 +171,60 @@ the wear prompt.
 
 ## Local push backend
 
-The backend repo (`tigerduck-app/backend`) lives outside this tree. Clone it
-next to this repo and adjust the paths below if yours differs.
+The backend repo (`tigerduck-app/tigerduck-backend`) lives outside this tree.
+Clone it next to this repo and run it the way its README describes: with
+`TIGERDUCK_ENV=development` in its `.env`, `./start.sh` brings the stack up
+under Docker Compose and publishes the backend on host port `40000`.
 
 ```bash
-# Postgres (one-time):
-docker run -d --name tigerduck-dev-pg \
-  -e POSTGRES_PASSWORD=dev -e POSTGRES_DB=tigerduck -e POSTGRES_USER=tigerduck \
-  -p 5433:5432 postgres:16
-
-# Server:
-cd ~/tigerduck-app/backend
-nohup uv run uvicorn server.main:app --host 0.0.0.0 --port 8000 \
-  > /tmp/tigerduck-dev.log 2>&1 &
-
-# Ready check (server takes ~60 s on first boot to give up on the LLM probe):
-until curl -s -o /dev/null -w "%{http_code}" \
-  http://127.0.0.1:8000/v1/bulletins/taxonomy | grep -q 200; do sleep 2; done
-
-# Stop:
-lsof -ti:8000 | xargs kill
-docker stop tigerduck-dev-pg
+cd ../tigerduck-backend
+./start.sh                                        # up + status block
+docker compose exec backend curl -sS localhost:40000/health
+./logs.sh                                         # follow the logs
+./stop.sh                                         # down, volume kept
 ```
 
-The Android side reads the dev backend URL + shared secret from
-`local.properties` (root of this repo, gitignored). Keys: `pushBaseUrl` and
-`pushSharedSecret`. Both are baked into `BuildConfig` for `debug` builds; the
-`release` block uses `pushBaseUrlRelease` and the `PUSH_SHARED_SECRET` env var.
+The Android side reads the dev backend URL from `local.properties` (root of
+this repo, gitignored), key `pushBaseUrl`, baked into `BuildConfig` for
+`debug` builds. It defaults to `http://10.0.2.2:40000/v3` — the emulator's
+loopback to the host — so a physical phone needs
+`pushBaseUrl=http://<laptop-LAN-IP>:40000/v3`. The `release` block uses the
+`PUSH_BASE_URL` env var, then `pushBaseUrlRelease`, then
+`https://api.tigerduck.app/v3`. No shared secret is involved any more.
+
+Settings → Other settings → API endpoint overrides that URL at run time, in
+every build, for both push registration and bulletins — handy for switching
+backends without a rebuild.
 
 ## Cleartext HTTP
 
 Production network security pins the NTUST hosts and forbids cleartext. The
 debug variant overrides that with `app/src/debug/res/xml/network_security_config.xml`,
-which whitelists exactly one private LAN address for the dev push backend.
-Find the `<domain>…</domain>` line under the dev-laptop `<domain-config>` and
-replace it with your own laptop's LAN IP (e.g. `192.168.1.x`); update
-`pushBaseUrl` in `local.properties` to match. Both must point at the same host
-or the phone will get `CLEARTEXT_NOT_PERMITTED`.
+whose `<base-config>` permits cleartext to any host that has no
+`<domain-config>` of its own, so a LAN backend at any address works with
+nothing to edit. The pinned NTUST hosts and the app's own backend domain keep
+`cleartextTrafficPermitted="false"` even in debug. Release builds use the
+locked-down `app/src/main/` file.
 
 ## Push smoke test
 
 With the `playDebug` build installed (`./debug/install-play.sh`), signed in,
 and Wi-Fi sharing the laptop's network:
 
-1. Confirm registration: backend log should show `POST /v1/devices/register
-   200`. To inspect the row:
+1. Confirm registration: the backend log should show
+   `POST /v3/devices/register` answering 200.
+
+2. Seed bulletins for the dispatcher to send. The backend ships a script for
+   exactly this: it inserts already-classified rows (no LLM call) that the
+   next dispatcher tick fans out to every matching device.
 
    ```bash
-   docker exec -i tigerduck-dev-pg psql -U tigerduck -d tigerduck \
-     -c "SELECT user_id, platform, length(pts_token_hex), created_at \
-         FROM device_registrations ORDER BY created_at DESC LIMIT 5;"
+   cd ../tigerduck-backend
+   docker compose exec backend python scripts/seed_test_bulletins.py
+   # --clear deletes earlier seeded rows first
    ```
 
-2. Inject a fake bulletin so the dispatcher has something to send:
-
-   ```bash
-   docker exec -i tigerduck-dev-pg psql -U tigerduck -d tigerduck <<'SQL'
-   INSERT INTO bulletins (external_id, title, title_clean, source_url,
-                          posted_at, canonical_org)
-   VALUES ('manual-' || extract(epoch from now())::bigint,
-           '測試公告', '測試公告',
-           'https://example.com/test', NOW(), 'oaa');
-   SQL
-   ```
-
-3. The bulletin dispatcher runs every minute; backend log will show an `fcm.send`
-   followed by a 200 from Google. The phone should display a notification on
+3. On the next dispatcher tick the phone should display a notification on
    the `bulletins` channel; tapping it opens
    `tigerduck://announcement/<id>` and lands on the detail screen.
 
@@ -261,20 +249,12 @@ and Wi-Fi sharing the laptop's network:
   `MissingGoogleServicesStrategy.IGNORE` so fdroid variants skip the file
   entirely once it's under the play flavor.
 
-- **Phone gets `CLEARTEXT_NOT_PERMITTED`** → laptop's current LAN IP doesn't
-  match the one whitelisted in `app/src/debug/res/xml/network_security_config.xml`.
-  Update the `<domain>` entry under the dev-laptop `<domain-config>` and rebuild.
-
-- **`POST /v1/devices/register` returns 401** → `pushSharedSecret` in
-  `local.properties` doesn't match `TIGERDUCK_API_SHARED_SECRET` in
-  `~/tigerduck-app/backend/.env`. Either side can be regenerated; keep them
-  in sync.
-
 - **Phone never receives push, but registration succeeded** → backend log
   will say `fcm.using_recording_sender` instead of `fcm.using_real_sender`.
-  Check that `~/tigerduck-app/backend/server/secrets/fcm_service_account.json`
-  exists and `TIGERDUCK_FCM_PROJECT_ID` in `.env` matches its
-  `project_id` field. Restart uvicorn after fixing.
+  Check that `server/secrets/fcm_service_account.json` exists in the backend
+  checkout and `TIGERDUCK_FCM_PROJECT_ID` in its `.env` matches that file's
+  `project_id` field. Restart the stack (`./stop.sh && ./start.sh`) after
+  fixing.
 
 - **Debug clock override seems stuck on** → it persists across app restarts
   by design. Open Settings → Developer → "Use fake time" → toggle off, or

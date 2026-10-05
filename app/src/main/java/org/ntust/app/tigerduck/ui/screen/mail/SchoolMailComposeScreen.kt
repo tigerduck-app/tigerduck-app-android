@@ -47,7 +47,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -58,6 +57,7 @@ import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
+import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.RecipientSlot
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.util.replaceIosArg
 
@@ -169,10 +169,10 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
             }
             state.loadError?.let { LoadErrorBanner(it, onRetry = { viewModel.retryPrefill(labels) }) }
             state.error?.let { ErrorText(it) }
-            RecipientField(stringResource(R.string.school_mail_to), state.to, viewModel::setTo, enabled = fieldsEnabled)
+            MailRecipientTokenField(stringResource(R.string.school_mail_to), state.to, { viewModel.updateRecipients(RecipientSlot.TO, it) }, enabled = fieldsEnabled)
             if (state.showCcBcc) {
-                RecipientField(stringResource(R.string.school_mail_cc), state.cc, viewModel::setCc, enabled = fieldsEnabled)
-                RecipientField(stringResource(R.string.school_mail_bcc), state.bcc, viewModel::setBcc, enabled = fieldsEnabled)
+                MailRecipientTokenField(stringResource(R.string.school_mail_cc), state.cc, { viewModel.updateRecipients(RecipientSlot.CC, it) }, enabled = fieldsEnabled)
+                MailRecipientTokenField(stringResource(R.string.school_mail_bcc), state.bcc, { viewModel.updateRecipients(RecipientSlot.BCC, it) }, enabled = fieldsEnabled)
             } else {
                 TextButton(onClick = viewModel::showCcBcc, enabled = fieldsEnabled) { Text(stringResource(R.string.school_mail_show_cc_bcc)) }
             }
@@ -251,18 +251,6 @@ fun SchoolMailComposeScreen(onDone: () -> Unit, viewModel: SchoolMailComposeView
             }
         }
     }
-}
-
-@Composable
-private fun RecipientField(label: String, value: String, onChange: (String) -> Unit, enabled: Boolean) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        label = { Text(label) },
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        keyboardOptions = KeyboardOptions(autoCorrectEnabled = false, keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
-    )
 }
 
 /** The one place that turns a [ComposeError] into display text, shared by the inline [ErrorText]

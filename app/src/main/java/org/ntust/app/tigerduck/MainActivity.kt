@@ -4,10 +4,8 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.media.AudioManager
-import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -30,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,7 +36,6 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.data.model.WhatsNewContent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.ApiVersionGate
@@ -56,7 +52,9 @@ import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptHost
 import org.ntust.app.tigerduck.ui.navigation.AppNavigation
 import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
-import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewDialog
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
+import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.update.UpdateChecker
@@ -115,10 +113,11 @@ class MainActivity : AppCompatActivity() {
     lateinit var mailChecker: org.ntust.app.tigerduck.mail.sync.MailChecker
 
     private val widgetStartRoute = mutableStateOf<String?>(null)
-    private val whatsNewContent = mutableStateOf<WhatsNewContent?>(null)
+    private val whatsNewFlow = mutableStateOf<WhatsNewFlow?>(null)
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            appState.systemPermissions.recordLaunchPromptResult(granted)
             if (granted) liveActivityManager.refresh()
         }
 
@@ -128,7 +127,10 @@ class MainActivity : AppCompatActivity() {
         volumeControlStream = AudioManager.STREAM_NOTIFICATION
 
         applyRotationPreference()
-        requestNotificationPermissionIfNeeded()
+        // Fresh start only. uiMode, fontScale and density are not in the
+        // manifest's configChanges, so a dark-mode switch recreates this
+        // Activity — and HyperOS raises the prompt again on every request.
+        if (savedInstanceState == null) requestNotificationPermissionIfNeeded()
         // Only schedule on the first Activity creation. WorkManager.UPDATE would
         // be idempotent, but re-enqueuing on every rotation/config change is
         // wasted work (and thrashes WorkManager's internal bookkeeping DB).
@@ -146,12 +148,13 @@ class MainActivity : AppCompatActivity() {
             updateChecker.maybePromptForUpdate()
         }
         // Resolve "What's new" on every onCreate, including config-change
-        // recreations: the dialog's versionCode is recorded only once the user
+        // recreations: the sheet's versionCode is recorded only once the user
         // dismisses it (see resolveWhatsNew), so re-deriving here re-shows a
-        // dialog the user had not yet dismissed instead of dropping it
-        // permanently on rotation (issue #89). freshStart keeps the debug
-        // "Replay" sentinel from being consumed by a mere recreation.
-        resolveWhatsNew(freshStart = savedInstanceState == null)
+        // sheet the user had not yet dismissed instead of dropping it
+        // permanently on rotation (issue #89). A recreation also keeps the
+        // debug "Replay" sentinel from being consumed and restores the exact
+        // pages that were on screen.
+        resolveWhatsNew(savedInstanceState)
 
         setContent {
             // Re-apply orientation whenever the user changes the setting
@@ -207,17 +210,20 @@ class MainActivity : AppCompatActivity() {
                         // page 1 would be the first thing that user sees. The
                         // state stays set, so it opens the moment the wizard
                         // is done, which is also the better place for it.
-                        whatsNewContent.value?.takeIf { !appState.showOnboarding }?.let { content ->
-                            WhatsNewDialog(
-                                content = content,
+                        whatsNewFlow.value?.takeIf { !appState.showOnboarding }?.let { flow ->
+                            WhatsNewSheet(
+                                flow = flow,
                                 onDismiss = {
-                                    whatsNewContent.value = null
+                                    whatsNewFlow.value = null
                                     // Record the seen versionCode only now: a
-                                    // dialog dropped by a config-change
+                                    // sheet dropped by a config-change
                                     // recreation before this runs is re-shown
-                                    // on the next onCreate (issue #89).
-                                    appPreferences.lastSeenWhatsNewVersionCode =
-                                        BuildConfig.VERSION_CODE
+                                    // on the next onCreate (issue #89). Any
+                                    // dismissal counts, from any page.
+                                    recordWhatsNewSeen(
+                                        appPreferences.lastSeenWhatsNewVersionCode,
+                                        BuildConfig.VERSION_CODE,
+                                    )
                                 },
                             )
                         }
@@ -379,77 +385,91 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Decides whether to show the "What's new" dialog. A fresh install records
-     * the current version and shows nothing; upgrades show the dialog if
-     * `whatsnew.json` has an entry. A user upgrading from a build that predates
-     * the last-seen pref has no recorded versionCode either, but — unlike a
-     * fresh install — has completed onboarding; that distinguishes the two so
-     * real upgrades still get the dialog once. The debug "Replay What's new"
-     * sentinel forces the newest authored entry.
+     * Decides what the "What's new" sheet shows on this launch — see
+     * [WhatsNewGate.plan]. After an upgrade: the feature pages of every
+     * version since the last one seen, oldest first, then the running
+     * version's summary. A fresh install records the current version and
+     * shows nothing; a user upgrading from a build that predates the
+     * last-seen pref has no record either but has completed onboarding, and
+     * gets the running version's pages once. The debug "Replay What's new"
+     * sentinel forces the newest registered version.
      *
-     * Safe to call on every onCreate: when a dialog is shown the last-seen
+     * Safe to call on every onCreate: when the sheet is shown the last-seen
      * versionCode is recorded on dismiss (not here), so a config-change
-     * recreation re-runs this and re-shows a still-pending dialog instead of
-     * dropping it permanently (issue #89). [freshStart] is false for such
-     * recreations; the debug replay sentinel is only consumed when it is true,
-     * so rotating after tapping the debug row can't pop the dialog mid-session.
+     * recreation re-runs this and re-shows a still-pending sheet instead of
+     * dropping it permanently (issue #89). On such a recreation
+     * [savedInstanceState] carries the page ids that were on screen, so the
+     * same pages come back even if an answer the user gave changed whether a
+     * page applies; the debug replay sentinel is only consumed on a genuine
+     * process start, so rotating after tapping the debug row can't pop the
+     * sheet mid-session.
+     *
+     * The catalog and `whatsnew.json` are only built and read when the plan
+     * needs them, so the everyday launch — already on the version last seen —
+     * costs a preference read and nothing more.
      */
-    private fun resolveWhatsNew(freshStart: Boolean) {
+    private fun resolveWhatsNew(savedInstanceState: Bundle?) {
         val current = BuildConfig.VERSION_CODE
         val lastSeen = appPreferences.lastSeenWhatsNewVersionCode
         val languageTag = resources.configuration.locales[0].toLanguageTag()
+        val catalog by lazy { WhatsNewCatalog.pages(appState) }
+        val summaries by lazy { whatsNewRepository.summaries(languageTag) }
 
-        // Debug "Replay What's new": show the newest authored entry even if
-        // this build's versionCode predates it — whatsnew.json is usually
-        // written ahead of the version bump. Only consume the sentinel on a
-        // genuine process start; on a rotation/config-change recreation leave
-        // it set so the replay fires on the *next* launch as the Settings row
-        // promises, instead of popping the dialog the instant the device turns.
-        if (lastSeen == AppPreferences.WHATS_NEW_REPLAY) {
-            if (!freshStart) return
-            val replay = whatsNewRepository.latestEntry(languageTag)
-            whatsNewContent.value = replay
-            if (replay == null) appPreferences.lastSeenWhatsNewVersionCode = current
-            return
+        val plan = WhatsNewGate.plan(
+            lastSeen = lastSeen,
+            current = current,
+            hasCompletedOnboarding = appPreferences.hasCompletedOnboarding,
+            freshStart = savedInstanceState == null,
+            pageVersions = { catalog.keys },
+            summaryVersions = { summaries.keys },
+            wasShowing = savedInstanceState?.containsKey(KEY_WHATS_NEW_PAGE_IDS) == true,
+        )
+        when (plan) {
+            WhatsNewGate.Plan.Defer -> Unit
+
+            // Nothing to show — record now so the lookup doesn't re-run on
+            // every launch, and so the next upgrade only stacks the versions
+            // after this one.
+            WhatsNewGate.Plan.RecordOnly -> recordWhatsNewSeen(lastSeen, current)
+
+            is WhatsNewGate.Plan.Show -> {
+                val flow = WhatsNewFlow.from(
+                    plan = plan,
+                    catalog = catalog,
+                    summaries = summaries,
+                    restoredPageIds = savedInstanceState?.getStringArrayList(KEY_WHATS_NEW_PAGE_IDS),
+                )
+                whatsNewFlow.value = flow
+                // Every page was filtered out by its "only if this applies"
+                // check and there's no summary: same as nothing to show.
+                if (flow == null) recordWhatsNewSeen(lastSeen, current)
+            }
         }
+    }
 
-        // No versionCode on record. A genuine fresh install shows nothing — a
-        // new user has missed nothing. A user upgrading from a build that
-        // predates this pref also has no record, but has completed onboarding;
-        // fall through and show the current version's entry once.
-        if (lastSeen == AppPreferences.WHATS_NEW_UNSET && !appPreferences.hasCompletedOnboarding) {
-            appPreferences.lastSeenWhatsNewVersionCode = current
-            return
-        }
+    /**
+     * Stores [WhatsNewGate.recordedAfter]: the running versionCode, or the
+     * newer one already on record after a downgrade. Skips the write when
+     * nothing changes, which is every launch after the first on a version.
+     */
+    private fun recordWhatsNewSeen(lastSeen: Int, current: Int) {
+        val recorded = WhatsNewGate.recordedAfter(lastSeen, current)
+        if (recorded != lastSeen) appPreferences.lastSeenWhatsNewVersionCode = recorded
+    }
 
-        val content = when {
-            // UNSET here means a pre-feature upgrade (onboarding already done);
-            // the normal gate only fires for a recorded older versionCode.
-            lastSeen == AppPreferences.WHATS_NEW_UNSET ||
-                    WhatsNewGate.shouldShow(lastSeen, current) ->
-                whatsNewRepository.entryFor(current, languageTag)
-
-            else -> null
-        }
-        whatsNewContent.value = content
-        if (content == null) {
-            // Nothing to show — record now so a missing entry does not
-            // re-trigger the lookup on every launch. When a dialog *is* shown,
-            // its onDismiss records the versionCode instead.
-            appPreferences.lastSeenWhatsNewVersionCode = current
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        whatsNewFlow.value?.let {
+            outState.putStringArrayList(KEY_WHATS_NEW_PAGE_IDS, ArrayList(it.pageIds))
         }
     }
 
     private fun requestNotificationPermissionIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
         // During onboarding, the dedicated permission page triggers the prompt
         // with context. Skip the bare auto-prompt on cold start until that's
         // done — including an upgrade re-run, which shows that page again.
         if (appState.showOnboarding) return
-        val granted = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.POST_NOTIFICATIONS,
-        ) == PackageManager.PERMISSION_GRANTED
-        if (!granted) {
+        if (appState.systemPermissions.shouldRequestNotificationsAtLaunch()) {
             requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -532,3 +552,6 @@ private fun UpdateRequiredHost() {
 }
 
 private const val TIGERDUCK_WEBSITE_URL = "https://tigerduck.app"
+
+/** Page ids of a pending What's New sheet, kept across a config-change recreation. */
+private const val KEY_WHATS_NEW_PAGE_IDS = "whatsNewPageIds"
