@@ -41,6 +41,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -355,15 +356,7 @@ fun MainNavigation(
                                     context,
                                     HapticScenario.TabSwitch,
                                 )
-                                val fromId = navController.currentBackStackEntry?.id
-                                navController.navigate(route) {
-                                    popUpTo(popUpToDest) {
-                                        inclusive = false
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = route != Screen.More.route
-                                }
-                                tabTap.record(fromId, navController.currentBackStackEntry?.id)
+                                navController.navigateToTab(route, firstTab = popUpToDest, tabTap)
                             }
                         )
                     }
@@ -651,6 +644,23 @@ fun MainNavigation(
             }
         }
     }
+}
+
+/**
+ * A bottom-bar tap: clear everything above [firstTab], open [route] once, and
+ * record the move in [tabTap] so its transition fades even when Navigation
+ * Compose reports it as a pop.
+ */
+internal fun NavController.navigateToTab(route: String, firstTab: String, tabTap: TabTap) {
+    val fromId = currentBackStackEntry?.id
+    navigate(route) {
+        popUpTo(firstTab) {
+            inclusive = false
+        }
+        launchSingleTop = true
+        restoreState = route != Screen.More.route
+    }
+    tabTap.record(fromId, currentBackStackEntry?.id)
 }
 
 fun AppFeature.toRoute(): String = when (this) {

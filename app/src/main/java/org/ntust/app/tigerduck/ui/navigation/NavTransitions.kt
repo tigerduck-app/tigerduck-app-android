@@ -58,7 +58,7 @@ internal class TabTap {
     fun made(fromId: String, toId: String): Boolean = move == (fromId to toId)
 }
 
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.slides(
+internal fun AnimatedContentTransitionScope<NavBackStackEntry>.slides(
     isPop: Boolean,
     tabRoutes: Set<String>,
     tabTap: TabTap,
