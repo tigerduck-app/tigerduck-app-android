@@ -141,7 +141,8 @@
         { "icon": "notification", "title": "通知分類堆疊", "body": "課程、作業、信件與其他通知分開堆疊。" },
         { "icon": "mail", "title": "信箱體驗優化", "body": "信箱介面與操作更順手。" },
         { "icon": "language", "title": "修正通知類別語言", "body": "通知類別名稱會跟隨 App 語言（包含 HyperOS）。" },
-        { "icon": "sync", "title": "優化背景同步", "body": "背景同步更穩定。" }
+        { "icon": "sync", "title": "優化背景同步", "body": "背景同步更穩定。" },
+        { "icon": "sparkles", "title": "介面與操作優化", "body": "頁面切換與返回手勢更流暢，也不再重複詢問通知權限。" }
       ]
     },
     "en": {
@@ -151,7 +152,8 @@
         { "icon": "notification", "title": "Notifications stack by kind", "body": "Classes, homework, mail and others stack separately." },
         { "icon": "mail", "title": "A better mail experience", "body": "School Mail is smoother to use." },
         { "icon": "language", "title": "Notification names fixed", "body": "Notification categories follow the app's language, HyperOS included." },
-        { "icon": "sync", "title": "Better background sync", "body": "Background sync is more reliable." }
+        { "icon": "sync", "title": "Better background sync", "body": "Background sync is more reliable." },
+        { "icon": "sparkles", "title": "Optimized UI/UX", "body": "Smoother page transitions and back swipes, and no more repeated notification prompts." }
       ]
     }
   }
