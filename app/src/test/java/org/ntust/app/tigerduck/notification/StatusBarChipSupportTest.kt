@@ -170,19 +170,31 @@ class StatusBarChipSupportTest {
     // --- which chips need the countdown spelled out -----------------------
 
     @Test
-    fun `only the HyperOS island needs a static countdown`() {
+    fun `the HyperOS island needs a static countdown`() {
         assertEquals(true, skin(manufacturer = "Xiaomi", hyperOsVersion = 3).chipShowsStaticText)
         assertEquals(true, skin(manufacturer = "Xiaomi", hyperOsVersion = 4).chipShowsStaticText)
     }
 
     @Test
+    fun `the ColorOS and OriginOS islands need a static countdown`() {
+        // The in-class preview, Android 16: the OPPO Reno 11 (ColorOS 16.0.5)
+        // island showed the title and the vivo V60 Lite (OriginOS 6) island
+        // the app name, where the countdown should have been. OnePlus and
+        // realme ship the same Oplus ROM as OPPO.
+        for (maker in listOf("OPPO", "OnePlus", "realme", "vivo")) {
+            assertEquals(maker, true, skin(manufacturer = maker).chipShowsStaticText)
+        }
+    }
+
+    @Test
     fun `chips that run the chronometer keep it`() {
         // Short critical text outranks the chronometer on AOSP chips, so
-        // setting it anywhere else would freeze a clock that works.
+        // setting it anywhere else would freeze a clock that works. The Honor
+        // X6d 5G (MagicOS 10) island ticked the preview's countdown.
         for (skin in listOf(
             skin(manufacturer = "Google"),
             skin(manufacturer = "samsung", oneUiVersion = DeviceSkin.ONE_UI_8_5),
-            skin(manufacturer = "OPPO"),
+            skin(manufacturer = "HONOR"),
         )) {
             assertEquals(skin.manufacturer, false, skin.chipShowsStaticText)
         }
@@ -195,6 +207,9 @@ class StatusBarChipSupportTest {
             false,
             skin(sdkInt = 35, manufacturer = "Xiaomi", hyperOsVersion = 3).chipShowsStaticText,
         )
+        for (maker in listOf("OPPO", "vivo")) {
+            assertEquals(maker, false, skin(sdkInt = 35, manufacturer = maker).chipShowsStaticText)
+        }
     }
 
     // --- skins that need nothing --------------------------------------------

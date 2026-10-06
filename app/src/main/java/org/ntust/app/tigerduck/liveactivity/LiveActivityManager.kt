@@ -190,7 +190,7 @@ class LiveActivityManager @Inject constructor(
         // boundary once the class has less than a tick left to run.
         if (snapshot?.progress != null) candidates += now.time + PROGRESS_TICK_MS
 
-        // The HyperOS island shows the countdown as text it never redraws —
+        // Some islands show the countdown as text they never redraw —
         // see DeviceSkin.chipShowsStaticText — so there each change of the
         // displayed minute needs a post of its own. Other chips tick alone.
         val target = snapshot?.countdownTarget?.time

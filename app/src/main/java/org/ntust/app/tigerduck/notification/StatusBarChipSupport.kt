@@ -77,6 +77,8 @@ data class DeviceSkin(
      */
     val isOplus: Boolean get() = matches("oppo") || matches("oneplus") || matches("realme")
 
+    val isVivo: Boolean get() = matches("vivo")
+
     private fun matches(vendor: String) =
         manufacturer.equals(vendor, ignoreCase = true) || brand.equals(vendor, ignoreCase = true)
 
@@ -123,9 +125,16 @@ data class DeviceSkin(
      * slot with the first non-empty of short critical text, title, subtext and
      * text, so a notification that leaves the first unset — correctly, for
      * every other skin — shows its title there instead of a countdown.
+     *
+     * ColorOS and OriginOS do not read it either. With the in-class preview
+     * posted, the OPPO Reno 11 (ColorOS 16.0.5) island showed the title and
+     * the vivo V60 Lite (OriginOS 6) island the app name, while the Honor
+     * X6d 5G (MagicOS 10) ticked the countdown. Both draw short critical text
+     * when it is set — IslandCheck's percentage shows on each.
      */
     val chipShowsStaticText: Boolean
-        get() = isXiaomi && chipSupport != StatusBarChipSupport.UNSUPPORTED
+        get() = (isXiaomi || isOplus || isVivo) &&
+            chipSupport != StatusBarChipSupport.UNSUPPORTED
 
     companion object {
         /** First One UI built on Android 16 QPR2, and the first that promotes anything. */

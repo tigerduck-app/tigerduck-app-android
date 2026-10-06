@@ -58,7 +58,7 @@ import kotlin.math.roundToInt
  * and with it the chip on any OEM whose answer is wrong. The capability is a
  * diagnostic for the settings screen, never a precondition for posting.
  *
- * Two vendors do need code: see [samsungNowBarExtras], and the HyperOS
+ * Some vendors do need code: see [samsungNowBarExtras], and the static
  * countdown below.
  */
 @Singleton
@@ -163,14 +163,15 @@ class LiveActivityNotifier @Inject constructor(
             .setVisibility(visibility)
             .apply { if (!soundWanted) setSilent(true) }
 
-        // No setShortCriticalText, except on HyperOS: the chip picks its
-        // content in priority order — short critical text, then a metric,
-        // then `when` — and only the last of those ticks. Leaving it unset is
-        // what makes the chip a live counting-down clock instead of a string
-        // frozen at whatever the remaining time was when we last posted.
-        // HyperOS's island never reads `when` and shows the title in its
-        // place, so there a frozen string is the best on offer, and
-        // LiveActivityManager re-posts it each time the minute changes.
+        // No setShortCriticalText, except on the islands that need it: the
+        // chip picks its content in priority order — short critical text,
+        // then a metric, then `when` — and only the last of those ticks.
+        // Leaving it unset is what makes the chip a live counting-down clock
+        // instead of a string frozen at whatever the remaining time was when
+        // we last posted. The HyperOS, ColorOS and OriginOS islands never
+        // read `when` and show the title or the app name in its place, so
+        // there a frozen string is the best on offer, and LiveActivityManager
+        // re-posts it each time the minute changes.
         val target = snapshot.countdownTarget?.time ?: 0L
         val now = AppClock.nowMillis()
         if (target > now) {
