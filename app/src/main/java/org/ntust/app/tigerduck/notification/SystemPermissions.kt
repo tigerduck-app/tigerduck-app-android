@@ -72,6 +72,14 @@ class SystemPermissions @Inject constructor(
      */
     private val chipSupport: StatusBarChipSupport by lazy { DeviceSkin.current().chipSupport }
 
+    init {
+        forgetInferredChipGrant(
+            prefs,
+            chipWasAssumed = DeviceSkin.current().isOplus &&
+                chipSupport != StatusBarChipSupport.UNSUPPORTED,
+        )
+    }
+
     /** True if the permission is granted right now. Returns true when not applicable. */
     fun isGranted(p: AppPermission): Boolean = when (p) {
         AppPermission.NOTIFICATIONS -> {
@@ -103,11 +111,6 @@ class SystemPermissions @Inject constructor(
             // for a permission that does not apply, and keeps the permission
             // out of revokedOrDeclinedUnmuted().
             StatusBarChipSupport.UNSUPPORTED -> true
-
-            // ColorOS renders the chip while the capability API returns false.
-            // Believing the API here would leave a permanent red row, and a
-            // settings link, on a device where the feature already works.
-            StatusBarChipSupport.ALWAYS_ON -> true
 
             StatusBarChipSupport.PLATFORM_DECIDES ->
                 NotificationManagerCompat.from(context).canPostPromotedNotifications()
@@ -333,12 +336,33 @@ class SystemPermissions @Inject constructor(
         return candidates
     }
 
-    private fun keyGranted(p: AppPermission) = "granted_${p.name}"
     private fun keyMuted(p: AppPermission) = "muted_${p.name}"
     private fun keyDeclined(p: AppPermission) = "declined_${p.name}"
 
     companion object {
         private const val PREFS_NAME = "tigerduck_permissions"
+
+        /** Set once [forgetInferredChipGrant] has run on this install. */
+        private const val KEY_CHIP_GRANT_REREAD = "chip_grant_reread"
+
+        private fun keyGranted(p: AppPermission) = "granted_${p.name}"
+
+        /**
+         * Earlier builds reported the chip granted on every ColorOS 16 phone
+         * without asking the platform, and [recordCurrentGrants] banked that.
+         * Now that the platform is asked, a phone whose switch is still at its
+         * default, off, would have the warning popup say the chip "was
+         * previously enabled", which it never was. [chipWasAssumed] is true on
+         * the phones those builds answered for, and there the flag is dropped
+         * once; the next [recordCurrentGrants] banks it again wherever the
+         * chip really is on, so a later turn-off is still warned about.
+         */
+        internal fun forgetInferredChipGrant(prefs: SharedPreferences, chipWasAssumed: Boolean) {
+            if (prefs.getBoolean(KEY_CHIP_GRANT_REREAD, false)) return
+            val editor = prefs.edit()
+            if (chipWasAssumed) editor.remove(keyGranted(AppPermission.PROMOTED_NOTIFICATIONS))
+            editor.putBoolean(KEY_CHIP_GRANT_REREAD, true).apply()
+        }
 
         @StringRes
         fun displayNameResId(p: AppPermission): Int = when (p) {

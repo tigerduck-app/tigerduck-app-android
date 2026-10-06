@@ -51,12 +51,11 @@ import kotlin.math.roundToInt
  * `ui_rich_ongoing` flag, so no chip appears whatever we send, and this
  * stays an ordinary ongoing notification with a countdown and a progress bar.
  *
- * None of that is gated on a capability check here, deliberately.
- * `canPostPromotedNotifications()` is wrong in both directions on shipping
- * hardware — see [org.ntust.app.tigerduck.notification.DeviceSkin] — and
- * posting when it would have said no costs nothing, because an unpromoted
- * Live Update is just an ordinary ongoing notification. Gating on it would
- * silently remove the chip on OEMs that render it fine. The capability is a
+ * None of that is gated on a capability check here, deliberately. Posting
+ * when `canPostPromotedNotifications()` would have said no costs nothing,
+ * because an unpromoted Live Update is still the Live Update, as an ordinary
+ * ongoing notification in the shade; gating on it would take that away too,
+ * and with it the chip on any OEM whose answer is wrong. The capability is a
  * diagnostic for the settings screen, never a precondition for posting.
  *
  * Two vendors do need code: see [samsungNowBarExtras], and the HyperOS

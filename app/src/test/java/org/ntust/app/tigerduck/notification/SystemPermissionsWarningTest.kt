@@ -12,6 +12,7 @@ package org.ntust.app.tigerduck.notification
 import android.Manifest
 import android.app.ActivityManager
 import android.app.Application
+import android.content.Context
 import android.os.Build
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -134,5 +135,53 @@ class SystemPermissionsWarningTest {
         systemPermissions.recordCurrentGrants()
 
         assertTrue(systemPermissions.isMuted(AppPermission.BATTERY_OPTIMIZATION))
+    }
+
+    // --- the chip grant earlier builds assumed on ColorOS 16 --------------
+
+    private fun chipPrefs() =
+        context.getSharedPreferences("chip_grant_test", Context.MODE_PRIVATE)
+
+    @Test
+    fun `a chip grant assumed on ColorOS is forgotten so the popup cannot claim it`() {
+        // Earlier builds reported the chip granted on every ColorOS 16 phone
+        // without asking the platform, and banked it. On a Reno 11 with the
+        // switch at its default, off, the popup would then say the chip was
+        // "previously enabled".
+        val prefs = chipPrefs()
+        prefs.edit().putBoolean(GRANTED_CHIP_KEY, true).commit()
+
+        SystemPermissions.forgetInferredChipGrant(prefs, chipWasAssumed = true)
+
+        assertFalse(prefs.getBoolean(GRANTED_CHIP_KEY, false))
+    }
+
+    @Test
+    fun `a chip grant the platform reported is kept`() {
+        // A Pixel or a Galaxy was always asked, so its flag is real.
+        val prefs = chipPrefs()
+        prefs.edit().putBoolean(GRANTED_CHIP_KEY, true).commit()
+
+        SystemPermissions.forgetInferredChipGrant(prefs, chipWasAssumed = false)
+
+        assertTrue(prefs.getBoolean(GRANTED_CHIP_KEY, false))
+    }
+
+    @Test
+    fun `the assumed chip grant is forgotten once, not on every launch`() {
+        // After the sweep the chip is banked again from a real reading, and a
+        // later turn-off of the switch must still be warned about.
+        val prefs = chipPrefs()
+        SystemPermissions.forgetInferredChipGrant(prefs, chipWasAssumed = true)
+        prefs.edit().putBoolean(GRANTED_CHIP_KEY, true).commit()
+
+        SystemPermissions.forgetInferredChipGrant(prefs, chipWasAssumed = true)
+
+        assertTrue(prefs.getBoolean(GRANTED_CHIP_KEY, false))
+    }
+
+    private companion object {
+        /** The stored key itself, so a rename that strands old flags fails here. */
+        const val GRANTED_CHIP_KEY = "granted_PROMOTED_NOTIFICATIONS"
     }
 }
