@@ -70,7 +70,7 @@ class SystemPermissions @Inject constructor(
      * for `SystemProperties` by reflection, which is not worth repeating on
      * every ON_RESUME re-read of the permission rows.
      */
-    private val chipSupport: StatusBarChipSupport by lazy { DeviceSkin.current().chipSupport }
+    private val chipSupport: StatusBarChipSupport = DeviceSkin.current().chipSupport
 
     init {
         forgetInferredChipGrant(
@@ -355,14 +355,22 @@ class SystemPermissions @Inject constructor(
         private fun keyGranted(p: AppPermission) = "granted_${p.name}"
 
         /**
-         * Earlier builds reported the chip granted on every ColorOS 16 phone
-         * without asking the platform, and [recordCurrentGrants] banked that.
-         * Now that the platform is asked, a phone whose switch is still at its
-         * default, off, would have the warning popup say the chip "was
-         * previously enabled", which it never was. [chipWasAssumed] is true on
-         * the phones those builds answered for, and there the flag is dropped
-         * once; the next [recordCurrentGrants] banks it again wherever the
-         * chip really is on, so a later turn-off is still warned about.
+         * v2.2 reported the chip granted on every ColorOS 16 phone without
+         * asking the platform, and [recordCurrentGrants] banked that. Now that
+         * the platform is asked, a phone whose switch is still at its default,
+         * off, would have the warning popup say the chip "was previously
+         * enabled", which it never was. [chipWasAssumed] is true on every Oplus
+         * phone with a chip, which covers every phone v2.2 answered for, and
+         * there the flag is dropped once; the next [recordCurrentGrants] banks
+         * it again wherever the chip really is on, so a later turn-off is
+         * still warned about.
+         *
+         * A flag v2.0 or v2.1 banked, which did ask the platform, is dropped
+         * with them: nothing tells the two apart. That costs the popup only
+         * to someone who skipped v2.2, had the switch on and turned it off
+         * before this upgrade, and the Live Updates screen still shows them
+         * the gap. Keeping every flag would put the false claim in front of
+         * every phone still at the default.
          */
         internal fun forgetInferredChipGrant(prefs: SharedPreferences, chipWasAssumed: Boolean) {
             if (prefs.getBoolean(KEY_CHIP_GRANT_REREAD, false)) return

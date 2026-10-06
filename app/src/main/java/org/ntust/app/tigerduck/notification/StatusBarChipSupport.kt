@@ -131,6 +131,12 @@ data class DeviceSkin(
      * the vivo V60 Lite (OriginOS 6) island the app name, while the Honor
      * X6d 5G (MagicOS 10) ticked the countdown. Both draw short critical text
      * when it is set — IslandCheck's percentage shows on each.
+     *
+     * OnePlus and realme are included unmeasured, as is every other vivo:
+     * OxygenOS and realme UI are built on the same Oplus ROM, and a wrong
+     * guess costs far less one way than the other. Text on a chip that would
+     * have run the clock still counts down, a minute at a time; no text on an
+     * island that ignores the clock shows no countdown at all.
      */
     val chipShowsStaticText: Boolean
         get() = (isXiaomi || isOplus || isVivo) &&
