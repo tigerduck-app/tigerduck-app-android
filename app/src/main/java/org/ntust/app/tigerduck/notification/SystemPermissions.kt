@@ -284,8 +284,9 @@ class SystemPermissions @Inject constructor(
             // the page may well exist and open, and toggling it would change
             // nothing. Offering no destination is more honest than a dead end.
             if (isApplicable(AppPermission.PROMOTED_NOTIFICATIONS)) {
-                // The platform warns this activity may not exist on every
-                // build; tryStartActivity already swallows the miss.
+                // On ColorOS 16.0.5 this opens the switch itself. The platform
+                // warns it may not exist on every build, and on MagicOS 10 it
+                // does not; openSettings falls back for that.
                 Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).apply {
                     putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
                 }
@@ -308,7 +309,13 @@ class SystemPermissions @Inject constructor(
         }
 
         val intent = settingsIntent(p) ?: return false
-        return tryStartActivity(intent)
+        if (tryStartActivity(intent)) return true
+
+        // MagicOS 10 has no promotion page, and there the chip follows the
+        // app's notifications, so their page is the honest next best. Without
+        // this the green row is a tap that does nothing.
+        return p == AppPermission.PROMOTED_NOTIFICATIONS &&
+            settingsIntent(AppPermission.NOTIFICATIONS)?.let(::tryStartActivity) == true
     }
 
     private fun tryStartActivity(intent: Intent): Boolean {
