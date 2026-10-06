@@ -13,7 +13,6 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
-import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 import javax.inject.Inject
@@ -38,7 +37,6 @@ class LiveActivityManager @Inject constructor(
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
     private val resolver = LiveActivityResolver()
-    private val deviceSkin = DeviceSkin.current()
     private val managerJob = SupervisorJob(appScope.coroutineContext[Job])
     private val scope = appScope + managerJob
     private var refreshJob: Job? = null
@@ -190,12 +188,14 @@ class LiveActivityManager @Inject constructor(
         // boundary once the class has less than a tick left to run.
         if (snapshot?.progress != null) candidates += now.time + PROGRESS_TICK_MS
 
-        // The HyperOS island shows the countdown as text it never redraws —
-        // see DeviceSkin.chipShowsStaticText — so there each change of the
-        // displayed minute needs a post of its own. Other chips tick alone.
+        // Some islands show the countdown as text they never redraw — see
+        // LiveActivityNotifier.showsStaticCountdown — so there each change of
+        // the displayed minute needs a post of its own. Other chips tick alone.
         val target = snapshot?.countdownTarget?.time
-        if (target != null && target > now.time && deviceSkin.chipShowsStaticText) {
-            candidates += StaticCountdown.nextChangeAt(target, now.time)
+        val minuteChange = if (target != null && target > now.time && notifier.showsStaticCountdown()) {
+            StaticCountdown.nextChangeAt(target, now.time)
+        } else {
+            null
         }
 
         val classPrepLead = preferences.classPreparingLeadTimeSec * 1000
@@ -213,16 +213,7 @@ class LiveActivityManager @Inject constructor(
                 candidates += a.dueDate.time
             }
 
-        val nowMs = now.time
-        // Pad by 1s to make sure we land *after* the boundary tick, not on it,
-        // so the resolver sees the new state instead of the prior one.
-        val futureCandidates = candidates.filter { it > nowMs }.map { it + 1_000L }
-        // Floor at 30s so a near-instant boundary doesn't burn battery, and
-        // ceil at 30 min so a long-idle stretch still gets a watchdog refresh.
-        val nextBoundary = futureCandidates.minOrNull() ?: (nowMs + 30 * 60_000L)
-        val triggerAt = nextBoundary.coerceAtLeast(nowMs + 30_000L)
-
-        boundaryScheduler.scheduleAt(triggerAt)
+        boundaryScheduler.scheduleAt(boundaryTriggerAt(now.time, candidates, minuteChange))
     }
 
     private fun nextClassBoundaries(
@@ -252,4 +243,23 @@ class LiveActivityManager @Inject constructor(
          */
         const val PROGRESS_TICK_MS = 2 * 60_000L
     }
+}
+
+/**
+ * When the boundary alarm fires: the earliest of [candidates] still ahead of
+ * [nowMs], or [minuteChange] — the next change of a static countdown's
+ * minute, when one is showing — if that comes sooner.
+ */
+internal fun boundaryTriggerAt(nowMs: Long, candidates: List<Long>, minuteChange: Long?): Long {
+    // Pad by 1s to make sure we land *after* the boundary tick, not on it,
+    // so the resolver sees the new state instead of the prior one.
+    val futureCandidates = candidates.filter { it > nowMs }.map { it + 1_000L }
+    // Floor at 30s so a near-instant boundary doesn't burn battery, and
+    // ceil at 30 min so a long-idle stretch still gets a watchdog refresh.
+    val nextBoundary = futureCandidates.minOrNull() ?: (nowMs + 30 * 60_000L)
+    val floored = nextBoundary.coerceAtLeast(nowMs + 30_000L)
+    // The minute change skips the floor. It comes once a minute at most, so
+    // it cannot run away, and a post landing just before one would otherwise
+    // leave the island a minute behind for up to half a minute.
+    return minuteChange?.let { minOf(floored, it + 1_000L) } ?: floored
 }

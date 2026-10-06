@@ -131,6 +131,11 @@ android {
             // ComponentActivity. CI runs the debug unit tests only, the
             // variant that manifest is added to.
             isIncludeAndroidResources = true
+            // Robolectric's API 36 sandbox sets up ApplicationSharedMemory by
+            // writing a FileDescriptor through jdk.internal.access.SharedSecrets,
+            // which java.base does not export. Without this, any test pinned
+            // to API 36 fails before its first line runs.
+            all { it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
         }
     }
 
