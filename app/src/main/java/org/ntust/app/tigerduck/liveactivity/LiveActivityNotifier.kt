@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.BuildConfig
@@ -171,14 +172,14 @@ class LiveActivityNotifier @Inject constructor(
         // we last posted. The HyperOS, ColorOS and OriginOS islands never
         // read `when` and show the title or the app name in its place, so
         // there a frozen string is the best on offer, and LiveActivityManager
-        // re-posts it each time the minute changes.
+        // re-posts it each time the minute changes — see showsStaticCountdown.
         val target = snapshot.countdownTarget?.time ?: 0L
         val now = AppClock.nowMillis()
         if (target > now) {
             builder.setUsesChronometer(true)
             builder.setChronometerCountDown(true)
             builder.setWhen(target)
-            if (deviceSkin.chipShowsStaticText) {
+            if (showsStaticCountdown()) {
                 builder.setShortCriticalText(
                     StaticCountdown.format(
                         StaticCountdown.minutesLeft(target, now),
@@ -228,7 +229,23 @@ class LiveActivityNotifier @Inject constructor(
     }
 
     /**
-     * The one vendor-specific thing this class does.
+     * Whether a post carries the countdown as text, and so needs a post of its
+     * own each time the displayed minute changes.
+     *
+     * Only on an island that never reads the chronometer — see
+     * [DeviceSkin.chipShowsStaticText] — and only while the platform will
+     * promote the post at all. ColorOS ships its per-app switch off, and with
+     * it off there is no island: the per-minute posts would wake the phone
+     * for text nobody sees. HyperOS picks what reaches its island by this
+     * same check, and the ColorOS 16.0.5 island followed it exactly, so here
+     * it can be believed. It still never decides whether to post.
+     */
+    fun showsStaticCountdown(): Boolean =
+        deviceSkin.chipShowsStaticText &&
+            NotificationManagerCompat.from(context).canPostPromotedNotifications()
+
+    /**
+     * The vendor code for One UI; the static countdown above is the rest.
      *
      * Samsung's Now Bar (即時通知) runs a pipeline that predates AOSP Live
      * Updates and ignores a plain promoted notification, so on One UI the chip

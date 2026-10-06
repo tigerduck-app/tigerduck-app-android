@@ -141,15 +141,15 @@ class LiveActivityPromotionTest {
     }
 
     /**
-     * HyperOS's island shows short critical text, else the title, and never
-     * the chronometer — so without this the island reads the class name where
-     * every other device shows a countdown.
+     * The HyperOS, ColorOS and OriginOS islands show short critical text when
+     * it is set and never the chronometer — so without it they read the class
+     * name or the app name where every other device shows a countdown.
      */
     @Test
-    fun hyperOsIslandGetsTheCountdownAsText() {
+    fun staticTextIslandsGetTheCountdownAsText() {
         assumeTrue(
-            "Only the HyperOS island shows a static countdown",
-            DeviceSkin.current().chipShowsStaticText,
+            "Only an island that ignores the chronometer, with promotion on, gets text",
+            expectsStaticCountdown(),
         )
 
         val text = postInClass().extras.getString(SHORT_CRITICAL_TEXT)
@@ -166,12 +166,17 @@ class LiveActivityPromotionTest {
     @Test
     fun otherChipsKeepTheLiveChronometer() {
         assumeTrue(
-            "The HyperOS island is covered above",
-            !DeviceSkin.current().chipShowsStaticText,
+            "Islands that need the countdown as text are covered above",
+            !expectsStaticCountdown(),
         )
 
         assertNull(postInClass().extras.getString(SHORT_CRITICAL_TEXT))
     }
+
+    /** Mirrors [LiveActivityNotifier.showsStaticCountdown]. */
+    private fun expectsStaticCountdown(): Boolean =
+        DeviceSkin.current().chipShowsStaticText &&
+            NotificationManagerCompat.from(context).canPostPromotedNotifications()
 
     private fun postInClass(): Notification {
         val prefs = AppPreferences(context)
