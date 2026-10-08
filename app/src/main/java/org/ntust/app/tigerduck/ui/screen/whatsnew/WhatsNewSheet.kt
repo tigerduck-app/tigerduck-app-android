@@ -22,18 +22,25 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -71,6 +78,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -85,6 +94,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
@@ -108,9 +118,24 @@ fun WhatsNewSheet(flow: WhatsNewFlow, onDismiss: () -> Unit) {
     // configuration the summary was looked up with — so page copy and the
     // summary always agree on the language.
     val language = WhatsNewLanguage.of(LocalConfiguration.current.locales[0].toLanguageTag())
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        // Bottom only. The default also pads by however much of the status
+        // bar the sheet's top is under, which for this tall sheet only
+        // happens mid-bounce: that changes the sheet's height, Material
+        // restarts its settle with the fling's original velocity, and the
+        // sheet keeps bouncing on its own.
+        contentWindowInsets = { WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom) },
+    ) {
         CompositionLocalProvider(LocalWhatsNewLanguage provides language) {
             WhatsNewFlowContent(
+                modifier = Modifier
+                    .nestedScroll(KeepOpenSheetDown)
+                    // Drags on the parts that don't scroll (the top bar, the
+                    // buttons) go through nested scroll too, so the
+                    // connection above sees their flings as well.
+                    .scrollable(rememberScrollableState { 0f }, Orientation.Vertical),
                 flow = flow,
                 onFinish = {
                     // Animate the sheet away before dropping it; guarded so a
@@ -125,8 +150,24 @@ fun WhatsNewSheet(flow: WhatsNewFlow, onDismiss: () -> Unit) {
     }
 }
 
+/**
+ * Swallows what's left of an upward fling. Material hands it to the sheet
+ * even when the sheet is already fully open, and its spring then throws the
+ * sheet past its top and back, lifting the page off the bottom of the
+ * screen. A sheet dragged partway down still gets the fling: Material takes
+ * it before the content does.
+ */
+private object KeepOpenSheetDown : NestedScrollConnection {
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity =
+        if (available.y < 0f) Velocity(0f, available.y) else Velocity.Zero
+}
+
 @Composable
-private fun WhatsNewFlowContent(flow: WhatsNewFlow, onFinish: () -> Unit) {
+private fun WhatsNewFlowContent(
+    flow: WhatsNewFlow,
+    onFinish: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     // A Binder call, so read once per sheet rather than per recomposition.
     val animate = remember(context) { animationsEnabled(context) }
@@ -137,7 +178,7 @@ private fun WhatsNewFlowContent(flow: WhatsNewFlow, onFinish: () -> Unit) {
     val advance: () -> Unit = { if (current >= lastIndex) onFinish() else index = current + 1 }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             // A fixed height so the sheet doesn't jump between short and
             // tall pages.
