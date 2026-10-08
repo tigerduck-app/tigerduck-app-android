@@ -5,25 +5,30 @@
 //
 // - It hands the leftover of an upward fling to an already fully open sheet,
 //   whose spring then throws it past its top. KeepOpenSheetDownTest pins the
-//   rule that swallows it; the first two tests here pin that the rule is
-//   wired in, for flings from the scrolling list and from the button row
-//   that doesn't scroll.
+//   rule that swallows it; the "leaves the open sheet where it is" tests pin
+//   that every part of the sheet hands its flings to that rule: the list,
+//   short or scrolled to its end, the button row that doesn't scroll, and
+//   the drag handle the sheet draws itself.
 // - Its default insets pad by however much of the status bar the sheet's top
 //   is under, so a bounce changed the sheet's height, which restarted the
-//   bounce, forever. A fling on Material's own drag handle never reaches the
-//   rule and still throws the sheet past its top once; the third test pins
-//   that the sheet then comes to rest.
+//   bounce, forever. A sheet grabbed while it springs back is Material's to
+//   drag, and can still be thrown past its top once; "comes to rest" pins
+//   that it then settles.
 //
-// Robolectric gives the window no status bar, so setUp hands the sheet one.
+// Robolectric gives the window no status bar, so openSheet hands the sheet
+// one.
 
 package org.ntust.app.tigerduck.ui.screen.whatsnew
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
@@ -32,7 +37,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -63,10 +67,14 @@ class WhatsNewSheetFlingTest {
         ),
     )
 
+    /** Long enough that the list scrolls. */
+    private val longSummary = summary.copy(
+        items = List(12) { WhatsNewSummaryItem(title = "Feature ${it + 1}", body = "What it does.", icon = null) },
+    )
+
     private var dismissed = false
 
-    @Before
-    fun setUp() {
+    private fun openSheet(summary: WhatsNewSummary = this.summary) {
         composeRule.setContent {
             WhatsNewSheet(WhatsNewFlow(pages = emptyList(), summary = summary), onDismiss = { dismissed = true })
         }
@@ -91,6 +99,10 @@ class WhatsNewSheetFlingTest {
 
     private fun continueTop() = continueButton().fetchSemanticsNode().boundsInWindow.top
 
+    /** Where [this] ends, scrolled out of view or not. */
+    private fun SemanticsNodeInteraction.bottom() =
+        fetchSemanticsNode().let { it.positionInWindow.y + it.size.height }
+
     /** A quick flick upward from [node], then where the button is on each of the next [frames] frames. */
     private fun flingUpFrom(node: SemanticsNodeInteraction, frames: Int = 120): List<Float> {
         composeRule.mainClock.autoAdvance = false
@@ -109,6 +121,7 @@ class WhatsNewSheetFlingTest {
 
     @Test
     fun `an upward fling on the list leaves the open sheet where it is`() {
+        openSheet()
         val rest = continueTop()
 
         val tops = flingUpFrom(title())
@@ -117,7 +130,23 @@ class WhatsNewSheetFlingTest {
     }
 
     @Test
+    fun `an upward fling that scrolls a long list to its end leaves the sheet where it is`() {
+        openSheet(longSummary)
+        val rest = continueTop()
+        val lastRow = composeRule.onNodeWithText(longSummary.items.last().title!!)
+        assertTrue("the list fits without scrolling", lastRow.bottom() > rest)
+
+        val tops = flingUpFrom(title())
+
+        // The list ran to its end, and what was left of the fling reached
+        // the sheet.
+        assertTrue("the list did not scroll to its end", lastRow.bottom() <= rest)
+        assertStaysPut(rest, tops)
+    }
+
+    @Test
     fun `an upward fling on the button row leaves the open sheet where it is`() {
+        openSheet()
         val rest = continueTop()
 
         val tops = flingUpFrom(continueButton())
@@ -126,13 +155,30 @@ class WhatsNewSheetFlingTest {
     }
 
     @Test
-    fun `a sheet flung up by its drag handle comes to rest`() {
+    fun `an upward fling on the drag handle leaves the open sheet where it is`() {
+        openSheet()
         val rest = continueTop()
 
-        val tops = flingUpFrom(dragHandle(), frames = 180)
+        val tops = flingUpFrom(dragHandle())
 
-        // It may overshoot once — that's Material's own spring — but within
-        // three seconds it has to be still, back where it rests.
+        assertStaysPut(rest, tops)
+    }
+
+    @Test
+    fun `a sheet flung up while it springs back comes to rest`() {
+        openSheet()
+        val rest = continueTop()
+        composeRule.mainClock.autoAdvance = false
+        // A short, slow pull: not enough to close, so the sheet springs back…
+        title().performTouchInput { swipeDown(startY = centerY, endY = centerY + 120f, durationMillis = 800) }
+        val pulled = continueTop()
+        repeat(6) { composeRule.mainClock.advanceTimeByFrame() }
+        assertTrue("the sheet is not springing back", continueTop() in rest + 0.5f..pulled - 0.5f)
+
+        // …and is flicked up on the way. Material's own drag takes that one,
+        // and throws the sheet past its top once.
+        val tops = flingUpFrom(continueButton(), frames = 180)
+
         val lastSecond = tops.takeLast(60)
         assertTrue(
             "the sheet was still moving between ${lastSecond.min()} and ${lastSecond.max()}",
@@ -141,7 +187,37 @@ class WhatsNewSheetFlingTest {
     }
 
     @Test
+    fun `tapping the drag handle closes the sheet`() {
+        openSheet()
+        dragHandle().performClick()
+        composeRule.waitForIdle()
+
+        assertTrue(dismissed)
+    }
+
+    @Test
+    fun `the drag handle offers TalkBack a way to close the sheet`() {
+        openSheet()
+        dragHandle().performSemanticsAction(SemanticsActions.Dismiss)
+        composeRule.waitForIdle()
+
+        assertTrue(dismissed)
+    }
+
+    @Test
+    // A landscape phone or a split-screen half: 92% of this would put the
+    // sheet's top 25px under the status bar.
+    @Config(qualifiers = "w384dp-h360dp-xxhdpi")
+    fun `on a short window the resting sheet stays clear of the status bar`() {
+        openSheet()
+        val sheetTop = dragHandle().fetchSemanticsNode().boundsInWindow.top
+
+        assertTrue("the sheet's top is at $sheetTop, under the 100px status bar", sheetTop >= 99.5f)
+    }
+
+    @Test
     fun `a downward fling still closes the sheet`() {
+        openSheet()
         title().performTouchInput { swipeDown(startY = centerY, endY = centerY + 900f, durationMillis = 60) }
         composeRule.waitForIdle()
 
