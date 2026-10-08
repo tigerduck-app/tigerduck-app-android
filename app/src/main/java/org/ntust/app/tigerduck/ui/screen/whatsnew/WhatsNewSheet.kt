@@ -157,7 +157,7 @@ fun WhatsNewSheet(flow: WhatsNewFlow, onDismiss: () -> Unit) {
  * screen. A sheet dragged partway down still gets the fling: Material takes
  * it before the content does.
  */
-private object KeepOpenSheetDown : NestedScrollConnection {
+internal object KeepOpenSheetDown : NestedScrollConnection {
     override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity =
         if (available.y < 0f) Velocity(0f, available.y) else Velocity.Zero
 }
