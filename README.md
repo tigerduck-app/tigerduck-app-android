@@ -16,7 +16,7 @@
 </a>
 
 **繁體中文** | [English](README.en.md)
-
+日社
 </div>
 
 ## 總覽
@@ -202,7 +202,7 @@ cd tigerduck-app-android
 # 已經 clone 過的話，補抓子模組
 git submodule update --init --recursive
 
-# 以 Android Studio 開啟（預設為 playDebug），或用 Gradle 直接 build
+# 以 Android Studio 開啟，或用 Gradle 直接 build
 # 目前有 play 與 fdroid 兩個 product flavor，請擇一
 ./gradlew :app:assemblePlayDebug     # 或 :app:assembleFdroidDebug
 ./gradlew :app:installPlayDebug      # 或 :app:installFdroidDebug
