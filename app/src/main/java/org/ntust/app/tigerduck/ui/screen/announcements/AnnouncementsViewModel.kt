@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.announcements
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,13 @@ import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import java.time.Instant
 import javax.inject.Inject
+
+/**
+ * How long a refresh of the list stands for a later visit. Bulletins arrive a
+ * few a day, so a visit inside this window has nothing new to fetch; a pull
+ * still refreshes, whatever the age.
+ */
+private const val LIST_FRESH_FOR_MS = 5 * 60_000L
 
 /**
  * Drives AnnouncementsScreen. Ports BulletinsViewModel.swift faithfully:
@@ -113,7 +121,24 @@ class AnnouncementsViewModel @Inject constructor(
                 repository.putSummaries(cached)
                 _state.update { applyFilters(it.copy(items = sortedUnique(cached))) }
             }
-            refresh()
+            // This view model is rebuilt on every visit, so each visit used
+            // to refetch the first page and prefetch five more behind it,
+            // only to replace the cached list with the same list. A visit
+            // soon after a refresh keeps what that refresh saved, and picks
+            // the cursor up where it stopped. A pull still refreshes.
+            val recent = if (cached.isEmpty()) null else repository.recentList(
+                includeDeleted = _state.value.showDeleted,
+                nowMs = SystemClock.elapsedRealtime(),
+                maxAgeMs = LIST_FRESH_FOR_MS,
+            )
+            if (recent != null) {
+                nextCursor = recent.nextCursor
+                _state.update {
+                    it.copy(loadState = LoadState.Loaded, hasMore = recent.nextCursor != null)
+                }
+            } else {
+                refresh()
+            }
             launch {
                 try {
                     fetchTaxonomyOnce()
@@ -169,6 +194,9 @@ class AnnouncementsViewModel @Inject constructor(
                     )
                 }
                 cache.save(merged)
+                repository.listRefreshed(
+                    SystemClock.elapsedRealtime(), includeDeleted, response.nextCursor,
+                )
                 // Only prune when the cursor chain is exhausted — pruning on the
                 // first page would drop read-IDs for older bulletins not yet
                 // fetched (e.g., after Auto Backup restore on reinstall).
@@ -236,7 +264,10 @@ class AnnouncementsViewModel @Inject constructor(
             }
             // Persist the final merged snapshot once when the prefetch chain
             // settles, instead of rewriting summaries.json on every page.
-            latest?.let { cache.save(it) }
+            latest?.let {
+                cache.save(it)
+                repository.listAdvanced(includeDeleted, nextCursor)
+            }
         }
     }
 
@@ -271,6 +302,7 @@ class AnnouncementsViewModel @Inject constructor(
                     )
                 }
                 cache.save(merged)
+                repository.listAdvanced(s.showDeleted, response.nextCursor)
                 if (response.nextCursor == null) {
                     val ids = merged.map { it.id }
                     readState.prune(ids)
