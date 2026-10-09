@@ -72,6 +72,24 @@ class SsoLoginService @Inject constructor(
         password: String
     ): Boolean = loginMutex.withLock { logIn(serviceUrl, studentId, password) }
 
+    /**
+     * A sign-in with credentials just entered. [ensureServiceLogin] takes a
+     * session the jar already holds as signed in, without submitting the
+     * credentials; that is right for the account re-logging itself in, and
+     * wrong for someone new, whose sign-in would then pass on the strength
+     * of a session left by the account before. So this one empties the jar
+     * first. Under the same lock, so a login still running for the account
+     * that left finishes before the jar is emptied, not after.
+     */
+    suspend fun signIn(
+        serviceUrl: String,
+        studentId: String,
+        password: String
+    ): Boolean = loginMutex.withLock {
+        sessionManager.invalidateSession()
+        logIn(serviceUrl, studentId, password)
+    }
+
     private suspend fun logIn(
         serviceUrl: String,
         studentId: String,

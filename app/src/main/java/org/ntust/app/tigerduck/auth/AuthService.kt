@@ -209,7 +209,7 @@ class AuthService @Inject constructor(
                 return@withLock true
             }
 
-            val success = performSsoLoginUnlocked(normalizedId, password)
+            val success = performSsoLoginUnlocked(normalizedId, password, signingIn = true)
 
             if (success) {
                 credentials.ntustStudentId = normalizedId
@@ -289,13 +289,22 @@ class AuthService @Inject constructor(
      * Kotlin `Mutex` is non-reentrant, so the public entry points each acquire
      * the lock once and delegate here, avoiding the deadlock that would happen
      * if one path called the other.
+     *
+     * [signingIn] for credentials just entered, which are checked from an
+     * empty session rather than trusting whatever session the jar holds: it
+     * may still be another account's — see [SsoLoginService.signIn].
      */
     private suspend fun performSsoLoginUnlocked(
         normalizedId: String,
         password: String,
+        signingIn: Boolean = false,
     ): Boolean {
         val serviceUrl = "https://courseselection.ntust.edu.tw/"
-        val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+        val success = if (signingIn) {
+            ssoLoginService.signIn(serviceUrl, normalizedId, password)
+        } else {
+            ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+        }
         if (success && !credentials.isLibraryTokenValid) {
             // Best-effort: library credentials may differ from NTUST SSO, so a
             // failure here must not fail the SSO login — but log it, otherwise
@@ -333,7 +342,7 @@ class AuthService @Inject constructor(
         // sign in would find its session warm and read its roster.
         courseService.cancelSharedFetches()
         moodleService.cancelSharedFetches()
-        sessionManager.invalidateSession()
+        sessionManager.signOut()
         bulletinReadStateStore.clear()
         // The cache they dated is wiped below; left behind, they would date
         // the next account's data, and hold its first background sync off.
