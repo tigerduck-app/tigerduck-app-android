@@ -5,11 +5,13 @@
 ### `release.yaml` — Release (Auto)
 
 Runs on every commit to `main`, or from the Actions tab. It releases the version
-in `app/build.gradle.kts`, tagged `v<versionName>`; if that tag already exists
-the run stops after its first job, so only a commit that bumps the version
-releases anything.
+in `app/build.gradle.kts`, tagged `v<versionName>`. On a commit, if that tag
+already exists the run stops after its first job, so only a commit that bumps
+the version releases anything. The first job also refuses a new version whose
+phone `versionCode` is not above the previous tag's: Play keeps every bundle it
+is sent, and an unbumped code would publish the old binary under the new name.
 
-A release builds the same six artifacts as `release-manual.yaml`, then:
+A new version builds the same six artifacts as `release-manual.yaml`, then:
 
 1. Uploads the phone and watch bundles to Google Play and sends them for review,
    all in one edit (`tools/play/publish.py`). The phone goes to `internal` and
@@ -22,16 +24,25 @@ A release builds the same six artifacts as `release-manual.yaml`, then:
    artifact attached.
 
 Play comes before the tag so that a failed upload leaves nothing tagged and the
-workflow can simply be run again. The upload skips any bundle Play already has,
-so a re-run after a later step failed is safe too. If Play refuses to send the
-release for review on its own (it does after a rejection, or with other changes
-pending), the edit is still saved and the run warns you to click "Send changes
-for review" in Play Console.
+workflow can simply be run again. If a later step fails, use "Re-run failed
+jobs": the upload skips any bundle Play already has, the tag step keeps a tag
+already on the same commit, and the pin and the GitHub Release tolerate their
+own earlier success. If Play refuses to send the release for review on its own
+(it does after a rejection, or with other changes pending), the edit is still
+saved and the run warns you to click "Send changes for review" in Play Console.
 
 A commit releases to all four tracks at a 10% production rollout. From the
 Actions tab you can tick which of phone/watch × internal/production to upload
-and pick the rollout (10, 20, 50 or 100%). Everything is built either way,
-because the GitHub Release carries all six files.
+and pick the rollout (10, 20, 50 or 100%). On a version that is already tagged,
+a click sends it to the ticked tracks only, built from the tag, and does not
+tag or publish again; that is how a release goes from internal testing to
+production, or to a wider rollout (which then starts at the percentage picked,
+not where it was). Everything is built either way, because the GitHub Release
+carries all six files and Play may not have a bundle yet.
+
+Release jobs queue one at a time. A run that finds nothing to release stops
+before the queue, so the push run started by the F-Droid metadata commit cannot
+displace a click waiting behind the current release.
 
 Release notes come from the `whatsnew.json` entry for the phone `versionCode`
 (the in-app "What's New" text), as `zh-TW` and `en-US`. To word them
