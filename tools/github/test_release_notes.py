@@ -38,21 +38,24 @@ class ReleaseNotesTest(unittest.TestCase):
     def render(self, template, tags=("v2.2.0", "v2.3.0")):
         return release_notes.render(template, self.root, REPO, list(tags))
 
-    def test_the_repo_template_renders_for_the_version_in_the_code(self):
+    def test_the_repo_template_renders(self):
+        # Only what the script fills in: the template's own wording is free to change.
         template = (release_notes.REPO_ROOT / release_notes.TEMPLATE).read_text(encoding="utf-8")
         notes = self.render(template)
 
         self.assertNotIn("{{", notes)
-        self.assertTrue(notes.startswith(
-            "新功能 / What's new:\n"
-            "- 通知優化\n  Better notifications\n"
-            "- 修正文字溢出\n  Text overflow fixed\n\n"
-        ))
-        self.assertIn("- **手機：`versionCode` 29, `versionName` 2.3.1**\n"
-                      "  **Phone: `versionCode` 29, `versionName` 2.3.1**", notes)
-        self.assertIn("- **手錶：`versionCode` 10029, `versionName` 2.3.1**\n"
-                      "  **Watch: `versionCode` 10029, `versionName` 2.3.1**", notes)
+        self.assertIn("- 通知優化\n  Better notifications\n- 修正文字溢出\n  Text overflow fixed\n", notes)
         self.assertIn("https://github.com/owner/app/compare/v2.3.0...v2.3.1", notes)
+
+    def test_each_placeholder_is_filled_in(self):
+        self.assertEqual(
+            "2.3.1 29 10029",
+            self.render("{{VERSION_NAME}} {{PHONE_CODE}} {{WATCH_CODE}}"),
+        )
+        self.assertEqual(
+            "- 通知優化\n  Better notifications\n- 修正文字溢出\n  Text overflow fixed",
+            self.render("{{WHATS_NEW}}"),
+        )
 
     def test_highlights_stand_in_for_items(self):
         self.whatsnew({"zh-Hant": {"highlights": ["一"]}, "en": {"highlights": ["One"]}})
