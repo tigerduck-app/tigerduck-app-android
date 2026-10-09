@@ -12,15 +12,15 @@ Which small icon a phone gets is decided by `DeviceSkin.notificationSmallIcon`;
 the reasons for each skin are documented on `DeviceSkin` in
 `app/src/main/java/org/ntust/app/tigerduck/notification/StatusBarChipSupport.kt`.
 
-The OPPO screenshots were retaken after the ColorOS card change (`81b4cf5e`),
-so they show what the branch posts now. The other phones were captured before
-the emoji were dropped from the detail lines (`615a9327`): their cards still put
-📍, 👤 and 🕒 in front of the room, the instructor and the time, which now
-show as plain lines.
+The vivo, HONOR, POCO, OPPO, Samsung and Pixel screenshots were retaken on the
+branch as it stands (`77453459`). The moto, ZTE and Zenfone ones were captured
+earlier, before the emoji were dropped from the detail lines (`615a9327`):
+their rows still put 📍, 👤 and 🕒 in front of the room, the instructor and the
+time, which now show as plain lines. Nothing else in them has changed.
 
 Every phone is the international (Taiwan) model. Wi-Fi network names, a
-weather widget's location, one unrelated chat notification and one game ad
-were pixelated.
+weather widget's location, one unrelated chat notification and promotional
+notifications from other apps were pixelated.
 
 ## Phones
 
@@ -67,6 +67,11 @@ that is the skin's own rule rather than something the app picks:
 - **Android 15 and earlier**: there is no Live Update island, and the shade
   shows each app's small icon in a circle of its notification colour.
 
+The bulletin also carries the full-colour logo as its large icon, at the right
+of the row, but only on HONOR, HyperOS and Android 15 and earlier, where the
+shade shows the small icon. Where the shade already shows the full app icon the
+logo would appear twice, so it's left off (`DeviceSkin.shadeShowsAppIcon`).
+
 ## OPPO: the Live Alerts card
 
 ColorOS 16 doesn't draw the Live Update as an ordinary notification row. While
@@ -84,10 +89,12 @@ fields than other skins:
 - **Sub text has its own line** under the countdown, up to two lines.
 
 So on ColorOS TigerDuck puts the room, the instructor and the time in the sub
-text, joined by " · ", and posts the bar as a ProgressStyle. Before that, the
-card was the title and the countdown alone. Other skins keep the big text. With
-ColorOS's per-app switch off the post isn't promoted and is an ordinary row,
-so it gets the big text too. The island reads neither field and still shows
+text, joined by " · ", and posts the bar as a ProgressStyle, with no big text.
+Before that, the card was the title and the countdown alone. When no countdown
+is running the card shows the content text, which ends with the time, so the
+sub text leaves the time out. Other skins keep the big text. With ColorOS's
+per-app switch off the post isn't promoted and is an ordinary row, so it gets
+the big text too. The island reads neither field and still shows
 the paw and the minutes left. The bar is ColorOS's own grey.
 
 Promotion is the *Show Live Updates on Live Alerts* switch on TigerDuck's
