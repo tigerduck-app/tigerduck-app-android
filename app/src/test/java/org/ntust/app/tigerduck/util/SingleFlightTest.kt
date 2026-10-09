@@ -148,4 +148,82 @@ class SingleFlightTest {
         assertEquals(2, refresh.runs)
         refresh.release()
     }
+
+    @Test
+    fun `runAlone waits for the run in progress, then runs its own`() = runTest {
+        val flight = flight()
+        val refresh = Refresh()
+        val reset = Refresh()
+        launch { flight.join(refresh::run) }
+        runCurrent()
+
+        val alone = launch { flight.runAlone(reset::run) }
+        runCurrent()
+        assertEquals(0, reset.runs)
+
+        refresh.release()
+        runCurrent()
+        assertEquals(1, reset.runs)
+
+        reset.release()
+        runCurrent()
+        assertTrue(alone.isCompleted)
+    }
+
+    @Test
+    fun `runAlone is not joined in place of a run that started while it waited`() = runTest {
+        val flight = flight()
+        val refresh = Refresh()
+        val reset = Refresh()
+        launch { flight.join(refresh::run) }
+        runCurrent()
+        launch { flight.rerun(refresh::run) }
+        launch { flight.runAlone(reset::run) }
+        runCurrent()
+
+        refresh.release() // the first run; the rerun starts
+        runCurrent()
+        assertEquals(2, refresh.runs)
+        assertEquals(0, reset.runs)
+
+        refresh.release()
+        runCurrent()
+        assertEquals(1, reset.runs)
+        reset.release()
+    }
+
+    @Test
+    fun `a caller that joins while runAlone runs waits for it`() = runTest {
+        val flight = flight()
+        val refresh = Refresh()
+        val reset = Refresh()
+        launch { flight.runAlone(reset::run) }
+        runCurrent()
+
+        val joiner = launch { flight.join(refresh::run) }
+        runCurrent()
+        assertEquals(0, refresh.runs)
+
+        reset.release()
+        runCurrent()
+        assertTrue(joiner.isCompleted)
+        assertEquals(0, refresh.runs)
+    }
+
+    @Test
+    fun `a cancel while runAlone waits drops it`() = runTest {
+        val flight = flight()
+        val refresh = Refresh()
+        val reset = Refresh()
+        launch { flight.join(refresh::run) }
+        runCurrent()
+        val alone = launch { flight.runAlone(reset::run) }
+        runCurrent()
+
+        flight.cancel()
+        runCurrent()
+
+        assertEquals(0, reset.runs)
+        assertTrue(alone.isCompleted)
+    }
 }

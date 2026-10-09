@@ -751,45 +751,66 @@ class ClassTableViewModel @Inject constructor(
         // in the middle — see DataCache.beginReset.
         if (!dataCache.beginReset(semester)) return
         viewModelScope.launch {
+            // Released once, whichever way the reset ends: a second reset of
+            // the term may already hold the latch by the time this one's
+            // outer finally runs.
+            var latched = true
+            fun release() {
+                if (latched) dataCache.endReset(semester)
+                latched = false
+            }
             try {
-                val stored = dataCache.loadDeletedCourseNos()
-                val lifted = CourseTombstoneKeys.entriesResetting(semester, stored)
-                if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted)
-                val deleted = runCatching { pushApiClient.deleteAllCourses(semester) }
-                    .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
-                    .isSuccess
-                if (deleted) {
-                    // Only once the server has forgotten the term. Wiping
-                    // first and then failing the DELETE would leave an
-                    // empty grid with the server still full, to be merged
-                    // back as hand-added rows.
-                    //
-                    // The stamp is taken after the DELETE landed: a
-                    // snapshot fetched before this instant still carries
-                    // the pre-reset roster — see DataCache.saveSemesterResetAt.
-                    dataCache.saveSemesterResetAt(semester, System.currentTimeMillis())
-                    // The server has forgotten every number in this term,
-                    // so a hand-typed course re-added later is unknown to
-                    // it again — see CourseSyncReconciler.reconcileSemester.
-                    dataCache.saveServerKnownNos(dataCache.loadServerKnownNos() - semester)
-                    // The term's cache goes too, hand-typed courses
-                    // included: a reset means "start this term over", and
-                    // the roster the portal returns next is the whole of
-                    // it. Load-bearing for sync as well — with the old
-                    // roster still on disk next to an empty server term, a
-                    // sync would push it back up, and this device's upload
-                    // releases its own reset tombstones, so the reset would
-                    // undo itself.
-                    dataCache.saveCourses(emptyList(), semester)
-                    if (_currentSemester.value == semester) _courses.value = emptyList()
-                    widgetUpdater.requestUpdate()
+                // After any fetch still running, and as a run of its own. A
+                // fetch that read the term before the wipe would save its
+                // rows back after it, hand-added courses included, and the
+                // fetch below would then keep them.
+                fetchFlight.runAlone {
+                    try {
+                        wipeTerm(semester)
+                    } finally {
+                        release()
+                    }
+                    fetchData()
                 }
             } finally {
-                dataCache.endReset(semester)
+                release()
             }
-            // A rerun: a fetch that started before the reset would bring the
-            // old roster back.
-            fetchFlight.rerun(::fetchData)
+        }
+    }
+
+    /** [resetCourses]' part that forgets the term, here and on the server. */
+    private suspend fun wipeTerm(semester: String) {
+        val stored = dataCache.loadDeletedCourseNos()
+        val lifted = CourseTombstoneKeys.entriesResetting(semester, stored)
+        if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted)
+        val deleted = runCatching { pushApiClient.deleteAllCourses(semester) }
+            .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
+            .isSuccess
+        if (deleted) {
+            // Only once the server has forgotten the term. Wiping
+            // first and then failing the DELETE would leave an
+            // empty grid with the server still full, to be merged
+            // back as hand-added rows.
+            //
+            // The stamp is taken after the DELETE landed: a
+            // snapshot fetched before this instant still carries
+            // the pre-reset roster — see DataCache.saveSemesterResetAt.
+            dataCache.saveSemesterResetAt(semester, System.currentTimeMillis())
+            // The server has forgotten every number in this term,
+            // so a hand-typed course re-added later is unknown to
+            // it again — see CourseSyncReconciler.reconcileSemester.
+            dataCache.saveServerKnownNos(dataCache.loadServerKnownNos() - semester)
+            // The term's cache goes too, hand-typed courses
+            // included: a reset means "start this term over", and
+            // the roster the portal returns next is the whole of
+            // it. Load-bearing for sync as well — with the old
+            // roster still on disk next to an empty server term, a
+            // sync would push it back up, and this device's upload
+            // releases its own reset tombstones, so the reset would
+            // undo itself.
+            dataCache.saveCourses(emptyList(), semester)
+            if (_currentSemester.value == semester) _courses.value = emptyList()
+            widgetUpdater.requestUpdate()
         }
     }
 

@@ -58,6 +58,27 @@ class SingleFlight(private val scope: CoroutineScope) {
         job.join()
     }
 
+    /**
+     * Runs [block] as a run of its own once nothing else is running: for work
+     * that must neither overlap a run nor be joined in place of one, such as
+     * a reset that wipes what a run in progress would otherwise save back.
+     * Waits out every run that starts while it waits, and callers that join
+     * while it runs wait for it. Like [rerun], a [cancel] while it waited
+     * drops it.
+     */
+    suspend fun runAlone(block: suspend () -> Unit) {
+        val generation = synchronized(lock) { cancels }
+        while (true) {
+            val (running, mine) = synchronized(lock) {
+                if (cancels != generation) return
+                val pending = current?.takeIf { it.isPending }
+                pending to (if (pending == null) start(block) else null)
+            }
+            if (mine != null) return mine.join()
+            running?.join()
+        }
+    }
+
     /** Cancels the run in progress, if there is one, and any rerun waiting on it. */
     fun cancel() {
         synchronized(lock) {
