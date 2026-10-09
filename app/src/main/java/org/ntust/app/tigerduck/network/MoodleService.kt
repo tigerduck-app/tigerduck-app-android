@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.network
 
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -13,9 +15,11 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.model.MoodleAssignmentsEnvelope
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
+import org.ntust.app.tigerduck.util.SharedFetch
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +30,7 @@ class MoodleService @Inject constructor(
     private val tokenService: MoodleTokenService,
     private val courseService: CourseService,
     private val dataCache: DataCache,
+    @param:ApplicationScope appScope: CoroutineScope,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
@@ -35,6 +40,34 @@ class MoodleService @Inject constructor(
     private var cachedUserId: Int? = null
     private val siteInfoLock = Any()
 
+    // Home, the class table, the calendar and the worker each ask for these,
+    // within seconds of each other on launch — see SharedFetch. Keyed by the
+    // wstoken, so one account's answer never reaches another's.
+    private val sharedEnrolled = SharedFetch<String, List<MoodleEnrolledCourse>>(
+        appScope, SHARED_ANSWER_WINDOW_MS, SystemClock::elapsedRealtime,
+    )
+    private val sharedAssignments = SharedFetch<AssignmentsKey, AssignmentsRound>(
+        appScope, SHARED_ANSWER_WINDOW_MS, SystemClock::elapsedRealtime,
+    )
+
+    private data class AssignmentsKey(val token: String, val courseIds: List<Int>)
+
+    /** The network half of [fetchAssignments]: what every caller asking for the same courses can share. */
+    private class AssignmentsRound(
+        val envelope: MoodleAssignmentsEnvelope,
+        val statuses: Map<Int, MoodleSubmissionStatusEnvelope>,
+    )
+
+    /**
+     * Drops the answers kept for sharing, so the next fetch asks Moodle
+     * again. For a refresh the user pulled for: they may have just submitted
+     * something, and an answer from a minute ago would show it outstanding.
+     */
+    fun expireSharedResults() {
+        sharedEnrolled.expire()
+        sharedAssignments.expire()
+    }
+
     /**
      * Fetch the user's enrolled Moodle courses across all semesters using
      * the long-lived Moodle Mobile wstoken. Matches iOS: calls the REST
@@ -42,10 +75,12 @@ class MoodleService @Inject constructor(
      * which NTUST's edge (Citrix NetScaler) tends to challenge.
      */
     suspend fun fetchEnrolledCourses(): List<MoodleEnrolledCourse> =
-        withContext(Dispatchers.IO) {
-            attemptWithTokenRetry { token ->
-                val userId = getSiteInfoUserId(token)
-                callEnrolledCourses(token, userId)
+        sharedEnrolled.get(tokenService.currentToken().orEmpty()) {
+            withContext(Dispatchers.IO) {
+                attemptWithTokenRetry { token ->
+                    val userId = getSiteInfoUserId(token)
+                    callEnrolledCourses(token, userId)
+                }
             }
         }
 
@@ -88,34 +123,24 @@ class MoodleService @Inject constructor(
             it.id to MoodleCourseIds.assignmentCourseNo(it, localCourseNos)
         }
 
-        attemptWithTokenRetry { token ->
-            val userId = getSiteInfoUserId(token)
-            val envelope = callGetAssignments(token, relevant.map { it.id })
-            val coursesById = relevant.associateBy { it.id }
+        // Keyed on the courses, not on what each caller makes of them: the
+        // filing above is the caller's own, the requests are the same.
+        val courseIds = relevant.map { it.id }.sorted()
+        val round = sharedAssignments.get(
+            AssignmentsKey(tokenService.currentToken().orEmpty(), courseIds)
+        ) { fetchAssignmentsRound(courseIds) }
+        val coursesById = relevant.associateBy { it.id }
 
-            // Flatten the nested course→assignments response so we can fan
-            // out submission-status calls keyed by assignId.
-            val records = envelope.courses.flatMap { c ->
-                c.assignments.map { a -> c.id to a }
-            }
-
-            val statuses = coroutineScope {
-                records.map { (_, a) ->
-                    async(Dispatchers.IO) {
-                        runCatching { callGetSubmissionStatus(token, a.id, userId) }
-                            .getOrNull()
-                            ?.let { a.id to it }
-                    }
-                }.awaitAll().filterNotNull().toMap()
-            }
-
-            records.mapNotNull { (courseId, a) ->
+        // Flatten the nested course→assignments response.
+        round.envelope.courses
+            .flatMap { c -> c.assignments.map { a -> c.id to a } }
+            .mapNotNull { (courseId, a) ->
                 if (a.duedate <= 0) return@mapNotNull null
                 // Info-only entries with no submission target — nothing to
                 // complete or ignore; skip to match iOS.
                 if (a.nosubmissions != 0) return@mapNotNull null
                 val course = coursesById[courseId]
-                val submission = statuses[a.id]?.lastattempt?.submission
+                val submission = round.statuses[a.id]?.lastattempt?.submission
                 val submitted = submission?.status == "submitted"
                 Assignment(
                     assignmentId = a.id.toString(),
@@ -130,8 +155,32 @@ class MoodleService @Inject constructor(
                         ?.let { Date(it * 1000) },
                 )
             }
-        }
     }
+
+    /**
+     * `mod_assign_get_assignments` for [courseIds], then one
+     * `mod_assign_get_submission_status` per assignment, fanned out in
+     * parallel. A status call that fails is left out of the map, which the
+     * caller reads as "not submitted" — see
+     * [org.ntust.app.tigerduck.data.CourseRosterMerge.preserveConfirmedSubmissions].
+     */
+    private suspend fun fetchAssignmentsRound(courseIds: List<Int>): AssignmentsRound =
+        withContext(Dispatchers.IO) {
+            attemptWithTokenRetry { token ->
+                val userId = getSiteInfoUserId(token)
+                val envelope = callGetAssignments(token, courseIds)
+                val statuses = coroutineScope {
+                    envelope.courses.flatMap { it.assignments }.map { a ->
+                        async(Dispatchers.IO) {
+                            runCatching { callGetSubmissionStatus(token, a.id, userId) }
+                                .getOrNull()
+                                ?.let { a.id to it }
+                        }
+                    }.awaitAll().filterNotNull().toMap()
+                }
+                AssignmentsRound(envelope, statuses)
+            }
+        }
 
     /** Run [block] with current token; on `invalidtoken`, refresh once and retry. */
     private suspend inline fun <T> attemptWithTokenRetry(block: (String) -> T): T {

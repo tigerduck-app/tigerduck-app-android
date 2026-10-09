@@ -765,7 +765,12 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 
-    fun refresh() = requestRefresh(rerun = false)
+    /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
+    fun refresh() {
+        moodleService.expireSharedResults()
+        courseService.expireSharedResults()
+        requestRefresh(rerun = false)
+    }
 
     private fun requestRefresh(rerun: Boolean) {
         viewModelScope.launch {

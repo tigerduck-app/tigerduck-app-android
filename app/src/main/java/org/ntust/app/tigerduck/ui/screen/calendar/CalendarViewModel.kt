@@ -265,6 +265,8 @@ class CalendarViewModel @Inject constructor(
         // must still refresh it for a signed-out user.
         viewModelScope.launch { academicCalendar.refresh() }
         if (!authService.authState.value) return
+        // What Moodle has now, not an answer kept for sharing.
+        moodleService.expireSharedResults()
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
