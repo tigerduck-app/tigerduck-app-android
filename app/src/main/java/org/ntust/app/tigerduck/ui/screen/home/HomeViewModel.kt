@@ -41,6 +41,7 @@ import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.SchoolDataFreshness
+import org.ntust.app.tigerduck.data.holdsNoSchoolData
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -424,9 +425,11 @@ class HomeViewModel @Inject constructor(
     private suspend fun autoRefresh(): Boolean {
         if (!networkChecker.isAvailable()) return false
         val now = System.currentTimeMillis()
-        if (!SchoolDataFreshness.shouldAutoRefresh(prefs.schoolDataSyncedAtMs.value, lastAutoRefreshMs, now)) {
-            return false
-        }
+        val due = SchoolDataFreshness.shouldAutoRefresh(
+            prefs.schoolDataSyncedAtMs.value, lastAutoRefreshMs, now,
+            cacheEmpty = dataCache.holdsNoSchoolData(),
+        )
+        if (!due) return false
         lastAutoRefreshMs = now
         fetchRemote()
         return true

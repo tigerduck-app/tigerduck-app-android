@@ -186,26 +186,37 @@ class MoodleService @Inject constructor(
             val recheck = recheckConfirmed.also { recheckConfirmed = false }
             val confirmed =
                 if (recheck) emptyMap() else confirmedSubmissions(dataCache.loadAssignments())
-            attemptWithTokenRetry { token ->
+            var askedWith = ""
+            var asked = 0
+            val round = attemptWithTokenRetry { token ->
+                askedWith = token
                 val userId = getSiteInfoUserId(token)
                 val envelope = callGetAssignments(token, courseIds)
+                val toAsk = envelope.courses.flatMap { it.assignments }
+                    .filter { it.id !in confirmed }
+                asked = toAsk.size
                 val statuses = coroutineScope {
-                    envelope.courses.flatMap { it.assignments }
-                        .filter { it.id !in confirmed }
-                        .map { a ->
-                            async(Dispatchers.IO) {
-                                runCatching { callGetSubmissionStatus(token, a.id, userId) }
-                                    .getOrNull()
-                                    ?.let { a.id to it }
-                            }
-                        }.awaitAll().filterNotNull().toMap()
+                    toAsk.map { a ->
+                        async(Dispatchers.IO) {
+                            runCatching { callGetSubmissionStatus(token, a.id, userId) }
+                                .getOrNull()
+                                ?.let { a.id to it }
+                        }
+                    }.awaitAll().filterNotNull().toMap()
                 }
                 AssignmentsRound(envelope, statuses, confirmed)
-            }.also {
-                // Here rather than at each caller, so every screen and the
-                // worker stamp the age alike — see SchoolDataFreshness.
+            }
+            // Stamped here rather than at each caller, so every screen and
+            // the worker date the data alike — see SchoolDataFreshness. Only
+            // for a round that got an answer to every status call: a failed
+            // one reads as "not submitted", and a stamp would keep the next
+            // automatic fetch from correcting it. And only while the token
+            // that asked is still the account's, so a round that outlived a
+            // sign-out cannot vouch for whoever signs in next.
+            if (round.statuses.size == asked && tokenService.currentToken() == askedWith) {
                 prefs.markSchoolDataSynced(System.currentTimeMillis())
             }
+            round
         }
 
     /** Run [block] with current token; on `invalidtoken`, refresh once and retry. */

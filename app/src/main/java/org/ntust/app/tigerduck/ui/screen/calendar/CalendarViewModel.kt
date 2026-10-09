@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.SchoolDataFreshness
+import org.ntust.app.tigerduck.data.holdsNoSchoolData
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -293,7 +294,8 @@ class CalendarViewModel @Inject constructor(
         if (!networkChecker.isAvailable()) return
         val now = System.currentTimeMillis()
         val syncedAt = prefs.schoolDataSyncedAtMs.value
-        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now)) return
+        val cacheEmpty = dataCache.holdsNoSchoolData()
+        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now, cacheEmpty)) return
         lastAutoRefreshMs = now
         fetchFlight.join(::fetchData)
     }

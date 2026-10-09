@@ -46,6 +46,20 @@ class SchoolDataFreshnessTest {
     }
 
     @Test
+    fun `fresh data whose cache is gone is fetched anyway`() {
+        assertTrue(
+            SchoolDataFreshness.shouldAutoRefresh(now - minute, lastAttemptMs = 0L, now, cacheEmpty = true)
+        )
+    }
+
+    @Test
+    fun `an empty cache still waits out a try that did not land`() {
+        assertFalse(
+            SchoolDataFreshness.shouldAutoRefresh(now - minute, now - minute, now, cacheEmpty = true)
+        )
+    }
+
+    @Test
     fun `a try that did not land holds the next one back for a while`() {
         val stale = now - 20 * minute
         assertFalse(SchoolDataFreshness.shouldAutoRefresh(stale, now - minute, now))

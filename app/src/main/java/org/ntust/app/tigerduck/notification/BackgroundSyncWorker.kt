@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.SchoolDataFreshness
+import org.ntust.app.tigerduck.data.holdsNoSchoolData
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
@@ -85,11 +86,19 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // largest source of traffic. Never for a triggered run, which the
         // server asked for because something changed.
         val triggered = inputData.getBoolean(KEY_TRIGGERED, false)
+        if (triggered) {
+            // What the server announced may postdate an answer the services
+            // are still sharing from a foreground fetch a moment ago.
+            moodleService.expireSharedResults()
+            courseService.expireSharedResults()
+        }
+        // An empty cache is never fresh, whatever the stamp says: the system
+        // can clear the cache directory without touching preferences.
         val schoolDataFresh = !triggered && !SchoolDataFreshness.isStale(
             prefs.schoolDataSyncedAtMs.value,
             System.currentTimeMillis(),
             SchoolDataFreshness.BACKGROUND_MAX_AGE_MS,
-        )
+        ) && !dataCache.holdsNoSchoolData()
         val coursesOk = schoolDataFresh || syncCourses(studentId, password)
         if (authService.storedStudentId != studentId) return Result.success()
         val assignmentsOk = schoolDataFresh || syncAssignments()

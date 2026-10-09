@@ -1,5 +1,15 @@
 package org.ntust.app.tigerduck.data
 
+import org.ntust.app.tigerduck.data.cache.DataCache
+
+/**
+ * Neither courses nor assignments are cached: the cache was cleared under
+ * the app, or nothing has been fetched for this account yet. See the
+ * `cacheEmpty` of [SchoolDataFreshness.shouldAutoRefresh].
+ */
+suspend fun DataCache.holdsNoSchoolData(): Boolean =
+    loadCourses().isEmpty() && loadAssignments().isEmpty()
+
 /**
  * How old the school data on screen may get before something automatic
  * fetches it again.
@@ -41,10 +51,22 @@ object SchoolDataFreshness {
 
     /**
      * Whether launch or a return to the foreground should fetch: the data is
-     * past [FOREGROUND_MAX_AGE_MS], and this screen has not tried on its own
-     * within [AUTO_RETRY_AFTER_MS] ([lastAttemptMs], 0 for never).
+     * past [FOREGROUND_MAX_AGE_MS] or [cacheEmpty], and this screen has not
+     * tried on its own within [AUTO_RETRY_AFTER_MS] ([lastAttemptMs], 0 for
+     * never).
+     *
+     * [cacheEmpty] overrides the age because the age is kept in preferences
+     * and the data in the cache directory, which the system can clear on its
+     * own and the user can clear from Settings. A fresh stamp over an empty
+     * cache vouches for nothing, and trusting it left the screens blank until
+     * a pull.
      */
-    fun shouldAutoRefresh(syncedAtMs: Long, lastAttemptMs: Long, nowMs: Long): Boolean =
-        isStale(syncedAtMs, nowMs, FOREGROUND_MAX_AGE_MS) &&
+    fun shouldAutoRefresh(
+        syncedAtMs: Long,
+        lastAttemptMs: Long,
+        nowMs: Long,
+        cacheEmpty: Boolean = false,
+    ): Boolean =
+        (cacheEmpty || isStale(syncedAtMs, nowMs, FOREGROUND_MAX_AGE_MS)) &&
             isStale(lastAttemptMs, nowMs, AUTO_RETRY_AFTER_MS)
 }

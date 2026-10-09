@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.SchoolDataFreshness
+import org.ntust.app.tigerduck.data.holdsNoSchoolData
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.shared.computeOngoingCourses
@@ -728,7 +729,8 @@ class ClassTableViewModel @Inject constructor(
         if (!networkChecker.isAvailable()) return
         val now = System.currentTimeMillis()
         val syncedAt = appPreferences.schoolDataSyncedAtMs.value
-        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now)) return
+        val cacheEmpty = dataCache.holdsNoSchoolData()
+        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now, cacheEmpty)) return
         lastAutoRefreshMs = now
         fetchFlight.join(::fetchData)
     }
