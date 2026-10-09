@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.notification
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.graphics.Color
-import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
@@ -11,7 +10,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.R
@@ -20,8 +18,9 @@ import org.ntust.app.tigerduck.R
  * Guards the large icon pushes post with.
  *
  * They used to pass `BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)`,
- * which returns null from Android 8 on: the mipmap resolves to the adaptive
- * icon's XML there, and BitmapFactory decodes image files only. A null large
+ * which returns null from Android 8 on, so on every release the app runs on:
+ * the mipmap resolves to the adaptive icon's XML there, and BitmapFactory
+ * decodes image files only. A null large
  * icon is legal, so every push simply posted without one and nothing failed.
  */
 @RunWith(AndroidJUnit4::class)
@@ -31,7 +30,6 @@ class NotificationLargeIconTest {
 
     @Test
     fun decodingTheLauncherMipmapDirectlyYieldsNothing() {
-        assumeTrue(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
         assertNull(BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher))
     }
 

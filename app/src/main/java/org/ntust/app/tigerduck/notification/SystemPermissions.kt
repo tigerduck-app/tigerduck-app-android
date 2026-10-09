@@ -21,7 +21,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * One of three Android system permissions the notification features depend on.
+ * One of four Android system permissions the notification features depend on.
  *
  * - [NOTIFICATIONS]:  POST_NOTIFICATIONS runtime permission (API 33+). Required
  *   for any notification to show at all.
