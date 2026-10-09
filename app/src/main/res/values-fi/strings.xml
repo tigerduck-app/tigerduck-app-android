@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Välttämättömät tiedot</string>
     <string name="sync_fdroid_unavailable_body">TigerSync vaatii Google Play -palvelut eikä ole käytettävissä F-Droid-versiossa.</string>
     <string name="sync_fdroid_unavailable_title">Ei saatavilla F-Droidissa</string>
+    <string name="sync_status_days_ago_short">%1$d pv sitten</string>
     <string name="sync_status_device_registered">Laite rekisteröity</string>
     <string name="sync_status_failed">Epäonnistui</string>
+    <string name="sync_status_hours_ago_short">%1$d t sitten</string>
+    <string name="sync_status_just_now">Juuri nyt</string>
+    <string name="sync_status_last_synced">Viimeksi synkronoitu</string>
     <string name="sync_status_minimal">Rajoitettu</string>
+    <string name="sync_status_minutes_ago_short">%1$d min sitten</string>
     <string name="sync_status_nav_label">TigerSync-tila</string>
+    <string name="sync_status_never_synced">Ei koskaan synkronoitu</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synkronoidaan…</string>
     <string name="sync_status_title">Synkronoinnin tila</string>

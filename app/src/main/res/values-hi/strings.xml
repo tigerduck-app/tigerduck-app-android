@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">आवश्यक जानकारी</string>
     <string name="sync_fdroid_unavailable_body">TigerSync के लिए Google Play सेवाओं की आवश्यकता है और F-Droid बिल्ड में उपलब्ध नहीं है।</string>
     <string name="sync_fdroid_unavailable_title">F-Droid पर उपलब्ध नहीं</string>
+    <string name="sync_status_days_ago_short">%1$d दि पहले</string>
     <string name="sync_status_device_registered">डिवाइस रजिस्टर्ड</string>
     <string name="sync_status_failed">विफल</string>
+    <string name="sync_status_hours_ago_short">%1$d घं पहले</string>
+    <string name="sync_status_just_now">अभी-अभी</string>
+    <string name="sync_status_last_synced">अंतिम सिंक</string>
     <string name="sync_status_minimal">सीमित</string>
+    <string name="sync_status_minutes_ago_short">%1$d मि पहले</string>
     <string name="sync_status_nav_label">TigerSync स्थिति</string>
+    <string name="sync_status_never_synced">कभी सिंक नहीं हुआ</string>
     <string name="sync_status_ok">ठीक</string>
     <string name="sync_status_syncing">सिंक हो रहा है…</string>
     <string name="sync_status_title">सिंक स्थिति</string>

@@ -84,6 +84,7 @@ fun CalendarScreen(
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
     val resources = LocalResources.current
@@ -119,6 +120,7 @@ fun CalendarScreen(
                             // so it belongs in the source list beside Moodle.
                             servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
                             isLoading = isLoading,
+                            syncedAtMs = schoolDataSyncedAtMs,
                         )
                         Spacer(Modifier.width(8.dp))
                         JumpToNowChip(

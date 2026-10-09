@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Základné informácie</string>
     <string name="sync_fdroid_unavailable_body">TigerSync vyžaduje služby Google Play a nie je dostupný vo verzii F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Nedostupné na F-Droid</string>
+    <string name="sync_status_days_ago_short">pred %1$d d.</string>
     <string name="sync_status_device_registered">Zariadenie zaregistrované</string>
     <string name="sync_status_failed">Zlyhalo</string>
+    <string name="sync_status_hours_ago_short">pred %1$d hod.</string>
+    <string name="sync_status_just_now">práve teraz</string>
+    <string name="sync_status_last_synced">Naposledy synchronizované</string>
     <string name="sync_status_minimal">Obmedzené</string>
+    <string name="sync_status_minutes_ago_short">pred %1$d min.</string>
     <string name="sync_status_nav_label">Stav TigerSync</string>
+    <string name="sync_status_never_synced">Nikdy nesynchronizované</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchronizuje sa…</string>
     <string name="sync_status_title">Stav synchronizácie</string>

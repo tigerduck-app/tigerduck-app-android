@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Vajalik teave</string>
     <string name="sync_fdroid_unavailable_body">TigerSync nõuab Google Play teenuseid ja pole F-Droidi versioonis saadaval.</string>
     <string name="sync_fdroid_unavailable_title">Pole F-Droidis saadaval</string>
+    <string name="sync_status_days_ago_short">%1$d p tagasi</string>
     <string name="sync_status_device_registered">Seade registreeritud</string>
     <string name="sync_status_failed">Ebaõnnestus</string>
+    <string name="sync_status_hours_ago_short">%1$d t tagasi</string>
+    <string name="sync_status_just_now">Äsja</string>
+    <string name="sync_status_last_synced">Viimati sünkroonitud</string>
     <string name="sync_status_minimal">Piiratud</string>
+    <string name="sync_status_minutes_ago_short">%1$d min tagasi</string>
     <string name="sync_status_nav_label">TigerSync olek</string>
+    <string name="sync_status_never_synced">Pole kunagi sünkroonitud</string>
     <string name="sync_status_ok">Korras</string>
     <string name="sync_status_syncing">Sünkroonimine…</string>
     <string name="sync_status_title">Sünkroonimise olek</string>

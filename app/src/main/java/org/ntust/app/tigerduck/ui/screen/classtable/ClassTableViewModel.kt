@@ -97,6 +97,9 @@ class ClassTableViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
+    /** For the sync dot's "Last synced" row; see [AppPreferences.schoolDataSyncedAtMs]. */
+    val schoolDataSyncedAtMs: StateFlow<Long> = appPreferences.schoolDataSyncedAtMs
+
     /**
      * Drives the grid's row list; see [AppPreferences.alwaysShowAllPeriodsFlow].
      *

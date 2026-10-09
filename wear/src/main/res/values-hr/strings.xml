@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Osnovne informacije</string>
     <string name="sync_fdroid_unavailable_body">TigerSync zahtijeva Google Play usluge i nije dostupan u F-Droid verziji.</string>
     <string name="sync_fdroid_unavailable_title">Nije dostupno na F-Droid</string>
+    <string name="sync_status_days_ago_short">prije %1$d d</string>
     <string name="sync_status_device_registered">Uređaj registriran</string>
     <string name="sync_status_failed">Neuspjelo</string>
+    <string name="sync_status_hours_ago_short">prije %1$d h</string>
+    <string name="sync_status_just_now">Upravo sad</string>
+    <string name="sync_status_last_synced">Posljednja sinkronizacija</string>
     <string name="sync_status_minimal">Ograničeno</string>
+    <string name="sync_status_minutes_ago_short">prije %1$d min</string>
     <string name="sync_status_nav_label">Stanje TigerSync</string>
+    <string name="sync_status_never_synced">Nikad sinkronizirano</string>
     <string name="sync_status_ok">U redu</string>
     <string name="sync_status_syncing">Sinkronizacija…</string>
     <string name="sync_status_title">Stanje sinkronizacije</string>

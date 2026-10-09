@@ -100,6 +100,7 @@ fun HomeScreen(
     val ignoredTabPinned by viewModel.ignoredTabPinned.collectAsStateWithLifecycle()
     val hasIgnoredAssignments by viewModel.hasIgnoredAssignments.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val initialLoadComplete by viewModel.initialLoadComplete.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
@@ -201,6 +202,7 @@ fun HomeScreen(
                             SyncStatusDot(
                                 servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
                                 isLoading = isLoading,
+                                syncedAtMs = schoolDataSyncedAtMs,
                             )
                         }
                     }

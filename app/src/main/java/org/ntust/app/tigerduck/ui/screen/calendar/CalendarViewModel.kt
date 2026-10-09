@@ -68,6 +68,9 @@ class CalendarViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
+    /** For the sync dot's "Last synced" row; see [AppPreferences.schoolDataSyncedAtMs]. */
+    val schoolDataSyncedAtMs: StateFlow<Long> = prefs.schoolDataSyncedAtMs
+
     private var hasLoaded = false
 
     // Every fetch goes through this, so launch, a sign-in and a pull that

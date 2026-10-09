@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">取得必要資訊</string>
     <string name="sync_fdroid_unavailable_body">TigerSync 需要 Google Play 服務，F-Droid 版本不支援此功能。</string>
     <string name="sync_fdroid_unavailable_title">F-Droid 不支援</string>
+    <string name="sync_status_days_ago_short">%1$d 天前</string>
     <string name="sync_status_device_registered">裝置已註冊</string>
     <string name="sync_status_failed">失敗</string>
+    <string name="sync_status_hours_ago_short">%1$d 小時前</string>
+    <string name="sync_status_just_now">剛剛</string>
+    <string name="sync_status_last_synced">上次同步</string>
     <string name="sync_status_minimal">最低限度</string>
+    <string name="sync_status_minutes_ago_short">%1$d 分鐘前</string>
     <string name="sync_status_nav_label">TigerSync 狀態</string>
+    <string name="sync_status_never_synced">尚未同步</string>
     <string name="sync_status_ok">正常</string>
     <string name="sync_status_syncing">同步中…</string>
     <string name="sync_status_title">同步狀態</string>

@@ -53,6 +53,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.outlined.Checklist
@@ -89,6 +90,7 @@ import androidx.compose.foundation.clickable
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import java.util.concurrent.TimeUnit
 
 /** A quiet second with the popover closed fades the dot. */
 private const val IDLE_DELAY_MS = 1_000L
@@ -136,12 +138,16 @@ private const val PULL_RING_MIN = 0.02f
  * @param isLoading drives the ring. Pass the page's own refresh state; the
  *   dot does not infer it, because "the page is fetching" and "a server last
  *   answered badly" are different questions and only the page knows the first.
+ * @param syncedAtMs when the data the page shows was last fetched (epoch ms,
+ *   0 for never), for a "Last synced" row under the sources. Null leaves the
+ *   row out, for a page whose data has no such age.
  */
 @Composable
 fun SyncStatusDot(
     servers: List<ServerKind>,
     isLoading: Boolean,
     modifier: Modifier = Modifier,
+    syncedAtMs: Long? = null,
 ) {
     val signedIn by ServerStatusTracker.signedIn.collectAsState()
     // Nothing is syncing without an account, so the header carries no mark
@@ -187,7 +193,7 @@ fun SyncStatusDot(
             },
         )
     }
-    SyncStatusDotBody(sources, isLoading, modifier)
+    SyncStatusDotBody(sources, isLoading, modifier, syncedAtMs)
 }
 
 /**
@@ -233,6 +239,7 @@ private fun SyncStatusDotBody(
     sources: List<DotSource>,
     isLoading: Boolean,
     modifier: Modifier = Modifier,
+    syncedAtMs: Long? = null,
 ) {
     val summary = summarize(sources.map { it.status })
 
@@ -326,9 +333,57 @@ private fun SyncStatusDotBody(
                         text = source.text,
                     )
                 }
+                // How old the page's data is. A source can be green and its
+                // answer still be from this morning; nothing else on the page
+                // says which.
+                if (syncedAtMs != null) {
+                    val age = dataAge(syncedAtMs, System.currentTimeMillis())
+                    SourceRow(
+                        color = Color.Transparent,
+                        icon = Icons.Filled.Schedule,
+                        name = stringResource(
+                            if (age == DataAge.Never) R.string.sync_status_never_synced
+                            else R.string.sync_status_last_synced
+                        ),
+                        text = dataAgeText(age),
+                    )
+                }
             }
         }
     }
+}
+
+/** How long ago a page's data was fetched, in the steps the popup names. */
+internal sealed interface DataAge {
+    data object Never : DataAge
+    data object JustNow : DataAge
+    data class Minutes(val count: Long) : DataAge
+    data class Hours(val count: Long) : DataAge
+    data class Days(val count: Long) : DataAge
+}
+
+/**
+ * The age of data fetched at [syncedAtMs] (0 for never) at [nowMs]. A stamp
+ * ahead of the clock reads as just now rather than as a negative age.
+ */
+internal fun dataAge(syncedAtMs: Long, nowMs: Long): DataAge {
+    if (syncedAtMs <= 0L) return DataAge.Never
+    val ageMs = (nowMs - syncedAtMs).coerceAtLeast(0L)
+    return when {
+        ageMs < TimeUnit.MINUTES.toMillis(1) -> DataAge.JustNow
+        ageMs < TimeUnit.HOURS.toMillis(1) -> DataAge.Minutes(TimeUnit.MILLISECONDS.toMinutes(ageMs))
+        ageMs < TimeUnit.DAYS.toMillis(1) -> DataAge.Hours(TimeUnit.MILLISECONDS.toHours(ageMs))
+        else -> DataAge.Days(TimeUnit.MILLISECONDS.toDays(ageMs))
+    }
+}
+
+@Composable
+private fun dataAgeText(age: DataAge): String? = when (age) {
+    DataAge.Never -> null
+    DataAge.JustNow -> stringResource(R.string.sync_status_just_now)
+    is DataAge.Minutes -> stringResource(R.string.sync_status_minutes_ago_short, age.count)
+    is DataAge.Hours -> stringResource(R.string.sync_status_hours_ago_short, age.count)
+    is DataAge.Days -> stringResource(R.string.sync_status_days_ago_short, age.count)
 }
 
 @Composable

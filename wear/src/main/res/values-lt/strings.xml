@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Būtina informacija</string>
     <string name="sync_fdroid_unavailable_body">TigerSync reikalauja „Google Play“ paslaugų ir nepasiekiamas F-Droid versijoje.</string>
     <string name="sync_fdroid_unavailable_title">Nepasiekiama F-Droid</string>
+    <string name="sync_status_days_ago_short">prieš %1$d d.</string>
     <string name="sync_status_device_registered">Įrenginys užregistruotas</string>
     <string name="sync_status_failed">Nepavyko</string>
+    <string name="sync_status_hours_ago_short">prieš %1$d val.</string>
+    <string name="sync_status_just_now">Ką tik</string>
+    <string name="sync_status_last_synced">Paskutinį kartą sinchronizuota</string>
     <string name="sync_status_minimal">Ribota</string>
+    <string name="sync_status_minutes_ago_short">prieš %1$d min.</string>
     <string name="sync_status_nav_label">TigerSync statusas</string>
+    <string name="sync_status_never_synced">Nesusinchronizuota</string>
     <string name="sync_status_ok">Gerai</string>
     <string name="sync_status_syncing">Sinchronizuojama…</string>
     <string name="sync_status_title">Sinchronizavimo būsena</string>

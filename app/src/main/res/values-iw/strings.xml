@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">מידע חיוני</string>
     <string name="sync_fdroid_unavailable_body">TigerSync דורש שירותי Google Play ואינו זמין בגרסת F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">לא זמין ב-F-Droid</string>
+    <string name="sync_status_days_ago_short">לפני %1$d י</string>
     <string name="sync_status_device_registered">המכשיר רשום</string>
     <string name="sync_status_failed">נכשל</string>
+    <string name="sync_status_hours_ago_short">לפני %1$d ש</string>
+    <string name="sync_status_just_now">הרגע</string>
+    <string name="sync_status_last_synced">סנכרון אחרון</string>
     <string name="sync_status_minimal">מוגבל</string>
+    <string name="sync_status_minutes_ago_short">לפני %1$d ד</string>
     <string name="sync_status_nav_label">סטטוס TigerSync</string>
+    <string name="sync_status_never_synced">מעולם לא סונכרן</string>
     <string name="sync_status_ok">תקין</string>
     <string name="sync_status_syncing">מסנכרן…</string>
     <string name="sync_status_title">מצב הסנכרון</string>

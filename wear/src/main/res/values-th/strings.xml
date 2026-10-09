@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">ข้อมูลที่จำเป็น</string>
     <string name="sync_fdroid_unavailable_body">TigerSync ต้องการ Google Play Services และไม่พร้อมใช้งานในเวอร์ชัน F-Droid</string>
     <string name="sync_fdroid_unavailable_title">ไม่พร้อมใช้งานบน F-Droid</string>
+    <string name="sync_status_days_ago_short">%1$d วันที่แล้ว</string>
     <string name="sync_status_device_registered">อุปกรณ์ลงทะเบียนแล้ว</string>
     <string name="sync_status_failed">ล้มเหลว</string>
+    <string name="sync_status_hours_ago_short">%1$d ชม. ที่แล้ว</string>
+    <string name="sync_status_just_now">เมื่อกี้</string>
+    <string name="sync_status_last_synced">ซิงค์ล่าสุด</string>
     <string name="sync_status_minimal">จำกัด</string>
+    <string name="sync_status_minutes_ago_short">%1$d น. ที่แล้ว</string>
     <string name="sync_status_nav_label">สถานะ TigerSync</string>
+    <string name="sync_status_never_synced">ยังไม่เคยซิงก์</string>
     <string name="sync_status_ok">ปกติ</string>
     <string name="sync_status_syncing">กำลังซิงค์…</string>
     <string name="sync_status_title">สถานะการซิงค์</string>

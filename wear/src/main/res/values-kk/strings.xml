@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Маңызды ақпарат</string>
     <string name="sync_fdroid_unavailable_body">TigerSync Google Play қызметтерін қажет етеді және F-Droid нұсқасында қолжетімді емес.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid-та қолжетімді емес</string>
+    <string name="sync_status_days_ago_short">%1$d к бұрын</string>
     <string name="sync_status_device_registered">Құрылғы тіркелді</string>
     <string name="sync_status_failed">Сәтсіз</string>
+    <string name="sync_status_hours_ago_short">%1$d с бұрын</string>
+    <string name="sync_status_just_now">Жаңа ғана</string>
+    <string name="sync_status_last_synced">Соңғы синхрондау</string>
     <string name="sync_status_minimal">Шектеулі</string>
+    <string name="sync_status_minutes_ago_short">%1$d м бұрын</string>
     <string name="sync_status_nav_label">TigerSync мәртебесі</string>
+    <string name="sync_status_never_synced">Ешқашан синхрондалмаған</string>
     <string name="sync_status_ok">Дұрыс</string>
     <string name="sync_status_syncing">Синхрондалуда…</string>
     <string name="sync_status_title">Синхрондау күйі</string>

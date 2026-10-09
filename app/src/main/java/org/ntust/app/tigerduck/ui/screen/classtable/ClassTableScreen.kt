@@ -138,6 +138,7 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
@@ -236,6 +237,7 @@ fun ClassTableScreen(
                             ServerKind.BACKEND,
                         ),
                         isLoading = isLoading,
+                        syncedAtMs = schoolDataSyncedAtMs,
                     )
                     // Everything that acts on the timetable, behind one ⋮ —
                     // the same shape as a mail message's actions. A third

@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Mahalagang impormasyon</string>
     <string name="sync_fdroid_unavailable_body">Ang TigerSync ay nangangailangan ng Google Play Services at hindi available sa F-Droid build.</string>
     <string name="sync_fdroid_unavailable_title">Hindi available sa F-Droid</string>
+    <string name="sync_status_days_ago_short">%1$d d nakaraon</string>
     <string name="sync_status_device_registered">Nakarehistro ang device</string>
     <string name="sync_status_failed">Nabigo</string>
+    <string name="sync_status_hours_ago_short">%1$d o nakaraon</string>
+    <string name="sync_status_just_now">Ngayon lang</string>
+    <string name="sync_status_last_synced">Huling na-sync</string>
     <string name="sync_status_minimal">Limitado</string>
+    <string name="sync_status_minutes_ago_short">%1$d min nakaraon</string>
     <string name="sync_status_nav_label">Katayuan ng TigerSync</string>
+    <string name="sync_status_never_synced">Hindi pa na-sync</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Nagsi-sync…</string>
     <string name="sync_status_title">Katayuan ng pag-sync</string>
