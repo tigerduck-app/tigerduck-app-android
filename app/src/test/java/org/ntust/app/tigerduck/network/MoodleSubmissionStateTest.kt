@@ -19,7 +19,7 @@ class MoodleSubmissionStateTest {
     )
 
     @Test
-    fun `only submitted assignments count as confirmed, with their time`() {
+    fun `only submitted assignments with a time count as confirmed`() {
         val at = Date(5_000)
         val confirmed = MoodleService.confirmedSubmissions(
             listOf(
@@ -28,14 +28,16 @@ class MoodleSubmissionStateTest {
                 assignment("3", completed = true),
             )
         )
-        assertEquals(mapOf(1 to at, 3 to null), confirmed)
+        assertEquals("3 has no time yet, so it is still asked about", mapOf(1 to at), confirmed)
     }
 
     @Test
     fun `an id that is not a Moodle number is not confirmed`() {
         assertEquals(
-            emptyMap<Int, Date?>(),
-            MoodleService.confirmedSubmissions(listOf(assignment("manual-1", completed = true))),
+            emptyMap<Int, Date>(),
+            MoodleService.confirmedSubmissions(
+                listOf(assignment("manual-1", completed = true, submittedAt = Date(1))),
+            ),
         )
     }
 
@@ -68,7 +70,7 @@ class MoodleSubmissionStateTest {
     fun `a status call that failed reads as not submitted`() {
         assertEquals(
             false to null,
-            MoodleService.submissionState(2, confirmed = mapOf(1 to null), submission = null),
+            MoodleService.submissionState(2, confirmed = mapOf(1 to Date(1)), submission = null),
         )
     }
 }

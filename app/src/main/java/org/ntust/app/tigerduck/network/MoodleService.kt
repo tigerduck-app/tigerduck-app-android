@@ -60,7 +60,7 @@ class MoodleService @Inject constructor(
         val envelope: MoodleAssignmentsEnvelope,
         val statuses: Map<Int, MoodleSubmissionStatusEnvelope>,
         /** Submissions the cache had confirmed, not asked about — see [confirmedSubmissions]. */
-        val confirmed: Map<Int, Date?>,
+        val confirmed: Map<Int, Date>,
     )
 
     // Set by a pull to refresh and taken by the next round, which then asks
@@ -371,10 +371,17 @@ class MoodleService @Inject constructor(
         /**
          * The assignments [cached] records as submitted, by Moodle assignment
          * id, with when they were submitted.
+         *
+         * One recorded without a time is left out, so it is asked about until
+         * Moodle supplies one: the time is all a status call could still add,
+         * and without it a late submission never shows as late.
          */
-        internal fun confirmedSubmissions(cached: List<Assignment>): Map<Int, Date?> =
+        internal fun confirmedSubmissions(cached: List<Assignment>): Map<Int, Date> =
             cached.filter { it.isCompleted }
-                .mapNotNull { a -> a.assignmentId.toIntOrNull()?.let { id -> id to a.submittedAt } }
+                .mapNotNull { a ->
+                    val id = a.assignmentId.toIntOrNull() ?: return@mapNotNull null
+                    a.submittedAt?.let { id to it }
+                }
                 .toMap()
 
         /**
@@ -384,7 +391,7 @@ class MoodleService @Inject constructor(
          */
         internal fun submissionState(
             id: Int,
-            confirmed: Map<Int, Date?>,
+            confirmed: Map<Int, Date>,
             submission: MoodleSubmission?,
         ): Pair<Boolean, Date?> {
             if (id in confirmed) return true to confirmed[id]
