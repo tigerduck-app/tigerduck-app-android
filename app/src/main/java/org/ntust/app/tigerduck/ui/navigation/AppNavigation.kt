@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -230,13 +231,22 @@ fun MainNavigation(
         calendarViewModel.load()
     }
     val pollingLifecycleOwner = LocalLifecycleOwner.current
+    val hostActivity = LocalContext.current as? Activity
+    // Set when the app goes to the background, and saved across the activity
+    // being rebuilt. A dark-mode or font-size change stops and restarts the
+    // activity as well, and that is not the user coming back.
+    var wentToBackground by rememberSaveable { mutableStateOf(false) }
     DisposableEffect(pollingLifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_START) {
+            if (event == Lifecycle.Event.ON_STOP) {
+                if (hostActivity?.isChangingConfigurations != true) wentToBackground = true
+            } else if (event == Lifecycle.Event.ON_START && wentToBackground) {
+                wentToBackground = false
                 // Back in the foreground. Each page fetches if its
                 // RefreshPolicy says so, and the services hand the ones that
-                // do one answer between them. Before load() has run (a cold
-                // start) these do nothing: that is the launch, not a return.
+                // do one answer between them. Before load() has run (a
+                // process the system brought back) these do nothing: that is
+                // the launch, not a return.
                 homeViewModel.onAppForeground()
                 classTableViewModel.onAppForeground()
                 calendarViewModel.onAppForeground()
