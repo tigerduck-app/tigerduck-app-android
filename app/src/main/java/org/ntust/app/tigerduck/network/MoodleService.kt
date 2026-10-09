@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.model.MoodleAssignmentsEnvelope
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.network.model.MoodleSubmission
 import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
 import org.ntust.app.tigerduck.util.SharedFetch
 import java.util.Date
@@ -56,7 +57,14 @@ class MoodleService @Inject constructor(
     private class AssignmentsRound(
         val envelope: MoodleAssignmentsEnvelope,
         val statuses: Map<Int, MoodleSubmissionStatusEnvelope>,
+        /** Submissions the cache had confirmed, not asked about — see [confirmedSubmissions]. */
+        val confirmed: Map<Int, Date?>,
     )
+
+    // Set by a pull to refresh and taken by the next round, which then asks
+    // about every assignment, the confirmed ones included.
+    @Volatile
+    private var recheckConfirmed = false
 
     /**
      * Drops the answers kept for sharing, so the next fetch asks Moodle
@@ -66,6 +74,7 @@ class MoodleService @Inject constructor(
     fun expireSharedResults() {
         sharedEnrolled.expire()
         sharedAssignments.expire()
+        recheckConfirmed = true
     }
 
     /**
@@ -140,8 +149,9 @@ class MoodleService @Inject constructor(
                 // complete or ignore; skip to match iOS.
                 if (a.nosubmissions != 0) return@mapNotNull null
                 val course = coursesById[courseId]
-                val submission = round.statuses[a.id]?.lastattempt?.submission
-                val submitted = submission?.status == "submitted"
+                val (submitted, submittedAt) = submissionState(
+                    a.id, round.confirmed, round.statuses[a.id]?.lastattempt?.submission,
+                )
                 Assignment(
                     assignmentId = a.id.toString(),
                     courseNo = courseNoById[courseId] ?: "",
@@ -151,34 +161,44 @@ class MoodleService @Inject constructor(
                     isCompleted = submitted,
                     moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=${a.cmid}",
                     cutoffDate = a.cutoffdate?.takeIf { it > 0 }?.let { Date(it * 1000) },
-                    submittedAt = submission?.timemodified?.takeIf { it > 0 }
-                        ?.let { Date(it * 1000) },
+                    submittedAt = submittedAt,
                 )
             }
     }
 
     /**
      * `mod_assign_get_assignments` for [courseIds], then one
-     * `mod_assign_get_submission_status` per assignment, fanned out in
-     * parallel. A status call that fails is left out of the map, which the
-     * caller reads as "not submitted" — see
+     * `mod_assign_get_submission_status` per assignment the cache has not
+     * already confirmed, fanned out in parallel. A status call that fails is
+     * left out of the map, which the caller reads as "not submitted" — see
      * [org.ntust.app.tigerduck.data.CourseRosterMerge.preserveConfirmedSubmissions].
+     *
+     * The confirmed ones are skipped because that same rule keeps them
+     * submitted whatever the call says, so all it could still change is the
+     * submission time. One call per assignment, every assignment, every
+     * refresh, was most of the requests a refresh made to Moodle by the
+     * middle of a term. A pull to refresh still asks about everything.
      */
     private suspend fun fetchAssignmentsRound(courseIds: List<Int>): AssignmentsRound =
         withContext(Dispatchers.IO) {
+            val recheck = recheckConfirmed.also { recheckConfirmed = false }
+            val confirmed =
+                if (recheck) emptyMap() else confirmedSubmissions(dataCache.loadAssignments())
             attemptWithTokenRetry { token ->
                 val userId = getSiteInfoUserId(token)
                 val envelope = callGetAssignments(token, courseIds)
                 val statuses = coroutineScope {
-                    envelope.courses.flatMap { it.assignments }.map { a ->
-                        async(Dispatchers.IO) {
-                            runCatching { callGetSubmissionStatus(token, a.id, userId) }
-                                .getOrNull()
-                                ?.let { a.id to it }
-                        }
-                    }.awaitAll().filterNotNull().toMap()
+                    envelope.courses.flatMap { it.assignments }
+                        .filter { it.id !in confirmed }
+                        .map { a ->
+                            async(Dispatchers.IO) {
+                                runCatching { callGetSubmissionStatus(token, a.id, userId) }
+                                    .getOrNull()
+                                    ?.let { a.id to it }
+                            }
+                        }.awaitAll().filterNotNull().toMap()
                 }
-                AssignmentsRound(envelope, statuses)
+                AssignmentsRound(envelope, statuses, confirmed)
             }
         }
 
@@ -309,6 +329,30 @@ class MoodleService @Inject constructor(
 
     companion object {
         private val decodeGson = Gson()
+
+        /**
+         * The assignments [cached] records as submitted, by Moodle assignment
+         * id, with when they were submitted.
+         */
+        internal fun confirmedSubmissions(cached: List<Assignment>): Map<Int, Date?> =
+            cached.filter { it.isCompleted }
+                .mapNotNull { a -> a.assignmentId.toIntOrNull()?.let { id -> id to a.submittedAt } }
+                .toMap()
+
+        /**
+         * Whether assignment [id] is submitted, and when: as [confirmed]
+         * recorded it when the cache already knew, else as Moodle's
+         * [submission] says — null when its status call failed.
+         */
+        internal fun submissionState(
+            id: Int,
+            confirmed: Map<Int, Date?>,
+            submission: MoodleSubmission?,
+        ): Pair<Boolean, Date?> {
+            if (id in confirmed) return true to confirmed[id]
+            val submittedAt = submission?.timemodified?.takeIf { it > 0 }?.let { Date(it * 1000) }
+            return (submission?.status == "submitted") to submittedAt
+        }
 
         /**
          * Decodes a `core_enrol_get_users_courses` payload, dropping rows Gson
