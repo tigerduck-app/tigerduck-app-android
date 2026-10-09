@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Notificări pentru e-mailuri noi</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck verifică e-mailurile noi la fiecare câteva minute, așa că o notificare poate ajunge puțin mai târziu.</string>
     <string name="school_mail_show_cc_bcc">Adaugă Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Numărul de matricol și parola ta trebuie să fie aceleași ca în sistemul universitar. Această parolă este și parola Wi-Fi din campus (NTUST-PEAP); TigerDuck o stochează doar criptat pe acest dispozitiv și nu o încarcă niciodată online.</string>
+    <string name="school_mail_sign_in_note">Numărul de matricol și parola ta trebuie să fie aceleași ca în sistemul universitar. TigerDuck stochează această parolă doar criptată pe acest dispozitiv și nu o încarcă niciodată online.</string>
     <string name="school_mail_sign_in_prompt_title">Conectează-te la e-mailul universitar</string>
     <string name="school_mail_subject">Subiect</string>
     <string name="school_mail_to">Către</string>

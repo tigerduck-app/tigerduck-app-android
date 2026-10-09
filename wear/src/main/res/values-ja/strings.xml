@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">新着メール通知</string>
     <string name="school_mail_settings_notifications_hint">TigerDuckは数分おきに新着メールを確認するため、通知が届くまで少し時間がかかることがあります。</string>
     <string name="school_mail_show_cc_bcc">Cc/Bccを追加</string>
-    <string name="school_mail_sign_in_note">学籍番号とパスワードは校務システムと同じものを使用してください。このパスワードはキャンパスWi-Fi（NTUST-PEAP）のパスワードでもあります。TigerDuckはこの端末上で暗号化して保存するのみで、アップロードすることはありません。</string>
+    <string name="school_mail_sign_in_note">学籍番号とパスワードは校務システムと同じものを使用してください。このパスワードは、TigerDuckがこの端末上で暗号化して保存するのみで、アップロードすることはありません。</string>
     <string name="school_mail_sign_in_prompt_title">学内メールにサインイン</string>
     <string name="school_mail_subject">件名</string>
     <string name="school_mail_to">宛先</string>

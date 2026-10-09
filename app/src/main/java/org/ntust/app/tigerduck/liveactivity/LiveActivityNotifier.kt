@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.BuildConfig
@@ -21,6 +22,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.brandedNotification
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,16 +53,15 @@ import kotlin.math.roundToInt
  * `ui_rich_ongoing` flag, so no chip appears whatever we send, and this
  * stays an ordinary ongoing notification with a countdown and a progress bar.
  *
- * None of that is gated on a capability check here, deliberately.
- * `canPostPromotedNotifications()` is wrong in both directions on shipping
- * hardware — see [org.ntust.app.tigerduck.notification.DeviceSkin] — and
- * posting when it would have said no costs nothing, because an unpromoted
- * Live Update is just an ordinary ongoing notification. Gating on it would
- * silently remove the chip on OEMs that render it fine. The capability is a
+ * None of that is gated on a capability check here, deliberately. Posting
+ * when `canPostPromotedNotifications()` would have said no costs nothing,
+ * because an unpromoted Live Update is still the Live Update, as an ordinary
+ * ongoing notification in the shade; gating on it would take that away too,
+ * and with it the chip on any OEM whose answer is wrong. The capability is a
  * diagnostic for the settings screen, never a precondition for posting.
  *
- * Two vendors do need code: see [samsungNowBarExtras], and the HyperOS
- * countdown below.
+ * Some vendors do need code: see [samsungNowBarExtras], the static countdown
+ * below, and [showsColorOsCard].
  */
 @Singleton
 class LiveActivityNotifier @Inject constructor(
@@ -94,12 +95,18 @@ class LiveActivityNotifier @Inject constructor(
      * to compare it against every post looks like a new scenario — cancelled,
      * re-posted and chimed. A quiet one takes it for the scenario already
      * showing instead. A real transition seen in this process still alerts.
+     *
+     * Returns whether a Live Update that spells its countdown out is now
+     * showing — see [showsStaticCountdown] — so the caller knows to post again
+     * when the displayed minute changes. False whenever nothing was posted, or
+     * was posted to a channel the user has turned off: no minute of that
+     * needs a post of its own.
      */
-    fun apply(snapshot: LiveActivitySnapshot?, quiet: Boolean = false) {
+    fun apply(snapshot: LiveActivitySnapshot?, quiet: Boolean = false): Boolean {
         if (snapshot == null) {
             manager.cancel(NOTIFICATION_ID)
             lastScenario = null
-            return
+            return false
         }
         if (!hasPostPermission()) {
             // Nothing is posted and nothing throws, so "I am in class and no
@@ -112,7 +119,7 @@ class LiveActivityNotifier @Inject constructor(
                 Log.w(TAG, "dropping ${snapshot.scenario}: POST_NOTIFICATIONS is denied")
             }
             lastScenario = null
-            return
+            return false
         }
 
         val contentIntent = PendingIntent.getActivity(
@@ -145,40 +152,43 @@ class LiveActivityNotifier @Inject constructor(
         // phone's language under an otherwise translated UI.
         val localized = localizedContext()
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+        val promoted = promotion()
+
+        // Brand tint, not snapshot.accentHex: every notification in the app
+        // tints duck yellow, so the shade badge and the Android 16
+        // promoted-ongoing chip stay consistent with the assignment / bulletin
+        // notifications instead of shifting colour per course. The per-course
+        // accent still drives the watch, which reads it from prefs via
+        // WearScheduleBridge, not from here.
+        val builder = context.brandedNotification(CHANNEL_ID, skin = deviceSkin)
             .setContentTitle(snapshot.title)
             .setContentText(statusLine(snapshot, localized))
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            // Brand tint, not snapshot.accentHex: every monochrome small icon
-            // in the app now tints duck yellow, so the shade badge and the
-            // Android 16 promoted-ongoing chip stay consistent with the
-            // assignment / bulletin notifications instead of shifting colour
-            // per course. The per-course accent still drives the watch, which
-            // reads it from prefs via WearScheduleBridge, not from here.
-            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setRequestPromotedOngoing(true)
             .setVisibility(visibility)
             .apply { if (!soundWanted) setSilent(true) }
 
-        // No setShortCriticalText, except on HyperOS: the chip picks its
-        // content in priority order — short critical text, then a metric,
-        // then `when` — and only the last of those ticks. Leaving it unset is
-        // what makes the chip a live counting-down clock instead of a string
-        // frozen at whatever the remaining time was when we last posted.
-        // HyperOS's island never reads `when` and shows the title in its
-        // place, so there a frozen string is the best on offer, and
-        // LiveActivityManager re-posts it each time the minute changes.
+        // No setShortCriticalText, except on the islands that need it: the
+        // chip picks its content in priority order — short critical text,
+        // then a metric, then `when` — and only the last of those ticks.
+        // Leaving it unset is what makes the chip a live counting-down clock
+        // instead of a string frozen at whatever the remaining time was when
+        // we last posted. The HyperOS, ColorOS and OriginOS islands never
+        // read `when` and show the title or the app name in its place, so
+        // there a frozen string is the best on offer, and LiveActivityManager
+        // re-posts it each time the minute changes — see showsStaticCountdown.
         val target = snapshot.countdownTarget?.time ?: 0L
         val now = AppClock.nowMillis()
-        if (target > now) {
+        val countingDown = target > now
+        val spelledOut = countingDown && showsStaticCountdown(promoted)
+        if (countingDown) {
             builder.setUsesChronometer(true)
             builder.setChronometerCountDown(true)
             builder.setWhen(target)
-            if (deviceSkin.chipShowsStaticText) {
+            if (spelledOut) {
                 builder.setShortCriticalText(
                     StaticCountdown.format(
                         StaticCountdown.minutesLeft(target, now),
@@ -193,21 +203,34 @@ class LiveActivityNotifier @Inject constructor(
         // The bar does not animate itself; it holds whatever fraction we last
         // posted. LiveActivityManager re-fires us periodically while a class
         // is running so it actually advances — see PROGRESS_TICK_MS there.
-        snapshot.progress?.let { fraction ->
-            val filled = (fraction * PROGRESS_MAX).roundToInt().coerceIn(0, PROGRESS_MAX)
-            builder.setProgress(PROGRESS_MAX, filled, false)
+        val filled = snapshot.progress?.let { fraction ->
+            (fraction * PROGRESS_MAX).roundToInt().coerceIn(0, PROGRESS_MAX)
         }
+        filled?.let { builder.setProgress(PROGRESS_MAX, it, false) }
 
-        val expandedLines = listOfNotNull(
-            snapshot.locationText?.let { "📍 $it" },
-            snapshot.instructor?.let { "👤 $it" },
-            snapshot.subtitle.takeIf { it.isNotBlank() }?.let { "🕒 $it" },
-        )
-        if (expandedLines.isNotEmpty()) {
-            builder.setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText(expandedLines.joinToString("\n"))
-            )
+        if (showsColorOsCard(promoted)) {
+            // ProgressStyle is promotable like BigTextStyle, and the island
+            // reads neither, so it looks the same. No big text: the card
+            // never shows it, and a row that did would repeat the sub text.
+            filled?.let {
+                builder.setStyle(
+                    NotificationCompat.ProgressStyle()
+                        .addProgressSegment(NotificationCompat.ProgressStyle.Segment(PROGRESS_MAX))
+                        .setProgress(it)
+                )
+            }
+            // Without a running countdown the card shows the content text,
+            // which already ends with the subtitle.
+            val cardLines = LiveUpdateDetails.lines(snapshot, withSubtitle = countingDown)
+            if (cardLines.isNotEmpty()) builder.setSubText(cardLines.joinToString(" · "))
+        } else {
+            val expandedLines = LiveUpdateDetails.lines(snapshot)
+            if (expandedLines.isNotEmpty()) {
+                builder.setStyle(
+                    NotificationCompat.BigTextStyle()
+                        .bigText(expandedLines.joinToString("\n"))
+                )
+            }
         }
 
         samsungNowBarExtras()?.let { builder.addExtras(it) }
@@ -225,10 +248,57 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         lastScenario = snapshot.scenario
+
+        return spelledOut &&
+            manager.getNotificationChannel(CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
     }
 
     /**
-     * The one vendor-specific thing this class does.
+     * Whether a post carries the countdown as text, and so needs a post of its
+     * own each time the displayed minute changes.
+     *
+     * Only on an island that never reads the chronometer — see
+     * [DeviceSkin.chipShowsStaticText] — and only while the platform will
+     * promote the post at all. ColorOS ships its per-app switch off, and with
+     * it off there is no island: the per-minute posts would be spent on text
+     * nobody sees. HyperOS picks what reaches its island by this
+     * same check, and the ColorOS 16.0.5 island followed it exactly, so here
+     * it can be believed. It still never decides whether to post.
+     *
+     * [apply] answers this for the post it makes, from the same reading of
+     * the platform; this asks afresh, for tests.
+     */
+    fun showsStaticCountdown(): Boolean = showsStaticCountdown(promotion())
+
+    private fun showsStaticCountdown(promoted: Lazy<Boolean>): Boolean =
+        deviceSkin.chipShowsStaticText && promoted.value
+
+    /**
+     * Whether the post is drawn as ColorOS's Live Alerts card, which shows the
+     * countdown where the content text would go and reads only sub text and
+     * ProgressStyle besides — see [DeviceSkin.cardHidesTextBehindClock]. So
+     * the room, instructor and time go in the sub text there, and the bar in
+     * a ProgressStyle.
+     *
+     * Only while the platform will promote the post: with ColorOS's per-app
+     * switch off it is an ordinary row, which shows the big text.
+     */
+    internal fun showsColorOsCard(): Boolean = showsColorOsCard(promotion())
+
+    private fun showsColorOsCard(promoted: Lazy<Boolean>): Boolean =
+        deviceSkin.cardHidesTextBehindClock && promoted.value
+
+    /**
+     * `canPostPromotedNotifications()`, asked at most once however many of
+     * the checks above need it, and not at all when none do: it is a call
+     * into the system server, made on every post.
+     */
+    private fun promotion(): Lazy<Boolean> = lazy(LazyThreadSafetyMode.NONE) {
+        NotificationManagerCompat.from(context).canPostPromotedNotifications()
+    }
+
+    /**
+     * The vendor code for One UI; the static countdown above is the rest.
      *
      * Samsung's Now Bar (即時通知) runs a pipeline that predates AOSP Live
      * Updates and ignores a plain promoted notification, so on One UI the chip

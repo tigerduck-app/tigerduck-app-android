@@ -1,16 +1,14 @@
 // Pins the device table behind the status-bar chip.
 //
 // Getting a row wrong is invisible in a build and expensive in the field: too
-// strict and a working phone shows a permanent red permission row for a
-// feature that is already running, too lax and a phone that can never show a
-// chip sends its owner to a settings page that changes nothing. Neither shows
-// up without the hardware in hand, so the measured devices are written down
-// here as cases.
+// lax and a phone that can never show a chip sends its owner to a settings
+// page that changes nothing, too generous and a phone whose switch is off
+// never tells its owner the switch exists. Neither shows up without the
+// hardware in hand, so the measured devices are written down here as cases.
 
 package org.ntust.app.tigerduck.notification
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 class StatusBarChipSupportTest {
@@ -20,9 +18,8 @@ class StatusBarChipSupportTest {
         manufacturer: String = "Google",
         brand: String = manufacturer,
         oneUiVersion: Int? = null,
-        oplusRomMajor: Int? = null,
         hyperOsVersion: Int? = null,
-    ) = DeviceSkin(sdkInt, manufacturer, brand, oneUiVersion, oplusRomMajor, hyperOsVersion)
+    ) = DeviceSkin(sdkInt, manufacturer, brand, oneUiVersion, hyperOsVersion, vivoOverseas = false)
 
     // --- the original standard, still the first gate ----------------------
 
@@ -42,7 +39,7 @@ class StatusBarChipSupportTest {
         )
         assertEquals(
             StatusBarChipSupport.UNSUPPORTED,
-            skin(sdkInt = 35, manufacturer = "OPPO", oplusRomMajor = 15).chipSupport,
+            skin(sdkInt = 35, manufacturer = "OPPO").chipSupport,
         )
     }
 
@@ -96,15 +93,15 @@ class StatusBarChipSupportTest {
         )
     }
 
-    // --- Oplus: the platform answer is a false negative -------------------
+    // --- Oplus: the platform answer is the verdict ------------------------
 
     @Test
-    fun `ColorOS 16 renders the chip while the API denies it`() {
-        // OPPO Find X9 / ColorOS 16.0.10, confirmed in production before 2.1.0.
-        assertEquals(
-            StatusBarChipSupport.ALWAYS_ON,
-            skin(manufacturer = "OPPO", oplusRomMajor = 16).chipSupport,
-        )
+    fun `ColorOS 16 trusts the platform`() {
+        // OPPO Reno 11 / ColorOS 16.0.5: the API answers false while the
+        // per-app switch is off, its default, and true once it is on, and the
+        // island follows it. A false is a switch the user can turn on, so the
+        // row must stay red and keep its link. The Find X9 is treated the same.
+        assertEquals(StatusBarChipSupport.PLATFORM_DECIDES, skin(manufacturer = "OPPO").chipSupport)
     }
 
     @Test
@@ -112,28 +109,10 @@ class StatusBarChipSupportTest {
         for (maker in listOf("OnePlus", "realme")) {
             assertEquals(
                 maker,
-                StatusBarChipSupport.ALWAYS_ON,
-                skin(manufacturer = maker, oplusRomMajor = 16).chipSupport,
+                StatusBarChipSupport.PLATFORM_DECIDES,
+                skin(manufacturer = maker).chipSupport,
             )
         }
-    }
-
-    @Test
-    fun `an unreadable Oplus ROM version on API 36 still trusts the device`() {
-        // On an Oplus device at API 36 a false from the capability API is more
-        // likely the known false negative than a permission the user revoked.
-        assertEquals(
-            StatusBarChipSupport.ALWAYS_ON,
-            skin(manufacturer = "OPPO", oplusRomMajor = null).chipSupport,
-        )
-    }
-
-    @Test
-    fun `an older Oplus ROM somehow on API 36 defers to the platform`() {
-        assertEquals(
-            StatusBarChipSupport.PLATFORM_DECIDES,
-            skin(manufacturer = "OPPO", oplusRomMajor = 15).chipSupport,
-        )
     }
 
     // --- Xiaomi: the island arrived with HyperOS 3 -----------------------
@@ -191,22 +170,53 @@ class StatusBarChipSupportTest {
     // --- which chips need the countdown spelled out -----------------------
 
     @Test
-    fun `only the HyperOS island needs a static countdown`() {
+    fun `the HyperOS island needs a static countdown`() {
         assertEquals(true, skin(manufacturer = "Xiaomi", hyperOsVersion = 3).chipShowsStaticText)
         assertEquals(true, skin(manufacturer = "Xiaomi", hyperOsVersion = 4).chipShowsStaticText)
     }
 
     @Test
+    fun `the ColorOS and OriginOS islands need a static countdown`() {
+        // The in-class preview, Android 16: the OPPO Reno 11 (ColorOS 16.0.5)
+        // island showed the title and the vivo V60 Lite (OriginOS 6) island
+        // the app name, where the countdown should have been. OnePlus and
+        // realme ship the same Oplus ROM as OPPO.
+        for (maker in listOf("OPPO", "OnePlus", "realme", "vivo")) {
+            assertEquals(maker, true, skin(manufacturer = maker).chipShowsStaticText)
+        }
+    }
+
+    @Test
     fun `chips that run the chronometer keep it`() {
         // Short critical text outranks the chronometer on AOSP chips, so
-        // setting it anywhere else would freeze a clock that works.
+        // setting it anywhere else would freeze a clock that works. The Honor
+        // X6d 5G (MagicOS 10) island ticked the preview's countdown.
         for (skin in listOf(
             skin(manufacturer = "Google"),
             skin(manufacturer = "samsung", oneUiVersion = DeviceSkin.ONE_UI_8_5),
-            skin(manufacturer = "OPPO", oplusRomMajor = 16),
+            skin(manufacturer = "HONOR"),
         )) {
             assertEquals(skin.manufacturer, false, skin.chipShowsStaticText)
         }
+    }
+
+    @Test
+    fun `the ColorOS card hides the text behind the clock`() {
+        // OPPO Reno 11 (ColorOS 16.0.5): the in-class card showed the title
+        // and the countdown, and none of the room, instructor, time or bar.
+        for (maker in listOf("OPPO", "OnePlus", "realme")) {
+            assertEquals(maker, true, skin(manufacturer = maker).cardHidesTextBehindClock)
+        }
+    }
+
+    @Test
+    fun `other cards show the text beside the clock`() {
+        // The POCO C85 (HyperOS 3) card showed the bar and the three lines
+        // under the countdown; so did the Honor X6d 5G's and the Pixel's.
+        for (maker in listOf("Google", "samsung", "Xiaomi", "HONOR", "vivo")) {
+            assertEquals(maker, false, skin(manufacturer = maker).cardHidesTextBehindClock)
+        }
+        assertEquals(false, skin(sdkInt = 35, manufacturer = "OPPO").cardHidesTextBehindClock)
     }
 
     @Test
@@ -216,6 +226,26 @@ class StatusBarChipSupportTest {
             false,
             skin(sdkInt = 35, manufacturer = "Xiaomi", hyperOsVersion = 3).chipShowsStaticText,
         )
+        for (maker in listOf("OPPO", "vivo")) {
+            assertEquals(maker, false, skin(sdkInt = 35, manufacturer = maker).chipShowsStaticText)
+        }
+    }
+
+    // --- skins that need nothing --------------------------------------------
+
+    @Test
+    fun `MagicOS and OriginOS trust the platform`() {
+        // Honor X6d 5G / MagicOS 10.0.0.193 and vivo V60 Lite / OriginOS 6,
+        // both Android 16: the API answers true, the OS sets
+        // FLAG_PROMOTED_ONGOING, the island renders, and neither has an
+        // island switch to turn off.
+        for (maker in listOf("HONOR", "vivo")) {
+            assertEquals(
+                maker,
+                StatusBarChipSupport.PLATFORM_DECIDES,
+                skin(manufacturer = maker).chipSupport,
+            )
+        }
     }
 
     // --- everything else: untested means capable, not broken --------------
@@ -224,7 +254,7 @@ class StatusBarChipSupportTest {
     fun `a skin nobody has measured is treated as capable`() {
         // The rule this table was written to: not on the list, meets the API
         // floor, so the chip is available and the platform decides the grant.
-        for (maker in listOf("vivo", "HONOR", "HUAWEI", "motorola", "asus")) {
+        for (maker in listOf("HUAWEI", "motorola", "asus")) {
             assertEquals(
                 maker,
                 StatusBarChipSupport.PLATFORM_DECIDES,
@@ -247,8 +277,8 @@ class StatusBarChipSupportTest {
             skin(manufacturer = "SAMSUNG", oneUiVersion = 80000).chipSupport,
         )
         assertEquals(
-            StatusBarChipSupport.ALWAYS_ON,
-            skin(manufacturer = "oppo", oplusRomMajor = 16).chipSupport,
+            StatusBarChipSupport.UNSUPPORTED,
+            skin(manufacturer = "XIAOMI", hyperOsVersion = 2).chipSupport,
         )
     }
 
@@ -256,8 +286,8 @@ class StatusBarChipSupportTest {
     fun `brand alone is enough to identify the vendor`() {
         // Some builds carry the vendor in BRAND and an ODM in MANUFACTURER.
         assertEquals(
-            StatusBarChipSupport.ALWAYS_ON,
-            skin(manufacturer = "unknown", brand = "OPPO", oplusRomMajor = 16).chipSupport,
+            StatusBarChipSupport.UNSUPPORTED,
+            skin(manufacturer = "unknown", brand = "samsung", oneUiVersion = 80000).chipSupport,
         )
     }
 
@@ -267,21 +297,5 @@ class StatusBarChipSupportTest {
             StatusBarChipSupport.PLATFORM_DECIDES,
             skin(manufacturer = "", brand = "").chipSupport,
         )
-    }
-
-    // --- version-string parsing -------------------------------------------
-
-    @Test
-    fun `an Oplus ROM version string yields its major`() {
-        assertEquals(16, DeviceSkin.leadingMajor("V16.0.10"))
-        assertEquals(15, DeviceSkin.leadingMajor("15.0.1"))
-    }
-
-    @Test
-    fun `an unparseable ROM version is null rather than zero`() {
-        // Zero would read as "very old ROM" and silently downgrade a device.
-        assertNull(DeviceSkin.leadingMajor(null))
-        assertNull(DeviceSkin.leadingMajor(""))
-        assertNull(DeviceSkin.leadingMajor("unknown"))
     }
 }

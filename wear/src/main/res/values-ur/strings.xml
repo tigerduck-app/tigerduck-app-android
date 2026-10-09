@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">نئی ای میل کی اطلاعات</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck ہر چند منٹ میں نئی ای میل چیک کرتا ہے، اس لیے اطلاع تھوڑی دیر سے آ سکتی ہے۔</string>
     <string name="school_mail_show_cc_bcc">Cc/Bcc شامل کریں</string>
-    <string name="school_mail_sign_in_note">آپ کا ID اور پاس ورڈ اکیڈمک سسٹم جیسا ہی ہونا چاہیے۔ یہ پاس ورڈ کیمپس Wi-Fi (NTUST-PEAP) کا پاس ورڈ بھی ہے؛ TigerDuck اسے صرف اس ڈیوائس پر خفیہ کر کے محفوظ رکھتا ہے، کبھی اپ لوڈ نہیں کرتا۔</string>
+    <string name="school_mail_sign_in_note">آپ کا ID اور پاس ورڈ اکیڈمک سسٹم جیسا ہی ہونا چاہیے۔ TigerDuck اس پاس ورڈ کو صرف اس ڈیوائس پر خفیہ کر کے محفوظ رکھتا ہے، کبھی اپ لوڈ نہیں کرتا۔</string>
     <string name="school_mail_sign_in_prompt_title">اسکول ای میل میں سائن ان کریں</string>
     <string name="school_mail_subject">موضوع</string>
     <string name="school_mail_to">وصول کنندہ</string>

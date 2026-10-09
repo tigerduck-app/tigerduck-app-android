@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">新邮件通知</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck 每隔几分钟检查一次新邮件，通知可能会晚一点才到。</string>
     <string name="school_mail_show_cc_bcc">添加抄送／密送</string>
-    <string name="school_mail_sign_in_note">账号密码应与校务系统相同。此密码也是校园 Wi-Fi（NTUST-PEAP）密码，TigerDuck 只会加密保存在这台设备上，不会上传。</string>
+    <string name="school_mail_sign_in_note">账号密码应与校务系统相同。此密码 TigerDuck 只会加密保存在这台设备上，不会上传。</string>
     <string name="school_mail_sign_in_prompt_title">登录校园邮箱</string>
     <string name="school_mail_subject">主题</string>
     <string name="school_mail_to">收件人</string>

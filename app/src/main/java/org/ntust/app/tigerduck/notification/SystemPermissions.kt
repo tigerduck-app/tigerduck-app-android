@@ -21,7 +21,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * One of three Android system permissions the notification features depend on.
+ * One of four Android system permissions the notification features depend on.
  *
  * - [NOTIFICATIONS]:  POST_NOTIFICATIONS runtime permission (API 33+). Required
  *   for any notification to show at all.
@@ -54,8 +54,18 @@ data class PermissionState(
 class SystemPermissions @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    /**
+     * Opened on first use rather than when Hilt builds this class, which is
+     * often on the main thread at launch: [forgetInferredChipGrant] reads the
+     * file, and the first read waits for it to load. Every read and write goes
+     * through here, so none can come before that one-time fix-up.
+     */
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).also {
+            val skin = DeviceSkin.current()
+            forgetInferredChipGrant(it, chipWasAssumed = skin.isOplus && skin.hasChip)
+        }
+    }
 
     /**
      * Launch-prompt refusals the warning popup has yet to be closed on. In
@@ -103,11 +113,6 @@ class SystemPermissions @Inject constructor(
             // for a permission that does not apply, and keeps the permission
             // out of revokedOrDeclinedUnmuted().
             StatusBarChipSupport.UNSUPPORTED -> true
-
-            // ColorOS renders the chip while the capability API returns false.
-            // Believing the API here would leave a permanent red row, and a
-            // settings link, on a device where the feature already works.
-            StatusBarChipSupport.ALWAYS_ON -> true
 
             StatusBarChipSupport.PLATFORM_DECIDES ->
                 NotificationManagerCompat.from(context).canPostPromotedNotifications()
@@ -281,11 +286,11 @@ class SystemPermissions @Inject constructor(
             // the page may well exist and open, and toggling it would change
             // nothing. Offering no destination is more honest than a dead end.
             if (isApplicable(AppPermission.PROMOTED_NOTIFICATIONS)) {
-                // The platform warns this activity may not exist on every
-                // build; tryStartActivity already swallows the miss.
-                Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).apply {
-                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                }
+                // On ColorOS 16.0.5 this opens the app's notification page with
+                // the switch highlighted. The platform warns it may not exist
+                // on every build, and on MagicOS 10 it does not; openSettings
+                // falls back for that.
+                promotionSettingsIntent(context.packageName, DeviceSkin.current())
             } else null
         }
     }
@@ -305,7 +310,13 @@ class SystemPermissions @Inject constructor(
         }
 
         val intent = settingsIntent(p) ?: return false
-        return tryStartActivity(intent)
+        if (tryStartActivity(intent)) return true
+
+        // MagicOS 10 has no promotion page, and there the chip follows the
+        // app's notifications, so their page is the honest next best. Without
+        // this the green row is a tap that does nothing.
+        return p == AppPermission.PROMOTED_NOTIFICATIONS &&
+            tryStartActivity(promotionFallbackIntent(context.packageName, DeviceSkin.current()))
     }
 
     private fun tryStartActivity(intent: Intent): Boolean {
@@ -333,12 +344,41 @@ class SystemPermissions @Inject constructor(
         return candidates
     }
 
-    private fun keyGranted(p: AppPermission) = "granted_${p.name}"
     private fun keyMuted(p: AppPermission) = "muted_${p.name}"
     private fun keyDeclined(p: AppPermission) = "declined_${p.name}"
 
     companion object {
         private const val PREFS_NAME = "tigerduck_permissions"
+
+        /** Set once [forgetInferredChipGrant] has run on this install. */
+        private const val KEY_CHIP_GRANT_REREAD = "chip_grant_reread"
+
+        private fun keyGranted(p: AppPermission) = "granted_${p.name}"
+
+        /**
+         * v2.2 reported the chip granted on every ColorOS 16 phone without
+         * asking the platform, and [recordCurrentGrants] banked that. Now that
+         * the platform is asked, a phone whose switch is still at its default,
+         * off, would have the warning popup say the chip "was previously
+         * enabled", which it never was. [chipWasAssumed] is true on every Oplus
+         * phone with a chip, which covers every phone v2.2 answered for, and
+         * there the flag is dropped once; the next [recordCurrentGrants] banks
+         * it again wherever the chip really is on, so a later turn-off is
+         * still warned about.
+         *
+         * A flag v2.0 or v2.1 banked, which did ask the platform, is dropped
+         * with them: nothing tells the two apart. That costs the popup only
+         * to someone who skipped v2.2, had the switch on and turned it off
+         * before this upgrade, and the Live Updates screen still shows them
+         * the gap. Keeping every flag would put the false claim in front of
+         * every phone still at the default.
+         */
+        internal fun forgetInferredChipGrant(prefs: SharedPreferences, chipWasAssumed: Boolean) {
+            if (prefs.getBoolean(KEY_CHIP_GRANT_REREAD, false)) return
+            val editor = prefs.edit()
+            if (chipWasAssumed) editor.remove(keyGranted(AppPermission.PROMOTED_NOTIFICATIONS))
+            editor.putBoolean(KEY_CHIP_GRANT_REREAD, true).apply()
+        }
 
         @StringRes
         fun displayNameResId(p: AppPermission): Int = when (p) {
@@ -365,3 +405,26 @@ class SystemPermissions @Inject constructor(
         }
     }
 }
+
+/**
+ * The chip row's settings page, naming the switch to highlight where the page
+ * holds more than that one switch; see [DeviceSkin.promotionSettingsHighlightKey].
+ */
+internal fun promotionSettingsIntent(packageName: String, skin: DeviceSkin): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).highlighting(packageName, skin)
+
+/**
+ * The app's notification page, where the chip row lands when the promotion
+ * page is missing. On ColorOS that is the page the switch is on, so it is
+ * highlighted there too.
+ */
+internal fun promotionFallbackIntent(packageName: String, skin: DeviceSkin): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).highlighting(packageName, skin)
+
+private fun Intent.highlighting(packageName: String, skin: DeviceSkin): Intent = apply {
+    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    skin.promotionSettingsHighlightKey?.let { putExtra(EXTRA_FRAGMENT_ARG_KEY, it) }
+}
+
+/** AOSP Settings' extra naming the preference to highlight, which ColorOS also reads. */
+private const val EXTRA_FRAGMENT_ARG_KEY = ":settings:fragment_args_key"

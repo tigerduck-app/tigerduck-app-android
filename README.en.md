@@ -94,7 +94,7 @@ unintuitive interfaces.
 ### 🔄 **Auto-Update** (Play only)
 
 - Play In-App Update FLEXIBLE flow built in — proactively prompts when a new version ships
-- Post-upgrade "What's new" dialog highlights what changed at a glance
+- Post-upgrade "What's new" sheet highlights what changed at a glance
 
 ### ⌚ **Wear OS** (Play only)
 
@@ -159,7 +159,7 @@ unintuitive interfaces.
 
 - [x] **TigerDuck-branded notification icons + per-scenario haptics**
 - [x] **Bulletin notification channels** (sound / silent) — adjustable independently
-- [x] **In-App Update + What's new dialog** — Play build prompts on new releases
+- [x] **In-App Update + What's new sheet** — Play build prompts on new releases
 - [x] **`FLAG_SECURE` on sensitive screens** — Login and library QR block screenshots /
   screen recording
 - [x] **Account deletion entry** — Request deletion of the server-side push identity from
@@ -216,7 +216,7 @@ cd tigerduck-app-android
 # Already cloned without --recurse-submodules? Pull them in:
 git submodule update --init --recursive
 
-# Open in Android Studio (it opens on playDebug), or build directly with Gradle.
+# Open in Android Studio, or build directly with Gradle.
 # There are two product flavors — play and fdroid — pick one:
 ./gradlew :app:assemblePlayDebug     # or :app:assembleFdroidDebug
 ./gradlew :app:installPlayDebug      # or :app:installFdroidDebug
@@ -349,7 +349,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       │   │   ├── score/              # Historical GPA & rankings
 │       │   │   ├── more/               # "More" hub
 │       │   │   ├── settings/           # Settings (language, tabs, notifications, haptics, server push, live activity, source)
-│       │   │   ├── whatsnew/           # "What's new" dialog
+│       │   │   ├── whatsnew/           # "What's new" sheet
 │       │   │   └── onboarding/         # First-run onboarding + privacy gate
 │       │   ├── theme/                  # Tokens, palette, visual presets
 │       │   └── AppState.kt

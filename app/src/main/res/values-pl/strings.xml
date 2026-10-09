@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Powiadomienia o nowych wiadomościach</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck sprawdza nową pocztę co kilka minut, więc powiadomienie może dotrzeć z niewielkim opóźnieniem.</string>
     <string name="school_mail_show_cc_bcc">Dodaj DW/UDW</string>
-    <string name="school_mail_sign_in_note">Twój login i hasło powinny być takie same jak w systemie uczelnianym. To hasło jest też hasłem do kampusowej sieci Wi-Fi (NTUST-PEAP); TigerDuck przechowuje je wyłącznie w postaci zaszyfrowanej na tym urządzeniu i nigdy go nie przesyła.</string>
+    <string name="school_mail_sign_in_note">Twój login i hasło powinny być takie same jak w systemie uczelnianym. TigerDuck przechowuje to hasło wyłącznie w postaci zaszyfrowanej na tym urządzeniu i nigdy go nie przesyła.</string>
     <string name="school_mail_sign_in_prompt_title">Zaloguj się do poczty uczelnianej</string>
     <string name="school_mail_subject">Temat</string>
     <string name="school_mail_to">Do</string>

@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">புதிய மின்னஞ்சல் அறிவிப்புகள்</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck ஒவ்வொரு சில நிமிடங்களுக்கும் புதிய மின்னஞ்சலைச் சரிபார்க்கிறது, எனவே அறிவிப்பு சற்று தாமதமாக வரலாம்.</string>
     <string name="school_mail_show_cc_bcc">Cc/Bcc சேர்</string>
-    <string name="school_mail_sign_in_note">உங்கள் ID மற்றும் கடவுச்சொல் கல்வி அமைப்பில் உள்ளதைப் போலவே இருக்க வேண்டும். இந்தக் கடவுச்சொல் வளாக Wi-Fi (NTUST-PEAP) கடவுச்சொல்லாகவும் உள்ளது; TigerDuck இதை இந்தச் சாதனத்தில் மறையாக்கம் செய்து மட்டுமே சேமிக்கும், ஒருபோதும் பதிவேற்றாது.</string>
+    <string name="school_mail_sign_in_note">உங்கள் ID மற்றும் கடவுச்சொல் கல்வி அமைப்பில் உள்ளதைப் போலவே இருக்க வேண்டும். TigerDuck இந்தக் கடவுச்சொல்லை இந்தச் சாதனத்தில் மறையாக்கம் செய்து மட்டுமே சேமிக்கும், ஒருபோதும் பதிவேற்றாது.</string>
     <string name="school_mail_sign_in_prompt_title">பள்ளி மின்னஞ்சலில் உள்நுழைக</string>
     <string name="school_mail_subject">பொருள்</string>
     <string name="school_mail_to">பெறுநர்</string>

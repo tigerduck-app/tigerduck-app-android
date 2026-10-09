@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Thông báo thư mới</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck kiểm tra thư mới sau mỗi vài phút, vì vậy thông báo có thể đến muộn một chút.</string>
     <string name="school_mail_show_cc_bcc">Thêm Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Mã số và mật khẩu của bạn nên giống với hệ thống của trường. Mật khẩu này cũng là mật khẩu Wi-Fi khuôn viên trường (NTUST-PEAP); TigerDuck chỉ lưu trữ mã hóa trên thiết bị này và không bao giờ tải lên.</string>
+    <string name="school_mail_sign_in_note">Mã số và mật khẩu của bạn nên giống với hệ thống của trường. TigerDuck chỉ lưu mật khẩu này ở dạng mã hóa trên thiết bị này và không bao giờ tải lên.</string>
     <string name="school_mail_sign_in_prompt_title">Đăng nhập Email trường</string>
     <string name="school_mail_subject">Chủ đề</string>
     <string name="school_mail_to">Đến</string>

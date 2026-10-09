@@ -35,7 +35,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.MainActivity
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier
 import org.ntust.app.tigerduck.liveactivity.LiveActivityScenario
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySnapshot
@@ -46,6 +45,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.NotificationGroup
+import org.ntust.app.tigerduck.notification.brandedNotification
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import java.util.Date
@@ -109,8 +109,7 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
                 .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
-        val notification = NotificationCompat.Builder(context, NotificationChannels.SCHOOL_MAIL)
-            .setSmallIcon(R.drawable.ic_notification)
+        val notification = context.brandedNotification(NotificationChannels.SCHOOL_MAIL)
             .setContentTitle("Preview mail")
             .setContentText("Debug Menu")
             .setAutoCancel(true)
@@ -123,10 +122,8 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
     }
     // Bulletins arrive over FCM, whose builders are play-only, so this mirrors them.
     val sendOther = {
-        val notification = NotificationCompat.Builder(context, NotificationChannels.BULLETINS)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Mirrors the production builders so this preview stays honest.
-            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
+        // Built like FcmService's, large icon included, so this preview stays honest.
+        val notification = context.brandedNotification(NotificationChannels.BULLETINS, withLargeIcon = true)
             .setContentTitle("Test notification")
             .setContentText("This is a test notification from the developer menu.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)

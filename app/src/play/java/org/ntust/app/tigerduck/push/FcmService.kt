@@ -2,12 +2,10 @@ package org.ntust.app.tigerduck.push
 
 import android.app.PendingIntent
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -15,12 +13,12 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.MainActivity
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.NotificationGroup
+import org.ntust.app.tigerduck.notification.brandedNotification
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
 import javax.inject.Inject
 
@@ -147,18 +145,10 @@ class FcmService : FirebaseMessagingService() {
         // would crash FirebaseMessagingService and the whole process.
         if (!manager.areNotificationsEnabled()) return
         notificationChannels.ensureRegistered()
-        val notification = NotificationCompat.Builder(this, channelId)
-            // Status-bar small icon must be a transparent monochrome
-            // silhouette; passing the full-color launcher mipmap lets
-            // Android fall back to a generic circle.
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
-            // Large icon (rendered in the notification body) is the
-            // full-color TigerDuck character — gives the brand visible
-            // presence without violating the silhouette-only contract
-            // the status bar enforces above.
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+        // The full-colour logo as the large icon gives the brand a presence in
+        // the body, where the shade doesn't already show it; see
+        // brandedNotification.
+        val notification = brandedNotification(channelId, withLargeIcon = true)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -220,14 +210,8 @@ class FcmService : FirebaseMessagingService() {
         val channelId =
             if (forceRing) NotificationChannels.BULLETINS_SOUND
             else NotificationChannels.BULLETINS_SILENT
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
-            // Same brand presence in the notification body as the bulletin
-            // path — see showBulletinNotification for the silhouette /
-            // large-icon split rationale.
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+        // Same large icon as the bulletin path; see showBulletinNotification.
+        val notification = brandedNotification(channelId, withLargeIcon = true)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -270,14 +254,8 @@ class FcmService : FirebaseMessagingService() {
         val manager = NotificationManagerCompat.from(this)
         if (!manager.areNotificationsEnabled()) return
         notificationChannels.ensureRegistered()
-        val notification = NotificationCompat.Builder(this, NotificationChannels.SYSTEM)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
-            // Same brand presence in the notification body as the bulletin
-            // path — see showBulletinNotification for the silhouette /
-            // large-icon split rationale.
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+        // Same large icon as the bulletin path; see showBulletinNotification.
+        val notification = brandedNotification(NotificationChannels.SYSTEM, withLargeIcon = true)
             // Title and body are rendered server-side in the device's
             // language; the client must never compose its own copy here.
             .setContentTitle(title)

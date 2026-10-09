@@ -156,5 +156,23 @@
         { "icon": "sparkles", "title": "Optimized UI/UX", "body": "Smoother page transitions and back swipes, and no more repeated notification prompts." }
       ]
     }
+  },
+  "29": {
+    "zh-Hant": {
+      "title": "2.3.1 新功能",
+      "items": [
+        { "icon": "notification", "title": "通知、即時更新與動態島優化", "body": "針對 Pixel 即時更新、vivo 原子島、HONOR Magic Capsule、OPPO 流體雲、三星 Now Bar 與小米系列（含 Redmi、POCO）超級島逐一調校。" },
+        { "icon": "layout", "title": "修正「更多」頁文字溢出", "body": "放大字型或顯示大小時，卡片上的功能名稱不再被截斷。" },
+        { "icon": "sparkles", "title": "修正新功能說明頁異常", "body": "往上滑動後頁面不再自己彈跳，橫向或分割畫面時也不會被狀態列擋住。" }
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.3.1",
+      "items": [
+        { "icon": "notification", "title": "Better notifications, Live Updates and Dynamic Island", "body": "Tuned one by one for Pixel's Live Updates, vivo's Origin Island, HONOR's Magic Capsule, OPPO's Live Alerts, Samsung's Now Bar and HyperIsland on Xiaomi, Redmi and POCO." },
+        { "icon": "layout", "title": "More tab text fixed", "body": "Feature names on the cards no longer get cut off at larger font or display sizes." },
+        { "icon": "sparkles", "title": "What's new page fixed", "body": "It no longer bounces after a swipe up, and stays clear of the status bar in landscape or split screen." }
+      ]
+    }
   }
 }

@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Pemberitahuan e-mel baharu</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck menyemak e-mel baharu setiap beberapa minit, jadi pemberitahuan mungkin tiba lewat sedikit.</string>
     <string name="school_mail_show_cc_bcc">Tambah Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">ID dan kata laluan anda perlu sama seperti sistem sekolah. Kata laluan ini juga merupakan kata laluan Wi-Fi kampus (NTUST-PEAP); TigerDuck hanya menyimpannya dalam bentuk disulitkan pada peranti ini dan tidak sekali-kali memuat naiknya.</string>
+    <string name="school_mail_sign_in_note">ID dan kata laluan anda perlu sama seperti sistem sekolah. TigerDuck hanya menyimpan kata laluan ini dalam bentuk disulitkan pada peranti ini dan tidak sekali-kali memuat naiknya.</string>
     <string name="school_mail_sign_in_prompt_title">Log masuk ke e-mel sekolah</string>
     <string name="school_mail_subject">Subjek</string>
     <string name="school_mail_to">Kepada</string>

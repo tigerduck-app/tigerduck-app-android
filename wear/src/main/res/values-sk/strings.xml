@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Oznámenia o novej pošte</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck kontroluje novú poštu každých pár minút, takže oznámenie môže prísť s miernym oneskorením.</string>
     <string name="school_mail_show_cc_bcc">Pridať kópiu/skrytú kópiu</string>
-    <string name="school_mail_sign_in_note">Vaše prihlasovacie meno a heslo by mali byť rovnaké ako v školskom systéme. Toto heslo je zároveň heslom pre kampusovú sieť Wi-Fi (NTUST-PEAP); TigerDuck ho na tomto zariadení ukladá len v zašifrovanej podobe a nikdy ho nikam neodosiela.</string>
+    <string name="school_mail_sign_in_note">Vaše prihlasovacie meno a heslo by mali byť rovnaké ako v školskom systéme. TigerDuck toto heslo na tomto zariadení ukladá len v zašifrovanej podobe a nikdy ho nikam neodosiela.</string>
     <string name="school_mail_sign_in_prompt_title">Prihlásiť sa do školskej pošty</string>
     <string name="school_mail_subject">Predmet</string>
     <string name="school_mail_to">Komu</string>

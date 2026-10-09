@@ -49,10 +49,20 @@
              the notification (skipping onMessageReceived). Without this,
              Firebase falls back to the launcher mipmap, which Android can't
              reduce to a status-bar silhouette and renders as a generic
-             circle. The drawable is monochrome white-on-transparent. -->
+             circle. The app's own notifications pick an icon per skin
+             (DeviceSkin.notificationSmallIcon); a resource can't, so this is
+             the white twin, which every status bar tints, overseas OriginOS
+             included, at the cost of a white paw in the islands that would
+             have drawn it yellow. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notification" />
+            android:resource="@drawable/ic_notification_white" />
+
+        <!-- The accent brandedNotification sets on every other post. Without
+             it a push Firebase draws tints its badge in the system default. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/duck_yellow" />
 
         <!-- Default Firebase Analytics collection off so auto-collected events
              (session_start, first_open, screen_view) don't leave the device

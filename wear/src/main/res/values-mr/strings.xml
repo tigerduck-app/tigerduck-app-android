@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">नवीन मेल नोटिफिकेशन</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck दर काही मिनिटांनी नवीन मेल तपासते, त्यामुळे नोटिफिकेशन थोडे उशिरा येऊ शकते.</string>
     <string name="school_mail_show_cc_bcc">Cc/Bcc जोडा</string>
-    <string name="school_mail_sign_in_note">तुमचा ID आणि पासवर्ड शाळा सिस्टमसारखाच असावा. हा पासवर्ड कॅम्पस Wi-Fi (NTUST-PEAP) चा पासवर्डही आहे; TigerDuck तो फक्त याच डिव्हाइसवर एन्क्रिप्ट करून ठेवते आणि कधीही अपलोड करत नाही.</string>
+    <string name="school_mail_sign_in_note">तुमचा ID आणि पासवर्ड शाळा सिस्टमसारखाच असावा. TigerDuck हा पासवर्ड फक्त याच डिव्हाइसवर एन्क्रिप्ट करून ठेवते आणि कधीही अपलोड करत नाही.</string>
     <string name="school_mail_sign_in_prompt_title">शाळा मेलमध्ये साइन इन करा</string>
     <string name="school_mail_subject">विषय</string>
     <string name="school_mail_to">प्रति</string>

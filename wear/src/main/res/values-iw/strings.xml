@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">התראות על דואר חדש</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck בודק דואר חדש כל כמה דקות, כך שההתראה עשויה להגיע באיחור קל.</string>
     <string name="school_mail_show_cc_bcc">הוסף עותק/עותק מוסתר</string>
-    <string name="school_mail_sign_in_note">מספר הסטודנט והסיסמה שלך צריכים להיות זהים לאלה של מערכת בית הספר. הסיסמה הזו היא גם סיסמת ה-Wi-Fi של הקמפוס (NTUST-PEAP); TigerDuck שומר אותה מוצפנת במכשיר הזה בלבד ולעולם לא מעלה אותה.</string>
+    <string name="school_mail_sign_in_note">מספר הסטודנט והסיסמה שלך צריכים להיות זהים לאלה של מערכת בית הספר. TigerDuck שומר את הסיסמה הזו מוצפנת במכשיר הזה בלבד ולעולם לא מעלה אותה.</string>
     <string name="school_mail_sign_in_prompt_title">התחברות לדואר בית הספר</string>
     <string name="school_mail_subject">נושא</string>
     <string name="school_mail_to">אל</string>

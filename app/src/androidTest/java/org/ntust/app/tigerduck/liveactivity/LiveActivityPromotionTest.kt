@@ -18,7 +18,6 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
@@ -141,15 +140,15 @@ class LiveActivityPromotionTest {
     }
 
     /**
-     * HyperOS's island shows short critical text, else the title, and never
-     * the chronometer — so without this the island reads the class name where
-     * every other device shows a countdown.
+     * The HyperOS, ColorOS and OriginOS islands show short critical text when
+     * it is set and never the chronometer — so without it they read the class
+     * name or the app name where every other device shows a countdown.
      */
     @Test
-    fun hyperOsIslandGetsTheCountdownAsText() {
+    fun staticTextIslandsGetTheCountdownAsText() {
         assumeTrue(
-            "Only the HyperOS island shows a static countdown",
-            DeviceSkin.current().chipShowsStaticText,
+            "Only an island that ignores the chronometer, with promotion on, gets text",
+            expectsStaticCountdown(),
         )
 
         val text = postInClass().extras.getString(SHORT_CRITICAL_TEXT)
@@ -166,25 +165,70 @@ class LiveActivityPromotionTest {
     @Test
     fun otherChipsKeepTheLiveChronometer() {
         assumeTrue(
-            "The HyperOS island is covered above",
-            !DeviceSkin.current().chipShowsStaticText,
+            "Islands that need the countdown as text are covered above",
+            !expectsStaticCountdown(),
         )
 
         assertNull(postInClass().extras.getString(SHORT_CRITICAL_TEXT))
     }
 
-    private fun postInClass(): Notification {
+    /**
+     * ColorOS's card shows the countdown where the content text would go and
+     * reads only sub text and ProgressStyle besides, so the details and the
+     * bar have to travel there or the card is the title and a clock.
+     */
+    @Test
+    fun colorOsCardGetsTheDetailsAsSubTextAndTheBarAsAProgressStyle() {
+        assumeTrue("Only the ColorOS card, with promotion on", expectsColorOsCard())
+
+        val notification = postInClass()
+        val extras = notification.extras
+
+        assertEquals(
+            "TR-412 · Instrumentation · 09:10–10:00",
+            extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString(),
+        )
+        assertEquals(PROGRESS_STYLE, extras.getString(Notification.EXTRA_TEMPLATE))
+        assertNull("the card never shows big text", extras.getCharSequence(Notification.EXTRA_BIG_TEXT))
+        val style = Notification.Builder.recoverBuilder(context, notification).style
+            as Notification.ProgressStyle
+        assertEquals(32, style.progress)
+        assertEquals(100, style.progressMax)
+    }
+
+    /** Every other surface reads the big text, and gets no sub text to repeat it. */
+    @Test
+    fun otherCardsKeepTheDetailsAsBigText() {
+        assumeTrue("The ColorOS card is covered above", !expectsColorOsCard())
+
+        val extras = postInClass().extras
+
+        assertEquals(
+            "TR-412\nInstrumentation\n09:10–10:00",
+            extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
+        )
+        assertNull(extras.getCharSequence(Notification.EXTRA_SUB_TEXT))
+    }
+
+    private fun expectsColorOsCard(): Boolean = newNotifier().showsColorOsCard()
+
+    private fun expectsStaticCountdown(): Boolean = newNotifier().showsStaticCountdown()
+
+    private fun newNotifier(): LiveActivityNotifier {
         val prefs = AppPreferences(context)
         // Its own registrar, which has not registered yet: the notifier
         // creates the channel itself before posting, whichever Application
         // the runner starts.
-        val notifier = LiveActivityNotifier(
+        return LiveActivityNotifier(
             context,
             LiveActivityPreferences(context),
             prefs,
             NotificationChannelRegistrar(context, prefs),
         )
-        notifier.apply(
+    }
+
+    private fun postInClass(): Notification {
+        newNotifier().apply(
             LiveActivitySnapshot(
                 scenario = LiveActivityScenario.IN_CLASS,
                 title = "Promotion Test",
@@ -230,6 +274,8 @@ class LiveActivityPromotionTest {
         const val SAMSUNG_STYLE = "android.ongoingActivityNoti.style"
         /** `Notification.EXTRA_SHORT_CRITICAL_TEXT`, API 36. */
         const val SHORT_CRITICAL_TEXT = "android.shortCriticalText"
+        /** `Notification.ProgressStyle`'s template name, as a string so API 35 never loads it. */
+        const val PROGRESS_STYLE = "android.app.Notification\$ProgressStyle"
         const val POST_TIMEOUT_MS = 5_000L
         const val POLL_INTERVAL_MS = 50L
     }
