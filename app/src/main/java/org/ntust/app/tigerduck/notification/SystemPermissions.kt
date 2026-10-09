@@ -314,7 +314,7 @@ class SystemPermissions @Inject constructor(
         // app's notifications, so their page is the honest next best. Without
         // this the green row is a tap that does nothing.
         return p == AppPermission.PROMOTED_NOTIFICATIONS &&
-            settingsIntent(AppPermission.NOTIFICATIONS)?.let(::tryStartActivity) == true
+            tryStartActivity(promotionFallbackIntent(context.packageName, DeviceSkin.current()))
     }
 
     private fun tryStartActivity(intent: Intent): Boolean {
@@ -409,10 +409,20 @@ class SystemPermissions @Inject constructor(
  * holds more than that one switch; see [DeviceSkin.promotionSettingsHighlightKey].
  */
 internal fun promotionSettingsIntent(packageName: String, skin: DeviceSkin): Intent =
-    Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).apply {
-        putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-        skin.promotionSettingsHighlightKey?.let { putExtra(EXTRA_FRAGMENT_ARG_KEY, it) }
-    }
+    Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).highlighting(packageName, skin)
+
+/**
+ * The app's notification page, where the chip row lands when the promotion
+ * page is missing. On ColorOS that is the page the switch is on, so it is
+ * highlighted there too.
+ */
+internal fun promotionFallbackIntent(packageName: String, skin: DeviceSkin): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).highlighting(packageName, skin)
+
+private fun Intent.highlighting(packageName: String, skin: DeviceSkin): Intent = apply {
+    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    skin.promotionSettingsHighlightKey?.let { putExtra(EXTRA_FRAGMENT_ARG_KEY, it) }
+}
 
 /** AOSP Settings' extra naming the preference to highlight, which ColorOS also reads. */
 private const val EXTRA_FRAGMENT_ARG_KEY = ":settings:fragment_args_key"

@@ -58,6 +58,17 @@ class PromotionSettingsHighlightTest {
         assertEquals(PACKAGE, intent.getStringExtra(Settings.EXTRA_APP_PACKAGE))
     }
 
+    @Test
+    fun `the fallback to the notification page keeps the highlight`() {
+        // The page ColorOS falls back to is the one the switch is on.
+        val oppo = promotionFallbackIntent(PACKAGE, skin("OPPO"))
+        assertEquals(Settings.ACTION_APP_NOTIFICATION_SETTINGS, oppo.action)
+        assertEquals(PACKAGE, oppo.getStringExtra(Settings.EXTRA_APP_PACKAGE))
+        assertEquals("shown_as_live_alert_enable_key", oppo.getStringExtra(FRAGMENT_ARG_KEY))
+
+        assertFalse(promotionFallbackIntent(PACKAGE, skin("HONOR")).hasExtra(FRAGMENT_ARG_KEY))
+    }
+
     private companion object {
         const val PACKAGE = "org.ntust.app.tigerduck"
         const val FRAGMENT_ARG_KEY = ":settings:fragment_args_key"
