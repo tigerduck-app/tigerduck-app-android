@@ -374,18 +374,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private suspend fun syncAssignments(): Boolean {
         return try {
             val enrolled = moodleService.fetchEnrolledCourses()
-            val remote = moodleService.fetchAssignments(enrolled)
-            val completed = dataCache.loadAssignments()
-                .filter { it.isCompleted }
-                .map { it.assignmentId }
-                .toSet()
-            val merged = remote.map { a ->
-                if (a.assignmentId in completed) a.copy(isCompleted = true) else a
-            }
-            // See the note in ClassTableViewModel: an empty list here is
-            // upstream failing, not a clear week, and writing it drops every
-            // cached assignment.
-            if (merged.isEmpty()) return true
+            // An empty answer is upstream failing, not a clear week, and
+            // writing it drops every cached assignment — see assignmentsToStore.
+            val merged = CourseRosterMerge.assignmentsToStore(
+                remote = moodleService.fetchAssignments(enrolled),
+                cached = dataCache.loadAssignments(),
+            ) ?: return true
             dataCache.saveAssignments(merged)
             runCatching { pushApiClient.uploadAssignments(merged) }
                 .onFailure {

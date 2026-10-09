@@ -120,4 +120,24 @@ object CourseRosterMerge {
     fun completedIds(assignments: List<Assignment>): Set<String> =
         assignments.filter { it.isCompleted }.mapTo(mutableSetOf()) { it.assignmentId }
 
+    /**
+     * What a Moodle fetch of [remote] should leave in the assignment cache,
+     * or null when the cache is better left as it is.
+     *
+     * Both rules every writer of that cache needs, in one place: an empty
+     * answer is upstream failing quietly (a NetScaler challenge, a token
+     * rotation race), not a clear week, so it writes nothing; and a
+     * submission [cached] already records is kept, see
+     * [preserveConfirmedSubmissions]. The calendar's refresh applied only the
+     * first, so one failed status call there marked a submitted assignment
+     * as outstanding for every screen.
+     */
+    fun assignmentsToStore(
+        remote: List<Assignment>,
+        cached: List<Assignment>,
+    ): List<Assignment>? {
+        if (remote.isEmpty()) return null
+        return preserveConfirmedSubmissions(remote, completedIds(cached))
+    }
+
 }

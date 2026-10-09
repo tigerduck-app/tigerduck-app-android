@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -305,11 +306,15 @@ class CalendarViewModel @Inject constructor(
                 return dataCache.loadAssignments().toCalendarEvents()
             }
             val enrolled = moodleService.fetchEnrolledCourses()
-            val assignments = moodleService.fetchAssignments(enrolled)
-            // Same guard as the class table's: an empty answer is upstream
-            // failing quietly, and overwriting with it empties the calendar
-            // on every other screen too.
-            if (assignments.isEmpty()) return dataCache.loadAssignments().toCalendarEvents()
+            val cached = dataCache.loadAssignments()
+            // The same rules Home and the class table store by: an empty
+            // answer keeps the cache, and a confirmed submission stays
+            // submitted. This cache is every screen's, so a status call that
+            // failed here used to mark the assignment outstanding everywhere.
+            val assignments = CourseRosterMerge.assignmentsToStore(
+                remote = moodleService.fetchAssignments(enrolled),
+                cached = cached,
+            ) ?: return cached.toCalendarEvents()
             dataCache.saveAssignments(assignments)
             assignments.toCalendarEvents()
         } catch (_: Exception) {
