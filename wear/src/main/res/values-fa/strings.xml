@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">اعلان‌های ایمیل جدید</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck هر چند دقیقه یک‌بار ایمیل جدید را بررسی می‌کند، بنابراین ممکن است اعلان کمی دیرتر برسد.</string>
     <string name="school_mail_show_cc_bcc">افزودن Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">شماره دانشجویی و رمز عبور شما باید همان سیستم دانشگاه باشد. این رمز عبور، رمز عبور Wi-Fi پردیس (NTUST-PEAP) هم هست؛ TigerDuck آن را فقط به‌صورت رمزگذاری‌شده روی همین دستگاه ذخیره می‌کند و هرگز آپلود نمی‌کند.</string>
+    <string name="school_mail_sign_in_note">شماره دانشجویی و رمز عبور شما باید همان سیستم دانشگاه باشد. TigerDuck این رمز عبور را فقط به‌صورت رمزگذاری‌شده روی همین دستگاه ذخیره می‌کند و هرگز آپلود نمی‌کند.</string>
     <string name="school_mail_sign_in_prompt_title">ورود به ایمیل مدرسه</string>
     <string name="school_mail_subject">موضوع</string>
     <string name="school_mail_to">گیرنده</string>

@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">New mail notifications</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck checks for new mail every few minutes, so a notification can arrive a little later.</string>
     <string name="school_mail_show_cc_bcc">Add Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Your ID and password should be the same as the school system\'s. This password is also the campus Wi-Fi (NTUST-PEAP) password; TigerDuck only stores it encrypted on this device and never uploads it.</string>
+    <string name="school_mail_sign_in_note">Your ID and password should be the same as the school system\'s. TigerDuck only stores this password encrypted on this device and never uploads it.</string>
     <string name="school_mail_sign_in_prompt_title">Sign in to school mail</string>
     <string name="school_mail_subject">Subject</string>
     <string name="school_mail_to">To</string>

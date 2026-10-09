@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">إشعارات البريد الجديد</string>
     <string name="school_mail_settings_notifications_hint">يتحقق TigerDuck من البريد الجديد كل بضع دقائق، لذا قد يصل الإشعار متأخرًا قليلاً.</string>
     <string name="school_mail_show_cc_bcc">إضافة نسخة/نسخة مخفية</string>
-    <string name="school_mail_sign_in_note">يجب أن يكون رقم الطالب وكلمة المرور مطابقين لبيانات النظام الجامعي. هذه الكلمة هي نفسها كلمة مرور شبكة Wi-Fi الجامعية (NTUST-PEAP)؛ يخزّنها TigerDuck مشفّرة على هذا الجهاز فقط ولا يرفعها أبدًا.</string>
+    <string name="school_mail_sign_in_note">يجب أن يكون رقم الطالب وكلمة المرور مطابقين لبيانات النظام الجامعي. يخزّن TigerDuck كلمة المرور هذه مشفّرة على هذا الجهاز فقط ولا يرفعها أبدًا.</string>
     <string name="school_mail_sign_in_prompt_title">تسجيل الدخول إلى البريد المدرسي</string>
     <string name="school_mail_subject">الموضوع</string>
     <string name="school_mail_to">إلى</string>

@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Notifikationer om ny mail</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck tjekker for ny mail hvert par minutter, så en notifikation kan komme lidt senere.</string>
     <string name="school_mail_show_cc_bcc">Tilføj Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Dit studienummer og din adgangskode skal være de samme som til skolens system. Denne adgangskode er også adgangskoden til campus-wifi (NTUST-PEAP); TigerDuck gemmer den kun krypteret på denne enhed og uploader den aldrig.</string>
+    <string name="school_mail_sign_in_note">Dit studienummer og din adgangskode skal være de samme som til skolens system. TigerDuck gemmer kun denne adgangskode krypteret på denne enhed og uploader den aldrig.</string>
     <string name="school_mail_sign_in_prompt_title">Log ind på Skolemail</string>
     <string name="school_mail_subject">Emne</string>
     <string name="school_mail_to">Til</string>

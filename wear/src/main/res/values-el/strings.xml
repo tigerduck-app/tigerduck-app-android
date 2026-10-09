@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Ειδοποιήσεις για νέα email</string>
     <string name="school_mail_settings_notifications_hint">Το TigerDuck ελέγχει για νέα email κάθε λίγα λεπτά, οπότε μια ειδοποίηση μπορεί να φτάσει λίγο αργότερα.</string>
     <string name="school_mail_show_cc_bcc">Προσθήκη Κοιν./Κρυφή κοιν.</string>
-    <string name="school_mail_sign_in_note">Ο αριθμός μητρώου και ο κωδικός πρόσβασής σου πρέπει να είναι ίδιοι με αυτούς του συστήματος του πανεπιστημίου. Αυτός ο κωδικός είναι επίσης ο κωδικός του Wi-Fi της πανεπιστημιούπολης (NTUST-PEAP)· το TigerDuck τον αποθηκεύει κρυπτογραφημένο μόνο σε αυτήν τη συσκευή και δεν τον μεταφορτώνει ποτέ.</string>
+    <string name="school_mail_sign_in_note">Ο αριθμός μητρώου και ο κωδικός πρόσβασής σου πρέπει να είναι ίδιοι με αυτούς του συστήματος του πανεπιστημίου. Το TigerDuck αποθηκεύει αυτόν τον κωδικό κρυπτογραφημένο μόνο σε αυτήν τη συσκευή και δεν τον μεταφορτώνει ποτέ.</string>
     <string name="school_mail_sign_in_prompt_title">Σύνδεση στο πανεπιστημιακό email</string>
     <string name="school_mail_subject">Θέμα</string>
     <string name="school_mail_to">Προς</string>

@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Notifications de nouveaux messages</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck vérifie l\'arrivée de nouveaux messages toutes les quelques minutes, une notification peut donc arriver un peu plus tard.</string>
     <string name="school_mail_show_cc_bcc">Ajouter Cc/Cci</string>
-    <string name="school_mail_sign_in_note">Votre numéro d\'étudiant et votre mot de passe doivent être identiques à ceux du système universitaire. Ce mot de passe est aussi celui du Wi-Fi du campus (NTUST-PEAP) ; TigerDuck le stocke uniquement de façon chiffrée sur cet appareil et ne le transmet jamais en ligne.</string>
+    <string name="school_mail_sign_in_note">Votre numéro d\'étudiant et votre mot de passe doivent être identiques à ceux du système universitaire. TigerDuck stocke ce mot de passe uniquement de façon chiffrée sur cet appareil et ne le transmet jamais en ligne.</string>
     <string name="school_mail_sign_in_prompt_title">Se connecter à la messagerie universitaire</string>
     <string name="school_mail_subject">Objet</string>
     <string name="school_mail_to">À</string>

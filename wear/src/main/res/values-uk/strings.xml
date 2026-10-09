@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Сповіщення про нові листи</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck перевіряє нову пошту що кілька хвилин, тому сповіщення може надійти з невеликою затримкою.</string>
     <string name="school_mail_show_cc_bcc">Додати копію/приховану копію</string>
-    <string name="school_mail_sign_in_note">Логін і пароль мають збігатися з обліковими даними системи університету. Цей пароль також використовується для кампусної мережі Wi-Fi (NTUST-PEAP); TigerDuck зберігає його лише в зашифрованому вигляді на цьому пристрої й ніколи його не вивантажує.</string>
+    <string name="school_mail_sign_in_note">Логін і пароль мають збігатися з обліковими даними системи університету. TigerDuck зберігає цей пароль лише в зашифрованому вигляді на цьому пристрої й ніколи його не вивантажує.</string>
     <string name="school_mail_sign_in_prompt_title">Увійти в університетську пошту</string>
     <string name="school_mail_subject">Тема</string>
     <string name="school_mail_to">Кому</string>

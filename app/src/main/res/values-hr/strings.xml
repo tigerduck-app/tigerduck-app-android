@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Obavijesti o novim porukama</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck provjerava novu poštu svakih nekoliko minuta, pa obavijest može stići malo kasnije.</string>
     <string name="school_mail_show_cc_bcc">Dodaj Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Vaš studentski broj i lozinka trebaju biti isti kao u školskom sustavu. Ta je lozinka ujedno i lozinka za kampus Wi-Fi (NTUST-PEAP); TigerDuck je pohranjuje samo šifrirano na ovom uređaju i nikada je ne učitava.</string>
+    <string name="school_mail_sign_in_note">Vaš studentski broj i lozinka trebaju biti isti kao u školskom sustavu. TigerDuck tu lozinku pohranjuje samo šifrirano na ovom uređaju i nikada je ne učitava.</string>
     <string name="school_mail_sign_in_prompt_title">Prijavite se u školsku poštu</string>
     <string name="school_mail_subject">Predmet</string>
     <string name="school_mail_to">Prima</string>

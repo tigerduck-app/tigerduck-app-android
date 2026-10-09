@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Жаңа хат хабарландырулары</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck қолданбасы жаңа хаттарды бірнеше минут сайын тексереді, сондықтан хабарландыру сәл кешігуі мүмкін.</string>
     <string name="school_mail_show_cc_bcc">Cc/Bcc қосу</string>
-    <string name="school_mail_sign_in_note">Студент ID және құпия сөзіңіз мектеп жүйесіндегімен бірдей болуы керек. Бұл құпия сөз кампус Wi-Fi (NTUST-PEAP) құпия сөзі де болып табылады; TigerDuck қолданбасы оны тек осы құрылғыда шифрланған түрде сақтайды және ешқашан жүктемейді.</string>
+    <string name="school_mail_sign_in_note">Студент ID және құпия сөзіңіз мектеп жүйесіндегімен бірдей болуы керек. TigerDuck қолданбасы бұл құпия сөзді тек осы құрылғыда шифрланған түрде сақтайды және ешқашан жүктемейді.</string>
     <string name="school_mail_sign_in_prompt_title">Мектеп поштасына кіру</string>
     <string name="school_mail_subject">Тақырып</string>
     <string name="school_mail_to">Кімге</string>

@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Notifiche di nuovi messaggi</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck controlla la presenza di nuova posta ogni pochi minuti, quindi una notifica potrebbe arrivare con un po\' di ritardo.</string>
     <string name="school_mail_show_cc_bcc">Aggiungi Cc/Ccn</string>
-    <string name="school_mail_sign_in_note">Il numero di matricola e la password devono essere gli stessi del sistema universitario. Questa password è anche quella del Wi-Fi del campus (NTUST-PEAP); TigerDuck la salva solo in forma crittografata su questo dispositivo e non la carica mai online.</string>
+    <string name="school_mail_sign_in_note">Il numero di matricola e la password devono essere gli stessi del sistema universitario. TigerDuck salva questa password solo in forma crittografata su questo dispositivo e non la carica mai online.</string>
     <string name="school_mail_sign_in_prompt_title">Accedi alla posta universitaria</string>
     <string name="school_mail_subject">Oggetto</string>
     <string name="school_mail_to">A</string>

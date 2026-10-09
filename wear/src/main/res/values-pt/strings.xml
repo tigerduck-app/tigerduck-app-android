@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Notificações de correio novo</string>
     <string name="school_mail_settings_notifications_hint">O TigerDuck verifica se há correio novo de poucos em poucos minutos, por isso uma notificação pode chegar um pouco mais tarde.</string>
     <string name="school_mail_show_cc_bcc">Adicionar Cc/Cco</string>
-    <string name="school_mail_sign_in_note">O teu número de estudante e palavra-passe devem ser os mesmos do sistema da universidade. Esta palavra-passe é também a palavra-passe do Wi-Fi do campus (NTUST-PEAP); o TigerDuck só a guarda encriptada neste dispositivo e nunca a carrega para a internet.</string>
+    <string name="school_mail_sign_in_note">O teu número de estudante e palavra-passe devem ser os mesmos do sistema da universidade. O TigerDuck só guarda esta palavra-passe encriptada neste dispositivo e nunca a carrega para a internet.</string>
     <string name="school_mail_sign_in_prompt_title">Iniciar sessão no correio universitário</string>
     <string name="school_mail_subject">Assunto</string>
     <string name="school_mail_to">Para</string>

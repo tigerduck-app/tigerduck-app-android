@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Új üzenet értesítések</string>
     <string name="school_mail_settings_notifications_hint">A TigerDuck alkalmazás néhány percenként ellenőrzi az új üzeneteket, ezért az értesítés kicsit később is megérkezhet.</string>
     <string name="school_mail_show_cc_bcc">Másolat/Titkos másolat hozzáadása</string>
-    <string name="school_mail_sign_in_note">A hallgatói azonosítónak és a jelszónak meg kell egyeznie az egyetemi rendszerben használttal. Ez a jelszó egyben a campus Wi-Fi (NTUST-PEAP) jelszava is; a TigerDuck alkalmazás csak titkosítva tárolja ezen az eszközön, és soha nem tölti fel.</string>
+    <string name="school_mail_sign_in_note">A hallgatói azonosítónak és a jelszónak meg kell egyeznie az egyetemi rendszerben használttal. A TigerDuck alkalmazás ezt a jelszót csak titkosítva tárolja ezen az eszközön, és soha nem tölti fel.</string>
     <string name="school_mail_sign_in_prompt_title">Bejelentkezés az iskolai postába</string>
     <string name="school_mail_subject">Tárgy</string>
     <string name="school_mail_to">Címzett</string>

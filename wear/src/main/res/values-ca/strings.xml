@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Notificacions de correu nou</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck comprova si hi ha correu nou cada pocs minuts, així que la notificació pot arribar una mica més tard.</string>
     <string name="school_mail_show_cc_bcc">Afegeix Cc/Cco</string>
-    <string name="school_mail_sign_in_note">El teu número d\'estudiant i contrasenya han de ser els mateixos que els del sistema universitari. Aquesta contrasenya també és la del Wi-Fi del campus (NTUST-PEAP); TigerDuck només la desa xifrada en aquest dispositiu i mai la puja a internet.</string>
+    <string name="school_mail_sign_in_note">El teu número d\'estudiant i contrasenya han de ser els mateixos que els del sistema universitari. TigerDuck només desa aquesta contrasenya xifrada en aquest dispositiu i mai la puja a internet.</string>
     <string name="school_mail_sign_in_prompt_title">Inicia la sessió al correu universitari</string>
     <string name="school_mail_subject">Assumpte</string>
     <string name="school_mail_to">Per a</string>

@@ -702,7 +702,7 @@
     <string name="school_mail_settings_notifications">Tilkynningar um nýjan póst</string>
     <string name="school_mail_settings_notifications_hint">TigerDuck athugar með nýjan póst á nokkurra mínútna fresti, svo tilkynning getur borist aðeins seinna.</string>
     <string name="school_mail_show_cc_bcc">Bæta við Cc/Bcc</string>
-    <string name="school_mail_sign_in_note">Námsmannsnúmerið og lykilorðið þitt eiga að vera þau sömu og í kerfi skólans. Þetta lykilorð er einnig lykilorðið fyrir þráðlausa netið á háskólasvæðinu (NTUST-PEAP); TigerDuck geymir það aðeins dulkóðað á þessu tæki og sendir það aldrei upp á netið.</string>
+    <string name="school_mail_sign_in_note">Námsmannsnúmerið og lykilorðið þitt eiga að vera þau sömu og í kerfi skólans. TigerDuck geymir þetta lykilorð aðeins dulkóðað á þessu tæki og sendir það aldrei upp á netið.</string>
     <string name="school_mail_sign_in_prompt_title">Skrá sig inn í Skólapóst</string>
     <string name="school_mail_subject">Efni</string>
     <string name="school_mail_to">Til</string>
