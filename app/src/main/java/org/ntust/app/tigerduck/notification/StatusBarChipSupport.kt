@@ -127,6 +127,13 @@ data class DeviceSkin(
         }
 
     /**
+     * Whether this phone has a chip or island to draw a Live Update in at all.
+     * The workarounds below are for that surface, so they apply only here.
+     */
+    val hasChip: Boolean
+        get() = chipSupport != StatusBarChipSupport.UNSUPPORTED
+
+    /**
      * Whether the chip shows a fixed string where other skins run a clock.
      *
      * HyperOS's island never reads the chronometer. It fills its right-hand
@@ -147,8 +154,7 @@ data class DeviceSkin(
      * island that ignores the clock shows no countdown at all.
      */
     val chipShowsStaticText: Boolean
-        get() = (isXiaomi || isOplus || isVivo) &&
-            chipSupport != StatusBarChipSupport.UNSUPPORTED
+        get() = (isXiaomi || isOplus || isVivo) && hasChip
 
     /**
      * Whether the Live Update's card shows the countdown in place of the
@@ -166,7 +172,7 @@ data class DeviceSkin(
      * OnePlus and realme run the same plugin.
      */
     val cardHidesTextBehindClock: Boolean
-        get() = isOplus && chipSupport != StatusBarChipSupport.UNSUPPORTED
+        get() = isOplus && hasChip
 
     /**
      * Whether the status bar draws a third-party small icon in its own
@@ -200,7 +206,7 @@ data class DeviceSkin(
      * status bar and shade have only been seen with the plain vector.
      */
     val islandWhitensVectorSmallIcon: Boolean
-        get() = isOplus && chipSupport != StatusBarChipSupport.UNSUPPORTED
+        get() = isOplus && hasChip
 
     /**
      * Whether the island tints every small icon grey except a bitmap.
@@ -220,7 +226,7 @@ data class DeviceSkin(
      * Only where there is an island to work around, as above.
      */
     val islandGreysNonBitmapSmallIcon: Boolean
-        get() = isHonor && chipSupport != StatusBarChipSupport.UNSUPPORTED
+        get() = isHonor && hasChip
 
     /**
      * Whether the shade shows the app's launcher icon where AOSP shows the
