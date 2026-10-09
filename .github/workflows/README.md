@@ -130,7 +130,7 @@ good, so 2.0.1 ships as phone 24 / watch 10024.
 ### `whatsnew-has-version.yaml`
 
 Runs on PRs to `main`. Verifies `app/src/main/assets/whatsnew.json` has an entry
-for the `versionCode` in `app/build.gradle.kts`, so the "What's New" dialog is
-never empty on a fresh release.
+for the `versionCode` in `app/build.gradle.kts`, so the "What's New" sheet always
+ends on a summary page on a fresh release.
 
 
