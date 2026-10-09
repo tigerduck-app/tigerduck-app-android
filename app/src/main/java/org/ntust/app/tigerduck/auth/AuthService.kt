@@ -148,6 +148,15 @@ class AuthService @Inject constructor(
     }
 
     val storedStudentId: String? get() = credentials.ntustStudentId
+
+    /**
+     * Whether the account [studentId] named, read before some suspending
+     * work, is still the one signed in: false after a sign-out, or a sign-in
+     * as someone else, in the meantime. What that work read from the cache
+     * then belongs to the account that left.
+     */
+    fun isStillSignedInAs(studentId: String?): Boolean =
+        authState.value && storedStudentId == studentId
     internal val storedPassword: String? get() = credentials.ntustPassword
     val storedMoodleToken: String? get() = credentials.moodleToken
 

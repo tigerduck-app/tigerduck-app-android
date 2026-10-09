@@ -326,8 +326,9 @@ class HomeViewModel @Inject constructor(
                 wasAuthed = isAuthed
                 if (!isAuthed) {
                     // Whatever is still in flight belongs to the account
-                    // that just left.
+                    // that just left, a load still reading its cache too.
                     fetchFlight.cancel()
+                    loadJob?.cancel()
                     _allCourses.value = emptyList()
                     _todayCourses.value = emptyList()
                     _allAssignments.value = emptyList()
@@ -337,9 +338,11 @@ class HomeViewModel @Inject constructor(
                     hasLoaded = false
                     _initialLoadComplete.value = true
                 } else if (signedIn) {
-                    // Launched, so a sign-out mid-fetch reaches the branch
-                    // above without waiting for the fetch to finish.
-                    viewModelScope.launch { fetchRemote() }
+                    // As a launch, so the page counts as loaded and a return
+                    // to the app fetches again. Launched, so a sign-out
+                    // mid-fetch reaches the branch above without waiting for
+                    // the fetch to finish.
+                    loadNow(fetch = true)
                 }
             }
         }
@@ -354,10 +357,17 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             dataCache.backgroundSyncVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
                 val courses = dataCache.loadCourses()
                 val assignments = dataCache.loadAssignments()
-                _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
-                _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
+                val ignored = dataCache.loadIgnoredAssignments()
+                val marked = dataCache.loadMarkedCompletedAssignments()
+                // Signed out, or in as someone else, while the files were
+                // read: what they held was the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
+                _ignoredAssignmentIds.value = ignored
+                _markedCompletedIds.value = marked
                 TigerDuckTheme.buildCourseColorMap(courses)
                 updateCoursesAndAssignments(courses, assignments)
             }
@@ -398,14 +408,24 @@ class HomeViewModel @Inject constructor(
     // buildCourseColorAssignments.
 
     private var hasLoaded = false
+    private var loadJob: Job? = null
 
     fun load() {
         if (hasLoaded) return
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
+
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as HomeRefreshPolicy says, and always on a sign-in, which is
+     * this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
         hasLoaded = true
         // It pulls from the backend below, whichever way it goes.
         backendPullStarting()
 
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             // _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
             _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
@@ -422,7 +442,7 @@ class HomeViewModel @Inject constructor(
             // The school servers as HomeRefreshPolicy says; the backend sync
             // that carries other devices' marks runs either way, as it
             // always has.
-            if (refreshTriggers.onLaunch()) fetchRemote() else runCatching { syncAndRepublish() }
+            if (fetch) fetchRemote() else runCatching { syncAndRepublish() }
         }
     }
 

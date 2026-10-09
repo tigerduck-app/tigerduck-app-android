@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
@@ -205,6 +206,7 @@ class ClassTableViewModel @Inject constructor(
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     private var hasLoaded = false
+    private var loadJob: Job? = null
 
     // Every fetch goes through this, so launch, a sign-in and a pull that
     // land together run the pipeline once.
@@ -244,14 +246,21 @@ class ClassTableViewModel @Inject constructor(
         }
         viewModelScope.launch {
             dataCache.backgroundSyncVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
                 val semester = _currentSemester.value
+                val courses = dataCache.loadCourses(semester)
+                val assignments = dataCache.loadAssignments()
+                // Signed out, or in as someone else, while the files were
+                // read: what they held was the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
                 // Taken as-is, empty included: a sync can now prune the
                 // whole term (a reset made elsewhere), and holding on to
                 // the old list would keep showing courses that are gone.
-                val fresh = resolveCustomNames(dataCache.loadCourses(semester))
+                val fresh = resolveCustomNames(courses)
                 _courses.value = fresh
                 TigerDuckTheme.buildCourseColorMap(fresh)
-                _assignments.value = dataCache.loadAssignments()
+                _assignments.value = assignments
             }
         }
         viewModelScope.launch {
@@ -264,8 +273,10 @@ class ClassTableViewModel @Inject constructor(
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {
-                    // A fetch still running belongs to the account that left.
+                    // A fetch still running belongs to the account that
+                    // left, and so does a load still reading its cache.
                     fetchFlight.cancel()
+                    loadJob?.cancel()
                     _courses.value = emptyList()
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
@@ -274,8 +285,9 @@ class ClassTableViewModel @Inject constructor(
                     hasLoaded = false
                     TigerDuckTheme.clearCourseColorMap()
                 } else if (signedIn) {
-                    // Launched, so a sign-out mid-fetch is not held up by it.
-                    viewModelScope.launch { fetchFlight.join(::fetchData) }
+                    // As a launch, so the page counts as loaded. Launched, so
+                    // a sign-out mid-fetch is not held up by it.
+                    loadNow(fetch = true)
                 }
             }
         }
@@ -699,8 +711,17 @@ class ClassTableViewModel @Inject constructor(
 
     fun load() {
         if (hasLoaded) return
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
+
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as ClassTableRefreshPolicy says, and always on a sign-in, which
+     * is this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
         hasLoaded = true
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
             val cachedMoodleIds = dataCache.loadMoodleCourseIds()
@@ -719,7 +740,7 @@ class ClassTableViewModel @Inject constructor(
                     cachedMoodleIds.mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
             }
             refreshLiveSemesterCourses()
-            if (refreshTriggers.onLaunch()) fetchFlight.join(::fetchData)
+            if (fetch) fetchFlight.join(::fetchData)
         }
     }
 

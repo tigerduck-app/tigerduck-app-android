@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
@@ -87,6 +88,7 @@ class CalendarViewModel @Inject constructor(
     val schoolDataSyncedAtMs: StateFlow<Long> = prefs.schoolDataSyncedAtMs
 
     private var hasLoaded = false
+    private var loadJob: Job? = null
 
     // Every fetch goes through this, so launch, a sign-in and a pull that
     // land together fetch once. Above `init`, whose collectors run during
@@ -216,12 +218,15 @@ class CalendarViewModel @Inject constructor(
             // app fetch here only when the data is stale, so this is how
             // most new assignments reach the calendar.
             dataCache.backgroundSyncVersion.drop(1).collect {
-                if (authService.authState.value) {
-                    // Read the rows after the load, not before: a fetch of
-                    // this screen's own can land while the file is read.
-                    val assignments = dataCache.loadAssignments()
-                    _events.value = withMoodleRows(_events.value, assignments)
-                }
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
+                val assignments = dataCache.loadAssignments()
+                // Signed out, or in as someone else, while the file was read:
+                // the rows are the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
+                // The other rows as they are after the read, not before: a
+                // fetch of this screen's own can land while the file is read.
+                _events.value = withMoodleRows(_events.value, assignments)
             }
         }
         viewModelScope.launch {
@@ -234,16 +239,20 @@ class CalendarViewModel @Inject constructor(
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {
-                    // A fetch still running belongs to the account that left.
+                    // A fetch still running belongs to the account that
+                    // left, and so does a load still reading its cache.
                     fetchFlight.cancel()
+                    loadJob?.cancel()
                     // Holidays are public school information, so they stay
                     // on the calendar after a sign-out; only the account's
                     // own events go.
                     _events.value = academicEvents()
                     hasLoaded = false
                 } else if (signedIn) {
-                    // Launched, so a sign-out mid-fetch is not held up by it.
-                    viewModelScope.launch { fetchFlight.join(::fetchData) }
+                    // As a launch, so the page counts as loaded and a return
+                    // to the app fetches again. Launched, so a sign-out
+                    // mid-fetch is not held up by it.
+                    loadNow(fetch = true)
                 }
             }
         }
@@ -292,13 +301,22 @@ class CalendarViewModel @Inject constructor(
 
     fun load() {
         if (hasLoaded) return
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
+
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as CalendarRefreshPolicy says, and always on a sign-in, which
+     * is this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
         hasLoaded = true
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             _events.value =
                 withAcademicEvents(withCachedAssignments(dataCache.loadCalendarEvents()))
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.authState.value && refreshTriggers.onLaunch()) {
+            if (authService.authState.value && fetch) {
                 fetchFlight.join(::fetchData)
             }
         }
