@@ -58,6 +58,12 @@
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_notification_white" />
 
+        <!-- The accent brandedNotification sets on every other post. Without
+             it a push Firebase draws tints its badge in the system default. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/duck_yellow" />
+
         <!-- Default Firebase Analytics collection off so auto-collected events
              (session_start, first_open, screen_view) don't leave the device
              before the user consents. AnalyticsLogger.setEnabled(true) flips
