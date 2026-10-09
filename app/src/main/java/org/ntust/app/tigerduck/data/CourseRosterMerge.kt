@@ -102,8 +102,12 @@ object CourseRosterMerge {
      * Moodle reports submission status through a separate call per course; if
      * one fails, the assignment comes back `isCompleted = false` rather than
      * unknown. Treating that as truth flips a submitted item back to
-     * outstanding and re-arms its notification. Remote still wins when it
-     * says `true`, so a genuine un-submit is picked up.
+     * outstanding and re-arms its notification. So `false` never overrides a
+     * recorded submission, and a genuine un-submit (the student removing it,
+     * or a teacher reverting it to draft) is not picked up either: once
+     * recorded, an assignment stays submitted. Moodle is not even asked
+     * about those any more, but by a pull — see
+     * [org.ntust.app.tigerduck.network.MoodleService.confirmedSubmissions].
      */
     fun preserveConfirmedSubmissions(
         remote: List<Assignment>,

@@ -400,7 +400,9 @@ class MoodleService @Inject constructor(
          *
          * One recorded without a time is left out, so it is asked about until
          * Moodle supplies one: the time is all a status call could still add,
-         * and without it a late submission never shows as late.
+         * and without it a late submission never shows as late. The time kept
+         * is the first one seen, so a later resubmission's, a late one
+         * included, shows only after a pull, which asks about everything.
          */
         internal fun confirmedSubmissions(cached: List<Assignment>): Map<Int, Date> =
             cached.filter { it.isCompleted }
