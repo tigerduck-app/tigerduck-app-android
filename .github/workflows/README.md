@@ -2,12 +2,57 @@
 
 ## Release workflows
 
-### `release-manual.yaml` — Release (Manual) — **active**
+### `release.yaml` — Release (Auto)
 
-Manually-dispatched release. Tags `main` (if the tag does not yet exist), builds
-signed `play` and `fdroid` phone AABs/APKs plus the signed `:wear` AAB/APK, pins
-the F-Droid metadata commit hash, and publishes a GitHub Release with the
-artifacts attached. Does **not** upload to Google Play.
+Runs on every commit to `main`, or from the Actions tab. It releases the version
+in `app/build.gradle.kts`, tagged `v<versionName>`; if that tag already exists
+the run stops after its first job, so only a commit that bumps the version
+releases anything.
+
+A release builds the same six artifacts as `release-manual.yaml`, then:
+
+1. Uploads the phone and watch bundles to Google Play and sends them for review,
+   all in one edit (`tools/play/publish.py`). The phone goes to `internal` and
+   `production`, the watch to `wear:internal` and `wear:production`: Play has
+   required Wear OS releases on their own form-factor tracks since 2023.
+   Internal releases go to every tester at once; production starts as a staged
+   rollout.
+2. Tags the build commit (GPG-signed), pins the F-Droid metadata commit hash,
+   and publishes the GitHub Release "TigerDuck Android vX.Y.Z" with every
+   artifact attached.
+
+Play comes before the tag so that a failed upload leaves nothing tagged and the
+workflow can simply be run again. The upload skips any bundle Play already has,
+so a re-run after a later step failed is safe too. If Play refuses to send the
+release for review on its own (it does after a rejection, or with other changes
+pending), the edit is still saved and the run warns you to click "Send changes
+for review" in Play Console.
+
+A commit releases to all four tracks at a 10% production rollout. From the
+Actions tab you can tick which of phone/watch × internal/production to upload
+and pick the rollout (10, 20, 50 or 100%). Everything is built either way,
+because the GitHub Release carries all six files.
+
+Release notes come from the `whatsnew.json` entry for the phone `versionCode`
+(the in-app "What's New" text), as `zh-TW` and `en-US`. To word them
+differently for a release, write
+`fastlane/metadata/android/{zh-TW,en-US}/changelogs/<versionCode>.txt`; that
+file wins, and F-Droid reads its changelogs from the same path. Play caps each
+language at 500 characters, which the first job checks before anything is
+built. Preview them with `python3 tools/play/publish.py notes --phone-code N`.
+
+Needs the `PLAY_SERVICE_ACCOUNT_JSON` secret, a service account with release
+permissions on the app in Play Console.
+
+### `release-manual.yaml` — Release (Manual)
+
+Manually dispatched, no inputs. Reads `versionName` from `app/build.gradle.kts`
+on `main` and releases it as `v<versionName>`: tags `main` if the tag does not
+yet exist, builds signed `play` and `fdroid` phone AABs/APKs plus the signed
+`:wear` AAB/APK, pins the F-Droid metadata commit hash, and publishes the GitHub
+Release "TigerDuck Android vX.Y.Z" with the artifacts attached. If the tag
+already exists, it checks the tag out and attaches the artifacts to the existing
+release. Does **not** upload to Google Play.
 
 Six artifacts: `TigerDuck.{apk,aab}` (play), `TigerDuck-fdroid.{apk,aab}`, and
 `TigerDuck-Wear.{apk,aab}`. The watch is play-only — `:wear` has no product
@@ -15,38 +60,6 @@ flavors because it depends on `play-services-wearable`, so there is no F-Droid
 watch build to ship. It is signed with the same keystore as the phone (same
 `applicationId`), which the workflow decodes into `wear/keystore.jks` as well as
 `app/keystore.jks`.
-
-Inputs:
-
-- `tag` — e.g. `v1.2.3`. Created on `main` if it does not already exist; if it
-  exists, the existing tag is checked out and artifacts are attached to the
-  existing release.
-
-This is the workflow currently used to cut releases.
-
-### `release.yaml` — Release (Auto) — **suspended**
-
-Triggered automatically on `v*` tag push. Builds signed artifacts, creates a
-GitHub Release with auto-generated notes, and uploads the play-flavor AAB to the
-Play Store production track at 10% staged rollout.
-
-Currently suspended — do not rely on it. Use `release-manual.yaml` instead.
-
-### `release-manual-playstore.yaml` — Release (Manual + Play Store) — **suspended**
-
-Manual dispatch by tag. Same as `release.yaml` but triggered manually: validates
-`vX.Y.Z` tag format, checks out the tag, builds, creates the GitHub Release, and
-pushes to the Play Store production track at 10% staged rollout.
-
-Currently suspended.
-
-### `release-manual-playstore-internal.yaml` — Release (Manual + Play Store (Internal)) — **suspended**
-
-Manual dispatch by tag. Same as the production variant but uploads to the Play
-Store **internal** track with `status: completed` (no staged rollout). Accepts
-prerelease tags (e.g. `v1.2.3-beta.1`).
-
-Currently suspended.
 
 ## PR check workflows
 

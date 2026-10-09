@@ -1,46 +1,254 @@
 name: Release (Auto)
 
+# Every commit to main, or a click in the Actions tab. Releases the version in
+# app/build.gradle.kts unless its tag already exists, so a commit that does not
+# bump the version stops after the first job.
 on:
   push:
-    tags: [ 'v*' ]
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      phone_internal:
+        description: 'Phone → Play internal testing'
+        type: boolean
+        default: true
+      phone_public:
+        description: 'Phone → Play production'
+        type: boolean
+        default: true
+      watch_internal:
+        description: 'Watch → Play Wear OS internal testing'
+        type: boolean
+        default: true
+      watch_public:
+        description: 'Watch → Play Wear OS production'
+        type: boolean
+        default: true
+      rollout:
+        description: 'Production rollout, % of users'
+        type: choice
+        options: [ '10', '20', '50', '100' ]
+        default: '10'
 
 permissions:
   contents: write
 
+# One release at a time. The F-Droid metadata commit this workflow pushes to
+# main starts another run, which waits here and then finds the tag in place.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  release:
+  check:
     runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.version.outputs.release }}
+      tag: ${{ steps.version.outputs.tag }}
+      name: ${{ steps.version.outputs.name }}
+      phone_code: ${{ steps.version.outputs.phone_code }}
+      watch_code: ${{ steps.version.outputs.watch_code }}
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Only release main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Release (Auto) releases main only; this run is on ${GITHUB_REF}."
+          exit 1
+
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
+          ref: ${{ github.sha }}
+
+      - name: Read version and look for its tag
+        id: version
+        run: |
+          set -euo pipefail
+          extract_code() { grep -E '^[[:space:]]*versionCode[[:space:]]*=' "$1" | head -n1 | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/'; }
+          extract_name() { grep -E '^[[:space:]]*versionName[[:space:]]*=' "$1" | head -n1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/'; }
+
+          name=$(extract_name app/build.gradle.kts)
+          phone_code=$(extract_code app/build.gradle.kts)
+          watch_name=$(extract_name wear/build.gradle.kts)
+          watch_code=$(extract_code wear/build.gradle.kts)
+          tag="v${name}"
+          echo "Phone ${name} (${phone_code}), watch ${watch_name} (${watch_code})"
+
+          {
+            echo "tag=${tag}"
+            echo "name=${name}"
+            echo "phone_code=${phone_code}"
+            echo "watch_code=${watch_code}"
+          } >> "$GITHUB_OUTPUT"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${tag} is already released; nothing to do."
+            exit 0
+          fi
+          # version-bumped.yaml holds PRs to this; checked again here because
+          # a mismatch would otherwise only surface as a Play rejection.
+          if [ "$watch_name" != "$name" ]; then
+            echo "::error file=wear/build.gradle.kts::watch versionName ${watch_name} does not match the phone's ${name}"
+            exit 1
+          fi
+          echo "release=true" >> "$GITHUB_OUTPUT"
+          echo "Releasing ${tag}."
+
+      # Before the build, so notes over Play's 500-character limit fail in
+      # seconds rather than after it.
+      - name: Check Play release notes
+        if: steps.version.outputs.release == 'true'
+        run: python3 tools/play/publish.py notes --phone-code "${{ steps.version.outputs.phone_code }}"
+
+  release:
+    needs: check
+    if: needs.check.outputs.release == 'true'
+    runs-on: ubuntu-latest
+
+    env:
+      TAG: ${{ needs.check.outputs.tag }}
+      # A push releases to every track; a click releases to the ones ticked.
+      PHONE_INTERNAL: ${{ github.event_name == 'push' || inputs.phone_internal }}
+      PHONE_PUBLIC: ${{ github.event_name == 'push' || inputs.phone_public }}
+      WATCH_INTERNAL: ${{ github.event_name == 'push' || inputs.watch_internal }}
+      WATCH_PUBLIC: ${{ github.event_name == 'push' || inputs.watch_public }}
+      ROLLOUT_PERCENT: ${{ inputs.rollout || '10' }}
+
+    steps:
+      - name: Mint Releaser App token
+        id: app_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASER_APP_ID }}
+          private-key: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ steps.app_token.outputs.token }}
           submodules: true
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - name: Capture build SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Choose Play targets
+        id: targets
+        run: |
+          targets=()
+          [ "$PHONE_INTERNAL" = "true" ] && targets+=(phone:internal)
+          [ "$PHONE_PUBLIC" = "true" ] && targets+=(phone:public)
+          [ "$WATCH_INTERNAL" = "true" ] && targets+=(watch:internal)
+          [ "$WATCH_PUBLIC" = "true" ] && targets+=(watch:public)
+          joined=$(IFS=,; echo "${targets[*]}")
+          echo "list=${joined}" >> "$GITHUB_OUTPUT"
+          echo "Play targets: ${joined:-none}, production rollout ${ROLLOUT_PERCENT}%"
+
+      - name: Import release GPG key
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
-          java-version: '17'
+          gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_tag_gpgsign: true
+
+      - name: Preflight checks
+        run: |
+          set -euo pipefail
+          fail=0
+
+          # 1. App token reaches the repo.
+          if ! gh api "repos/${REPO}" --jq .full_name >/dev/null; then
+            echo "::error::App token cannot read ${REPO}. Check RELEASER_APP_ID/RELEASER_APP_PRIVATE_KEY and that the App is installed on this repo." >&2
+            fail=1
+          fi
+
+          # 2. App token can read the metadata file it will rewrite.
+          if ! gh api "repos/${REPO}/contents/metadata/org.ntust.app.tigerduck.fdroid.yml?ref=main" --jq .sha >/dev/null; then
+            echo "::error::App token cannot read metadata file. App likely missing Contents:read on this repo." >&2
+            fail=1
+          fi
+
+          # 3. Required secrets present (don't print values; just check non-empty length).
+          required="KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD GOOGLE_SERVICES_JSON_BASE64"
+          if [ -n "${PLAY_TARGETS}" ]; then
+            required="${required} PLAY_SERVICE_ACCOUNT_JSON"
+          fi
+          for s in $required; do
+            v="${!s:-}"
+            if [ -z "$v" ]; then
+              echo "::error::Secret $s is empty or missing." >&2
+              fail=1
+            fi
+          done
+
+          # 4. GPG imported and its email looks GitHub-verifiable.
+          if [ -z "${TAGGER_KEYID:-}" ]; then
+            echo "::error::GPG key not imported (no keyid)." >&2
+            fail=1
+          fi
+          if [ -z "${TAGGER_EMAIL:-}" ]; then
+            echo "::error::GPG key has no email UID; GitHub cannot match it to an account." >&2
+            fail=1
+          fi
+          # Sanity-test signing locally so we surface 'no secret key' / 'bad passphrase'
+          # before spending 6 minutes building.
+          if ! echo test | gpg --batch --yes --local-user "${TAGGER_EMAIL}" --clearsign >/dev/null 2>&1; then
+            echo "::error::GPG cannot sign with key for ${TAGGER_EMAIL}. Check RELEASE_GPG_PRIVATE_KEY / RELEASE_GPG_PASSPHRASE." >&2
+            fail=1
+          fi
+          echo "Tagger identity: ${TAGGER_EMAIL} (key ${TAGGER_KEYID})"
+
+          if [ "$fail" != "0" ]; then
+            exit 1
+          fi
+          echo "Preflight OK."
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PLAY_TARGETS: ${{ steps.targets.outputs.list }}
+          TAGGER_EMAIL: ${{ steps.gpg.outputs.email }}
+          TAGGER_KEYID: ${{ steps.gpg.outputs.keyid }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: '21'
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
 
+      # Both modules resolve `keystore.jks` relative to their own project dir,
+      # so the one secret is decoded twice. The watch must be signed with the
+      # phone's key: it ships under the same applicationId, and Play rejects a
+      # companion signed with anything else.
       - name: Decode keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          cp app/keystore.jks wear/keystore.jks
 
       - name: Decode google-services.json
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
-        run: |
-          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
-            echo "::error::GOOGLE_SERVICES_JSON_BASE64 secret is empty or missing." >&2
-            exit 1
-          fi
-          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/src/play/google-services.json
+        run: echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/src/play/google-services.json
 
-      - name: Build release AAB and APK
+      # Root-level task names fan out to every module, so this already covers
+      # :wear:assembleRelease / :wear:bundleRelease. Everything is built
+      # whatever the Play targets: the GitHub Release carries all six files.
+      - name: Build release AAB and APK (phone + watch)
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
@@ -54,31 +262,113 @@ jobs:
           mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
           mv app/build/outputs/bundle/playRelease/app-play-release.aab "app/build/outputs/bundle/playRelease/TigerDuck.aab"
           mv app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab "app/build/outputs/bundle/fdroidRelease/TigerDuck-fdroid.aab"
+          # Watch: play-only by construction — :wear has no flavors because it
+          # depends on play-services-wearable, so there is no fdroid counterpart
+          # to ship. An unsigned build would land as wear-release-unsigned.apk
+          # and this mv would fail the job, which is the intended signal.
+          mv wear/build/outputs/apk/release/wear-release.apk "wear/build/outputs/apk/release/TigerDuck-Wear.apk"
+          mv wear/build/outputs/bundle/release/wear-release.aab "wear/build/outputs/bundle/release/TigerDuck-Wear.aab"
+
+      # Before the tag: if Play fails nothing is tagged, so re-running the
+      # workflow picks the release up again. The upload skips any bundle Play
+      # already has, so a re-run after a later step failed is safe too.
+      - name: Upload to Google Play and send for review
+        if: steps.targets.outputs.list != ''
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TARGETS: ${{ steps.targets.outputs.list }}
+        run: |
+          python3 tools/play/publish.py publish \
+            --package org.ntust.app.tigerduck \
+            --version-name "${{ needs.check.outputs.name }}" \
+            --phone-code "${{ needs.check.outputs.phone_code }}" \
+            --watch-code "${{ needs.check.outputs.watch_code }}" \
+            --phone-aab app/build/outputs/bundle/playRelease/TigerDuck.aab \
+            --watch-aab wear/build/outputs/bundle/release/TigerDuck-Wear.aab \
+            --targets "${PLAY_TARGETS}" \
+            --rollout "$(awk -v p="${ROLLOUT_PERCENT}" 'BEGIN { print p / 100 }')"
+
+      - name: Create and push signed tag
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          REPO: ${{ github.repository }}
+          TAGGER_NAME: ${{ steps.gpg.outputs.name }}
+          TAGGER_EMAIL: ${{ steps.gpg.outputs.email }}
+        run: |
+          set -euo pipefail
+          git config user.name "${TAGGER_NAME}"
+          git config user.email "${TAGGER_EMAIL}"
+          git tag -s "${TAG}" "${SHA}" -m "${TAG}"
+          # Tag refs are outside the ruleset's include list, so this push
+          # uses the App token already configured in checkout's credentials.
+          git push origin "refs/tags/${TAG}"
+          # Verify GitHub recognised the signature.
+          state=$(gh api "repos/${REPO}/git/refs/tags/${TAG}" --jq '.object.sha' \
+            | xargs -I{} gh api "repos/${REPO}/git/tags/{}" --jq .verification.verified)
+          if [ "$state" != "true" ]; then
+            tag_obj=$(gh api "repos/${REPO}/git/refs/tags/${TAG}" --jq '.object.sha')
+            echo "Tag ${TAG} pushed but NOT verified (state=$state)" >&2
+            gh api "repos/${REPO}/git/tags/${tag_obj}" --jq .verification >&2
+            exit 1
+          fi
+          echo "Tag ${TAG} created and verified."
+
+      - name: Update F-Droid metadata commit hash
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          SHA: ${{ steps.sha.outputs.sha }}
+          REPO: ${{ github.repository }}
+          BRANCH: main
+          FILE_PATH: metadata/org.ntust.app.tigerduck.fdroid.yml
+        run: |
+          set -euo pipefail
+          # Use the Contents API so GitHub signs the resulting commit with
+          # the web-flow key (verified) and the App token's bypass entry on
+          # the ruleset lets the push through. Retries on SHA conflict in
+          # case another commit landed on ${BRANCH} during the build.
+          for attempt in 1 2 3; do
+            current=$(gh api "repos/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}")
+            file_sha=$(printf '%s' "$current" | jq -r .sha)
+            content=$(printf '%s' "$current" | jq -r .content | base64 -d)
+            new_content=$(printf '%s' "$content" | sed -E "s|^([[:space:]]*commit:).*|\1 ${SHA}|")
+            if [ "$content" = "$new_content" ]; then
+              echo "No change to ${FILE_PATH}; skipping."
+              exit 0
+            fi
+            new_b64=$(printf '%s' "$new_content" | base64 | tr -d '\n')
+            if gh api -X PUT "repos/${REPO}/contents/${FILE_PATH}" \
+              -f message="chore(fdroid): pin metadata commit to ${SHA} for ${TAG}" \
+              -f content="${new_b64}" \
+              -f sha="${file_sha}" \
+              -f branch="${BRANCH}"; then
+              echo "F-Droid metadata commit pushed."
+              exit 0
+            fi
+            if [ "$attempt" = "3" ]; then
+              echo "Failed to update ${FILE_PATH} after 3 attempts" >&2
+              exit 1
+            fi
+            echo "Update rejected (likely SHA conflict); retrying (attempt $attempt)"
+            sleep 2
+          done
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          generate_release_notes: true
+          tag_name: ${{ needs.check.outputs.tag }}
+          name: TigerDuck Android ${{ needs.check.outputs.tag }}
           files: |
             app/build/outputs/apk/play/release/*.apk
             app/build/outputs/apk/fdroid/release/*.apk
             app/build/outputs/bundle/playRelease/*.aab
             app/build/outputs/bundle/fdroidRelease/*.aab
-
-      - name: Upload to Google Play
-        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
-        with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: org.ntust.app.tigerduck
-          # Restrict to the play-flavor AAB; fdroid has applicationIdSuffix
-          # ".fdroid" and would be rejected by the Play Console.
-          releaseFiles: app/build/outputs/bundle/playRelease/*.aab
-          track: production
-          status: inProgress
-          userFraction: 0.1
+            wear/build/outputs/apk/release/*.apk
+            wear/build/outputs/bundle/release/*.aab
 
       - name: Clean up secrets
         if: always()
         run: |
           rm -f app/keystore.jks
+          rm -f wear/keystore.jks
           rm -f app/src/play/google-services.json
