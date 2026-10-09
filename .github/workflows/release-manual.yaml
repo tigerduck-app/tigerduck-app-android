@@ -2,10 +2,6 @@ name: Release (Manual)
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g. v1.0.0). Created if it does not exist.'
-        required: true
 
 permissions:
   contents: write
@@ -15,12 +11,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # The tag is v<versionName> from main's app/build.gradle.kts, so a
+      # release can only ever carry the version its code declares.
       - name: Resolve checkout ref
         id: resolve
         env:
-          TAG: ${{ github.event.inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -e
+          name=$(gh api -H "Accept: application/vnd.github.raw" "repos/${REPO}/contents/app/build.gradle.kts?ref=main" \
+            | grep -E '^[[:space:]]*versionName[[:space:]]*=' | head -n1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+          if [ -z "$name" ]; then
+            echo "::error::Could not read versionName from app/build.gradle.kts on main." >&2
+            exit 1
+          fi
+          TAG="v${name}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           if git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" "refs/tags/$TAG" >/dev/null 2>&1; then
             echo "tag_exists=true" >> "$GITHUB_OUTPUT"
             echo "checkout_ref=$TAG" >> "$GITHUB_OUTPUT"
@@ -113,7 +120,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
           REPO: ${{ github.repository }}
-          TAG: ${{ github.event.inputs.tag }}
+          TAG: ${{ steps.resolve.outputs.tag }}
           TAG_EXISTS: ${{ steps.resolve.outputs.tag_exists }}
           TAGGER_EMAIL: ${{ steps.gpg.outputs.email }}
           TAGGER_KEYID: ${{ steps.gpg.outputs.keyid }}
@@ -175,7 +182,7 @@ jobs:
         if: steps.resolve.outputs.tag_exists == 'false'
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          TAG: ${{ github.event.inputs.tag }}
+          TAG: ${{ steps.resolve.outputs.tag }}
           SHA: ${{ steps.sha.outputs.sha }}
           REPO: ${{ github.repository }}
           TAGGER_NAME: ${{ steps.gpg.outputs.name }}
@@ -206,7 +213,7 @@ jobs:
           SHA: ${{ steps.sha.outputs.sha }}
           REPO: ${{ github.repository }}
           BRANCH: main
-          TAG: ${{ github.event.inputs.tag }}
+          TAG: ${{ steps.resolve.outputs.tag }}
           FILE_PATH: metadata/org.ntust.app.tigerduck.fdroid.yml
         run: |
           set -euo pipefail
@@ -243,7 +250,8 @@ jobs:
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ github.event.inputs.tag }}
+          tag_name: ${{ steps.resolve.outputs.tag }}
+          name: TigerDuck Android ${{ steps.resolve.outputs.tag }}
           files: |
             app/build/outputs/apk/play/release/*.apk
             app/build/outputs/apk/fdroid/release/*.apk
