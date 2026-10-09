@@ -385,8 +385,8 @@ def main() -> None:
     pub.add_argument("--watch-aab", required=True)
     pub.add_argument("--targets", required=True,
                      help="comma-separated artifact:audience, e.g. phone:internal,watch:public")
-    pub.add_argument("--rollout", type=float, default=0.1,
-                     help="share of users a production release reaches; 1 releases to everyone")
+    pub.add_argument("--rollout", type=float, default=1.0,
+                     help="share of users a production release reaches; below 1 stages it")
     pub.add_argument("--dry-run", action="store_true", help="print the plan, send nothing")
 
     args = parser.parse_args()

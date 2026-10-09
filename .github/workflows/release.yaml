@@ -38,7 +38,7 @@ on:
         description: 'Production rollout, % of users'
         type: choice
         options: [ '10', '20', '50', '100' ]
-        default: '10'
+        default: '100'
 
 permissions:
   contents: write
@@ -56,7 +56,7 @@ env:
   PHONE_PUBLIC: ${{ github.event_name == 'push' || inputs.phone_public }}
   WATCH_INTERNAL: ${{ github.event_name == 'push' || inputs.watch_internal }}
   WATCH_PUBLIC: ${{ github.event_name == 'push' || inputs.watch_public }}
-  ROLLOUT_PERCENT: ${{ inputs.rollout || '10' }}
+  ROLLOUT_PERCENT: ${{ inputs.rollout || '100' }}
 
 jobs:
   check:

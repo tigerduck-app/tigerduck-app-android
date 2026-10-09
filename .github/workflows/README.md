@@ -18,8 +18,8 @@ A new version builds the same six artifacts as `release-manual.yaml`, then:
    all in one edit (`tools/play/publish.py`). The phone goes to `internal` and
    `production`, the watch to `wear:internal` and `wear:production`: Play has
    required Wear OS releases on their own form-factor tracks since 2023.
-   Internal releases go to every tester at once; production starts as a staged
-   rollout.
+   Both reach everyone at once: every tester on internal, every user on
+   production, unless a smaller production rollout is picked.
 2. Tags the build commit (GPG-signed), pins the F-Droid metadata commit hash,
    and publishes the GitHub Release "TigerDuck Android vX.Y.Z" with every
    artifact attached.
@@ -32,13 +32,13 @@ own earlier success. If Play refuses to send the release for review on its own
 (it does after a rejection, or with other changes pending), the edit is still
 saved and the run warns you to click "Send changes for review" in Play Console.
 
-A commit releases to all four tracks at a 10% production rollout. From the
+A commit releases to all four tracks, production to every user. From the
 Actions tab you can tick which of phone/watch × internal/production to upload
-and pick the rollout (10, 20, 50 or 100%). On a version that is already tagged,
-a click sends it to the ticked tracks only, built from the tag, and does not
-tag or publish again; that is how a release goes from internal testing to
-production, or to a wider rollout (which then starts at the percentage picked,
-not where it was). Everything is built either way, because the GitHub Release
+and pick the rollout: 100% by default, or a staged 10, 20 or 50%. On a version
+that is already tagged, a click sends it to the ticked tracks only, built from
+the tag, and does not tag or publish again; that is how a release goes from
+internal testing to production, or from a staged rollout to a wider one (which
+then starts at the percentage picked, not where it was). Everything is built either way, because the GitHub Release
 carries all six files and Play may not have a bundle yet.
 
 Runs queue one at a time, and each decides what to release only once the run
