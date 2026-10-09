@@ -72,21 +72,30 @@ class CourseService @Inject constructor(
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
         withContext(Dispatchers.IO) {
-            val loggedIn =
-                ssoLoginService.ensureServiceLogin(courseSelectionRoot, studentId, password)
-            if (!loggedIn) throw CourseServiceError.NotAuthenticated()
-
-            val request = Request.Builder().url(courseListUrl).get().build()
-            client.newCall(request).execute().use { response ->
-                if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) {
-                    throw CourseServiceError.RedirectedToSSO()
-                }
-                val html = response.body.string()
-
-                val pattern = Regex("<tr>\\s*<td>\\s*(3?[A-Z]{2}[A-Z0-9]{6,7})\\s*</td>")
-                pattern.findAll(html).map { it.groupValues[1] }.toList()
-            }
+            // AuthService.ensureAuthenticated logs in to this very service,
+            // so a session it left is used as it is — see fetchWithSsoSession.
+            val html = fetchWithSsoSession(
+                sessionWarm = sessionManager.cookiesValid,
+                logIn = {
+                    val loggedIn =
+                        ssoLoginService.ensureServiceLogin(courseSelectionRoot, studentId, password)
+                    if (!loggedIn) throw CourseServiceError.NotAuthenticated()
+                },
+                fetch = { fetchCourseListPage() },
+                bounced = { throw CourseServiceError.RedirectedToSSO() },
+            )
+            val pattern = Regex("<tr>\\s*<td>\\s*(3?[A-Z]{2}[A-Z0-9]{6,7})\\s*</td>")
+            pattern.findAll(html).map { it.groupValues[1] }.toList()
         }
+
+    /** The 選課清單 page, or null when the request was bounced to SSO. */
+    private fun fetchCourseListPage(): String? {
+        val request = Request.Builder().url(courseListUrl).get().build()
+        client.newCall(request).execute().use { response ->
+            if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) return null
+            return response.body.string()
+        }
+    }
 
     suspend fun lookupCourse(
         semester: String,

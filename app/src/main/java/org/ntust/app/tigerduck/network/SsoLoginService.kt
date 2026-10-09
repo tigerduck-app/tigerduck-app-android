@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.network
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -15,17 +17,56 @@ sealed class SsoLoginError : Exception() {
     data class NetworkError(val cause_: Exception) : SsoLoginError()
 }
 
+/**
+ * A page behind NTUST SSO, fetched with the session already held when
+ * [sessionWarm] says there is one, and with one login and one retry when the
+ * request is bounced to SSO anyway.
+ *
+ * [fetch] returns null for a bounce. [logIn] throws when it cannot log in.
+ * Whatever the retry still cannot get past ends in [bounced].
+ *
+ * A login costs a round of the OIDC bridge — the service root, the authorize
+ * redirect, the bridge POST — even when the session it checks is fine, so
+ * running one ahead of every fetch cost several requests where a warm
+ * session needs one.
+ * The retry is what makes skipping it safe: [sessionWarm] only says *a*
+ * login succeeded within the hour, not that it was to this service.
+ */
+internal suspend fun <T> fetchWithSsoSession(
+    sessionWarm: Boolean,
+    logIn: suspend () -> Unit,
+    fetch: suspend () -> T?,
+    bounced: () -> Nothing,
+): T {
+    if (!sessionWarm) logIn()
+    fetch()?.let { return it }
+    logIn()
+    return fetch() ?: bounced()
+}
+
 @Singleton
 class SsoLoginService @Inject constructor(
     private val sessionManager: NtustSessionManager
 ) {
     private val client: OkHttpClient get() = sessionManager.client
 
+    // One login at a time. A login that meets the SSO wall clears the whole
+    // cookie jar (step 4) before it signs in, which pulled the session out
+    // from under any other login running alongside — and Home, the class
+    // table and the calendar each started one at the same moment on launch.
+    private val loginMutex = Mutex()
+
     /**
      * Ensures the user is logged in to the given service via NTUST SSO.
      * Returns true on success, throws SsoLoginError on failure.
      */
     suspend fun ensureServiceLogin(
+        serviceUrl: String,
+        studentId: String,
+        password: String
+    ): Boolean = loginMutex.withLock { logIn(serviceUrl, studentId, password) }
+
+    private suspend fun logIn(
         serviceUrl: String,
         studentId: String,
         password: String
