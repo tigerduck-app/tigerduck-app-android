@@ -54,8 +54,18 @@ data class PermissionState(
 class SystemPermissions @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) {
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    /**
+     * Opened on first use rather than when Hilt builds this class, which is
+     * often on the main thread at launch: [forgetInferredChipGrant] reads the
+     * file, and the first read waits for it to load. Every read and write goes
+     * through here, so none can come before that one-time fix-up.
+     */
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).also {
+            val skin = DeviceSkin.current()
+            forgetInferredChipGrant(it, chipWasAssumed = skin.isOplus && skin.hasChip)
+        }
+    }
 
     /**
      * Launch-prompt refusals the warning popup has yet to be closed on. In
@@ -70,15 +80,7 @@ class SystemPermissions @Inject constructor(
      * for `SystemProperties` by reflection, which is not worth repeating on
      * every ON_RESUME re-read of the permission rows.
      */
-    private val chipSupport: StatusBarChipSupport = DeviceSkin.current().chipSupport
-
-    init {
-        forgetInferredChipGrant(
-            prefs,
-            chipWasAssumed = DeviceSkin.current().isOplus &&
-                chipSupport != StatusBarChipSupport.UNSUPPORTED,
-        )
-    }
+    private val chipSupport: StatusBarChipSupport by lazy { DeviceSkin.current().chipSupport }
 
     /** True if the permission is granted right now. Returns true when not applicable. */
     fun isGranted(p: AppPermission): Boolean = when (p) {
