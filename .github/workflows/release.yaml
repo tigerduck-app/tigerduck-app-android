@@ -132,7 +132,14 @@ jobs:
           fi
           # Play keeps every bundle it has been sent and the upload skips one
           # it already has, so a versionCode left unbumped would publish the
-          # previous release's binary under the new name.
+          # previous release's binary under the new name. The watch code is
+          # tied to the phone's (phone + 10000, see wear/build.gradle.kts), so
+          # with that holding, a phone code above the last tag's moves both.
+          expected_watch_code=$((phone_code + 10000))
+          if [ "$watch_code" != "$expected_watch_code" ]; then
+            echo "::error file=wear/build.gradle.kts::watch versionCode ${watch_code} must be the phone's ${phone_code} + 10000 = ${expected_watch_code}"
+            exit 1
+          fi
           previous=$(git ls-remote --tags --refs origin 'refs/tags/v*' | sed 's|.*refs/tags/||' | sort -V | tail -n1)
           if [ -n "$previous" ]; then
             previous_code=$(gh api -H "Accept: application/vnd.github.raw" \
@@ -149,9 +156,11 @@ jobs:
           echo "Releasing ${tag}."
 
       # Before the build, so notes over Play's 500-character limit fail in
-      # seconds rather than after it.
+      # seconds rather than after it. New versions only: this checkout is the
+      # commit being released. A tagged version uploads the tag's notes, which
+      # the upload step checks before it reaches Play.
       - name: Check Play release notes
-        if: steps.version.outputs.mode != 'skip'
+        if: steps.version.outputs.mode == 'full'
         run: python3 tools/play/publish.py notes --phone-code "${{ steps.version.outputs.phone_code }}"
 
   release:
@@ -408,6 +417,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
           SHA: ${{ steps.version.outputs.sha }}
+          CODE: ${{ steps.version.outputs.phone_code }}
           REPO: ${{ github.repository }}
           BRANCH: main
           FILE_PATH: metadata/org.ntust.app.tigerduck.fdroid.yml
@@ -421,6 +431,14 @@ jobs:
             current=$(gh api "repos/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}")
             file_sha=$(printf '%s' "$current" | jq -r .sha)
             content=$(printf '%s' "$current" | jq -r .content | base64 -d)
+            # A newer version bump may have reached ${BRANCH} during the
+            # build. Its metadata must not be pinned to this older commit;
+            # that version's own release pins it.
+            meta_code=$(printf '%s' "$content" | grep -E '^[[:space:]]*-?[[:space:]]*versionCode:' | head -n1 | sed -E 's/.*versionCode:[[:space:]]*([0-9]+).*/\1/')
+            if [ "$meta_code" != "$CODE" ]; then
+              echo "::warning::${FILE_PATH} on ${BRANCH} describes versionCode ${meta_code}, not this release's ${CODE}; leaving it for that version's release."
+              exit 0
+            fi
             new_content=$(printf '%s' "$content" | sed -E "s|^([[:space:]]*commit:).*|\1 ${SHA}|")
             if [ "$content" = "$new_content" ]; then
               echo "No change to ${FILE_PATH}; skipping."

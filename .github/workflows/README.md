@@ -8,8 +8,9 @@ Runs on every commit to `main`, or from the Actions tab. It releases the version
 in `app/build.gradle.kts`, tagged `v<versionName>`. On a commit, if that tag
 already exists the run stops after its first job, so only a commit that bumps
 the version releases anything. The first job also refuses a new version whose
-phone `versionCode` is not above the previous tag's: Play keeps every bundle it
-is sent, and an unbumped code would publish the old binary under the new name.
+phone `versionCode` is not above the previous tag's, or whose watch
+`versionCode` is not the phone's plus 10000: Play keeps every bundle it is sent,
+and an unbumped code would publish the old binary under the new name.
 
 A new version builds the same six artifacts as `release-manual.yaml`, then:
 
@@ -56,21 +57,27 @@ Release notes come from the `whatsnew.json` entry for the phone `versionCode`
 differently for a release, write
 `fastlane/metadata/android/{zh-TW,en-US}/changelogs/<versionCode>.txt`; that
 file wins, and F-Droid reads its changelogs from the same path. Play caps each
-language at 500 characters, which the first job checks before anything is
-built. Preview them with `python3 tools/play/publish.py notes --phone-code N`.
+language at 500 characters. For a new version the first job checks that before
+anything is built; a tagged version's notes are checked before the upload.
+Preview them with `python3 tools/play/publish.py notes --phone-code N`.
 
 Needs the `PLAY_SERVICE_ACCOUNT_JSON` secret, a service account with release
 permissions on the app in Play Console.
 
 ### `release-manual.yaml` — Release (Manual)
 
-Manually dispatched, no inputs. Reads `versionName` from `app/build.gradle.kts`
-on `main` and releases it as `v<versionName>`: tags `main` if the tag does not
-yet exist, builds signed `play` and `fdroid` phone AABs/APKs plus the signed
-`:wear` AAB/APK, pins the F-Droid metadata commit hash, and publishes the GitHub
-Release "TigerDuck Android vX.Y.Z" with the artifacts attached. If the tag
-already exists, it checks the tag out and attaches the artifacts to the existing
-release. Does **not** upload to Google Play.
+Manually dispatched, no inputs. Takes the commit `main` points at when the run
+starts, reads `versionName` from its `app/build.gradle.kts`, and releases it as
+`v<versionName>`: tags that commit if the tag does not yet exist, builds signed
+`play` and `fdroid` phone AABs/APKs plus the signed `:wear` AAB/APK, pins the
+F-Droid metadata commit hash, and publishes the GitHub Release "TigerDuck
+Android vX.Y.Z" with the artifacts attached. If the tag already exists, it
+checks the tag out and attaches the artifacts to the existing release. Does
+**not** upload to Google Play.
+
+Both release workflows pin the F-Droid metadata only while the metadata on
+`main` still describes the version being released. If a newer version bump
+reached `main` during the build, the pin is left for that version's release.
 
 Six artifacts: `TigerDuck.{apk,aab}` (play), `TigerDuck-fdroid.{apk,aab}`, and
 `TigerDuck-Wear.{apk,aab}`. The watch is play-only — `:wear` has no product
