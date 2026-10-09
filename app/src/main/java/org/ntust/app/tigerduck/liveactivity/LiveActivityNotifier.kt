@@ -95,12 +95,18 @@ class LiveActivityNotifier @Inject constructor(
      * to compare it against every post looks like a new scenario — cancelled,
      * re-posted and chimed. A quiet one takes it for the scenario already
      * showing instead. A real transition seen in this process still alerts.
+     *
+     * Returns whether a Live Update that spells its countdown out is now
+     * showing — see [showsStaticCountdown] — so the caller knows to post again
+     * when the displayed minute changes. False whenever nothing was posted, or
+     * was posted to a channel the user has turned off: no minute of that
+     * needs a post of its own.
      */
-    fun apply(snapshot: LiveActivitySnapshot?, quiet: Boolean = false) {
+    fun apply(snapshot: LiveActivitySnapshot?, quiet: Boolean = false): Boolean {
         if (snapshot == null) {
             manager.cancel(NOTIFICATION_ID)
             lastScenario = null
-            return
+            return false
         }
         if (!hasPostPermission()) {
             // Nothing is posted and nothing throws, so "I am in class and no
@@ -113,7 +119,7 @@ class LiveActivityNotifier @Inject constructor(
                 Log.w(TAG, "dropping ${snapshot.scenario}: POST_NOTIFICATIONS is denied")
             }
             lastScenario = null
-            return
+            return false
         }
 
         val contentIntent = PendingIntent.getActivity(
@@ -177,11 +183,12 @@ class LiveActivityNotifier @Inject constructor(
         val target = snapshot.countdownTarget?.time ?: 0L
         val now = AppClock.nowMillis()
         val countingDown = target > now
+        val spelledOut = countingDown && showsStaticCountdown(promoted)
         if (countingDown) {
             builder.setUsesChronometer(true)
             builder.setChronometerCountDown(true)
             builder.setWhen(target)
-            if (showsStaticCountdown(promoted)) {
+            if (spelledOut) {
                 builder.setShortCriticalText(
                     StaticCountdown.format(
                         StaticCountdown.minutesLeft(target, now),
@@ -241,6 +248,9 @@ class LiveActivityNotifier @Inject constructor(
         }
 
         lastScenario = snapshot.scenario
+
+        return spelledOut &&
+            manager.getNotificationChannel(CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
     }
 
     /**
@@ -250,10 +260,13 @@ class LiveActivityNotifier @Inject constructor(
      * Only on an island that never reads the chronometer — see
      * [DeviceSkin.chipShowsStaticText] — and only while the platform will
      * promote the post at all. ColorOS ships its per-app switch off, and with
-     * it off there is no island: the per-minute posts would wake the phone
-     * for text nobody sees. HyperOS picks what reaches its island by this
+     * it off there is no island: the per-minute posts would be spent on text
+     * nobody sees. HyperOS picks what reaches its island by this
      * same check, and the ColorOS 16.0.5 island followed it exactly, so here
      * it can be believed. It still never decides whether to post.
+     *
+     * [apply] answers this for the post it makes, from the same reading of
+     * the platform; this asks afresh, for tests.
      */
     fun showsStaticCountdown(): Boolean = showsStaticCountdown(promotion())
 
