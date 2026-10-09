@@ -75,11 +75,14 @@ class RefreshTriggers(
     fun onForeground(): Boolean = policy.onForeground && intervalPassed()
 
     /**
-     * Whether the page being shown should fetch. Never the first showing,
-     * which is the launch; only a return to the page.
+     * Whether the page being shown should fetch: on a return to it, which is
+     * any showing after the page has been shown or has fetched. The pages
+     * live as long as the app and load at launch, so the first time a page
+     * other than the start page is opened, its launch fetch may be long
+     * past. The start page's first showing is the launch itself, and quiet.
      */
     fun onShown(): Boolean {
-        val returning = shownBefore
+        val returning = shownBefore || lastFetchMs != 0L
         shownBefore = true
         return returning && policy.onRevisit && intervalPassed()
     }

@@ -32,6 +32,21 @@ class RefreshPolicyTest {
     }
 
     @Test
+    fun `the start page shown as its launch fetch begins does not fetch again`() {
+        val t = triggers(everything)
+        t.fetchStarted()
+        assertFalse(t.onShown())
+    }
+
+    @Test
+    fun `a page first opened long after its launch fetch counts as a return`() {
+        val t = triggers(everything)
+        t.fetchStarted() // loaded at launch, while another page was showing
+        clockMs += 10 * minute
+        assertTrue(t.onShown())
+    }
+
+    @Test
     fun `a revisit fetches once the interval has passed since the last fetch`() {
         val t = triggers(everything)
         t.onShown()
