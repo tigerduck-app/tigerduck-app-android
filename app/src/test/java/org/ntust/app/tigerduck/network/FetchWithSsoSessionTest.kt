@@ -66,6 +66,16 @@ class FetchWithSsoSessionTest {
     }
 
     @Test
+    fun `a cold session that is bounced after its login gives up without a second login`() {
+        val service = Service(bounces = 1)
+        assertThrows(Bounced::class.java) {
+            kotlinx.coroutines.runBlocking { service.fetch(sessionWarm = false) }
+        }
+        assertEquals(1, service.logins)
+        assertEquals(1, service.requests)
+    }
+
+    @Test
     fun `a failed login is not followed by a fetch`() {
         class LoginFailed : Exception()
         var requests = 0

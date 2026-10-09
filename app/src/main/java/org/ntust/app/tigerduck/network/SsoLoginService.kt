@@ -23,7 +23,8 @@ sealed class SsoLoginError : Exception() {
  * request is bounced to SSO anyway.
  *
  * [fetch] returns null for a bounce. [logIn] throws when it cannot log in.
- * Whatever the retry still cannot get past ends in [bounced].
+ * Whatever the retry still cannot get past ends in [bounced], as does a
+ * bounce after a cold session's login.
  *
  * A login costs a round of the OIDC bridge — the service root, the authorize
  * redirect, the bridge POST — even when the session it checks is fine, so
@@ -38,7 +39,12 @@ internal suspend fun <T> fetchWithSsoSession(
     fetch: suspend () -> T?,
     bounced: () -> Nothing,
 ): T {
-    if (!sessionWarm) logIn()
+    if (!sessionWarm) {
+        // A bounce straight after a login of our own is not a stale session,
+        // and a second login would only clear the cookies and do it again.
+        logIn()
+        return fetch() ?: bounced()
+    }
     fetch()?.let { return it }
     logIn()
     return fetch() ?: bounced()
