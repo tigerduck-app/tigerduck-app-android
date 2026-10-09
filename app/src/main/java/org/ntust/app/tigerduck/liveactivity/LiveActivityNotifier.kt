@@ -200,11 +200,7 @@ class LiveActivityNotifier @Inject constructor(
             builder.setProgress(PROGRESS_MAX, filled, false)
         }
 
-        val expandedLines = listOfNotNull(
-            snapshot.locationText?.let { "📍 $it" },
-            snapshot.instructor?.let { "👤 $it" },
-            snapshot.subtitle.takeIf { it.isNotBlank() }?.let { "🕒 $it" },
-        )
+        val expandedLines = LiveUpdateDetails.lines(snapshot)
         if (expandedLines.isNotEmpty()) {
             builder.setStyle(
                 NotificationCompat.BigTextStyle()
