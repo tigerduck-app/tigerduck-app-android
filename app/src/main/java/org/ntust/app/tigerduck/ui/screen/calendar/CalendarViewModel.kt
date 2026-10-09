@@ -307,13 +307,19 @@ class CalendarViewModel @Inject constructor(
     /** The app came back to the foreground. */
     fun onAppForeground() {
         if (!hasLoaded || !authService.authState.value) return
-        if (refreshTriggers.onForeground()) viewModelScope.launch { fetchFlight.join(::fetchData) }
+        if (refreshTriggers.onForeground()) fetchOnReturn()
     }
 
     /** The calendar was shown: on launch, or on coming back to it from another page. */
     fun onPageShown() {
         if (!authService.authState.value) return
-        if (refreshTriggers.onShown()) viewModelScope.launch { fetchFlight.join(::fetchData) }
+        if (refreshTriggers.onShown()) fetchOnReturn()
+    }
+
+    // Quietly, and not at all offline: nobody asked, so no snackbar.
+    private fun fetchOnReturn() {
+        if (!networkChecker.isAvailable()) return
+        viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(

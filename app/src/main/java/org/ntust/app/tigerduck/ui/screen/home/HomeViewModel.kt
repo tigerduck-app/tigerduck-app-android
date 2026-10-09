@@ -443,6 +443,9 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun fetchOnReturn() {
+        // Quietly: nobody asked, so no snackbar, and a fetch bound to fail
+        // would only mark Moodle as failing on every return.
+        if (!networkChecker.isAvailable()) return
         // Ahead of the ON_RESUME that follows, so its syncOnForeground leaves
         // the backend to the pull this fetch starts with.
         backendPullStarting()
