@@ -9,7 +9,6 @@ import android.util.Log
 import androidx.annotation.StringRes
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import org.ntust.app.tigerduck.R
 
 /**
@@ -93,9 +92,7 @@ enum class NotificationGroup(
                 ?.let { it.importance != NotificationManagerCompat.IMPORTANCE_NONE } == true
         } ?: return
         val name = context.getString(label ?: R.string.app_name)
-        val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(DeviceSkin.current().notificationSmallIcon)
-            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
+        val builder = context.brandedNotification(channelId)
             .setContentTitle(name)
             .setGroup(key)
             .setGroupSummary(true)

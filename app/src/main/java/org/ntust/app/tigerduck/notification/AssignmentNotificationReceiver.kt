@@ -100,10 +100,7 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
                     context.getString(R.string.notification_assignment_due_body, courseName, title)
             }
 
-            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(DeviceSkin.current().notificationSmallIcon)
-                // Brand tint for the shade badge; the status-bar glyph stays mono.
-                .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
+            val notification = context.brandedNotification(CHANNEL_ID)
                 .setContentTitle(titleText)
                 .setContentText(bodyText)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)

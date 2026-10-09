@@ -13,17 +13,22 @@
      icons. Drop the group to get the artwork at its exported size.
 
      fillColor is duck yellow to match the brand, and it is not preview only.
-     AOSP, MagicOS and ColorOS tint this icon on every surface and keep only
-     its alpha, but HyperOS draws it untinted in its island, which is where
-     the yellow is meant to show, and overseas OriginOS draws it untinted in
-     the status bar, which is why those phones post ic_notification_white
-     instead (DeviceSkin.statusBarKeepsColouredSmallIcon). Keep the two
-     files' pathData identical. The drawable-*dpi/ic_notification_bitmap.png
-     set is this artwork rendered at 24dp for MagicOS, whose island greys
-     anything but a bitmap; re-render it if the path changes.
+     AOSP tints this icon wherever it draws it, but HyperOS draws it untinted
+     in its island, which is where the yellow is meant to show. Each skin
+     posts the variant DeviceSkin.notificationSmallIcon picks:
+       ic_notification_white    overseas OriginOS, which draws the small icon
+                                untinted in the status bar; keep its
+                                pathData identical to this one
+       ic_notification_wrapped  ColorOS 16, whose island whitens a
+                                VectorDrawable; it wraps this file
+       ic_notification_bitmap   MagicOS 10, whose island greys anything but a
+                                bitmap; drawable-*dpi PNGs of this artwork at
+                                24dp, to re-render if the path changes
+     The play manifest names ic_notification_white for the pushes Firebase
+     draws itself, since a resource cannot vary by skin.
 
-     The full-colour logo is set via setLargeIcon and appears in the
-     notification body. -->
+     Pushes add the full-colour logo as the large icon, in the notification
+     body, where the shade does not already show it (brandedNotification). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

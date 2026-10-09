@@ -14,11 +14,10 @@ import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.mail.model.MailSummary
-import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.NotificationGroup
-import org.ntust.app.tigerduck.notification.notificationSmallIcon
+import org.ntust.app.tigerduck.notification.brandedNotification
 import org.ntust.app.tigerduck.util.replaceIosArg
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,8 +46,7 @@ class AndroidMailNotifier @Inject constructor(
     )
 
     private fun base(title: String, text: String, route: String, requestCode: Int) =
-        NotificationCompat.Builder(context, NotificationChannels.SCHOOL_MAIL)
-            .setSmallIcon(DeviceSkin.current().notificationSmallIcon)
+        context.brandedNotification(NotificationChannels.SCHOOL_MAIL)
             .setContentTitle(title)
             .setContentText(text)
             .setAutoCancel(true)
@@ -94,8 +92,7 @@ class AndroidMailNotifier @Inject constructor(
         notificationChannels.ensureRegistered()
         manager.notify(
             MailNotificationPlanner.AUTH_FAILED_ID,
-            NotificationCompat.Builder(context, NotificationChannels.SYSTEM)
-                .setSmallIcon(DeviceSkin.current().notificationSmallIcon)
+            context.brandedNotification(NotificationChannels.SYSTEM)
                 .setContentTitle(context.getString(R.string.school_mail_auth_failed_notification_title))
                 .setContentText(context.getString(R.string.school_mail_auth_failed_notification_text))
                 .setAutoCancel(true)

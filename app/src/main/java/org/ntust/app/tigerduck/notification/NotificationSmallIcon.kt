@@ -10,8 +10,10 @@ import org.ntust.app.tigerduck.R
  * an island that whitens vectors leaves it alone
  * ([DeviceSkin.islandWhitensVectorSmallIcon]), or the yellow one rendered
  * to a bitmap for an island that greys anything else
- * ([DeviceSkin.islandGreysNonBitmapSmallIcon]). Every `setSmallIcon` call
- * goes through this, so no notification can post the wrong one.
+ * ([DeviceSkin.islandGreysNonBitmapSmallIcon]). Every notification the app
+ * builds gets it from [brandedNotification]. The one it can't, the push
+ * Firebase draws itself, names `ic_notification_white` in the play manifest:
+ * a resource can't vary by skin, and white is right in every status bar.
  */
 @get:DrawableRes
 val DeviceSkin.notificationSmallIcon: Int

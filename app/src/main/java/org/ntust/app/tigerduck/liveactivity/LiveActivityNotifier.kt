@@ -22,7 +22,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
-import org.ntust.app.tigerduck.notification.notificationSmallIcon
+import org.ntust.app.tigerduck.notification.brandedNotification
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -146,20 +146,18 @@ class LiveActivityNotifier @Inject constructor(
         // phone's language under an otherwise translated UI.
         val localized = localizedContext()
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(deviceSkin.notificationSmallIcon)
+        // Brand tint, not snapshot.accentHex: every notification in the app
+        // tints duck yellow, so the shade badge and the Android 16
+        // promoted-ongoing chip stay consistent with the assignment / bulletin
+        // notifications instead of shifting colour per course. The per-course
+        // accent still drives the watch, which reads it from prefs via
+        // WearScheduleBridge, not from here.
+        val builder = context.brandedNotification(CHANNEL_ID, skin = deviceSkin)
             .setContentTitle(snapshot.title)
             .setContentText(statusLine(snapshot, localized))
             .setContentIntent(contentIntent)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            // Brand tint, not snapshot.accentHex: every monochrome small icon
-            // in the app now tints duck yellow, so the shade badge and the
-            // Android 16 promoted-ongoing chip stay consistent with the
-            // assignment / bulletin notifications instead of shifting colour
-            // per course. The per-course accent still drives the watch, which
-            // reads it from prefs via WearScheduleBridge, not from here.
-            .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .setRequestPromotedOngoing(true)
             .setVisibility(visibility)

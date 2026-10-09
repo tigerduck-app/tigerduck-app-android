@@ -195,9 +195,12 @@ data class DeviceSkin(
      * framework there also swaps a third-party app's status bar icon for its
      * launcher icon, so a coloured small icon only reaches the island and the
      * Live Update card. OnePlus and realme run the same Oplus ROM.
+     *
+     * Only where there is an island to work around. Below Android 16 the
+     * status bar and shade have only been seen with the plain vector.
      */
     val islandWhitensVectorSmallIcon: Boolean
-        get() = isOplus
+        get() = isOplus && chipSupport != StatusBarChipSupport.UNSUPPORTED
 
     /**
      * Whether the island tints every small icon grey except a bitmap.
@@ -213,9 +216,30 @@ data class DeviceSkin(
      * and the two cannot be split: both read the one tint flag that sort
      * sets. A one-colour bitmap keeps the status bar monochrome and the
      * island yellow, and leaves the shade its tile.
+     *
+     * Only where there is an island to work around, as above.
      */
     val islandGreysNonBitmapSmallIcon: Boolean
-        get() = isHonor
+        get() = isHonor && chipSupport != StatusBarChipSupport.UNSUPPORTED
+
+    /**
+     * Whether the shade shows the app's launcher icon where AOSP shows the
+     * small icon, so a large icon would put the same logo in the row twice.
+     *
+     * Measured: the vivo V60 Lite (OriginOS 6), OPPO Reno 11 (ColorOS 16.0.5),
+     * Galaxy A26 (One UI 8.5) and the Pixel emulator (Android 17) draw the
+     * launcher icon there. The Honor X6d 5G (MagicOS 10) draws the small icon
+     * as a glyph on a tile, the POCO C85 (HyperOS 3, in its default "Android"
+     * style) draws the small icon, and the moto g34, ZTE P505 and Zenfone 6
+     * (Android 14 and 15) draw it in a circle of the notification colour.
+     *
+     * Any other phone on Android 16 or later is taken to draw the launcher
+     * icon. A wrong guess costs a row without the large icon, which is how
+     * every push looked before the large icon was fixed. HyperOS's "MIUI"
+     * style draws app icons too, and still gets the large icon.
+     */
+    val shadeShowsAppIcon: Boolean
+        get() = sdkInt >= Build.VERSION_CODES.BAKLAVA && !isHonor && !isXiaomi
 
     /**
      * The preference key of the chip's switch on the page the promotion
@@ -245,7 +269,7 @@ data class DeviceSkin(
 
         /**
          * Read once per process and shared: the inputs cannot change while the
-         * app is alive, and every miss costs up to two reflective property reads.
+         * app is alive, and every miss costs up to three reflective property reads.
          */
         private val cached: DeviceSkin by lazy {
             DeviceSkin(

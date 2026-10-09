@@ -21,8 +21,9 @@ class NotificationSmallIconTest {
         manufacturer: String = "Google",
         brand: String = manufacturer,
         vivoOverseas: Boolean = false,
+        sdkInt: Int = 36,
     ) = DeviceSkin(
-        sdkInt = 36,
+        sdkInt = sdkInt,
         manufacturer = manufacturer,
         brand = brand,
         oneUiVersion = null,
@@ -81,8 +82,21 @@ class NotificationSmallIconTest {
     }
 
     @Test
+    fun `without an island ColorOS and MagicOS keep the plain yellow vector`() {
+        // Both workarounds are for the island, which needs Android 16. Below
+        // it the status bar and shade were never seen with anything but the
+        // plain vector, so an older OPPO or Honor keeps that.
+        for (manufacturer in listOf("OPPO", "OnePlus", "realme", "HONOR")) {
+            val old = skin(manufacturer, sdkInt = 35)
+            assertFalse(manufacturer, old.islandWhitensVectorSmallIcon)
+            assertFalse(manufacturer, old.islandGreysNonBitmapSmallIcon)
+            assertEquals(manufacturer, R.drawable.ic_notification, old.notificationSmallIcon)
+        }
+    }
+
+    @Test
     fun `measured skins with nothing to work around keep the plain yellow vector`() {
-        // POCO C86 (HyperOS): tinted status bar, yellow island.
+        // POCO C85 (HyperOS 3): tinted status bar, yellow island.
         // Pixel: tints both surfaces whatever the fill.
         for (manufacturer in listOf("Xiaomi", "Google", "samsung")) {
             val other = skin(manufacturer)

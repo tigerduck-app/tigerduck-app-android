@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -43,5 +44,10 @@ class NotificationLargeIconTest {
         assertEquals(size, icon.height)
         // Not a blank canvas: the middle of the launcher icon is the mascot.
         assertTrue(Color.alpha(icon.getPixel(size / 2, size / 2)) == 255)
+    }
+
+    @Test
+    fun theLargeIconIsDrawnOnceAndReused() {
+        assertSame(context.notificationLargeIcon(), context.notificationLargeIcon())
     }
 }
