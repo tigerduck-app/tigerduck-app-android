@@ -107,10 +107,16 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // fetch made in the foreground minutes ago is not repeated here; the
         // run used to redo the whole pipeline every hour regardless, which
         // over a day made it the app's largest source of traffic.
-        val coursesDue = triggered || RefreshPolicies.coursesEvery?.let {
+        //
+        // Except on a retry. Only the school data fails a run, and the fetch
+        // dates the data before the run stores it, so a run that failed after
+        // its fetch left a fresh stamp over nothing stored; its retry would
+        // otherwise skip the fetch and report success.
+        val retry = runAttemptCount > 0
+        val coursesDue = triggered || retry || RefreshPolicies.coursesEvery?.let {
             RefreshPolicy.hasPassed(prefs.backgroundCoursesSyncedAtMs, now, it)
         } == true
-        val assignmentsDue = triggered || RefreshPolicies.assignmentsEvery?.let {
+        val assignmentsDue = triggered || retry || RefreshPolicies.assignmentsEvery?.let {
             RefreshPolicy.hasPassed(prefs.schoolDataSyncedAtMs.value, now, it)
         } == true
 
