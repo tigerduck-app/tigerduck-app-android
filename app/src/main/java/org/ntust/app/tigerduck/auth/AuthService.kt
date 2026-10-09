@@ -335,9 +335,9 @@ class AuthService @Inject constructor(
         moodleService.cancelSharedFetches()
         sessionManager.invalidateSession()
         bulletinReadStateStore.clear()
-        // The cache it dated is wiped below; left behind, it would let the
-        // next account's first launch skip its fetch as "fresh".
-        prefs.clearSchoolDataSynced()
+        // The cache they dated is wiped below; left behind, they would date
+        // the next account's data, and hold its first background sync off.
+        prefs.clearSyncStamps()
         _loginError.value = null
         _authState.value = false
         pushRegistration.unregister(authHeader)

@@ -96,6 +96,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
             RefreshPolicy.hasPassed(prefs.backgroundOverridesSyncedAtMs, now, OVERRIDES_EVERY)
         if (overridesDue) {
             syncOverridesFromBackend()
+            // Signed out meanwhile: the stamp went with the account.
+            if (authService.storedStudentId != studentId) return Result.success()
             prefs.backgroundOverridesSyncedAtMs = now
         }
 
@@ -112,10 +114,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
             RefreshPolicy.hasPassed(prefs.schoolDataSyncedAtMs.value, now, it)
         } == true
 
-        val coursesOk = !coursesDue || syncCourses(studentId, password).also { ok ->
-            if (ok) prefs.backgroundCoursesSyncedAtMs = now
-        }
+        val coursesOk = !coursesDue || syncCourses(studentId, password)
         if (authService.storedStudentId != studentId) return Result.success()
+        if (coursesDue && coursesOk) prefs.backgroundCoursesSyncedAtMs = now
         val assignmentsOk = !assignmentsDue || syncAssignments()
         if (authService.storedStudentId != studentId) return Result.success()
 

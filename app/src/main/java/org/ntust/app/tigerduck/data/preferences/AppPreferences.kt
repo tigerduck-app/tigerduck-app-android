@@ -590,9 +590,17 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         _schoolDataSyncedAtMs.value = atMs
     }
 
-    /** On sign-out: the next account's first launch has nothing fresh. */
-    fun clearSchoolDataSynced() {
-        prefs.edit().remove("schoolDataSyncedAtMs").apply()
+    /**
+     * On sign-out, this stamp and the background worker's two below: what
+     * they dated belonged to the account that left, and the next account's
+     * worker must not wait out the old one's hour before its first sync.
+     */
+    fun clearSyncStamps() {
+        prefs.edit()
+            .remove("schoolDataSyncedAtMs")
+            .remove("backgroundOverridesSyncedAtMs")
+            .remove("backgroundCoursesSyncedAtMs")
+            .apply()
         _schoolDataSyncedAtMs.value = 0L
     }
 
