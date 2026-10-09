@@ -62,14 +62,27 @@ class LiveActivityBoundaryScheduler @Inject constructor(
         try {
             when {
                 Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms() ->
-                    alarmManager.set(type, realTrigger, pi)
+                    setInexact(type, realTrigger, pi)
                 type == AlarmManager.RTC_WAKEUP ->
                     alarmManager.setExactAndAllowWhileIdle(type, realTrigger, pi)
                 else -> alarmManager.setExact(type, realTrigger, pi)
             }
         } catch (_: SecurityException) {
-            alarmManager.set(type, realTrigger, pi)
+            setInexact(type, realTrigger, pi)
         }
+    }
+
+    /**
+     * The alarm for a phone without exact alarms, which Android 14 grants no
+     * app by default. A plain wake-up alarm waits for Doze's next maintenance
+     * window, so a phone left on a desk would show a class as starting soon
+     * long after it began; allowed while idle, it comes through, if a little
+     * late. The minute alarm has no one to update on an idle phone, so it
+     * still waits.
+     */
+    private fun setInexact(type: Int, realTrigger: Long, pi: PendingIntent) {
+        if (type == AlarmManager.RTC_WAKEUP) alarmManager.setAndAllowWhileIdle(type, realTrigger, pi)
+        else alarmManager.set(type, realTrigger, pi)
     }
 
     private fun cancel(requestCode: Int) {

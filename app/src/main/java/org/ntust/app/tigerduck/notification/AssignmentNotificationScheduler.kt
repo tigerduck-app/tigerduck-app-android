@@ -151,9 +151,12 @@ class AssignmentNotificationScheduler @Inject constructor(
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
+            // Without exact alarms, which Android 14 grants no app by default,
+            // the reminder is still allowed through Doze: a plain set() would
+            // wait for Doze's next maintenance window, however late that is.
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    alarmManager.set(
+                    alarmManager.setAndAllowWhileIdle(
                         AlarmManager.RTC_WAKEUP,
                         AppClock.realTimeFor(item.triggerTime),
                         pendingIntent
@@ -166,7 +169,7 @@ class AssignmentNotificationScheduler @Inject constructor(
                     )
                 }
             } catch (_: SecurityException) {
-                alarmManager.set(
+                alarmManager.setAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
                     AppClock.realTimeFor(item.triggerTime),
                     pendingIntent
