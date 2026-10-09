@@ -68,6 +68,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -337,7 +338,15 @@ private fun SyncStatusDotBody(
                 // answer still be from this morning; nothing else on the page
                 // says which.
                 if (syncedAtMs != null) {
-                    val age = dataAge(syncedAtMs, System.currentTimeMillis())
+                    // Kept ticking while the popup is open, or "Just now"
+                    // would stay what it was when the popup opened.
+                    val nowMs by produceState(System.currentTimeMillis()) {
+                        while (true) {
+                            delay(15_000)
+                            value = System.currentTimeMillis()
+                        }
+                    }
+                    val age = dataAge(syncedAtMs, nowMs)
                     SourceRow(
                         color = Color.Transparent,
                         icon = Icons.Filled.Schedule,
