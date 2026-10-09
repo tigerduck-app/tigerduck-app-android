@@ -25,6 +25,48 @@ class BulletinRepository @Inject constructor() {
     private var taxonomyValue: TaxonomyResponse? = null
     private val taxonomyMutex = Mutex()
 
+    /**
+     * Where the list stood after its last refresh in this process: when the
+     * first page came back, which filter it was for, and the cursor of the
+     * first page not yet in the on-disk cache.
+     */
+    data class ListSession(
+        val fetchedAtMs: Long,
+        val includeDeleted: Boolean,
+        val nextCursor: Int?,
+    )
+
+    @Volatile
+    private var listSession: ListSession? = null
+
+    /** Records a refresh of the list's first page, at [nowMs] on a monotonic clock. */
+    @Synchronized
+    fun listRefreshed(nowMs: Long, includeDeleted: Boolean, nextCursor: Int?) {
+        listSession = ListSession(nowMs, includeDeleted, nextCursor)
+    }
+
+    /**
+     * Moves the cursor on once the pages before [nextCursor] are in the
+     * on-disk cache. Saved first, moved second: a cursor ahead of the cache
+     * would skip the pages in between for good.
+     */
+    @Synchronized
+    fun listAdvanced(includeDeleted: Boolean, nextCursor: Int?) {
+        val session = listSession ?: return
+        if (session.includeDeleted == includeDeleted) {
+            listSession = session.copy(nextCursor = nextCursor)
+        }
+    }
+
+    /**
+     * The list as the last refresh in this process left it, for the same
+     * filter; null when the list has not been refreshed since the app
+     * started. The list screen's view model is rebuilt on every visit, so
+     * this is how a visit tells a launch from a return.
+     */
+    fun listSession(includeDeleted: Boolean): ListSession? =
+        listSession?.takeIf { it.includeDeleted == includeDeleted }
+
     @Synchronized
     fun putSummaries(items: List<BulletinSummary>) {
         for (item in items) summaries[item.id] = item

@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.network
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -15,17 +17,80 @@ sealed class SsoLoginError : Exception() {
     data class NetworkError(val cause_: Exception) : SsoLoginError()
 }
 
+/**
+ * A page behind NTUST SSO, fetched with the session already held when
+ * [sessionWarm] says there is one, and with one login and one retry when the
+ * request is bounced to SSO anyway.
+ *
+ * [fetch] returns null for a bounce. [logIn] throws when it cannot log in.
+ * Whatever the retry still cannot get past ends in [bounced], as does a
+ * bounce after a cold session's login.
+ *
+ * A login costs a round of the OIDC bridge — the service root, the authorize
+ * redirect, the bridge POST — even when the session it checks is fine, so
+ * running one ahead of every fetch cost several requests where a warm
+ * session needs one.
+ * The retry is what makes skipping it safe: [sessionWarm] only says *a*
+ * login succeeded within the hour, not that it was to this service.
+ */
+internal suspend fun <T> fetchWithSsoSession(
+    sessionWarm: Boolean,
+    logIn: suspend () -> Unit,
+    fetch: suspend () -> T?,
+    bounced: () -> Nothing,
+): T {
+    if (!sessionWarm) {
+        // A bounce straight after a login of our own is not a stale session,
+        // and a second login would only clear the cookies and do it again.
+        logIn()
+        return fetch() ?: bounced()
+    }
+    fetch()?.let { return it }
+    logIn()
+    return fetch() ?: bounced()
+}
+
 @Singleton
 class SsoLoginService @Inject constructor(
     private val sessionManager: NtustSessionManager
 ) {
     private val client: OkHttpClient get() = sessionManager.client
 
+    // One login at a time. A login that meets the SSO wall clears the whole
+    // cookie jar (step 4) before it signs in, which pulled the session out
+    // from under any other login running alongside — and Home, the class
+    // table and the calendar each started one at the same moment on launch.
+    private val loginMutex = Mutex()
+
     /**
      * Ensures the user is logged in to the given service via NTUST SSO.
      * Returns true on success, throws SsoLoginError on failure.
      */
     suspend fun ensureServiceLogin(
+        serviceUrl: String,
+        studentId: String,
+        password: String
+    ): Boolean = loginMutex.withLock { logIn(serviceUrl, studentId, password) }
+
+    /**
+     * A sign-in with credentials just entered. [ensureServiceLogin] takes a
+     * session the jar already holds as signed in, without submitting the
+     * credentials; that is right for the account re-logging itself in, and
+     * wrong for someone new, whose sign-in would then pass on the strength
+     * of a session left by the account before. So this one empties the jar
+     * first. Under the same lock, so a login still running for the account
+     * that left finishes before the jar is emptied, not after.
+     */
+    suspend fun signIn(
+        serviceUrl: String,
+        studentId: String,
+        password: String
+    ): Boolean = loginMutex.withLock {
+        sessionManager.invalidateSession()
+        logIn(serviceUrl, studentId, password)
+    }
+
+    private suspend fun logIn(
         serviceUrl: String,
         studentId: String,
         password: String

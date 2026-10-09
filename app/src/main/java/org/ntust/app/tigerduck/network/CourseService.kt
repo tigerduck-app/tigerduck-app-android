@@ -1,12 +1,14 @@
 package org.ntust.app.tigerduck.network
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -16,16 +18,27 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.util.SharedFetch
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 import org.ntust.app.tigerduck.util.toCreditsOrZero
+
+/**
+ * How long an answer from a school server is handed to the next caller that
+ * asks for the same thing — see [org.ntust.app.tigerduck.util.SharedFetch].
+ * Long enough to cover the screens of one launch, short enough that nothing
+ * automatic can serve a minute-old roster as new. A pull to refresh drops
+ * what is kept (`expireSharedResults`), so it never gets one at all.
+ */
+internal const val SHARED_ANSWER_WINDOW_MS = 60_000L
 
 sealed class CourseServiceError : Exception() {
     class NotAuthenticated : CourseServiceError()
@@ -42,9 +55,30 @@ class CourseService @Inject constructor(
     private val dataCache: DataCache,
     private val appPreferences: AppPreferences,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    @param:ApplicationScope appScope: CoroutineScope,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
+
+    // Home, the class table and the worker all scrape the 選課清單 page, within
+    // seconds of each other on launch. Keyed by student, so one account's
+    // roster never reaches another's.
+    private val sharedCourseNos = SharedFetch<String, List<String>>(
+        appScope, SHARED_ANSWER_WINDOW_MS, SystemClock::elapsedRealtime,
+    )
+
+    // Only the lookups in flight: the TTL cache below keeps the answers.
+    // Without this, two screens that miss that cache together each look up
+    // every course on the roster.
+    private val lookupsInFlight = SharedFetch<String, List<CourseSearchResult>>(
+        appScope, windowMs = 0, SystemClock::elapsedRealtime,
+    )
+
+    /** See [MoodleService.expireSharedResults]. */
+    fun expireSharedResults() = sharedCourseNos.expire()
+
+    /** See [MoodleService.cancelSharedFetches]. */
+    fun cancelSharedFetches() = sharedCourseNos.cancelAll()
 
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
@@ -71,22 +105,35 @@ class CourseService @Inject constructor(
     private var classroomNameAbbr: Map<String, ClassroomAbbrEntry> = emptyMap()
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
-        withContext(Dispatchers.IO) {
-            val loggedIn =
-                ssoLoginService.ensureServiceLogin(courseSelectionRoot, studentId, password)
-            if (!loggedIn) throw CourseServiceError.NotAuthenticated()
-
-            val request = Request.Builder().url(courseListUrl).get().build()
-            client.newCall(request).execute().use { response ->
-                if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) {
-                    throw CourseServiceError.RedirectedToSSO()
-                }
-                val html = response.body.string()
-
+        sharedCourseNos.get(studentId) {
+            withContext(Dispatchers.IO) {
+                // AuthService.ensureAuthenticated logs in to this very
+                // service, so a session it left is used as it is — see
+                // fetchWithSsoSession.
+                val html = fetchWithSsoSession(
+                    sessionWarm = sessionManager.cookiesValid,
+                    logIn = {
+                        val loggedIn = ssoLoginService.ensureServiceLogin(
+                            courseSelectionRoot, studentId, password,
+                        )
+                        if (!loggedIn) throw CourseServiceError.NotAuthenticated()
+                    },
+                    fetch = { fetchCourseListPage() },
+                    bounced = { throw CourseServiceError.RedirectedToSSO() },
+                )
                 val pattern = Regex("<tr>\\s*<td>\\s*(3?[A-Z]{2}[A-Z0-9]{6,7})\\s*</td>")
                 pattern.findAll(html).map { it.groupValues[1] }.toList()
             }
         }
+
+    /** The 選課清單 page, or null when the request was bounced to SSO. */
+    private fun fetchCourseListPage(): String? {
+        val request = Request.Builder().url(courseListUrl).get().build()
+        client.newCall(request).execute().use { response ->
+            if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) return null
+            return response.body.string()
+        }
+    }
 
     suspend fun lookupCourse(
         semester: String,
@@ -104,28 +151,41 @@ class CourseService @Inject constructor(
                 System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
             }?.let { return@withContext applyAbbreviations(it.results, language) }
 
-            val requestBody =
-                gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
-                    .toRequestBody("application/json".toMediaType())
-
-            val request = Request.Builder()
-                .url(courseSearchApiUrl(language))
-                .header("Accept", "application/json")
-                .post(requestBody)
-                .build()
-
-            val fresh = client.newCall(request).execute().use { response ->
-                val body = response.body.string()
-                val type = object : TypeToken<List<CourseSearchResult>>() {}.type
-                gson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
-            }
-
-            if (fresh.isNotEmpty()) {
-                lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
-                persistLookupCache()
+            val fresh = lookupsInFlight.get(key) {
+                withContext(Dispatchers.IO) { fetchLookup(key, semester, courseNo, language) }
             }
             applyAbbreviations(fresh, language)
         }
+
+    /** The querycourse request behind [lookupCourse], written through to its cache. */
+    private suspend fun fetchLookup(
+        key: String,
+        semester: String,
+        courseNo: String,
+        language: String,
+    ): List<CourseSearchResult> {
+        val requestBody =
+            gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
+                .toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url(courseSearchApiUrl(language))
+            .header("Accept", "application/json")
+            .post(requestBody)
+            .build()
+
+        val fresh = client.newCall(request).execute().use { response ->
+            val body = response.body.string()
+            val type = object : TypeToken<List<CourseSearchResult>>() {}.type
+            gson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
+        }
+
+        if (fresh.isNotEmpty()) {
+            lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
+            persistLookupCache()
+        }
+        return fresh
+    }
 
     private suspend fun ensureLookupCacheLoaded() {
         if (lookupCacheLoaded) return

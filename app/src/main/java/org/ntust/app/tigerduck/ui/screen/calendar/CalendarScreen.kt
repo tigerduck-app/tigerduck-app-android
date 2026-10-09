@@ -67,6 +67,7 @@ import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.scrollbar
+import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -84,13 +85,20 @@ fun CalendarScreen(
     val selectedDate by viewModel.selectedDate.collectAsStateWithLifecycle()
     val displayedMonth by viewModel.displayedMonth.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val dayEvents by viewModel.selectedDateEvents.collectAsStateWithLifecycle()
     val resources = LocalResources.current
 
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(viewModel) { viewModel.load() }
+    LaunchedEffect(viewModel) { 
+        viewModel.load()
+        // Each time the page enters composition: a return to it from
+        // another page fetches if its RefreshPolicy asks for that.
+        viewModel.onPageShown()
+    }
+    PageLeftEffect(viewModel::onPageLeft)
     LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
@@ -119,6 +127,7 @@ fun CalendarScreen(
                             // so it belongs in the source list beside Moodle.
                             servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
                             isLoading = isLoading,
+                            syncedAtMs = schoolDataSyncedAtMs,
                         )
                         Spacer(Modifier.width(8.dp))
                         JumpToNowChip(

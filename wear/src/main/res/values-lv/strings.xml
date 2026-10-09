@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Būtiska informācija</string>
     <string name="sync_fdroid_unavailable_body">TigerSync nepieciešami Google Play pakalpojumi, un tas nav pieejams F-Droid versijā.</string>
     <string name="sync_fdroid_unavailable_title">Nav pieejams F-Droid</string>
+    <string name="sync_status_days_ago_short">pirms %1$d d.</string>
     <string name="sync_status_device_registered">Ierīce reģistrēta</string>
     <string name="sync_status_failed">Neizdevās</string>
+    <string name="sync_status_hours_ago_short">pirms %1$d st.</string>
+    <string name="sync_status_just_now">Tikko</string>
+    <string name="sync_status_last_synced">Pēdējoreiz sinhronizēts</string>
     <string name="sync_status_minimal">Ierobežots</string>
+    <string name="sync_status_minutes_ago_short">pirms %1$d min.</string>
     <string name="sync_status_nav_label">TigerSync statuss</string>
+    <string name="sync_status_never_synced">Nav sinhronizēts</string>
     <string name="sync_status_ok">Labi</string>
     <string name="sync_status_syncing">Sinhronizē…</string>
     <string name="sync_status_title">Sinhronizācijas statuss</string>

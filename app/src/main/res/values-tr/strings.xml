@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Temel bilgiler</string>
     <string name="sync_fdroid_unavailable_body">TigerSync, Google Play Hizmetleri gerektirir ve F-Droid sürümünde mevcut değildir.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid\'de mevcut değil</string>
+    <string name="sync_status_days_ago_short">%1$d g önce</string>
     <string name="sync_status_device_registered">Cihaz kaydedildi</string>
     <string name="sync_status_failed">Başarısız</string>
+    <string name="sync_status_hours_ago_short">%1$d sa önce</string>
+    <string name="sync_status_just_now">Az önce</string>
+    <string name="sync_status_last_synced">Son eşitleme</string>
     <string name="sync_status_minimal">Sınırlı</string>
+    <string name="sync_status_minutes_ago_short">%1$d dk önce</string>
     <string name="sync_status_nav_label">TigerSync durumu</string>
+    <string name="sync_status_never_synced">Hiç eşitlenmedi</string>
     <string name="sync_status_ok">Tamam</string>
     <string name="sync_status_syncing">Eşitleniyor…</string>
     <string name="sync_status_title">Eşitleme durumu</string>

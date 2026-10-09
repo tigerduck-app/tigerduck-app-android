@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Nauðsynlegar upplýsingar</string>
     <string name="sync_fdroid_unavailable_body">TigerSync krefst Google Play þjónustu og er ekki í boði í F-Droid útgáfunni.</string>
     <string name="sync_fdroid_unavailable_title">Ekki í boði á F-Droid</string>
+    <string name="sync_status_days_ago_short">%1$d d síðan</string>
     <string name="sync_status_device_registered">Tæki skráð</string>
     <string name="sync_status_failed">Mistókst</string>
+    <string name="sync_status_hours_ago_short">%1$d klst síðan</string>
+    <string name="sync_status_just_now">Rétt í þessu</string>
+    <string name="sync_status_last_synced">Síðast samstillt</string>
     <string name="sync_status_minimal">Takmarkað</string>
+    <string name="sync_status_minutes_ago_short">%1$d mín síðan</string>
     <string name="sync_status_nav_label">TigerSync staða</string>
+    <string name="sync_status_never_synced">Aldrei samstillt</string>
     <string name="sync_status_ok">Í lagi</string>
     <string name="sync_status_syncing">Samstillir…</string>
     <string name="sync_status_title">Staða samstillingar</string>

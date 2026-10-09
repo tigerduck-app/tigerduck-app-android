@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.network
 
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -13,10 +15,15 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.model.MoodleAssignmentsEnvelope
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.network.model.MoodleSubmission
 import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
+import org.ntust.app.tigerduck.util.SharedFetch
 import java.util.Date
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -26,14 +33,81 @@ class MoodleService @Inject constructor(
     private val tokenService: MoodleTokenService,
     private val courseService: CourseService,
     private val dataCache: DataCache,
+    private val prefs: AppPreferences,
+    @param:ApplicationScope appScope: CoroutineScope,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
     private val webserviceUrl = "https://moodle2.ntust.edu.tw/webservice/rest/server.php"
 
+    // The site-info user id, with the wstoken it was asked with. A token is
+    // one account's, so a different token is asked again: kept on its own,
+    // the id outlived a sign-out and went out with the next account's calls.
     @Volatile
-    private var cachedUserId: Int? = null
+    private var cachedUserId: Pair<String, Int>? = null
     private val siteInfoLock = Any()
+
+    // Home, the class table, the calendar and the worker each ask for these,
+    // within seconds of each other on launch — see SharedFetch. Keyed by the
+    // wstoken, so one account's answer never reaches another's.
+    private val sharedEnrolled = SharedFetch<String, List<MoodleEnrolledCourse>>(
+        appScope, SHARED_ANSWER_WINDOW_MS, SystemClock::elapsedRealtime,
+    )
+    private val sharedAssignments = SharedFetch<AssignmentsKey, AssignmentsRound>(
+        appScope, SHARED_ANSWER_WINDOW_MS, SystemClock::elapsedRealtime,
+    )
+
+    private data class AssignmentsKey(val token: String, val courseIds: List<Int>)
+
+    /** The network half of [fetchAssignments]: what every caller asking for the same courses can share. */
+    private class AssignmentsRound(
+        val envelope: MoodleAssignmentsEnvelope,
+        val statuses: Map<Int, MoodleSubmissionStatusEnvelope>,
+        /** Submissions the cache had confirmed, not asked about — see [confirmedSubmissions]. */
+        val confirmed: Map<Int, Date>,
+    )
+
+    // Refreshes in progress that every assignment round starting meanwhile
+    // asks Moodle about every submission for — see recheckingSubmissions.
+    private val recheckingRefreshes = AtomicInteger()
+
+    /**
+     * Drops the answers kept for sharing, so the next fetch asks Moodle
+     * again. For a refresh the user pulled for: they may have just submitted
+     * something, and an answer from a minute ago would show it outstanding.
+     */
+    fun expireSharedResults() {
+        sharedEnrolled.expire()
+        sharedAssignments.expire()
+    }
+
+    /**
+     * Runs [block], a refresh the user pulled for or the server asked for,
+     * with every assignment round that starts meanwhile asking Moodle about
+     * every submission, the confirmed ones included: one may just have been
+     * submitted again. For as long as the refresh runs, not for the next
+     * round only: rounds are per course list, and the calendar's or the
+     * worker's, on the cached roster, used to take a flag meant for the
+     * pull's own round, which then skipped them.
+     */
+    suspend fun <T> recheckingSubmissions(block: suspend () -> T): T {
+        recheckingRefreshes.incrementAndGet()
+        try {
+            return block()
+        } finally {
+            recheckingRefreshes.decrementAndGet()
+        }
+    }
+
+    /**
+     * Stops the fetches still running for the account that is signing out,
+     * and drops their answers. They run on the application scope, so the
+     * screens that asked being cancelled does not stop them.
+     */
+    fun cancelSharedFetches() {
+        sharedEnrolled.cancelAll()
+        sharedAssignments.cancelAll()
+    }
 
     /**
      * Fetch the user's enrolled Moodle courses across all semesters using
@@ -42,12 +116,33 @@ class MoodleService @Inject constructor(
      * which NTUST's edge (Citrix NetScaler) tends to challenge.
      */
     suspend fun fetchEnrolledCourses(): List<MoodleEnrolledCourse> =
-        withContext(Dispatchers.IO) {
-            attemptWithTokenRetry { token ->
-                val userId = getSiteInfoUserId(token)
-                callEnrolledCourses(token, userId)
+        shared(sharedEnrolled, tokenService.currentToken()) {
+            withContext(Dispatchers.IO) {
+                attemptWithTokenRetry { token ->
+                    val userId = getSiteInfoUserId(token)
+                    callEnrolledCourses(token, userId)
+                }
             }
         }
+
+    /**
+     * [fetch] through [sharedFetch] under the account's wstoken, or on its
+     * own when there is no token to key it by. A sign-in fetches before its
+     * token has been harvested, and an answer kept under a blank key would
+     * reach whoever signed in next within the window.
+     */
+    private suspend fun <K : Any, V> shared(
+        sharedFetch: SharedFetch<K, V>,
+        token: String?,
+        key: (String) -> K,
+        fetch: suspend () -> V,
+    ): V = if (token.isNullOrEmpty()) fetch() else sharedFetch.get(key(token), fetch)
+
+    private suspend fun <V> shared(
+        sharedFetch: SharedFetch<String, V>,
+        token: String?,
+        fetch: suspend () -> V,
+    ): V = shared(sharedFetch, token, { it }, fetch)
 
     /**
      * Fetch this semester's assignments with completion flags resolved from
@@ -67,6 +162,7 @@ class MoodleService @Inject constructor(
         enrolledCourses: List<MoodleEnrolledCourse>,
         rosterCourseNos: Set<String>? = null,
     ): List<Assignment> = withContext(Dispatchers.IO) {
+        val token = tokenService.currentToken()
         val currentSemester = courseService.currentSemesterCode()
         // What the class table holds right now, hand-added rows included. It
         // decides which of a 合開 course's codes an assignment is filed under.
@@ -80,7 +176,15 @@ class MoodleService @Inject constructor(
         } else {
             MoodleCourseIds.forRoster(enrolledCourses, rosterNos)
         }
-        if (relevant.isEmpty()) return@withContext emptyList<Assignment>()
+        if (relevant.isEmpty()) {
+            // Moodle answered, and has nothing for this term: the weeks before
+            // its courses open, or a break between terms. Dated like any other
+            // answer, or the worker would ask again on every run and the
+            // "Last synced" row would never move. No courses at all is not
+            // dated: it is also what an upstream failing quietly looks like.
+            if (enrolledCourses.isNotEmpty()) markSynced(askedWith = token)
+            return@withContext emptyList<Assignment>()
+        }
         val localCourseNos = rosterNos + cachedCourseNos
         // Once per course rather than once per assignment: the alias scan
         // runs a regex over the fullname.
@@ -88,35 +192,28 @@ class MoodleService @Inject constructor(
             it.id to MoodleCourseIds.assignmentCourseNo(it, localCourseNos)
         }
 
-        attemptWithTokenRetry { token ->
-            val userId = getSiteInfoUserId(token)
-            val envelope = callGetAssignments(token, relevant.map { it.id })
-            val coursesById = relevant.associateBy { it.id }
+        // Keyed on the courses, not on what each caller makes of them: the
+        // filing above is the caller's own, the requests are the same.
+        val courseIds = relevant.map { it.id }.sorted()
+        val round = shared(
+            sharedAssignments,
+            tokenService.currentToken(),
+            key = { AssignmentsKey(it, courseIds) },
+        ) { fetchAssignmentsRound(courseIds) }
+        val coursesById = relevant.associateBy { it.id }
 
-            // Flatten the nested course→assignments response so we can fan
-            // out submission-status calls keyed by assignId.
-            val records = envelope.courses.flatMap { c ->
-                c.assignments.map { a -> c.id to a }
-            }
-
-            val statuses = coroutineScope {
-                records.map { (_, a) ->
-                    async(Dispatchers.IO) {
-                        runCatching { callGetSubmissionStatus(token, a.id, userId) }
-                            .getOrNull()
-                            ?.let { a.id to it }
-                    }
-                }.awaitAll().filterNotNull().toMap()
-            }
-
-            records.mapNotNull { (courseId, a) ->
+        // Flatten the nested course→assignments response.
+        round.envelope.courses
+            .flatMap { c -> c.assignments.map { a -> c.id to a } }
+            .mapNotNull { (courseId, a) ->
                 if (a.duedate <= 0) return@mapNotNull null
                 // Info-only entries with no submission target — nothing to
                 // complete or ignore; skip to match iOS.
                 if (a.nosubmissions != 0) return@mapNotNull null
                 val course = coursesById[courseId]
-                val submission = statuses[a.id]?.lastattempt?.submission
-                val submitted = submission?.status == "submitted"
+                val (submitted, submittedAt) = submissionState(
+                    a.id, round.confirmed, round.statuses[a.id]?.lastattempt?.submission,
+                )
                 Assignment(
                     assignmentId = a.id.toString(),
                     courseNo = courseNoById[courseId] ?: "",
@@ -126,10 +223,66 @@ class MoodleService @Inject constructor(
                     isCompleted = submitted,
                     moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=${a.cmid}",
                     cutoffDate = a.cutoffdate?.takeIf { it > 0 }?.let { Date(it * 1000) },
-                    submittedAt = submission?.timemodified?.takeIf { it > 0 }
-                        ?.let { Date(it * 1000) },
+                    submittedAt = submittedAt,
                 )
             }
+    }
+
+    /**
+     * `mod_assign_get_assignments` for [courseIds], then one
+     * `mod_assign_get_submission_status` per assignment the cache has not
+     * already confirmed, fanned out in parallel. A status call that fails is
+     * left out of the map, which the caller reads as "not submitted" — see
+     * [org.ntust.app.tigerduck.data.CourseRosterMerge.preserveConfirmedSubmissions].
+     *
+     * The confirmed ones are skipped because that same rule keeps them
+     * submitted whatever the call says, so all it could still change is the
+     * submission time. One call per assignment, every assignment, every
+     * refresh, was most of the requests a refresh made to Moodle by the
+     * middle of a term. A pull to refresh still asks about everything.
+     */
+    private suspend fun fetchAssignmentsRound(courseIds: List<Int>): AssignmentsRound =
+        withContext(Dispatchers.IO) {
+            val recheck = recheckingRefreshes.get() > 0
+            val confirmed =
+                if (recheck) emptyMap() else confirmedSubmissions(dataCache.loadAssignments())
+            var askedWith = ""
+            var asked = 0
+            val round = attemptWithTokenRetry { token ->
+                askedWith = token
+                val userId = getSiteInfoUserId(token)
+                val envelope = callGetAssignments(token, courseIds)
+                val toAsk = envelope.courses.flatMap { it.assignments }
+                    .filter { it.id !in confirmed }
+                asked = toAsk.size
+                val statuses = coroutineScope {
+                    toAsk.map { a ->
+                        async(Dispatchers.IO) {
+                            runCatching { callGetSubmissionStatus(token, a.id, userId) }
+                                .getOrNull()
+                                ?.let { a.id to it }
+                        }
+                    }.awaitAll().filterNotNull().toMap()
+                }
+                AssignmentsRound(envelope, statuses, confirmed)
+            }
+            // Stamped here rather than at each caller, so every screen and
+            // the worker date the data alike — see RefreshPolicies. Only
+            // for a round that got an answer to every status call: a failed
+            // one reads as "not submitted", and a stamp would keep the next
+            // automatic fetch from correcting it.
+            if (round.statuses.size == asked) markSynced(askedWith)
+            round
+        }
+
+    /**
+     * Dates the school data as of now, if the wstoken that asked is still
+     * the account's: an answer that outlived a sign-out cannot vouch for
+     * whoever signs in next.
+     */
+    private fun markSynced(askedWith: String?) {
+        if (askedWith != null && tokenService.currentToken() == askedWith) {
+            prefs.markSchoolDataSynced(System.currentTimeMillis())
         }
     }
 
@@ -154,9 +307,9 @@ class MoodleService @Inject constructor(
      * doesn't get stomped on by an in-flight fetch.
      */
     private fun getSiteInfoUserId(token: String): Int {
-        cachedUserId?.let { return it }
+        cachedUserId?.takeIf { it.first == token }?.let { return it.second }
         synchronized(siteInfoLock) {
-            cachedUserId?.let { return it }
+            cachedUserId?.takeIf { it.first == token }?.let { return it.second }
             val url =
                 "$webserviceUrl?moodlewsrestformat=json&wsfunction=core_webservice_get_site_info&wstoken=$token"
             val req = Request.Builder().url(url).post(FormBody.Builder().build()).build()
@@ -174,7 +327,7 @@ class MoodleService @Inject constructor(
                 ?: throw MoodleWebserviceError.MalformedResponse("userid missing from site_info")
             val userId = (rawUserId as? Number)?.toInt()
                 ?: throw MoodleWebserviceError.MalformedResponse("userid has unexpected type: $rawUserId")
-            cachedUserId = userId
+            cachedUserId = token to userId
             return userId
         }
     }
@@ -260,6 +413,39 @@ class MoodleService @Inject constructor(
 
     companion object {
         private val decodeGson = Gson()
+
+        /**
+         * The assignments [cached] records as submitted, by Moodle assignment
+         * id, with when they were submitted.
+         *
+         * One recorded without a time is left out, so it is asked about until
+         * Moodle supplies one: the time is all a status call could still add,
+         * and without it a late submission never shows as late. The time kept
+         * is the first one seen, so a later resubmission's, a late one
+         * included, shows only after a pull, which asks about everything.
+         */
+        internal fun confirmedSubmissions(cached: List<Assignment>): Map<Int, Date> =
+            cached.filter { it.isCompleted }
+                .mapNotNull { a ->
+                    val id = a.assignmentId.toIntOrNull() ?: return@mapNotNull null
+                    a.submittedAt?.let { id to it }
+                }
+                .toMap()
+
+        /**
+         * Whether assignment [id] is submitted, and when: as [confirmed]
+         * recorded it when the cache already knew, else as Moodle's
+         * [submission] says — null when its status call failed.
+         */
+        internal fun submissionState(
+            id: Int,
+            confirmed: Map<Int, Date>,
+            submission: MoodleSubmission?,
+        ): Pair<Boolean, Date?> {
+            if (id in confirmed) return true to confirmed[id]
+            val submittedAt = submission?.timemodified?.takeIf { it > 0 }?.let { Date(it * 1000) }
+            return (submission?.status == "submitted") to submittedAt
+        }
 
         /**
          * Decodes a `core_enrol_get_users_courses` payload, dropping rows Gson

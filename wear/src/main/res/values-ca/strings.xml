@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Informació essencial</string>
     <string name="sync_fdroid_unavailable_body">TigerSync requereix els serveis de Google Play i no està disponible a la versió F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">No disponible a F-Droid</string>
+    <string name="sync_status_days_ago_short">fa %1$d d</string>
     <string name="sync_status_device_registered">Dispositiu registrat</string>
     <string name="sync_status_failed">Ha fallat</string>
+    <string name="sync_status_hours_ago_short">fa %1$d h</string>
+    <string name="sync_status_just_now">Ara mateix</string>
+    <string name="sync_status_last_synced">Última sincronització</string>
     <string name="sync_status_minimal">Limitat</string>
+    <string name="sync_status_minutes_ago_short">fa %1$d min</string>
     <string name="sync_status_nav_label">Estat de TigerSync</string>
+    <string name="sync_status_never_synced">Mai sincronitzat</string>
     <string name="sync_status_ok">Correcte</string>
     <string name="sync_status_syncing">Sincronitzant…</string>
     <string name="sync_status_title">Estat de la sincronització</string>

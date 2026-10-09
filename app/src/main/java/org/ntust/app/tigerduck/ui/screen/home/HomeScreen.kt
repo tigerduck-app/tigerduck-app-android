@@ -65,6 +65,7 @@ import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
+import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import java.util.Calendar
 import org.ntust.app.tigerduck.util.formatCredits
 
@@ -100,6 +101,7 @@ fun HomeScreen(
     val ignoredTabPinned by viewModel.ignoredTabPinned.collectAsStateWithLifecycle()
     val hasIgnoredAssignments by viewModel.hasIgnoredAssignments.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val initialLoadComplete by viewModel.initialLoadComplete.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
@@ -134,7 +136,13 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) { 
+        viewModel.load()
+        // Each time the page enters composition: a return to it from
+        // another page fetches if its RefreshPolicy asks for that.
+        viewModel.onPageShown()
+    }
+    PageLeftEffect(viewModel::onPageLeft)
 
     // When the Home screen leaves the foreground (tab switch, background),
     // reset the filter away from 已忽略 if it ended up empty. This makes the
@@ -201,6 +209,7 @@ fun HomeScreen(
                             SyncStatusDot(
                                 servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
                                 isLoading = isLoading,
+                                syncedAtMs = schoolDataSyncedAtMs,
                             )
                         }
                     }

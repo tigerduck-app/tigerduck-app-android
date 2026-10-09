@@ -84,6 +84,11 @@ class MoodleTokenService @Inject constructor(
         val pwd = credentialManager.ntustPassword
             ?: throw MoodleWebserviceError.MissingStoredCredentials()
         val triple = performOidcLogin(sid.trim().uppercase(), pwd)
+        // Signed out while it ran: the token is the departing account's, and
+        // stored it would answer for whoever signs in next.
+        if (credentialManager.ntustStudentId != sid) {
+            throw MoodleWebserviceError.MissingStoredCredentials()
+        }
         credentialManager.moodleToken = triple.wstoken
         Log.i("MoodleTokenService", "refreshed wstoken (len=${triple.wstoken.length})")
         triple.wstoken

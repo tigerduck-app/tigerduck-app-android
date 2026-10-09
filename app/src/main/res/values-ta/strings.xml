@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">அத்தியாவசிய தகவல்</string>
     <string name="sync_fdroid_unavailable_body">TigerSync-க்கு Google Play சேவைகள் தேவை, F-Droid பதிப்பில் கிடைக்காது.</string>
     <string name="sync_fdroid_unavailable_title">F-Droid இல் கிடைக்காது</string>
+    <string name="sync_status_days_ago_short">%1$d நா முன்</string>
     <string name="sync_status_device_registered">சாதனம் பதிவு செய்யப்பட்டது</string>
     <string name="sync_status_failed">தோல்வி</string>
+    <string name="sync_status_hours_ago_short">%1$d மணி முன்</string>
+    <string name="sync_status_just_now">இப்போதுதான்</string>
+    <string name="sync_status_last_synced">கடைசியாக ஒத்திசைக்கப்பட்டது</string>
     <string name="sync_status_minimal">அடிப்படை</string>
+    <string name="sync_status_minutes_ago_short">%1$d நிமி முன்</string>
     <string name="sync_status_nav_label">TigerSync நிலை</string>
+    <string name="sync_status_never_synced">ஒத்திசைக்கப்படவில்லை</string>
     <string name="sync_status_ok">சரி</string>
     <string name="sync_status_syncing">ஒத்திசைக்கிறது…</string>
     <string name="sync_status_title">ஒத்திசைவு நிலை</string>

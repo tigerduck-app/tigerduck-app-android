@@ -1,10 +1,12 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.BufferOverflow
@@ -26,6 +28,8 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.shared.computeOngoingCourses
@@ -43,7 +47,15 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.util.SingleFlight
 import javax.inject.Inject
+
+/**
+ * When the class table fetches on its own — see [RefreshPolicy]. The default:
+ * on launch only. A timetable changes a few times a term, during 加退選,
+ * and a pull covers those.
+ */
+internal val ClassTableRefreshPolicy = RefreshPolicy()
 
 @HiltViewModel
 class ClassTableViewModel @Inject constructor(
@@ -94,6 +106,9 @@ class ClassTableViewModel @Inject constructor(
     val isLoading: StateFlow<Boolean> = _isLoading
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
+
+    /** For the sync dot's "Last synced" row; see [AppPreferences.schoolDataSyncedAtMs]. */
+    val schoolDataSyncedAtMs: StateFlow<Long> = appPreferences.schoolDataSyncedAtMs
 
     /**
      * Drives the grid's row list; see [AppPreferences.alwaysShowAllPeriodsFlow].
@@ -191,6 +206,14 @@ class ClassTableViewModel @Inject constructor(
     val syncCompleteEvent: SharedFlow<Unit> = _syncCompleteEvent.asSharedFlow()
 
     private var hasLoaded = false
+    private var loadJob: Job? = null
+
+    // Every fetch goes through this, so launch, a sign-in and a pull that
+    // land together run the pipeline once.
+    private val fetchFlight = SingleFlight(viewModelScope)
+
+    private val refreshTriggers =
+        RefreshTriggers(ClassTableRefreshPolicy, SystemClock::elapsedRealtime)
 
     init {
         viewModelScope.launch {
@@ -223,20 +246,37 @@ class ClassTableViewModel @Inject constructor(
         }
         viewModelScope.launch {
             dataCache.backgroundSyncVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
                 val semester = _currentSemester.value
+                val courses = dataCache.loadCourses(semester)
+                val assignments = dataCache.loadAssignments()
+                // Signed out, or in as someone else, while the files were
+                // read: what they held was the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
                 // Taken as-is, empty included: a sync can now prune the
                 // whole term (a reset made elsewhere), and holding on to
                 // the old list would keep showing courses that are gone.
-                val fresh = resolveCustomNames(dataCache.loadCourses(semester))
+                val fresh = resolveCustomNames(courses)
                 _courses.value = fresh
                 TigerDuckTheme.buildCourseColorMap(fresh)
-                _assignments.value = dataCache.loadAssignments()
+                _assignments.value = assignments
             }
         }
         viewModelScope.launch {
-            // Clear on logout, refresh on login.
+            // Clear on logout, refresh on login — a login while the app is
+            // open, not the value replayed to this collector. load() fetches
+            // for a user signed in at launch; fetching on the replay as well
+            // ran the pipeline twice on every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // A fetch still running belongs to the account that
+                    // left, and so does a load still reading its cache.
+                    fetchFlight.cancel()
+                    loadJob?.cancel()
                     _courses.value = emptyList()
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
@@ -244,17 +284,20 @@ class ClassTableViewModel @Inject constructor(
                     courseCustomNames = emptyMap()
                     hasLoaded = false
                     TigerDuckTheme.clearCourseColorMap()
-                } else {
-                    fetchData()
+                } else if (signedIn) {
+                    // As a launch, so the page counts as loaded. Launched, so
+                    // a sign-out mid-fetch is not held up by it.
+                    loadNow(fetch = true)
                 }
             }
         }
         viewModelScope.launch {
             // Language change → re-fetch from the network so course names
-            // come back in the new locale.
+            // come back in the new locale. A rerun: a fetch already in flight
+            // asked for the old language's names.
             appPreferences.appLanguageChanged.collect {
                 courseService.clearInMemoryLookupCache()
-                if (authService.authState.value) refresh()
+                if (authService.authState.value) requestRefresh(rerun = true)
             }
         }
         viewModelScope.launch {
@@ -350,7 +393,8 @@ class ClassTableViewModel @Inject constructor(
             _courses.value = cached
             TigerDuckTheme.buildCourseColorMap(cached)
             refreshLiveSemesterCourses()
-            fetchData()
+            // A rerun: a fetch in flight is for the term just left.
+            fetchFlight.rerun(::fetchData)
         }
     }
 
@@ -667,8 +711,17 @@ class ClassTableViewModel @Inject constructor(
 
     fun load() {
         if (hasLoaded) return
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
+
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as ClassTableRefreshPolicy says, and always on a sign-in, which
+     * is this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
         hasLoaded = true
-        viewModelScope.launch {
+        loadJob = viewModelScope.launch {
             val cached = dataCache.loadCourses(_currentSemester.value)
             val cachedA = dataCache.loadAssignments()
             val cachedMoodleIds = dataCache.loadMoodleCourseIds()
@@ -687,9 +740,24 @@ class ClassTableViewModel @Inject constructor(
                     cachedMoodleIds.mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
             }
             refreshLiveSemesterCourses()
-            fetchData()
+            if (fetch) fetchFlight.join(::fetchData)
         }
     }
+
+    /** The app came back to the foreground. */
+    fun onAppForeground() {
+        if (!hasLoaded || !authService.authState.value) return
+        if (refreshTriggers.onForeground()) viewModelScope.launch { fetchFlight.join(::fetchData) }
+    }
+
+    /** The class table was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) viewModelScope.launch { fetchFlight.join(::fetchData) }
+    }
+
+    /** The page left the screen for another page; see PageLeftEffect. */
+    fun onPageLeft() = refreshTriggers.onLeft()
 
     /**
      * Reset the timetable for the semester on screen.
@@ -707,47 +775,77 @@ class ClassTableViewModel @Inject constructor(
         // in the middle — see DataCache.beginReset.
         if (!dataCache.beginReset(semester)) return
         viewModelScope.launch {
+            // Released once, whichever way the reset ends: a second reset of
+            // the term may already hold the latch by the time this one's
+            // outer finally runs.
+            var latched = true
+            fun release() {
+                if (latched) dataCache.endReset(semester)
+                latched = false
+            }
             try {
-                val stored = dataCache.loadDeletedCourseNos()
-                val lifted = CourseTombstoneKeys.entriesResetting(semester, stored)
-                if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted)
-                val deleted = runCatching { pushApiClient.deleteAllCourses(semester) }
-                    .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
-                    .isSuccess
-                if (deleted) {
-                    // Only once the server has forgotten the term. Wiping
-                    // first and then failing the DELETE would leave an
-                    // empty grid with the server still full, to be merged
-                    // back as hand-added rows.
-                    //
-                    // The stamp is taken after the DELETE landed: a
-                    // snapshot fetched before this instant still carries
-                    // the pre-reset roster — see DataCache.saveSemesterResetAt.
-                    dataCache.saveSemesterResetAt(semester, System.currentTimeMillis())
-                    // The server has forgotten every number in this term,
-                    // so a hand-typed course re-added later is unknown to
-                    // it again — see CourseSyncReconciler.reconcileSemester.
-                    dataCache.saveServerKnownNos(dataCache.loadServerKnownNos() - semester)
-                    // The term's cache goes too, hand-typed courses
-                    // included: a reset means "start this term over", and
-                    // the roster the portal returns next is the whole of
-                    // it. Load-bearing for sync as well — with the old
-                    // roster still on disk next to an empty server term, a
-                    // sync would push it back up, and this device's upload
-                    // releases its own reset tombstones, so the reset would
-                    // undo itself.
-                    dataCache.saveCourses(emptyList(), semester)
-                    if (_currentSemester.value == semester) _courses.value = emptyList()
-                    widgetUpdater.requestUpdate()
+                // After any fetch still running, and as a run of its own. A
+                // fetch that read the term before the wipe would save its
+                // rows back after it, hand-added courses included, and the
+                // fetch below would then keep them.
+                fetchFlight.runAlone {
+                    try {
+                        wipeTerm(semester)
+                    } finally {
+                        release()
+                    }
+                    fetchData()
                 }
             } finally {
-                dataCache.endReset(semester)
+                release()
             }
-            fetchData()
         }
     }
 
+    /** [resetCourses]' part that forgets the term, here and on the server. */
+    private suspend fun wipeTerm(semester: String) {
+        val stored = dataCache.loadDeletedCourseNos()
+        val lifted = CourseTombstoneKeys.entriesResetting(semester, stored)
+        if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted)
+        val deleted = runCatching { pushApiClient.deleteAllCourses(semester) }
+            .onFailure { Log.w("ClassTableVM", "deleteAllCourses failed (non-fatal)", it) }
+            .isSuccess
+        if (deleted) {
+            // Only once the server has forgotten the term. Wiping
+            // first and then failing the DELETE would leave an
+            // empty grid with the server still full, to be merged
+            // back as hand-added rows.
+            //
+            // The stamp is taken after the DELETE landed: a
+            // snapshot fetched before this instant still carries
+            // the pre-reset roster — see DataCache.saveSemesterResetAt.
+            dataCache.saveSemesterResetAt(semester, System.currentTimeMillis())
+            // The server has forgotten every number in this term,
+            // so a hand-typed course re-added later is unknown to
+            // it again — see CourseSyncReconciler.reconcileSemester.
+            dataCache.saveServerKnownNos(dataCache.loadServerKnownNos() - semester)
+            // The term's cache goes too, hand-typed courses
+            // included: a reset means "start this term over", and
+            // the roster the portal returns next is the whole of
+            // it. Load-bearing for sync as well — with the old
+            // roster still on disk next to an empty server term, a
+            // sync would push it back up, and this device's upload
+            // releases its own reset tombstones, so the reset would
+            // undo itself.
+            dataCache.saveCourses(emptyList(), semester)
+            if (_currentSemester.value == semester) _courses.value = emptyList()
+            widgetUpdater.requestUpdate()
+        }
+    }
+
+    /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
     fun refresh() {
+        moodleService.expireSharedResults()
+        courseService.expireSharedResults()
+        requestRefresh(rerun = false)
+    }
+
+    private fun requestRefresh(rerun: Boolean) {
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
@@ -756,11 +854,18 @@ class ClassTableViewModel @Inject constructor(
                 _isLoading.value = false
                 return@launch
             }
-            fetchData()
+            if (rerun) {
+                fetchFlight.rerun(::fetchData)
+            } else {
+                // A pull: what was just submitted, confirmed ones included.
+                moodleService.recheckingSubmissions { fetchFlight.join(::fetchData) }
+            }
         }
     }
 
     private suspend fun fetchData() {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
         val studentId = authService.storedStudentId ?: run { _isLoading.value = false; return }
         val password = authService.storedPassword ?: run { _isLoading.value = false; return }
         if (!networkChecker.isAvailable()) {

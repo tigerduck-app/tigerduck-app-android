@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Thông tin cần thiết</string>
     <string name="sync_fdroid_unavailable_body">TigerSync yêu cầu Dịch vụ Google Play và không khả dụng trong bản F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Không khả dụng trên F-Droid</string>
+    <string name="sync_status_days_ago_short">%1$d ng trước</string>
     <string name="sync_status_device_registered">Thiết bị đã đăng ký</string>
     <string name="sync_status_failed">Thất bại</string>
+    <string name="sync_status_hours_ago_short">%1$d g trước</string>
+    <string name="sync_status_just_now">Vừa xong</string>
+    <string name="sync_status_last_synced">Đồng bộ lần cuối</string>
     <string name="sync_status_minimal">Giới hạn</string>
+    <string name="sync_status_minutes_ago_short">%1$d ph trước</string>
     <string name="sync_status_nav_label">Trạng thái TigerSync</string>
+    <string name="sync_status_never_synced">Chưa bao giờ đồng bộ</string>
     <string name="sync_status_ok">Bình thường</string>
     <string name="sync_status_syncing">Đang đồng bộ…</string>
     <string name="sync_status_title">Trạng thái đồng bộ</string>

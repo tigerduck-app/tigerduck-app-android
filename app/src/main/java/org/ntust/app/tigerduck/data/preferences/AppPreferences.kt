@@ -573,6 +573,52 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     }
 
     /**
+     * When Moodle last answered a whole round of assignments, epoch ms; 0
+     * for never, or not since the last sign-out. The age of what Home, the
+     * class table and the calendar show, and what the background worker
+     * measures its assignment refresh against — see
+     * [org.ntust.app.tigerduck.ui.RefreshPolicies].
+     *
+     * A flow, for the "Last synced" row that shows it.
+     */
+    private val _schoolDataSyncedAtMs =
+        MutableStateFlow(prefs.getLong("schoolDataSyncedAtMs", 0L))
+    val schoolDataSyncedAtMs: StateFlow<Long> = _schoolDataSyncedAtMs.asStateFlow()
+
+    fun markSchoolDataSynced(atMs: Long) {
+        prefs.edit().putLong("schoolDataSyncedAtMs", atMs).apply()
+        _schoolDataSyncedAtMs.value = atMs
+    }
+
+    /**
+     * On sign-out, this stamp and the background worker's two below: what
+     * they dated belonged to the account that left, and the next account's
+     * worker must not wait out the old one's hour before its first sync.
+     */
+    fun clearSyncStamps() {
+        prefs.edit()
+            .remove("schoolDataSyncedAtMs")
+            .remove("backgroundOverridesSyncedAtMs")
+            .remove("backgroundCoursesSyncedAtMs")
+            .apply()
+        _schoolDataSyncedAtMs.value = 0L
+    }
+
+    /** When the background worker last synced with the backend, epoch ms. */
+    var backgroundOverridesSyncedAtMs: Long
+        get() = prefs.getLong("backgroundOverridesSyncedAtMs", 0L)
+        set(value) = prefs.edit().putLong("backgroundOverridesSyncedAtMs", value).apply()
+
+    /**
+     * When the background worker last refreshed the timetable, epoch ms. Its
+     * own clock, unlike assignments': only the worker reads it, and only if
+     * the class table asks for background refreshes.
+     */
+    var backgroundCoursesSyncedAtMs: Long
+        get() = prefs.getLong("backgroundCoursesSyncedAtMs", 0L)
+        set(value) = prefs.edit().putLong("backgroundCoursesSyncedAtMs", value).apply()
+
+    /**
      * Debug-only escape hatch from the Developer section: when true,
      * [org.ntust.app.tigerduck.ui.component.SecureScreen] skips applying
      * `WindowManager.LayoutParams.FLAG_SECURE`, allowing screenshots and
@@ -634,6 +680,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         // until the next process start.
         _alwaysShowAllPeriods.value = false
         _showClassroomInClassTable.value = false
+        _schoolDataSyncedAtMs.value = 0L
     }
 
     fun getString(key: String): String? = prefs.getString(key, null)

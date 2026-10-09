@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">المعلومات الأساسية</string>
     <string name="sync_fdroid_unavailable_body">يتطلب TigerSync خدمات Google Play وغير متوفر في إصدار F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">غير متوفر على F-Droid</string>
+    <string name="sync_status_days_ago_short">منذ %1$d ي</string>
     <string name="sync_status_device_registered">الجهاز مسجَّل</string>
     <string name="sync_status_failed">فشل</string>
+    <string name="sync_status_hours_ago_short">منذ %1$d س</string>
+    <string name="sync_status_just_now">للتو</string>
+    <string name="sync_status_last_synced">آخر مزامنة</string>
     <string name="sync_status_minimal">محدود</string>
+    <string name="sync_status_minutes_ago_short">منذ %1$d د</string>
     <string name="sync_status_nav_label">حالة TigerSync</string>
+    <string name="sync_status_never_synced">لم تتم المزامنة قط</string>
     <string name="sync_status_ok">سليم</string>
     <string name="sync_status_syncing">جارٍ المزامنة…</string>
     <string name="sync_status_title">حالة المزامنة</string>

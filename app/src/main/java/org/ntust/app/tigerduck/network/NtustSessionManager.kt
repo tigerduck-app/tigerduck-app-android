@@ -62,10 +62,14 @@ class NtustSessionManager @Inject constructor(
         maxRequestsPerHost = 20
     }
 
+    private val accountGuard = AccountSessionGuard()
+
     val client: OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(accountGuard.markCall)
         // Before the UA/Accept rewriting below: a demo session has no reason
         // to dress up a request it is about to refuse.
         .addInterceptor(demoMode)
+        .addNetworkInterceptor(accountGuard.guardExchange)
         .cookieJar(cookieJar)
         .dispatcher(sharedDispatcher)
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -129,6 +133,17 @@ class NtustSessionManager @Inject constructor(
 
     fun markLoginSuccess() {
         prefs.ssoLoginTimestamp = System.currentTimeMillis()
+    }
+
+    /**
+     * Sign-out: drops the session, and keeps every request still running for
+     * the departing account out of the next one's — see [AccountSessionGuard].
+     * [invalidateSession] alone is for a login starting over as the same
+     * account.
+     */
+    fun signOut() {
+        accountGuard.nextAccount()
+        invalidateSession()
     }
 
     fun invalidateSession() {

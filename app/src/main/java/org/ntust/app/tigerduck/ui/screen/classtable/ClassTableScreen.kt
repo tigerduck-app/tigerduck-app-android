@@ -83,6 +83,7 @@ import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
@@ -138,6 +139,7 @@ fun ClassTableScreen(
 ) {
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
     val selectedCourse by viewModel.selectedCourse.collectAsStateWithLifecycle()
@@ -205,7 +207,13 @@ fun ClassTableScreen(
         stringResource(R.string.weekday_sun_short),
     )
 
-    LaunchedEffect(viewModel) { viewModel.load() }
+    LaunchedEffect(viewModel) { 
+        viewModel.load()
+        // Each time the page enters composition: a return to it from
+        // another page fetches if its RefreshPolicy asks for that.
+        viewModel.onPageShown()
+    }
+    PageLeftEffect(viewModel::onPageLeft)
     LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(errorNetworkUnavailable)
@@ -236,6 +244,7 @@ fun ClassTableScreen(
                             ServerKind.BACKEND,
                         ),
                         isLoading = isLoading,
+                        syncedAtMs = schoolDataSyncedAtMs,
                     )
                     // Everything that acts on the timetable, behind one ⋮ —
                     // the same shape as a mail message's actions. A third

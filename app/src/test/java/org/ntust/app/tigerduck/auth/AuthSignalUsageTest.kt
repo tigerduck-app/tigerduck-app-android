@@ -46,6 +46,10 @@ class AuthSignalUsageTest {
             // Refuses to scrape the score page without a session rather than
             // parsing NTUST's login redirect as if it were grades.
             "network/NtustScoreService.kt",
+            // fetchEnrolledCourseNos: skips the SSO login ahead of the 選課清單
+            // request while a session is warm, and logs in after all when
+            // that request is bounced — see fetchWithSsoSession.
+            "network/CourseService.kt",
         )
 
         /** Source roots to scan: every variant that ships in the phone app. */

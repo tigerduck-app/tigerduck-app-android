@@ -61,4 +61,33 @@ class SyncStatusDotTest {
 
         assertEquals(ServerStatus.UNKNOWN, ServerStatusTracker.status(ServerKind.MOODLE))
     }
+
+    // --- dataAge -------------------------------------------------------------
+
+    private val now = 1_800_000_000_000L
+    private val minute = 60_000L
+
+    @Test
+    fun `data never fetched has no age`() {
+        assertEquals(DataAge.Never, dataAge(0L, now))
+    }
+
+    @Test
+    fun `under a minute reads as just now`() {
+        assertEquals(DataAge.JustNow, dataAge(now - minute + 1, now))
+    }
+
+    @Test
+    fun `each step counts whole units, rounding down`() {
+        assertEquals(DataAge.Minutes(1), dataAge(now - minute, now))
+        assertEquals(DataAge.Minutes(59), dataAge(now - 60 * minute + 1, now))
+        assertEquals(DataAge.Hours(1), dataAge(now - 60 * minute, now))
+        assertEquals(DataAge.Hours(23), dataAge(now - 24 * 60 * minute + 1, now))
+        assertEquals(DataAge.Days(2), dataAge(now - 2 * 24 * 60 * minute, now))
+    }
+
+    @Test
+    fun `a stamp ahead of the clock reads as just now`() {
+        assertEquals(DataAge.JustNow, dataAge(now + 5 * minute, now))
+    }
 }

@@ -14,6 +14,8 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
@@ -37,11 +39,14 @@ class AuthService @Inject constructor(
     private val notificationSettingsSync: NotificationSettingsSync,
     private val authTokenManager: AuthTokenManager,
     private val moodleTokenService: MoodleTokenService,
+    private val courseService: CourseService,
+    private val moodleService: MoodleService,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
+    private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
 ) {
     /**
      * A demo session presents as signed in, with or without an account.
@@ -143,6 +148,15 @@ class AuthService @Inject constructor(
     }
 
     val storedStudentId: String? get() = credentials.ntustStudentId
+
+    /**
+     * Whether the account [studentId] named, read before some suspending
+     * work, is still the one signed in: false after a sign-out, or a sign-in
+     * as someone else, in the meantime. What that work read from the cache
+     * then belongs to the account that left.
+     */
+    fun isStillSignedInAs(studentId: String?): Boolean =
+        authState.value && storedStudentId == studentId
     internal val storedPassword: String? get() = credentials.ntustPassword
     val storedMoodleToken: String? get() = credentials.moodleToken
 
@@ -204,7 +218,7 @@ class AuthService @Inject constructor(
                 return@withLock true
             }
 
-            val success = performSsoLoginUnlocked(normalizedId, password)
+            val success = performSsoLoginUnlocked(normalizedId, password, signingIn = true)
 
             if (success) {
                 credentials.ntustStudentId = normalizedId
@@ -284,13 +298,22 @@ class AuthService @Inject constructor(
      * Kotlin `Mutex` is non-reentrant, so the public entry points each acquire
      * the lock once and delegate here, avoiding the deadlock that would happen
      * if one path called the other.
+     *
+     * [signingIn] for credentials just entered, which are checked from an
+     * empty session rather than trusting whatever session the jar holds: it
+     * may still be another account's — see [SsoLoginService.signIn].
      */
     private suspend fun performSsoLoginUnlocked(
         normalizedId: String,
         password: String,
+        signingIn: Boolean = false,
     ): Boolean {
         val serviceUrl = "https://courseselection.ntust.edu.tw/"
-        val success = ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+        val success = if (signingIn) {
+            ssoLoginService.signIn(serviceUrl, normalizedId, password)
+        } else {
+            ssoLoginService.ensureServiceLogin(serviceUrl, normalizedId, password)
+        }
         if (success && !credentials.isLibraryTokenValid) {
             // Best-effort: library credentials may differ from NTUST SSO, so a
             // failure here must not fail the SSO login — but log it, otherwise
@@ -323,8 +346,16 @@ class AuthService @Inject constructor(
         // confirmed, both belong to the account that is leaving. Neither may
         // reach whoever signs in next.
         notificationSettingsSync.cancelPendingPushes()
-        sessionManager.invalidateSession()
+        // Before the session goes: a 選課清單 fetch still running would
+        // otherwise log the departing account back in, and the next one to
+        // sign in would find its session warm and read its roster.
+        courseService.cancelSharedFetches()
+        moodleService.cancelSharedFetches()
+        sessionManager.signOut()
         bulletinReadStateStore.clear()
+        // The cache they dated is wiped below; left behind, they would date
+        // the next account's data, and hold its first background sync off.
+        prefs.clearSyncStamps()
         _loginError.value = null
         _authState.value = false
         pushRegistration.unregister(authHeader)

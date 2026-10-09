@@ -1,12 +1,14 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.AppConstants
+import android.os.SystemClock
 import android.util.Log
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -40,6 +42,8 @@ import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -54,9 +58,24 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.util.SingleFlight
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
+
+/**
+ * When Home fetches on its own — see [RefreshPolicy]. Everything is on,
+ * because Home's assignment list is the one thing in the app that goes stale
+ * in minutes: something submitted on Moodle should show here without a pull.
+ */
+internal val HomeRefreshPolicy = RefreshPolicy(
+    onLaunch = true,
+    onForeground = true,
+    onRevisit = true,
+    background = 15.minutes,
+    minInterval = 1.minutes,
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -210,6 +229,13 @@ class HomeViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    // Every remote fetch goes through this, so launch, a sign-in and a pull
+    // that land together run the pipeline once. Above `init`, whose
+    // collectors run during construction.
+    private val fetchFlight = SingleFlight(viewModelScope)
+
+    private val refreshTriggers = RefreshTriggers(HomeRefreshPolicy, SystemClock::elapsedRealtime)
+
     // Flips true after the first cache read returns (even if the cache is
     // empty). UI keeps empty-state placeholders hidden until this is set so
     // the first frame never flashes "no data" before cached data appears.
@@ -217,6 +243,9 @@ class HomeViewModel @Inject constructor(
     val initialLoadComplete: StateFlow<Boolean> = _initialLoadComplete
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
+
+    /** For the sync dot's "Last synced" row; see [AppPreferences.schoolDataSyncedAtMs]. */
+    val schoolDataSyncedAtMs: StateFlow<Long> = prefs.schoolDataSyncedAtMs
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -285,8 +314,21 @@ class HomeViewModel @Inject constructor(
             // React to login/logout: clear immediately on sign-out, kick off a
             // fresh data fetch on sign-in so the UI never lingers on a prior
             // user's cached courses.
+            //
+            // A sign-in, not the value the StateFlow replays to a new
+            // collector: a user already signed in at launch is fetched for by
+            // load(), which MainNavigation calls straight after construction.
+            // Fetching here as well ran the whole school pipeline twice on
+            // every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // Whatever is still in flight belongs to the account
+                    // that just left, a load still reading its cache too.
+                    fetchFlight.cancel()
+                    loadJob?.cancel()
                     _allCourses.value = emptyList()
                     _todayCourses.value = emptyList()
                     _allAssignments.value = emptyList()
@@ -295,25 +337,37 @@ class HomeViewModel @Inject constructor(
                     _markedCompletedIds.value = emptySet()
                     hasLoaded = false
                     _initialLoadComplete.value = true
-                } else {
-                    fetchData(forceRemote = true)
+                } else if (signedIn) {
+                    // As a launch, so the page counts as loaded and a return
+                    // to the app fetches again. Launched, so a sign-out
+                    // mid-fetch reaches the branch above without waiting for
+                    // the fetch to finish.
+                    loadNow(fetch = true)
                 }
             }
         }
         viewModelScope.launch {
             // Language change → re-fetch so today's courses and assignment
-            // names render in the new locale.
+            // names render in the new locale. A rerun: a fetch already in
+            // flight asked for the old language's names.
             prefs.appLanguageChanged.collect {
                 courseService.clearInMemoryLookupCache()
-                if (authService.authState.value) refresh()
+                if (authService.authState.value) requestRefresh(rerun = true)
             }
         }
         viewModelScope.launch {
             dataCache.backgroundSyncVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
                 val courses = dataCache.loadCourses()
                 val assignments = dataCache.loadAssignments()
-                _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
-                _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
+                val ignored = dataCache.loadIgnoredAssignments()
+                val marked = dataCache.loadMarkedCompletedAssignments()
+                // Signed out, or in as someone else, while the files were
+                // read: what they held was the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
+                _ignoredAssignmentIds.value = ignored
+                _markedCompletedIds.value = marked
                 TigerDuckTheme.buildCourseColorMap(courses)
                 updateCoursesAndAssignments(courses, assignments)
             }
@@ -354,12 +408,24 @@ class HomeViewModel @Inject constructor(
     // buildCourseColorAssignments.
 
     private var hasLoaded = false
+    private var loadJob: Job? = null
 
     fun load() {
         if (hasLoaded) return
-        hasLoaded = true
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
 
-        viewModelScope.launch {
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as HomeRefreshPolicy says, and always on a sign-in, which is
+     * this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
+        hasLoaded = true
+        // It pulls from the backend below, whichever way it goes.
+        backendPullStarting()
+
+        loadJob = viewModelScope.launch {
             // _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
             _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
@@ -373,26 +439,80 @@ class HomeViewModel @Inject constructor(
             }
             _initialLoadComplete.value = true
 
-            fetchData(forceRemote = true)
+            // The school servers as HomeRefreshPolicy says; the backend sync
+            // that carries other devices' marks runs either way, as it
+            // always has.
+            if (fetch) fetchRemote() else runCatching { syncAndRepublish() }
         }
     }
 
+    /**
+     * The app came back to the foreground. Used to sync only with the
+     * backend, so a morning in the background left the morning's
+     * assignments on screen until the user pulled.
+     */
+    fun onAppForeground() {
+        if (!hasLoaded || !authService.authState.value) return
+        if (refreshTriggers.onForeground()) fetchOnReturn()
+    }
+
+    /** Home was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) fetchOnReturn()
+    }
+
+    /** The page left the screen for another page; see PageLeftEffect. */
+    fun onPageLeft() = refreshTriggers.onLeft()
+
+    private fun fetchOnReturn() {
+        // Quietly: nobody asked, so no snackbar, and a fetch bound to fail
+        // would only mark Moodle as failing on every return.
+        if (!networkChecker.isAvailable()) return
+        // Ahead of the ON_RESUME that follows, so its syncOnForeground leaves
+        // the backend to the pull this fetch starts with.
+        backendPullStarting()
+        viewModelScope.launch { fetchRemote() }
+    }
+
+    /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
     fun refresh() {
+        moodleService.expireSharedResults()
+        courseService.expireSharedResults()
+        requestRefresh(rerun = false)
+    }
+
+    private fun requestRefresh(rerun: Boolean) {
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) {
                 _noNetworkEvent.tryEmit(Unit)
                 return@launch
             }
-            fetchData(forceRemote = true)
+            if (rerun) {
+                fetchFlight.rerun { fetchData(forceRemote = true) }
+            } else {
+                // A pull: what was just submitted, confirmed ones included.
+                moodleService.recheckingSubmissions { fetchRemote() }
+            }
         }
     }
 
-    private var lastForegroundSyncMs = 0L
+    /** The full fetch — backend, NTUST and Moodle — or the one already running. */
+    private suspend fun fetchRemote() = fetchFlight.join { fetchData(forceRemote = true) }
+
+    // When a pull from the backend last started, whatever started it. A full
+    // fetch begins with one, so a foreground sync on its heels would only
+    // repeat it.
+    private var lastBackendPullMs = 0L
+
+    private fun backendPullStarting() {
+        lastBackendPullMs = System.currentTimeMillis()
+    }
 
     fun syncOnForeground() {
         val now = System.currentTimeMillis()
-        if (now - lastForegroundSyncMs < 30_000) return
-        lastForegroundSyncMs = now
+        if (now - lastBackendPullMs < 30_000) return
+        lastBackendPullMs = now
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) return@launch
             runCatching {
@@ -479,6 +599,9 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun fetchData(forceRemote: Boolean) {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
+        if (forceRemote) backendPullStarting()
         _isLoading.value = true
         try {
             var courses = dataCache.loadCourses()
@@ -570,6 +693,8 @@ class HomeViewModel @Inject constructor(
             try {
                 if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.MOODLE)
                 moodleService.fetchEnrolledCourses()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch Moodle enrolled courses", e)
@@ -585,6 +710,8 @@ class HomeViewModel @Inject constructor(
                 val nos = courseService.fetchEnrolledCourseNos(studentId, password)
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.COURSE_SELECTION)
                 nos
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.COURSE_SELECTION)
                 Log.e("HomeViewModel", "Failed to fetch enrolled course numbers", e)
@@ -624,6 +751,11 @@ class HomeViewModel @Inject constructor(
                     CourseRosterMerge.completedIds(dataCache.loadAssignments())
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
                 CourseRosterMerge.preserveConfirmedSubmissions(remote, existingCompleted)
+            } catch (e: CancellationException) {
+                // A sign-out cancels the fetch; marking the servers failed
+                // here would land after the tracker was reset for the next
+                // account.
+                throw e
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch assignments", e)

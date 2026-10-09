@@ -918,10 +918,16 @@
     <string name="sync_essential_toggle">Informations essentielles</string>
     <string name="sync_fdroid_unavailable_body">TigerSync nécessite les services Google Play et n\'est pas disponible dans la version F-Droid.</string>
     <string name="sync_fdroid_unavailable_title">Non disponible sur F-Droid</string>
+    <string name="sync_status_days_ago_short">il y a %1$d j</string>
     <string name="sync_status_device_registered">Appareil enregistré</string>
     <string name="sync_status_failed">Échec</string>
+    <string name="sync_status_hours_ago_short">il y a %1$d h</string>
+    <string name="sync_status_just_now">À l\'instant</string>
+    <string name="sync_status_last_synced">Dernière synchro</string>
     <string name="sync_status_minimal">Limité</string>
+    <string name="sync_status_minutes_ago_short">il y a %1$d min</string>
     <string name="sync_status_nav_label">Statut de TigerSync</string>
+    <string name="sync_status_never_synced">Jamais synchronisé</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchronisation…</string>
     <string name="sync_status_title">État de la synchronisation</string>

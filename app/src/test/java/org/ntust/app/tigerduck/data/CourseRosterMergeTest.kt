@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -194,5 +195,32 @@ class CourseRosterMergeTest {
                 listOf(assignment("1", completed = true), assignment("2"))
             ),
         )
+    }
+
+    // --- assignmentsToStore ------------------------------------------------
+
+    @Test
+    fun `an empty fetch leaves the cache alone`() {
+        assertNull(
+            CourseRosterMerge.assignmentsToStore(
+                remote = emptyList(),
+                cached = listOf(assignment("1", completed = true)),
+            )
+        )
+    }
+
+    @Test
+    fun `a submission the cache records survives a failed status call`() {
+        val out = CourseRosterMerge.assignmentsToStore(
+            remote = listOf(assignment("1", completed = false), assignment("2")),
+            cached = listOf(assignment("1", completed = true), assignment("2")),
+        )
+        assertEquals(listOf(true, false), out!!.map { it.isCompleted })
+    }
+
+    @Test
+    fun `a fetch with nothing cached is stored as fetched`() {
+        val remote = listOf(assignment("1", completed = true), assignment("2"))
+        assertEquals(remote, CourseRosterMerge.assignmentsToStore(remote, cached = emptyList()))
     }
 }

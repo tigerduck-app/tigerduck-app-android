@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.ui.screen.calendar
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
@@ -13,11 +15,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -30,9 +36,23 @@ import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.SingleFlight
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
+
+/**
+ * When the calendar fetches on its own — see [RefreshPolicy]. The same as
+ * Home's, because the calendar shows the same Moodle assignments.
+ */
+internal val CalendarRefreshPolicy = RefreshPolicy(
+    onLaunch = true,
+    onForeground = true,
+    onRevisit = true,
+    background = 15.minutes,
+    minInterval = 1.minutes,
+)
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
@@ -64,7 +84,19 @@ class CalendarViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
+    /** For the sync dot's "Last synced" row; see [AppPreferences.schoolDataSyncedAtMs]. */
+    val schoolDataSyncedAtMs: StateFlow<Long> = prefs.schoolDataSyncedAtMs
+
     private var hasLoaded = false
+    private var loadJob: Job? = null
+
+    // Every fetch goes through this, so launch, a sign-in and a pull that
+    // land together fetch once. Above `init`, whose collectors run during
+    // construction.
+    private val fetchFlight = SingleFlight(viewModelScope)
+
+    private val refreshTriggers =
+        RefreshTriggers(CalendarRefreshPolicy, SystemClock::elapsedRealtime)
 
     /**
      * Semester boundaries and school holidays, from the published academic
@@ -141,6 +173,24 @@ class CalendarViewModel @Inject constructor(
     private fun withAcademicEvents(base: List<CalendarEvent>): List<CalendarEvent> =
         base.filterNot { it.sourceRaw in ACADEMIC_SOURCES } + academicEvents()
 
+    /**
+     * [base] with its Moodle rows rebuilt from the assignment cache, which
+     * Home, the class table and the worker write as well. This screen used
+     * to see their fetches only through a fetch of its own.
+     */
+    private suspend fun withCachedAssignments(base: List<CalendarEvent>): List<CalendarEvent> =
+        withMoodleRows(base, dataCache.loadAssignments())
+
+    /** [base] with its Moodle rows made from [assignments]; as it was when there are none. */
+    private fun withMoodleRows(
+        base: List<CalendarEvent>,
+        assignments: List<Assignment>,
+    ): List<CalendarEvent> {
+        if (assignments.isEmpty()) return base
+        return base.filterNot { it.sourceRaw == EventSource.MOODLE.raw } +
+            assignments.toCalendarEvents()
+    }
+
     init {
         viewModelScope.launch {
             // The published calendar arrives asynchronously: `MainActivity`
@@ -164,16 +214,45 @@ class CalendarViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            // Clear / refresh in sync with auth changes.
+            // A fetch Home or the worker finished: launch and a return to the
+            // app fetch here only when the data is stale, so this is how
+            // most new assignments reach the calendar.
+            dataCache.backgroundSyncVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
+                val assignments = dataCache.loadAssignments()
+                // Signed out, or in as someone else, while the file was read:
+                // the rows are the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
+                // The other rows as they are after the read, not before: a
+                // fetch of this screen's own can land while the file is read.
+                _events.value = withMoodleRows(_events.value, assignments)
+            }
+        }
+        viewModelScope.launch {
+            // Clear / refresh in sync with auth changes — a sign-in while the
+            // app is open, not the value replayed to this collector. load()
+            // fetches for a user signed in at launch; fetching on the replay
+            // as well fetched twice on every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // A fetch still running belongs to the account that
+                    // left, and so does a load still reading its cache.
+                    fetchFlight.cancel()
+                    loadJob?.cancel()
                     // Holidays are public school information, so they stay
                     // on the calendar after a sign-out; only the account's
                     // own events go.
                     _events.value = academicEvents()
                     hasLoaded = false
-                } else {
-                    fetchData()
+                } else if (signedIn) {
+                    // As a launch, so the page counts as loaded and a return
+                    // to the app fetches again. Launched, so a sign-out
+                    // mid-fetch is not held up by it.
+                    loadNow(fetch = true)
                 }
             }
         }
@@ -222,13 +301,46 @@ class CalendarViewModel @Inject constructor(
 
     fun load() {
         if (hasLoaded) return
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
+
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as CalendarRefreshPolicy says, and always on a sign-in, which
+     * is this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
         hasLoaded = true
-        viewModelScope.launch {
-            _events.value = withAcademicEvents(dataCache.loadCalendarEvents())
+        loadJob = viewModelScope.launch {
+            _events.value =
+                withAcademicEvents(withCachedAssignments(dataCache.loadCalendarEvents()))
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.authState.value) fetchData()
+            if (authService.authState.value && fetch) {
+                fetchFlight.join(::fetchData)
+            }
         }
+    }
+
+    /** The app came back to the foreground. */
+    fun onAppForeground() {
+        if (!hasLoaded || !authService.authState.value) return
+        if (refreshTriggers.onForeground()) fetchOnReturn()
+    }
+
+    /** The calendar was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) fetchOnReturn()
+    }
+
+    /** The page left the screen for another page; see PageLeftEffect. */
+    fun onPageLeft() = refreshTriggers.onLeft()
+
+    // Quietly, and not at all offline: nobody asked, so no snackbar.
+    private fun fetchOnReturn() {
+        if (!networkChecker.isAvailable()) return
+        viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(
@@ -249,6 +361,8 @@ class CalendarViewModel @Inject constructor(
         // must still refresh it for a signed-out user.
         viewModelScope.launch { academicCalendar.refresh() }
         if (!authService.authState.value) return
+        // What Moodle has now, not an answer kept for sharing.
+        moodleService.expireSharedResults()
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
@@ -256,11 +370,14 @@ class CalendarViewModel @Inject constructor(
                 _isLoading.value = false
                 return@launch
             }
-            fetchData()
+            // What was just submitted, confirmed ones included.
+            moodleService.recheckingSubmissions { fetchFlight.join(::fetchData) }
         }
     }
 
     private suspend fun fetchData() {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
         _isLoading.value = true
         try {
             val (schoolEvents, moodleEvents) = coroutineScope {
@@ -305,11 +422,15 @@ class CalendarViewModel @Inject constructor(
                 return dataCache.loadAssignments().toCalendarEvents()
             }
             val enrolled = moodleService.fetchEnrolledCourses()
-            val assignments = moodleService.fetchAssignments(enrolled)
-            // Same guard as the class table's: an empty answer is upstream
-            // failing quietly, and overwriting with it empties the calendar
-            // on every other screen too.
-            if (assignments.isEmpty()) return dataCache.loadAssignments().toCalendarEvents()
+            val cached = dataCache.loadAssignments()
+            // The same rules Home and the class table store by: an empty
+            // answer keeps the cache, and a confirmed submission stays
+            // submitted. This cache is every screen's, so a status call that
+            // failed here used to mark the assignment outstanding everywhere.
+            val assignments = CourseRosterMerge.assignmentsToStore(
+                remote = moodleService.fetchAssignments(enrolled),
+                cached = cached,
+            ) ?: return cached.toCalendarEvents()
             dataCache.saveAssignments(assignments)
             assignments.toCalendarEvents()
         } catch (_: Exception) {
