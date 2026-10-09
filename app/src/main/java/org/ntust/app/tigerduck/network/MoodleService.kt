@@ -23,6 +23,7 @@ import org.ntust.app.tigerduck.network.model.MoodleSubmission
 import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
 import org.ntust.app.tigerduck.util.SharedFetch
 import java.util.Date
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -66,10 +67,9 @@ class MoodleService @Inject constructor(
         val confirmed: Map<Int, Date>,
     )
 
-    // Set by a pull to refresh and taken by the next round, which then asks
-    // about every assignment, the confirmed ones included.
-    @Volatile
-    private var recheckConfirmed = false
+    // Refreshes in progress that every assignment round starting meanwhile
+    // asks Moodle about every submission for — see recheckingSubmissions.
+    private val recheckingRefreshes = AtomicInteger()
 
     /**
      * Drops the answers kept for sharing, so the next fetch asks Moodle
@@ -79,7 +79,24 @@ class MoodleService @Inject constructor(
     fun expireSharedResults() {
         sharedEnrolled.expire()
         sharedAssignments.expire()
-        recheckConfirmed = true
+    }
+
+    /**
+     * Runs [block], a refresh the user pulled for or the server asked for,
+     * with every assignment round that starts meanwhile asking Moodle about
+     * every submission, the confirmed ones included: one may just have been
+     * submitted again. For as long as the refresh runs, not for the next
+     * round only: rounds are per course list, and the calendar's or the
+     * worker's, on the cached roster, used to take a flag meant for the
+     * pull's own round, which then skipped them.
+     */
+    suspend fun <T> recheckingSubmissions(block: suspend () -> T): T {
+        recheckingRefreshes.incrementAndGet()
+        try {
+            return block()
+        } finally {
+            recheckingRefreshes.decrementAndGet()
+        }
     }
 
     /**
@@ -226,7 +243,7 @@ class MoodleService @Inject constructor(
      */
     private suspend fun fetchAssignmentsRound(courseIds: List<Int>): AssignmentsRound =
         withContext(Dispatchers.IO) {
-            val recheck = recheckConfirmed.also { recheckConfirmed = false }
+            val recheck = recheckingRefreshes.get() > 0
             val confirmed =
                 if (recheck) emptyMap() else confirmedSubmissions(dataCache.loadAssignments())
             var askedWith = ""

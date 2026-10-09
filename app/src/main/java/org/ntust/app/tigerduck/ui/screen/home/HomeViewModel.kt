@@ -488,7 +488,12 @@ class HomeViewModel @Inject constructor(
                 _noNetworkEvent.tryEmit(Unit)
                 return@launch
             }
-            if (rerun) fetchFlight.rerun { fetchData(forceRemote = true) } else fetchRemote()
+            if (rerun) {
+                fetchFlight.rerun { fetchData(forceRemote = true) }
+            } else {
+                // A pull: what was just submitted, confirmed ones included.
+                moodleService.recheckingSubmissions { fetchRemote() }
+            }
         }
     }
 

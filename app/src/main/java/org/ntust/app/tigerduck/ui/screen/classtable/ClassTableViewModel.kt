@@ -854,7 +854,12 @@ class ClassTableViewModel @Inject constructor(
                 _isLoading.value = false
                 return@launch
             }
-            if (rerun) fetchFlight.rerun(::fetchData) else fetchFlight.join(::fetchData)
+            if (rerun) {
+                fetchFlight.rerun(::fetchData)
+            } else {
+                // A pull: what was just submitted, confirmed ones included.
+                moodleService.recheckingSubmissions { fetchFlight.join(::fetchData) }
+            }
         }
     }
 

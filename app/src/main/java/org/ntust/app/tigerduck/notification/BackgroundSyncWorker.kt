@@ -123,7 +123,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val coursesOk = !coursesDue || syncCourses(studentId, password)
         if (authService.storedStudentId != studentId) return Result.success()
         if (coursesDue && coursesOk) prefs.backgroundCoursesSyncedAtMs = now
-        val assignmentsOk = !assignmentsDue || syncAssignments()
+        val assignmentsOk = when {
+            !assignmentsDue -> true
+            // What the server announced may be a submission made elsewhere.
+            triggered -> moodleService.recheckingSubmissions { syncAssignments() }
+            else -> syncAssignments()
+        }
         if (authService.storedStudentId != studentId) return Result.success()
 
         // Only after something was fetched: with nothing new in the cache

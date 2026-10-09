@@ -370,7 +370,8 @@ class CalendarViewModel @Inject constructor(
                 _isLoading.value = false
                 return@launch
             }
-            fetchFlight.join(::fetchData)
+            // What was just submitted, confirmed ones included.
+            moodleService.recheckingSubmissions { fetchFlight.join(::fetchData) }
         }
     }
 
