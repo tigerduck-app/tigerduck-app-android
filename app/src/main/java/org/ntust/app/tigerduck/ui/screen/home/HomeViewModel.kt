@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -638,6 +639,8 @@ class HomeViewModel @Inject constructor(
             try {
                 if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.MOODLE)
                 moodleService.fetchEnrolledCourses()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch Moodle enrolled courses", e)
@@ -653,6 +656,8 @@ class HomeViewModel @Inject constructor(
                 val nos = courseService.fetchEnrolledCourseNos(studentId, password)
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.COURSE_SELECTION)
                 nos
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.COURSE_SELECTION)
                 Log.e("HomeViewModel", "Failed to fetch enrolled course numbers", e)
@@ -692,6 +697,11 @@ class HomeViewModel @Inject constructor(
                     CourseRosterMerge.completedIds(dataCache.loadAssignments())
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
                 CourseRosterMerge.preserveConfirmedSubmissions(remote, existingCompleted)
+            } catch (e: CancellationException) {
+                // A sign-out cancels the fetch; marking the servers failed
+                // here would land after the tracker was reset for the next
+                // account.
+                throw e
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
                 Log.e("HomeViewModel", "Failed to fetch assignments", e)

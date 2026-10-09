@@ -100,6 +100,22 @@ class SingleFlightTest {
     }
 
     @Test
+    fun `cancel drops a rerun that was waiting on the cancelled run`() = runTest {
+        val flight = flight()
+        val refresh = Refresh()
+        launch { flight.join(refresh::run) }
+        runCurrent()
+        val rerun = launch { flight.rerun(refresh::run) }
+        runCurrent()
+
+        flight.cancel()
+        runCurrent()
+
+        assertEquals(1, refresh.runs)
+        assertTrue(rerun.isCompleted)
+    }
+
+    @Test
     fun `a caller that is cancelled while waiting leaves the run going`() = runTest {
         val flight = flight()
         val refresh = Refresh()

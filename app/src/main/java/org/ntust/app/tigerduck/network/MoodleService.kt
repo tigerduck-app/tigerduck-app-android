@@ -86,7 +86,7 @@ class MoodleService @Inject constructor(
      * which NTUST's edge (Citrix NetScaler) tends to challenge.
      */
     suspend fun fetchEnrolledCourses(): List<MoodleEnrolledCourse> =
-        sharedEnrolled.get(tokenService.currentToken().orEmpty()) {
+        shared(sharedEnrolled, tokenService.currentToken()) {
             withContext(Dispatchers.IO) {
                 attemptWithTokenRetry { token ->
                     val userId = getSiteInfoUserId(token)
@@ -94,6 +94,25 @@ class MoodleService @Inject constructor(
                 }
             }
         }
+
+    /**
+     * [fetch] through [sharedFetch] under the account's wstoken, or on its
+     * own when there is no token to key it by. A sign-in fetches before its
+     * token has been harvested, and an answer kept under a blank key would
+     * reach whoever signed in next within the window.
+     */
+    private suspend fun <K : Any, V> shared(
+        sharedFetch: SharedFetch<K, V>,
+        token: String?,
+        key: (String) -> K,
+        fetch: suspend () -> V,
+    ): V = if (token.isNullOrEmpty()) fetch() else sharedFetch.get(key(token), fetch)
+
+    private suspend fun <V> shared(
+        sharedFetch: SharedFetch<String, V>,
+        token: String?,
+        fetch: suspend () -> V,
+    ): V = shared(sharedFetch, token, { it }, fetch)
 
     /**
      * Fetch this semester's assignments with completion flags resolved from
@@ -137,8 +156,10 @@ class MoodleService @Inject constructor(
         // Keyed on the courses, not on what each caller makes of them: the
         // filing above is the caller's own, the requests are the same.
         val courseIds = relevant.map { it.id }.sorted()
-        val round = sharedAssignments.get(
-            AssignmentsKey(tokenService.currentToken().orEmpty(), courseIds)
+        val round = shared(
+            sharedAssignments,
+            tokenService.currentToken(),
+            key = { AssignmentsKey(it, courseIds) },
         ) { fetchAssignmentsRound(courseIds) }
         val coursesById = relevant.associateBy { it.id }
 

@@ -23,6 +23,10 @@ class SingleFlight(private val scope: CoroutineScope) {
     private val lock = Any()
     private var current: Job? = null
 
+    // Bumped by cancel(), so a rerun that was waiting when it came does not
+    // go on to start a run of its own.
+    private var cancels = 0
+
     /** Waits for the run in progress, or starts one and waits for that. */
     suspend fun join(block: suspend () -> Unit) {
         val job = synchronized(lock) {
@@ -38,20 +42,28 @@ class SingleFlight(private val scope: CoroutineScope) {
      *
      * Waits for that run instead of cancelling it, so two runs never write
      * the cache at once. A rerun someone else started while this one waited
-     * began after this request, so it is joined rather than run again.
+     * began after this request, so it is joined rather than run again. A
+     * [cancel] while it waited drops it: the request belonged to what was
+     * cancelled, a signed-out account's language switch, say.
      */
     suspend fun rerun(block: suspend () -> Unit) {
-        val running = synchronized(lock) { current?.takeIf { it.isPending } }
+        val (running, generation) = synchronized(lock) {
+            current?.takeIf { it.isPending } to cancels
+        }
         running?.join()
         val job = synchronized(lock) {
+            if (cancels != generation) return
             current?.takeIf { it.isPending && it !== running } ?: start(block)
         }
         job.join()
     }
 
-    /** Cancels the run in progress, if there is one. */
+    /** Cancels the run in progress, if there is one, and any rerun waiting on it. */
     fun cancel() {
-        synchronized(lock) { current?.cancel() }
+        synchronized(lock) {
+            cancels++
+            current?.cancel()
+        }
     }
 
     // Lazy, so the block cannot start running inside the lock: on an
