@@ -4,7 +4,8 @@ name: CI
 # Gradle invocation in the repo's lifecycle was the release workflow itself,
 # so a compile error or failing test could ride a merged PR all the way to
 # release day. Keep this lean: compile both phone flavors + wear, build the
-# wear release artifacts the release workflow ships, run every JVM unit test.
+# wear release artifacts the release workflow ships, run every JVM unit test,
+# and test the script that uploads releases to Google Play.
 # No emulator, no lint baseline churn.
 
 on:
@@ -65,3 +66,15 @@ jobs:
           TASKS: ${{ matrix.tasks }}
         # $TASKS is unquoted on purpose: it is a space-separated task list.
         run: ./gradlew --no-daemon $TASKS
+
+  play-script:
+    # tools/play/publish.py sends every release to Google Play, from a workflow
+    # that only runs once the PR is merged. Its tests run it against a fake
+    # Play, so they need no key and no build, and touch no real release.
+    name: play-script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Test tools/play
+        run: python3 -m unittest discover -s tools/play -v

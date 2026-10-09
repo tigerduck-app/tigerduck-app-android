@@ -99,6 +99,11 @@ The wear release build is there because `:wear` is minified with its own
 this step a missing keep rule would surface for the first time on release day.
 Unsigned because fork PRs cannot read the `KEYSTORE_*` secrets.
 
+It also runs `tools/play/test_publish.py`, which tests the Play upload script
+against a fake Play: which bundles are uploaded, what each track is sent, the
+staged rollout, and the commit and its fallback. That script otherwise first
+runs once the PR is already on `main`.
+
 ### `submodules-up-to-date.yaml`
 
 Runs on PRs to `main` and `dev`. Verifies every git submodule (e.g.
