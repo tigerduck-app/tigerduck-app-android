@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.network
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
-import java.io.IOException
+import java.io.InterruptedIOException
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -37,11 +37,14 @@ internal class AccountSessionGuard {
 
     /**
      * Network interceptor, so it sees each hop of a redirect chain and runs
-     * before the response's cookies are saved.
+     * before the response's cookies are saved. Refuses with an
+     * InterruptedIOException, which OkHttp does not retry on another route.
      */
     val guardExchange = Interceptor { chain ->
         val request = chain.request()
-        if (isStale(request)) throw IOException("the account this request was for has signed out")
+        if (isStale(request)) {
+            throw InterruptedIOException("the account this request was for has signed out")
+        }
         withoutStaleCookies(request, chain.proceed(request))
     }
 
