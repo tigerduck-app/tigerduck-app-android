@@ -259,11 +259,40 @@ jobs:
             sleep 2
           done
 
+      # From .github/release-notes-template.md, with the What's New titles
+      # filled in. Only for a release that does not exist yet: one that does
+      # keeps its notes, which may have been edited by hand.
+      - name: Write GitHub Release notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "GitHub Release ${TAG} already exists; keeping its notes."
+            exit 0
+          fi
+          # The script and template from the commit this run started on: an
+          # existing tag checked out above may predate both. The version and
+          # What's New still come from the checkout.
+          git show "${GITHUB_SHA}:tools/github/release_notes.py" > "$RUNNER_TEMP/release_notes.py"
+          git show "${GITHUB_SHA}:.github/release-notes-template.md" > "$RUNNER_TEMP/release-notes-template.md"
+          if ! python3 "$RUNNER_TEMP/release_notes.py" --root . \
+              --template "$RUNNER_TEMP/release-notes-template.md" \
+              --repo "$REPO" --output "$RUNNER_TEMP/release-notes.md"; then
+            echo "::warning::Could not write the notes for ${TAG}; the release is published without them. Add them by hand."
+            exit 0
+          fi
+          echo "path=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
+
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ steps.resolve.outputs.tag }}
           name: TigerDuck Android ${{ steps.resolve.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.path }}
           files: |
             app/build/outputs/apk/play/release/*.apk
             app/build/outputs/apk/fdroid/release/*.apk

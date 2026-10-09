@@ -22,7 +22,7 @@ A new version builds the same six artifacts as `release-manual.yaml`, then:
    production, unless a smaller production rollout is picked.
 2. Tags the build commit (GPG-signed), pins the F-Droid metadata commit hash,
    and publishes the GitHub Release "TigerDuck Android vX.Y.Z" with every
-   artifact attached.
+   artifact attached and its notes written (see below).
 
 Play comes before the tag so that a failed upload leaves nothing tagged and the
 workflow can simply be run again. If a later step fails, use "Re-run failed
@@ -64,6 +64,22 @@ Preview them with `python3 tools/play/publish.py notes --phone-code N`.
 Needs the `PLAY_SERVICE_ACCOUNT_JSON` secret, a service account with release
 permissions on the app in Play Console.
 
+The GitHub Release notes come from `.github/release-notes-template.md`. The
+script `tools/github/release_notes.py` fills in its placeholders:
+- `{{WHATS_NEW}}`: the What's New item titles for the phone `versionCode`, each
+  `zh-Hant` title with the `en` one under it.
+- `{{VERSION_NAME}}`, `{{PHONE_CODE}}` and `{{WATCH_CODE}}`: from the Gradle
+  files.
+- `{{COMPARE_URL}}`: the compare link from the previous `vX.Y.Z` tag.
+
+Everything else, the notes on upgrading and on the F-Droid build among it, is
+the template's own text: edit it there. The first job checks that the notes
+can be written, so a What's New entry whose two languages list different
+numbers of items fails before the build. The notes are written only when the
+release is created. A release that already exists keeps its notes, so editing
+them on GitHub afterwards is safe. Preview them with
+`python3 tools/github/release_notes.py --repo tigerduck-app/tigerduck-app-android`.
+
 ### `release-manual.yaml` — Release (Manual)
 
 Manually dispatched, no inputs. Takes the commit `main` points at when the run
@@ -71,9 +87,10 @@ starts, reads `versionName` from its `app/build.gradle.kts`, and releases it as
 `v<versionName>`: tags that commit if the tag does not yet exist, builds signed
 `play` and `fdroid` phone AABs/APKs plus the signed `:wear` AAB/APK, pins the
 F-Droid metadata commit hash, and publishes the GitHub Release "TigerDuck
-Android vX.Y.Z" with the artifacts attached. If the tag already exists, it
-checks the tag out and attaches the artifacts to the existing release. Does
-**not** upload to Google Play.
+Android vX.Y.Z" with the artifacts attached and the same notes as Release
+(Auto). If the tag already exists, it checks the tag out and attaches the
+artifacts to the existing release, keeping that release's notes. Does **not**
+upload to Google Play.
 
 Both release workflows pin the F-Droid metadata only while the metadata on
 `main` still describes the version being released. If a newer version bump
@@ -99,10 +116,12 @@ The wear release build is there because `:wear` is minified with its own
 this step a missing keep rule would surface for the first time on release day.
 Unsigned because fork PRs cannot read the `KEYSTORE_*` secrets.
 
-It also runs `tools/play/test_publish.py`, which tests the Play upload script
-against a fake Play: which bundles are uploaded, what each track is sent, the
-staged rollout, and the commit and its fallback. That script otherwise first
-runs once the PR is already on `main`.
+It also tests the two scripts the release workflows run, which otherwise first
+run once the PR is already on `main`: `tools/play/test_publish.py` runs the
+Play upload script against a fake Play (which bundles are uploaded, what each
+track is sent, the staged rollout, the commit and its fallback), and
+`tools/github/test_release_notes.py` renders the GitHub Release notes from a
+scratch checkout.
 
 ### `submodules-up-to-date.yaml`
 

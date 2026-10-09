@@ -155,13 +155,19 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Releasing ${tag}."
 
-      # Before the build, so notes over Play's 500-character limit fail in
-      # seconds rather than after it. New versions only: this checkout is the
-      # commit being released. A tagged version uploads the tag's notes, which
-      # the upload step checks before it reaches Play.
-      - name: Check Play release notes
+      # Before the build, so notes over Play's 500-character limit, or a What's
+      # New entry the GitHub Release cannot pair line by line, fail in seconds
+      # rather than after it. New versions only: this checkout is the commit
+      # being released. A tagged version uploads the tag's notes, which the
+      # upload step checks before it reaches Play, and publishes no GitHub
+      # Release.
+      - name: Check release notes
         if: steps.version.outputs.mode == 'full'
-        run: python3 tools/play/publish.py notes --phone-code "${{ steps.version.outputs.phone_code }}"
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          python3 tools/play/publish.py notes --phone-code "${{ steps.version.outputs.phone_code }}"
+          python3 tools/github/release_notes.py --repo "$REPO" --output /dev/null
 
   release:
     needs: check
@@ -461,12 +467,31 @@ jobs:
             sleep 2
           done
 
+      # From .github/release-notes-template.md, with the What's New titles
+      # filled in. Only for a release that does not exist yet: on a re-run the
+      # notes may have been edited by hand since, and are kept.
+      - name: Write GitHub Release notes
+        id: notes
+        if: env.FULL_RELEASE == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "GitHub Release ${TAG} already exists; keeping its notes."
+            exit 0
+          fi
+          python3 tools/github/release_notes.py --repo "$REPO" --output "$RUNNER_TEMP/release-notes.md"
+          echo "path=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         if: env.FULL_RELEASE == 'true'
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ needs.check.outputs.tag }}
           name: TigerDuck Android ${{ needs.check.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.path }}
           files: |
             app/build/outputs/apk/play/release/*.apk
             app/build/outputs/apk/fdroid/release/*.apk
