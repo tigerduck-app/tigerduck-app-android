@@ -12,14 +12,23 @@
      up to Material's 20dp circular keyline so it matches sibling status-bar
      icons. Drop the group to get the artwork at its exported size.
 
-     fillColor is duck yellow to match the brand, but it is PREVIEW ONLY:
-     it changes how this file looks in Android Studio and nowhere else. On
-     device the RGB is thrown away with the rest of the colour information,
-     and the status bar always draws the icon in its own foreground colour.
-     The lever that actually tints anything is setColor() on the builder.
+     fillColor is duck yellow to match the brand, and it is not preview only.
+     AOSP tints this icon wherever it draws it, but HyperOS draws it untinted
+     in its island, which is where the yellow is meant to show. Each skin
+     posts the variant DeviceSkin.notificationSmallIcon picks:
+       ic_notification_white    overseas OriginOS, which draws the small icon
+                                untinted in the status bar; keep its
+                                pathData identical to this one
+       ic_notification_wrapped  ColorOS 16, whose island whitens a
+                                VectorDrawable; it wraps this file
+       ic_notification_bitmap   MagicOS 10, whose island greys anything but a
+                                bitmap; drawable-*dpi PNGs of this artwork at
+                                24dp, to re-render if the path changes
+     The play manifest names ic_notification_white for the pushes Firebase
+     draws itself, since a resource cannot vary by skin.
 
-     The full-colour logo is set via setLargeIcon and appears in the
-     notification body. -->
+     Pushes add the full-colour logo as the large icon, in the notification
+     body, where the shade does not already show it (brandedNotification). -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"

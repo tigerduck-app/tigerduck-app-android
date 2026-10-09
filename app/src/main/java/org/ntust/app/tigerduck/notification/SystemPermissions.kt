@@ -284,12 +284,11 @@ class SystemPermissions @Inject constructor(
             // the page may well exist and open, and toggling it would change
             // nothing. Offering no destination is more honest than a dead end.
             if (isApplicable(AppPermission.PROMOTED_NOTIFICATIONS)) {
-                // On ColorOS 16.0.5 this opens the switch itself. The platform
-                // warns it may not exist on every build, and on MagicOS 10 it
-                // does not; openSettings falls back for that.
-                Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).apply {
-                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                }
+                // On ColorOS 16.0.5 this opens the app's notification page with
+                // the switch highlighted. The platform warns it may not exist
+                // on every build, and on MagicOS 10 it does not; openSettings
+                // falls back for that.
+                promotionSettingsIntent(context.packageName, DeviceSkin.current())
             } else null
         }
     }
@@ -315,7 +314,7 @@ class SystemPermissions @Inject constructor(
         // app's notifications, so their page is the honest next best. Without
         // this the green row is a tap that does nothing.
         return p == AppPermission.PROMOTED_NOTIFICATIONS &&
-            settingsIntent(AppPermission.NOTIFICATIONS)?.let(::tryStartActivity) == true
+            tryStartActivity(promotionFallbackIntent(context.packageName, DeviceSkin.current()))
     }
 
     private fun tryStartActivity(intent: Intent): Boolean {
@@ -404,3 +403,26 @@ class SystemPermissions @Inject constructor(
         }
     }
 }
+
+/**
+ * The chip row's settings page, naming the switch to highlight where the page
+ * holds more than that one switch; see [DeviceSkin.promotionSettingsHighlightKey].
+ */
+internal fun promotionSettingsIntent(packageName: String, skin: DeviceSkin): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS).highlighting(packageName, skin)
+
+/**
+ * The app's notification page, where the chip row lands when the promotion
+ * page is missing. On ColorOS that is the page the switch is on, so it is
+ * highlighted there too.
+ */
+internal fun promotionFallbackIntent(packageName: String, skin: DeviceSkin): Intent =
+    Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).highlighting(packageName, skin)
+
+private fun Intent.highlighting(packageName: String, skin: DeviceSkin): Intent = apply {
+    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+    skin.promotionSettingsHighlightKey?.let { putExtra(EXTRA_FRAGMENT_ARG_KEY, it) }
+}
+
+/** AOSP Settings' extra naming the preference to highlight, which ColorOS also reads. */
+private const val EXTRA_FRAGMENT_ARG_KEY = ":settings:fragment_args_key"

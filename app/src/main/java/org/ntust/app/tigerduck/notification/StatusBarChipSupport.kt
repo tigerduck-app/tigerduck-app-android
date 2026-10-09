@@ -65,6 +65,12 @@ data class DeviceSkin(
      * unreadable, which includes every non-Xiaomi device and MIUI.
      */
     val hyperOsVersion: Int?,
+    /**
+     * `ro.vivo.product.overseas` reads `yes` — the same property OriginOS's
+     * own SystemUI reads (through `FtBuild.isOverSeas()`) to pick its
+     * overseas code paths. False everywhere else, including China vivo.
+     */
+    val vivoOverseas: Boolean,
 ) {
     val isSamsung: Boolean get() = matches("samsung")
 
@@ -78,6 +84,8 @@ data class DeviceSkin(
     val isOplus: Boolean get() = matches("oppo") || matches("oneplus") || matches("realme")
 
     val isVivo: Boolean get() = matches("vivo")
+
+    val isHonor: Boolean get() = matches("honor")
 
     private fun matches(vendor: String) =
         manufacturer.equals(vendor, ignoreCase = true) || brand.equals(vendor, ignoreCase = true)
@@ -142,7 +150,117 @@ data class DeviceSkin(
         get() = (isXiaomi || isOplus || isVivo) &&
             chipSupport != StatusBarChipSupport.UNSUPPORTED
 
+    /**
+     * Whether the Live Update's card shows the countdown in place of the
+     * content text, and reads only sub text and ProgressStyle for the rest.
+     *
+     * ColorOS 16 draws a promoted notification as its own Live Alerts card,
+     * in the shade and when the island is tapped (SystemUIPlugin,
+     * `normal_card_content_section`): the title, then one slot holding either
+     * the chronometer or the content text, never both, then the sub text.
+     * BigTextStyle gets the standard template, so the big text never shows,
+     * and the card draws a bar only for a `Notification.ProgressStyle`, not
+     * for `setProgress`. On an OPPO Reno 11 (ColorOS 16.0.5) the in-class card
+     * was the title and the countdown alone, where the POCO C85, Honor X6d 5G
+     * and Pixel cards also showed the bar and the room, instructor and time.
+     * OnePlus and realme run the same plugin.
+     */
+    val cardHidesTextBehindClock: Boolean
+        get() = isOplus && chipSupport != StatusBarChipSupport.UNSUPPORTED
+
+    /**
+     * Whether the status bar draws a third-party small icon in its own
+     * colours unless every pixel is grey, rather than tinting it.
+     *
+     * AOSP tints the small icon of any app targeting Lollipop or later,
+     * whatever its fill. Overseas OriginOS rasterises the icon first and
+     * tints it only when that bitmap passes the grayscale test or the app is
+     * a system app (OriginOS 6, `StatusBarIconViewBinder.bindIconColors`), so
+     * on a vivo V60 Lite the yellow brand icon stayed yellow next to every
+     * other app's system-coloured one. Its island draws the same small icon,
+     * untinted, so no fill can be yellow in one and system-coloured in the
+     * other. The domestic branch of that SystemUI tints as AOSP does.
+     */
+    val statusBarKeepsColouredSmallIcon: Boolean
+        get() = isVivo && vivoOverseas
+
+    /**
+     * Whether the island paints a VectorDrawable small icon white and draws
+     * any other drawable as it is.
+     *
+     * ColorOS 16's island (SystemUIPlugin, `com.oplus.systemui.plugins`)
+     * applies a white SRC_ATOP filter only when the icon is a VectorDrawable,
+     * so the yellow vector came out white on an OPPO Reno 11. Nothing else
+     * reaches that decision: not setColor, not colorized, not a setting. The
+     * framework there also swaps a third-party app's status bar icon for its
+     * launcher icon, so a coloured small icon only reaches the island and the
+     * Live Update card. OnePlus and realme run the same Oplus ROM.
+     *
+     * Only where there is an island to work around. Below Android 16 the
+     * status bar and shade have only been seen with the plain vector.
+     */
+    val islandWhitensVectorSmallIcon: Boolean
+        get() = isOplus && chipSupport != StatusBarChipSupport.UNSUPPORTED
+
+    /**
+     * Whether the island tints every small icon grey except a bitmap.
+     *
+     * MagicOS's island (`CapsuleViewFactory`) skips its tint only for a
+     * BitmapDrawable, so the yellow vector came out grey on a Honor X6d
+     * (MagicOS 10). Its status bar and shade sort the icon by its pixels
+     * instead (`HnNotificationUtils.getSmallIconInfo`): a white or
+     * one-colour icon is tinted in the status bar like every other app's and
+     * drawn in the shade as a white glyph on a colour tile, while a
+     * many-coloured one is drawn as it is in both. The full-colour logo made
+     * the shade show the app icon but put a coloured icon in the status bar,
+     * and the two cannot be split: both read the one tint flag that sort
+     * sets. A one-colour bitmap keeps the status bar monochrome and the
+     * island yellow, and leaves the shade its tile.
+     *
+     * Only where there is an island to work around, as above.
+     */
+    val islandGreysNonBitmapSmallIcon: Boolean
+        get() = isHonor && chipSupport != StatusBarChipSupport.UNSUPPORTED
+
+    /**
+     * Whether the shade shows the app's launcher icon where AOSP shows the
+     * small icon, so a large icon would put the same logo in the row twice.
+     *
+     * Measured: the vivo V60 Lite (OriginOS 6), OPPO Reno 11 (ColorOS 16.0.5),
+     * Galaxy A26 (One UI 8.5) and the Pixel emulator (Android 17) draw the
+     * launcher icon there. The Honor X6d 5G (MagicOS 10) draws the small icon
+     * as a glyph on a tile, the POCO C85 (HyperOS 3, in its default "Android"
+     * style) draws the small icon, and the moto g34, ZTE P505 and Zenfone 6
+     * (Android 14 and 15) draw it in a circle of the notification colour.
+     *
+     * Any other phone on Android 16 or later is taken to draw the launcher
+     * icon. A wrong guess costs a row without the large icon, which is how
+     * every push looked before the large icon was fixed. HyperOS's "MIUI"
+     * style draws app icons too, and still gets the large icon.
+     */
+    val shadeShowsAppIcon: Boolean
+        get() = sdkInt >= Build.VERSION_CODES.BAKLAVA && !isHonor && !isXiaomi
+
+    /**
+     * The preference key of the chip's switch on the page the promotion
+     * settings action opens, when that page is more than the one switch.
+     *
+     * ColorOS 16 sends the action to the app's whole notification page
+     * (`com.oplus.notificationmanager`), where "Show Live Updates on Live
+     * Alerts" ships off between the other switches. That page reads Settings'
+     * `:settings:fragment_args_key` extra and pulses the row it names once, as
+     * it does for a search result: on an OPPO Reno 11 (ColorOS 16.0.5) the row
+     * lit up 0.6 s after the page opened and faded over about a second.
+     * OnePlus and realme run the same page. Null elsewhere: AOSP's promotion
+     * page is the one switch, and no other skin reads this key.
+     */
+    val promotionSettingsHighlightKey: String?
+        get() = if (isOplus) COLOR_OS_LIVE_ALERT_SWITCH else null
+
     companion object {
+        /** `PreferenceKey.SHOWN_AS_LIVE_ALERT` in ColorOS's notification manager. */
+        private const val COLOR_OS_LIVE_ALERT_SWITCH = "shown_as_live_alert_enable_key"
+
         /** First One UI built on Android 16 QPR2, and the first that promotes anything. */
         const val ONE_UI_8_5 = 80500
 
@@ -151,7 +269,7 @@ data class DeviceSkin(
 
         /**
          * Read once per process and shared: the inputs cannot change while the
-         * app is alive, and every miss costs up to two reflective property reads.
+         * app is alive, and every miss costs up to three reflective property reads.
          */
         private val cached: DeviceSkin by lazy {
             DeviceSkin(
@@ -160,6 +278,7 @@ data class DeviceSkin(
                 brand = Build.BRAND.orEmpty(),
                 oneUiVersion = systemProperty("ro.build.version.oneui")?.toIntOrNull(),
                 hyperOsVersion = systemProperty("ro.mi.os.version.code")?.toIntOrNull(),
+                vivoOverseas = systemProperty("ro.vivo.product.overseas") == "yes",
             )
         }
 
