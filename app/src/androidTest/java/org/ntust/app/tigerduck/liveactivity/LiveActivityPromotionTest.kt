@@ -18,7 +18,6 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
@@ -190,6 +189,7 @@ class LiveActivityPromotionTest {
             extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString(),
         )
         assertEquals(PROGRESS_STYLE, extras.getString(Notification.EXTRA_TEMPLATE))
+        assertNull("the card never shows big text", extras.getCharSequence(Notification.EXTRA_BIG_TEXT))
         val style = Notification.Builder.recoverBuilder(context, notification).style
             as Notification.ProgressStyle
         assertEquals(32, style.progress)
@@ -210,28 +210,25 @@ class LiveActivityPromotionTest {
         assertNull(extras.getCharSequence(Notification.EXTRA_SUB_TEXT))
     }
 
-    /** Mirrors [LiveActivityNotifier.showsColorOsCard]. */
-    private fun expectsColorOsCard(): Boolean =
-        DeviceSkin.current().cardHidesTextBehindClock &&
-            NotificationManagerCompat.from(context).canPostPromotedNotifications()
+    private fun expectsColorOsCard(): Boolean = newNotifier().showsColorOsCard()
 
-    /** Mirrors [LiveActivityNotifier.showsStaticCountdown]. */
-    private fun expectsStaticCountdown(): Boolean =
-        DeviceSkin.current().chipShowsStaticText &&
-            NotificationManagerCompat.from(context).canPostPromotedNotifications()
+    private fun expectsStaticCountdown(): Boolean = newNotifier().showsStaticCountdown()
 
-    private fun postInClass(): Notification {
+    private fun newNotifier(): LiveActivityNotifier {
         val prefs = AppPreferences(context)
         // Its own registrar, which has not registered yet: the notifier
         // creates the channel itself before posting, whichever Application
         // the runner starts.
-        val notifier = LiveActivityNotifier(
+        return LiveActivityNotifier(
             context,
             LiveActivityPreferences(context),
             prefs,
             NotificationChannelRegistrar(context, prefs),
         )
-        notifier.apply(
+    }
+
+    private fun postInClass(): Notification {
+        newNotifier().apply(
             LiveActivitySnapshot(
                 scenario = LiveActivityScenario.IN_CLASS,
                 title = "Promotion Test",

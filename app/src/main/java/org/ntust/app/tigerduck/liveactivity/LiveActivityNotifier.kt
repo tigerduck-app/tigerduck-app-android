@@ -146,6 +146,8 @@ class LiveActivityNotifier @Inject constructor(
         // phone's language under an otherwise translated UI.
         val localized = localizedContext()
 
+        val promoted = promotion()
+
         // Brand tint, not snapshot.accentHex: every notification in the app
         // tints duck yellow, so the shade badge and the Android 16
         // promoted-ongoing chip stay consistent with the assignment / bulletin
@@ -174,11 +176,12 @@ class LiveActivityNotifier @Inject constructor(
         // re-posts it each time the minute changes — see showsStaticCountdown.
         val target = snapshot.countdownTarget?.time ?: 0L
         val now = AppClock.nowMillis()
-        if (target > now) {
+        val countingDown = target > now
+        if (countingDown) {
             builder.setUsesChronometer(true)
             builder.setChronometerCountDown(true)
             builder.setWhen(target)
-            if (showsStaticCountdown()) {
+            if (showsStaticCountdown(promoted)) {
                 builder.setShortCriticalText(
                     StaticCountdown.format(
                         StaticCountdown.minutesLeft(target, now),
@@ -198,24 +201,29 @@ class LiveActivityNotifier @Inject constructor(
         }
         filled?.let { builder.setProgress(PROGRESS_MAX, it, false) }
 
-        val expandedLines = LiveUpdateDetails.lines(snapshot)
-        val colorOsCard = showsColorOsCard()
-        if (colorOsCard && filled != null) {
+        if (showsColorOsCard(promoted)) {
             // ProgressStyle is promotable like BigTextStyle, and the island
-            // reads neither, so it looks the same.
-            builder.setStyle(
-                NotificationCompat.ProgressStyle()
-                    .addProgressSegment(NotificationCompat.ProgressStyle.Segment(PROGRESS_MAX))
-                    .setProgress(filled)
-            )
-        } else if (expandedLines.isNotEmpty()) {
-            builder.setStyle(
-                NotificationCompat.BigTextStyle()
-                    .bigText(expandedLines.joinToString("\n"))
-            )
-        }
-        if (colorOsCard && expandedLines.isNotEmpty()) {
-            builder.setSubText(expandedLines.joinToString(" · "))
+            // reads neither, so it looks the same. No big text: the card
+            // never shows it, and a row that did would repeat the sub text.
+            filled?.let {
+                builder.setStyle(
+                    NotificationCompat.ProgressStyle()
+                        .addProgressSegment(NotificationCompat.ProgressStyle.Segment(PROGRESS_MAX))
+                        .setProgress(it)
+                )
+            }
+            // Without a running countdown the card shows the content text,
+            // which already ends with the subtitle.
+            val cardLines = LiveUpdateDetails.lines(snapshot, withSubtitle = countingDown)
+            if (cardLines.isNotEmpty()) builder.setSubText(cardLines.joinToString(" · "))
+        } else {
+            val expandedLines = LiveUpdateDetails.lines(snapshot)
+            if (expandedLines.isNotEmpty()) {
+                builder.setStyle(
+                    NotificationCompat.BigTextStyle()
+                        .bigText(expandedLines.joinToString("\n"))
+                )
+            }
         }
 
         samsungNowBarExtras()?.let { builder.addExtras(it) }
@@ -247,9 +255,10 @@ class LiveActivityNotifier @Inject constructor(
      * same check, and the ColorOS 16.0.5 island followed it exactly, so here
      * it can be believed. It still never decides whether to post.
      */
-    fun showsStaticCountdown(): Boolean =
-        deviceSkin.chipShowsStaticText &&
-            NotificationManagerCompat.from(context).canPostPromotedNotifications()
+    fun showsStaticCountdown(): Boolean = showsStaticCountdown(promotion())
+
+    private fun showsStaticCountdown(promoted: Lazy<Boolean>): Boolean =
+        deviceSkin.chipShowsStaticText && promoted.value
 
     /**
      * Whether the post is drawn as ColorOS's Live Alerts card, which shows the
@@ -259,12 +268,21 @@ class LiveActivityNotifier @Inject constructor(
      * a ProgressStyle.
      *
      * Only while the platform will promote the post: with ColorOS's per-app
-     * switch off it is an ordinary row, which shows the big text, and would
-     * repeat the sub text in its header.
+     * switch off it is an ordinary row, which shows the big text.
      */
-    private fun showsColorOsCard(): Boolean =
-        deviceSkin.cardHidesTextBehindClock &&
-            NotificationManagerCompat.from(context).canPostPromotedNotifications()
+    internal fun showsColorOsCard(): Boolean = showsColorOsCard(promotion())
+
+    private fun showsColorOsCard(promoted: Lazy<Boolean>): Boolean =
+        deviceSkin.cardHidesTextBehindClock && promoted.value
+
+    /**
+     * `canPostPromotedNotifications()`, asked at most once however many of
+     * the checks above need it, and not at all when none do: it is a call
+     * into the system server, made on every post.
+     */
+    private fun promotion(): Lazy<Boolean> = lazy(LazyThreadSafetyMode.NONE) {
+        NotificationManagerCompat.from(context).canPostPromotedNotifications()
+    }
 
     /**
      * The vendor code for One UI; the static countdown above is the rest.

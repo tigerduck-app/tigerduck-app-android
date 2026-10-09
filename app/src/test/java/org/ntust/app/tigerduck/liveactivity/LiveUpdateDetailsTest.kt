@@ -49,4 +49,12 @@ class LiveUpdateDetailsTest {
             LiveUpdateDetails.lines(snapshot(subtitle = " ", locationText = null, instructor = null)),
         )
     }
+
+    @Test
+    fun `the subtitle can be left out for a card whose text already carries it`() {
+        assertEquals(
+            listOf("TR-412", "Debug Menu"),
+            LiveUpdateDetails.lines(snapshot(), withSubtitle = false),
+        )
+    }
 }
