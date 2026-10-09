@@ -1,12 +1,15 @@
 package org.ntust.app.tigerduck.util
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -194,6 +197,47 @@ class SharedFetchTest {
         server.reply(1)
         answer.await()
 
+        assertEquals(emptySet<String>(), shared.keptKeys())
+    }
+
+    @Test
+    fun `cancelAll stops the requests running and forgets the answers`() = runTest {
+        val shared = shared()
+        val server = Server()
+        val kept = async { shared.get("kept", server::fetch) }
+        runCurrent()
+        server.reply(1)
+        kept.await()
+        val running = async { runCatching { shared.get("running", server::fetch) } }
+        runCurrent()
+
+        shared.cancelAll()
+        runCurrent()
+
+        assertTrue(running.await().exceptionOrNull() is CancellationException)
+        assertEquals(emptySet<String>(), shared.keptKeys())
+        val again = async { shared.get("kept", server::fetch) }
+        runCurrent()
+        server.reply(2)
+        assertEquals(2, again.await())
+        assertEquals(3, server.requests)
+    }
+
+    @Test
+    fun `a request too far along to cancel lands nothing after cancelAll`() = runTest {
+        val shared = shared()
+        val reply = CompletableDeferred<Int>()
+        val answer = async {
+            // Work cancellation cannot stop, as a blocking OkHttp call is.
+            shared.get("k") { withContext(NonCancellable) { reply.await() } }
+        }
+        runCurrent()
+
+        shared.cancelAll()
+        reply.complete(1)
+        runCurrent()
+
+        assertTrue(answer.isCancelled)
         assertEquals(emptySet<String>(), shared.keptKeys())
     }
 }

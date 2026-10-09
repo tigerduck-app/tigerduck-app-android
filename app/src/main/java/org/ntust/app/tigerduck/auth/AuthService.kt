@@ -14,6 +14,8 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginError
@@ -37,6 +39,8 @@ class AuthService @Inject constructor(
     private val notificationSettingsSync: NotificationSettingsSync,
     private val authTokenManager: AuthTokenManager,
     private val moodleTokenService: MoodleTokenService,
+    private val courseService: CourseService,
+    private val moodleService: MoodleService,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
@@ -324,6 +328,11 @@ class AuthService @Inject constructor(
         // confirmed, both belong to the account that is leaving. Neither may
         // reach whoever signs in next.
         notificationSettingsSync.cancelPendingPushes()
+        // Before the session goes: a 選課清單 fetch still running would
+        // otherwise log the departing account back in, and the next one to
+        // sign in would find its session warm and read its roster.
+        courseService.cancelSharedFetches()
+        moodleService.cancelSharedFetches()
         sessionManager.invalidateSession()
         bulletinReadStateStore.clear()
         // The cache it dated is wiped below; left behind, it would let the

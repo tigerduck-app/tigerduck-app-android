@@ -80,6 +80,16 @@ class MoodleService @Inject constructor(
     }
 
     /**
+     * Stops the fetches still running for the account that is signing out,
+     * and drops their answers. They run on the application scope, so the
+     * screens that asked being cancelled does not stop them.
+     */
+    fun cancelSharedFetches() {
+        sharedEnrolled.cancelAll()
+        sharedAssignments.cancelAll()
+    }
+
+    /**
      * Fetch the user's enrolled Moodle courses across all semesters using
      * the long-lived Moodle Mobile wstoken. Matches iOS: calls the REST
      * webservice directly so we don't depend on the sesskey / `/my/` path,

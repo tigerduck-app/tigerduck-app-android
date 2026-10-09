@@ -33,6 +33,7 @@ class SharedFetch<K : Any, V>(
     private val lock = Any()
     private val inFlight = HashMap<K, Deferred<V>>()
     private val landed = HashMap<K, Landed<V>>()
+    private var generation = 0
 
     suspend fun get(key: K, fetch: suspend () -> V): V {
         val request = synchronized(lock) {
@@ -52,15 +53,34 @@ class SharedFetch<K : Any, V>(
         synchronized(lock) { landed.clear() }
     }
 
+    /**
+     * Cancels every request still running and forgets every answer, for a
+     * sign-out: a request runs on [scope], so cancelling the screen that
+     * asked no longer stops it, and one still going would finish for the
+     * account that left. A caller waiting on it is cancelled with it, and a
+     * request too far along to stop lands nothing.
+     */
+    fun cancelAll() {
+        val running = synchronized(lock) {
+            generation++
+            landed.clear()
+            inFlight.values.toList().also { inFlight.clear() }
+        }
+        running.forEach { it.cancel() }
+    }
+
     /** The keys whose answers are kept, for tests. */
     internal fun keptKeys(): Set<K> = synchronized(lock) { landed.keys.toSet() }
 
     // Lazy so the request cannot run inside the lock; await() starts it.
     private fun start(key: K, fetch: suspend () -> V): Deferred<V> {
         lateinit var request: Deferred<V>
+        val startedIn = generation
         request = scope.async(start = CoroutineStart.LAZY) {
             try {
-                fetch().also { value -> synchronized(lock) { land(key, value) } }
+                fetch().also { value ->
+                    synchronized(lock) { if (generation == startedIn) land(key, value) }
+                }
             } finally {
                 synchronized(lock) { if (inFlight[key] === request) inFlight.remove(key) }
             }

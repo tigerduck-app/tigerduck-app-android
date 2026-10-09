@@ -77,6 +77,9 @@ class CourseService @Inject constructor(
     /** See [MoodleService.expireSharedResults]. */
     fun expireSharedResults() = sharedCourseNos.expire()
 
+    /** See [MoodleService.cancelSharedFetches]. */
+    fun cancelSharedFetches() = sharedCourseNos.cancelAll()
+
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
     private val courseSearchApiBaseUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
