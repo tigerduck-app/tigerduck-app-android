@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.SchoolDataFreshness
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.shared.computeOngoingCourses
@@ -196,6 +197,10 @@ class ClassTableViewModel @Inject constructor(
     // Every fetch goes through this, so launch, a sign-in and a pull that
     // land together run the pipeline once.
     private val fetchFlight = SingleFlight(viewModelScope)
+
+    // When this view model last fetched of its own accord, for
+    // SchoolDataFreshness.shouldAutoRefresh. In memory: a new process may try.
+    private var lastAutoRefreshMs = 0L
 
     init {
         viewModelScope.launch {
@@ -703,8 +708,26 @@ class ClassTableViewModel @Inject constructor(
                     cachedMoodleIds.mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
             }
             refreshLiveSemesterCourses()
-            fetchFlight.join(::fetchData)
+            autoRefresh()
         }
+    }
+
+    /**
+     * Fetches when the timetable is older than [SchoolDataFreshness] allows.
+     * Called when the app comes back to the foreground.
+     */
+    fun refreshIfStale() {
+        if (!hasLoaded || !authService.authState.value) return
+        viewModelScope.launch { autoRefresh() }
+    }
+
+    private suspend fun autoRefresh() {
+        if (!networkChecker.isAvailable()) return
+        val now = System.currentTimeMillis()
+        val syncedAt = appPreferences.schoolDataSyncedAtMs.value
+        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now)) return
+        lastAutoRefreshMs = now
+        fetchFlight.join(::fetchData)
     }
 
     /**

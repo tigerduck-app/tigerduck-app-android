@@ -573,6 +573,30 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     }
 
     /**
+     * When Moodle last answered a whole round of assignments, epoch ms; 0
+     * for never, or not since the last sign-out. The age of what Home, the
+     * class table and the calendar show, which decides whether launch, a
+     * return to the app or the background worker fetches again — see
+     * [org.ntust.app.tigerduck.data.SchoolDataFreshness].
+     *
+     * A flow, for the "updated … ago" line that shows it.
+     */
+    private val _schoolDataSyncedAtMs =
+        MutableStateFlow(prefs.getLong("schoolDataSyncedAtMs", 0L))
+    val schoolDataSyncedAtMs: StateFlow<Long> = _schoolDataSyncedAtMs.asStateFlow()
+
+    fun markSchoolDataSynced(atMs: Long) {
+        prefs.edit().putLong("schoolDataSyncedAtMs", atMs).apply()
+        _schoolDataSyncedAtMs.value = atMs
+    }
+
+    /** On sign-out: the next account's first launch has nothing fresh. */
+    fun clearSchoolDataSynced() {
+        prefs.edit().remove("schoolDataSyncedAtMs").apply()
+        _schoolDataSyncedAtMs.value = 0L
+    }
+
+    /**
      * Debug-only escape hatch from the Developer section: when true,
      * [org.ntust.app.tigerduck.ui.component.SecureScreen] skips applying
      * `WindowManager.LayoutParams.FLAG_SECURE`, allowing screenshots and
@@ -634,6 +658,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         // until the next process start.
         _alwaysShowAllPeriods.value = false
         _showClassroomInClassTable.value = false
+        _schoolDataSyncedAtMs.value = 0L
     }
 
     fun getString(key: String): String? = prefs.getString(key, null)

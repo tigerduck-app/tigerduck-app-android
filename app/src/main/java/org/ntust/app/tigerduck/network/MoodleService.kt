@@ -15,6 +15,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.model.MoodleAssignmentsEnvelope
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
@@ -31,6 +32,7 @@ class MoodleService @Inject constructor(
     private val tokenService: MoodleTokenService,
     private val courseService: CourseService,
     private val dataCache: DataCache,
+    private val prefs: AppPreferences,
     @param:ApplicationScope appScope: CoroutineScope,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
@@ -199,6 +201,10 @@ class MoodleService @Inject constructor(
                         }.awaitAll().filterNotNull().toMap()
                 }
                 AssignmentsRound(envelope, statuses, confirmed)
+            }.also {
+                // Here rather than at each caller, so every screen and the
+                // worker stamp the age alike — see SchoolDataFreshness.
+                prefs.markSchoolDataSynced(System.currentTimeMillis())
             }
         }
 

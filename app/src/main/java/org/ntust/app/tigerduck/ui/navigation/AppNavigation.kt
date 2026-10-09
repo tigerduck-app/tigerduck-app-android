@@ -232,7 +232,15 @@ fun MainNavigation(
     val pollingLifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(pollingLifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
+            if (event == Lifecycle.Event.ON_START) {
+                // Back in the foreground: fetch whatever has gone stale while
+                // the app was away. Each screen asks for itself, and the
+                // services hand the three of them one answer. Before load()
+                // has run (cold start) these do nothing; load() decides then.
+                homeViewModel.refreshIfStale()
+                classTableViewModel.refreshIfStale()
+                calendarViewModel.refreshIfStale()
+            } else if (event == Lifecycle.Event.ON_RESUME) {
                 homeViewModel.startRevisionPolling()
             } else if (event == Lifecycle.Event.ON_PAUSE) {
                 homeViewModel.stopRevisionPolling()

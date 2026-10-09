@@ -30,6 +30,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.data.SchoolDataFreshness
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
@@ -78,9 +79,20 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // Moodle-direct for assignments/courses, backend for override sync.
         syncOverridesFromBackend()
 
-        val coursesOk = syncCourses(studentId, password)
+        // The school servers are left alone while the app has fetched from
+        // them recently: the hourly run used to repeat the whole pipeline
+        // minutes after a foreground fetch, and over a day it was the app's
+        // largest source of traffic. Never for a triggered run, which the
+        // server asked for because something changed.
+        val triggered = inputData.getBoolean(KEY_TRIGGERED, false)
+        val schoolDataFresh = !triggered && !SchoolDataFreshness.isStale(
+            prefs.schoolDataSyncedAtMs.value,
+            System.currentTimeMillis(),
+            SchoolDataFreshness.BACKGROUND_MAX_AGE_MS,
+        )
+        val coursesOk = schoolDataFresh || syncCourses(studentId, password)
         if (authService.storedStudentId != studentId) return Result.success()
-        val assignmentsOk = syncAssignments()
+        val assignmentsOk = schoolDataFresh || syncAssignments()
         if (authService.storedStudentId != studentId) return Result.success()
 
         liveActivityManager.refreshAndWait()
@@ -88,7 +100,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         dataCache.notifyBackgroundSyncComplete()
 
         if (coursesOk && assignmentsOk) return Result.success()
-        return resultForFailedSync(inputData.getBoolean(KEY_TRIGGERED, false), runAttemptCount)
+        return resultForFailedSync(triggered, runAttemptCount)
     }
 
     private suspend fun syncOverridesFromBackend() {

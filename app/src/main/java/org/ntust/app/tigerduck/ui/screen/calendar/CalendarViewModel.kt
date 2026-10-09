@@ -13,12 +13,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.data.SchoolDataFreshness
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -72,6 +74,10 @@ class CalendarViewModel @Inject constructor(
     // land together fetch once. Above `init`, whose collectors run during
     // construction.
     private val fetchFlight = SingleFlight(viewModelScope)
+
+    // When this view model last fetched of its own accord, for
+    // SchoolDataFreshness.shouldAutoRefresh. In memory: a new process may try.
+    private var lastAutoRefreshMs = 0L
 
     /**
      * Semester boundaries and school holidays, from the published academic
@@ -148,6 +154,18 @@ class CalendarViewModel @Inject constructor(
     private fun withAcademicEvents(base: List<CalendarEvent>): List<CalendarEvent> =
         base.filterNot { it.sourceRaw in ACADEMIC_SOURCES } + academicEvents()
 
+    /**
+     * [base] with its Moodle rows rebuilt from the assignment cache, which
+     * Home, the class table and the worker write as well. This screen used
+     * to see their fetches only through a fetch of its own.
+     */
+    private suspend fun withCachedAssignments(base: List<CalendarEvent>): List<CalendarEvent> {
+        val assignments = dataCache.loadAssignments()
+        if (assignments.isEmpty()) return base
+        return base.filterNot { it.sourceRaw == EventSource.MOODLE.raw } +
+            assignments.toCalendarEvents()
+    }
+
     init {
         viewModelScope.launch {
             // The published calendar arrives asynchronously: `MainActivity`
@@ -168,6 +186,16 @@ class CalendarViewModel @Inject constructor(
             // language reaches the context the titles are read from.
             uiLanguage.changes.collect {
                 _events.value = withAcademicEvents(_events.value)
+            }
+        }
+        viewModelScope.launch {
+            // A fetch Home or the worker finished: launch and a return to the
+            // app fetch here only when the data is stale, so this is how
+            // most new assignments reach the calendar.
+            dataCache.backgroundSyncVersion.drop(1).collect {
+                if (authService.authState.value) {
+                    _events.value = withCachedAssignments(_events.value)
+                }
             }
         }
         viewModelScope.launch {
@@ -240,11 +268,31 @@ class CalendarViewModel @Inject constructor(
         if (hasLoaded) return
         hasLoaded = true
         viewModelScope.launch {
-            _events.value = withAcademicEvents(dataCache.loadCalendarEvents())
+            _events.value =
+                withAcademicEvents(withCachedAssignments(dataCache.loadCalendarEvents()))
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.authState.value) fetchFlight.join(::fetchData)
+            if (authService.authState.value) autoRefresh()
         }
+    }
+
+    /**
+     * Fetches when the calendar is older than [SchoolDataFreshness] allows.
+     * Called when the app comes back to the foreground. The school ICS rides
+     * along: it changes less often than anything else here.
+     */
+    fun refreshIfStale() {
+        if (!hasLoaded || !authService.authState.value) return
+        viewModelScope.launch { autoRefresh() }
+    }
+
+    private suspend fun autoRefresh() {
+        if (!networkChecker.isAvailable()) return
+        val now = System.currentTimeMillis()
+        val syncedAt = prefs.schoolDataSyncedAtMs.value
+        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now)) return
+        lastAutoRefreshMs = now
+        fetchFlight.join(::fetchData)
     }
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(

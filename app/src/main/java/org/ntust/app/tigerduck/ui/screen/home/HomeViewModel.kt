@@ -40,6 +40,7 @@ import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.SchoolDataFreshness
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -376,6 +377,10 @@ class HomeViewModel @Inject constructor(
 
     private var hasLoaded = false
 
+    // When this view model last fetched of its own accord, for
+    // SchoolDataFreshness.shouldAutoRefresh. In memory: a new process may try.
+    private var lastAutoRefreshMs = 0L
+
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
@@ -394,8 +399,34 @@ class HomeViewModel @Inject constructor(
             }
             _initialLoadComplete.value = true
 
-            fetchRemote()
+            // The school servers only when what the cache holds is old
+            // enough to be worth asking about again; the backend sync that
+            // carries other devices' marks runs either way, as it always has.
+            if (!autoRefresh()) runCatching { syncAndRepublish() }
         }
+    }
+
+    /**
+     * Fetches when what Home shows is older than [SchoolDataFreshness]
+     * allows. Called when the app comes back to the foreground, which used
+     * to sync only with the backend: a morning in the background left the
+     * morning's assignments on screen until the user pulled.
+     */
+    fun refreshIfStale() {
+        if (!hasLoaded || !authService.authState.value) return
+        viewModelScope.launch { autoRefresh() }
+    }
+
+    /** Fetches if the data is stale; false when it did not. */
+    private suspend fun autoRefresh(): Boolean {
+        if (!networkChecker.isAvailable()) return false
+        val now = System.currentTimeMillis()
+        if (!SchoolDataFreshness.shouldAutoRefresh(prefs.schoolDataSyncedAtMs.value, lastAutoRefreshMs, now)) {
+            return false
+        }
+        lastAutoRefreshMs = now
+        fetchRemote()
+        return true
     }
 
     /** A pull to refresh: what the schools have now, not an answer kept for sharing. */

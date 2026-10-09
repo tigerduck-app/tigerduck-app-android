@@ -42,6 +42,7 @@ class AuthService @Inject constructor(
     private val bulletinReadStateStore: BulletinReadStateStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
+    private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
 ) {
     /**
      * A demo session presents as signed in, with or without an account.
@@ -325,6 +326,9 @@ class AuthService @Inject constructor(
         notificationSettingsSync.cancelPendingPushes()
         sessionManager.invalidateSession()
         bulletinReadStateStore.clear()
+        // The cache it dated is wiped below; left behind, it would let the
+        // next account's first launch skip its fetch as "fresh".
+        prefs.clearSchoolDataSynced()
         _loginError.value = null
         _authState.value = false
         pushRegistration.unregister(authHeader)
