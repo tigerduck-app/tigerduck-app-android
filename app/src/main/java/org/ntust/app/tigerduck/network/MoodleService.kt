@@ -39,8 +39,11 @@ class MoodleService @Inject constructor(
     private val gson = Gson()
     private val webserviceUrl = "https://moodle2.ntust.edu.tw/webservice/rest/server.php"
 
+    // The site-info user id, with the wstoken it was asked with. A token is
+    // one account's, so a different token is asked again: kept on its own,
+    // the id outlived a sign-out and went out with the next account's calls.
     @Volatile
-    private var cachedUserId: Int? = null
+    private var cachedUserId: Pair<String, Int>? = null
     private val siteInfoLock = Any()
 
     // Home, the class table, the calendar and the worker each ask for these,
@@ -287,9 +290,9 @@ class MoodleService @Inject constructor(
      * doesn't get stomped on by an in-flight fetch.
      */
     private fun getSiteInfoUserId(token: String): Int {
-        cachedUserId?.let { return it }
+        cachedUserId?.takeIf { it.first == token }?.let { return it.second }
         synchronized(siteInfoLock) {
-            cachedUserId?.let { return it }
+            cachedUserId?.takeIf { it.first == token }?.let { return it.second }
             val url =
                 "$webserviceUrl?moodlewsrestformat=json&wsfunction=core_webservice_get_site_info&wstoken=$token"
             val req = Request.Builder().url(url).post(FormBody.Builder().build()).build()
@@ -307,7 +310,7 @@ class MoodleService @Inject constructor(
                 ?: throw MoodleWebserviceError.MalformedResponse("userid missing from site_info")
             val userId = (rawUserId as? Number)?.toInt()
                 ?: throw MoodleWebserviceError.MalformedResponse("userid has unexpected type: $rawUserId")
-            cachedUserId = userId
+            cachedUserId = token to userId
             return userId
         }
     }
