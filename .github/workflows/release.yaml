@@ -10,6 +10,12 @@ name: Release (Auto)
 on:
   push:
     branches: [ main ]
+    # The F-Droid metadata commit a release pushes to main touches only this
+    # file. Ignoring it keeps that commit from starting a run, which would
+    # otherwise queue behind the release and could displace a click waiting
+    # there (GitHub keeps one pending run per concurrency group).
+    paths-ignore:
+      - metadata/org.ntust.app.tigerduck.fdroid.yml
   workflow_dispatch:
     inputs:
       phone_internal:
@@ -36,6 +42,13 @@ on:
 
 permissions:
   contents: write
+
+# One run at a time, on the whole workflow so that `check` decides only after
+# the previous release has finished: a commit landing mid-release then finds the
+# tag in place instead of releasing the version a second time.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   # A push releases to every track; a click releases to the ones ticked.
@@ -146,14 +159,6 @@ jobs:
     if: needs.check.outputs.mode != 'skip'
     runs-on: ubuntu-latest
 
-    # One release at a time. On this job rather than the workflow, so a run
-    # that finds nothing to do never queues: GitHub keeps one pending run per
-    # group, and the push run that the F-Droid metadata commit starts would
-    # otherwise displace a run queued from the Actions tab.
-    concurrency:
-      group: release
-      cancel-in-progress: false
-
     env:
       TAG: ${{ needs.check.outputs.tag }}
       FULL_RELEASE: ${{ needs.check.outputs.mode == 'full' }}
@@ -188,6 +193,16 @@ jobs:
             echo "phone_code=$(extract_code app/build.gradle.kts)"
             echo "watch_code=$(extract_code wear/build.gradle.kts)"
           } >> "$GITHUB_OUTPUT"
+
+      # On a tagged version the checkout is the tag, which may predate the
+      # script or carry an older one. The commit this run started from is in
+      # the clone (fetch-depth 0), so take the script from there. The release
+      # notes still come from the tag's own whatsnew.json.
+      - name: Use this run's Play script
+        if: env.FULL_RELEASE != 'true'
+        run: |
+          mkdir -p tools/play
+          git show "${GITHUB_SHA}:tools/play/publish.py" > tools/play/publish.py
 
       - name: Choose Play targets
         id: targets

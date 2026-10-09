@@ -40,9 +40,16 @@ production, or to a wider rollout (which then starts at the percentage picked,
 not where it was). Everything is built either way, because the GitHub Release
 carries all six files and Play may not have a bundle yet.
 
-Release jobs queue one at a time. A run that finds nothing to release stops
-before the queue, so the push run started by the F-Droid metadata commit cannot
-displace a click waiting behind the current release.
+Runs queue one at a time, and each decides what to release only once the run
+before it has finished, so a commit landing mid-release finds the tag in place.
+The F-Droid metadata commit a release pushes does not start a run at all. GitHub
+keeps one pending run per queue, though: a click made while a release is running
+is dropped if another commit lands on `main` before it starts. Click again once
+the release is done.
+
+On a tagged version the build comes from the tag, but `tools/play/publish.py`
+comes from the commit the run started on, so tags made before the script
+existed can still be sent to Play.
 
 Release notes come from the `whatsnew.json` entry for the phone `versionCode`
 (the in-app "What's New" text), as `zh-TW` and `en-US`. To word them
