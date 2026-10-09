@@ -163,8 +163,14 @@ class CalendarViewModel @Inject constructor(
      * Home, the class table and the worker write as well. This screen used
      * to see their fetches only through a fetch of its own.
      */
-    private suspend fun withCachedAssignments(base: List<CalendarEvent>): List<CalendarEvent> {
-        val assignments = dataCache.loadAssignments()
+    private suspend fun withCachedAssignments(base: List<CalendarEvent>): List<CalendarEvent> =
+        withMoodleRows(base, dataCache.loadAssignments())
+
+    /** [base] with its Moodle rows made from [assignments]; as it was when there are none. */
+    private fun withMoodleRows(
+        base: List<CalendarEvent>,
+        assignments: List<Assignment>,
+    ): List<CalendarEvent> {
         if (assignments.isEmpty()) return base
         return base.filterNot { it.sourceRaw == EventSource.MOODLE.raw } +
             assignments.toCalendarEvents()
@@ -198,7 +204,10 @@ class CalendarViewModel @Inject constructor(
             // most new assignments reach the calendar.
             dataCache.backgroundSyncVersion.drop(1).collect {
                 if (authService.authState.value) {
-                    _events.value = withCachedAssignments(_events.value)
+                    // Read the rows after the load, not before: a fetch of
+                    // this screen's own can land while the file is read.
+                    val assignments = dataCache.loadAssignments()
+                    _events.value = withMoodleRows(_events.value, assignments)
                 }
             }
         }
