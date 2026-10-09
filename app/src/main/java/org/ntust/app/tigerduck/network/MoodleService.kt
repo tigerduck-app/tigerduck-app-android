@@ -142,6 +142,7 @@ class MoodleService @Inject constructor(
         enrolledCourses: List<MoodleEnrolledCourse>,
         rosterCourseNos: Set<String>? = null,
     ): List<Assignment> = withContext(Dispatchers.IO) {
+        val token = tokenService.currentToken()
         val currentSemester = courseService.currentSemesterCode()
         // What the class table holds right now, hand-added rows included. It
         // decides which of a 合開 course's codes an assignment is filed under.
@@ -155,7 +156,15 @@ class MoodleService @Inject constructor(
         } else {
             MoodleCourseIds.forRoster(enrolledCourses, rosterNos)
         }
-        if (relevant.isEmpty()) return@withContext emptyList<Assignment>()
+        if (relevant.isEmpty()) {
+            // Moodle answered, and has nothing for this term: the weeks before
+            // its courses open, or a break between terms. Dated like any other
+            // answer, or the worker would ask again on every run and the
+            // "Last synced" row would never move. No courses at all is not
+            // dated: it is also what an upstream failing quietly looks like.
+            if (enrolledCourses.isNotEmpty()) markSynced(askedWith = token)
+            return@withContext emptyList<Assignment>()
+        }
         val localCourseNos = rosterNos + cachedCourseNos
         // Once per course rather than once per assignment: the alias scan
         // runs a regex over the fullname.
@@ -241,14 +250,21 @@ class MoodleService @Inject constructor(
             // the worker date the data alike — see RefreshPolicies. Only
             // for a round that got an answer to every status call: a failed
             // one reads as "not submitted", and a stamp would keep the next
-            // automatic fetch from correcting it. And only while the token
-            // that asked is still the account's, so a round that outlived a
-            // sign-out cannot vouch for whoever signs in next.
-            if (round.statuses.size == asked && tokenService.currentToken() == askedWith) {
-                prefs.markSchoolDataSynced(System.currentTimeMillis())
-            }
+            // automatic fetch from correcting it.
+            if (round.statuses.size == asked) markSynced(askedWith)
             round
         }
+
+    /**
+     * Dates the school data as of now, if the wstoken that asked is still
+     * the account's: an answer that outlived a sign-out cannot vouch for
+     * whoever signs in next.
+     */
+    private fun markSynced(askedWith: String?) {
+        if (askedWith != null && tokenService.currentToken() == askedWith) {
+            prefs.markSchoolDataSynced(System.currentTimeMillis())
+        }
+    }
 
     /** Run [block] with current token; on `invalidtoken`, refresh once and retry. */
     private suspend inline fun <T> attemptWithTokenRetry(block: (String) -> T): T {
