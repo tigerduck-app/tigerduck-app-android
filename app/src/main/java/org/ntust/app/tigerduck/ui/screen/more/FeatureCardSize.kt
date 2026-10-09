@@ -1,14 +1,11 @@
 package org.ntust.app.tigerduck.ui.screen.more
 
 import android.icu.text.BreakIterator
-import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.foundation.text.modifiers.TextAutoSizeLayoutScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -42,10 +39,15 @@ private const val LabelFontSizeStep = 1f
  * A card's height used to follow its width alone, which left one line under the icon for the
  * name, so a larger font or display size, or a language with long names, cut the second line
  * off. [height] is now what the tallest name needs, and never less than the 1.6:1 card it was,
- * so the grid stays even. Each name is set by [FeatureLabelAutoSize] in a box [labelWidth] wide,
- * exactly as it was measured here.
+ * so the grid stays even. Each name is set at its [labelFontSizes] entry in a box [labelWidth]
+ * wide, exactly as it was measured here.
  */
-internal class FeatureCardSize(val height: Dp, val labelWidth: Dp)
+internal class FeatureCardSize(
+    val height: Dp,
+    val labelWidth: Dp,
+    /** Each name's size, from [fitLabel]: the style's own, or smaller where that one does not fit. */
+    val labelFontSizes: Map<String, TextUnit>,
+)
 
 internal fun featureGridColumns(width: Dp): Int = when {
     width >= 840.dp -> 4
@@ -76,7 +78,8 @@ internal fun rememberFeatureCardSize(labels: List<String>, gridWidthPx: Int, col
             val cellWidth = (gridWidthPx - 2 * FeatureGridPadding.roundToPx() -
                 (columns - 1) * FeatureCardSpacing.roundToPx()) / columns
             val labelWidth = (cellWidth - 2 * FeatureCardPadding.roundToPx()).coerceAtLeast(0)
-            val tallestLabel = labels.maxOfOrNull { label ->
+            val breaks = BreakIterator.getLineInstance()
+            val fitted = labels.associateWith { label ->
                 val layout = { fontSize: TextUnit ->
                     measurer.measure(
                         text = label,
@@ -86,51 +89,44 @@ internal fun rememberFeatureCardSize(labels: List<String>, gridWidthPx: Int, col
                         constraints = Constraints(maxWidth = labelWidth),
                     )
                 }
-                layout(fitLabel(style.fontSize, layout)).size.height
-            } ?: 0
+                val fontSize = fitLabel(style.fontSize, breaks, layout)
+                fontSize to layout(fontSize).size.height
+            }
+            val tallestLabel = fitted.values.maxOfOrNull { (_, height) -> height } ?: 0
             val content = 2 * FeatureCardPadding.roundToPx() + FeatureIconSize.roundToPx() +
                 IconLabelGap.roundToPx() + tallestLabel
             FeatureCardSize(
                 height = maxOf((cellWidth / CardAspectRatio).roundToInt(), content).toDp(),
                 labelWidth = labelWidth.toDp(),
+                labelFontSizes = fitted.mapValues { (_, sized) -> sized.first },
             )
         }
     }
 }
 
 /**
- * Sets a card's name at the size [rememberFeatureCardSize] measured it at.
- *
- * Unlike [TextAutoSize.StepBased], it also shrinks a name that would only fit by breaking inside
- * a word, which Android does to a word too long for its line: "Announcements" in a phone's
- * card, or "Университетская" at a larger font.
- */
-internal class FeatureLabelAutoSize(private val maxFontSize: TextUnit) : TextAutoSize {
-    override fun TextAutoSizeLayoutScope.getFontSize(
-        constraints: Constraints,
-        text: AnnotatedString,
-    ): TextUnit = fitLabel(maxFontSize) { performLayout(constraints, text, it) }
-
-    override fun equals(other: Any?): Boolean =
-        other is FeatureLabelAutoSize && other.maxFontSize == maxFontSize
-
-    override fun hashCode(): Int = maxFontSize.hashCode()
-}
-
-/**
  * The largest size from [maxFontSize] down to [LabelMinFontSize] at which [layout] fits a name in
  * its lines without breaking a word, or the smallest if none does; the name is then cut short.
+ *
+ * Unlike [androidx.compose.foundation.text.TextAutoSize.StepBased], this also shrinks a name that
+ * would only fit by breaking inside a word, which Android does to a word too long for its line:
+ * "Announcements" in a phone's card, or "Университетская" at a larger font. [breaks] is a line
+ * instance, reused across every name and size.
  */
-private inline fun fitLabel(maxFontSize: TextUnit, layout: (TextUnit) -> TextLayoutResult): TextUnit {
+private inline fun fitLabel(
+    maxFontSize: TextUnit,
+    breaks: BreakIterator,
+    layout: (TextUnit) -> TextLayoutResult,
+): TextUnit {
     var size = maxFontSize.value
-    while (size > LabelMinFontSize.value && !layout(size.sp).fitsWholeWords()) {
+    while (size > LabelMinFontSize.value && !layout(size.sp).fitsWholeWords(breaks)) {
         size = maxOf(size - LabelFontSizeStep, LabelMinFontSize.value)
     }
     return size.sp
 }
 
-private fun TextLayoutResult.fitsWholeWords(): Boolean {
+private fun TextLayoutResult.fitsWholeWords(breaks: BreakIterator): Boolean {
     if (hasVisualOverflow || isLineEllipsized(lineCount - 1)) return false
-    val breaks = BreakIterator.getLineInstance().apply { setText(layoutInput.text.text) }
+    breaks.setText(layoutInput.text.text)
     return (0 until lineCount - 1).all { breaks.isBoundary(getLineEnd(it)) }
 }

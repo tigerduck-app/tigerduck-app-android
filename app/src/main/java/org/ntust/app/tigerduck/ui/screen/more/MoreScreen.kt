@@ -196,14 +196,16 @@ internal fun FeatureGrid(
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(FeatureIconSize)
                             )
+                            val label = stringResource(feature.displayNameRes)
                             val labelStyle = featureLabelStyle()
                             Text(
-                                text = stringResource(feature.displayNameRes),
+                                text = label,
                                 modifier = Modifier.width(cardSize.labelWidth),
-                                style = labelStyle,
+                                style = labelStyle.copy(
+                                    fontSize = cardSize.labelFontSizes[label] ?: labelStyle.fontSize
+                                ),
                                 maxLines = FeatureLabelMaxLines,
-                                overflow = TextOverflow.Ellipsis,
-                                autoSize = FeatureLabelAutoSize(labelStyle.fontSize)
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

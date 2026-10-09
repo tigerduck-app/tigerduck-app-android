@@ -26,6 +26,7 @@ import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.compose.rememberNavController
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -80,11 +81,11 @@ class FeatureGridTest {
         show(width = 360.dp, fontScale = 1f)
 
         val layout = labels().getValue("Announcements").layout
-        // layoutInput keeps the style's 24sp; the paragraph is the fitted one.
         val input = layout.layoutInput
         val at24sp = TextMeasurer(input.fontFamilyResolver, input.density, input.layoutDirection)
-            .measure(input.text, input.style)
+            .measure(input.text, input.style.copy(fontSize = 24.sp))
         assertTrue("fits at 24sp anyway", at24sp.size.width > input.constraints.maxWidth)
+        assertTrue("not set smaller", input.style.fontSize < 24.sp)
         assertEquals(1, layout.lineCount)
     }
 
