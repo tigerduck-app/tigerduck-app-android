@@ -166,4 +166,34 @@ class SharedFetchTest {
         assertEquals(2, second.await())
         assertEquals(2, server.requests)
     }
+
+    @Test
+    fun `an answer past its window is dropped when another lands`() = runTest {
+        val shared = shared(windowMs = 60_000)
+        val server = Server()
+        val old = async { shared.get("old", server::fetch) }
+        runCurrent()
+        server.reply(1)
+        old.await()
+
+        clockMs += 60_000
+        val fresh = async { shared.get("new", server::fetch) }
+        runCurrent()
+        server.reply(2)
+        fresh.await()
+
+        assertEquals(setOf("new"), shared.keptKeys())
+    }
+
+    @Test
+    fun `with no window nothing is kept`() = runTest {
+        val shared = shared(windowMs = 0)
+        val server = Server()
+        val answer = async { shared.get("k", server::fetch) }
+        runCurrent()
+        server.reply(1)
+        answer.await()
+
+        assertEquals(emptySet<String>(), shared.keptKeys())
+    }
 }

@@ -52,19 +52,31 @@ class SharedFetch<K : Any, V>(
         synchronized(lock) { landed.clear() }
     }
 
+    /** The keys whose answers are kept, for tests. */
+    internal fun keptKeys(): Set<K> = synchronized(lock) { landed.keys.toSet() }
+
     // Lazy so the request cannot run inside the lock; await() starts it.
     private fun start(key: K, fetch: suspend () -> V): Deferred<V> {
         lateinit var request: Deferred<V>
         request = scope.async(start = CoroutineStart.LAZY) {
             try {
-                fetch().also { value ->
-                    synchronized(lock) { landed[key] = Landed(value, now()) }
-                }
+                fetch().also { value -> synchronized(lock) { land(key, value) } }
             } finally {
                 synchronized(lock) { if (inFlight[key] === request) inFlight.remove(key) }
             }
         }
         inFlight[key] = request
         return request
+    }
+
+    // Under the lock. Kept only while it can still be handed out: with no
+    // window that is never, and an answer past its window is dropped here,
+    // since a key that is not asked for again would otherwise hold it for
+    // the life of the process.
+    private fun land(key: K, value: V) {
+        if (windowMs <= 0) return
+        val atMs = now()
+        landed.values.removeAll { atMs - it.atMs >= windowMs }
+        landed[key] = Landed(value, atMs)
     }
 }
