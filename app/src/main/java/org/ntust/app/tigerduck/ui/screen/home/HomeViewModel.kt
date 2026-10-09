@@ -462,6 +462,9 @@ class HomeViewModel @Inject constructor(
         if (refreshTriggers.onShown()) fetchOnReturn()
     }
 
+    /** The page left the screen for another page; see PageLeftEffect. */
+    fun onPageLeft() = refreshTriggers.onLeft()
+
     private fun fetchOnReturn() {
         // Quietly: nobody asked, so no snackbar, and a fetch bound to fail
         // would only mark Moodle as failing on every return.

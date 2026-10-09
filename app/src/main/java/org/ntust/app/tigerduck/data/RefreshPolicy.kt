@@ -67,6 +67,7 @@ class RefreshTriggers(
 ) {
     private var lastFetchMs = 0L
     private var shownBefore = false
+    private var onScreen = false
 
     /** Whether the page's first load should fetch. */
     fun onLaunch(): Boolean = policy.onLaunch
@@ -80,11 +81,22 @@ class RefreshTriggers(
      * live as long as the app and load at launch, so the first time a page
      * other than the start page is opened, its launch fetch may be long
      * past. The start page's first showing is the launch itself, and quiet.
+     *
+     * Shown again without [onLeft] in between is no return either: the
+     * activity was rebuilt around the page, by a dark-mode or font-size
+     * change, and the page never left the screen.
      */
     fun onShown(): Boolean {
+        if (onScreen) return false
+        onScreen = true
         val returning = shownBefore || lastFetchMs != 0L
         shownBefore = true
         return returning && policy.onRevisit && intervalPassed()
+    }
+
+    /** The page left the screen for another page. */
+    fun onLeft() {
+        onScreen = false
     }
 
     /** A fetch started, whatever asked for it. */

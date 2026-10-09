@@ -83,6 +83,7 @@ import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
@@ -212,6 +213,7 @@ fun ClassTableScreen(
         // another page fetches if its RefreshPolicy asks for that.
         viewModel.onPageShown()
     }
+    PageLeftEffect(viewModel::onPageLeft)
     LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(errorNetworkUnavailable)

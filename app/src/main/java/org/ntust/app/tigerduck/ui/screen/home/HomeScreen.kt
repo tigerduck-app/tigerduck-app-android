@@ -65,6 +65,7 @@ import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
+import org.ntust.app.tigerduck.ui.component.PageLeftEffect
 import java.util.Calendar
 import org.ntust.app.tigerduck.util.formatCredits
 
@@ -141,6 +142,7 @@ fun HomeScreen(
         // another page fetches if its RefreshPolicy asks for that.
         viewModel.onPageShown()
     }
+    PageLeftEffect(viewModel::onPageLeft)
 
     // When the Home screen leaves the foreground (tab switch, background),
     // reset the filter away from 已忽略 if it ended up empty. This makes the

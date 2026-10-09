@@ -756,6 +756,9 @@ class ClassTableViewModel @Inject constructor(
         if (refreshTriggers.onShown()) viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
+    /** The page left the screen for another page; see PageLeftEffect. */
+    fun onPageLeft() = refreshTriggers.onLeft()
+
     /**
      * Reset the timetable for the semester on screen.
      *

@@ -21,6 +21,7 @@ class RefreshPolicyTest {
         assertTrue(t.onLaunch())
         assertFalse(t.onForeground())
         t.onShown()
+        t.onLeft()
         clockMs += 10 * minute
         assertFalse(t.onShown())
         assertFalse(t.onForeground())
@@ -52,9 +53,23 @@ class RefreshPolicyTest {
         t.onShown()
         t.fetchStarted()
 
+        t.onLeft()
         clockMs += minute - 1
         assertFalse(t.onShown())
+        t.onLeft()
         clockMs += 1
+        assertTrue(t.onShown())
+    }
+
+    @Test
+    fun `shown again without leaving is a rebuilt activity, not a return`() {
+        val t = triggers(everything)
+        t.onShown()
+        t.fetchStarted()
+        clockMs += 10 * minute
+
+        assertFalse(t.onShown()) // dark mode switched on
+        t.onLeft()
         assertTrue(t.onShown())
     }
 

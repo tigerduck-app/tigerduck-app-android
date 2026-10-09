@@ -334,6 +334,9 @@ class CalendarViewModel @Inject constructor(
         if (refreshTriggers.onShown()) fetchOnReturn()
     }
 
+    /** The page left the screen for another page; see PageLeftEffect. */
+    fun onPageLeft() = refreshTriggers.onLeft()
+
     // Quietly, and not at all offline: nobody asked, so no snackbar.
     private fun fetchOnReturn() {
         if (!networkChecker.isAvailable()) return
