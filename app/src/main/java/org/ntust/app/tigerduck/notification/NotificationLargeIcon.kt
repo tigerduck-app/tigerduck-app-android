@@ -1,14 +1,15 @@
 package org.ntust.app.tigerduck.notification
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import org.ntust.app.tigerduck.R
 
-/** The last bitmap drawn, keyed by its size; see [notificationLargeIcon]. */
+/** The last bitmap drawn, and the configuration it was drawn in; see [notificationLargeIcon]. */
 @Volatile
-private var cachedLargeIcon: Pair<Int, Bitmap>? = null
+private var cachedLargeIcon: Pair<Configuration, Bitmap>? = null
 
 /**
  * The launcher icon as a bitmap at the notification large icon's size, for
@@ -21,13 +22,15 @@ private var cachedLargeIcon: Pair<Int, Bitmap>? = null
  * releases pick, and the adaptive icon draws itself clipped to the device's
  * launcher shape.
  *
- * Drawn once and reused: the icon cannot change while the app runs, and a
- * notification only reads the bitmap. A new size, after the display size
- * changes, draws it again.
+ * Drawn once and reused while the configuration holds, since a notification
+ * only reads the bitmap. What can change it while the app runs changes the
+ * configuration too: the display size, and the icon shape, which the system
+ * applies as an overlay and so as a new assets sequence.
  */
 fun Context.notificationLargeIcon(): Bitmap? {
+    val config = resources.configuration
+    cachedLargeIcon?.let { (drawnIn, bitmap) -> if (drawnIn == config) return bitmap }
     val size = resources.getDimensionPixelSize(android.R.dimen.notification_large_icon_width)
-    cachedLargeIcon?.let { (cachedSize, bitmap) -> if (cachedSize == size) return bitmap }
     return ContextCompat.getDrawable(this, R.mipmap.ic_launcher)?.toBitmap(size, size)
-        ?.also { cachedLargeIcon = size to it }
+        ?.also { cachedLargeIcon = Configuration(config) to it }
 }
