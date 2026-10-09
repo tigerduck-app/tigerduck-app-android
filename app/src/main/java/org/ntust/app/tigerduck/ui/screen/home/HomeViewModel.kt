@@ -402,6 +402,8 @@ class HomeViewModel @Inject constructor(
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
+        // It pulls from the backend below, whichever way it goes.
+        backendPullStarting()
 
         viewModelScope.launch {
             // _skippedDates.value = dataCache.loadSkippedDates()
@@ -431,13 +433,20 @@ class HomeViewModel @Inject constructor(
      */
     fun onAppForeground() {
         if (!hasLoaded || !authService.authState.value) return
-        if (refreshTriggers.onForeground()) viewModelScope.launch { fetchRemote() }
+        if (refreshTriggers.onForeground()) fetchOnReturn()
     }
 
     /** Home was shown: on launch, or on coming back to it from another page. */
     fun onPageShown() {
         if (!authService.authState.value) return
-        if (refreshTriggers.onShown()) viewModelScope.launch { fetchRemote() }
+        if (refreshTriggers.onShown()) fetchOnReturn()
+    }
+
+    private fun fetchOnReturn() {
+        // Ahead of the ON_RESUME that follows, so its syncOnForeground leaves
+        // the backend to the pull this fetch starts with.
+        backendPullStarting()
+        viewModelScope.launch { fetchRemote() }
     }
 
     /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
@@ -460,12 +469,19 @@ class HomeViewModel @Inject constructor(
     /** The full fetch — backend, NTUST and Moodle — or the one already running. */
     private suspend fun fetchRemote() = fetchFlight.join { fetchData(forceRemote = true) }
 
-    private var lastForegroundSyncMs = 0L
+    // When a pull from the backend last started, whatever started it. A full
+    // fetch begins with one, so a foreground sync on its heels would only
+    // repeat it.
+    private var lastBackendPullMs = 0L
+
+    private fun backendPullStarting() {
+        lastBackendPullMs = System.currentTimeMillis()
+    }
 
     fun syncOnForeground() {
         val now = System.currentTimeMillis()
-        if (now - lastForegroundSyncMs < 30_000) return
-        lastForegroundSyncMs = now
+        if (now - lastBackendPullMs < 30_000) return
+        lastBackendPullMs = now
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) return@launch
             runCatching {
@@ -554,6 +570,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchData(forceRemote: Boolean) {
         // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
         refreshTriggers.fetchStarted()
+        if (forceRemote) backendPullStarting()
         _isLoading.value = true
         try {
             var courses = dataCache.loadCourses()
