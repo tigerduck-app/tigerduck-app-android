@@ -1,7 +1,7 @@
-## 新功能 / What's new:
+## 🎉 新功能 / What's new:
 {{WHATS_NEW}}
 
-## 注意 / Notes:
+## ⚠️ 注意 / Notes:
 - 從 v1.x 升級會重新進入首次使用引導介面，讓使用者知悉新條款與設定新功能，但是會維持登入狀態。
   User upgrading from v1.x will go through the setup wizard again, with logged in state being kept. This is to let user acknowledge new service terms as well as configure new features.
 - 不同安裝渠道 (APK, F-Droid, Play Store) 由於 Sign Key 不同，將無法互相更新。
