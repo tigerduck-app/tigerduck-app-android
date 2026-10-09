@@ -201,6 +201,25 @@ class StatusBarChipSupportTest {
     }
 
     @Test
+    fun `the ColorOS card hides the text behind the clock`() {
+        // OPPO Reno 11 (ColorOS 16.0.5): the in-class card showed the title
+        // and the countdown, and none of the room, instructor, time or bar.
+        for (maker in listOf("OPPO", "OnePlus", "realme")) {
+            assertEquals(maker, true, skin(manufacturer = maker).cardHidesTextBehindClock)
+        }
+    }
+
+    @Test
+    fun `other cards show the text beside the clock`() {
+        // The POCO C85 (HyperOS 3) card showed the bar and the three lines
+        // under the countdown; so did the Honor X6d 5G's and the Pixel's.
+        for (maker in listOf("Google", "samsung", "Xiaomi", "HONOR", "vivo")) {
+            assertEquals(maker, false, skin(manufacturer = maker).cardHidesTextBehindClock)
+        }
+        assertEquals(false, skin(sdkInt = 35, manufacturer = "OPPO").cardHidesTextBehindClock)
+    }
+
+    @Test
     fun `no chip means no static countdown to keep fresh`() {
         assertEquals(false, skin(manufacturer = "Xiaomi", hyperOsVersion = 2).chipShowsStaticText)
         assertEquals(

@@ -151,6 +151,24 @@ data class DeviceSkin(
             chipSupport != StatusBarChipSupport.UNSUPPORTED
 
     /**
+     * Whether the Live Update's card shows the countdown in place of the
+     * content text, and reads only sub text and ProgressStyle for the rest.
+     *
+     * ColorOS 16 draws a promoted notification as its own Live Alerts card,
+     * in the shade and when the island is tapped (SystemUIPlugin,
+     * `normal_card_content_section`): the title, then one slot holding either
+     * the chronometer or the content text, never both, then the sub text.
+     * BigTextStyle gets the standard template, so the big text never shows,
+     * and the card draws a bar only for a `Notification.ProgressStyle`, not
+     * for `setProgress`. On an OPPO Reno 11 (ColorOS 16.0.5) the in-class card
+     * was the title and the countdown alone, where the POCO C85, Honor X6d 5G
+     * and Pixel cards also showed the bar and the room, instructor and time.
+     * OnePlus and realme run the same plugin.
+     */
+    val cardHidesTextBehindClock: Boolean
+        get() = isOplus && chipSupport != StatusBarChipSupport.UNSUPPORTED
+
+    /**
      * Whether the status bar draws a third-party small icon in its own
      * colours unless every pixel is grey, rather than tinting it.
      *

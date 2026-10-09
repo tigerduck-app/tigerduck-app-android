@@ -60,8 +60,8 @@ import kotlin.math.roundToInt
  * and with it the chip on any OEM whose answer is wrong. The capability is a
  * diagnostic for the settings screen, never a precondition for posting.
  *
- * Some vendors do need code: see [samsungNowBarExtras], and the static
- * countdown below.
+ * Some vendors do need code: see [samsungNowBarExtras], the static countdown
+ * below, and [showsColorOsCard].
  */
 @Singleton
 class LiveActivityNotifier @Inject constructor(
@@ -195,17 +195,29 @@ class LiveActivityNotifier @Inject constructor(
         // The bar does not animate itself; it holds whatever fraction we last
         // posted. LiveActivityManager re-fires us periodically while a class
         // is running so it actually advances — see PROGRESS_TICK_MS there.
-        snapshot.progress?.let { fraction ->
-            val filled = (fraction * PROGRESS_MAX).roundToInt().coerceIn(0, PROGRESS_MAX)
-            builder.setProgress(PROGRESS_MAX, filled, false)
+        val filled = snapshot.progress?.let { fraction ->
+            (fraction * PROGRESS_MAX).roundToInt().coerceIn(0, PROGRESS_MAX)
         }
+        filled?.let { builder.setProgress(PROGRESS_MAX, it, false) }
 
         val expandedLines = LiveUpdateDetails.lines(snapshot)
-        if (expandedLines.isNotEmpty()) {
+        val colorOsCard = showsColorOsCard()
+        if (colorOsCard && filled != null) {
+            // ProgressStyle is promotable like BigTextStyle, and the island
+            // reads neither, so it looks the same.
+            builder.setStyle(
+                NotificationCompat.ProgressStyle()
+                    .addProgressSegment(NotificationCompat.ProgressStyle.Segment(PROGRESS_MAX))
+                    .setProgress(filled)
+            )
+        } else if (expandedLines.isNotEmpty()) {
             builder.setStyle(
                 NotificationCompat.BigTextStyle()
                     .bigText(expandedLines.joinToString("\n"))
             )
+        }
+        if (colorOsCard && expandedLines.isNotEmpty()) {
+            builder.setSubText(expandedLines.joinToString(" · "))
         }
 
         samsungNowBarExtras()?.let { builder.addExtras(it) }
@@ -239,6 +251,21 @@ class LiveActivityNotifier @Inject constructor(
      */
     fun showsStaticCountdown(): Boolean =
         deviceSkin.chipShowsStaticText &&
+            NotificationManagerCompat.from(context).canPostPromotedNotifications()
+
+    /**
+     * Whether the post is drawn as ColorOS's Live Alerts card, which shows the
+     * countdown where the content text would go and reads only sub text and
+     * ProgressStyle besides — see [DeviceSkin.cardHidesTextBehindClock]. So
+     * the room, instructor and time go in the sub text there, and the bar in
+     * a ProgressStyle.
+     *
+     * Only while the platform will promote the post: with ColorOS's per-app
+     * switch off it is an ordinary row, which shows the big text, and would
+     * repeat the sub text in its header.
+     */
+    private fun showsColorOsCard(): Boolean =
+        deviceSkin.cardHidesTextBehindClock &&
             NotificationManagerCompat.from(context).canPostPromotedNotifications()
 
     /**
