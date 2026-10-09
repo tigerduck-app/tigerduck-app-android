@@ -94,7 +94,7 @@ enum class NotificationGroup(
         } ?: return
         val name = context.getString(label ?: R.string.app_name)
         val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(DeviceSkin.current().notificationSmallIcon)
             .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
             .setContentTitle(name)
             .setGroup(key)

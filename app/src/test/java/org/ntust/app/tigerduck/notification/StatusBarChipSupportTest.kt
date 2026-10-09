@@ -19,7 +19,7 @@ class StatusBarChipSupportTest {
         brand: String = manufacturer,
         oneUiVersion: Int? = null,
         hyperOsVersion: Int? = null,
-    ) = DeviceSkin(sdkInt, manufacturer, brand, oneUiVersion, hyperOsVersion)
+    ) = DeviceSkin(sdkInt, manufacturer, brand, oneUiVersion, hyperOsVersion, vivoOverseas = false)
 
     // --- the original standard, still the first gate ----------------------
 

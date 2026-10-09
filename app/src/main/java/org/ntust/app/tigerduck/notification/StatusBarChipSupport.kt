@@ -65,6 +65,12 @@ data class DeviceSkin(
      * unreadable, which includes every non-Xiaomi device and MIUI.
      */
     val hyperOsVersion: Int?,
+    /**
+     * `ro.vivo.product.overseas` reads `yes` — the same property OriginOS's
+     * own SystemUI reads (through `FtBuild.isOverSeas()`) to pick its
+     * overseas code paths. False everywhere else, including China vivo.
+     */
+    val vivoOverseas: Boolean,
 ) {
     val isSamsung: Boolean get() = matches("samsung")
 
@@ -78,6 +84,8 @@ data class DeviceSkin(
     val isOplus: Boolean get() = matches("oppo") || matches("oneplus") || matches("realme")
 
     val isVivo: Boolean get() = matches("vivo")
+
+    val isHonor: Boolean get() = matches("honor")
 
     private fun matches(vendor: String) =
         manufacturer.equals(vendor, ignoreCase = true) || brand.equals(vendor, ignoreCase = true)
@@ -142,6 +150,55 @@ data class DeviceSkin(
         get() = (isXiaomi || isOplus || isVivo) &&
             chipSupport != StatusBarChipSupport.UNSUPPORTED
 
+    /**
+     * Whether the status bar draws a third-party small icon in its own
+     * colours unless every pixel is grey, rather than tinting it.
+     *
+     * AOSP tints the small icon of any app targeting Lollipop or later,
+     * whatever its fill. Overseas OriginOS rasterises the icon first and
+     * tints it only when that bitmap passes the grayscale test or the app is
+     * a system app (OriginOS 6, `StatusBarIconViewBinder.bindIconColors`), so
+     * on a vivo V60 Lite the yellow brand icon stayed yellow next to every
+     * other app's system-coloured one. Its island draws the same small icon,
+     * untinted, so no fill can be yellow in one and system-coloured in the
+     * other. The domestic branch of that SystemUI tints as AOSP does.
+     */
+    val statusBarKeepsColouredSmallIcon: Boolean
+        get() = isVivo && vivoOverseas
+
+    /**
+     * Whether the island paints a VectorDrawable small icon white and draws
+     * any other drawable as it is.
+     *
+     * ColorOS 16's island (SystemUIPlugin, `com.oplus.systemui.plugins`)
+     * applies a white SRC_ATOP filter only when the icon is a VectorDrawable,
+     * so the yellow vector came out white on an OPPO Reno 11. Nothing else
+     * reaches that decision: not setColor, not colorized, not a setting. The
+     * framework there also swaps a third-party app's status bar icon for its
+     * launcher icon, so a coloured small icon only reaches the island and the
+     * Live Update card. OnePlus and realme run the same Oplus ROM.
+     */
+    val islandWhitensVectorSmallIcon: Boolean
+        get() = isOplus
+
+    /**
+     * Whether the island tints every small icon grey except a bitmap.
+     *
+     * MagicOS's island (`CapsuleViewFactory`) skips its tint only for a
+     * BitmapDrawable, so the yellow vector came out grey on a Honor X6d
+     * (MagicOS 10). Its status bar and shade sort the icon by its pixels
+     * instead (`HnNotificationUtils.getSmallIconInfo`): a white or
+     * one-colour icon is tinted in the status bar like every other app's and
+     * drawn in the shade as a white glyph on a colour tile, while a
+     * many-coloured one is drawn as it is in both. The full-colour logo made
+     * the shade show the app icon but put a coloured icon in the status bar,
+     * and the two cannot be split: both read the one tint flag that sort
+     * sets. A one-colour bitmap keeps the status bar monochrome and the
+     * island yellow, and leaves the shade its tile.
+     */
+    val islandGreysNonBitmapSmallIcon: Boolean
+        get() = isHonor
+
     companion object {
         /** First One UI built on Android 16 QPR2, and the first that promotes anything. */
         const val ONE_UI_8_5 = 80500
@@ -160,6 +217,7 @@ data class DeviceSkin(
                 brand = Build.BRAND.orEmpty(),
                 oneUiVersion = systemProperty("ro.build.version.oneui")?.toIntOrNull(),
                 hyperOsVersion = systemProperty("ro.mi.os.version.code")?.toIntOrNull(),
+                vivoOverseas = systemProperty("ro.vivo.product.overseas") == "yes",
             )
         }
 

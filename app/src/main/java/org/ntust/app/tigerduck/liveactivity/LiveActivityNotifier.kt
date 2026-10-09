@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.notificationSmallIcon
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -146,7 +147,7 @@ class LiveActivityNotifier @Inject constructor(
         val localized = localizedContext()
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(deviceSkin.notificationSmallIcon)
             .setContentTitle(snapshot.title)
             .setContentText(statusLine(snapshot, localized))
             .setContentIntent(contentIntent)

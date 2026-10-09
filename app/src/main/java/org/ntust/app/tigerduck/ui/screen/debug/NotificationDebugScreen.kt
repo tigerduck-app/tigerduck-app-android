@@ -43,9 +43,12 @@ import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.notification.AssignmentNotificationReceiver
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
+import org.ntust.app.tigerduck.notification.DeviceSkin
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.NotificationGroup
+import org.ntust.app.tigerduck.notification.notificationLargeIcon
+import org.ntust.app.tigerduck.notification.notificationSmallIcon
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import java.util.Date
@@ -110,7 +113,7 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
         )
         val notification = NotificationCompat.Builder(context, NotificationChannels.SCHOOL_MAIL)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(DeviceSkin.current().notificationSmallIcon)
             .setContentTitle("Preview mail")
             .setContentText("Debug Menu")
             .setAutoCancel(true)
@@ -124,9 +127,10 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
     // Bulletins arrive over FCM, whose builders are play-only, so this mirrors them.
     val sendOther = {
         val notification = NotificationCompat.Builder(context, NotificationChannels.BULLETINS)
-            .setSmallIcon(R.drawable.ic_notification)
+            .setSmallIcon(DeviceSkin.current().notificationSmallIcon)
             // Mirrors the production builders so this preview stays honest.
             .setColor(ContextCompat.getColor(context, R.color.duck_yellow))
+            .setLargeIcon(context.notificationLargeIcon())
             .setContentTitle("Test notification")
             .setContentText("This is a test notification from the developer menu.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
