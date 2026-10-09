@@ -54,6 +54,7 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.util.SingleFlight
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
@@ -210,6 +211,11 @@ class HomeViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    // Every remote fetch goes through this, so launch, a sign-in and a pull
+    // that land together run the pipeline once. Above `init`, whose
+    // collectors run during construction.
+    private val fetchFlight = SingleFlight(viewModelScope)
+
     // Flips true after the first cache read returns (even if the cache is
     // empty). UI keeps empty-state placeholders hidden until this is set so
     // the first frame never flashes "no data" before cached data appears.
@@ -285,8 +291,20 @@ class HomeViewModel @Inject constructor(
             // React to login/logout: clear immediately on sign-out, kick off a
             // fresh data fetch on sign-in so the UI never lingers on a prior
             // user's cached courses.
+            //
+            // A sign-in, not the value the StateFlow replays to a new
+            // collector: a user already signed in at launch is fetched for by
+            // load(), which MainNavigation calls straight after construction.
+            // Fetching here as well ran the whole school pipeline twice on
+            // every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // Whatever is still in flight belongs to the account
+                    // that just left.
+                    fetchFlight.cancel()
                     _allCourses.value = emptyList()
                     _todayCourses.value = emptyList()
                     _allAssignments.value = emptyList()
@@ -295,17 +313,20 @@ class HomeViewModel @Inject constructor(
                     _markedCompletedIds.value = emptySet()
                     hasLoaded = false
                     _initialLoadComplete.value = true
-                } else {
-                    fetchData(forceRemote = true)
+                } else if (signedIn) {
+                    // Launched, so a sign-out mid-fetch reaches the branch
+                    // above without waiting for the fetch to finish.
+                    viewModelScope.launch { fetchRemote() }
                 }
             }
         }
         viewModelScope.launch {
             // Language change → re-fetch so today's courses and assignment
-            // names render in the new locale.
+            // names render in the new locale. A rerun: a fetch already in
+            // flight asked for the old language's names.
             prefs.appLanguageChanged.collect {
                 courseService.clearInMemoryLookupCache()
-                if (authService.authState.value) refresh()
+                if (authService.authState.value) requestRefresh(rerun = true)
             }
         }
         viewModelScope.launch {
@@ -373,19 +394,24 @@ class HomeViewModel @Inject constructor(
             }
             _initialLoadComplete.value = true
 
-            fetchData(forceRemote = true)
+            fetchRemote()
         }
     }
 
-    fun refresh() {
+    fun refresh() = requestRefresh(rerun = false)
+
+    private fun requestRefresh(rerun: Boolean) {
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) {
                 _noNetworkEvent.tryEmit(Unit)
                 return@launch
             }
-            fetchData(forceRemote = true)
+            if (rerun) fetchFlight.rerun { fetchData(forceRemote = true) } else fetchRemote()
         }
     }
+
+    /** The full fetch — backend, NTUST and Moodle — or the one already running. */
+    private suspend fun fetchRemote() = fetchFlight.join { fetchData(forceRemote = true) }
 
     private var lastForegroundSyncMs = 0L
 

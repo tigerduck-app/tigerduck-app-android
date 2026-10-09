@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.SingleFlight
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
@@ -66,6 +67,11 @@ class CalendarViewModel @Inject constructor(
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
     private var hasLoaded = false
+
+    // Every fetch goes through this, so launch, a sign-in and a pull that
+    // land together fetch once. Above `init`, whose collectors run during
+    // construction.
+    private val fetchFlight = SingleFlight(viewModelScope)
 
     /**
      * Semester boundaries and school holidays, from the published academic
@@ -165,16 +171,25 @@ class CalendarViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            // Clear / refresh in sync with auth changes.
+            // Clear / refresh in sync with auth changes — a sign-in while the
+            // app is open, not the value replayed to this collector. load()
+            // fetches for a user signed in at launch; fetching on the replay
+            // as well fetched twice on every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // A fetch still running belongs to the account that left.
+                    fetchFlight.cancel()
                     // Holidays are public school information, so they stay
                     // on the calendar after a sign-out; only the account's
                     // own events go.
                     _events.value = academicEvents()
                     hasLoaded = false
-                } else {
-                    fetchData()
+                } else if (signedIn) {
+                    // Launched, so a sign-out mid-fetch is not held up by it.
+                    viewModelScope.launch { fetchFlight.join(::fetchData) }
                 }
             }
         }
@@ -228,7 +243,7 @@ class CalendarViewModel @Inject constructor(
             _events.value = withAcademicEvents(dataCache.loadCalendarEvents())
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.authState.value) fetchData()
+            if (authService.authState.value) fetchFlight.join(::fetchData)
         }
     }
 
@@ -257,7 +272,7 @@ class CalendarViewModel @Inject constructor(
                 _isLoading.value = false
                 return@launch
             }
-            fetchData()
+            fetchFlight.join(::fetchData)
         }
     }
 

@@ -43,6 +43,7 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.util.SingleFlight
 import javax.inject.Inject
 
 @HiltViewModel
@@ -192,6 +193,10 @@ class ClassTableViewModel @Inject constructor(
 
     private var hasLoaded = false
 
+    // Every fetch goes through this, so launch, a sign-in and a pull that
+    // land together run the pipeline once.
+    private val fetchFlight = SingleFlight(viewModelScope)
+
     init {
         viewModelScope.launch {
             // Tick at 5s so transitions land within at most a few seconds of
@@ -234,9 +239,17 @@ class ClassTableViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            // Clear on logout, refresh on login.
+            // Clear on logout, refresh on login — a login while the app is
+            // open, not the value replayed to this collector. load() fetches
+            // for a user signed in at launch; fetching on the replay as well
+            // ran the pipeline twice on every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // A fetch still running belongs to the account that left.
+                    fetchFlight.cancel()
                     _courses.value = emptyList()
                     _assignments.value = emptyList()
                     _selectedCourse.value = null
@@ -244,17 +257,19 @@ class ClassTableViewModel @Inject constructor(
                     courseCustomNames = emptyMap()
                     hasLoaded = false
                     TigerDuckTheme.clearCourseColorMap()
-                } else {
-                    fetchData()
+                } else if (signedIn) {
+                    // Launched, so a sign-out mid-fetch is not held up by it.
+                    viewModelScope.launch { fetchFlight.join(::fetchData) }
                 }
             }
         }
         viewModelScope.launch {
             // Language change → re-fetch from the network so course names
-            // come back in the new locale.
+            // come back in the new locale. A rerun: a fetch already in flight
+            // asked for the old language's names.
             appPreferences.appLanguageChanged.collect {
                 courseService.clearInMemoryLookupCache()
-                if (authService.authState.value) refresh()
+                if (authService.authState.value) requestRefresh(rerun = true)
             }
         }
         viewModelScope.launch {
@@ -350,7 +365,8 @@ class ClassTableViewModel @Inject constructor(
             _courses.value = cached
             TigerDuckTheme.buildCourseColorMap(cached)
             refreshLiveSemesterCourses()
-            fetchData()
+            // A rerun: a fetch in flight is for the term just left.
+            fetchFlight.rerun(::fetchData)
         }
     }
 
@@ -687,7 +703,7 @@ class ClassTableViewModel @Inject constructor(
                     cachedMoodleIds.mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
             }
             refreshLiveSemesterCourses()
-            fetchData()
+            fetchFlight.join(::fetchData)
         }
     }
 
@@ -743,11 +759,15 @@ class ClassTableViewModel @Inject constructor(
             } finally {
                 dataCache.endReset(semester)
             }
-            fetchData()
+            // A rerun: a fetch that started before the reset would bring the
+            // old roster back.
+            fetchFlight.rerun(::fetchData)
         }
     }
 
-    fun refresh() {
+    fun refresh() = requestRefresh(rerun = false)
+
+    private fun requestRefresh(rerun: Boolean) {
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
@@ -756,7 +776,7 @@ class ClassTableViewModel @Inject constructor(
                 _isLoading.value = false
                 return@launch
             }
-            fetchData()
+            if (rerun) fetchFlight.rerun(::fetchData) else fetchFlight.join(::fetchData)
         }
     }
 
