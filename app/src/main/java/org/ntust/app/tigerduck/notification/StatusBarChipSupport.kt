@@ -217,7 +217,26 @@ data class DeviceSkin(
     val islandGreysNonBitmapSmallIcon: Boolean
         get() = isHonor
 
+    /**
+     * The preference key of the chip's switch on the page the promotion
+     * settings action opens, when that page is more than the one switch.
+     *
+     * ColorOS 16 sends the action to the app's whole notification page
+     * (`com.oplus.notificationmanager`), where "Show Live Updates on Live
+     * Alerts" ships off between the other switches. That page reads Settings'
+     * `:settings:fragment_args_key` extra and pulses the row it names once, as
+     * it does for a search result: on an OPPO Reno 11 (ColorOS 16.0.5) the row
+     * lit up 0.6 s after the page opened and faded over about a second.
+     * OnePlus and realme run the same page. Null elsewhere: AOSP's promotion
+     * page is the one switch, and no other skin reads this key.
+     */
+    val promotionSettingsHighlightKey: String?
+        get() = if (isOplus) COLOR_OS_LIVE_ALERT_SWITCH else null
+
     companion object {
+        /** `PreferenceKey.SHOWN_AS_LIVE_ALERT` in ColorOS's notification manager. */
+        private const val COLOR_OS_LIVE_ALERT_SWITCH = "shown_as_live_alert_enable_key"
+
         /** First One UI built on Android 16 QPR2, and the first that promotes anything. */
         const val ONE_UI_8_5 = 80500
 
