@@ -206,7 +206,12 @@ fun ClassTableScreen(
         stringResource(R.string.weekday_sun_short),
     )
 
-    LaunchedEffect(viewModel) { viewModel.load() }
+    LaunchedEffect(viewModel) { 
+        viewModel.load()
+        // Each time the page enters composition: a return to it from
+        // another page fetches if its RefreshPolicy asks for that.
+        viewModel.onPageShown()
+    }
     LaunchedEffect(viewModel) {
         viewModel.noNetworkEvent.collect {
             snackbarHostState.showSnackbar(errorNetworkUnavailable)

@@ -135,7 +135,12 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    LaunchedEffect(Unit) { 
+        viewModel.load()
+        // Each time the page enters composition: a return to it from
+        // another page fetches if its RefreshPolicy asks for that.
+        viewModel.onPageShown()
+    }
 
     // When the Home screen leaves the foreground (tab switch, background),
     // reset the filter away from 已忽略 if it ended up empty. This makes the

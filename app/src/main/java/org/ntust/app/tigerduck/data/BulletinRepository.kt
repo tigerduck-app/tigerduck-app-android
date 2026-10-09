@@ -59,18 +59,13 @@ class BulletinRepository @Inject constructor() {
     }
 
     /**
-     * The list as the last refresh left it, if that was under [maxAgeMs]
-     * ago and for the same filter; null when the list should be refreshed.
-     *
-     * The list screen's view model is rebuilt on every visit, so without
-     * this each visit refetched the first page and the five behind it.
+     * The list as the last refresh in this process left it, for the same
+     * filter; null when the list has not been refreshed since the app
+     * started. The list screen's view model is rebuilt on every visit, so
+     * this is how a visit tells a launch from a return.
      */
-    fun recentList(includeDeleted: Boolean, nowMs: Long, maxAgeMs: Long): ListSession? =
-        listSession?.takeIf {
-            it.includeDeleted == includeDeleted &&
-                nowMs >= it.fetchedAtMs &&
-                nowMs - it.fetchedAtMs < maxAgeMs
-        }
+    fun listSession(includeDeleted: Boolean): ListSession? =
+        listSession?.takeIf { it.includeDeleted == includeDeleted }
 
     @Synchronized
     fun putSummaries(items: List<BulletinSummary>) {

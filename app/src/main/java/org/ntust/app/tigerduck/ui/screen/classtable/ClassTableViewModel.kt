@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
+import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -26,8 +27,8 @@ import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.data.SchoolDataFreshness
-import org.ntust.app.tigerduck.data.holdsNoSchoolData
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.shared.computeOngoingCourses
@@ -47,6 +48,13 @@ import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.SingleFlight
 import javax.inject.Inject
+
+/**
+ * When the class table fetches on its own — see [RefreshPolicy]. The default:
+ * on launch only. A timetable changes a few times a term, during 加退選,
+ * and a pull covers those.
+ */
+internal val ClassTableRefreshPolicy = RefreshPolicy()
 
 @HiltViewModel
 class ClassTableViewModel @Inject constructor(
@@ -202,9 +210,8 @@ class ClassTableViewModel @Inject constructor(
     // land together run the pipeline once.
     private val fetchFlight = SingleFlight(viewModelScope)
 
-    // When this view model last fetched of its own accord, for
-    // SchoolDataFreshness.shouldAutoRefresh. In memory: a new process may try.
-    private var lastAutoRefreshMs = 0L
+    private val refreshTriggers =
+        RefreshTriggers(ClassTableRefreshPolicy, SystemClock::elapsedRealtime)
 
     init {
         viewModelScope.launch {
@@ -712,27 +719,20 @@ class ClassTableViewModel @Inject constructor(
                     cachedMoodleIds.mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
             }
             refreshLiveSemesterCourses()
-            autoRefresh()
+            if (refreshTriggers.onLaunch()) fetchFlight.join(::fetchData)
         }
     }
 
-    /**
-     * Fetches when the timetable is older than [SchoolDataFreshness] allows.
-     * Called when the app comes back to the foreground.
-     */
-    fun refreshIfStale() {
+    /** The app came back to the foreground. */
+    fun onAppForeground() {
         if (!hasLoaded || !authService.authState.value) return
-        viewModelScope.launch { autoRefresh() }
+        if (refreshTriggers.onForeground()) viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
-    private suspend fun autoRefresh() {
-        if (!networkChecker.isAvailable()) return
-        val now = System.currentTimeMillis()
-        val syncedAt = appPreferences.schoolDataSyncedAtMs.value
-        val cacheEmpty = dataCache.holdsNoSchoolData()
-        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now, cacheEmpty)) return
-        lastAutoRefreshMs = now
-        fetchFlight.join(::fetchData)
+    /** The class table was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
     /**
@@ -814,6 +814,8 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private suspend fun fetchData() {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
         val studentId = authService.storedStudentId ?: run { _isLoading.value = false; return }
         val password = authService.storedPassword ?: run { _isLoading.value = false; return }
         if (!networkChecker.isAvailable()) {

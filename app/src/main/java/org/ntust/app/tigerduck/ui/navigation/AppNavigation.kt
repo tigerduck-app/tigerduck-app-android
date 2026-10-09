@@ -233,13 +233,13 @@ fun MainNavigation(
     DisposableEffect(pollingLifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
-                // Back in the foreground: fetch whatever has gone stale while
-                // the app was away. Each screen asks for itself, and the
-                // services hand the three of them one answer. Before load()
-                // has run (cold start) these do nothing; load() decides then.
-                homeViewModel.refreshIfStale()
-                classTableViewModel.refreshIfStale()
-                calendarViewModel.refreshIfStale()
+                // Back in the foreground. Each page fetches if its
+                // RefreshPolicy says so, and the services hand the ones that
+                // do one answer between them. Before load() has run (a cold
+                // start) these do nothing: that is the launch, not a return.
+                homeViewModel.onAppForeground()
+                classTableViewModel.onAppForeground()
+                calendarViewModel.onAppForeground()
             } else if (event == Lifecycle.Event.ON_RESUME) {
                 homeViewModel.startRevisionPolling()
             } else if (event == Lifecycle.Event.ON_PAUSE) {

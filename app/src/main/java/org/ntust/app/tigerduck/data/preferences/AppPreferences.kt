@@ -575,11 +575,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /**
      * When Moodle last answered a whole round of assignments, epoch ms; 0
      * for never, or not since the last sign-out. The age of what Home, the
-     * class table and the calendar show, which decides whether launch, a
-     * return to the app or the background worker fetches again — see
-     * [org.ntust.app.tigerduck.data.SchoolDataFreshness].
+     * class table and the calendar show, and what the background worker
+     * measures its assignment refresh against — see
+     * [org.ntust.app.tigerduck.ui.RefreshPolicies].
      *
-     * A flow, for the "updated … ago" line that shows it.
+     * A flow, for the "Last synced" row that shows it.
      */
     private val _schoolDataSyncedAtMs =
         MutableStateFlow(prefs.getLong("schoolDataSyncedAtMs", 0L))
@@ -595,6 +595,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         prefs.edit().remove("schoolDataSyncedAtMs").apply()
         _schoolDataSyncedAtMs.value = 0L
     }
+
+    /** When the background worker last synced with the backend, epoch ms. */
+    var backgroundOverridesSyncedAtMs: Long
+        get() = prefs.getLong("backgroundOverridesSyncedAtMs", 0L)
+        set(value) = prefs.edit().putLong("backgroundOverridesSyncedAtMs", value).apply()
+
+    /**
+     * When the background worker last refreshed the timetable, epoch ms. Its
+     * own clock, unlike assignments': only the worker reads it, and only if
+     * the class table asks for background refreshes.
+     */
+    var backgroundCoursesSyncedAtMs: Long
+        get() = prefs.getLong("backgroundCoursesSyncedAtMs", 0L)
+        set(value) = prefs.edit().putLong("backgroundCoursesSyncedAtMs", value).apply()
 
     /**
      * Debug-only escape hatch from the Developer section: when true,

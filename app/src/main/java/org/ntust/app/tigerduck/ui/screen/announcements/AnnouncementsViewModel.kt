@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.BulletinRepository
+import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.SyncSource
@@ -30,11 +31,11 @@ import java.time.Instant
 import javax.inject.Inject
 
 /**
- * How long a refresh of the list stands for a later visit. Bulletins arrive a
- * few a day, so a visit inside this window has nothing new to fetch; a pull
- * still refreshes, whatever the age.
+ * When the announcement list fetches on its own — see [RefreshPolicy]. The
+ * default: on the first visit after launch only. Bulletins arrive a few a
+ * day, and the ones a user subscribes to are pushed.
  */
-private const val LIST_FRESH_FOR_MS = 5 * 60_000L
+internal val AnnouncementsRefreshPolicy = RefreshPolicy()
 
 /**
  * Drives AnnouncementsScreen. Ports BulletinsViewModel.swift faithfully:
@@ -123,21 +124,30 @@ class AnnouncementsViewModel @Inject constructor(
             }
             // This view model is rebuilt on every visit, so each visit used
             // to refetch the first page and prefetch five more behind it,
-            // only to replace the cached list with the same list. A visit
-            // soon after a refresh keeps what that refresh saved, and picks
-            // the cursor up where it stopped. A pull still refreshes.
-            val recent = if (cached.isEmpty()) null else repository.recentList(
-                includeDeleted = _state.value.showDeleted,
-                nowMs = SystemClock.elapsedRealtime(),
-                maxAgeMs = LIST_FRESH_FOR_MS,
-            )
-            if (recent != null) {
-                nextCursor = recent.nextCursor
-                _state.update {
-                    it.copy(loadState = LoadState.Loaded, hasMore = recent.nextCursor != null)
-                }
-            } else {
+            // only to replace the cached list with the same list. A return
+            // the policy does not fetch for keeps what the last refresh
+            // saved, and picks the cursor up where it stopped.
+            val session = repository.listSession(_state.value.showDeleted)
+            val policy = AnnouncementsRefreshPolicy
+            val fetch = when {
+                // Nothing to show: there is no list to keep.
+                cached.isEmpty() -> true
+                // The first visit since the app started.
+                session == null -> policy.onLaunch
+                else -> policy.onRevisit && RefreshPolicy.hasPassed(
+                    session.fetchedAtMs, SystemClock.elapsedRealtime(), policy.minInterval,
+                )
+            }
+            if (fetch) {
                 refresh()
+            } else {
+                // Without a session (a policy that skips the launch) there is
+                // no cursor either, so the cached list does not page on until
+                // a pull.
+                nextCursor = session?.nextCursor
+                _state.update {
+                    it.copy(loadState = LoadState.Loaded, hasMore = session?.nextCursor != null)
+                }
             }
             launch {
                 try {

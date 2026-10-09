@@ -228,7 +228,7 @@ class MoodleService @Inject constructor(
                 AssignmentsRound(envelope, statuses, confirmed)
             }
             // Stamped here rather than at each caller, so every screen and
-            // the worker date the data alike — see SchoolDataFreshness. Only
+            // the worker date the data alike — see RefreshPolicies. Only
             // for a round that got an answer to every status call: a failed
             // one reads as "not submitted", and a stamp would keep the next
             // automatic fetch from correcting it. And only while the token

@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.calendar
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,8 +21,8 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseRosterMerge
-import org.ntust.app.tigerduck.data.SchoolDataFreshness
-import org.ntust.app.tigerduck.data.holdsNoSchoolData
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -38,6 +39,19 @@ import org.ntust.app.tigerduck.util.SingleFlight
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
+
+/**
+ * When the calendar fetches on its own — see [RefreshPolicy]. The same as
+ * Home's, because the calendar shows the same Moodle assignments.
+ */
+internal val CalendarRefreshPolicy = RefreshPolicy(
+    onLaunch = true,
+    onForeground = true,
+    onRevisit = true,
+    background = 15.minutes,
+    minInterval = 1.minutes,
+)
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
@@ -79,9 +93,8 @@ class CalendarViewModel @Inject constructor(
     // construction.
     private val fetchFlight = SingleFlight(viewModelScope)
 
-    // When this view model last fetched of its own accord, for
-    // SchoolDataFreshness.shouldAutoRefresh. In memory: a new process may try.
-    private var lastAutoRefreshMs = 0L
+    private val refreshTriggers =
+        RefreshTriggers(CalendarRefreshPolicy, SystemClock::elapsedRealtime)
 
     /**
      * Semester boundaries and school holidays, from the published academic
@@ -285,28 +298,22 @@ class CalendarViewModel @Inject constructor(
                 withAcademicEvents(withCachedAssignments(dataCache.loadCalendarEvents()))
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.authState.value) autoRefresh()
+            if (authService.authState.value && refreshTriggers.onLaunch()) {
+                fetchFlight.join(::fetchData)
+            }
         }
     }
 
-    /**
-     * Fetches when the calendar is older than [SchoolDataFreshness] allows.
-     * Called when the app comes back to the foreground. The school ICS rides
-     * along: it changes less often than anything else here.
-     */
-    fun refreshIfStale() {
+    /** The app came back to the foreground. */
+    fun onAppForeground() {
         if (!hasLoaded || !authService.authState.value) return
-        viewModelScope.launch { autoRefresh() }
+        if (refreshTriggers.onForeground()) viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
-    private suspend fun autoRefresh() {
-        if (!networkChecker.isAvailable()) return
-        val now = System.currentTimeMillis()
-        val syncedAt = prefs.schoolDataSyncedAtMs.value
-        val cacheEmpty = dataCache.holdsNoSchoolData()
-        if (!SchoolDataFreshness.shouldAutoRefresh(syncedAt, lastAutoRefreshMs, now, cacheEmpty)) return
-        lastAutoRefreshMs = now
-        fetchFlight.join(::fetchData)
+    /** The calendar was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(
@@ -341,6 +348,8 @@ class CalendarViewModel @Inject constructor(
     }
 
     private suspend fun fetchData() {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
         _isLoading.value = true
         try {
             val (schoolEvents, moodleEvents) = coroutineScope {

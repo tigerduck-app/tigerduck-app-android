@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.AppConstants
+import android.os.SystemClock
 import android.util.Log
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.BuildConfig
@@ -41,8 +42,8 @@ import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.data.SchoolDataFreshness
-import org.ntust.app.tigerduck.data.holdsNoSchoolData
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -61,6 +62,20 @@ import org.ntust.app.tigerduck.util.SingleFlight
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
+
+/**
+ * When Home fetches on its own — see [RefreshPolicy]. Everything is on,
+ * because Home's assignment list is the one thing in the app that goes stale
+ * in minutes: something submitted on Moodle should show here without a pull.
+ */
+internal val HomeRefreshPolicy = RefreshPolicy(
+    onLaunch = true,
+    onForeground = true,
+    onRevisit = true,
+    background = 15.minutes,
+    minInterval = 1.minutes,
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -218,6 +233,8 @@ class HomeViewModel @Inject constructor(
     // that land together run the pipeline once. Above `init`, whose
     // collectors run during construction.
     private val fetchFlight = SingleFlight(viewModelScope)
+
+    private val refreshTriggers = RefreshTriggers(HomeRefreshPolicy, SystemClock::elapsedRealtime)
 
     // Flips true after the first cache read returns (even if the cache is
     // empty). UI keeps empty-state placeholders hidden until this is set so
@@ -382,10 +399,6 @@ class HomeViewModel @Inject constructor(
 
     private var hasLoaded = false
 
-    // When this view model last fetched of its own accord, for
-    // SchoolDataFreshness.shouldAutoRefresh. In memory: a new process may try.
-    private var lastAutoRefreshMs = 0L
-
     fun load() {
         if (hasLoaded) return
         hasLoaded = true
@@ -404,36 +417,27 @@ class HomeViewModel @Inject constructor(
             }
             _initialLoadComplete.value = true
 
-            // The school servers only when what the cache holds is old
-            // enough to be worth asking about again; the backend sync that
-            // carries other devices' marks runs either way, as it always has.
-            if (!autoRefresh()) runCatching { syncAndRepublish() }
+            // The school servers as HomeRefreshPolicy says; the backend sync
+            // that carries other devices' marks runs either way, as it
+            // always has.
+            if (refreshTriggers.onLaunch()) fetchRemote() else runCatching { syncAndRepublish() }
         }
     }
 
     /**
-     * Fetches when what Home shows is older than [SchoolDataFreshness]
-     * allows. Called when the app comes back to the foreground, which used
-     * to sync only with the backend: a morning in the background left the
-     * morning's assignments on screen until the user pulled.
+     * The app came back to the foreground. Used to sync only with the
+     * backend, so a morning in the background left the morning's
+     * assignments on screen until the user pulled.
      */
-    fun refreshIfStale() {
+    fun onAppForeground() {
         if (!hasLoaded || !authService.authState.value) return
-        viewModelScope.launch { autoRefresh() }
+        if (refreshTriggers.onForeground()) viewModelScope.launch { fetchRemote() }
     }
 
-    /** Fetches if the data is stale; false when it did not. */
-    private suspend fun autoRefresh(): Boolean {
-        if (!networkChecker.isAvailable()) return false
-        val now = System.currentTimeMillis()
-        val due = SchoolDataFreshness.shouldAutoRefresh(
-            prefs.schoolDataSyncedAtMs.value, lastAutoRefreshMs, now,
-            cacheEmpty = dataCache.holdsNoSchoolData(),
-        )
-        if (!due) return false
-        lastAutoRefreshMs = now
-        fetchRemote()
-        return true
+    /** Home was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) viewModelScope.launch { fetchRemote() }
     }
 
     /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
@@ -548,6 +552,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun fetchData(forceRemote: Boolean) {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
         _isLoading.value = true
         try {
             var courses = dataCache.loadCourses()
