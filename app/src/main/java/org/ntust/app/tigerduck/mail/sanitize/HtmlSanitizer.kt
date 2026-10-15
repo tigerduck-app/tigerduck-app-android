@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.mail.sanitize
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
@@ -69,7 +70,22 @@ object HtmlSanitizer {
             }
         }
 
-        val clean = Cleaner(safelist(allowRemoteImages)).clean(dirty)
+        // jsoup's Cleaner drops an http(s) href it cannot parse as written, such as
+        // `https://evil.example\@ntust.edu.tw`: the text is left unlinked, and the host check that
+        // would warn about it never runs. Only such an href is rewritten first, the way a browser
+        // reads it (OkHttp's HttpUrl, as SchoolMailMessageViewModel.targetOf does), so it stays a
+        // link and gets its warning; every href the Cleaner keeps is left as written.
+        val safelist = safelist(allowRemoteImages)
+        for (link in dirty.select("a[href]")) {
+            val attribute = link.attributes().asList().first { it.key == "href" }
+            if (safelist.isSafeAttribute(link.normalName(), link, attribute)) continue
+            val href = attribute.value.trim()
+            val scheme = href.substringBefore(':', missingDelimiterValue = "").lowercase()
+            if (scheme != "http" && scheme != "https") continue
+            href.toHttpUrlOrNull()?.let { link.attr("href", it.toString()) }
+        }
+
+        val clean = Cleaner(safelist).clean(dirty)
         for (element in clean.select("[style]")) {
             val filtered = CssFilter.filter(element.attr("style"))
             if (filtered == null) element.removeAttr("style") else element.attr("style", filtered)
