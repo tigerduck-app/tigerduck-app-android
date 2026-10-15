@@ -3602,7 +3602,7 @@
         },
         {
             "uniqueId": "org.jsoup:jsoup",
-            "artifactVersion": "1.23.1",
+            "artifactVersion": "1.22.2",
             "name": "jsoup Java HTML Parser",
             "description": "jsoup is a Java library that simplifies working with real-world HTML and XML. It offers an easy-to-use API for URL fetching, data parsing, extraction, and manipulation using DOM API methods, CSS, and xpath selectors. jsoup implements the WHATWG HTML5 specification, and parses HTML to the same DOM as modern browsers.",
             "website": "https://jsoup.org/",
