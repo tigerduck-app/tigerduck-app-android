@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Netfang</string>
     <string name="course_member_groups">Hópar</string>
+    <string name="course_member_profile_picture">Prófílmynd</string>
     <string name="course_members_auditors">Áheyrnarnemar</string>
     <string name="course_members_students">Nemendur</string>
     <string name="course_members_tas">Aðstoðarkennarar</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Deildu nafnlausum notkunargögnum (heimsóttum síðum, notkun widgets) til að hjálpa til við að bæta TigerDuck</string>
     <string name="settings_analytics_enabled">Notkunargreining</string>
     <string name="settings_api_endpoint">API-endapunktur</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Breyta</string>
+    <string name="settings_api_endpoint_change_alert_message">Eftir innskráningu fær þessi endapunktur nemandanúmerið þitt og Moodle táknið. Allir innskráðir reikningar verða skráðir út.</string>
+    <string name="settings_api_endpoint_change_alert_title">Breyta API-endapunktinum?</string>
     <string name="settings_api_endpoint_change_title">Breyta endapunkti</string>
     <string name="settings_api_endpoint_checking">Athugar…</string>
     <string name="settings_api_endpoint_effective_title">Virkur endapunktur</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Festa námskeið dagsins efst í stundatöflunni</string>
     <string name="settings_privacy_policy">Persónuverndarstefna</string>
     <string name="settings_push_server_nav_label">Þjónsendari</string>
-    <string name="settings_remember_bulletin_filter">Muna síur tilkynninga</string>
     <string name="settings_reset_course_colors">Endurúthluta litum námskeiða</string>
     <string name="settings_reset_course_colors_confirm_message">Hverju námskeiði verður úthlutað nýjum, einstökum lit — fyrst úr fyrirfram skilgreindum litapall, og síðan af handahófi þegar pallinn klárast.</string>
     <string name="settings_reset_course_colors_confirm_title">Endurúthluta litum námskeiða?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Mistókst</string>
     <string name="sync_status_hours_ago_short">%1$d klst síðan</string>
     <string name="sync_status_just_now">Rétt í þessu</string>
-    <string name="sync_status_last_synced">Síðast samstillt</string>
     <string name="sync_status_last_updated">Síðast uppfært</string>
     <string name="sync_status_minimal">Takmarkað</string>
     <string name="sync_status_minutes_ago_short">%1$d mín síðan</string>
     <string name="sync_status_nav_label">TigerSync staða</string>
-    <string name="sync_status_never_synced">Aldrei samstillt</string>
     <string name="sync_status_never_updated">Aldrei uppfært</string>
     <string name="sync_status_ok">Í lagi</string>
     <string name="sync_status_syncing">Samstillir…</string>

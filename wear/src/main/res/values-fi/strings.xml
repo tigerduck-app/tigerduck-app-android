@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Sähköposti</string>
     <string name="course_member_groups">Ryhmät</string>
+    <string name="course_member_profile_picture">Profiilikuva</string>
     <string name="course_members_auditors">Kuuntelijat</string>
     <string name="course_members_students">Opiskelijat</string>
     <string name="course_members_tas">Opetusassistentit</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Jaa anonyymiä käyttödataa (vieraillut sivut, widgetien käyttö) TigerDuckin kehittämiseksi</string>
     <string name="settings_analytics_enabled">Käyttöanalytiikka</string>
     <string name="settings_api_endpoint">API-päätepiste</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Vaihda</string>
+    <string name="settings_api_endpoint_change_alert_message">Kun kirjaudut sisään, tämä päätepiste saa opiskelijanumerosi ja Moodle-tunnuksesi. Kaikki kirjautuneet tilit kirjataan ulos.</string>
+    <string name="settings_api_endpoint_change_alert_title">Vaihdetaanko API-päätepiste?</string>
     <string name="settings_api_endpoint_change_title">Vaihda päätepiste</string>
     <string name="settings_api_endpoint_checking">Tarkistetaan…</string>
     <string name="settings_api_endpoint_effective_title">Käytössä oleva päätepiste</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Kiinnitä tämän päivän kurssit lukujärjestyksen yläosaan</string>
     <string name="settings_privacy_policy">Tietosuojakäytäntö</string>
     <string name="settings_push_server_nav_label">Palvelimen push</string>
-    <string name="settings_remember_bulletin_filter">Muista tiedotesuodattimet</string>
     <string name="settings_reset_course_colors">Määritä kurssien värit uudelleen</string>
     <string name="settings_reset_course_colors_confirm_message">Kullekin kurssille määritetään uusi, ainutlaatuinen väri — ensin esivalintapaletista, sitten satunnaisesti, kun paletti loppuu.</string>
     <string name="settings_reset_course_colors_confirm_title">Määritetäänkö kurssien värit uudelleen?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Epäonnistui</string>
     <string name="sync_status_hours_ago_short">%1$d t sitten</string>
     <string name="sync_status_just_now">Juuri nyt</string>
-    <string name="sync_status_last_synced">Viimeksi synkronoitu</string>
     <string name="sync_status_last_updated">Viimeksi päivitetty</string>
     <string name="sync_status_minimal">Rajoitettu</string>
     <string name="sync_status_minutes_ago_short">%1$d min sitten</string>
     <string name="sync_status_nav_label">TigerSync-tila</string>
-    <string name="sync_status_never_synced">Ei koskaan synkronoitu</string>
     <string name="sync_status_never_updated">Ei koskaan päivitetty</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synkronoidaan…</string>

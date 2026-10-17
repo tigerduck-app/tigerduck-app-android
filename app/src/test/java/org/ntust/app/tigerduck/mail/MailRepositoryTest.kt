@@ -2,6 +2,7 @@
 
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -535,6 +536,75 @@ class MailRepositoryTest {
         val uid = server.folders.getValue("草稿匣").single().summary.uid
         repo.discardDraft(uid)
         assertTrue(server.subjects("草稿匣").isEmpty())
+    }
+
+    @Test
+    fun `a mail read, moved or deleted is told to whoever keeps a list of its folder`() = runTest {
+        val uid = server.deliver("a")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        val generation = setup.account.accountGeneration
+        val changes = mutableListOf<MailChange>()
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { repo.changes.collect { changes += it } }
+        repo.loadPage("INBOX", null)
+        repo.setSeen("INBOX", uid, true)
+        repo.delete("INBOX", uid)
+        val trashUid = server.folders.getValue("回收筒").single().summary.uid
+        repo.delete("回收筒", trashUid)
+        runCurrent()
+        assertEquals(
+            listOf(
+                MailChange.Seen("INBOX", uid, true, generation),
+                MailChange.Removed("INBOX", uid, generation),
+                MailChange.Changed("回收筒", generation),
+                MailChange.Removed("回收筒", trashUid, generation),
+            ),
+            changes,
+        )
+    }
+
+    @Test
+    fun `a sent copy and a saved or discarded draft are told the same way`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        val generation = setup.account.accountGeneration
+        val changes = mutableListOf<MailChange>()
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { repo.changes.collect { changes += it } }
+        repo.send(OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "s", "hi"), answered = null)
+        val draft = OutgoingMail(repo.selfAddress(), emptyList(), emptyList(), emptyList(), "draft", "x")
+        repo.saveDraft(draft, replacingUid = null)
+        val uid = server.folders.getValue("草稿匣").single().summary.uid
+        repo.discardDraft(uid)
+        runCurrent()
+        assertEquals(
+            listOf(
+                MailChange.Changed("寄件備份匣", generation),
+                MailChange.Changed("草稿匣", generation),
+                MailChange.Removed("草稿匣", uid, generation),
+            ),
+            changes,
+        )
+    }
+
+    @Test
+    fun `a write that ends after another student signed in over this one is told as the first student's`() = runTest {
+        val uid = server.deliver("a")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        val first = setup.account.accountGeneration
+        val changes = mutableListOf<MailChange>()
+        backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { repo.changes.collect { changes += it } }
+        server.passwords["B10000002"] = "pw"
+        // The other student signs in while the first's mark-read is on the server; a list loaded
+        // for them since must not take the write as theirs.
+        server.onSetSeen = {
+            server.onSetSeen = null
+            runBlocking { setup.account.signIn("b10000002", "pw") }
+        }
+        repo.setSeen("INBOX", uid, true)
+        runCurrent()
+        assertTrue(first != setup.account.accountGeneration)
+        assertEquals(listOf(MailChange.Seen("INBOX", uid, true, first)), changes)
     }
 
     @Test

@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-post</string>
     <string name="course_member_groups">Grupper</string>
+    <string name="course_member_profile_picture">Profilbild</string>
     <string name="course_members_auditors">Åhörare</string>
     <string name="course_members_students">Studenter</string>
     <string name="course_members_tas">Assistenter</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Dela anonym användningsdata (besökta sidor, användning av widgets) för att hjälpa till att förbättra TigerDuck</string>
     <string name="settings_analytics_enabled">Användningsanalys</string>
     <string name="settings_api_endpoint">API-slutpunkt</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Ändra</string>
+    <string name="settings_api_endpoint_change_alert_message">När du loggar in får den här slutpunkten ditt student-ID och din Moodle-token. Alla inloggade konton loggas ut.</string>
+    <string name="settings_api_endpoint_change_alert_title">Ändra API-slutpunkten?</string>
     <string name="settings_api_endpoint_change_title">Ändra slutpunkt</string>
     <string name="settings_api_endpoint_checking">Kontrollerar…</string>
     <string name="settings_api_endpoint_effective_title">Gällande slutpunkt</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Fäst dagens kurser överst i schemat</string>
     <string name="settings_privacy_policy">Integritetspolicy</string>
     <string name="settings_push_server_nav_label">Server-push</string>
-    <string name="settings_remember_bulletin_filter">Kom ihåg anslagstavlefilter</string>
     <string name="settings_reset_course_colors">Tilldela kursfärger igen</string>
     <string name="settings_reset_course_colors_confirm_message">Varje kurs får en ny, unik färg — först från förinställd palett, sedan slumpmässigt när paletten är slut.</string>
     <string name="settings_reset_course_colors_confirm_title">Tilldela kursfärger igen?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Misslyckades</string>
     <string name="sync_status_hours_ago_short">%1$d h sedan</string>
     <string name="sync_status_just_now">Just nu</string>
-    <string name="sync_status_last_synced">Senast synkad</string>
     <string name="sync_status_last_updated">Senast uppdaterad</string>
     <string name="sync_status_minimal">Begränsad</string>
     <string name="sync_status_minutes_ago_short">%1$d min sedan</string>
     <string name="sync_status_nav_label">TigerSync-status</string>
-    <string name="sync_status_never_synced">Aldrig synkroniserat</string>
     <string name="sync_status_never_updated">Aldrig uppdaterad</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synkroniserar…</string>

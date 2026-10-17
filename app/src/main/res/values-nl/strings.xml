@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Groepen</string>
+    <string name="course_member_profile_picture">Profielfoto</string>
     <string name="course_members_auditors">Toehoorders</string>
     <string name="course_members_students">Studenten</string>
     <string name="course_members_tas">Studentassistenten</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Deel anonieme gebruiksgegevens (bezochte pagina\'s, gebruik van widgets) om TigerDuck te helpen verbeteren</string>
     <string name="settings_analytics_enabled">Gebruiksanalyse</string>
     <string name="settings_api_endpoint">API-eindpunt</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Wijzigen</string>
+    <string name="settings_api_endpoint_change_alert_message">Na het inloggen ontvangt dit eindpunt je studentnummer en je Moodle-token. Alle ingelogde accounts worden uitgelogd.</string>
+    <string name="settings_api_endpoint_change_alert_title">API-eindpunt wijzigen?</string>
     <string name="settings_api_endpoint_change_title">Eindpunt wijzigen</string>
     <string name="settings_api_endpoint_checking">Bezig met controleren…</string>
     <string name="settings_api_endpoint_effective_title">Actief eindpunt</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Vakken van vandaag bovenaan het rooster vastzetten</string>
     <string name="settings_privacy_policy">Privacybeleid</string>
     <string name="settings_push_server_nav_label">Serverpush</string>
-    <string name="settings_remember_bulletin_filter">Bulletinfilters onthouden</string>
     <string name="settings_reset_course_colors">Cursuskleuren opnieuw toewijzen</string>
     <string name="settings_reset_course_colors_confirm_message">Elke cursus krijgt een nieuwe, unieke kleur — eerst uit het voorgedefinieerde palet, daarna willekeurig zodra het palet op is.</string>
     <string name="settings_reset_course_colors_confirm_title">Cursuskleuren opnieuw toewijzen?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Mislukt</string>
     <string name="sync_status_hours_ago_short">%1$d u geleden</string>
     <string name="sync_status_just_now">Zojuist</string>
-    <string name="sync_status_last_synced">Laatst gesynchroniseerd</string>
     <string name="sync_status_last_updated">Laatst bijgewerkt</string>
     <string name="sync_status_minimal">Beperkt</string>
     <string name="sync_status_minutes_ago_short">%1$d min geleden</string>
     <string name="sync_status_nav_label">TigerSync-status</string>
-    <string name="sync_status_never_synced">Nooit gesynchroniseerd</string>
     <string name="sync_status_never_updated">Nooit bijgewerkt</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchroniseren…</string>

@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.mail.MailAccount
+import org.ntust.app.tigerduck.mail.MailChange
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailRepository
 import org.ntust.app.tigerduck.mail.MailSite
@@ -164,7 +165,7 @@ class SchoolMailListViewModel @Inject constructor(
      * A new mail or a draft sent from compose went out without its copy reaching the sent folder
      * (a reply's notice is the replied mail's to show, not this list's). Kept out of
      * [UiState] on purpose: no load clears it, only [dismissSentCopyNotice] (or signing out), so
-     * the reload that follows the compose screen closing cannot wipe it before it is seen.
+     * the fetch that can follow the compose screen closing cannot wipe it before it is seen.
      */
     val sentCopyNotice: StateFlow<SentCopyNotice?> = sentCopyNotices.noticeFor(SentCopyOrigin.List, viewModelScope)
 
@@ -179,8 +180,33 @@ class SchoolMailListViewModel @Inject constructor(
     /** The [load] in progress, so a second call -- Retry tapped twice, a pull -- waits on it instead of starting another. */
     private var loadJob: Job? = null
 
-    /** The [MailAccount.accountGeneration] that [loadJob] loads for. */
-    private var loadGeneration = 0
+    /** The [MailAccount.accountGeneration] that [loadJob] loads for; null until the first [load]. */
+    private var loadGeneration: Int? = null
+
+    /**
+     * Per folder, [changeSeq] as of the last change that left this list's rows of it in doubt: a
+     * write made on another screen that only a fetch can show ([MailChange.Changed]), or any
+     * change that arrived while a page of the folder was out ([refetchIfChangedSince]). Such a
+     * folder is fetched again -- at once when it is on screen as a page lands, otherwise the next
+     * time the page appears ([loadIfNeeded]); a chip tap fetches anyway. The first page that
+     * lands for it takes it out, unless it was marked again while that page was out.
+     */
+    private val staleFolders = mutableMapOf<String, Int>()
+
+    /** Numbers every change [apply] takes, in order, so a page that was out while one arrived can tell. */
+    private var changeSeq = 0
+
+    /** Per folder, [changeSeq] as of the last change [apply] took for it, of any kind. */
+    private val changedAt = mutableMapOf<String, Int>()
+
+    /**
+     * Where [paginate] collects the changes that arrive while its older page is out; null when
+     * none is. A first page is fetched again after such a change ([refetchIfChangedSince]); an
+     * older page is not, since that fetch replaces the whole list and the user's place in it,
+     * so the change is applied to the page's rows instead ([pageWith]) -- only the changes from
+     * when that folder's own request started until the batch lands, so there is nothing to cap.
+     */
+    private var olderPageChanges: MutableList<MailChange>? = null
 
     /**
      * True while a load asked for by another account than [loadJob]'s waits for that one to end:
@@ -228,11 +254,16 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private var searchGeneration = 0
 
-    /** When the last first page landed, by [clock]: a resume right after it has nothing new to ask. */
-    private var firstPageAt: Long? = null
+    /**
+     * When the folders on screen were last looked at, by [clock]: a first page that landed, or a
+     * poll that ran to the end. What a return's own look at the inbox is decided against
+     * ([pollsOnResume]).
+     */
+    private var lookedAt: Long? = null
 
     init {
         viewModelScope.launch { account.authFailed.collect { authBannerClosed.value = false } }
+        viewModelScope.launch { repository.changes.collect(::apply) }
         // Signing out must not leave the previous account's mail on screen for
         // whoever signs in next (spec §7.5).
         viewModelScope.launch {
@@ -244,13 +275,114 @@ class SchoolMailListViewModel @Inject constructor(
                     prefetchJob = null
                     prefetchDone = false
                     forgetSearch()
-                    firstPageAt = null
+                    lookedAt = null
+                    staleFolders.clear()
+                    changedAt.clear()
                     listGeneration++
                     folderValidity = emptyMap()
                     _state.value = UiState()
                 }
             }
         }
+    }
+
+    /**
+     * What the screen asks for as it appears. The list screen is composed again on the way back
+     * from every mail, and used to load each time: one IMAP round trip per mail opened, against a
+     * server that caps connections and answers "server busy" under load. The list it left behind
+     * is still here, as on the iPhone, so this loads only when nothing has loaded for this
+     * account -- first entry, a sign-in since, a sign-out that reset the screen -- tries again a
+     * load that failed with nothing to show, which Retry would be the next tap for anyway, and
+     * fetches the page again where a write on another screen changed a folder on screen in a way
+     * only a fetch can show ([staleFolders]). Otherwise the list stays exactly as it was: what was
+     * done to a mail meanwhile has been applied ([apply]), the poll keeps the inbox fresh, and a
+     * pull is the user asking.
+     */
+    fun loadIfNeeded() {
+        if (loadGeneration != account.accountGeneration) {
+            load()
+            return
+        }
+        val s = _state.value
+        if (s.loadState is LoadState.Failed && s.messages.isEmpty()) {
+            refresh()
+        } else if (s.targets.any { it in staleFolders }) {
+            refetch()
+        }
+    }
+
+    /**
+     * The newest page of the folders on screen again, and the search up over them run again, so
+     * what a change reached is not left behind in the results. The same stop and restart of the
+     * warm as [refresh], for the same reason.
+     */
+    private fun refetch() {
+        prefetchJob?.cancel()
+        prefetchJob = null
+        viewModelScope.launch {
+            fetchFirstPage()
+            if (_state.value.searchResults != null) runSearch()
+            if (_state.value.loadState is LoadState.Loaded) startPrefetch()
+        }
+    }
+
+    /**
+     * A write made on another screen, applied to the list it comes back to, as the iPhone's list
+     * is told (`markSeenLocally` / `removeLocally` there): the mail opened from this list read,
+     * moved or deleted, a draft saved, a mail sent. What can be applied is applied here, at once
+     * and without a fetch; a folder with mail only a fetch can describe is noted for the next
+     * time it is on screen ([staleFolders]).
+     *
+     * Only a change of the account this list loaded for, and still the signed-in one. A write can
+     * end after another student signed in over the one who made it -- held on the connection
+     * behind other requests -- and by then its folder and UID name a mail of theirs, which this
+     * list may well be showing. The write itself is not this list's business; its change is
+     * nobody's.
+     */
+    private fun apply(change: MailChange) {
+        if (change.generation != account.accountGeneration || change.generation != loadGeneration) return
+        changeSeq++
+        changedAt[change.folder] = changeSeq
+        if (change !is MailChange.Changed) olderPageChanges?.add(change)
+        when (change) {
+            is MailChange.Seen -> updateMessage(MailRow.key(change.folder, change.uid)) { it.copy(flags = it.flags.copy(seen = change.seen)) }
+            is MailChange.Removed -> removeMessage(MailRow.key(change.folder, change.uid))
+            is MailChange.Changed -> staleFolders[change.folder] = changeSeq
+        }
+    }
+
+    /** The row [key] names is gone from the list and from the search results alike; see [apply]. */
+    private fun removeMessage(key: String) = _state.update { st ->
+        st.copy(messages = st.messages.filterNot { it.key == key }, searchResults = st.searchResults?.filterNot { it.key == key })
+    }
+
+    /**
+     * Rows of [folders] were just installed from a request made while [changeSeq] stood at
+     * [since]. A folder a change arrived for after that was read by the server before the write
+     * -- or after another client's, which no change tells of -- so the rows just shown may have
+     * put back what the change undid: a read flag, a mail moved away. Rather than second-guess
+     * them, such a folder is marked stale and, when it is on screen, the folders on screen are
+     * fetched again at once. Once: that fetch's own [since] is after the change, so it comes back
+     * clean unless yet another arrives, and a burst of changes during one request costs one
+     * fetch, not one per change. Only a mark made here starts that fetch -- an older one is the
+     * next appearance's to answer ([loadIfNeeded]) -- so a server that keeps failing the page is
+     * asked once per change, not again and again.
+     */
+    private fun refetchIfChangedSince(folders: Collection<String>, since: Int) {
+        if (markChangedSince(folders, since)) refetch()
+    }
+
+    /** Marks stale each of [folders] a change arrived for after [since]; true when one of them is on screen. */
+    private fun markChangedSince(folders: Collection<String>, since: Int): Boolean {
+        val targets = _state.value.targets
+        var onScreen = false
+        for (folder in folders) {
+            val changed = changedAt[folder] ?: continue
+            if (changed <= since) continue
+            staleFolders[folder] = changed
+            if (folder in targets) onScreen = true
+        }
+        return onScreen
     }
 
     fun load() {
@@ -401,13 +533,16 @@ class SchoolMailListViewModel @Inject constructor(
     /**
      * Acts on [row]'s own folder, never on [UiState.selected]: in All mail the selected chip is
      * not a folder at all, and the row next to this one may well live somewhere else.
+     *
+     * The row changes through the repository's feed ([apply]), as a mark-read on the mail's own
+     * screen does, and not here as well: a swipe whose write ends after another student signed in
+     * over this one would otherwise change a row of theirs, which the feed knows not to.
      */
     fun toggleRead(row: MailRow) {
         val seen = !row.summary.flags.seen
         viewModelScope.launch {
             try {
                 repository.setSeen(row.folder, row.uid, seen)
-                updateMessage(row.key) { it.copy(flags = it.flags.copy(seen = seen)) }
             } catch (e: MailError) {
                 // One swipe that didn't stick is not the page failing: the list on screen is
                 // exactly as good as it was a moment ago.
@@ -424,15 +559,19 @@ class SchoolMailListViewModel @Inject constructor(
      * as the page is open. Signing in again clears the flag, and the screen
      * restarts polling from that.
      *
-     * The first look is at once, not a minute in: this runs whenever the page comes back, from
-     * the background or from a mail, and mail that arrived meanwhile -- its notification perhaps
-     * already in the shade -- should be on the list when it does. Not while a load is still
-     * running, or has not run yet, and not within [RESUME_POLL_FRESH_MS] of a first page landing:
-     * that page already is the answer, and not while it has failed, which Retry is there for.
-     * Decided [RESUME_POLL_GRACE_MS] in rather than here, since coming back from a mail composes
-     * the list again, and the load that starts as it appears lands just after this call.
+     * The first look is at once, not a minute in, when the app comes back to the foreground on
+     * this page ([fromBackground]): mail that arrived meanwhile -- its notification perhaps
+     * already in the shade -- should be on the list when it does (#251). Not as the page merely
+     * appears: first entry, or the way back from a mail, which composes it again. The list is
+     * then the one the user left moments ago ([loadIfNeeded]), and a look on every return would
+     * be the round trip per mail opened that keeping it is there to save (#336) -- unless the
+     * poll missed a tick while the page was away, when the look it owes is taken now. Never
+     * while a load is still running, or has not run yet, nor within [RESUME_POLL_FRESH_MS] of a
+     * first page landing, which already is the answer; nor while it has failed, which Retry is
+     * there for. Decided [RESUME_POLL_GRACE_MS] in rather than here, since the fetch the page
+     * makes for itself as it appears, when it has one to make, lands just after this call.
      */
-    fun startPolling() {
+    fun startPolling(fromBackground: Boolean = false) {
         // A background check may have reached the inbox while the page was away.
         showFetchedAt()
         if (account.authFailed.value) return
@@ -448,7 +587,7 @@ class SchoolMailListViewModel @Inject constructor(
         pollJob = viewModelScope.launch {
             launch {
                 delay(RESUME_POLL_GRACE_MS)
-                if (pollsOnResume() && !account.authFailed.value) poll()
+                if (pollsOnResume(fromBackground) && !account.authFailed.value) poll()
             }
             while (isActive && !account.authFailed.value) {
                 delay(POLL_MS)
@@ -458,13 +597,15 @@ class SchoolMailListViewModel @Inject constructor(
         }
     }
 
-    private fun pollsOnResume(): Boolean {
+    private fun pollsOnResume(fromBackground: Boolean): Boolean {
         val s = _state.value
         // A failed list says so and offers Retry; a look of its own on every return would only
         // repeat the failure as a toast over it.
         if (s.loadState !is LoadState.Loaded) return false
-        val landed = firstPageAt ?: return true
-        return clock.now() - landed >= RESUME_POLL_FRESH_MS
+        val looked = lookedAt ?: return true
+        // Back from the background, any look older than the page's own just-landed one is stale;
+        // merely appearing, only the tick the poll missed is owed (see [startPolling]).
+        return clock.now() - looked >= if (fromBackground) RESUME_POLL_FRESH_MS else POLL_MS
     }
 
     fun stopPolling() {
@@ -479,6 +620,12 @@ class SchoolMailListViewModel @Inject constructor(
     private suspend fun showCached() {
         val selection = _state.value.selected
         val generation = account.accountGeneration
+        // The disk read can hand back a row from before a write that lands meanwhile -- the
+        // repository writes the cache once the server has answered the write -- so such a folder
+        // is marked stale: the server page the caller fetches next, asked for after the change,
+        // takes the mark off when it lands, and should it fail the mark keeps the next appearance
+        // fetching the folder again. No fetch from here; the caller's is already on its way.
+        val since = changeSeq
         val pages = _state.value.targets.mapNotNull { folder -> repository.cachedPage(folder)?.let { folder to it } }
         if (pages.isEmpty() || !stillCurrent(selection, generation)) return
         listGeneration++
@@ -487,6 +634,7 @@ class SchoolMailListViewModel @Inject constructor(
         // page from a folder recreated since would be merged in unchecked.
         folderValidity = folderValidity + pages.associate { (folder, page) -> folder to page.uidValidity }
         _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages)) }
+        markChangedSince(pages.map { it.first }, since)
     }
 
     /**
@@ -507,6 +655,9 @@ class SchoolMailListViewModel @Inject constructor(
             return false
         }
         val generation = account.accountGeneration
+        // What the pages are read against: a folder a change lands for while they are out is
+        // fetched again once they have ([refetchIfChangedSince]).
+        val since = changeSeq
         _state.update { it.copy(loadState = LoadState.Loading) }
         try {
             // Each folder is dated the moment its own page lands, not once the whole load has: a
@@ -523,7 +674,10 @@ class SchoolMailListViewModel @Inject constructor(
             listGeneration++
             folderValidity = folderValidity + pages.associate { (folder, page) -> folder to page.uidValidity }
             _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages), loadState = LoadState.Loaded) }
-            firstPageAt = clock.now()
+            lookedAt = clock.now()
+            // A mark set before these pages were asked for is answered by them; one set since is not.
+            targets.forEach { folder -> if ((staleFolders[folder] ?: 0) <= since) staleFolders.remove(folder) }
+            refetchIfChangedSince(targets, since)
             // Was "only for Inbox itself"; All mail shows the inbox's own mail too, so it must
             // move the notification seen marker exactly as viewing Inbox always did.
             if (_state.value.inboxInView) {
@@ -658,17 +812,28 @@ class SchoolMailListViewModel @Inject constructor(
         val list = listGeneration
         val generation = account.accountGeneration
         _state.update { it.copy(isPaginating = true) }
+        // What arrives while each older page is out goes onto that page's rows (see [olderPageChanges]).
+        val arrived = mutableListOf<MailChange>()
+        olderPageChanges = arrived
         try {
             var walkedBack = 0
             while (true) {
                 val cursors = _state.value.cursors
                 if (cursors.isEmpty()) return
                 val end = _state.value.displayed.lastOrNull()?.key
+                arrived.clear()
                 // No request of the batch goes out once the account, the view or the list that
                 // asked has gone (see [fetchFirstPage]): an older page of a list a refresh has
                 // replaced since would only be dropped on return, and under the next account's
                 // credentials it must not be sent at all.
+                //
+                // Each folder's page is read during its own request, so the changes that count for
+                // it are those from when that request started: one for it from before went into the
+                // page, which may since have had a newer flag from another client that no change
+                // tells of, and would only be written over (see [pageWith]).
+                val windows = mutableMapOf<String, Int>()
                 val pages = cursors.entries.sortedBy { it.key }.map { (folder, before) ->
+                    windows[folder] = arrived.size
                     folder to repository.loadPage(folder, before) { stillCurrent(selection, generation) && list == listGeneration }
                 }
                 if (!stillCurrent(selection, generation) || list != listGeneration) return
@@ -682,7 +847,9 @@ class SchoolMailListViewModel @Inject constructor(
                     return
                 }
                 _state.update { st ->
-                    val merged = pages.fold(st.messages) { rows, (folder, page) -> mergeOlderPage(rows, folder, page) }
+                    val merged = pages.fold(st.messages) { rows, (folder, page) ->
+                        mergeOlderPage(rows, folder, pageWith(folder, page, arrived.drop(windows.getValue(folder))))
+                    }
                     st.copy(
                         messages = if (selection is FolderSelection.AllMail) merged.sortedWith(NEWEST_FIRST) else merged.sortedByDescending { it.uid },
                         cursors = st.cursors - cursors.keys + cursorsOf(pages),
@@ -697,8 +864,30 @@ class SchoolMailListViewModel @Inject constructor(
             if (dropped(e, generation)) return
             fail(e)
         } finally {
+            olderPageChanges = null
             _state.update { it.copy(isPaginating = false) }
         }
+    }
+
+    /**
+     * [page], an older page of [folder], with those of [arrived] that are the folder's applied to
+     * its rows: a read flag as a write set it, or a row a move or delete took away. [arrived] is
+     * what came from the folder's own request on -- read by the server no earlier than the page,
+     * and after it where the batch went on to other folders -- and the rest of the list had them
+     * in place as they came ([apply]). Nothing from before the request: the page has that, and
+     * perhaps a newer flag besides.
+     */
+    private fun pageWith(folder: String, page: MailPage, arrived: List<MailChange>): MailPage {
+        var messages = page.messages
+        for (change in arrived) {
+            if (change.folder != folder) continue
+            messages = when (change) {
+                is MailChange.Seen -> messages.map { if (it.uid == change.uid) it.copy(flags = it.flags.copy(seen = change.seen)) else it }
+                is MailChange.Removed -> messages.filterNot { it.uid == change.uid }
+                is MailChange.Changed -> messages
+            }
+        }
+        return if (messages === page.messages) page else page.copy(messages = messages)
     }
 
     private suspend fun runSearch() {
@@ -711,6 +900,7 @@ class SchoolMailListViewModel @Inject constructor(
             return
         }
         val generation = account.accountGeneration
+        val since = changeSeq
         _state.update { it.copy(isSearching = true) }
         try {
             // One SEARCH per real folder, merged the same way the list itself is. A folder whose
@@ -786,6 +976,7 @@ class SchoolMailListViewModel @Inject constructor(
                     searchLocalOnly = outcomes.any { (_, outcome) -> outcome is SearchOutcome.LoadedOnly },
                 )
             }
+            refetchIfChangedSince(outcomes.map { it.first }, since)
             failure?.let(::searchFail)
             // Nothing on screen means no last row to scroll to, however many matches are left.
             // Unless the server's part of the search ended early: in All mail the inbox can have
@@ -821,6 +1012,7 @@ class SchoolMailListViewModel @Inject constructor(
             var walkedBack = 0
             while (true) {
                 val end = _state.value.displayed.lastOrNull()?.key
+                val since = changeSeq
                 val pending = unfetchedMatches.filterValues { it.uids.isNotEmpty() }
                 if (pending.isEmpty()) return
                 for ((folder, matches) in pending) {
@@ -855,6 +1047,7 @@ class SchoolMailListViewModel @Inject constructor(
                         val added = page.messages.map { MailRow(folder, it) }.filter { it.key !in listed }
                         st.copy(searchResults = ordered(selection, results + added))
                     }
+                    refetchIfChangedSince(listOf(folder), since)
                 }
                 if (_state.value.displayed.lastOrNull()?.key != end || walkedBack == EMPTY_PAGE_WALKBACK) return
                 walkedBack++
@@ -909,6 +1102,8 @@ class SchoolMailListViewModel @Inject constructor(
                 repository.status(folder) { stillCurrent(selection, generation) }
                 dated(folder, generation)
             }
+            // Every folder on screen answered: a look as good as a page, for the next return.
+            lookedAt = clock.now()
         } catch (e: MailError) {
             if (dropped(e, generation)) return
             // A rejected password still has to reach the account (spec §7.4) -- both paths below

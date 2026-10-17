@@ -62,6 +62,9 @@ class FakeMailServer {
     /** Fires inside a LIST, before it answers: a test acts while a folder list is out. */
     var onListFolders: (() -> Unit)? = null
 
+    /** Fires inside a STORE of the seen flag, before it takes: a test acts while a mark-read is on the server. */
+    var onSetSeen: (() -> Unit)? = null
+
     /** How many times a session was actually asked for a mail's raw source -- a cache hit adds nothing here. */
     var rawSourceFetches = 0
         private set
@@ -168,6 +171,7 @@ class FakeMailServer {
             call { out.write("attachment $partId".toByteArray()) }
 
         override fun setSeen(folder: String, uids: List<Long>, seen: Boolean) = call {
+            onSetSeen?.invoke()
             list(folder).filter { it.summary.uid in uids }.forEach { it.summary = it.summary.copy(flags = it.summary.flags.copy(seen = seen)) }
         }
 

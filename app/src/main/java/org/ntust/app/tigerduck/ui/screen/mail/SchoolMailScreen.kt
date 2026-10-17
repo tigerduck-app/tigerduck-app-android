@@ -160,20 +160,31 @@ fun SchoolMailScreen(
         viewModel.dismissActionError()
     }
 
+    // Runs again whenever this screen is composed again -- on the way back from every mail -- so
+    // the view model, not this effect, decides whether anything is fetched (see loadIfNeeded).
     LaunchedEffect(signedIn, authFailed) {
         if (signedIn && !authFailed) {
             showReauthSheet = false
-            viewModel.load()
+            viewModel.loadIfNeeded()
         }
     }
     val lifecycleOwner = LocalLifecycleOwner.current
     // Keyed on authFailed too: the poll stops while the password is rejected (spec §7.4),
     // so signing in again has to re-add the observer for polling to start back up.
     DisposableEffect(lifecycleOwner, signedIn, authFailed) {
+        // Whether this observer has seen the page pause. An ON_RESUME after one is the app coming
+        // back to the foreground on this page; an ON_RESUME with none before it is the page
+        // appearing -- first entry, and the way back from a mail, which composes the screen and so
+        // adds an observer again. The view model tells the two apart, because the first look at
+        // the inbox belongs to one and not the other (see startPolling).
+        var paused = false
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_RESUME -> if (signedIn && !authFailed) viewModel.startPolling()
-                Lifecycle.Event.ON_PAUSE -> viewModel.stopPolling()
+                Lifecycle.Event.ON_RESUME -> if (signedIn && !authFailed) viewModel.startPolling(fromBackground = paused)
+                Lifecycle.Event.ON_PAUSE -> {
+                    paused = true
+                    viewModel.stopPolling()
+                }
                 else -> Unit
             }
         }

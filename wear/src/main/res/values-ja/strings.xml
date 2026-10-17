@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">メール</string>
     <string name="course_member_groups">グループ</string>
+    <string name="course_member_profile_picture">プロフィール写真</string>
     <string name="course_members_auditors">聴講生</string>
     <string name="course_members_students">学生</string>
     <string name="course_members_tas">ティーチングアシスタント</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">匿名の利用データ（閲覧ページ、ウィジェットの使用状況）を共有して、TigerDuck の改善にご協力ください</string>
     <string name="settings_analytics_enabled">利用状況の分析</string>
     <string name="settings_api_endpoint">API エンドポイント</string>
+    <string name="settings_api_endpoint_change_alert_confirm">変更</string>
+    <string name="settings_api_endpoint_change_alert_message">サインイン後、このエンドポイントが学籍番号と Moodle トークンを受け取ります。サインイン中のアカウントはすべてサインアウトされます。</string>
+    <string name="settings_api_endpoint_change_alert_title">API エンドポイントを変更しますか？</string>
     <string name="settings_api_endpoint_change_title">エンドポイントを変更</string>
     <string name="settings_api_endpoint_checking">確認中…</string>
     <string name="settings_api_endpoint_effective_title">現在のエンドポイント</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">時間割の上部に今日の授業を固定</string>
     <string name="settings_privacy_policy">プライバシーポリシー</string>
     <string name="settings_push_server_nav_label">サーバープッシュ</string>
-    <string name="settings_remember_bulletin_filter">掲示板フィルターを記憶する</string>
     <string name="settings_reset_course_colors">コース色を再割り当て</string>
     <string name="settings_reset_course_colors_confirm_message">すべてのコースに重複しない新しい色を割り当てます。まずプリセットパレットから、足りなくなったらランダムに生成します。</string>
     <string name="settings_reset_course_colors_confirm_title">コース色を再割り当てしますか？</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">失敗</string>
     <string name="sync_status_hours_ago_short">%1$d 時間前</string>
     <string name="sync_status_just_now">たった今</string>
-    <string name="sync_status_last_synced">最終同期</string>
     <string name="sync_status_last_updated">最終更新</string>
     <string name="sync_status_minimal">制限付き</string>
     <string name="sync_status_minutes_ago_short">%1$d 分前</string>
     <string name="sync_status_nav_label">TigerSync の状態</string>
-    <string name="sync_status_never_synced">未同期</string>
     <string name="sync_status_never_updated">未更新</string>
     <string name="sync_status_ok">正常</string>
     <string name="sync_status_syncing">同期中…</string>

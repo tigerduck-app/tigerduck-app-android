@@ -68,7 +68,12 @@ data class MailSummary(
 data class MailRow(val folder: String, val summary: MailSummary) {
     val uid: Long get() = summary.uid
 
-    val key: String get() = "$folder\u0000${summary.uid}"
+    val key: String get() = key(folder, uid)
+
+    companion object {
+        /** The key the row of [folder] and [uid] has, for finding it without its summary in hand. */
+        fun key(folder: String, uid: Long): String = "$folder\u0000$uid"
+    }
 }
 
 data class FolderStatus(val uidValidity: Long, val uidNext: Long, val messages: Int, val unseen: Int)

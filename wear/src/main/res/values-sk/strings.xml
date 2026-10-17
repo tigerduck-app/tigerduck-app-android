@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Skupiny</string>
+    <string name="course_member_profile_picture">Profilová fotka</string>
     <string name="course_members_auditors">Poslucháči</string>
     <string name="course_members_students">Študenti</string>
     <string name="course_members_tas">Asistenti</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Zdieľaj anonymné údaje o používaní (navštívené stránky, používanie widgetov) a pomôž nám vylepšiť TigerDuck</string>
     <string name="settings_analytics_enabled">Analytika používania</string>
     <string name="settings_api_endpoint">Koncový bod API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Zmeniť</string>
+    <string name="settings_api_endpoint_change_alert_message">Po prihlásení dostane tento koncový bod vaše študentské ID a Moodle token. Všetky prihlásené účty budú odhlásené.</string>
+    <string name="settings_api_endpoint_change_alert_title">Zmeniť koncový bod API?</string>
     <string name="settings_api_endpoint_change_title">Zmeniť koncový bod</string>
     <string name="settings_api_endpoint_checking">Kontrola…</string>
     <string name="settings_api_endpoint_effective_title">Aktuálny koncový bod</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Pripnúť dnešné kurzy hore v rozvrhu</string>
     <string name="settings_privacy_policy">Zásady ochrany súkromia</string>
     <string name="settings_push_server_nav_label">Serverový push</string>
-    <string name="settings_remember_bulletin_filter">Zapamätať filtre bulletinu</string>
     <string name="settings_reset_course_colors">Znova priradiť farby kurzov</string>
     <string name="settings_reset_course_colors_confirm_message">Každý kurz dostane novú jedinečnú farbu — najprv z prednastavenej palety, po vyčerpaní náhodne.</string>
     <string name="settings_reset_course_colors_confirm_title">Znova priradiť farby kurzov?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Zlyhalo</string>
     <string name="sync_status_hours_ago_short">pred %1$d hod.</string>
     <string name="sync_status_just_now">práve teraz</string>
-    <string name="sync_status_last_synced">Naposledy synchronizované</string>
     <string name="sync_status_last_updated">Naposledy aktualizované</string>
     <string name="sync_status_minimal">Obmedzené</string>
     <string name="sync_status_minutes_ago_short">pred %1$d min.</string>
     <string name="sync_status_nav_label">Stav TigerSync</string>
-    <string name="sync_status_never_synced">Nikdy nesynchronizované</string>
     <string name="sync_status_never_updated">Nikdy neaktualizované</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchronizuje sa…</string>

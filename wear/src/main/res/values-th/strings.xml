@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">อีเมล</string>
     <string name="course_member_groups">กลุ่ม</string>
+    <string name="course_member_profile_picture">รูปโปรไฟล์</string>
     <string name="course_members_auditors">ผู้ร่วมฟัง</string>
     <string name="course_members_students">นักศึกษา</string>
     <string name="course_members_tas">ผู้ช่วยสอน</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">แชร์ข้อมูลการใช้งานแบบไม่ระบุตัวตน (หน้าที่เข้าชม, การใช้วิดเจ็ต) เพื่อช่วยพัฒนา TigerDuck</string>
     <string name="settings_analytics_enabled">การวิเคราะห์การใช้งาน</string>
     <string name="settings_api_endpoint">ปลายทาง API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">เปลี่ยน</string>
+    <string name="settings_api_endpoint_change_alert_message">หลังจากลงชื่อเข้าใช้ ปลายทางนี้จะได้รับรหัสนักศึกษาและโทเค็น Moodle ของคุณ บัญชีที่ลงชื่อเข้าใช้อยู่ทั้งหมดจะถูกออกจากระบบ</string>
+    <string name="settings_api_endpoint_change_alert_title">เปลี่ยนปลายทาง API หรือไม่?</string>
     <string name="settings_api_endpoint_change_title">เปลี่ยนปลายทาง</string>
     <string name="settings_api_endpoint_checking">กำลังตรวจสอบ…</string>
     <string name="settings_api_endpoint_effective_title">ปลายทางที่ใช้งานอยู่</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">ปักหมุดคาบเรียนวันนี้ไว้ด้านบนตารางเรียน</string>
     <string name="settings_privacy_policy">นโยบายความเป็นส่วนตัว</string>
     <string name="settings_push_server_nav_label">พุชจากเซิร์ฟเวอร์</string>
-    <string name="settings_remember_bulletin_filter">จดจำตัวกรองกระดานข่าว</string>
     <string name="settings_reset_course_colors">กำหนดสีรายวิชาใหม่</string>
     <string name="settings_reset_course_colors_confirm_message">ทุกรายวิชาจะได้รับสีใหม่ที่ไม่ซ้ำกัน — เริ่มจากชุดสีล่วงหน้า เมื่อหมดแล้วจะสุ่มขึ้นมา.</string>
     <string name="settings_reset_course_colors_confirm_title">กำหนดสีรายวิชาใหม่หรือไม่?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">ล้มเหลว</string>
     <string name="sync_status_hours_ago_short">%1$d ชม. ที่แล้ว</string>
     <string name="sync_status_just_now">เมื่อกี้</string>
-    <string name="sync_status_last_synced">ซิงค์ล่าสุด</string>
     <string name="sync_status_last_updated">อัปเดตล่าสุด</string>
     <string name="sync_status_minimal">จำกัด</string>
     <string name="sync_status_minutes_ago_short">%1$d น. ที่แล้ว</string>
     <string name="sync_status_nav_label">สถานะ TigerSync</string>
-    <string name="sync_status_never_synced">ยังไม่เคยซิงก์</string>
     <string name="sync_status_never_updated">ยังไม่เคยอัปเดต</string>
     <string name="sync_status_ok">ปกติ</string>
     <string name="sync_status_syncing">กำลังซิงค์…</string>
