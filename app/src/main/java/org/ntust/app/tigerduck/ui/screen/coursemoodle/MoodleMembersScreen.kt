@@ -3,25 +3,26 @@ package org.ntust.app.tigerduck.ui.screen.coursemoodle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -32,15 +33,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -62,12 +65,14 @@ import org.ntust.app.tigerduck.data.moodle.name
 import org.ntust.app.tigerduck.data.moodle.studentId
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
+import org.ntust.app.tigerduck.ui.component.searchClearIcon
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.NumberFormat
 
 /**
- * The people of a course the account can see, in sections by role. The search, behind the bar's
- * search button, matches on the device and asks Moodle nothing.
+ * The people of a course the account can see, in sections by role. The search is a row of the
+ * list above its top, which a pull on the list brings down, as on iOS; it matches on the device
+ * and asks Moodle nothing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +83,6 @@ fun MoodleMembersScreen(
 ) {
     val store by viewModel.store.collectAsStateWithLifecycle()
     MoodleSignedOutEffect(viewModel, onBack)
-    var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     val current = store
     Scaffold(
@@ -87,17 +91,6 @@ fun MoodleMembersScreen(
                 title = stringResource(R.string.course_detail_members_label),
                 onBack = onBack,
                 moodlePath = current?.let { MoodlePage.participants(it.courseId) },
-                actions = {
-                    IconButton(onClick = {
-                        searching = !searching
-                        if (!searching) query = ""
-                    }) {
-                        Icon(
-                            if (searching) Icons.Filled.SearchOff else Icons.Filled.Search,
-                            contentDescription = stringResource(R.string.action_search),
-                        )
-                    }
-                },
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -112,7 +105,6 @@ fun MoodleMembersScreen(
             } else {
                 MembersList(
                     store = current,
-                    searching = searching,
                     query = query,
                     onQueryChange = { query = it },
                     onOpen = { onOpenRoute(MoodleRoutes.member(current.courseId, it.id)) },
@@ -126,7 +118,6 @@ fun MoodleMembersScreen(
 @Composable
 internal fun MembersList(
     store: MoodleCourseStore,
-    searching: Boolean,
     query: String,
     onQueryChange: (String) -> Unit,
     onOpen: (MoodleMember) -> Unit,
@@ -142,86 +133,188 @@ internal fun MembersList(
     val list = state.value
     val sections = remember(list, query) { list?.let { MoodleMembers.sections(it.members, query) }.orEmpty() }
 
+    // The search row is the list's first item and the list opens on its second, so the row waits
+    // above the top: a short pull scrolls it into view, a longer one goes on to the refresh, and
+    // the next scroll up puts it away -- iOS's pull-to-reveal, as Material's list has it. Opening
+    // on the second item holds only while there is one: a first fetch composes the spinner alone,
+    // which puts the position back on the first, so the row is put away once the list arrives.
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = 1)
+    var searchPutAway by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(list != null) {
+        if (list != null && !searchPutAway) {
+            searchPutAway = true
+            listState.scrollToItem(1)
+        }
+    }
+
+    // The rows below the search row, built in composition so that RowsBelowSearch learns of a
+    // change to them ahead of the measure pass that lays them out; see its note.
+    val failure = state.failureBesideCopy
+    val noMatches = sections.isEmpty() && query.isNotBlank()
+    val rowsBelow = remember(sections, failure, noMatches) {
+        buildList {
+            if (failure != null) add(MembersRow.Failure(failure))
+            if (noMatches) add(MembersRow.NoMatches)
+            sections.forEach { section ->
+                add(MembersRow.Header(section))
+                section.members.forEachIndexed { index, member -> add(MembersRow.Person(section, index, member)) }
+            }
+        }
+    }
+    val rowKeys = remember(rowsBelow) { rowsBelow.map { it.key } }
+
     PullToRefreshBox(
         isRefreshing = pulling,
         onRefresh = { pulling = true; refresher { pulling = false } },
         modifier = Modifier.fillMaxSize(),
     ) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        ) {
-            if (list == null) {
-                item {
-                    MoodleFirstLoad(
-                        failure = if (state.isRefreshing) null else state.failure,
-                        onRetry = { scope.launch { store.refreshMembers() } },
-                    )
+        // The viewport's height, known before the list's first measure, for RowsBelowSearch.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val paddingPx = with(LocalDensity.current) { MembersListVerticalPadding.roundToPx() }
+            val minRowsPx = if (constraints.hasBoundedHeight) (constraints.maxHeight - 2 * paddingPx).coerceAtLeast(0) else 0
+            val filler = remember { RowsBelowSearch() }
+            // Once this composition is in, before its layout: the filler's measure is then
+            // invalidated for the rows this pass lays out, not the ones before.
+            SideEffect { filler.rows(rowKeys) }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = MembersListVerticalPadding),
+            ) {
+                if (list == null) {
+                    item {
+                        MoodleFirstLoad(
+                            failure = if (state.isRefreshing) null else state.failure,
+                            onRetry = { scope.launch { store.refreshMembers() } },
+                        )
+                    }
+                    return@LazyColumn
                 }
-                return@LazyColumn
-            }
-            state.failureBesideCopy?.let { failure ->
-                item(key = "failure") {
-                    MoodleRefreshFailure(
-                        failure,
-                        onRetry = { scope.launch { store.refreshMembers() } },
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
+                // Before everything the query decides, so a query that empties the list keeps the
+                // field, and the keyboard with it.
+                item(key = "search") { SearchRow(query, onQueryChange) }
+                // One item per row, so a large class draws only the rows on screen, and only they
+                // fetch their pictures.
+                items(rowsBelow, key = { it.key }) { row ->
+                    Box(filler.measured(row.key)) {
+                        when (row) {
+                            is MembersRow.Failure -> MoodleRefreshFailure(
+                                row.failure,
+                                onRetry = { scope.launch { store.refreshMembers() } },
+                                modifier = Modifier.padding(bottom = 12.dp),
+                            )
+                            MembersRow.NoMatches -> EmptyStateView(
+                                icon = Icons.Filled.SearchOff,
+                                title = stringResource(R.string.desktop_bulletins_no_matches),
+                                message = null,
+                            )
+                            is MembersRow.Header -> MemberSectionHeader(row.section)
+                            is MembersRow.Person -> MemberCardRow(
+                                store = store,
+                                member = row.member,
+                                picture = row.member.pictureUrl?.let { pictures[it] },
+                                first = row.index == 0,
+                                last = row.index == row.section.members.lastIndex,
+                                onOpen = onOpen,
+                            )
+                        }
+                    }
                 }
-            }
-            if (searching || query.isNotEmpty()) {
-                item(key = "search") { SearchField(query, onQueryChange) }
-            }
-            if (sections.isEmpty() && query.isNotBlank()) {
-                item(key = "none") {
-                    EmptyStateView(
-                        icon = Icons.Filled.SearchOff,
-                        title = stringResource(R.string.desktop_bulletins_no_matches),
-                        message = null,
-                    )
-                }
-            }
-            // One item per row, so a large class draws only the rows on screen, and only they
-            // fetch their pictures.
-            sections.forEach { section ->
-                item(key = "section-${section.placement}") { MemberSectionHeader(section) }
-                itemsIndexed(section.members, key = { _, member -> "member-${member.id}" }) { index, member ->
-                    MemberCardRow(
-                        store = store,
-                        member = member,
-                        picture = member.pictureUrl?.let { pictures[it] },
-                        first = index == 0,
-                        last = index == section.members.lastIndex,
-                        onOpen = onOpen,
-                    )
-                }
+                item(key = "filler") { Spacer(filler.filling(minRowsPx)) }
             }
         }
     }
 }
 
+/** A row below the search row, by what it shows; [key] is its list item's. */
+private sealed interface MembersRow {
+    val key: Any
+
+    class Failure(val failure: Throwable) : MembersRow {
+        override val key get() = "failure"
+    }
+
+    object NoMatches : MembersRow {
+        override val key get() = "none"
+    }
+
+    class Header(val section: MoodleMemberSection) : MembersRow {
+        override val key get() = "section-${section.placement}"
+    }
+
+    class Person(val section: MoodleMemberSection, val index: Int, val member: MoodleMember) : MembersRow {
+        override val key get() = "member-${member.id}"
+    }
+}
+
+/**
+ * The rows below the search row, and a filler after them that keeps them at least a viewport
+ * tall together. Without it a class too short to fill the screen cannot open past the search
+ * row: the list scrolls back to fill the space, and the row shows at rest.
+ *
+ * The filler is sized in the measure pass, from the heights of the rows measured just before it
+ * in that same pass, so the very first layout is already tall enough and the opening position
+ * holds; the list's own layout info would say so a frame late, after the position had been
+ * clamped and kept. Both things it reads are snapshot state, so its measure is never reused as it
+ * was when they have moved: the row keys, set from composition by [rows] so that a query which
+ * takes rows away or brings them back invalidates the filler ahead of the pass that lays them
+ * out (too little filler after rows went would let the clamp land for good; too much after rows
+ * came would leave blank room to scroll into), and the heights, so that a row which changes
+ * height does the same.
+ */
+private class RowsBelowSearch {
+    private val keys = mutableStateOf<List<Any>>(emptyList())
+    private val heights = mutableStateMapOf<Any, Int>()
+
+    /** The rows below the search row, in order, as composition has them. */
+    fun rows(keys: List<Any>) {
+        if (this.keys.value == keys) return
+        this.keys.value = keys
+        // A row the list no longer has must not count towards the filler.
+        heights.keys.retainAll(keys.toSet())
+    }
+
+    /** On a row: records its height for the filler. */
+    fun measured(key: Any): Modifier = Modifier.layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        // Only on a change: a needless write here would invalidate the filler's measure for nothing.
+        if (heights[key] != placeable.height) heights[key] = placeable.height
+        layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+    }
+
+    /** On the filler: [minPx] less the rows' heights, and nothing once they fill it. */
+    fun filling(minPx: Int): Modifier = Modifier
+        .fillMaxWidth()
+        .layout { measurable, constraints ->
+            val height = (minPx - keys.value.sumOf { heights[it] ?: 0 }).coerceAtLeast(0)
+            val placeable = measurable.measure(constraints.copy(minHeight = height, maxHeight = height))
+            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+        }
+}
+
+/** The list's padding above its first item and below its last, and the search row's below the field. */
+private val MembersListVerticalPadding = 12.dp
+
+/**
+ * The search row. It asks for no focus of its own: it comes into view by a scroll, and a keyboard
+ * rising on every pull would cover the list the pull was for.
+ */
 @Composable
-private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
-    val focus = remember { FocusRequester() }
-    LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
+private fun SearchRow(query: String, onQueryChange: (String) -> Unit) {
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
         placeholder = { Text(stringResource(R.string.action_search)) },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Filled.Cancel, contentDescription = stringResource(R.string.action_clear_text))
-                }
-            }
-        },
+        trailingIcon = searchClearIcon(query) { onQueryChange("") },
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         shape = RoundedCornerShape(28.dp),
+        // As much room below the field as the list keeps above its first item: the list draws
+        // under that padding, and with less the field's bottom edge would show through it at rest.
         modifier = Modifier
             .fillMaxWidth()
-            .focusRequester(focus),
+            .padding(bottom = MembersListVerticalPadding),
     )
 }
 

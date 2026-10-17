@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.shared.Course
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -348,6 +349,21 @@ class PushApiClient @Inject constructor(
         clock = System::currentTimeMillis,
     )
 
+    // One ledger per term, over the term's own slot in AppPreferences; see
+    // AppPreferences.coursesUploadFingerprint for why not one slot for all.
+    private val courseUploads = ConcurrentHashMap<String, UploadLedger>()
+
+    private fun courseUploads(semester: String): UploadLedger = courseUploads.getOrPut(semester) {
+        UploadLedger(
+            store = object : UploadLedgerStore {
+                override val fingerprint: String? get() = prefs.coursesUploadFingerprint(semester)
+                override val acceptedAtMs: Long get() = prefs.coursesUploadedAtMs(semester)
+                override fun record(fingerprint: String, atMs: Long) = prefs.recordCoursesUpload(semester, fingerprint, atMs)
+            },
+            clock = System::currentTimeMillis,
+        )
+    }
+
     /**
      * Fire-and-forget upload of the user's assignment list so the backend can
      * persist it for cross-device sync. Callers wrap this in `runCatching`
@@ -378,12 +394,17 @@ class PushApiClient @Inject constructor(
             )
         }
         val json = gson.toJson(mapOf("assignments" to items))
+        // Resolved once, for the fingerprint and the request alike, so the
+        // ledger remembers what this backend accepted; see uploadFingerprint.
+        val base = baseUrl
         assignmentUploads.sendIfDue(
-            fingerprint = uploadFingerprint(json),
-            isCurrent = { authTokenManager.signInGeneration == signIn },
+            fingerprint = uploadFingerprint(base, json),
+            // Recorded under the sign-in lock, so a sign-out's clear cannot
+            // fall between the check and the record; see UploadLedger.sendIfDue.
+            ifCurrent = { record -> authTokenManager.runIfSignedIn(signIn, record) },
         ) {
             val request = Request.Builder()
-                .url("$baseUrl/sync/assignments/upload")
+                .url("$base/sync/assignments/upload")
                 .post(json.toRequestBody(jsonType))
                 .addAuthHeader(signIn)
                 .build()
@@ -413,11 +434,19 @@ class PushApiClient @Inject constructor(
      * cross-device sync. Callers wrap this in `runCatching` — a failure here
      * must never block the normal fetch/save flow.
      *
+     * A term's list the backend already accepted goes again only once it
+     * changes, or six hours on ([UploadLedger]), as assignments do; one with
+     * [forceKeys] goes whatever the ledger holds, and so does one sent with
+     * [resend], for a term the server has emptied since. Each upload defers
+     * the server's own Moodle sync by two hours.
+     *
      * Returns the course numbers the server actually accepted, or null when
      * nothing was sent (sync off). A 200 is not acceptance: the server skips
      * any course another device has tombstoned and says so in the body, and
      * a caller that took the status for "the server has seen these" would
      * retire a hand-typed course's protection on an upload that was refused.
+     * A list skipped as unchanged answers with none: the server accepted
+     * them lately, and said so then.
      *
      * [signIn], when given, pins the request to that sign-in, as
      * [patchAssignmentOverride]'s is.
@@ -427,26 +456,44 @@ class PushApiClient @Inject constructor(
         semester: String,
         forceKeys: List<String> = emptyList(),
         signIn: Int? = null,
+        resend: Boolean = false,
     ): List<String>? = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext null
         val payload = CourseUploadPayload.build(courses, semester, forceKeys)
         val body = gson.toJson(payload).toRequestBody(jsonType)
-        val request = Request.Builder()
-            .url("$baseUrl/sync/courses/upload")
-            .post(body)
-            .addAuthHeader(signIn)
-            .build()
-        uploadCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw PushApiException("uploadCourses failed: HTTP ${response.code}")
+        // Resolved once, for the fingerprint and the request alike, so the
+        // ledger remembers what this backend accepted; see uploadFingerprint.
+        val base = baseUrl
+        // The sign-in the ledger's record is pinned to, as the assignment
+        // upload's is; the request's own header is pinned only when the
+        // caller pinned it ([signIn]), as before.
+        val startedIn = signIn ?: authTokenManager.signInGeneration
+        var accepted: List<String> = emptyList()
+        courseUploads(semester).sendIfDue(
+            fingerprint = courseUploadFingerprint(base, courses, semester),
+            // Recorded under the sign-in lock, so a sign-out's clear cannot
+            // fall between the check and the record; see UploadLedger.sendIfDue.
+            ifCurrent = { record -> authTokenManager.runIfSignedIn(startedIn, record) },
+            always = resend || forceKeys.isNotEmpty(),
+        ) {
+            val request = Request.Builder()
+                .url("$base/sync/courses/upload")
+                .post(body)
+                .addAuthHeader(signIn)
+                .build()
+            accepted = uploadCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw PushApiException("uploadCourses failed: HTTP ${response.code}")
+                }
+                // A 2xx with an unreadable body (a captive portal, a proxy) is
+                // still an upload that landed; it just cannot say what was accepted.
+                val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
+                val keys = json?.optJSONArray("accepted_keys") ?: return@use emptyList()
+                // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
+                (0 until keys.length()).map { keys.getString(it).substringAfterLast(':') }
             }
-            // A 2xx with an unreadable body (a captive portal, a proxy) is
-            // still an upload that landed; it just cannot say what was accepted.
-            val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
-            val keys = json?.optJSONArray("accepted_keys") ?: return@use emptyList()
-            // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
-            (0 until keys.length()).map { keys.getString(it).substringAfterLast(':') }
         }
+        accepted
     }
 
     suspend fun deleteCourse(courseKey: String) = withContext(Dispatchers.IO) {
@@ -483,11 +530,20 @@ class PushApiClient @Inject constructor(
             .delete()
             .addAuthHeader()
             .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw PushApiException("deleteAllCourses failed: HTTP ${response.code}")
+        val reset: suspend () -> Unit = {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw PushApiException("deleteAllCourses failed: HTTP ${response.code}")
+                }
             }
+            // The upload after the reset, usually the list sent before it,
+            // releases the reset's tombstones: it has to go.
+            prefs.forgetCourseUploads(semester)
         }
+        // Under the term's upload ledger, so no upload is out across the
+        // reset; see UploadLedger.holdingUploads. Nothing resets every term
+        // today, and that path holds no ledger.
+        if (semester != null) courseUploads(semester).holdingUploads(reset) else reset()
     }
 }
 

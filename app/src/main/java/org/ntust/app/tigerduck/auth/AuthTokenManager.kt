@@ -428,6 +428,19 @@ class AuthTokenManager(
         return departing
     }
 
+    /**
+     * Runs [block] unless [logout] has run since [signIn] was read, under the
+     * lock the generation moves under, as [saveIfSignedIn] stores: what
+     * [block] writes lands before whatever the sign-out clears after moving
+     * the generation (`AuthService.logout`), or not at all. For a short write
+     * only; every sign-in and refresh waits on the lock. Says whether it ran.
+     */
+    fun runIfSignedIn(signIn: Int, block: () -> Unit): Boolean = synchronized(signInLock) {
+        if (generation != signIn) return false
+        block()
+        true
+    }
+
     /** Stores the pair unless [logout] has run since [signIn] was read, and says whether it did. */
     private fun saveIfSignedIn(
         signIn: Int,

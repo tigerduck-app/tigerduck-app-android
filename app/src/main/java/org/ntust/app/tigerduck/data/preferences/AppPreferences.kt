@@ -779,7 +779,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /**
      * On sign-out, this stamp, the background worker's two below,
      * [syncedCategories], [assignmentMarksSyncedOnce],
-     * [lastSeenCoursesResetAt] and the assignment upload ledger: what they record
+     * [lastSeenCoursesResetAt] and the upload ledgers: what they record
      * belonged to the account that left, and the next account's worker must
      * not wait out the old one's hour before its first sync.
      */
@@ -794,6 +794,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             .remove("lastSeenCoursesResetAt")
             .remove("assignmentsUploadFingerprint")
             .remove("assignmentsUploadedAtMs")
+            .removeCourseUploads(null)
             .apply()
         forgetLegacyLastCourseSyncAt()
         _schoolDataSyncedAtMs.value = 0L
@@ -814,14 +815,57 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) = prefs.edit().putLong("assignmentsUploadedAtMs", value).apply()
 
     /**
-     * Forgets the list the backend last accepted, so the next upload goes
-     * whatever it holds: the backend may have dropped it while a sync switch
-     * was off on every device.
+     * The course list of [semester] the backend last accepted from this
+     * phone, as a fingerprint, and when; see `push.UploadLedger`. A slot per
+     * term, unlike the assignments': a sync uploads every term it holds, and
+     * in one slot each term's list would read as a change from the last
+     * term's. Forgotten with the assignment list at sign-out
+     * ([clearSyncStamps]) and when a sync switch comes back on
+     * ([forgetUploads]), and for one term by [forgetCourseUploads] when this
+     * phone resets it.
+     */
+    fun coursesUploadFingerprint(semester: String): String? =
+        prefs.getString(COURSES_UPLOAD_FINGERPRINT + semester, null)
+
+    fun coursesUploadedAtMs(semester: String): Long = prefs.getLong(COURSES_UPLOADED_AT + semester, 0L)
+
+    fun recordCoursesUpload(semester: String, fingerprint: String, atMs: Long) {
+        prefs.edit()
+            .putString(COURSES_UPLOAD_FINGERPRINT + semester, fingerprint)
+            .putLong(COURSES_UPLOADED_AT + semester, atMs)
+            .apply()
+    }
+
+    /**
+     * Forgets the course list the backend last accepted for [semester], or
+     * for every term when null: a reset took it off the server, and the
+     * upload after the reset, usually that same list, has to go.
+     */
+    fun forgetCourseUploads(semester: String?) {
+        prefs.edit().removeCourseUploads(semester).apply()
+    }
+
+    private fun SharedPreferences.Editor.removeCourseUploads(semester: String?): SharedPreferences.Editor {
+        if (semester != null) {
+            return remove(COURSES_UPLOAD_FINGERPRINT + semester).remove(COURSES_UPLOADED_AT + semester)
+        }
+        // The terms are not listed anywhere else; the keys are the list.
+        prefs.all.keys
+            .filter { it.startsWith(COURSES_UPLOAD_FINGERPRINT) || it.startsWith(COURSES_UPLOADED_AT) }
+            .forEach { remove(it) }
+        return this
+    }
+
+    /**
+     * Forgets the lists the backend last accepted, so the next upload of
+     * each goes whatever it holds: the backend may have dropped them while a
+     * sync switch was off on every device.
      */
     fun forgetUploads() {
         prefs.edit()
             .remove("assignmentsUploadFingerprint")
             .remove("assignmentsUploadedAtMs")
+            .removeCourseUploads(null)
             .apply()
     }
 
@@ -1043,6 +1087,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     companion object {
         /** The same key the iPhone app stores its interface style under. */
         private const val VISUAL_PRESET_KEY = "visualPreset"
+
+        /** The course upload ledger's keys, one pair per term, the term after the colon; see [coursesUploadFingerprint]. */
+        private const val COURSES_UPLOAD_FINGERPRINT = "coursesUploadFingerprint:"
+        private const val COURSES_UPLOADED_AT = "coursesUploadedAtMs:"
 
         const val WHATS_NEW_UNSET = -1
         const val WHATS_NEW_REPLAY = 0

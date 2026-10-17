@@ -24,6 +24,15 @@ class SyncStampsTest {
         prefs.lastSeenCoursesResetAt = "2026-10-10T16:42:49+00:00"
         prefs.assignmentsUploadFingerprint = "abc"
         prefs.assignmentsUploadedAtMs = 42L
+        prefs.recordCoursesUpload("1151", "c1", 7L)
+        prefs.recordCoursesUpload("1142", "c2", 8L)
+    }
+
+    private fun assertCourseListsForgotten() {
+        for (semester in listOf("1151", "1142")) {
+            assertNull(prefs.coursesUploadFingerprint(semester))
+            assertEquals(0L, prefs.coursesUploadedAtMs(semester))
+        }
     }
 
     @Test
@@ -35,6 +44,7 @@ class SyncStampsTest {
         assertNull(prefs.lastSeenCoursesResetAt)
         assertNull(prefs.assignmentsUploadFingerprint)
         assertEquals(0L, prefs.assignmentsUploadedAtMs)
+        assertCourseListsForgotten()
     }
 
     @Test
@@ -45,7 +55,21 @@ class SyncStampsTest {
 
         assertNull(prefs.assignmentsUploadFingerprint)
         assertEquals(0L, prefs.assignmentsUploadedAtMs)
+        assertCourseListsForgotten()
         assertEquals("2026-10-10T16:42:49+00:00", prefs.lastSeenCoursesResetAt)
+    }
+
+    @Test
+    fun `a term reset forgets that term's course list alone`() {
+        keep()
+
+        prefs.forgetCourseUploads("1151")
+
+        assertNull(prefs.coursesUploadFingerprint("1151"))
+        assertEquals(0L, prefs.coursesUploadedAtMs("1151"))
+        assertEquals("c2", prefs.coursesUploadFingerprint("1142"))
+        assertEquals(8L, prefs.coursesUploadedAtMs("1142"))
+        assertEquals("abc", prefs.assignmentsUploadFingerprint)
     }
 
     @Test
@@ -77,6 +101,7 @@ class SyncStampsTest {
             keep()
             flip(true)
             assertNull(prefs.assignmentsUploadFingerprint)
+            assertNull(prefs.coursesUploadFingerprint("1151"))
         }
     }
 
@@ -88,5 +113,6 @@ class SyncStampsTest {
         prefs.syncAssignments = true
 
         assertEquals("abc", prefs.assignmentsUploadFingerprint)
+        assertEquals("c1", prefs.coursesUploadFingerprint("1151"))
     }
 }

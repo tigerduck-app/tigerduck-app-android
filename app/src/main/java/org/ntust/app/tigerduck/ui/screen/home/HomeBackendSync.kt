@@ -468,7 +468,10 @@ class HomeBackendSync @Inject constructor(
                     dataCache.saveCourses(it, semester)
                     if (semester == currentSemester) touchedCurrent = true
                 }
-                runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester) }
+                // Sent whatever the upload ledger remembers (resend): the
+                // server has nothing for the term, so a reset elsewhere took
+                // the list it last accepted, and that same list has to go again.
+                runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, resend = true) }
                     .onSuccess { accepted ->
                         // The server has now seen these numbers: from here
                         // on their absence is a deletion, not a pending

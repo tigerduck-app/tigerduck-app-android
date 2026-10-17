@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Электрондық пошта</string>
     <string name="course_member_groups">Топтар</string>
+    <string name="course_member_profile_picture">Профиль суреті</string>
     <string name="course_members_auditors">Ерікті тыңдаушылар</string>
     <string name="course_members_students">Студенттер</string>
     <string name="course_members_tas">Ассистенттер</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck-ты жақсартуға көмектесу үшін анонимді пайдалану деректерін (қаралған беттер, виджет пайдалануы) бөлісіңіз</string>
     <string name="settings_analytics_enabled">Пайдалану аналитикасы</string>
     <string name="settings_api_endpoint">API соңғы нүктесі</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Өзгерту</string>
+    <string name="settings_api_endpoint_change_alert_message">Кіргеннен кейін бұл соңғы нүкте студент ID-іңізді және Moodle токеніңізді алады. Кірген барлық аккаунттардан шығасыз.</string>
+    <string name="settings_api_endpoint_change_alert_title">API соңғы нүктесін өзгерту керек пе?</string>
     <string name="settings_api_endpoint_change_title">Соңғы нүктені өзгерту</string>
     <string name="settings_api_endpoint_checking">Тексеру…</string>
     <string name="settings_api_endpoint_effective_title">Қолданыстағы соңғы нүкте</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Бүгінгі сабақтарды кестенің жоғарғы жағына бекіту</string>
     <string name="settings_privacy_policy">Құпиялылық саясаты</string>
     <string name="settings_push_server_nav_label">Серверді итеру</string>
-    <string name="settings_remember_bulletin_filter">Хабарлама сүзгілерін есте сақтау</string>
     <string name="settings_reset_course_colors">Курс түстерін қайта тағайындау</string>
     <string name="settings_reset_course_colors_confirm_message">Әр курсқа жаңа, бірегей түс тағайындалады — әуелі алдын ала орнатылған палитрадан, палитра таусылған соң кездейсоқ.</string>
     <string name="settings_reset_course_colors_confirm_title">Курс түстерін қайта тағайындау керек пе?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Сәтсіз</string>
     <string name="sync_status_hours_ago_short">%1$d с бұрын</string>
     <string name="sync_status_just_now">Жаңа ғана</string>
-    <string name="sync_status_last_synced">Соңғы синхрондау</string>
     <string name="sync_status_last_updated">Соңғы жаңарту</string>
     <string name="sync_status_minimal">Шектеулі</string>
     <string name="sync_status_minutes_ago_short">%1$d м бұрын</string>
     <string name="sync_status_nav_label">TigerSync мәртебесі</string>
-    <string name="sync_status_never_synced">Ешқашан синхрондалмаған</string>
     <string name="sync_status_never_updated">Ешқашан жаңартылмаған</string>
     <string name="sync_status_ok">Дұрыс</string>
     <string name="sync_status_syncing">Синхрондалуда…</string>

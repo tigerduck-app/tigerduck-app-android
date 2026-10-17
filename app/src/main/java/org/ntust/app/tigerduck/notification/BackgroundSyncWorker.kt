@@ -307,7 +307,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
             }
         var known = outcome.serverKnownNos
         if (outcome.uploadLocal) {
-            runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester) }
+            // resend: the server has nothing for the term, whatever list the
+            // upload ledger remembers it accepting; see HomeBackendSync.
+            runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, resend = true) }
                 .onSuccess { accepted -> if (!accepted.isNullOrEmpty()) known = known + accepted }
                 .onFailure { e -> Log.w(TAG, "[Sync] auto-upload failed: ${e.logSummary()}") }
             Log.i(TAG, "[Sync] backend empty, auto-uploaded ${outcome.toUpload.size} courses")

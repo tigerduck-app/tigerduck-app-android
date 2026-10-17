@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-Mail</string>
     <string name="course_member_groups">Gruppen</string>
+    <string name="course_member_profile_picture">Profilbild</string>
     <string name="course_members_auditors">Gasthörer</string>
     <string name="course_members_students">Studierende</string>
     <string name="course_members_tas">Tutoren</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Teile anonyme Nutzungsdaten (besuchte Seiten, Widget-Nutzung), um TigerDuck zu verbessern</string>
     <string name="settings_analytics_enabled">Nutzungsanalyse</string>
     <string name="settings_api_endpoint">API-Endpunkt</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Ändern</string>
+    <string name="settings_api_endpoint_change_alert_message">Nach der Anmeldung erhält dieser Endpunkt deine Matrikelnummer und dein Moodle-Token. Alle angemeldeten Konten werden abgemeldet.</string>
+    <string name="settings_api_endpoint_change_alert_title">API-Endpunkt ändern?</string>
     <string name="settings_api_endpoint_change_title">Endpunkt ändern</string>
     <string name="settings_api_endpoint_checking">Wird geprüft…</string>
     <string name="settings_api_endpoint_effective_title">Aktueller Endpunkt</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Heutige Kurse oben im Stundenplan anheften</string>
     <string name="settings_privacy_policy">Datenschutzerklärung</string>
     <string name="settings_push_server_nav_label">Server-Push</string>
-    <string name="settings_remember_bulletin_filter">Denken Sie an Bulletin-Filter</string>
     <string name="settings_reset_course_colors">Kursfarben neu zuweisen</string>
     <string name="settings_reset_course_colors_confirm_message">Jeder Kurs erhält eine neue, eindeutige Farbe – zunächst aus der voreingestellten Palette, anschließend zufällig, sobald die Palette ausgeschöpft ist.</string>
     <string name="settings_reset_course_colors_confirm_title">Kursfarben neu zuweisen?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Fehlgeschlagen</string>
     <string name="sync_status_hours_ago_short">vor %1$d Std</string>
     <string name="sync_status_just_now">Gerade eben</string>
-    <string name="sync_status_last_synced">Zuletzt synchronisiert</string>
     <string name="sync_status_last_updated">Zuletzt aktualisiert</string>
     <string name="sync_status_minimal">Eingeschränkt</string>
     <string name="sync_status_minutes_ago_short">vor %1$d Min</string>
     <string name="sync_status_nav_label">TigerSync-Status</string>
-    <string name="sync_status_never_synced">Nie synchronisiert</string>
     <string name="sync_status_never_updated">Nie aktualisiert</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchronisiere…</string>

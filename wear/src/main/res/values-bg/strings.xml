@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Имейл</string>
     <string name="course_member_groups">Групи</string>
+    <string name="course_member_profile_picture">Профилна снимка</string>
     <string name="course_members_auditors">Свободни слушатели</string>
     <string name="course_members_students">Студенти</string>
     <string name="course_members_tas">Асистенти</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Споделяй анонимни данни за използването (посетени страници, използване на виджети), за да помогнеш за подобряването на TigerDuck</string>
     <string name="settings_analytics_enabled">Анализ на използването</string>
     <string name="settings_api_endpoint">Крайна точка на API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Промяна</string>
+    <string name="settings_api_endpoint_change_alert_message">След като влезете, тази крайна точка ще получи студентския ви номер и токена за Moodle. Ще излезете от всички акаунти, в които сте влезли.</string>
+    <string name="settings_api_endpoint_change_alert_title">Промяна на крайната точка на API?</string>
     <string name="settings_api_endpoint_change_title">Промяна на крайната точка</string>
     <string name="settings_api_endpoint_checking">Проверка…</string>
     <string name="settings_api_endpoint_effective_title">Текуща крайна точка</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Закачане на днешните курсове най-горе в графика</string>
     <string name="settings_privacy_policy">Политика за поверителност</string>
     <string name="settings_push_server_nav_label">Натискане на сървъра</string>
-    <string name="settings_remember_bulletin_filter">Запомнете филтрите за бюлетини</string>
     <string name="settings_reset_course_colors">Преразпределяне на цветовете на курсовете</string>
     <string name="settings_reset_course_colors_confirm_message">Всеки курс ще получи нов уникален цвят — първо от готовата палитра, после случайно, когато палитрата свърши.</string>
     <string name="settings_reset_course_colors_confirm_title">Да преразпределим ли цветовете на курсовете?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Неуспешно</string>
     <string name="sync_status_hours_ago_short">преди %1$d ч</string>
     <string name="sync_status_just_now">Току-що</string>
-    <string name="sync_status_last_synced">Последна синхронизация</string>
     <string name="sync_status_last_updated">Последна актуализация</string>
     <string name="sync_status_minimal">Ограничено</string>
     <string name="sync_status_minutes_ago_short">преди %1$d мин</string>
     <string name="sync_status_nav_label">Статус на TigerSync</string>
-    <string name="sync_status_never_synced">Никога не е синхронизирано</string>
     <string name="sync_status_never_updated">Никога не е актуализирано</string>
     <string name="sync_status_ok">Наред</string>
     <string name="sync_status_syncing">Синхронизиране…</string>
