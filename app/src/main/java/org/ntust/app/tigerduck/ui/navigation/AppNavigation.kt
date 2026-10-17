@@ -489,6 +489,11 @@ fun MainNavigation(
                         // The slider shows the live term, as the class table's today strip does.
                         classTableViewModel.selectCourse(picked.course, picked.weekday, picked.periodId, fromLiveTerm = true)
                     },
+                    // As a widget or notification opens a page: a feature the bar
+                    // shows becomes that tab rather than a second copy over Home.
+                    onOpenFeature = { feature ->
+                        navController.openStartRoute(feature.toRoute(), tabRoutes, firstTab = popUpToDest, tabTap)
+                    },
                 )
                 // The class table's course detail sheet, as iOS opens the same sheet from Home.
                 CourseDetailSheetHost(classTableViewModel, appState.browserPreference)

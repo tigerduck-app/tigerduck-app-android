@@ -12,17 +12,11 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -50,12 +44,12 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.ui.component.SectionHeader
-import org.ntust.app.tigerduck.ui.navigation.icon
 import kotlin.math.roundToInt
 
 @Composable
@@ -182,7 +176,14 @@ internal fun HomeSectionContent(
     onToggleIgnore: (Assignment) -> Unit,
     onMarkCompleted: (Assignment) -> Unit,
     onSelectFilter: (AssignmentFilter) -> Unit,
-    onWidgetClick: () -> Unit,
+    /** Edit mode, which a shortcut grid needs to show its own remove-and-drag chrome. */
+    isEditing: Boolean,
+    /** A shortcut card tapped; HomeScreen opens the page or says "Coming soon". */
+    onOpenFeature: (AppFeature) -> Unit,
+    onRemoveWidget: (sectionId: String, widgetId: String) -> Unit,
+    onMoveWidget: (sectionId: String, widgetId: String, toIndex: Int) -> Unit,
+    /** An empty shortcut grid's button: the Add dialog. */
+    onAddQuickFeature: () -> Unit,
     onOpenSignInSettings: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -269,7 +270,6 @@ internal fun HomeSectionContent(
                 }
             }
 
-            @Suppress("DEPRECATION")
             HomeSection.HomeSectionType.QUICK_WIDGETS,
             HomeSection.HomeSectionType.CUSTOM -> {
                 SectionHeader(
@@ -277,42 +277,14 @@ internal fun HomeSectionContent(
                         section.type.defaultTitleRes
                     )
                 )
-                if (section.widgets.isNotEmpty()) {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(section.widgets, key = { it.id }) { widget ->
-                            Card(
-                                modifier = Modifier
-                                    .size(80.dp)
-                                    .clickable { onWidgetClick() },
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surface
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.fillMaxSize(),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = widget.feature.icon,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(28.dp)
-                                    )
-                                    Spacer(Modifier.height(4.dp))
-                                    Text(
-                                        text = stringResource(widget.feature.displayNameRes),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                ShortcutGrid(
+                    widgets = section.widgets,
+                    isEditing = isEditing,
+                    onOpen = onOpenFeature,
+                    onRemove = { onRemoveWidget(section.id, it.id) },
+                    onMove = { widgetId, toIndex -> onMoveWidget(section.id, widgetId, toIndex) },
+                    onAdd = onAddQuickFeature,
+                )
             }
         }
     }

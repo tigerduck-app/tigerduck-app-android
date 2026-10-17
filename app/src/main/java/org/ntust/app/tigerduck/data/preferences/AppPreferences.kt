@@ -3,6 +3,9 @@ package org.ntust.app.tigerduck.data.preferences
 import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.BufferOverflow
@@ -49,6 +52,57 @@ import javax.inject.Singleton
  */
 fun effectiveCloudSyncEnabled(storedValue: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
     storedValue && !flavor.equals("fdroid", ignoreCase = true)
+
+/**
+ * The stored Home layout, made safe to show: the read side of
+ * [AppPreferences.homeSections], a pure function for the same reason as
+ * [effectiveCloudSyncEnabled].
+ *
+ * Gson builds [HomeSection] without running its constructor (CLAUDE.md,
+ * "Upgrade-safe persistence"), so whatever an older build wrote differently
+ * arrives as a null behind a non-null Kotlin type, which cannot be tested
+ * for once the object exists. The repairs are therefore made on the JSON
+ * tree, before the types are built:
+ *
+ * - a section whose `type`, or a shortcut whose `feature`, names a constant
+ *   this build does not have is dropped rather than left to NPE in the
+ *   grid — the one rename so far, GPA to SCORE, is instead mapped by the
+ *   `@SerializedName` alternate on [AppFeature.SCORE], which `gson` applies
+ *   here too;
+ * - a section without `widgets` reads back with none, where the Kotlin
+ *   default would not have applied.
+ *
+ * QUICK_WIDGETS sections are kept: builds before 2.5 filtered them out of
+ * what they read ("feature temporarily disabled") but left them stored, so
+ * the layout a user saved comes back now that the grid ships. The
+ * renumbering remains for a layout such a build re-saved with the gap that
+ * left, as HomeSectionLayout.add would otherwise hand out a duplicate.
+ */
+internal fun restoreHomeSections(json: String?, gson: Gson): List<HomeSection> {
+    json ?: return HomeSection.defaults()
+    return try {
+        val repaired = JsonArray()
+        JsonParser.parseString(json).asJsonArray
+            .filterIsInstance<JsonObject>()
+            .filter { gson.fromJson(it.get("type"), HomeSection.HomeSectionType::class.java) != null }
+            .forEach { section ->
+                val kept = JsonArray()
+                section.get("widgets")?.takeIf { it.isJsonArray }?.asJsonArray
+                    ?.filterIsInstance<JsonObject>()
+                    ?.filter { gson.fromJson(it.get("feature"), AppFeature::class.java) != null }
+                    ?.forEach(kept::add)
+                section.add("widgets", kept)
+                repaired.add(section)
+            }
+        val type = object : TypeToken<List<HomeSection>>() {}.type
+        gson.fromJson<List<HomeSection>>(repaired, type)
+            ?.mapIndexed { i, s -> s.copy(sortOrder = i) }
+            ?.ifEmpty { HomeSection.defaults() }
+            ?: HomeSection.defaults()
+    } catch (e: Exception) {
+        HomeSection.defaults()
+    }
+}
 
 @Singleton
 class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
@@ -707,23 +761,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         set(value) = prefs.edit().putBoolean("classReminderSettingsMigrated", value).apply()
 
     var homeSections: List<HomeSection>
-        get() {
-            val json = prefs.getString("homeSections", null) ?: return HomeSection.defaults()
-            return try {
-                val type = object : TypeToken<List<HomeSection>>() {}.type
-                @Suppress("DEPRECATION")
-                gson.fromJson<List<HomeSection>>(json, type)
-                    ?.filter { it.type != HomeSection.HomeSectionType.QUICK_WIDGETS }
-                    // Renumber after the filter: dropping a section out of the
-                    // middle leaves a gap, and HomeSectionLayout.add derives the
-                    // next value from list size, so the gap becomes a duplicate.
-                    ?.mapIndexed { i, s -> s.copy(sortOrder = i) }
-                    ?.ifEmpty { HomeSection.defaults() }
-                    ?: HomeSection.defaults()
-            } catch (e: Exception) {
-                HomeSection.defaults()
-            }
-        }
+        get() = restoreHomeSections(prefs.getString("homeSections", null), gson)
         set(value) {
             prefs.edit().putString("homeSections", gson.toJson(value)).apply()
         }

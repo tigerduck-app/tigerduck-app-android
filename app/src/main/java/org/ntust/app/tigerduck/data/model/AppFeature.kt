@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data.model
 
 import androidx.annotation.StringRes
+import com.google.gson.annotations.SerializedName
 import org.ntust.app.tigerduck.R
 
 enum class AppFeature(val id: String) {
@@ -9,6 +10,11 @@ enum class AppFeature(val id: String) {
     CALENDAR("calendar"),
     ANNOUNCEMENTS("announcements"),
     SCHOOL_MAIL("schoolMail"),
+    // Gson stores a feature by constant name (a Home shortcut's
+    // `WidgetItem.feature`). This was GPA until the Scores page shipped, and
+    // the first default Home layout saved a GPA shortcut; the alternate reads
+    // those layouts back as this constant instead of as null.
+    @SerializedName("SCORE", alternate = ["GPA"])
     SCORE("score"),
     COURSE_SELECTION("courseSelection"),
     GRADUATION_REQUIREMENTS("graduationRequirements"),
@@ -145,9 +151,21 @@ enum class AppFeature(val id: String) {
             ENGLISH_VOCAB,
         )
 
+        /**
+         * Same contract as [pinnableOrder], for the shortcut cards Home's Add
+         * dialog offers. A deliberate subset, as on iOS (`widgetFeatures`):
+         * the core pages are reachable from the tab bar and are not offered.
+         */
+        private val widgetOrder = listOf(
+            ANNOUNCEMENTS, FREE_LUNCH, CLUBS, EMPTY_CLASSROOM, SCORE, SCHOLARSHIP, ENGLISH_VOCAB,
+        )
+
         val pinnableFeatures: List<AppFeature> = pinnableOrder.filter { it.isImplemented }
 
         val moreFeatures: List<AppFeature> = moreOrder.filter { it.isImplemented }
+
+        /** The features a Home shortcut card can open, in the Add dialog's order. */
+        val widgetFeatures: List<AppFeature> = widgetOrder.filter { it.isImplemented }
 
         /**
          * Features a user may have pinned before they were withdrawn, or that

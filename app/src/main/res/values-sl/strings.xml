@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-pošta</string>
     <string name="course_member_groups">Skupine</string>
+    <string name="course_member_profile_picture">Profilna slika</string>
     <string name="course_members_auditors">Slušatelji</string>
     <string name="course_members_students">Študenti</string>
     <string name="course_members_tas">Asistenti</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Deli anonimne podatke o uporabi (obiskane strani, uporaba widgetov), da pomagaš izboljšati TigerDuck</string>
     <string name="settings_analytics_enabled">Analitika uporabe</string>
     <string name="settings_api_endpoint">Končna točka API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Spremeni</string>
+    <string name="settings_api_endpoint_change_alert_message">Po prijavi ta končna točka prejme vaš študentski ID in žeton Moodle. Vsi prijavljeni računi bodo odjavljeni.</string>
+    <string name="settings_api_endpoint_change_alert_title">Želite spremeniti končno točko API?</string>
     <string name="settings_api_endpoint_change_title">Spremeni končno točko</string>
     <string name="settings_api_endpoint_checking">Preverjanje…</string>
     <string name="settings_api_endpoint_effective_title">Trenutna končna točka</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Pripni današnje predmete na vrh urnika</string>
     <string name="settings_privacy_policy">Pravilnik o zasebnosti</string>
     <string name="settings_push_server_nav_label">Strežniški push</string>
-    <string name="settings_remember_bulletin_filter">Zapomni si filtre oglasne deske</string>
     <string name="settings_reset_course_colors">Znova dodeli barve predmetov</string>
     <string name="settings_reset_course_colors_confirm_message">Vsak predmet bo dobil novo, edinstveno barvo — najprej iz prednastavljene palete, nato naključno, ko se ta izčrpa.</string>
     <string name="settings_reset_course_colors_confirm_title">Znova dodeliti barve predmetov?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Neuspešno</string>
     <string name="sync_status_hours_ago_short">%1$d h nazaj</string>
     <string name="sync_status_just_now">Pravkar</string>
-    <string name="sync_status_last_synced">Zadnja sinhronizacija</string>
     <string name="sync_status_last_updated">Zadnja posodobitev</string>
     <string name="sync_status_minimal">Omejeno</string>
     <string name="sync_status_minutes_ago_short">%1$d min nazaj</string>
     <string name="sync_status_nav_label">Stanje TigerSync</string>
-    <string name="sync_status_never_synced">Nikoli sinhronizirano</string>
     <string name="sync_status_never_updated">Nikoli posodobljeno</string>
     <string name="sync_status_ok">V redu</string>
     <string name="sync_status_syncing">Sinhronizacija…</string>

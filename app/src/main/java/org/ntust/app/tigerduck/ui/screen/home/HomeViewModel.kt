@@ -47,6 +47,7 @@ import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.shared.Course
@@ -1027,6 +1028,34 @@ class HomeViewModel @Inject constructor(
                 title = title,
             )
         )
+    }
+
+    /**
+     * A shortcut card for [feature], in the first section that holds them,
+     * or in a new Quick widgets section titled [quickWidgetsTitle] when Home
+     * has none. The title is passed in because the view model has no
+     * resources; HomeScreen resolves it as it does for [addSection].
+     */
+    fun addQuickFeature(feature: AppFeature, quickWidgetsTitle: String) {
+        val added = HomeSectionLayout.addQuickFeature(
+            sections = _sections.value,
+            feature = feature,
+            sectionId = java.util.UUID.randomUUID().toString(),
+            widgetId = java.util.UUID.randomUUID().toString(),
+            quickWidgetsTitle = quickWidgetsTitle,
+        )
+        if (added !== _sections.value) persistSections(added)
+    }
+
+    fun removeWidget(sectionId: String, widgetId: String) {
+        val removed = HomeSectionLayout.removeWidget(_sections.value, sectionId, widgetId)
+        if (removed !== _sections.value) persistSections(removed)
+    }
+
+    /** One step of a shortcut drag; see [moveSections] for why a no-op must not write. */
+    fun moveWidget(sectionId: String, widgetId: String, toIndex: Int) {
+        val moved = HomeSectionLayout.moveWidget(_sections.value, sectionId, widgetId, toIndex)
+        if (moved !== _sections.value) persistSections(moved)
     }
 
     private fun persistSections(sections: List<HomeSection>) {
