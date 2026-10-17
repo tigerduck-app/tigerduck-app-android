@@ -49,6 +49,7 @@ class ScoreViewModelAccountTest {
         isOnline = { online },
         isDemo = { false },
         strings = { "string $it" },
+        rosterCourses = { emptyList() },
     )
 
     private fun signIn(id: String) {

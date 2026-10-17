@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Эл. почта</string>
     <string name="course_member_groups">Группы</string>
+    <string name="course_member_profile_picture">Фото профиля</string>
     <string name="course_members_auditors">Вольнослушатели</string>
     <string name="course_members_students">Студенты</string>
     <string name="course_members_tas">Ассистенты</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Делись анонимными данными об использовании (посещённые страницы, использование виджетов), чтобы помочь улучшить TigerDuck</string>
     <string name="settings_analytics_enabled">Аналитика использования</string>
     <string name="settings_api_endpoint">Конечная точка API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Изменить</string>
+    <string name="settings_api_endpoint_change_alert_message">После входа эта конечная точка получит ваш студенческий ID и токен Moodle. Будет выполнен выход из всех аккаунтов.</string>
+    <string name="settings_api_endpoint_change_alert_title">Изменить конечную точку API?</string>
     <string name="settings_api_endpoint_change_title">Изменить конечную точку</string>
     <string name="settings_api_endpoint_checking">Проверка…</string>
     <string name="settings_api_endpoint_effective_title">Текущая конечная точка</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Закрепить сегодняшние занятия вверху расписания</string>
     <string name="settings_privacy_policy">Политика конфиденциальности</string>
     <string name="settings_push_server_nav_label">Серверный push</string>
-    <string name="settings_remember_bulletin_filter">Запомнить фильтры бюллетеней</string>
     <string name="settings_reset_course_colors">Переназначить цвета курсов</string>
     <string name="settings_reset_course_colors_confirm_message">Каждому курсу будет назначен новый уникальный цвет — сначала из палитры, затем случайно, когда палитра исчерпана.</string>
     <string name="settings_reset_course_colors_confirm_title">Переназначить цвета курсов?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Ошибка</string>
     <string name="sync_status_hours_ago_short">%1$d ч. назад</string>
     <string name="sync_status_just_now">Только что</string>
-    <string name="sync_status_last_synced">Синхронизировано</string>
     <string name="sync_status_last_updated">Обновлено</string>
     <string name="sync_status_minimal">Ограничено</string>
     <string name="sync_status_minutes_ago_short">%1$d мин. назад</string>
     <string name="sync_status_nav_label">Статус TigerSync</string>
-    <string name="sync_status_never_synced">Никогда не синхронизировалось</string>
     <string name="sync_status_never_updated">Никогда не обновлялось</string>
     <string name="sync_status_ok">ОК</string>
     <string name="sync_status_syncing">Синхронизация…</string>

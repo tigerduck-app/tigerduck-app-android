@@ -170,7 +170,11 @@ fun ScoreScreen(
     }
 
     selectedCourse?.let { course ->
-        CourseDetailDialog(course = course, onDismiss = { selectedCourse = null })
+        CourseDetailDialog(
+            course = course,
+            lookupRoster = viewModel::rosterCourse,
+            onDismiss = { selectedCourse = null },
+        )
     }
 }
 

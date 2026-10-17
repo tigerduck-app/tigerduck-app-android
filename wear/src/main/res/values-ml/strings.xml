@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">ഇമെയിൽ</string>
     <string name="course_member_groups">ഗ്രൂപ്പുകൾ</string>
+    <string name="course_member_profile_picture">പ്രൊഫൈൽ ചിത്രം</string>
     <string name="course_members_auditors">ഓഡിറ്റർമാർ</string>
     <string name="course_members_students">വിദ്യാർഥികൾ</string>
     <string name="course_members_tas">ടീച്ചിംഗ് അസിസ്റ്റന്റുമാർ</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck മെച്ചപ്പെടുത്താൻ സഹായിക്കാൻ അജ്ഞാത ഉപയോഗ ഡേറ്റ (സന്ദർശിച്ച പേജുകൾ, വിജറ്റ് ഉപയോഗം) പങ്കിടുക</string>
     <string name="settings_analytics_enabled">ഉപയോഗ വിശകലനം</string>
     <string name="settings_api_endpoint">API എൻഡ്‌പോയിന്റ്</string>
+    <string name="settings_api_endpoint_change_alert_confirm">മാറ്റുക</string>
+    <string name="settings_api_endpoint_change_alert_message">സൈൻ ഇൻ ചെയ്ത ശേഷം, ഈ എൻഡ്‌പോയിന്റ് നിങ്ങളുടെ വിദ്യാർത്ഥി ID-യും Moodle ടോക്കണും സ്വീകരിക്കും. സൈൻ ഇൻ ചെയ്ത എല്ലാ അക്കൗണ്ടുകളും സൈൻ ഔട്ട് ആകും.</string>
+    <string name="settings_api_endpoint_change_alert_title">API എൻഡ്‌പോയിന്റ് മാറ്റണോ?</string>
     <string name="settings_api_endpoint_change_title">എൻഡ്‌പോയിന്റ് മാറ്റുക</string>
     <string name="settings_api_endpoint_checking">പരിശോധിക്കുന്നു…</string>
     <string name="settings_api_endpoint_effective_title">നിലവിലെ എൻഡ്‌പോയിന്റ്</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">ടൈംടേബിളിന്റെ മുകളിൽ ഇന്നത്തെ കോഴ്‌സുകൾ പിൻ ചെയ്യുക</string>
     <string name="settings_privacy_policy">സ്വകാര്യതാ നയം</string>
     <string name="settings_push_server_nav_label">സെർവർ പുഷ്</string>
-    <string name="settings_remember_bulletin_filter">ബുള്ളറ്റിൻ ഫിൽട്ടറുകൾ ഓർക്കുക</string>
     <string name="settings_reset_course_colors">കോഴ്സ് നിറങ്ങൾ പുനഃനൽകുക</string>
     <string name="settings_reset_course_colors_confirm_message">ഓരോ കോഴ്സിനും പുതിയ, വ്യത്യസ്തമായ ഒരു നിറം നൽകും — ആദ്യം പ്രീസെറ്റ് പാലെറ്റിൽ നിന്നു, അത് തീർന്നാൽ ക്രമരഹിതമായി.</string>
     <string name="settings_reset_course_colors_confirm_title">കോഴ്സ് നിറങ്ങൾ പുനഃനൽകണോ?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">പരാജയപ്പെട്ടു</string>
     <string name="sync_status_hours_ago_short">%1$d മ. മുൻ</string>
     <string name="sync_status_just_now">ഇപ്പോൾ തന്നെ</string>
-    <string name="sync_status_last_synced">അവസാനം സമന്വയിപ്പിച്ചത്</string>
     <string name="sync_status_last_updated">അവസാനം അപ്‌ഡേറ്റ് ചെയ്തത്</string>
     <string name="sync_status_minimal">പരിമിതം</string>
     <string name="sync_status_minutes_ago_short">%1$d മി. മുൻ</string>
     <string name="sync_status_nav_label">TigerSync നില</string>
-    <string name="sync_status_never_synced">ഒരിക്കലും സിൻക് ചെയ്തിട്ടില്ല</string>
     <string name="sync_status_never_updated">ഒരിക്കലും അപ്‌ഡേറ്റ് ചെയ്തിട്ടില്ല</string>
     <string name="sync_status_ok">ശരി</string>
     <string name="sync_status_syncing">സിങ്ക് ചെയ്യുന്നു…</string>

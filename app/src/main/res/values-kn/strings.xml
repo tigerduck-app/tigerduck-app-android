@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">ಇಮೇಲ್</string>
     <string name="course_member_groups">ಗುಂಪುಗಳು</string>
+    <string name="course_member_profile_picture">ಪ್ರೊಫೈಲ್ ಚಿತ್ರ</string>
     <string name="course_members_auditors">ಆಡಿಟರ್‌ಗಳು</string>
     <string name="course_members_students">ವಿದ್ಯಾರ್ಥಿಗಳು</string>
     <string name="course_members_tas">ಬೋಧನಾ ಸಹಾಯಕರು</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck ಸುಧಾರಿಸಲು ಸಹಾಯ ಮಾಡಲು ಅನಾಮಧೇಯ ಬಳಕೆ ಡೇಟಾ (ಭೇಟಿ ನೀಡಿದ ಪುಟಗಳು, ವಿಜೆಟ್ ಬಳಕೆ) ಹಂಚಿಕೊಳ್ಳಿ</string>
     <string name="settings_analytics_enabled">ಬಳಕೆ ವಿಶ್ಲೇಷಣೆ</string>
     <string name="settings_api_endpoint">API ಎಂಡ್‌ಪಾಯಿಂಟ್</string>
+    <string name="settings_api_endpoint_change_alert_confirm">ಬದಲಾಯಿಸಿ</string>
+    <string name="settings_api_endpoint_change_alert_message">ಸೈನ್ ಇನ್ ಮಾಡಿದ ನಂತರ, ಈ ಎಂಡ್‌ಪಾಯಿಂಟ್ ನಿಮ್ಮ ವಿದ್ಯಾರ್ಥಿ ID ಮತ್ತು Moodle ಟೋಕನ್ ಅನ್ನು ಪಡೆಯುತ್ತದೆ. ಸೈನ್ ಇನ್ ಆಗಿರುವ ಎಲ್ಲಾ ಖಾತೆಗಳು ಸೈನ್ ಔಟ್ ಆಗುತ್ತವೆ.</string>
+    <string name="settings_api_endpoint_change_alert_title">API ಎಂಡ್‌ಪಾಯಿಂಟ್ ಬದಲಾಯಿಸಬೇಕೇ?</string>
     <string name="settings_api_endpoint_change_title">ಎಂಡ್‌ಪಾಯಿಂಟ್ ಬದಲಾಯಿಸಿ</string>
     <string name="settings_api_endpoint_checking">ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…</string>
     <string name="settings_api_endpoint_effective_title">ಪ್ರಸ್ತುತ ಎಂಡ್‌ಪಾಯಿಂಟ್</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">ವೇಳಾಪಟ್ಟಿಯ ಮೇಲ್ಭಾಗದಲ್ಲಿ ಇಂದಿನ ಕೋರ್ಸ್‌ಗಳನ್ನು ಪಿನ್ ಮಾಡಿ</string>
     <string name="settings_privacy_policy">ಗೌಪ್ಯತಾ ನೀತಿ</string>
     <string name="settings_push_server_nav_label">ಸರ್ವರ್ ಪುಶ್</string>
-    <string name="settings_remember_bulletin_filter">ಬುಲೆಟಿನ್ ಫಿಲ್ಟರ್‌ಗಳನ್ನು ನೆನಪಿಡಿ</string>
     <string name="settings_reset_course_colors">ಕೋರ್ಸ್‌ಗಳಿಗೆ ಬಣ್ಣಗಳನ್ನು ಮರುಹೊಂದಿಸಿ</string>
     <string name="settings_reset_course_colors_confirm_message">ಪ್ರತಿ ಕೋರ್ಸ್‌ಗೆ ಹೊಸ ಮತ್ತು ಅನನ್ಯ ಬಣ್ಣ ನಿಗದಿಯಾಗುತ್ತದೆ — ಮೊದಲು ಪ್ರಿಸೆಟ್ ಪ್ಯಾಲೆಟ್‌ನಿಂದ, ಪ್ಯಾಲೆಟ್ ಮುಗಿದ ಮೇಲೆ ಯಾದೃಚ್ಛಿಕವಾಗಿ.</string>
     <string name="settings_reset_course_colors_confirm_title">ಕೋರ್ಸ್‌ಗಳಿಗೆ ಬಣ್ಣಗಳನ್ನು ಮರುಹೊಂದಿಸಬೇಕೆ?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">ವಿಫಲ</string>
     <string name="sync_status_hours_ago_short">%1$d ಗಂ ಹಿಂದೆ</string>
     <string name="sync_status_just_now">ಈಗಷ್ಟೇ</string>
-    <string name="sync_status_last_synced">ಕೊನೆಯ ಸಿಂಕ್</string>
     <string name="sync_status_last_updated">ಕೊನೆಯ ಅಪ್‌ಡೇಟ್</string>
     <string name="sync_status_minimal">ಸೀಮಿತ</string>
     <string name="sync_status_minutes_ago_short">%1$d ನಿ ಹಿಂದೆ</string>
     <string name="sync_status_nav_label">TigerSync ಸ್ಥಿತಿ</string>
-    <string name="sync_status_never_synced">ಎಂದೂ ಸಿಂಕ್ ಆಗಿಲ್ಲ</string>
     <string name="sync_status_never_updated">ಎಂದೂ ಅಪ್‌ಡೇಟ್ ಆಗಿಲ್ಲ</string>
     <string name="sync_status_ok">ಸರಿ</string>
     <string name="sync_status_syncing">ಸಿಂಕ್ ಆಗುತ್ತಿದೆ…</string>
