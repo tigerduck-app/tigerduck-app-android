@@ -81,4 +81,16 @@ class HtmlSanitizerTest {
         val clean = HtmlSanitizer.sanitize("<p>one</p><div>two<br>three</div>", allowRemoteImages = false).html
         assertEquals("one\ntwo\nthree", HtmlSanitizer.plainText(clean))
     }
+
+    @Test
+    fun `custom colors are detected from inline css and font or bgcolor attributes`() {
+        assertFalse(HtmlSanitizer.sanitize("<p>plain text</p>", allowRemoteImages = false).hasCustomColors)
+        assertFalse(HtmlSanitizer.sanitize("<p style=\"font-size: 14px; margin: 0\">styled</p>", allowRemoteImages = false).hasCustomColors)
+
+        assertTrue(HtmlSanitizer.sanitize("<p style=\"color: #000000\">black</p>", allowRemoteImages = false).hasCustomColors)
+        assertTrue(HtmlSanitizer.sanitize("<p style=\"background-color: white\">white bg</p>", allowRemoteImages = false).hasCustomColors)
+        assertTrue(HtmlSanitizer.sanitize("<font color=\"#333333\">font color</font>", allowRemoteImages = false).hasCustomColors)
+        assertTrue(HtmlSanitizer.sanitize("<table bgcolor=\"#ffffff\"><tr><td>table bg</td></tr></table>", allowRemoteImages = false).hasCustomColors)
+        assertTrue(HtmlSanitizer.sanitize("<table><tr><td bgcolor=\"#eeeeee\">cell bg</td></tr></table>", allowRemoteImages = false).hasCustomColors)
+    }
 }

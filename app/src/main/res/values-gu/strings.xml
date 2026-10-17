@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">ઇમેઇલ</string>
     <string name="course_member_groups">જૂથો</string>
+    <string name="course_member_profile_picture">પ્રોફાઇલ ફોટો</string>
     <string name="course_members_auditors">ઓડિટર</string>
     <string name="course_members_students">વિદ્યાર્થીઓ</string>
     <string name="course_members_tas">ટીચિંગ આસિસ્ટન્ટ</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck સુધારવામાં મદદ કરવા અજ્ઞાત ઉપયોગ ડેટા (મુલાકાત લીધેલ પૃષ્ઠો, વિજેટ ઉપયોગ) શેર કરો</string>
     <string name="settings_analytics_enabled">ઉપયોગ વિશ્લેષણ</string>
     <string name="settings_api_endpoint">API એન્ડપોઇન્ટ</string>
+    <string name="settings_api_endpoint_change_alert_confirm">બદલો</string>
+    <string name="settings_api_endpoint_change_alert_message">સાઇન ઇન કર્યા પછી, આ એન્ડપોઇન્ટને તમારો વિદ્યાર્થી ID અને Moodle ટોકન મળશે. સાઇન ઇન થયેલાં બધાં એકાઉન્ટ સાઇન આઉટ થઈ જશે.</string>
+    <string name="settings_api_endpoint_change_alert_title">API એન્ડપોઇન્ટ બદલવું છે?</string>
     <string name="settings_api_endpoint_change_title">એન્ડપોઇન્ટ બદલો</string>
     <string name="settings_api_endpoint_checking">ચકાસી રહ્યા છીએ…</string>
     <string name="settings_api_endpoint_effective_title">હાલનું એન્ડપોઇન્ટ</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">સમયપત્રકની ઉપર આજના કોર્સ પિન કરો</string>
     <string name="settings_privacy_policy">ગોપનીયતા નીતિ</string>
     <string name="settings_push_server_nav_label">સર્વર પુશ</string>
-    <string name="settings_remember_bulletin_filter">બુલેટિન ફિલ્ટર્સ યાદ રાખો</string>
     <string name="settings_reset_course_colors">કોર્સ રંગો ફરી ફાળવો</string>
     <string name="settings_reset_course_colors_confirm_message">દરેક કોર્સને નવો, અનન્ય રંગ સોંપાશે — પ્રથમ પ્રીસેટ પૅલેટ માંથી, પૅલેટ સમાપ્ત થયા પછી રેન્ડમ.</string>
     <string name="settings_reset_course_colors_confirm_title">કોર્સ રંગો ફરી ફાળવવા છે?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">નિષ્ફળ</string>
     <string name="sync_status_hours_ago_short">%1$d કલ પહેલા</string>
     <string name="sync_status_just_now">હમણાં જ</string>
-    <string name="sync_status_last_synced">છેલ્લે સમન્વયિત</string>
     <string name="sync_status_last_updated">છેલ્લે અપડેટ થયું</string>
     <string name="sync_status_minimal">મર્યાદિત</string>
     <string name="sync_status_minutes_ago_short">%1$d મિ પહેલા</string>
     <string name="sync_status_nav_label">TigerSync સ્થિતિ</string>
-    <string name="sync_status_never_synced">ક્યારેય સિંક થયું નથી</string>
     <string name="sync_status_never_updated">ક્યારેય અપડેટ થયું નથી</string>
     <string name="sync_status_ok">બરાબર</string>
     <string name="sync_status_syncing">સિંક થઈ રહ્યું છે…</string>

@@ -27,4 +27,20 @@ class MailLightModeTest {
     fun `a mail with no HTML part has no page at all`() {
         assertFalse(offersLightMode(isDark = true, mode = ViewMode.FORMATTED, canFormat = false))
     }
+
+    @Test
+    fun `resolveViewInLight defaults to true when custom colors are present and no override`() {
+        assertTrue(resolveViewInLight(hasCustomColors = true, userOverride = null))
+    }
+
+    @Test
+    fun `resolveViewInLight defaults to false when custom colors are absent and no override`() {
+        assertFalse(resolveViewInLight(hasCustomColors = false, userOverride = null))
+    }
+
+    @Test
+    fun `resolveViewInLight respects explicit user override`() {
+        assertTrue(resolveViewInLight(hasCustomColors = false, userOverride = true))
+        assertFalse(resolveViewInLight(hasCustomColors = true, userOverride = false))
+    }
 }

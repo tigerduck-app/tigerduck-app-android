@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Grupy</string>
+    <string name="course_member_profile_picture">Zdjęcie profilowe</string>
     <string name="course_members_auditors">Wolni słuchacze</string>
     <string name="course_members_students">Studenci</string>
     <string name="course_members_tas">Asystenci</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Udostępniaj anonimowe dane o użytkowaniu (odwiedzone strony, używanie widgetów), aby pomóc ulepszać TigerDuck</string>
     <string name="settings_analytics_enabled">Analityka użytkowania</string>
     <string name="settings_api_endpoint">Punkt końcowy API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Zmień</string>
+    <string name="settings_api_endpoint_change_alert_message">Po zalogowaniu ten punkt końcowy otrzyma Twój numer studenta i token Moodle. Wszystkie zalogowane konta zostaną wylogowane.</string>
+    <string name="settings_api_endpoint_change_alert_title">Zmienić punkt końcowy API?</string>
     <string name="settings_api_endpoint_change_title">Zmień punkt końcowy</string>
     <string name="settings_api_endpoint_checking">Sprawdzanie…</string>
     <string name="settings_api_endpoint_effective_title">Bieżący punkt końcowy</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Przypnij dzisiejsze zajęcia na górze planu zajęć</string>
     <string name="settings_privacy_policy">Polityka prywatności</string>
     <string name="settings_push_server_nav_label">Push serwera</string>
-    <string name="settings_remember_bulletin_filter">Zapamiętaj filtry biuletynu</string>
     <string name="settings_reset_course_colors">Przypisz kolory kursów ponownie</string>
     <string name="settings_reset_course_colors_confirm_message">Każdy kurs otrzyma nowy, unikalny kolor — najpierw z gotowej palety, a po jej wyczerpaniu losowo.</string>
     <string name="settings_reset_course_colors_confirm_title">Przypisać kolory kursów ponownie?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Niepowodzenie</string>
     <string name="sync_status_hours_ago_short">%1$d godz. temu</string>
     <string name="sync_status_just_now">przed chwilą</string>
-    <string name="sync_status_last_synced">Ostatnia synchronizacja</string>
     <string name="sync_status_last_updated">Ostatnia aktualizacja</string>
     <string name="sync_status_minimal">Ograniczone</string>
     <string name="sync_status_minutes_ago_short">%1$d min temu</string>
     <string name="sync_status_nav_label">Stan TigerSync</string>
-    <string name="sync_status_never_synced">Nigdy nie zsynchronizowano</string>
     <string name="sync_status_never_updated">Nigdy nie zaktualizowano</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synchronizowanie…</string>

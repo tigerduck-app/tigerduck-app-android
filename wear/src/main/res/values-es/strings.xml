@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Correo electrónico</string>
     <string name="course_member_groups">Grupos</string>
+    <string name="course_member_profile_picture">Foto de perfil</string>
     <string name="course_members_auditors">Oyentes</string>
     <string name="course_members_students">Estudiantes</string>
     <string name="course_members_tas">Asistentes de docencia</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Comparte datos de uso anónimos (páginas visitadas, uso de widgets) para ayudar a mejorar TigerDuck</string>
     <string name="settings_analytics_enabled">Análisis de uso</string>
     <string name="settings_api_endpoint">Punto final de la API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Cambiar</string>
+    <string name="settings_api_endpoint_change_alert_message">Cuando inicies sesión, este punto final recibirá tu ID de estudiante y el token de Moodle. Se cerrará la sesión de todas las cuentas.</string>
+    <string name="settings_api_endpoint_change_alert_title">¿Cambiar el punto final de la API?</string>
     <string name="settings_api_endpoint_change_title">Cambiar punto final</string>
     <string name="settings_api_endpoint_checking">Comprobando…</string>
     <string name="settings_api_endpoint_effective_title">Punto final efectivo</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Fijar los cursos de hoy arriba del horario</string>
     <string name="settings_privacy_policy">Política de privacidad</string>
     <string name="settings_push_server_nav_label">Empuje del servidor</string>
-    <string name="settings_remember_bulletin_filter">Recuerde los filtros del boletín</string>
     <string name="settings_reset_course_colors">Reasignar colores de cursos</string>
     <string name="settings_reset_course_colors_confirm_message">Cada curso recibirá un color nuevo y único — primero de la paleta de presets, luego aleatoriamente cuando la paleta se agote.</string>
     <string name="settings_reset_course_colors_confirm_title">¿Reasignar los colores de los cursos?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Error</string>
     <string name="sync_status_hours_ago_short">hace %1$d h</string>
     <string name="sync_status_just_now">Ahora mismo</string>
-    <string name="sync_status_last_synced">Última sincronización</string>
     <string name="sync_status_last_updated">Última actualización</string>
     <string name="sync_status_minimal">Limitado</string>
     <string name="sync_status_minutes_ago_short">hace %1$d min</string>
     <string name="sync_status_nav_label">Estado de TigerSync</string>
-    <string name="sync_status_never_synced">Nunca sincronizado</string>
     <string name="sync_status_never_updated">Nunca actualizado</string>
     <string name="sync_status_ok">Correcto</string>
     <string name="sync_status_syncing">Sincronizando…</string>

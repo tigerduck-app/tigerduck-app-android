@@ -7,6 +7,7 @@ import org.jsoup.select.Elements
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
 import org.ntust.app.tigerduck.mail.model.InlineImage
 import org.ntust.app.tigerduck.mail.sanitize.MailLink
+import org.ntust.app.tigerduck.mail.sanitize.MailReadableHtml
 import java.net.URLDecoder
 import java.util.Base64
 
@@ -25,7 +26,12 @@ data class LinkedHtml(val html: String, val links: List<MailLink>)
  * [isDark] drives `color-scheme`, which is what makes mail that opts into `prefers-color-scheme`
  * follow along, and makes UA-default form controls legible.
  */
-data class MailHtmlTheme(val background: String, val foreground: String, val isDark: Boolean) {
+data class MailHtmlTheme(
+    val background: String,
+    val foreground: String,
+    val link: String = "#007aff",
+    val isDark: Boolean,
+) {
     companion object {
         /** [LIGHT]'s paper, for the Surface and WebView drawn behind its document. */
         val LIGHT_PAPER = Color.White
@@ -35,7 +41,12 @@ data class MailHtmlTheme(val background: String, val foreground: String, val isD
          * sets dark text and no background of its own reads as nothing on a dark surface; this is
          * the page such a mail was written against, and the reader's way back to it.
          */
-        val LIGHT = MailHtmlTheme(background = LIGHT_PAPER.toCssHex(), foreground = Color.Black.toCssHex(), isDark = false)
+        val LIGHT = MailHtmlTheme(
+            background = LIGHT_PAPER.toCssHex(),
+            foreground = Color.Black.toCssHex(),
+            link = "#007aff",
+            isDark = false,
+        )
     }
 }
 
@@ -107,7 +118,12 @@ object MailHtmlDocument {
         allowRemoteImages: Boolean,
         theme: MailHtmlTheme,
     ): LinkedHtml {
-        val body = rewriteLinks(inlineCids(sanitizedHtml, images))
+        val readableHtml = MailReadableHtml(sanitizedHtml).adjust(
+            pageBackgroundHex = theme.background,
+            pageForegroundHex = theme.foreground,
+            linkForegroundHex = theme.link,
+        )
+        val body = rewriteLinks(inlineCids(readableHtml, images))
         val scheme = if (theme.isDark) "dark" else "light"
         return body.copy(
             html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\">" +
