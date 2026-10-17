@@ -271,6 +271,7 @@
     <string name="color_name_pink">Pink</string>
     <string name="color_name_purple">Purple</string>
     <string name="color_name_red">Red</string>
+    <string name="color_name_wallpaper">Wallpaper</string>
     <string name="color_picker_apply">Apply</string>
     <string name="color_picker_custom">Custom</string>
     <string name="color_picker_presets_note">Preset colors</string>

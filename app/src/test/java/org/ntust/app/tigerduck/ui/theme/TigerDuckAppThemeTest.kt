@@ -2,8 +2,12 @@ package org.ntust.app.tigerduck.ui.theme
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,5 +43,38 @@ class TigerDuckAppThemeTest {
         }
         composeRule.waitForIdle()
         assertEquals(VisualPreset.TigerDuck, seen?.preset)
+    }
+
+    @Test
+    fun `the root theme uses accentColor when useDynamicColor is false`() {
+        var seenScheme: ColorScheme? = null
+        val customAccent = Color(0xFFE67E22)
+        composeRule.setContent {
+            TigerDuckAppTheme(darkTheme = false, accentColor = customAccent, useDynamicColor = false) {
+                seenScheme = MaterialTheme.colorScheme
+            }
+        }
+        composeRule.waitForIdle()
+        assertEquals(customAccent, seenScheme?.primary)
+    }
+
+    @Config(sdk = [31])
+    @Test
+    fun `the root theme uses dynamic color scheme on S+ when useDynamicColor is true while preserving surface`() {
+        var seenScheme: ColorScheme? = null
+        val customAccent = Color(0xFFE67E22)
+        composeRule.setContent {
+            TigerDuckAppTheme(darkTheme = false, accentColor = customAccent, useDynamicColor = true) {
+                seenScheme = MaterialTheme.colorScheme
+            }
+        }
+        composeRule.waitForIdle()
+        // Primary is resolved dynamically rather than fixed customAccent
+        assertNotEquals(customAccent, seenScheme?.primary)
+        // Card surface and background remain TigerDuck's explicit palette
+        assertEquals(LightColorScheme.surface, seenScheme?.surface)
+        assertEquals(LightColorScheme.background, seenScheme?.background)
+        // onPrimary remains TigerDuck's explicit white text on primary button
+        assertEquals(Color.White, seenScheme?.onPrimary)
     }
 }

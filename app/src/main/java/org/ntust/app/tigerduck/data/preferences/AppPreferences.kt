@@ -1086,6 +1086,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             CLASSROOM_MANDARIN_DISPLAY_TRANSLATED,
         )
 
+        /** Sentinel value indicating the user chose the wallpaper dynamic color on Android 12+. */
+        const val ACCENT_WALLPAPER = -1
+
         /**
          * Accent color palette — canonical (light-mode) hex. The user's pick
          * is always stored as the light hex; [themeColorsDark] provides the

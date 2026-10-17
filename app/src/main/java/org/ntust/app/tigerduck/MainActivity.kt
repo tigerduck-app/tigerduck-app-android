@@ -207,6 +207,7 @@ class MainActivity : AppCompatActivity() {
             TigerDuckAppTheme(
                 darkTheme = dark,
                 accentColor = appState.accentColor(dark),
+                useDynamicColor = appState.isWallpaperAccent,
                 visualPreset = appState.visualPreset,
             ) {
                 Surface(modifier = Modifier.fillMaxSize()) {

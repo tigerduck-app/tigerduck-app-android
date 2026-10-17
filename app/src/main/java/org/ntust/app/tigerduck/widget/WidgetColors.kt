@@ -84,7 +84,7 @@ fun resolveWidgetIsDark(prefs: AppPreferences, context: Context): Boolean =
     }
 
 fun resolveWidgetAccentColor(prefs: AppPreferences, isDark: Boolean): Color {
-    val lightHex = prefs.accentColorHex
+    val lightHex = if (prefs.accentColorHex == AppPreferences.ACCENT_WALLPAPER) 0x007AFF else prefs.accentColorHex
     val hex = if (isDark) AppPreferences.accentDarkVariant(lightHex) else lightHex
     return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
 }

@@ -1,11 +1,14 @@
 package org.ntust.app.tigerduck.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SwitchColors
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -13,6 +16,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.shared.Course
@@ -391,14 +395,26 @@ private val TigerDuckTypography: Typography = Typography().let { default ->
 fun TigerDuckAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     accentColor: Color = Color(0xFF007AFF),
+    useDynamicColor: Boolean = false,
     /** The interface style, provided to the content as [LocalVisualStylePolicy]. */
     visualPreset: VisualPreset = VisualPreset.Default,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
-        DarkColorScheme.copy(primary = accentColor, surfaceTint = accentColor)
+    val context = LocalContext.current
+    val baseScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val colorScheme = if (useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val dynamic = if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        // TigerDuck keeps explicit surface / background styling (cards, outline, page background)
+        // so that only the accent slots adapt to the dynamic wallpaper palette, consistent with the
+        // fixed accent presets.
+        baseScheme.copy(
+            primary = dynamic.primary,
+            primaryContainer = dynamic.primaryContainer,
+            onPrimaryContainer = dynamic.onPrimaryContainer,
+            surfaceTint = dynamic.surfaceTint,
+        )
     } else {
-        LightColorScheme.copy(primary = accentColor, surfaceTint = accentColor)
+        baseScheme.copy(primary = accentColor, surfaceTint = accentColor)
     }
 
     MaterialTheme(

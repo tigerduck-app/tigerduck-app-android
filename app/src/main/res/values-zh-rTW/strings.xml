@@ -271,6 +271,7 @@
     <string name="color_name_pink">粉</string>
     <string name="color_name_purple">紫</string>
     <string name="color_name_red">紅</string>
+    <string name="color_name_wallpaper">桌布色彩</string>
     <string name="color_picker_apply">套用</string>
     <string name="color_picker_custom">自訂</string>
     <string name="color_picker_presets_note">預設顏色</string>

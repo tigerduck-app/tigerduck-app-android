@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui
 
+import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -211,16 +212,25 @@ class AppState @Inject constructor(
             widgetUpdater.requestUpdate()
         }
 
+    val isWallpaperAccent: Boolean
+        get() = accentColorHex == AppPreferences.ACCENT_WALLPAPER && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
     /**
      * Accent color resolved for the current theme mode. [accentColorHex] always
      * stores the canonical (light) hex; in dark mode we return the paired
      * dark variant so the tint stays vibrant against dark surfaces.
+     * When wallpaper dynamic color is active (or set on pre-S devices), falls back to the default blue.
      */
     fun accentColor(isDark: Boolean = TigerDuckTheme.isDarkMode): Color {
-        val hex = if (isDark) {
-            AppPreferences.accentDarkVariant(accentColorHex)
+        val effectiveHex = if (accentColorHex == AppPreferences.ACCENT_WALLPAPER) {
+            0x007AFF
         } else {
             accentColorHex
+        }
+        val hex = if (isDark) {
+            AppPreferences.accentDarkVariant(effectiveHex)
+        } else {
+            effectiveHex
         }
         return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
     }

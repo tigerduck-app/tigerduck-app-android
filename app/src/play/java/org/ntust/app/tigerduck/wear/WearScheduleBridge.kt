@@ -66,7 +66,12 @@ class WearScheduleBridge @Inject constructor(
             // On logout, explicitly clear the watch's view.
             emptyList()
         }
-        val accentHex = "#%06X".format(0xFFFFFF and appPreferences.accentColorHex)
+        val effectiveAccent = if (appPreferences.accentColorHex == AppPreferences.ACCENT_WALLPAPER) {
+            0x007AFF
+        } else {
+            appPreferences.accentColorHex
+        }
+        val accentHex = "#%06X".format(0xFFFFFF and effectiveAccent)
         val payload = gson.toJson(courses.map { it.toDto() }).toByteArray()
         val gzipped = ByteArrayOutputStream().also { bos ->
             GZIPOutputStream(bos).use { it.write(payload) }
