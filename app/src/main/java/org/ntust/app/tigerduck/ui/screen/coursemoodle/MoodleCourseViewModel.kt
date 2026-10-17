@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.moodle.MoodleAccountAssignments
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseRepository
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
 import org.ntust.app.tigerduck.mail.MailAccount
@@ -35,11 +36,17 @@ class MoodleCourseViewModel @Inject constructor(
     /** Whether a member's email opens the app's own School Mail compose rather than a mail app. */
     val schoolMailSignedIn: StateFlow<Boolean> = mailAccount.signedIn
 
+    private val _assignments = MutableStateFlow<MoodleAccountAssignments?>(null)
+
+    /** The account's assignments, which the course's list reads its rows from; null while signed out. */
+    val assignments: StateFlow<MoodleAccountAssignments?> = _assignments.asStateFlow()
+
     private var bound: Pair<Int?, String?>? = null
     private var binding: Job? = null
 
     init {
         savedStateHandle.get<Int>(ARG_COURSE_ID)?.let { bind(it, null) }
+        viewModelScope.launch { _assignments.value = repository.assignments() }
     }
 
     /** Builds or finds the store of Moodle course [courseId]; null leaves the screen without one. */

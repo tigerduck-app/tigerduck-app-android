@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.network.moodle
 
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
 import java.net.URI
@@ -34,6 +35,36 @@ object MoodleHtmlText {
             ?: return escaped(collapsed(html))
         return MarkdownWriter(baseUrl).blocks(body).joinToString("\n\n")
     }
+
+    /**
+     * [html] with each file Moodle keeps in the text's own area, written `@@PLUGINFILE@@/<path>`,
+     * pointing at that file in [files]. An image whose file is not there is left out, and a link
+     * keeps only its text.
+     */
+    fun resolvingPluginFiles(html: String, files: List<MoodleFile>): String {
+        if (!html.contains(PLUGIN_FILE_PLACEHOLDER)) return html
+        val document = runCatching { Jsoup.parseBodyFragment(html) }.getOrNull() ?: return html
+        document.outputSettings().prettyPrint(false)
+        val urls = HashMap<String, String>()
+        for (file in files) urls.putIfAbsent((file.path ?: "/") + file.name, file.url)
+        for (element in document.body().allElements.toList()) {
+            for (attribute in listOf("src", "href")) {
+                val value = element.attr(attribute)
+                if (!value.startsWith(PLUGIN_FILE_PLACEHOLDER)) continue
+                val path = value.drop(PLUGIN_FILE_PLACEHOLDER.length).takeWhile { it != '?' && it != '#' }
+                val decoded = runCatching { java.net.URLDecoder.decode(path.replace("+", "%2B"), "UTF-8") }.getOrDefault(path)
+                val url = urls[decoded] ?: urls[path]
+                when {
+                    url != null -> element.attr(attribute, url)
+                    element.tagName().equals("img", ignoreCase = true) -> element.remove()
+                    else -> element.unwrap()
+                }
+            }
+        }
+        return document.body().html()
+    }
+
+    private const val PLUGIN_FILE_PLACEHOLDER = "@@PLUGINFILE@@"
 
     private fun appendPlainText(node: Node, text: StringBuilder) {
         for (child in node.childNodes()) {

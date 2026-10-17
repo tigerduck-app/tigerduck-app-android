@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Grupuri</string>
+    <string name="course_member_profile_picture">Fotografie de profil</string>
     <string name="course_members_auditors">Auditori</string>
     <string name="course_members_students">Studenți</string>
     <string name="course_members_tas">Asistenți</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Împărtășește date anonime despre utilizare (pagini vizitate, utilizarea widget-urilor) pentru a ajuta la îmbunătățirea TigerDuck</string>
     <string name="settings_analytics_enabled">Analiză utilizare</string>
     <string name="settings_api_endpoint">Punct final API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Schimbă</string>
+    <string name="settings_api_endpoint_change_alert_message">După ce vă conectați, acest punct final primește ID-ul dvs. de student și tokenul Moodle. Toate conturile conectate vor fi deconectate.</string>
+    <string name="settings_api_endpoint_change_alert_title">Schimbați punctul final API?</string>
     <string name="settings_api_endpoint_change_title">Schimbă punctul final</string>
     <string name="settings_api_endpoint_checking">Se verifică…</string>
     <string name="settings_api_endpoint_effective_title">Punct final efectiv</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Fixează cursurile de azi în partea de sus a orarului</string>
     <string name="settings_privacy_policy">Politică de confidențialitate</string>
     <string name="settings_push_server_nav_label">Push server</string>
-    <string name="settings_remember_bulletin_filter">Reține filtrele buletinului</string>
     <string name="settings_reset_course_colors">Reatribuie culorile cursurilor</string>
     <string name="settings_reset_course_colors_confirm_message">Fiecare curs primește o culoare nouă, unică — întâi din paleta presetată, apoi aleatoriu când paleta este epuizată.</string>
     <string name="settings_reset_course_colors_confirm_title">Reatribui culorile cursurilor?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Eșuat</string>
     <string name="sync_status_hours_ago_short">acum %1$d h</string>
     <string name="sync_status_just_now">Chiar acum</string>
-    <string name="sync_status_last_synced">Ultima sincronizare</string>
     <string name="sync_status_last_updated">Ultima actualizare</string>
     <string name="sync_status_minimal">Limitat</string>
     <string name="sync_status_minutes_ago_short">acum %1$d min</string>
     <string name="sync_status_nav_label">Starea TigerSync</string>
-    <string name="sync_status_never_synced">Niciodată sincronizat</string>
     <string name="sync_status_never_updated">Niciodată actualizat</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Se sincronizează…</string>

@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Е-пошта</string>
     <string name="course_member_groups">Групе</string>
+    <string name="course_member_profile_picture">Профилна слика</string>
     <string name="course_members_auditors">Слушаоци</string>
     <string name="course_members_students">Студенти</string>
     <string name="course_members_tas">Асистенти</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Дели анонимне податке о коришћењу (посећене странице, коришћење виџета) да би помогао у побољшању TigerDuck-а</string>
     <string name="settings_analytics_enabled">Аналитика коришћења</string>
     <string name="settings_api_endpoint">Крајња тачка API-ја</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Промени</string>
+    <string name="settings_api_endpoint_change_alert_message">Након пријаве ова крајња тачка добија ваш студентски ID и Moodle токен. Сви пријављени налози ће бити одјављени.</string>
+    <string name="settings_api_endpoint_change_alert_title">Променити крајњу тачку API-ја?</string>
     <string name="settings_api_endpoint_change_title">Промени крајњу тачку</string>
     <string name="settings_api_endpoint_checking">Провера…</string>
     <string name="settings_api_endpoint_effective_title">Тренутна крајња тачка</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Закачи данашње курсеве на врх распореда</string>
     <string name="settings_privacy_policy">Политика приватности</string>
     <string name="settings_push_server_nav_label">Пуш са сервера</string>
-    <string name="settings_remember_bulletin_filter">Запамти филтере билтена</string>
     <string name="settings_reset_course_colors">Поново додели боје курсева</string>
     <string name="settings_reset_course_colors_confirm_message">Сваки курс ће добити нову, јединствену боју — прво из унапред подешене палете, затим насумично када се палета исцрпи.</string>
     <string name="settings_reset_course_colors_confirm_title">Поново доделити боје курсева?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Неуспешно</string>
     <string name="sync_status_hours_ago_short">пре %1$d ч.</string>
     <string name="sync_status_just_now">Управо сада</string>
-    <string name="sync_status_last_synced">Последња синхронизација</string>
     <string name="sync_status_last_updated">Последње ажурирање</string>
     <string name="sync_status_minimal">Ограничено</string>
     <string name="sync_status_minutes_ago_short">пре %1$d мин.</string>
     <string name="sync_status_nav_label">TigerSync статус</string>
-    <string name="sync_status_never_synced">Никада синхронизовано</string>
     <string name="sync_status_never_updated">Никада ажурирано</string>
     <string name="sync_status_ok">У реду</string>
     <string name="sync_status_syncing">Синхронизација…</string>

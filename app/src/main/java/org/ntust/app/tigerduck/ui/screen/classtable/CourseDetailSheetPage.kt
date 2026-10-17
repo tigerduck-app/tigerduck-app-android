@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Description
@@ -72,9 +73,9 @@ import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleCourseSection
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleCourseViewModel
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodlePage
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleRoutes
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.cardDividerColor
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.openMoodlePage
-import org.ntust.app.tigerduck.ui.screen.home.openAssignmentInMoodle
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.formatCredits
@@ -86,8 +87,8 @@ import java.util.Locale
  *   1. Title, rename and "Open in Moodle", with the course colour under the title
  *   2. Two emphasis cards side by side: classroom | time
  *   3. The info rows: instructor, code (tap to copy), dimension, duration, credits, enrollment
- *   4. Incomplete assignments, each opening in Moodle, then the course's Moodle section, whose
- *      rows push the Moodle screens inside the sheet
+ *   4. Incomplete assignments, each opening its page inside the sheet, then the course's Moodle
+ *      section, whose rows push the Moodle screens inside the sheet
  *
  * A course on someone else's class table shows read-only: no rename, and none of the Moodle
  * course or assignments, which are the signed-in student's. One opened from Home is the user's own
@@ -159,6 +160,7 @@ internal fun CourseDetailSheetPage(
                 assignments = assignments,
                 onRename = if (canRename) ({ renaming = true }) else null,
                 onOpenInMoodle = moodleCourseId?.takeIf { showsMoodle }?.let { id -> { openCourseInMoodle(context, id) } },
+                onOpenAssignment = { onOpenRoute(MoodleRoutes.assignment(moodleCourseId ?: 0, it.assignmentId)) },
             )
             val current = store
             if (showsMoodle && moodleCourseId != null && current != null && current.courseId == moodleCourseId) {
@@ -184,6 +186,8 @@ internal fun CourseDetailContent(
     onRename: (() -> Unit)?,
     /** Null for a course with no Moodle course of the user's. */
     onOpenInMoodle: (() -> Unit)?,
+    /** Opens an incomplete assignment's page inside the sheet. */
+    onOpenAssignment: (Assignment) -> Unit = {},
 ) {
     val courseColor = TigerDuckTheme.courseColor(course.courseNo)
     val dash = "—"
@@ -328,16 +332,7 @@ internal fun CourseDetailContent(
                                 color = cardDividerColor(),
                             )
                         }
-                        // Nothing opens for one Moodle gave no address, so its
-                        // row offers no tap; see Assignment.moodleDeepLink.
-                        AssignmentRow(
-                            assignment,
-                            onClick = if (assignment.moodleDeepLink != null) {
-                                { openAssignmentInMoodle(context, assignment) }
-                            } else {
-                                null
-                            },
-                        )
+                        AssignmentRow(assignment) { onOpenAssignment(assignment) }
                     }
                 }
             }
@@ -345,19 +340,15 @@ internal fun CourseDetailContent(
     }
 }
 
-/**
- * An outstanding assignment: its title and due time, opening it in Moodle. A
- * null [onClick] makes the row plain, with no open-in glyph, as [InfoRow] is
- * without a copy.
- */
+/** An outstanding assignment: its title and due time, opening its page. */
 @Composable
-private fun AssignmentRow(assignment: Assignment, onClick: (() -> Unit)?) {
+private fun AssignmentRow(assignment: Assignment, onClick: () -> Unit) {
     val due = remember(assignment.dueDate) {
         SimpleDateFormat("M/d HH:mm", Locale.getDefault()).apply { timeZone = org.ntust.app.tigerduck.AppConstants.TAIPEI_TZ }
             .format(assignment.dueDate)
     }
     ListItem(
-        modifier = if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier,
+        modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
         colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
         leadingContent = {
             Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
@@ -369,17 +360,12 @@ private fun AssignmentRow(assignment: Assignment, onClick: (() -> Unit)?) {
                 color = if (assignment.isOverdue) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         },
-        trailingContent = if (onClick == null) {
-            null
-        } else {
-            {
-                Icon(
-                    Icons.AutoMirrored.Filled.OpenInNew,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
+        trailingContent = {
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
+            )
         },
     )
 }
@@ -447,8 +433,7 @@ private fun EmphasisCard(
  * Open course id [moodleCourseId] in the Moodle Mobile app via the
  * `moodlemobile://` deep link envelope, falling back to the browser if
  * Moodle Mobile isn't installed or the OS refuses to route the intent.
- * Mirrors the assignment-row pattern in [HomeScreen.openAssignmentInMoodle]
- * so the two surfaces behave identically.
+ * Falls back the way every "Open in Moodle" does, through [openMoodlePage].
  */
 internal fun openCourseInMoodle(context: Context, moodleCourseId: Int) {
     openMoodlePage(context, MoodlePage.course(moodleCourseId))

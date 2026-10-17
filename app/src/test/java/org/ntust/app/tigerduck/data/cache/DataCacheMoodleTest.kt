@@ -13,7 +13,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseGrades
+import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleGradeItem
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -124,6 +126,57 @@ class DataCacheMoodleTest {
             after,
             DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context))).moodleDownloadsDir("B11300001"),
         )
+    }
+
+    private fun record(id: Int) = MoodleAssignmentRecord(
+        assignId = id, cmid = id * 10, courseId = 5, name = "HW $id", dueDate = 1_790_600_000L, cutoffDate = 0,
+        allowSubmissionsFrom = 0, intro = "<p>Do it</p>",
+        introAttachments = listOf(
+            MoodleFile("spec.pdf", 10, "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/1/mod_assign/introattachment/0/spec.pdf", "application/pdf", 1L, "/"),
+        ),
+        noSubmissions = false, teamSubmission = true,
+    )
+
+    @Test
+    fun `the assignment records come back whole, and go with the account's data`() = runTest {
+        val records = listOf(record(701), record(702))
+
+        assertTrue(cache.saveAssignmentRecords(records))
+
+        assertEquals(records, cache.loadAssignmentRecords())
+        assertEquals(1, cache.assignmentRecordsVersion.value)
+        cache.clearAllUserData()
+        assertTrue(cache.loadAssignmentRecords().isEmpty())
+    }
+
+    @Test
+    fun `records from a round the account signed out of are not kept`() = runTest {
+        val generation = cache.userDataGeneration
+        cache.clearAllUserData()
+
+        assertFalse(cache.saveAssignmentRecords(listOf(record(701)), generation))
+
+        assertTrue(cache.loadAssignmentRecords().isEmpty())
+        assertEquals(0, cache.assignmentRecordsVersion.value)
+    }
+
+    @Test
+    fun `records in another shape read as none`() = runTest {
+        cache.saveAssignmentRecords(listOf(record(701)))
+        val file = File(context.cacheDir, "TigerDuckCache/moodle_assignments.json")
+        file.writeText(file.readText().replace("\"v\":${DataCache.MOODLE_CACHE_SCHEMA}", "\"v\":0"))
+
+        assertTrue(cache.loadAssignmentRecords().isEmpty())
+    }
+
+    @Test
+    fun `every write of the assignments is announced`() = runTest {
+        val before = cache.assignmentsVersion.value
+
+        cache.saveAssignments(emptyList())
+        cache.updateAssignments { it }
+
+        assertEquals(before + 2, cache.assignmentsVersion.value)
     }
 
     @Test

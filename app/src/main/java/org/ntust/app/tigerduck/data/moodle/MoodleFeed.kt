@@ -82,12 +82,22 @@ class MoodleFeed<T : Any>(
 
     /**
      * Fetches through [fetch] and keeps the answer. A refresh already running is joined, not
-     * repeated, so a pull during a timed refresh waits for that one. The fetch runs in the store's
-     * scope: a screen that goes away does not cancel it, and its answer is cached for the next.
+     * repeated, so a pull during a timed refresh waits for that one; without [joinRunning] a
+     * fetch of its own is queued behind the one running instead, for a refresh that must see
+     * what changed after the running one's request went out. The fetch runs in the store's scope:
+     * a screen that goes away does not cancel it, and its answer is cached for the next.
      */
-    suspend fun refresh(fetch: suspend () -> T) {
+    suspend fun refresh(joinRunning: Boolean = true, fetch: suspend () -> T) {
         val job = lock.withLock {
-            running?.takeIf { it.isActive } ?: scope.async { run(fetch) }.also { running = it }
+            val current = running?.takeIf { it.isActive }
+            when {
+                current == null -> scope.async { run(fetch) }
+                joinRunning -> current
+                else -> scope.async {
+                    current.join()
+                    run(fetch)
+                }
+            }.also { running = it }
         }
         job.await()
     }

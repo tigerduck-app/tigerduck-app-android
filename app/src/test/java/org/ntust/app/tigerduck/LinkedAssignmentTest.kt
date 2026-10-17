@@ -3,30 +3,21 @@ package org.ntust.app.tigerduck
 import android.app.Application
 import android.content.Intent
 import android.net.Uri
-import java.util.Date
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** When MainActivity opens the assignment a `tigerduck://assignment/<id>` link names. */
+/** When MainActivity opens the page of the assignment a `tigerduck://assignment/<id>` link names. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class LinkedAssignmentTest {
 
     private fun linkIntent(link: String = "tigerduck://assignment/900002") =
         Intent(Intent.ACTION_VIEW, Uri.parse(link))
-
-    private fun assignment(id: String) = Assignment(
-        assignmentId = id,
-        courseNo = "CS3204301",
-        courseName = "Operating Systems",
-        title = "Lab $id",
-        dueDate = Date(0),
-    )
 
     @Test
     fun `a fresh delivery opens the link's assignment, once`() {
@@ -67,11 +58,18 @@ class LinkedAssignmentTest {
     }
 
     @Test
-    fun `only a cached assignment opens`() {
-        val cached = listOf(assignment("900001"), assignment("900002"))
+    fun `the link opens the assignment's page, once per delivery`() {
+        val intent = linkIntent()
 
-        assertEquals("900002", linkedAssignment("900002", cached)?.assignmentId)
-        assertNull(linkedAssignment("999999", cached))
-        assertNull(linkedAssignment("900002", emptyList()))
+        assertEquals(Screen.Assignment.route("900002"), linkedStartRoute(intent, restored = false))
+        assertNull("the link is taken off the intent", intent.data)
+        assertNull("so the same intent opens nothing again", linkedStartRoute(intent, restored = false))
+        assertNull(linkedStartRoute(linkIntent(), restored = true))
+    }
+
+    @Test
+    fun `another link still opens its own screen`() {
+        assertEquals(Screen.ClassTable.route, linkedStartRoute(linkIntent("tigerduck://classtable"), restored = false))
+        assertEquals(Screen.AnnouncementDetail.route(42), linkedStartRoute(linkIntent("tigerduck://announcement/42"), restored = false))
     }
 }

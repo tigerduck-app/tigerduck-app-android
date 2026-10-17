@@ -732,11 +732,16 @@ class HomeViewModel @Inject constructor(
 
                     // Null when Moodle failed or was not asked; an empty list
                     // is its answer and replaces the cache like any other.
-                    // See CourseRosterMerge.assignmentsToStore.
-                    if (remoteAssignments != null) {
-                        assignments = remoteAssignments
-                        dataCache.saveAssignments(remoteAssignments)
-                        runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
+                    // See CourseRosterMerge.assignmentsToStore. What is shown
+                    // and uploaded is the list as written, which the write
+                    // reconciles against newer answers; nothing when the write
+                    // was refused.
+                    val written = remoteAssignments?.let {
+                        moodleService.storeAssignments(it.assignments, it.answer)
+                    }
+                    if (written != null) {
+                        assignments = written
+                        runCatching { pushApiClient.uploadAssignments(written) }
                             .onFailure {
                                 prefs.setLastSyncSource(SyncSource.LOCAL)
                                 Log.w("HomeViewModel", "uploadAssignments failed (non-fatal): ${it.logSummary()}")
@@ -758,6 +763,9 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** A Moodle round's assignments as the cache should hold them, with the round that gave them; see [MoodleService.storeAssignments]. */
+    private class AssignmentsToStore(val assignments: List<Assignment>, val answer: MoodleService.AssignmentsAnswer)
+
     /**
      * One network round of the two enrolment sources (NTUST course-selection
      * portal + Moodle enrolled-courses) run in parallel, then per-course
@@ -769,7 +777,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun fetchCoursesAndAssignments(
         studentId: String,
         password: String,
-    ): Pair<List<Course>?, List<Assignment>?> = coroutineScope {
+    ): Pair<List<Course>?, AssignmentsToStore?> = coroutineScope {
         // TTL-throttled, so this costs one request an hour however often Home
         // refreshes. Resolved before the gate below, which depends on it.
         semesterCatalog.refreshIfStale()
@@ -838,13 +846,13 @@ class HomeViewModel @Inject constructor(
         val assignmentsDef = async {
             if (moodleEnrolled == null) return@async null
             try {
-                val remote = moodleService.fetchAssignments(
+                val answer = moodleService.fetchAssignments(
                     enrolledCourses = moodleEnrolled,
                     rosterCourseNos = rosterCourseNos
                 )
                 val cached = dataCache.loadAssignments()
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
-                CourseRosterMerge.assignmentsToStore(remote, cached)
+                answer?.let { AssignmentsToStore(CourseRosterMerge.assignmentsToStore(it.assignments, cached).orEmpty(), it) }
             } catch (e: CancellationException) {
                 // A sign-out cancels the fetch; marking the servers failed
                 // here would land after the tracker was reset for the next

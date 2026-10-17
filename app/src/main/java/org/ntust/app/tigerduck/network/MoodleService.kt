@@ -10,6 +10,9 @@ import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.moodle.AssignmentStatusLedger
+import org.ntust.app.tigerduck.data.moodle.AssignmentStatusWriter
+import org.ntust.app.tigerduck.data.moodle.SubmissionStatusAnswer
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -19,6 +22,8 @@ import org.ntust.app.tigerduck.network.model.MoodleAssignmentNode
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.model.MoodleSubmissionLastAttempt
 import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
+import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
 import org.ntust.app.tigerduck.util.MAX_CONCURRENT_SCHOOL_REQUESTS
 import org.ntust.app.tigerduck.util.SharedFetch
@@ -52,12 +57,37 @@ class MoodleService @Inject constructor(
 
     private data class AssignmentsKey(val token: String, val courseIds: List<Int>)
 
+    /**
+     * A round's assignments for the caller to write with [storeAssignments], which orders the
+     * write by when the round's own request for each status went out, so a page's answer asked
+     * for after it is not taken back.
+     */
+    class AssignmentsAnswer internal constructor(
+        val assignments: List<Assignment>,
+        /**
+         * What Moodle answered for each status the round asked and got, by assignment id: the
+         * only statuses the write accepts as the round's, by their own request times. One kept
+         * from the cache, confirmed or whose request failed, is not among them.
+         */
+        internal val statuses: Map<String, SubmissionStatusAnswer>,
+        /** The cache's generation the round ran under. */
+        internal val generation: Int,
+    )
+
     /** The network half of [fetchAssignments]: what every caller asking for the same courses can share. */
     private class AssignmentsRound(
         val courses: List<MoodleAssignmentsCourse>,
         val statuses: Map<Int, MoodleSubmissionStatusEnvelope>,
         /** Submissions the cache had confirmed, not asked about — see [confirmedSubmissions]. */
         val confirmed: Map<Int, Date>,
+        /**
+         * When each status request went out, by assignment id, on the monotonic clock the
+         * [AssignmentStatusLedger] orders answers by: a round asks a few at a time, and one time
+         * for all would let a page's answer asked for in between pass for newer than one asked after it.
+         */
+        val askedAtMs: Map<Int, Long>,
+        /** The cache's generation the round ran under; see [DataCache.userDataGeneration]. */
+        val generation: Int,
     )
 
     // Refreshes in progress that every assignment round starting meanwhile
@@ -100,6 +130,7 @@ class MoodleService @Inject constructor(
     fun cancelSharedFetches() {
         sharedEnrolled.cancelAll()
         sharedAssignments.cancelAll()
+        statusLedger.clear()
     }
 
     /**
@@ -160,7 +191,7 @@ class MoodleService @Inject constructor(
     suspend fun fetchAssignments(
         enrolledCourses: List<MoodleEnrolledCourse>,
         rosterCourseNos: Set<String>? = null,
-    ): List<Assignment>? = withContext(Dispatchers.IO) {
+    ): AssignmentsAnswer? = withContext(Dispatchers.IO) {
         val token = tokenService.currentToken()
         val currentSemester = courseService.currentSemesterCode()
         // What the class table holds right now, hand-added rows included. It
@@ -203,7 +234,7 @@ class MoodleService @Inject constructor(
         val coursesById = relevant.associateBy { it.id }
 
         // Flatten the nested course→assignments response.
-        round.courses
+        val assignments = round.courses
             .flatMap { c -> c.assignments.map { a -> c.id to a } }
             .mapNotNull { (courseId, a) ->
                 if (a.duedate <= 0) return@mapNotNull null
@@ -227,6 +258,12 @@ class MoodleService @Inject constructor(
                     semester = currentSemester,
                 )
             }
+        val statuses = round.statuses.mapNotNull { (id, status) ->
+            val askedAt = round.askedAtMs[id] ?: return@mapNotNull null
+            val (submitted, submittedAt) = submissionState(id, emptyMap(), status.lastattempt)
+            SubmissionStatusAnswer(id.toString(), submitted, submittedAt?.time, askedAt, round.generation)
+        }.associateBy { it.assignmentId }
+        AssignmentsAnswer(assignments, statuses, round.generation)
     }
 
     /**
@@ -245,6 +282,7 @@ class MoodleService @Inject constructor(
      */
     private suspend fun fetchAssignmentsRound(courseIds: List<Int>): AssignmentsRound =
         withContext(Dispatchers.IO) {
+            val generation = dataCache.userDataGeneration
             val recheck = recheckingRefreshes.get() > 0
             val confirmed =
                 if (recheck) emptyMap() else confirmedSubmissions(dataCache.loadAssignments())
@@ -262,17 +300,22 @@ class MoodleService @Inject constructor(
                 val toAsk = assignmentsToAsk(all, confirmed, closed, System.currentTimeMillis())
                 asked = toAsk.size
                 askedAt = System.currentTimeMillis()
-                val statuses = mapAtMost(MAX_CONCURRENT_SCHOOL_REQUESTS, toAsk) { a ->
+                val answers = mapAtMost(MAX_CONCURRENT_SCHOOL_REQUESTS, toAsk) { a ->
+                    val sentAt = SystemClock.elapsedRealtime()
                     runCatching { callGetSubmissionStatus(token, a.id, userId) }
                         .getOrNull()
-                        ?.let { a.id to it }
-                }.filterNotNull().toMap()
+                        ?.let { Triple(a.id, it, sentAt) }
+                }.filterNotNull()
+                val statuses = answers.associate { (id, status, _) -> id to status }
                 closedNow = closedUnsubmitted(all, statuses, askedAt, closedBefore)
-                AssignmentsRound(courses, statuses, confirmed)
+                AssignmentsRound(courses, statuses, confirmed, answers.associate { (id, _, sentAt) -> id to sentAt }, generation)
             }
             // Only for the account that asked, as the stamp below.
-            if (tokenService.currentToken() == askedWith && closedNow != closedBefore) {
-                dataCache.saveClosedAssignments(closedNow)
+            if (tokenService.currentToken() == askedWith) {
+                if (closedNow != closedBefore) dataCache.saveClosedAssignments(closedNow)
+                // The assignments' pages and the courses' lists read these; the generation check
+                // inside keeps a round that outlived a sign-out from writing the next account's.
+                dataCache.saveAssignmentRecords(assignmentRecords(round.courses), generation)
             }
             // Stamped here rather than at each caller, so every screen and
             // the worker date the data alike — see RefreshPolicies. Only
@@ -333,8 +376,68 @@ class MoodleService @Inject constructor(
         return if (idx >= 0 && idx + 1 < parts.size) parts[idx + 1] else fullname
     }
 
+    /**
+     * The order of the status answers the cached assignments take, a round's and the pages';
+     * see [storeAssignments] and [AssignmentStatusWriter].
+     */
+    val statusLedger = AssignmentStatusLedger { dataCache.userDataGeneration }
+
+    /**
+     * Writes [assignments], a round's [answer] as the caller merged it, to the cache, with each
+     * status reconciled against the newest answer accepted for the assignment by the round's own
+     * request time, so an older round cannot take back a page's or a later round's status. Under
+     * the cache's lock, so a page's write cannot pass it.
+     *
+     * The list as written, which is what the caller shows, uploads and arms reminders from: the
+     * reconciliation can change what the caller merged. Null, and nothing written, once the data
+     * was wiped under the round, when the caller publishes nothing.
+     */
+    suspend fun storeAssignments(assignments: List<Assignment>, answer: AssignmentsAnswer): List<Assignment>? =
+        storeAssignments(dataCache, statusLedger, assignments, answer)
+
     companion object {
         private val decodeGson = Gson()
+
+        /** The write behind [MoodleService.storeAssignments], on the given cache and ledger. */
+        internal suspend fun storeAssignments(
+            dataCache: DataCache,
+            ledger: AssignmentStatusLedger,
+            assignments: List<Assignment>,
+            answer: AssignmentsAnswer,
+        ): List<Assignment>? =
+            dataCache.updateAssignments(answer.generation) { ledger.reconcile(assignments, answer.statuses, answer.generation) }
+
+        /**
+         * What each round keeps of every assignment of the answer, the undated and the ones
+         * taking no submission included, for the assignments' pages and the courses' lists.
+         */
+        internal fun assignmentRecords(courses: List<MoodleAssignmentsCourse>): List<MoodleAssignmentRecord> =
+            courses.flatMap { course ->
+                course.assignments.map { a ->
+                    MoodleAssignmentRecord(
+                        assignId = a.id,
+                        cmid = a.cmid,
+                        courseId = course.id,
+                        name = a.name.decodeHtmlEntities(),
+                        dueDate = a.duedate.coerceAtLeast(0),
+                        cutoffDate = (a.cutoffdate ?: 0).coerceAtLeast(0),
+                        allowSubmissionsFrom = (a.allowsubmissionsfromdate ?: 0).coerceAtLeast(0),
+                        intro = a.intro.orEmpty(),
+                        introAttachments = a.introattachments.orEmpty().mapNotNull { f ->
+                            MoodleFile(
+                                name = f.filename ?: return@mapNotNull null,
+                                size = f.filesize ?: 0,
+                                url = f.fileurl ?: return@mapNotNull null,
+                                mimeType = f.mimetype,
+                                modified = f.timemodified?.takeIf { it > 0 },
+                                path = f.filepath,
+                            )
+                        },
+                        noSubmissions = a.nosubmissions != 0,
+                        teamSubmission = a.teamsubmission != 0,
+                    )
+                }
+            }
 
         /** The `mod_assign_get_submission_status` endpoint under [token]. */
         internal fun submissionStatusUrl(token: String): String =

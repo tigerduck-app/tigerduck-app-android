@@ -2,8 +2,10 @@ package org.ntust.app.tigerduck.demo
 
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import java.io.File
 
 class DemoMoodleCourseApiTest {
@@ -32,6 +34,28 @@ class DemoMoodleCourseApiTest {
         val stored = mutableSetOf<Int>()
         DemoMoodleCourseApi(moodle, readIds = { stored }, markRead = { stored += it }).markViewed(unreadId) { false }
         assertEquals(emptySet<Int>(), stored)
+    }
+
+    @Test
+    fun `the demo student's submissions, comments and groups answer from the file, as Moodle would`() = runTest {
+        val api = DemoMoodleCourseApi(moodle, readIds = { emptySet() }, markRead = {})
+        val handedIn = moodle.courses.flatMap { c -> c.assignments.map { c to it } }
+            .first { (_, a) -> a.submission?.isSubmitted == true && !a.submission.comments.isNullOrEmpty() }
+        val (course, page) = handedIn
+
+        assertTrue(api.functions().containsAll(listOf(MoodleCourseApi.COMMENTS_FUNCTION, MoodleCourseApi.GROUPS_FUNCTION)))
+        val submission = api.submission(page.id)
+        assertTrue(submission.isSubmitted)
+        assertEquals("the comments and the group's name come from their own calls", null, submission.comments)
+        assertEquals(null, submission.groupName)
+        assertEquals(page.submission!!.comments, api.comments(page.cmid, submission.id!!))
+        page.submission.groupId?.let { assertEquals(page.submission.groupName, api.groups(course.moodleId)[it]) }
+
+        val notHandedIn = moodle.courses.flatMap { it.assignments }.first { it.submission?.isSubmitted != true }
+        assertFalse(api.submission(notHandedIn.id).isSubmitted)
+        // One with no record on Moodle, as an assignment the file does not describe.
+        assertFalse(api.submission(1).isSubmitted)
+        assertEquals(null, api.submission(1).id)
     }
 
     private val dataStructures = moodle.courses.first { it.forums.isNotEmpty() }

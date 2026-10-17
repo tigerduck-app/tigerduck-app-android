@@ -13,6 +13,7 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -34,6 +35,8 @@ import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseDetailSheetPage
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAnnouncementScreen
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAnnouncementsScreen
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAssignmentScreen
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAssignmentsScreen
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleCourseViewModel
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleDiscussionScreen
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleForumScreen
@@ -52,6 +55,14 @@ internal object CourseDetailSheetRules {
 
     /** A mail being written closes with its own Save or Discard, never with the sheet under it. */
     fun mayClose(routes: List<String?>): Boolean = MailRoutes.COMPOSE !in routes
+
+    /**
+     * Whether a link to [target], from a reminder or the Live Update, closes the sheet before its
+     * page opens: an assignment's page, which the sheet would cover again on the way back, unless
+     * the sheet holds a mail being written, which stays with the page opened over it, as on iOS.
+     */
+    fun closesForLink(target: String?, routes: List<String?>): Boolean =
+        Screen.Assignment.isRoute(target) && mayClose(routes)
 }
 
 /**
@@ -93,6 +104,9 @@ private fun CourseDetailSheet(
     val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
     val routes = backStack.map { it.destination.route }
     val mayClose = rememberUpdatedState(CourseDetailSheetRules.mayClose(routes))
+    // Told to the class table, which a link's arrival asks whether the sheet may close first.
+    LaunchedEffect(routes) { classTable.setCourseSheetRoutes(routes) }
+    DisposableEffect(classTable) { onDispose { classTable.setCourseSheetRoutes(emptyList()) } }
     // Remembered once: the sheet state is remembered against this lambda.
     val confirmValueChange = remember { { value: SheetValue -> value != SheetValue.Hidden || mayClose.value } }
     val sheetState = rememberModalBottomSheetState(confirmValueChange = confirmValueChange)
@@ -183,6 +197,24 @@ private fun CourseDetailSheet(
                     MoodleDiscussionScreen(
                         forumId = entry.arguments?.getInt(MoodleRoutes.ARG_FORUM_ID) ?: 0,
                         discussionId = entry.arguments?.getInt(MoodleRoutes.ARG_DISCUSSION_ID) ?: 0,
+                        browserPreference = browserPreference,
+                        onBack = { navController.popIfTop(entry) },
+                    )
+                }
+                page(MoodleRoutes.ASSIGNMENTS, arguments = listOf(moodleCourseArg)) { entry ->
+                    MoodleAssignmentsScreen(
+                        onBack = { navController.popIfTop(entry) },
+                        onOpenRoute = openRoute,
+                    )
+                }
+                page(
+                    MoodleRoutes.ASSIGNMENT,
+                    arguments = listOf(
+                        moodleCourseArg,
+                        navArgument(MoodleRoutes.ARG_ASSIGNMENT_ID) { type = NavType.StringType },
+                    ),
+                ) { entry ->
+                    MoodleAssignmentScreen(
                         browserPreference = browserPreference,
                         onBack = { navController.popIfTop(entry) },
                     )

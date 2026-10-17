@@ -4,6 +4,8 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentGrade
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentSubmission
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
@@ -15,6 +17,7 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterialSection
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberField
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberRole
+import org.ntust.app.tigerduck.network.model.moodle.MoodleSubmissionComment
 import org.ntust.app.tigerduck.network.model.moodle.MoodlePost
 
 /**
@@ -271,6 +274,100 @@ object MoodleJson {
                 .filter { it.isNotEmpty() },
         )
     }
+
+    /**
+     * `mod_assign_get_submission_status`, read from the record the assignment round's status
+     * comes from, so the page and Home agree: a team assignment reports the group's status in
+     * `teamsubmission`, so a teammate's submission leaves the student's own `submission`
+     * unsubmitted or without a status.
+     */
+    fun submission(json: JsonElement): MoodleAssignmentSubmission {
+        val attempt = json.objOrNull()?.get("lastattempt")?.objOrNull()
+        val own = attempt?.get("submission")?.objOrNull()
+        val team = attempt?.get("teamsubmission")?.objOrNull()
+        val record = if (team?.str("status") == SUBMITTED || own?.str("status") == null) team ?: own else own
+        val plugins = record?.array("plugins").orEmpty().mapNotNull { it.objOrNull() }
+        return MoodleAssignmentSubmission(
+            status = record?.str("status"),
+            modified = record?.long("timemodified")?.takeIf { it > 0 },
+            files = pluginFiles(plugins.filter { it.str("type") == "file" }),
+            onlineText = pluginText(plugins.firstOrNull { it.str("type") == "onlinetext" }),
+            id = record?.int("id"),
+            takesComments = plugins.any { it.str("type") == "comments" },
+            groupId = attempt?.int("submissiongroup")?.takeIf { it > 0 },
+            groupName = null,
+            comments = null,
+            grade = grade(json.objOrNull()?.get("feedback")?.objOrNull()),
+        )
+    }
+
+    /**
+     * The grade and feedback of the answer's `feedback`, which Moodle sends only once the student
+     * may see them, with `gradefordisplay` and `gradeddate` null before a grade and "-" for none.
+     * Null with neither a grade nor feedback to show.
+     */
+    private fun grade(feedback: JsonObject?): MoodleAssignmentGrade? {
+        feedback ?: return null
+        val shown = MoodleHtmlText.plainText(feedback.str("gradefordisplay").orEmpty())
+        val grade = shown.takeUnless { it.isEmpty() || it == "-" }
+        val comments = pluginText(
+            feedback.array("plugins").orEmpty().mapNotNull { it.objOrNull() }.firstOrNull { it.str("type") == "comments" },
+        )
+        if (grade == null && comments == null) return null
+        return MoodleAssignmentGrade(grade, feedback.long("gradeddate")?.takeIf { it > 0 }, comments)
+    }
+
+    /**
+     * A plugin's editor text with its links pointed at the plugin's own files; null for text with
+     * nothing to read, such as an emptied editor's `<p></p>`.
+     */
+    private fun pluginText(plugin: JsonObject?): String? {
+        plugin ?: return null
+        val raw = plugin.array("editorfields").orEmpty().firstOrNull()?.objOrNull()?.str("text") ?: return null
+        val html = MoodleHtmlText.resolvingPluginFiles(raw, pluginFiles(listOf(plugin)))
+        return html.takeIf { MoodleHtmlText.markdown(it).isNotBlank() }
+    }
+
+    private fun pluginFiles(plugins: List<JsonObject>): List<MoodleFile> =
+        plugins.flatMap { plugin ->
+            plugin.array("fileareas").orEmpty().flatMap { area ->
+                area.objOrNull()?.array("files").orEmpty().mapNotNull(::file)
+            }
+        }
+
+    /** One page of `core_comment_get_comments`. */
+    fun comments(json: JsonElement): MoodleCommentPage {
+        val o = json.objOrNull() ?: throw MoodleWebserviceError.MalformedResponse("comments not an object")
+        val comments = o.array("comments")
+            ?: throw MoodleWebserviceError.MalformedResponse("comments missing")
+        return MoodleCommentPage(
+            comments = comments.mapNotNull { el ->
+                val c = el.objOrNull() ?: return@mapNotNull null
+                MoodleSubmissionComment(
+                    id = c.int("id") ?: return@mapNotNull null,
+                    authorName = c.str("fullname").orEmpty(),
+                    created = c.long("timecreated") ?: 0,
+                    content = c.str("content").orEmpty(),
+                )
+            },
+            count = o.int("count"),
+        )
+    }
+
+    /** `core_group_get_course_user_groups`: the account's groups on the course, by id, their names as text. */
+    fun groups(json: JsonElement): Map<Int, String> {
+        val groups = json.objOrNull()?.array("groups")
+            ?: throw MoodleWebserviceError.MalformedResponse("groups missing")
+        val byId = LinkedHashMap<Int, String>()
+        for (el in groups) {
+            val g = el.objOrNull() ?: continue
+            val id = g.int("id") ?: continue
+            if (id !in byId) byId[id] = MoodleHtmlText.plainText(g.str("name").orEmpty())
+        }
+        return byId
+    }
+
+    private const val SUBMITTED = "submitted"
 
     private fun nonEmpty(text: String?): String? = text?.trim()?.takeIf { it.isNotEmpty() }
 

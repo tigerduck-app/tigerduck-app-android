@@ -34,6 +34,16 @@ class CourseDetailSheetRulesTest {
     fun `a mail being written keeps the sheet open`() {
         assertFalse(CourseDetailSheetRules.mayClose(detail + MoodleRoutes.MEMBER + MailRoutes.COMPOSE))
     }
+
+    @Test
+    fun `an assignment reminder closes the sheet first, unless a mail is being written in it`() {
+        val page = Screen.Assignment.route("900001")
+        assertTrue(CourseDetailSheetRules.closesForLink(page, detail))
+        assertTrue(CourseDetailSheetRules.closesForLink(page, detail + MoodleRoutes.MEMBERS + MoodleRoutes.MEMBER))
+        assertFalse("the draft stays, and the page opens over it", CourseDetailSheetRules.closesForLink(page, detail + MoodleRoutes.MEMBER + MailRoutes.COMPOSE))
+        assertFalse("another link leaves the sheet as it is", CourseDetailSheetRules.closesForLink(Screen.ClassTable.route, detail))
+        assertFalse(CourseDetailSheetRules.closesForLink(null, detail))
+    }
 }
 
 class CourseDetailSheetModelsTest {

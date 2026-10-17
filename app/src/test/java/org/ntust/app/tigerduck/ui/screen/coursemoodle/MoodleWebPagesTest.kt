@@ -17,9 +17,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
-import org.ntust.app.tigerduck.ui.screen.home.openAssignmentInMoodle
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -172,21 +170,25 @@ class MoodleWebPagesTest {
     }
 
     @Test
-    fun `an assignment without the Moodle app opens on the website through the signed-in path`() {
+    fun `a Moodle page opens in the Moodle app, and nothing else`() {
+        openMoodlePage(context, "/mod/assign/view.php?id=890") { recording }
+
+        assertEquals(listOf("moodlemobile://https://moodle2.ntust.edu.tw?redirect=/mod/assign/view.php?id%3D890"), started.map { it.dataString })
+        assertTrue("the website is not opened behind the app", routed.isEmpty())
+    }
+
+    @Test
+    fun `without the Moodle app a Moodle page opens on the website through the signed-in path`() {
         val noMoodleApp = object : ContextWrapper(app) {
             override fun startActivity(intent: Intent) {
                 if (intent.data?.scheme == "moodlemobile") throw ActivityNotFoundException()
                 started += intent
             }
         }
-        val assignment = Assignment(
-            assignmentId = "1", courseNo = "CS3005301", courseName = "DS", title = "HW3",
-            dueDate = java.util.Date(0), isCompleted = false,
-            moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=9",
-        )
 
-        openAssignmentInMoodle(noMoodleApp, assignment) { recording }
+        openMoodlePage(noMoodleApp, "/mod/assign/view.php?id=890") { recording }
 
-        assertEquals(listOf("https://moodle2.ntust.edu.tw/mod/assign/view.php?id=9" to null), routed)
+        assertEquals(listOf("https://moodle2.ntust.edu.tw/mod/assign/view.php?id=890" to null), routed)
+        assertTrue(started.isEmpty())
     }
 }

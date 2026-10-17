@@ -6,7 +6,6 @@ import androidx.annotation.StringRes
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertHasClickAction
-import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import org.junit.Assert.assertEquals
@@ -112,12 +111,13 @@ class SwipeableAssignmentRowA11yTest {
     }
 
     @Test
-    fun `a row Moodle gave no address is not a button, and keeps its actions`() {
-        // A tap would open nothing, so TalkBack is not told to double-tap; the
-        // row still reads as one element, with its swipes (#313).
+    fun `a row Moodle gave no address is a button too, and keeps its actions`() {
+        // The tap opens the assignment's page in the app, which needs no link
+        // from Moodle; only the page's own button opens Moodle (#313). The
+        // row still reads as one element, with its swipes.
         show()
 
-        composeRule.onNodeWithText("Homework 3").assertHasNoClickAction()
+        composeRule.onNodeWithText("Homework 3").assertHasClickAction()
         assertEquals(
             listOf(text(R.string.assignment_mark_complete), text(R.string.assignment_ignore)),
             actions().map { it.label },

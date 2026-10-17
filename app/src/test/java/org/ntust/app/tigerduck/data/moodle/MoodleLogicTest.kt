@@ -5,6 +5,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.AssignmentStatus
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseGrades
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussionList
@@ -13,6 +16,7 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberRole
 import org.ntust.app.tigerduck.network.model.moodle.MoodleTermForums
+import java.util.Date
 import java.util.Locale
 
 class MoodleLogicTest {
@@ -167,6 +171,104 @@ class MoodleLogicTest {
     fun `groups are listed with the language's own separator`() {
         assertEquals("A 組、B 組", MoodleMembers.groupsText(listOf("A 組", "B 組"), Locale.TRADITIONAL_CHINESE))
         assertEquals("Team A, Team B", MoodleMembers.groupsText(listOf("Team A", "Team B"), Locale.ENGLISH))
+    }
+
+    private fun record(id: Int, courseId: Int = 5, due: Long = 0, noSubmissions: Boolean = false) = MoodleAssignmentRecord(
+        assignId = id, cmid = id * 10, courseId = courseId, name = "A$id", dueDate = due, cutoffDate = 0,
+        allowSubmissionsFrom = 0, intro = "", introAttachments = emptyList(), noSubmissions = noSubmissions,
+        teamSubmission = false,
+    )
+
+    private fun listed(id: Int, dueMs: Long, completed: Boolean = false, submittedAtMs: Long? = null, cutoffMs: Long? = null) = Assignment(
+        assignmentId = id.toString(), courseNo = "CS3005301", courseName = "DS", title = "A$id", dueDate = Date(dueMs),
+        isCompleted = completed, moodleUrl = "https://moodle2.ntust.edu.tw/mod/assign/view.php?id=${id * 10}",
+        cutoffDate = cutoffMs?.let(::Date), submittedAt = submittedAtMs?.let(::Date),
+    )
+
+    @Test
+    fun `the assignments row counts every assignment of the course, after the materials, before the grades`() {
+        val term = MoodleTermForums(listOf(5), listOf(testForum(id = 1, courseId = 5, type = "news", count = 3)))
+        val grades = MoodleCourseGrades(listOf(grade(1)))
+
+        val rows = MoodleSections.rows(term, courseId = 5, grades = grades, members = null, materials = testMaterials(), assignmentCount = 4)
+
+        assertEquals(
+            listOf(MoodleSectionRow.Kind.ANNOUNCEMENTS, MoodleSectionRow.Kind.MATERIALS, MoodleSectionRow.Kind.ASSIGNMENTS, MoodleSectionRow.Kind.GRADES),
+            rows.map { it.kind },
+        )
+        assertEquals(MoodleSectionRow(MoodleSectionRow.Kind.ASSIGNMENTS, 4, hasUnread = false), rows[2])
+        assertTrue("a course with no assignments has no row",
+            MoodleSections.rows(null, 5, null, null, assignmentCount = 0).isEmpty())
+    }
+
+    @Test
+    fun `an entry pairs the record with Home's row, and a row no round recorded gets a record from the row`() {
+        val records = listOf(record(701, due = 1_790_600_000L), record(702))
+        val rows = listOf(listed(701, dueMs = 1_790_600_000_000L), listed(703, dueMs = 1_790_700_000_000L, cutoffMs = 1_790_800_000_000L))
+
+        val recorded = MoodleAssignmentEntries.of("701", records, rows)!!
+        assertEquals(records[0], recorded.record)
+        assertEquals(rows[0], recorded.listed)
+
+        val unlisted = MoodleAssignmentEntries.of("702", records, rows)!!
+        assertEquals(records[1], unlisted.record)
+        assertNull("Home leaves out an undated assignment", unlisted.listed)
+
+        val fromRow = MoodleAssignmentEntries.of("703", records, rows)!!
+        assertEquals(rows[1], fromRow.listed)
+        assertEquals(703, fromRow.record.assignId)
+        assertEquals("the course module comes from the row's Moodle link", 7030, fromRow.record.cmid)
+        assertEquals(0, fromRow.record.courseId)
+        assertEquals("A703", fromRow.record.name)
+        assertEquals(1_790_700_000L, fromRow.record.dueDate)
+        assertEquals(1_790_800_000L, fromRow.record.cutoffDate)
+        assertEquals("", fromRow.record.intro)
+        assertFalse(fromRow.record.noSubmissions)
+
+        assertNull("an id in neither is not this account's homework", MoodleAssignmentEntries.of("999", records, rows))
+    }
+
+    @Test
+    fun `the course module is read from an assignment's Moodle link only`() {
+        assertEquals(9101, MoodleAssignmentEntries.cmidOf("https://moodle2.ntust.edu.tw/mod/assign/view.php?id=9101"))
+        assertNull(MoodleAssignmentEntries.cmidOf("https://moodle2.ntust.edu.tw/mod/forum/view.php?id=9101"))
+        assertNull(MoodleAssignmentEntries.cmidOf("https://moodle2.ntust.edu.tw/mod/assign/view.php?id=x"))
+        assertNull(MoodleAssignmentEntries.cmidOf(null))
+    }
+
+    @Test
+    fun `the list shows what is to come by due time, then the undated in Moodle's order, then the past, latest first`() {
+        val now = 1_790_000_000_000L
+        val entries = listOf(
+            MoodleAssignmentEntry(record(1, due = 1_789_000_000L), listed(1, 1_789_000_000_000L, completed = true, submittedAtMs = 1_788_000_000_000L)),
+            MoodleAssignmentEntry(record(2), null),
+            MoodleAssignmentEntry(record(3, due = 1_791_000_000L), listed(3, 1_791_000_000_000L)),
+            MoodleAssignmentEntry(record(4), null),
+            MoodleAssignmentEntry(record(5, due = 1_789_500_000L), listed(5, 1_789_500_000_000L)),
+            MoodleAssignmentEntry(record(6, due = 1_790_500_000L), listed(6, 1_790_500_000_000L)),
+        )
+
+        val rows = MoodleAssignmentLists.rows(entries, now)
+
+        assertEquals(listOf(6, 3, 2, 4, 5, 1), rows.map { it.entry.record.assignId })
+        assertEquals(listOf(null, null, null, null, AssignmentStatus.OVERDUE_ACCEPTABLE, AssignmentStatus.SUBMITTED), rows.map { it.status })
+    }
+
+    @Test
+    fun `a row says what Moodle says of the submission, not what the user marked`() {
+        val now = 1_790_000_000_000L
+        assertNull(MoodleAssignmentLists.shownStatus(listed(1, now + 1), now))
+        assertEquals(AssignmentStatus.SUBMITTED, MoodleAssignmentLists.shownStatus(listed(1, now + 1, completed = true), now))
+        assertEquals(
+            AssignmentStatus.SUBMITTED_LATE,
+            MoodleAssignmentLists.shownStatus(listed(1, now - 10, completed = true, submittedAtMs = now - 5), now),
+        )
+        assertEquals(AssignmentStatus.OVERDUE_ACCEPTABLE, MoodleAssignmentLists.shownStatus(listed(1, now - 10), now))
+        assertEquals(
+            "past the cutoff reads as overdue too, as Home's badge for the list",
+            AssignmentStatus.OVERDUE_ACCEPTABLE,
+            MoodleAssignmentLists.shownStatus(listed(1, now - 10, cutoffMs = now - 5), now),
+        )
     }
 
     @Test

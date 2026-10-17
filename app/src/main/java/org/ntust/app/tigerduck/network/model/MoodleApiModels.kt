@@ -77,7 +77,20 @@ data class MoodleAssignmentNode(
     val cutoffdate: Long? = null,
     val allowsubmissionsfromdate: Long? = null,
     val intro: String? = null,
-    val nosubmissions: Int = 0
+    val nosubmissions: Int = 0,
+    val introattachments: List<MoodleAssignmentFileNode>? = null,
+    /** 1 for a team assignment, where a group hands in one submission. */
+    val teamsubmission: Int = 0,
+)
+
+/** A file in a `mod_assign_get_assignments` answer, as Moodle's `external_files` lists it. */
+data class MoodleAssignmentFileNode(
+    val filename: String? = null,
+    val filepath: String? = null,
+    val filesize: Long? = null,
+    val fileurl: String? = null,
+    val mimetype: String? = null,
+    val timemodified: Long? = null,
 )
 
 // mod_assign_get_submission_status

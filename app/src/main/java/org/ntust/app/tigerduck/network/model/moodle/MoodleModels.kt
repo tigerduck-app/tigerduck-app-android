@@ -174,6 +174,81 @@ data class MoodleCourseGrades(
     val items: List<MoodleGradeItem>,
 )
 
+/**
+ * An assignment as `mod_assign_get_assignments` lists it, kept by each assignment round for the
+ * signed-in account (see `DataCache.saveAssignmentRecords`), so an assignment's page has its
+ * description and its course, and a course's list has every assignment of the course, without
+ * another call. Home lists only those with a due date that take a submission.
+ */
+data class MoodleAssignmentRecord(
+    val assignId: Int,
+    /** The course module, which Moodle's assignment page and its comments take as `id`. */
+    val cmid: Int,
+    val courseId: Int,
+    val name: String,
+    /** Unix seconds; 0 for an assignment with no due date. */
+    val dueDate: Long,
+    /** Unix seconds; 0 when Moodle keeps taking late submissions. */
+    val cutoffDate: Long,
+    val allowSubmissionsFrom: Long,
+    /** HTML. */
+    val intro: String,
+    val introAttachments: List<MoodleFile>,
+    /** True for an assignment that takes no online submission, such as one graded offline. */
+    val noSubmissions: Boolean,
+    /** A group hands in one submission for all its members. */
+    val teamSubmission: Boolean,
+)
+
+/**
+ * What the account handed in for an assignment, as its page shows it, with the submission's
+ * comments and its group's name where the site lets the app read them.
+ */
+data class MoodleAssignmentSubmission(
+    /** `new`, `draft`, `submitted` or `reopened`; null before Moodle keeps a record. */
+    val status: String?,
+    /** Unix seconds; null before Moodle keeps a record. */
+    val modified: Long?,
+    val files: List<MoodleFile>,
+    /** HTML, with its own files' links resolved; null without any text. */
+    val onlineText: String?,
+    /** The record comments are kept on; null before Moodle keeps one. */
+    val id: Int?,
+    /** Whether the assignment takes comments on submissions. */
+    val takesComments: Boolean,
+    /** The group a team assignment's submission is for. */
+    val groupId: Int?,
+    val groupName: String?,
+    /** Null where the site does not let the app read them. */
+    val comments: List<MoodleSubmissionComment>?,
+    /** Null until Moodle shows the student a grade or feedback. */
+    val grade: MoodleAssignmentGrade?,
+) {
+    val isSubmitted: Boolean get() = status == "submitted"
+
+    /** Unix seconds, for a submission handed in; a draft's time is not one. */
+    val submittedAt: Long? get() = if (isSubmitted) modified else null
+}
+
+/** The grade and the grader's feedback on the last attempt, as Moodle shows them to the student. */
+data class MoodleAssignmentGrade(
+    /** As Moodle writes it, such as "85.00 / 100.00", a letter or a scale's word; null with only feedback. */
+    val grade: String?,
+    /** Unix seconds; null while Moodle gives none. */
+    val gradedAt: Long?,
+    /** HTML, with its own files' links resolved; null without any. */
+    val feedback: String?,
+)
+
+data class MoodleSubmissionComment(
+    val id: Int,
+    /** As Moodle spells it, which at NTUST is "student ID @ name". */
+    val authorName: String,
+    /** Unix seconds. */
+    val created: Long,
+    /** HTML. */
+    val content: String,
+)
 /** A post of a discussion, from `mod_forum_get_discussion_posts`. */
 data class MoodlePost(
     val id: Int,

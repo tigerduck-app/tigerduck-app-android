@@ -453,11 +453,14 @@ class CalendarViewModel @Inject constructor(
             // submission stays submitted. This cache is every screen's, so a
             // status call that failed here used to mark the assignment
             // outstanding everywhere.
-            val assignments = CourseRosterMerge.assignmentsToStore(
-                remote = moodleService.fetchAssignments(enrolled),
+            val answer = moodleService.fetchAssignments(enrolled) ?: return cached
+            val merged = CourseRosterMerge.assignmentsToStore(
+                remote = answer.assignments,
                 cached = cached,
             ) ?: return cached
-            dataCache.saveAssignments(assignments)
+            // The list as written, which the write reconciles against newer
+            // answers; nothing to publish when the write was refused.
+            val assignments = moodleService.storeAssignments(merged, answer) ?: return cached
             // The reminders and the Live Update follow the cache, as Home
             // and the worker make them do.
             notificationScheduler.rescheduleFromCache(dataCache, prefs)

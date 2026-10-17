@@ -6,6 +6,10 @@ import com.google.gson.JsonObject
 import org.ntust.app.tigerduck.data.moodle.MoodleMaterials
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.network.moodle.MoodleHtmlText
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentGrade
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentSubmission
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
@@ -17,6 +21,7 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterialSection
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberRole
+import org.ntust.app.tigerduck.network.model.moodle.MoodleSubmissionComment
 import org.ntust.app.tigerduck.network.model.moodle.MoodlePost
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -42,12 +47,30 @@ data class DemoMoodleCourse(
     val announcements: List<MoodleDiscussion>,
     val grades: List<MoodleGradeItem>,
     val members: List<MoodleMember>,
+    val assignments: List<DemoMoodleAssignment>,
     /** The course's general forums, with every post of their discussions. */
     val forums: List<DemoMoodleForum> = emptyList(),
     val materials: MoodleCourseMaterials = MoodleCourseMaterials(emptyList()),
 ) {
     val newsForumId: Int get() = moodleId * 10 + 1
 }
+
+/**
+ * What the demo student's assignment page shows beyond Home's row, which the file's top-level
+ * `assignments` entry of the same [id] gives: the description and attachments, and the
+ * submission as Moodle would answer it, with its comments and its group's name.
+ */
+data class DemoMoodleAssignment(
+    val id: Int,
+    val cmid: Int,
+    /** HTML. */
+    val intro: String,
+    val attachments: List<MoodleFile>,
+    val teamSubmission: Boolean,
+    val noSubmissions: Boolean,
+    /** Null for one with no record on Moodle yet. */
+    val submission: MoodleAssignmentSubmission?,
+)
 
 /** A general forum of a demo course: its discussions as a list gives them, and each one's posts. */
 data class DemoMoodleForum(
@@ -85,6 +108,8 @@ object DemoMoodleFixture {
                 .mapIndexedNotNull { i, el -> (el as? JsonObject)?.let { grade(it, moodleId, i, lang) } },
             members = (o.get("members") as? JsonArray).orEmpty()
                 .mapNotNull { el -> (el as? JsonObject)?.let { member(it, lang) } },
+            assignments = (o.get("assignments") as? JsonArray).orEmpty()
+                .mapNotNull { el -> (el as? JsonObject)?.let { assignment(it, lang) } },
             forums = (o.get("forums") as? JsonArray).orEmpty()
                 .mapIndexedNotNull { i, el -> (el as? JsonObject)?.let { forum(it, moodleId, i, lang) } },
             materials = MoodleCourseMaterials(
@@ -187,6 +212,93 @@ object DemoMoodleFixture {
             modified = time(o.str("modified")) ?: created,
             path = "/",
         )
+    }
+
+    private fun assignment(o: JsonObject, lang: String): DemoMoodleAssignment? {
+        val id = o.int("id") ?: return null
+        val cmid = o.int("cmid") ?: (id * 10)
+        return DemoMoodleAssignment(
+            id = id,
+            cmid = cmid,
+            intro = localized(o, "intro", lang),
+            attachments = files(o.get("attachments") as? JsonArray, "mod_assign/introattachment/$cmid"),
+            teamSubmission = o.bool("teamSubmission"),
+            noSubmissions = o.bool("noSubmissions"),
+            submission = (o.get("submission") as? JsonObject)?.let { submission(it, id, lang) },
+        )
+    }
+
+    /** A submission as `mod_assign_get_submission_status` would answer it, its comments and group included. */
+    private fun submission(o: JsonObject, assignId: Int, lang: String): MoodleAssignmentSubmission {
+        val submissionId = assignId * 10 + 1
+        val group = o.get("group") as? JsonObject
+        val comments = (o.get("comments") as? JsonArray).orEmpty().mapIndexedNotNull { i, el ->
+            val c = el as? JsonObject ?: return@mapIndexedNotNull null
+            MoodleSubmissionComment(
+                id = submissionId * 10 + i + 1,
+                authorName = localized(c, "author", lang),
+                created = time(c.str("time")) ?: return@mapIndexedNotNull null,
+                content = localized(c, "content", lang),
+            )
+        }
+        return MoodleAssignmentSubmission(
+            status = o.str("status") ?: "new",
+            modified = time(o.str("time")),
+            files = files(o.get("files") as? JsonArray, "assignsubmission_file/submission_files/$submissionId"),
+            onlineText = localized(o, "text", lang).ifEmpty { null },
+            id = submissionId,
+            takesComments = true,
+            groupId = group?.int("id"),
+            groupName = group?.let { localized(it, "name", lang) }?.ifEmpty { null },
+            comments = comments,
+            grade = (o.get("grade") as? JsonObject)?.let { g ->
+                MoodleAssignmentGrade(
+                    grade = g.str("grade"),
+                    gradedAt = time(g.str("gradedAt")),
+                    feedback = localized(g, "feedback", lang).ifEmpty { null },
+                )
+            }?.takeIf { it.grade != null || it.feedback != null },
+        )
+    }
+
+    /** `[{"name", "size", "mime"}]` as files Moodle would list under [area]. */
+    private fun files(array: JsonArray?, area: String): List<MoodleFile> = array.orEmpty().mapNotNull { el ->
+        val a = el as? JsonObject ?: return@mapNotNull null
+        val name = a.str("name") ?: return@mapNotNull null
+        MoodleFile(
+            name = name,
+            size = a.long("size") ?: 0,
+            url = "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/0/$area/$name",
+            mimeType = a.str("mime"),
+            modified = null,
+            path = "/",
+        )
+    }
+
+    /**
+     * The records the demo student's assignment rounds would have kept: one per Moodle assignment
+     * of [moodle] whose id a Home row among [listed] has, with that row's title and due time.
+     */
+    fun records(moodle: DemoMoodle, listed: List<Assignment>): List<MoodleAssignmentRecord> {
+        val rows = listed.associateBy { it.assignmentId }
+        return moodle.courses.flatMap { course ->
+            course.assignments.mapNotNull { a ->
+                val row = rows[a.id.toString()] ?: return@mapNotNull null
+                MoodleAssignmentRecord(
+                    assignId = a.id,
+                    cmid = a.cmid,
+                    courseId = course.moodleId,
+                    name = row.title,
+                    dueDate = row.dueDate.time / 1000,
+                    cutoffDate = row.cutoffDate?.let { it.time / 1000 } ?: 0,
+                    allowSubmissionsFrom = 0,
+                    intro = a.intro,
+                    introAttachments = a.attachments,
+                    noSubmissions = a.noSubmissions,
+                    teamSubmission = a.teamSubmission,
+                )
+            }
+        }
     }
 
     private fun announcement(o: JsonObject, moodleId: Int, index: Int, lang: String): MoodleDiscussion? {
@@ -306,6 +418,9 @@ class DemoMoodleCourseApi(
         MoodleCourseApi.MEMBERS_FUNCTION,
         MoodleCourseApi.GRADE_ITEMS_FUNCTION,
         MoodleCourseApi.COURSES_FUNCTION,
+        MoodleCourseApi.SUBMISSION_STATUS_FUNCTION,
+        MoodleCourseApi.COMMENTS_FUNCTION,
+        MoodleCourseApi.GROUPS_FUNCTION,
         MoodleCourseApi.CONTENTS_FUNCTION,
     ) + MoodleMaterials.VIEW_CALLS.values.map { it.first }
 
@@ -379,6 +494,29 @@ class DemoMoodleCourseApi(
             names = listOf(course.fullname).filter { it.isNotEmpty() },
         )
     }
+
+    private fun assignment(assignId: Int): DemoMoodleAssignment? =
+        moodle.courses.asSequence().flatMap { it.assignments }.firstOrNull { it.id == assignId }
+
+    /** As Moodle answers it: the comments and the group's name come from their own calls. */
+    override suspend fun submission(assignId: Int): MoodleAssignmentSubmission =
+        assignment(assignId)?.submission?.copy(comments = null, groupName = null)
+            ?: MoodleAssignmentSubmission(
+                status = null, modified = null, files = emptyList(), onlineText = null, id = null,
+                takesComments = false, groupId = null, groupName = null, comments = null, grade = null,
+            )
+
+    override suspend fun comments(cmid: Int, submissionId: Int): List<MoodleSubmissionComment> =
+        moodle.courses.asSequence().flatMap { it.assignments }
+            .firstOrNull { it.cmid == cmid && it.submission?.id == submissionId }
+            ?.submission?.comments.orEmpty()
+
+    override suspend fun groups(courseId: Int): Map<Int, String> =
+        course(courseId)?.assignments.orEmpty().mapNotNull { a ->
+            val submission = a.submission ?: return@mapNotNull null
+            val id = submission.groupId ?: return@mapNotNull null
+            id to submission.groupName.orEmpty()
+        }.toMap()
 
     /** The demo account has no network to fetch a file on. */
     override suspend fun download(file: MoodleFile, target: java.io.File, maxBytes: Long, progress: (Float) -> Unit) =

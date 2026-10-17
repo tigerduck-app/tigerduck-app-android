@@ -101,11 +101,11 @@ class AppLinkTest {
     }
 
     @Test
-    fun `each screen link maps onto its route, and an assignment onto none`() {
+    fun `each screen link maps onto its route`() {
         assertEquals(LibraryShortcutWidget.ROUTE_SENTINEL, startRouteFor(AppLink.Library))
         assertEquals(Screen.ClassTable.route, startRouteFor(AppLink.ClassTable))
         assertEquals(Screen.AnnouncementDetail.route(42), startRouteFor(AppLink.Announcement(42)))
-        assertNull(startRouteFor(AppLink.Assignment("1")))
+        assertEquals(Screen.Assignment.route("1"), startRouteFor(AppLink.Assignment("1")))
     }
 
     @Test

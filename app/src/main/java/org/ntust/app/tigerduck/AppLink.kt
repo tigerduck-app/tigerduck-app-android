@@ -24,7 +24,7 @@ sealed interface AppLink {
     /** The user's own class table. */
     data object ClassTable : AppLink
 
-    /** A Moodle assignment, opened in the Moodle app or the browser. [id] is digits only. */
+    /** A Moodle assignment, whose page opens in the app. [id] is digits only. */
     data class Assignment(val id: String) : AppLink
 
     /** A bulletin's detail page. */

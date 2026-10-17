@@ -87,6 +87,9 @@ class MoodleCourseStoreTest {
             return gradesAnswer()
         }
         override suspend fun summary(courseId: Int) = MoodleCourseSummary.EMPTY
+        override suspend fun submission(assignId: Int) = throw UnsupportedOperationException("not asked here")
+        override suspend fun comments(cmid: Int, submissionId: Int) = emptyList<org.ntust.app.tigerduck.network.model.moodle.MoodleSubmissionComment>()
+        override suspend fun groups(courseId: Int) = emptyMap<Int, String>()
         var downloads = 0
         var downloadAnswer: (java.io.File) -> Unit = { it.writeText("pdf bytes") }
         var lastLimit = 0L
@@ -137,6 +140,8 @@ class MoodleCourseStoreTest {
     @get:org.junit.Rule
     val tmp = org.junit.rules.TemporaryFolder()
 
+    private val records = kotlinx.coroutines.flow.MutableStateFlow(emptyList<org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord>())
+
     private fun TestScope.store(): MoodleCourseStore {
         if (!::downloadScope.isInitialized) downloadScope = backgroundScope
         return buildStore()
@@ -151,6 +156,7 @@ class MoodleCourseStoreTest {
         scope = backgroundScope,
         downloads = downloads,
         filesDir = java.io.File(tmp.root, "account/5"),
+        assignmentRecords = records,
     )
 
     private val downloads by lazy { MoodleFileDownloads(root = { tmp.root }, scope = downloadScope) }
@@ -160,6 +166,20 @@ class MoodleCourseStoreTest {
 
     private fun ref(file: org.ntust.app.tigerduck.network.model.moodle.MoodleFile = attachment) =
         MoodleFileRef(file, MoodleFileOwner.Post(90))
+
+    @Test
+    fun `a round that ends while the course detail shows brings the assignments row`() = runTest(UnconfinedTestDispatcher()) {
+        val store = store()
+        assertTrue(store.sectionRows.value.isEmpty())
+
+        records.value = listOf(testRecord(701, courseId = 5), testRecord(702, courseId = 5), testRecord(801, courseId = 6))
+        runCurrent()
+
+        assertEquals(
+            listOf(MoodleSectionRow(MoodleSectionRow.Kind.ASSIGNMENTS, 2, hasUnread = false)),
+            store.sectionRows.value,
+        )
+    }
 
     private val attachment = org.ntust.app.tigerduck.network.model.moodle.MoodleFile(
         name = "hw3.pdf", size = 9, mimeType = "application/pdf", modified = 1L, path = "/",

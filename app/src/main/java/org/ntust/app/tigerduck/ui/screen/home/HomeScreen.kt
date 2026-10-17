@@ -40,7 +40,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +52,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
@@ -74,10 +74,11 @@ fun HomeScreen(
     appState: AppState,
     viewModel: HomeViewModel = hiltViewModel(),
     onOpenSignInSettings: () -> Unit = {},
+    /** Opens an assignment's page in the app; the page's own button is what opens Moodle. */
+    onOpenAssignment: (Assignment) -> Unit = {},
     /** A course tapped on the time slider: the class table's course detail, as iOS opens it from Home. */
     onOpenCourseDetail: (CourseDetailSelection) -> Unit = {},
 ) {
-    val context = LocalContext.current
     val resources = LocalResources.current
     val sections by viewModel.sections.collectAsStateWithLifecycle()
     // Slow pulse (60s, plus every debug-clock flip) so the term gate below
@@ -308,7 +309,7 @@ fun HomeScreen(
                                 if (!isEditing) onOpenCourseDetail(slot.detailSelection)
                             },
                             onAssignmentClick = {
-                                if (!isEditing) openAssignmentInMoodle(context, it)
+                                if (!isEditing) onOpenAssignment(it)
                             },
                             onToggleIgnore = {
                                 if (!isEditing) viewModel.toggleIgnore(it)

@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Csoportok</string>
+    <string name="course_member_profile_picture">Profilkép</string>
     <string name="course_members_auditors">Vendéghallgatók</string>
     <string name="course_members_students">Hallgatók</string>
     <string name="course_members_tas">Oktatási asszisztensek</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Ossz meg névtelen használati adatokat (meglátogatott oldalak, widget-használat), hogy segíts fejleszteni a TigerDuck-ot</string>
     <string name="settings_analytics_enabled">Használati analitika</string>
     <string name="settings_api_endpoint">API-végpont</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Módosítás</string>
+    <string name="settings_api_endpoint_change_alert_message">Bejelentkezés után ez a végpont megkapja a hallgatói azonosítódat és a Moodle tokenedet. Minden bejelentkezett fiókból kijelentkezel.</string>
+    <string name="settings_api_endpoint_change_alert_title">Módosítod az API-végpontot?</string>
     <string name="settings_api_endpoint_change_title">Végpont módosítása</string>
     <string name="settings_api_endpoint_checking">Ellenőrzés…</string>
     <string name="settings_api_endpoint_effective_title">Aktuális végpont</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Mai kurzusok rögzítése az órarend tetején</string>
     <string name="settings_privacy_policy">Adatvédelmi irányelvek</string>
     <string name="settings_push_server_nav_label">Szerver push</string>
-    <string name="settings_remember_bulletin_filter">Hirdetményszűrők megjegyzése</string>
     <string name="settings_reset_course_colors">Kurzusszínek újrakiosztása</string>
     <string name="settings_reset_course_colors_confirm_message">Minden kurzus új, egyedi színt kap — előbb az előre beállított palettából, kimerülésekor véletlenszerűen.</string>
     <string name="settings_reset_course_colors_confirm_title">Újrakiosztja a kurzusszíneket?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Sikertelen</string>
     <string name="sync_status_hours_ago_short">%1$d ó ezelőtt</string>
     <string name="sync_status_just_now">Épp most</string>
-    <string name="sync_status_last_synced">Utolsó szinkronizálás</string>
     <string name="sync_status_last_updated">Utolsó frissítés</string>
     <string name="sync_status_minimal">Korlátozott</string>
     <string name="sync_status_minutes_ago_short">%1$d p ezelőtt</string>
     <string name="sync_status_nav_label">TigerSync állapota</string>
-    <string name="sync_status_never_synced">Még soha nem szinkronizálva</string>
     <string name="sync_status_never_updated">Még soha nem frissítve</string>
     <string name="sync_status_ok">Rendben</string>
     <string name="sync_status_syncing">Szinkronizálás…</string>

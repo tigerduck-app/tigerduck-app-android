@@ -80,6 +80,8 @@ import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportHost
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherEntry
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherMenuItems
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportViewModel
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAssignmentScreen
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleRoutes
 import org.ntust.app.tigerduck.ui.screen.emptyclassroom.EmptyClassroomScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeViewModel
@@ -117,6 +119,14 @@ sealed class Screen(val route: String) {
     }
 
     object AnnouncementSubscriptions : Screen("announcements/subscriptions")
+
+    /** An assignment's page, opened from Home, a reminder or the Live Update; see MoodleAssignmentScreen. */
+    object Assignment : Screen("assignment/{assignmentId}") {
+        fun route(assignmentId: String) = "assignment/$assignmentId"
+
+        /** Whether [route] is one of these pages. */
+        fun isRoute(route: String?): Boolean = route != null && route.startsWith("assignment/")
+    }
     object Library : Screen("library")
     object Score : Screen("score")
     object EmptyClassroom : Screen("emptyClassroom")
@@ -309,6 +319,11 @@ fun MainNavigation(
         snapshotFlow { navController.currentBackStackEntry }
             .filterNotNull()
             .first()
+        // A reminder's page would be covered again on the way back by a course detail left open,
+        // so the sheets close first, as on iOS; one holding a mail being written stays.
+        if (CourseDetailSheetRules.closesForLink(target, classTableViewModel.courseSheetRoutes.value)) {
+            classTableViewModel.clearSelection()
+        }
         // A tab through the bottom bar's own path: launchSingleTop alone looks only at the page on
         // top, and pushed a second class table over its course detail.
         navController.openStartRoute(target, tabRoutes, firstTab = popUpToDest, tabTap)
@@ -485,6 +500,7 @@ fun MainNavigation(
                     appState = appState,
                     viewModel = homeViewModel,
                     onOpenSignInSettings = openSignInSettings,
+                    onOpenAssignment = { navController.navigate(Screen.Assignment.route(it.assignmentId)) },
                     onOpenCourseDetail = { picked ->
                         // The slider shows the live term, as the class table's today strip does.
                         classTableViewModel.selectCourse(picked.course, picked.weekday, picked.periodId, fromLiveTerm = true)
@@ -492,6 +508,15 @@ fun MainNavigation(
                 )
                 // The class table's course detail sheet, as iOS opens the same sheet from Home.
                 CourseDetailSheetHost(classTableViewModel, appState.browserPreference)
+            }
+            page(
+                Screen.Assignment.route,
+                arguments = listOf(navArgument(MoodleRoutes.ARG_ASSIGNMENT_ID) { type = NavType.StringType }),
+            ) {
+                MoodleAssignmentScreen(
+                    browserPreference = appState.browserPreference,
+                    onBack = { navController.popBackStack() },
+                )
             }
             page(Screen.ClassTable.route) {
                 ClassTableScreen(

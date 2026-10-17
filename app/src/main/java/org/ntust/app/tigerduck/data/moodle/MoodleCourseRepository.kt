@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data.moodle
 
 import android.graphics.BitmapFactory
+import android.os.SystemClock
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.CoroutineScope
@@ -8,16 +9,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.moodle.LiveMoodleCourseApi
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterial
@@ -54,6 +58,15 @@ class MoodleCourseRepository internal constructor(
     private val newScope: () -> CoroutineScope = { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) },
     /** Fires when the language the app shows has changed, which the demo account's Moodle follows. */
     languageChanges: Flow<Unit> = kotlinx.coroutines.flow.emptyFlow(),
+    /** The records of the account's last assignment round, read again after each round. */
+    private val assignmentRecords: () -> Flow<List<MoodleAssignmentRecord>> = { kotlinx.coroutines.flow.emptyFlow() },
+    /** Home's assignment rows, read again after each write. */
+    private val listedAssignments: () -> Flow<List<Assignment>> = { kotlinx.coroutines.flow.emptyFlow() },
+    /** Where a page's submission status goes, for the cached list; see [AssignmentStatusWriter]. */
+    private val takeStatus: suspend (SubmissionStatusAnswer) -> Unit = {},
+    /** The cache's generation now, which a page's request goes out under. */
+    private val cacheGeneration: () -> Int = { 0 },
+    private val monotonicNowMs: () -> Long = SystemClock::elapsedRealtime,
 ) {
     @Inject
     constructor(
@@ -63,6 +76,7 @@ class MoodleCourseRepository internal constructor(
         downloads: MoodleFileDownloads,
         authService: AuthService,
         uiLanguage: UiLanguageMonitor,
+        statusWriter: AssignmentStatusWriter,
         @ApplicationScope appScope: CoroutineScope,
     ) : this(
         signedIn = { authService.authState.value },
@@ -84,10 +98,16 @@ class MoodleCourseRepository internal constructor(
         authState = authService.authState,
         appScope = appScope,
         languageChanges = uiLanguage.changes,
+        assignmentRecords = { dataCache.assignmentRecordsVersion.map { dataCache.loadAssignmentRecords() } },
+        listedAssignments = { dataCache.assignmentsVersion.map { dataCache.loadAssignments() } },
+        takeStatus = { answer -> statusWriter.take(answer) },
+        cacheGeneration = { dataCache.userDataGeneration },
     )
 
     private val lock = Mutex()
     private var stores = mutableMapOf<Pair<String, Int>, MoodleCourseStore>()
+    private var assignments = mutableMapOf<String, MoodleAccountAssignments>()
+    private var contexts = mutableMapOf<String, MoodleCacheContext>()
     private var scope = newScope()
     private var demo: SwitchableApi? = null
     /** The demo account's copies, held for the session; never written to the device. */
@@ -118,34 +138,65 @@ class MoodleCourseRepository internal constructor(
         if (!signedIn()) return@withLock null
         val account = account() ?: return@withLock null
         stores[account to courseId]?.let { return@withLock it }
-        val demoSession = isDemo()
-        val api = if (demoSession) {
-            demo ?: demoApi()?.let(::SwitchableApi)?.also { demo = it } ?: return@withLock null
-        } else {
-            liveApi
-        }
+        val api = apiLocked() ?: return@withLock null
         val ids = idMap()
         val filesDir = downloads?.let { withContext(Dispatchers.IO) { downloadsDir(account) } }
             ?.let { File(it, courseId.toString()) }
-        val built = generation
-        val context = MoodleCacheContext(
-            account = account,
-            cache = if (demoSession) demoCache else cachePort(account),
-            isCurrent = { generation == built && signedIn() && account() == account },
-        )
         MoodleCourseStore(
             courseId = courseId,
             termCourseIds = MoodleCourseStore.termCourseIds(courseId, ids),
             courseCodes = MoodleCourseStore.courseCodes(courseId, courseNo, ids),
             term = MoodleCourseStore.term(courseId, ids),
             api = api,
-            context = context,
+            context = contextLocked(account),
             scope = scope,
             picturesDir = picturesDir(account),
             downloads = downloads,
             filesDir = filesDir,
             decodePicture = decode,
+            assignmentRecords = assignmentsLocked(account, api).records.map { it.orEmpty() },
         ).also { stores[account to courseId] = it }
+    }
+
+    /**
+     * The account's assignments, for their pages and the courses' lists, built on first use;
+     * null when signed out.
+     */
+    suspend fun assignments(): MoodleAccountAssignments? = lock.withLock {
+        if (!signedIn()) return@withLock null
+        val account = account() ?: return@withLock null
+        assignmentsLocked(account, apiLocked() ?: return@withLock null)
+    }
+
+    private fun assignmentsLocked(account: String, api: MoodleCourseApi): MoodleAccountAssignments =
+        assignments.getOrPut(account) {
+            MoodleAccountAssignments(
+                api = api,
+                context = contextLocked(account),
+                scope = scope,
+                records = assignmentRecords(),
+                listed = listedAssignments(),
+                takeStatus = takeStatus,
+                generation = cacheGeneration,
+                monotonicNowMs = monotonicNowMs,
+            )
+        }
+
+    /** The Moodle the account's stores ask: the demo account's own, else the live site; null when the demo has none. */
+    private fun apiLocked(): MoodleCourseApi? = if (isDemo()) {
+        demo ?: demoApi()?.let(::SwitchableApi)?.also { demo = it }
+    } else {
+        liveApi
+    }
+
+    /** One per account and sign-in, shared by its stores and its assignments. */
+    private fun contextLocked(account: String): MoodleCacheContext = contexts.getOrPut(account) {
+        val built = generation
+        MoodleCacheContext(
+            account = account,
+            cache = if (isDemo()) demoCache else cachePort(account),
+            isCurrent = { generation == built && signedIn() && account() == account },
+        )
     }
 
     /**
@@ -159,6 +210,8 @@ class MoodleCourseRepository internal constructor(
         scope.cancel()
         scope = newScope()
         stores = mutableMapOf()
+        assignments = mutableMapOf()
+        contexts = mutableMapOf()
         demo = null
         demoCache = MemoryCachePort()
     }
@@ -188,6 +241,9 @@ class MoodleCourseRepository internal constructor(
         override suspend fun picture(url: String) = api.picture(url)
         override suspend fun gradeItems(courseId: Int) = api.gradeItems(courseId)
         override suspend fun summary(courseId: Int) = api.summary(courseId)
+        override suspend fun submission(assignId: Int) = api.submission(assignId)
+        override suspend fun comments(cmid: Int, submissionId: Int) = api.comments(cmid, submissionId)
+        override suspend fun groups(courseId: Int) = api.groups(courseId)
         override suspend fun download(file: MoodleFile, target: File, maxBytes: Long, progress: (Float) -> Unit) =
             api.download(file, target, maxBytes, progress)
     }

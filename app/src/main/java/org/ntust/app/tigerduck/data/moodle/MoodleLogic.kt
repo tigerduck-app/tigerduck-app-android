@@ -5,7 +5,11 @@
 
 package org.ntust.app.tigerduck.data.moodle
 
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.AssignmentStatus
+import org.ntust.app.tigerduck.data.model.status
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseGrades
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
@@ -27,7 +31,91 @@ import java.util.Locale
 
 /** A row of the course detail's Moodle section. */
 data class MoodleSectionRow(val kind: Kind, val count: Int, val hasUnread: Boolean) {
-    enum class Kind { ANNOUNCEMENTS, MATERIALS, GRADES, MEMBERS, FORUMS }
+    enum class Kind { ANNOUNCEMENTS, MATERIALS, ASSIGNMENTS, GRADES, MEMBERS, FORUMS }
+}
+
+/**
+ * An assignment as the course's list and its page take it: the record a round kept, with Home's
+ * row for it, which keeps what Moodle said of the submission. Home lists none without a due date
+ * or an online submission, so [listed] is null for those.
+ */
+data class MoodleAssignmentEntry(val record: MoodleAssignmentRecord, val listed: Assignment?) {
+    val assignmentId: String get() = record.assignId.toString()
+}
+
+object MoodleAssignmentEntries {
+    /**
+     * The entry for [assignmentId]: its record among [records] with its row among [listed]. A row
+     * no round has recorded, from a cache written before records were kept, gets a record built
+     * from the row, with its course module read from the row's Moodle link, so its page opens
+     * with what the row knows. Null for an id in neither, which is not this account's homework.
+     */
+    fun of(assignmentId: String, records: List<MoodleAssignmentRecord>, listed: List<Assignment>): MoodleAssignmentEntry? {
+        val row = listed.firstOrNull { it.assignmentId == assignmentId }
+        val record = records.firstOrNull { it.assignId.toString() == assignmentId }
+            ?: row?.let(::recordOf)
+            ?: return null
+        return MoodleAssignmentEntry(record, row)
+    }
+
+    private fun recordOf(row: Assignment) = MoodleAssignmentRecord(
+        assignId = row.assignmentId.toIntOrNull() ?: 0,
+        cmid = cmidOf(row.moodleUrl) ?: 0,
+        courseId = 0,
+        name = row.title,
+        dueDate = row.dueDate.time / 1000,
+        cutoffDate = row.cutoffDate?.let { it.time / 1000 } ?: 0,
+        allowSubmissionsFrom = 0,
+        intro = "",
+        introAttachments = emptyList(),
+        // Home lists only assignments that take a submission.
+        noSubmissions = false,
+        teamSubmission = false,
+    )
+
+    private val ASSIGNMENT_LINK = Regex("""/mod/assign/view\.php\?(?:.*&)?id=(\d+)(?:&|$|#)""")
+
+    /** The course module in a `mod/assign/view.php?id=<cmid>` link; null for any other. */
+    fun cmidOf(moodleUrl: String?): Int? =
+        moodleUrl?.let { ASSIGNMENT_LINK.find(it) }?.groupValues?.get(1)?.toIntOrNull()
+}
+
+/** The course's assignment list: its order, and what each row says of the submission. */
+object MoodleAssignmentLists {
+    /** A list row, with what Moodle says of the submission; null while there is nothing to say. */
+    data class Row(val entry: MoodleAssignmentEntry, val status: AssignmentStatus?)
+
+    /**
+     * Those still to come by due time, then the ones with no due date, then the past ones, the
+     * latest first. Ties keep Moodle's order, which [entries] is in.
+     */
+    fun rows(entries: List<MoodleAssignmentEntry>, nowMs: Long): List<Row> {
+        val nowSeconds = nowMs / 1000
+        val ordered = entries.withIndex()
+        fun isPast(entry: MoodleAssignmentEntry) = entry.record.dueDate > 0 && entry.record.dueDate < nowSeconds
+        val toCome = ordered.filter { !isPast(it.value) }.sortedWith(
+            compareBy<IndexedValue<MoodleAssignmentEntry>> { it.value.record.dueDate.takeIf { d -> d > 0 } ?: Long.MAX_VALUE }
+                .thenBy { it.index },
+        )
+        val past = ordered.filter { isPast(it.value) }.sortedWith(
+            compareByDescending<IndexedValue<MoodleAssignmentEntry>> { it.value.record.dueDate }.thenBy { it.index },
+        )
+        return (toCome + past).map { (_, entry) ->
+            Row(entry, entry.listed?.let { shownStatus(it, nowMs) })
+        }
+    }
+
+    /**
+     * What Moodle says of the assignment, without the marks the user puts on Home's rows: handed
+     * in on time or late, or overdue, and nothing while it is still to come.
+     */
+    fun shownStatus(assignment: Assignment, nowMs: Long): AssignmentStatus? =
+        when (assignment.status(now = java.util.Date(nowMs))) {
+            AssignmentStatus.SUBMITTED -> AssignmentStatus.SUBMITTED
+            AssignmentStatus.SUBMITTED_LATE -> AssignmentStatus.SUBMITTED_LATE
+            AssignmentStatus.OVERDUE_ACCEPTABLE, AssignmentStatus.OVERDUE_REJECTED -> AssignmentStatus.OVERDUE_ACCEPTABLE
+            AssignmentStatus.PENDING -> null
+        }
 }
 
 object MoodleSections {
@@ -52,13 +140,18 @@ object MoodleSections {
     fun generalForums(term: MoodleTermForums?, courseId: Int): List<MoodleForum> =
         courseForums(term, courseId).filter { !it.isNews && it.discussionCount > 0 }
 
-    /** The section's rows, in its order; a kind with nothing to count has no row. */
+    /**
+     * The section's rows, in its order; a kind with nothing to count has no row. [assignmentCount]
+     * is every assignment of the course the last round recorded, undated ones and ones with no
+     * online submission included; it follows the materials, as iOS orders the rows.
+     */
     fun rows(
         term: MoodleTermForums?,
         courseId: Int,
         grades: MoodleCourseGrades?,
         members: MoodleMemberList?,
         materials: MoodleCourseMaterials? = null,
+        assignmentCount: Int = 0,
     ): List<MoodleSectionRow> {
         val rows = mutableListOf<MoodleSectionRow>()
         newsForum(term, courseId)?.takeIf { it.discussionCount > 0 }?.let {
@@ -66,6 +159,9 @@ object MoodleSections {
         }
         materials?.let(MoodleMaterials::count)?.takeIf { it > 0 }?.let {
             rows += MoodleSectionRow(MoodleSectionRow.Kind.MATERIALS, it, false)
+        }
+        if (assignmentCount > 0) {
+            rows += MoodleSectionRow(MoodleSectionRow.Kind.ASSIGNMENTS, assignmentCount, false)
         }
         val graded = grades?.let(MoodleGrades::graded)?.size ?: 0
         // A course total shown is worth the row on its own, graded activities shown or none.
@@ -282,6 +378,11 @@ sealed interface MoodleFileOwner {
     /** A forum post, an announcement's included. */
     data class Post(val id: Int) : MoodleFileOwner {
         override val folderName: String get() = "p$id"
+    }
+
+    /** The account's submission for an assignment, whose files the assignment's page lists. */
+    data class Submission(val assignId: Int) : MoodleFileOwner {
+        override val folderName: String get() = "s$assignId"
     }
 }
 

@@ -153,9 +153,9 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
          * under an otherwise translated app. Taken here rather than left to
          * the caller, so no path can post without it.
          *
-         * A tap opens the assignment, through `tigerduck://assignment/<id>`,
-         * in the Moodle app or the browser, as on iOS. An id no link can
-         * carry, such as the preview's, opens the app.
+         * A tap opens the assignment's page in the app, through
+         * `tigerduck://assignment/<id>`, as on iOS. An id no link can carry,
+         * such as the preview's, opens the app.
          */
         fun post(
             baseContext: Context,

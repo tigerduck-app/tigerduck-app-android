@@ -293,6 +293,27 @@
       {
         "courseNo": "CS3005301",
         "moodleId": 90501,
+        "assignments": [
+          {
+            "id": 900001,
+            "cmid": 950001,
+            "intro": {
+              "zh": "<p>實作一個 <strong>AVL 樹</strong>，支援插入、刪除與查詢，並與未平衡的二元搜尋樹比較效能。</p><ul><li>請附上測試程式與執行結果</li><li>報告以 PDF 繳交</li></ul>",
+              "en": "<p>Implement an <strong>AVL tree</strong> with insert, delete and search, and compare its performance with an unbalanced binary search tree.</p><ul><li>Include your tests and their output</li><li>Submit the report as a PDF</li></ul>"
+            },
+            "attachments": [
+              { "name": "hw3.pdf", "size": 183420, "mime": "application/pdf" }
+            ],
+            "submission": {
+              "status": "draft",
+              "time": "2026-09-13T21:40",
+              "text": {
+                "zh": "<p>草稿：目前完成插入與旋轉，刪除還在寫。</p>",
+                "en": "<p>Draft: insertion and rotations done, deletion still in progress.</p>"
+              }
+            }
+          }
+        ],
         "fullname": {
           "zh": "1151 CS3005301 資料結構",
           "en": "1151 CS3005301 Data Structures"
@@ -863,6 +884,25 @@
       {
         "courseNo": "CS3204301",
         "moodleId": 90502,
+        "assignments": [
+          {
+            "id": 900002,
+            "cmid": 950002,
+            "teamSubmission": true,
+            "intro": {
+              "zh": "<p>以小組為單位，在 xv6 中實作 <em>多層回饋佇列</em> 排程器，並量測不同工作負載下的回應時間。</p><p>每組繳交一份報告與程式碼壓縮檔。</p>",
+              "en": "<p>In your lab group, implement a <em>multi-level feedback queue</em> scheduler in xv6 and measure response times under different workloads.</p><p>One report and one source archive per group.</p>"
+            },
+            "attachments": [
+              { "name": "lab2-handout.pdf", "size": 96210, "mime": "application/pdf" },
+              { "name": "xv6-lab2.zip", "size": 1482930, "mime": "application/zip" }
+            ],
+            "submission": {
+              "status": "new",
+              "group": { "id": 31, "name": { "zh": "第 3 組", "en": "Group 3" } }
+            }
+          }
+        ],
         "fullname": {
           "zh": "1151 CS3204301 作業系統",
           "en": "1151 CS3204301 Operating Systems"
@@ -983,6 +1023,49 @@
       {
         "courseNo": "EE2004301",
         "moodleId": 90503,
+        "assignments": [
+          {
+            "id": 900003,
+            "cmid": 950003,
+            "intro": {
+              "zh": "<p>完成課本 4.1 至 4.3 節的習題，手寫或打字皆可，掃描成一份 PDF 上傳。</p>",
+              "en": "<p>Complete the exercises in sections 4.1 to 4.3 of the textbook. Handwritten or typed, scanned into one PDF.</p>"
+            },
+            "submission": {
+              "status": "submitted",
+              "time": "2026-09-11T22:15",
+              "files": [
+                { "name": "exercises-4.pdf", "size": 2410552, "mime": "application/pdf" }
+              ],
+              "comments": [
+                {
+                  "author": { "zh": "T10101 @ 李老師", "en": "T10101 @ Lee" },
+                  "time": "2026-09-13T10:20",
+                  "content": {
+                    "zh": "<p>4.2 第 7 題的特徵值算錯了，請再檢查一次。</p>",
+                    "en": "<p>The eigenvalues in 4.2 exercise 7 are off, please check again.</p>"
+                  }
+                },
+                {
+                  "author": { "zh": "B11300001 @ 示範學生", "en": "B11300001 @ Demo Student" },
+                  "time": "2026-09-13T14:05",
+                  "content": {
+                    "zh": "<p>已重新計算，第二頁為更正版。</p>",
+                    "en": "<p>Recomputed; page 2 is the corrected version.</p>"
+                  }
+                }
+              ],
+              "grade": {
+                "grade": "92.00 / 100.00",
+                "gradedAt": "2026-09-14T10:00",
+                "feedback": {
+                  "zh": "<p>第 7 題更正後正確，整體很完整。</p>",
+                  "en": "<p>Exercise 7 is right after the correction; thorough work overall.</p>"
+                }
+              }
+            }
+          }
+        ],
         "fullname": {
           "zh": "1151 EE2004301 線性代數",
           "en": "1151 EE2004301 Linear Algebra"

@@ -4,8 +4,6 @@
 
 package org.ntust.app.tigerduck.ui.screen.home
 
-import android.content.Context
-import android.content.Intent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -55,7 +53,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -339,28 +336,8 @@ internal fun SwipeableAssignmentRow(
                 showAbsoluteTime = showAbsoluteTime,
                 markedCompleted = isMarkedCompleted,
                 isIgnored = isIgnored,
-                // A tap opens the assignment in Moodle, so a row Moodle gave no
-                // address takes none: it is not a button, as on iOS, rather
-                // than one that does nothing.
-                onClick = onClick.takeIf { assignment.moodleDeepLink != null },
+                onClick = onClick,
             )
         }
     }
-}
-/**
- * In the Moodle app through its link, else on the website signed in, as every "Open in Moodle"
- * opens a page. One Moodle gave no address opens nothing, as on iOS; see
- * [Assignment.moodleDeepLink].
- */
-internal fun openAssignmentInMoodle(
-    context: Context,
-    assignment: Assignment,
-    pages: () -> MoodleWebPages = { MoodleWebPages.of(context) },
-) {
-    val deepLink = assignment.moodleDeepLink ?: return
-    val intent = Intent(Intent.ACTION_VIEW, deepLink.toUri()).apply {
-        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
-    }
-    if (runCatching { context.startActivity(intent) }.isSuccess) return
-    assignment.moodleUrl?.let { openMoodleWebPage(context, it, pages = pages) }
 }

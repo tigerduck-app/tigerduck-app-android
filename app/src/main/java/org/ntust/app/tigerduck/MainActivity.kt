@@ -36,8 +36,6 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.ApiVersionGate
@@ -61,7 +59,6 @@ import org.ntust.app.tigerduck.ui.navigation.AppNavigation
 import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportViewModel
-import org.ntust.app.tigerduck.ui.screen.home.openAssignmentInMoodle
 import org.ntust.app.tigerduck.ui.screen.update.UpdatePromptDialog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewCatalog
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewFlow
@@ -139,9 +136,6 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var libraryPagePresence: org.ntust.app.tigerduck.library.LibraryPagePresence
 
-    @Inject
-    lateinit var dataCache: DataCache
-
     private val widgetStartRoute = mutableStateOf<String?>(null)
     private val whatsNewFlow = mutableStateOf<WhatsNewFlow?>(null)
 
@@ -171,9 +165,8 @@ class MainActivity : AppCompatActivity() {
             BackgroundSyncWorker.schedule(applicationContext)
         }
 
-        widgetStartRoute.value = resolveStartRoute(intent)
+        widgetStartRoute.value = resolveStartRoute(intent, restored = savedInstanceState != null)
         handleServerPushIntent(intent)
-        openLinkedAssignment(intent, restored = savedInstanceState != null)
         openSharedClassTable(intent, restored = savedInstanceState != null)
 
         // Re-prompt for app updates only on a genuine fresh start, never on a
@@ -402,9 +395,8 @@ class MainActivity : AppCompatActivity() {
         // that re-reads it (Compose recomposition, lifecycle observers) sees
         // the deep-link URI rather than the launcher MAIN intent.
         setIntent(intent)
-        widgetStartRoute.value = resolveStartRoute(intent)
+        widgetStartRoute.value = resolveStartRoute(intent, restored = false)
         handleServerPushIntent(intent)
-        openLinkedAssignment(intent, restored = false)
         openSharedClassTable(intent, restored = false)
     }
 
@@ -452,36 +444,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * The NavHost route [intent] asks for; see [startRouteOf].
-     * `widgetStartRoute` then drives the LaunchedEffect that navigates once
-     * Compose is ready. An assignment link has no route:
-     * [openLinkedAssignment] takes it, as [openSharedClassTable] takes a
-     * share code link.
+     * The NavHost route [intent] asks for; see [linkedStartRoute]. `widgetStartRoute` then drives
+     * the LaunchedEffect that navigates once Compose is ready. An assignment link, from a
+     * reminder, the due-soon Live Update or another app, opens the assignment's page in the app.
+     * It opens once per delivery: the link is dropped from the intent, and an Activity rebuilt from
+     * saved state ([restored]) or relaunched from Recents does not open it again. The page itself
+     * shows only an assignment this account has cached, so a link from elsewhere can open nothing
+     * but the user's own homework.
      */
-    private fun resolveStartRoute(intent: Intent?): String? = startRouteOf(intent)
-
-    /**
-     * Opens the assignment a `tigerduck://assignment/<id>` link names — from a
-     * reminder, the due-soon Live Update or another app — the way its Home
-     * row does: in the Moodle app, else in the browser, and not at all when
-     * Moodle gave it no address. As on iOS, only an assignment this account
-     * has cached opens, so a link from elsewhere can open nothing but the
-     * user's own homework, at the address Moodle gave.
-     *
-     * Once per delivery: the link is dropped from the intent, and an Activity
-     * rebuilt from saved state or relaunched from Recents does not open it
-     * again.
-     */
-    private fun openLinkedAssignment(intent: Intent?, restored: Boolean) {
-        intent ?: return
+    private fun resolveStartRoute(intent: Intent?, restored: Boolean): String? {
+        intent ?: return null
         val hadData = intent.data != null
-        val id = takeLinkedAssignmentId(intent, restored)
+        val route = linkedStartRoute(intent, restored)
         if (hadData && intent.data == null) setIntent(intent)
-        id ?: return
-        lifecycleScope.launch {
-            val assignment = linkedAssignment(id, dataCache.loadAssignments()) ?: return@launch
-            openAssignmentInMoodle(this@MainActivity, assignment)
-        }
+        return route
     }
 
     /**
@@ -490,7 +466,7 @@ class MainActivity : AppCompatActivity() {
      * takes the steps a scanned code does, and replaces an import already open. Only for someone
      * signed in who has finished onboarding; otherwise the link just opens the app.
      *
-     * Once per delivery, as [openLinkedAssignment]: see [takeSharedClassTableCode]. The import
+     * Once per delivery, as [resolveStartRoute]: see [takeSharedClassTableCode]. The import
      * itself lives in [classTableImport], so a configuration change keeps it on screen.
      */
     private fun openSharedClassTable(intent: Intent?, restored: Boolean) {
@@ -687,9 +663,15 @@ internal fun takeLinkedAssignmentId(intent: Intent, restored: Boolean): String? 
     return link.id.takeIf { !restored && !fromHistory }
 }
 
-/** The cached assignment [id] names, or null: as on iOS, only this account's own homework opens. */
-internal fun linkedAssignment(id: String, cached: List<Assignment>): Assignment? =
-    cached.firstOrNull { it.assignmentId == id }
+/**
+ * The NavHost route [intent] opens: the page of the assignment a `tigerduck://assignment/<id>`
+ * link names, once per delivery and not for an Activity [restored] from saved state (see
+ * [takeLinkedAssignmentId]), else whatever [startRouteOf] makes of it.
+ */
+internal fun linkedStartRoute(intent: Intent, restored: Boolean): String? {
+    takeLinkedAssignmentId(intent, restored)?.let { return Screen.Assignment.route(it) }
+    return startRouteOf(intent)
+}
 
 /**
  * Map intent input — the [StartRoute] extra of the app's own notifications,
@@ -709,16 +691,14 @@ internal fun startRouteOf(intent: Intent?): String? {
 }
 
 /**
- * The NavHost route [link] opens, or null for an assignment, which opens in
- * Moodle rather than on a screen of this app. Library goes through the
- * widget's sentinel so the library feature switch is read when the link
- * arrives.
+ * The NavHost route [link] opens. Library goes through the widget's sentinel
+ * so the library feature switch is read when the link arrives.
  */
 internal fun startRouteFor(link: AppLink): String? = when (link) {
     AppLink.Library -> LibraryShortcutWidget.ROUTE_SENTINEL
     AppLink.ClassTable -> Screen.ClassTable.route
     is AppLink.Announcement -> Screen.AnnouncementDetail.route(link.id)
-    is AppLink.Assignment -> null
+    is AppLink.Assignment -> Screen.Assignment.route(link.id)
 }
 
 /** Page ids of a pending What's New sheet, kept across a config-change recreation. */

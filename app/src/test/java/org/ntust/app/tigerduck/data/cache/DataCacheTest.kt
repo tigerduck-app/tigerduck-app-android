@@ -16,6 +16,7 @@ import kotlinx.coroutines.withTimeout
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -154,8 +155,8 @@ class DataCacheTest {
             all.map { if (it.assignmentId == "a") it.copy(isCompleted = true) else it }
         }
 
-        assertTrue(written)
         assertEquals(listOf(true, false), cache.loadAssignments().map { it.isCompleted })
+        assertEquals("and hands back the list as written", cache.loadAssignments(), written)
     }
 
     @Test
@@ -199,7 +200,7 @@ class DataCacheTest {
             all.map { it.copy(isCompleted = true) }
         }
 
-        assertFalse(written)
+        assertNull(written)
         assertFalse("the change does not even run", changed)
         assertEquals(listOf(false), cache.loadAssignments().map { it.isCompleted })
     }

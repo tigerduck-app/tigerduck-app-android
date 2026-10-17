@@ -2,6 +2,9 @@ package org.ntust.app.tigerduck.data.cache
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentGrade
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentSubmission
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseGrades
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
@@ -17,6 +20,7 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberField
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberRole
+import org.ntust.app.tigerduck.network.model.moodle.MoodleSubmissionComment
 import org.ntust.app.tigerduck.network.model.moodle.MoodlePost
 import org.ntust.app.tigerduck.network.model.moodle.MoodleTermForums
 import java.lang.reflect.Modifier
@@ -29,11 +33,12 @@ import java.lang.reflect.Modifier
 class MoodleCacheSchemaTest {
 
     private val persisted = listOf(
+        MoodleAssignmentGrade::class, MoodleAssignmentRecord::class, MoodleAssignmentSubmission::class,
         MoodleCourseGrades::class, MoodleCourseMaterials::class, MoodleCourseSummary::class, MoodleDiscussion::class,
         MoodleDiscussionList::class, MoodleDiscussionThread::class, MoodleFile::class, MoodleForum::class,
         MoodleGradeItem::class, MoodleMaterial::class, MoodleMaterialSection::class, MoodleMember::class,
         MoodleMemberField::class, MoodleMemberList::class, MoodleMemberRole::class, MoodlePost::class,
-        MoodleTermForums::class,
+        MoodleSubmissionComment::class, MoodleTermForums::class,
     )
 
     private fun shape(): String = persisted.joinToString("\n") { kind ->
@@ -54,6 +59,9 @@ class MoodleCacheSchemaTest {
         val PACKAGE = Regex("""\b(?:[a-z]\w*\.)+""")
 
         val SHAPE_AT_SCHEMA_2 = """
+            MoodleAssignmentGrade(feedback: String, grade: String, gradedAt: Long)
+            MoodleAssignmentRecord(allowSubmissionsFrom: long, assignId: int, cmid: int, courseId: int, cutoffDate: long, dueDate: long, intro: String, introAttachments: List<MoodleFile>, name: String, noSubmissions: boolean, teamSubmission: boolean)
+            MoodleAssignmentSubmission(comments: List<MoodleSubmissionComment>, files: List<MoodleFile>, grade: MoodleAssignmentGrade, groupId: Integer, groupName: String, id: Integer, modified: Long, onlineText: String, status: String, takesComments: boolean)
             MoodleCourseGrades(items: List<MoodleGradeItem>)
             MoodleCourseMaterials(sections: List<MoodleMaterialSection>)
             MoodleCourseSummary(html: String, names: List<String>, text: String)
@@ -70,6 +78,7 @@ class MoodleCacheSchemaTest {
             MoodleMemberList(members: List<MoodleMember>, ownId: Integer)
             MoodleMemberRole(name: String, shortName: String, sortOrder: int)
             MoodlePost(attachments: List<MoodleFile>, authorId: Integer, authorName: String, created: Long, id: int, isDeleted: boolean, isUnread: boolean, message: String, parentId: Integer, subject: String)
+            MoodleSubmissionComment(authorName: String, content: String, created: long, id: int)
             MoodleTermForums(courseIds: List<Integer>, forums: List<MoodleForum>)
         """.trimIndent()
     }

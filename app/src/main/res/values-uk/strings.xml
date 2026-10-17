@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Ел. пошта</string>
     <string name="course_member_groups">Групи</string>
+    <string name="course_member_profile_picture">Фото профілю</string>
     <string name="course_members_auditors">Вільні слухачі</string>
     <string name="course_members_students">Студенти</string>
     <string name="course_members_tas">Асистенти</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Діліться анонімними даними про використання (відвідані сторінки, використання віджетів), щоб допомогти покращити TigerDuck</string>
     <string name="settings_analytics_enabled">Аналітика використання</string>
     <string name="settings_api_endpoint">Кінцева точка API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Змінити</string>
+    <string name="settings_api_endpoint_change_alert_message">Після входу ця кінцева точка отримає ваш студентський ID і токен Moodle. Буде виконано вихід з усіх облікових записів.</string>
+    <string name="settings_api_endpoint_change_alert_title">Змінити кінцеву точку API?</string>
     <string name="settings_api_endpoint_change_title">Змінити кінцеву точку</string>
     <string name="settings_api_endpoint_checking">Перевірка…</string>
     <string name="settings_api_endpoint_effective_title">Поточна кінцева точка</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Закріпити сьогоднішні курси вгорі розкладу</string>
     <string name="settings_privacy_policy">Політика конфіденційності</string>
     <string name="settings_push_server_nav_label">Push-сервер</string>
-    <string name="settings_remember_bulletin_filter">Запам\'ятати фільтри бюлетеня</string>
     <string name="settings_reset_course_colors">Перепризначити кольори курсів</string>
     <string name="settings_reset_course_colors_confirm_message">Кожному курсу буде призначено новий унікальний колір — спочатку з пресетної палітри, потім випадково, коли палітра вичерпається.</string>
     <string name="settings_reset_course_colors_confirm_title">Перепризначити кольори курсів?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Помилка</string>
     <string name="sync_status_hours_ago_short">%1$d год. тому</string>
     <string name="sync_status_just_now">Щойно</string>
-    <string name="sync_status_last_synced">Остання синхронізація</string>
     <string name="sync_status_last_updated">Останнє оновлення</string>
     <string name="sync_status_minimal">Обмежено</string>
     <string name="sync_status_minutes_ago_short">%1$d хв. тому</string>
     <string name="sync_status_nav_label">Статус TigerSync</string>
-    <string name="sync_status_never_synced">Ніколи не синхронізувалося</string>
     <string name="sync_status_never_updated">Ніколи не оновлювалося</string>
     <string name="sync_status_ok">ОК</string>
     <string name="sync_status_syncing">Синхронізація…</string>

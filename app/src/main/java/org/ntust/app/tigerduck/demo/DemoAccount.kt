@@ -155,6 +155,8 @@ class DemoAccount @Inject constructor(
             dataCache.saveMoodleCourseIds(dataCache.loadMoodleCourseIds() + ids)
         }
         fixture.assignments?.let { dataCache.saveAssignments(it) }
+        // The assignments' pages read these, as a round would have kept them.
+        fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty())) }
         fixture.bulletins?.let { bulletinCache.save(it) }
         fixture.calendar?.let { dataCache.saveCalendarEvents(it) }
     }

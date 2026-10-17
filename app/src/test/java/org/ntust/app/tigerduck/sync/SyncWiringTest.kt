@@ -191,8 +191,9 @@ class SyncWiringTest {
     @Test
     fun `the closed assignments are written only for the account that asked`() {
         val body = body("network/MoodleService.kt", "fetchAssignmentsRound")
-        val guard = body.indexOf("if (tokenService.currentToken() == askedWith && closedNow != closedBefore) {")
-        val save = body.indexOf("dataCache.saveClosedAssignments(closedNow)")
+        // The same check also guards the assignment records' write, inside it after this one.
+        val guard = body.indexOf("if (tokenService.currentToken() == askedWith) {")
+        val save = body.indexOf("if (closedNow != closedBefore) dataCache.saveClosedAssignments(closedNow)")
         assertTrue("the closed assignments are no longer written behind the token check", guard in 0 until save)
         assertTrue(
             "nothing else between the check and the write",

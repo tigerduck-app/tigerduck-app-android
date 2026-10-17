@@ -7,6 +7,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +22,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.network.moodle.MoodleFileUrls
+import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseGrades
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
@@ -59,6 +61,8 @@ class MoodleCourseStore(
     private val background: CoroutineDispatcher = Dispatchers.Default,
     /** The term the course is of, such as "1151", which its forums copy is kept under; see [term]. */
     term: String? = null,
+    /** The records of the account's last assignment round, which the section's Assignments row counts. */
+    assignmentRecords: Flow<List<MoodleAssignmentRecord>> = kotlinx.coroutines.flow.flowOf(emptyList()),
 ) {
     /** Every course of the term, which one forums call covers. */
     val termCourseIds: List<Int> = (termCourseIds + courseId).distinct().sorted()
@@ -94,10 +98,15 @@ class MoodleCourseStore(
 
     // --- Section ---
 
+    /** Every assignment of the course the last round recorded, which its row counts. */
+    val assignmentCount: StateFlow<Int> = assignmentRecords
+        .map { records -> records.count { it.courseId == courseId } }
+        .stateIn(scope, SharingStarted.Eagerly, 0)
+
     /** The section's rows, in order; a kind with nothing to count has none. */
     val sectionRows: StateFlow<List<MoodleSectionRow>> =
-        combine(forums.state, materials.state, grades.state, members.state) { f, mat, g, m ->
-            MoodleSections.rows(f.value, courseId, g.value, m.value, mat.value)
+        combine(forums.state, materials.state, grades.state, members.state, assignmentCount) { f, mat, g, m, assignments ->
+            MoodleSections.rows(f.value, courseId, g.value, m.value, mat.value, assignmentCount = assignments)
         }.stateIn(scope, SharingStarted.Eagerly, emptyList())
 
     /** Why the section's last fetch failed, shown with Retry beside what it has, or in its place. */
