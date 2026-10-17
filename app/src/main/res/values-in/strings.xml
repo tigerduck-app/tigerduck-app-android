@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Email</string>
     <string name="course_member_groups">Grup</string>
+    <string name="course_member_profile_picture">Foto profil</string>
     <string name="course_members_auditors">Mahasiswa pendengar</string>
     <string name="course_members_students">Mahasiswa</string>
     <string name="course_members_tas">Asisten dosen</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Bagikan data penggunaan anonim (halaman yang dikunjungi, penggunaan widget) untuk membantu meningkatkan TigerDuck</string>
     <string name="settings_analytics_enabled">Analitik penggunaan</string>
     <string name="settings_api_endpoint">Endpoint API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Ubah</string>
+    <string name="settings_api_endpoint_change_alert_message">Setelah Anda masuk, endpoint ini menerima NIM dan token Moodle Anda. Semua akun yang masuk akan dikeluarkan.</string>
+    <string name="settings_api_endpoint_change_alert_title">Ubah endpoint API?</string>
     <string name="settings_api_endpoint_change_title">Ubah endpoint</string>
     <string name="settings_api_endpoint_checking">Memeriksa…</string>
     <string name="settings_api_endpoint_effective_title">Endpoint aktif</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Sematkan kelas hari ini di atas jadwal</string>
     <string name="settings_privacy_policy">Kebijakan privasi</string>
     <string name="settings_push_server_nav_label">Push server</string>
-    <string name="settings_remember_bulletin_filter">Ingat filter buletin</string>
     <string name="settings_reset_course_colors">Tetapkan ulang warna kursus</string>
     <string name="settings_reset_course_colors_confirm_message">Setiap kursus akan diberi warna baru yang unik — pertama dari palet preset, lalu acak setelah palet habis.</string>
     <string name="settings_reset_course_colors_confirm_title">Tetapkan ulang warna kursus?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Gagal</string>
     <string name="sync_status_hours_ago_short">%1$d j lalu</string>
     <string name="sync_status_just_now">Baru saja</string>
-    <string name="sync_status_last_synced">Terakhir disinkronkan</string>
     <string name="sync_status_last_updated">Terakhir diperbarui</string>
     <string name="sync_status_minimal">Terbatas</string>
     <string name="sync_status_minutes_ago_short">%1$d mnt lalu</string>
     <string name="sync_status_nav_label">Status TigerSync</string>
-    <string name="sync_status_never_synced">Belum pernah disinkronkan</string>
     <string name="sync_status_never_updated">Belum pernah diperbarui</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Menyinkronkan…</string>

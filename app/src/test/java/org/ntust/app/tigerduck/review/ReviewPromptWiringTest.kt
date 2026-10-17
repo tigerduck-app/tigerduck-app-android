@@ -42,17 +42,32 @@ class ReviewPromptWiringTest {
         return lines.subList(start, end).joinToString("\n")
     }
 
-    private fun assertCountsAfterSaving(rel: String, save: String) {
-        val body = body(rel, "fetchData")
+    private fun assertCountsAfterSaving(rel: String, name: String, save: String) {
+        val body = body(rel, name)
         val saved = body.indexOf(save)
         val counted = body.indexOf("reviewPrompt.classTableLoaded()")
-        assertTrue("$rel: fetchData no longer counts a day of use once it has saved the fetched courses", saved in 0 until counted)
+        assertTrue("$rel: $name no longer counts a day of use once it has saved the fetched courses", saved in 0 until counted)
     }
 
     @Test
     fun `a fetch counts as a day of use once the class table's courses are saved`() {
-        assertCountsAfterSaving(classTable, "dataCache.saveCourses(merged, semester)")
-        assertCountsAfterSaving(home, "dataCache.saveCourses(courses)")
+        // The class table's fetch saves each term's courses in fetchTermCourses.
+        assertCountsAfterSaving(classTable, "fetchTermCourses", "dataCache.saveCourses(merged, semester)")
+        assertCountsAfterSaving(home, "fetchData", "dataCache.saveCourses(courses)")
+    }
+
+    /** A warm of the other terms runs on its own, and must not lift a failed load's hold. */
+    @Test
+    fun `only the page's own fetch counts, not a warm of the other terms`() {
+        assertTrue(
+            "fetchTermCourses no longer counts only when asked to",
+            "if (countsAsUse) reviewPrompt.classTableLoaded()" in body(classTable, "fetchTermCourses"),
+        )
+        assertTrue(
+            "fetchData no longer asks its term fetch to count a day of use",
+            "fetchTermCourses(semester, orderedCourseNos, moodleByNo, countsAsUse = true)" in body(classTable, "fetchData"),
+        )
+        assertFalse("warmTerm counts a day of use", "countsAsUse" in body(classTable, "warmTerm"))
     }
 
     @Test

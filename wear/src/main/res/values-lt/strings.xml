@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">El. paštas</string>
     <string name="course_member_groups">Grupės</string>
+    <string name="course_member_profile_picture">Profilio nuotrauka</string>
     <string name="course_members_auditors">Laisvieji klausytojai</string>
     <string name="course_members_students">Studentai</string>
     <string name="course_members_tas">Asistentai</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Dalinkis anonimais naudojimo duomenimis (lankyti puslapiai, valdiklių naudojimas), kad padėtum tobulinti TigerDuck</string>
     <string name="settings_analytics_enabled">Naudojimo analizė</string>
     <string name="settings_api_endpoint">API galinis taškas</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Keisti</string>
+    <string name="settings_api_endpoint_change_alert_message">Prisijungus šis galinis taškas gaus jūsų studento ID ir Moodle prieigos raktą. Visos prisijungusios paskyros bus atjungtos.</string>
+    <string name="settings_api_endpoint_change_alert_title">Keisti API galinį tašką?</string>
     <string name="settings_api_endpoint_change_title">Keisti galinį tašką</string>
     <string name="settings_api_endpoint_checking">Tikrinama…</string>
     <string name="settings_api_endpoint_effective_title">Naudojamas galinis taškas</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Prisegti šiandienos kursus tvarkaraščio viršuje</string>
     <string name="settings_privacy_policy">Privatumo politika</string>
     <string name="settings_push_server_nav_label">Serverio siuntimas</string>
-    <string name="settings_remember_bulletin_filter">Įsiminti biuletenių filtrus</string>
     <string name="settings_reset_course_colors">Iš naujo priskirti kursų spalvas</string>
     <string name="settings_reset_course_colors_confirm_message">Kiekvienam kursui bus priskirta nauja unikali spalva — pirma iš išankstinės paletės, paskui atsitiktinai, kai paletė pasibaigs.</string>
     <string name="settings_reset_course_colors_confirm_title">Priskirti kursų spalvas iš naujo?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Nepavyko</string>
     <string name="sync_status_hours_ago_short">prieš %1$d val.</string>
     <string name="sync_status_just_now">Ką tik</string>
-    <string name="sync_status_last_synced">Paskutinį kartą sinchronizuota</string>
     <string name="sync_status_last_updated">Paskutinį kartą atnaujinta</string>
     <string name="sync_status_minimal">Ribota</string>
     <string name="sync_status_minutes_ago_short">prieš %1$d min.</string>
     <string name="sync_status_nav_label">TigerSync statusas</string>
-    <string name="sync_status_never_synced">Nesusinchronizuota</string>
     <string name="sync_status_never_updated">Neatnaujinta</string>
     <string name="sync_status_ok">Gerai</string>
     <string name="sync_status_syncing">Sinchronizuojama…</string>

@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">மின்னஞ்சல்</string>
     <string name="course_member_groups">குழுக்கள்</string>
+    <string name="course_member_profile_picture">சுயவிவரப் படம்</string>
     <string name="course_members_auditors">பார்வையாளர் மாணவர்கள்</string>
     <string name="course_members_students">மாணவர்கள்</string>
     <string name="course_members_tas">கற்பித்தல் உதவியாளர்கள்</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck-ஐ மேம்படுத்த உதவ அநாமதேய பயன்பாட்டு தரவு (பார்வையிட்ட பக்கங்கள், விட்ஜெட் பயன்பாடு) பகிரவும்</string>
     <string name="settings_analytics_enabled">பயன்பாட்டு பகுப்பாய்வு</string>
     <string name="settings_api_endpoint">API எண்ட்பாயிண்ட்</string>
+    <string name="settings_api_endpoint_change_alert_confirm">மாற்று</string>
+    <string name="settings_api_endpoint_change_alert_message">உள்நுழைந்த பிறகு, இந்த எண்ட்பாயிண்ட் உங்கள் மாணவர் ID மற்றும் Moodle டோக்கனைப் பெறும். உள்நுழைந்துள்ள எல்லா கணக்குகளும் வெளியேற்றப்படும்.</string>
+    <string name="settings_api_endpoint_change_alert_title">API எண்ட்பாயிண்டை மாற்றவா?</string>
     <string name="settings_api_endpoint_change_title">எண்ட்பாயிண்ட் மாற்று</string>
     <string name="settings_api_endpoint_checking">சரிபார்க்கிறது…</string>
     <string name="settings_api_endpoint_effective_title">தற்போதைய எண்ட்பாயிண்ட்</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">நேரஅட்டவணையின் மேலே இன்றைய வகுப்புகளைப் பின் செய்</string>
     <string name="settings_privacy_policy">தனியுரிமை கொள்கை</string>
     <string name="settings_push_server_nav_label">சேவையக புஷ்</string>
-    <string name="settings_remember_bulletin_filter">அறிவிப்பு வடிகட்டிகளை நினைவில் வை</string>
     <string name="settings_reset_course_colors">பாடநெறி வண்ணங்களை மீண்டும் ஒதுக்குங்கள்</string>
     <string name="settings_reset_course_colors_confirm_message">ஒவ்வொரு பாடநெறிக்கும் புதிய, தனித்துவமான வண்ணம் ஒதுக்கப்படும் — முதலில் முன்னமைப்பு வண்ணப்பலகையில் இருந்து, பின்னர் அது தீர்ந்துவிட்டால் எழுந்தாற்போல்.</string>
     <string name="settings_reset_course_colors_confirm_title">பாடநெறி வண்ணங்களை மீண்டும் ஒதுக்கவா?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">தோல்வி</string>
     <string name="sync_status_hours_ago_short">%1$d மணி முன்</string>
     <string name="sync_status_just_now">இப்போதுதான்</string>
-    <string name="sync_status_last_synced">கடைசியாக ஒத்திசைக்கப்பட்டது</string>
     <string name="sync_status_last_updated">கடைசியாகப் புதுப்பிக்கப்பட்டது</string>
     <string name="sync_status_minimal">அடிப்படை</string>
     <string name="sync_status_minutes_ago_short">%1$d நிமி முன்</string>
     <string name="sync_status_nav_label">TigerSync நிலை</string>
-    <string name="sync_status_never_synced">ஒத்திசைக்கப்படவில்லை</string>
     <string name="sync_status_never_updated">புதுப்பிக்கப்படவில்லை</string>
     <string name="sync_status_ok">சரி</string>
     <string name="sync_status_syncing">ஒத்திசைக்கிறது…</string>

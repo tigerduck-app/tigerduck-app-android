@@ -91,6 +91,17 @@ class PendingCourseAdds internal constructor(
      */
     suspend fun <T> removing(block: suspend () -> T): T = sendMutex.withLock { block() }
 
+    /**
+     * Runs [block], which puts a term's courses on the backend as this phone
+     * holds them — a fetch's upload, with the save it goes with — in the
+     * order [removing]'s DELETEs run in: begun before one, it lands first and
+     * the DELETE takes the courses after; begun after one, it finds what the
+     * DELETE left. An upload past a DELETE of its term would bring the
+     * courses back, as an add's force key would, and with no tombstone to
+     * stop it.
+     */
+    suspend fun <T> uploading(block: suspend () -> T): T = sendMutex.withLock { block() }
+
     /** Lets go of the adds [serverCourses], a snapshot's rows, list: the server has them. */
     suspend fun listed(serverCourses: List<ServerCourse>) {
         val generation = dataCache.userDataGeneration

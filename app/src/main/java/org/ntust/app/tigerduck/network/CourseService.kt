@@ -323,6 +323,12 @@ class CourseService @Inject constructor(
         semester: String,
         courseNo: String,
         moodle: MoodleEnrolledCourse?,
+        /**
+         * Told of a query that failed, which the fallback otherwise hides: a
+         * caller fetching term after term stops at the first, since the rest
+         * would fail the same way.
+         */
+        onLookupFailed: (() -> Unit)? = null,
     ): Course? = try {
         val results = lookupCourse(semester, courseNo)
         if (results.isEmpty()) {
@@ -338,6 +344,7 @@ class CourseService @Inject constructor(
         throw e
     } catch (e: Exception) {
         Log.e(TAG_LOOKUP, "Failed to look up a course: ${e.logSummary()}")
+        onLookupFailed?.invoke()
         fallbackCourseFromMoodle(courseNo, moodle)
     }
 

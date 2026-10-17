@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-post</string>
     <string name="course_member_groups">Grupper</string>
+    <string name="course_member_profile_picture">Profilbilde</string>
     <string name="course_members_auditors">Hospitanter</string>
     <string name="course_members_students">Studenter</string>
     <string name="course_members_tas">Studentassistenter</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Del anonyme bruksdata (besøkte sider, bruk av widgets) for å hjelpe med å forbedre TigerDuck</string>
     <string name="settings_analytics_enabled">Bruksanalyse</string>
     <string name="settings_api_endpoint">API-endepunkt</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Endre</string>
+    <string name="settings_api_endpoint_change_alert_message">Når du logger på, mottar dette endepunktet student-ID-en din og Moodle-tokenet. Alle kontoer du er logget på, blir logget ut.</string>
+    <string name="settings_api_endpoint_change_alert_title">Endre API-endepunktet?</string>
     <string name="settings_api_endpoint_change_title">Endre endepunkt</string>
     <string name="settings_api_endpoint_checking">Sjekker…</string>
     <string name="settings_api_endpoint_effective_title">Gjeldende endepunkt</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Fest dagens fag øverst i timeplanen</string>
     <string name="settings_privacy_policy">Personvernpolicy</string>
     <string name="settings_push_server_nav_label">Server-push</string>
-    <string name="settings_remember_bulletin_filter">Husk oppslagstavlefiltre</string>
     <string name="settings_reset_course_colors">Tildel kursfarger på nytt</string>
     <string name="settings_reset_course_colors_confirm_message">Hvert kurs får en ny, unik farge – først fra forhåndsinnstilt palett, deretter tilfeldig når paletten er brukt opp.</string>
     <string name="settings_reset_course_colors_confirm_title">Tildele kursfarger på nytt?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Mislyktes</string>
     <string name="sync_status_hours_ago_short">%1$d t siden</string>
     <string name="sync_status_just_now">Akkurat nå</string>
-    <string name="sync_status_last_synced">Sist synkronisert</string>
     <string name="sync_status_last_updated">Sist oppdatert</string>
     <string name="sync_status_minimal">Begrenset</string>
     <string name="sync_status_minutes_ago_short">%1$d min siden</string>
     <string name="sync_status_nav_label">TigerSync-status</string>
-    <string name="sync_status_never_synced">Aldri synkronisert</string>
     <string name="sync_status_never_updated">Aldri oppdatert</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Synkroniserer…</string>

@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">ਈਮੇਲ</string>
     <string name="course_member_groups">ਗਰੁੱਪ</string>
+    <string name="course_member_profile_picture">ਪ੍ਰੋਫਾਈਲ ਤਸਵੀਰ</string>
     <string name="course_members_auditors">ਆਡੀਟਰ</string>
     <string name="course_members_students">ਵਿਦਿਆਰਥੀ</string>
     <string name="course_members_tas">ਟੀਚਿੰਗ ਅਸਿਸਟੈਂਟ</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck ਨੂੰ ਬਿਹਤਰ ਬਣਾਉਣ ਵਿੱਚ ਮਦਦ ਕਰਨ ਲਈ ਅਗਿਆਤ ਵਰਤੋਂ ਡੇਟਾ (ਵੇਖੇ ਗਏ ਪੰਨੇ, ਵਿਜੇਟ ਵਰਤੋਂ) ਸਾਂਝਾ ਕਰੋ</string>
     <string name="settings_analytics_enabled">ਵਰਤੋਂ ਵਿਸ਼ਲੇਸ਼ਣ</string>
     <string name="settings_api_endpoint">API ਐਂਡਪੁਆਇੰਟ</string>
+    <string name="settings_api_endpoint_change_alert_confirm">ਬਦਲੋ</string>
+    <string name="settings_api_endpoint_change_alert_message">ਸਾਈਨ ਇਨ ਕਰਨ ਤੋਂ ਬਾਅਦ, ਇਹ ਐਂਡਪੁਆਇੰਟ ਤੁਹਾਡੀ ਵਿਦਿਆਰਥੀ ID ਅਤੇ Moodle ਟੋਕਨ ਪ੍ਰਾਪਤ ਕਰੇਗਾ। ਸਾਈਨ ਇਨ ਕੀਤੇ ਸਾਰੇ ਖਾਤੇ ਸਾਈਨ ਆਊਟ ਹੋ ਜਾਣਗੇ।</string>
+    <string name="settings_api_endpoint_change_alert_title">ਕੀ API ਐਂਡਪੁਆਇੰਟ ਬਦਲਣਾ ਹੈ?</string>
     <string name="settings_api_endpoint_change_title">ਐਂਡਪੁਆਇੰਟ ਬਦਲੋ</string>
     <string name="settings_api_endpoint_checking">ਜਾਂਚ ਹੋ ਰਹੀ ਹੈ…</string>
     <string name="settings_api_endpoint_effective_title">ਮੌਜੂਦਾ ਐਂਡਪੁਆਇੰਟ</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">ਸਮਾਂ-ਸਾਰਣੀ ਦੇ ਉੱਪਰ ਅੱਜ ਦੇ ਕੋਰਸ ਪਿੰਨ ਕਰੋ</string>
     <string name="settings_privacy_policy">ਪ੍ਰਾਈਵੇਸੀ ਨੀਤੀ</string>
     <string name="settings_push_server_nav_label">ਸਰਵਰ ਪੁਸ਼</string>
-    <string name="settings_remember_bulletin_filter">ਬੁਲੇਟਿਨ ਫਿਲਟਰ ਯਾਦ ਰੱਖੋ</string>
     <string name="settings_reset_course_colors">ਕੋਰਸ ਰੰਗ ਮੁੜ ਜਾਰੀ ਕਰੋ</string>
     <string name="settings_reset_course_colors_confirm_message">ਹਰ ਕੋਰਸ ਨੂੰ ਨਵਾਂ, ਵਿਲੱਖਣ ਰੰਗ ਦਿੱਤਾ ਜਾਵੇਗਾ — ਪਹਿਲਾਂ ਪ੍ਰੀਸੈੱਟ ਪੈਲੇਟ ਤੋਂ, ਪੈਲੇਟ ਮੁੱਕਣ ਉੱਤੇ ਬੇਤਰਤੀਬੇ।</string>
     <string name="settings_reset_course_colors_confirm_title">ਕੀ ਕੋਰਸ ਰੰਗ ਮੁੜ ਜਾਰੀ ਕਰੀਏ?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">ਅਸਫਲ</string>
     <string name="sync_status_hours_ago_short">%1$d ਘੰ. ਪਹਿਲਾਂ</string>
     <string name="sync_status_just_now">ਹੁਣੇ</string>
-    <string name="sync_status_last_synced">ਆਖਰੀ ਸਿੰਕ</string>
     <string name="sync_status_last_updated">ਆਖਰੀ ਅੱਪਡੇਟ</string>
     <string name="sync_status_minimal">ਸੀਮਤ</string>
     <string name="sync_status_minutes_ago_short">%1$d ਮਿ. ਪਹਿਲਾਂ</string>
     <string name="sync_status_nav_label">TigerSync ਸਥਿਤੀ</string>
-    <string name="sync_status_never_synced">ਕਦੇ ਸਿੰਕ ਨਹੀਂ ਕੀਤਾ</string>
     <string name="sync_status_never_updated">ਕਦੇ ਅੱਪਡੇਟ ਨਹੀਂ ਹੋਇਆ</string>
     <string name="sync_status_ok">ਠੀਕ</string>
     <string name="sync_status_syncing">ਸਿੰਕ ਹੋ ਰਿਹਾ ਹੈ…</string>
