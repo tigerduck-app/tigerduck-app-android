@@ -46,6 +46,7 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.pastel
+import org.ntust.app.tigerduck.ui.theme.pastelOutline
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
@@ -107,6 +108,7 @@ class ClassTableVisualStyleTest {
         spanCount: Int,
         hasAssignment: Boolean = false,
         cellWidth: Int = width,
+        outlineRequired: Boolean = false,
     ) = SoloCourseCell(
         course = course,
         roomHint = null,
@@ -118,6 +120,7 @@ class ClassTableVisualStyleTest {
         weekday = 1,
         hasAssignment = hasAssignment,
         assignmentsIgnored = false,
+        outlineRequired = outlineRequired,
         onTap = {},
         onLongPress = {},
         onRename = {},
@@ -176,12 +179,83 @@ class ClassTableVisualStyleTest {
         assertNear("tile", calculusColour.pastel(), pixels()[8, 8])
     }
 
+    // ---- required courses ----
+
+    private val requiredCalculus = calculus.copy(requireOption = "R")
+    private val electiveCalculus = calculus.copy(requireOption = "E")
+
+    // Drawn at 3x, so the 1dp outline has a solid middle pixel to read.
+    private val outlineDensity = 3f
+
+    /** The pixel in the middle of a 1dp outline whose outer edge sits at [edge] dp. */
+    private fun outlineAt(edge: Float): Int = ((edge + 0.5f) * outlineDensity).toInt()
+
+    private fun outlinedSoloCell(preset: VisualPreset, course: Course, outlineRequired: Boolean) =
+        draw(preset, width, cellHeight, outlineDensity) {
+            soloCellContent(course, spanCount = 1, outlineRequired = outlineRequired)
+        }
+
+    @Test
+    fun `TigerDuck outlines a required course in its own colour when the setting is on`() {
+        outlinedSoloCell(VisualPreset.TigerDuck, requiredCalculus, outlineRequired = true)
+        val image = pixels()
+        // The block is inset 1dp in its cell; the outline runs just inside it.
+        assertNear("outline", calculusColour, image[outlineAt(1f), outlineAt(cellHeight / 2f)])
+        assertNear("fill", overWhite(calculusColour, 0.5f), image[outlineAt(8f), outlineAt(8f)])
+    }
+
+    @Test
+    fun `a required course is not outlined until the setting is on`() {
+        outlinedSoloCell(VisualPreset.TigerDuck, requiredCalculus, outlineRequired = false)
+        assertNear("edge", overWhite(calculusColour, 0.5f), pixels()[outlineAt(1f), outlineAt(cellHeight / 2f)])
+    }
+
+    @Test
+    fun `an elective course is not outlined`() {
+        outlinedSoloCell(VisualPreset.TigerDuck, electiveCalculus, outlineRequired = true)
+        assertNear("edge", overWhite(calculusColour, 0.5f), pixels()[outlineAt(1f), outlineAt(cellHeight / 2f)])
+    }
+
+    @Test
+    fun `TAT outlines a required course's tile in the pastel outline`() {
+        outlinedSoloCell(VisualPreset.Tat, requiredCalculus, outlineRequired = true)
+        val image = pixels()
+        assertNear("outline", calculusColour.pastelOutline(), image[outlineAt(1f), outlineAt(cellHeight / 2f)])
+        assertNear("fill", calculusColour.pastel(), image[outlineAt(8f), outlineAt(8f)])
+    }
+
+    @Test
+    fun `a required course in a two-course conflict is outlined too`() {
+        conflictCell(VisualPreset.TigerDuck, density = outlineDensity, courseA = requiredCalculus, outlineRequired = true)
+        val image = pixels()
+        // The first course is a Γ: its bar's top edge runs 1dp under the cell's top.
+        assertNear("required course", calculusColour, image[outlineAt(width / 2f), outlineAt(1f)])
+        // The second course is an L whose tail runs down the left edge, clear of its rounded
+        // corners at mid-height; elective, it keeps its bare edge.
+        assertNear("elective course", overWhite(physicsColour, 0.5f), image[outlineAt(1f), outlineAt(cellHeight.toFloat())])
+    }
+
+    @Test
+    fun `a required course in a conflict of three or more is outlined in its lane`() {
+        multiConflictCell(VisualPreset.TigerDuck, density = outlineDensity, courseA = requiredCalculus, outlineRequired = true)
+        val image = pixels()
+        // The first lane's course is inset 1dp in the cell and 0.5dp in its lane.
+        assertNear("required course", calculusColour, image[outlineAt(1.5f), outlineAt(cellHeight.toFloat())])
+        assertNear("elective course", overWhite(physicsColour, 0.5f), image[outlineAt(width - 2.5f), outlineAt(cellHeight.toFloat())])
+    }
+
     // ---- conflicts ----
 
     /** With [marks], the first course has work due and the second's is ignored. */
-    private fun conflictCell(preset: VisualPreset, marks: Boolean = false, density: Float = 1f) {
+    private fun conflictCell(
+        preset: VisualPreset,
+        marks: Boolean = false,
+        density: Float = 1f,
+        courseA: Course = calculus,
+        outlineRequired: Boolean = false,
+    ) {
         val role = CellRole.ConflictStart(
-            courseA = calculus, spanA = 2, offsetA = 0,
+            courseA = courseA, spanA = 2, offsetA = 0,
             courseB = physics, spanB = 2, offsetB = 0,
             combinedSpan = 2,
         )
@@ -198,6 +272,7 @@ class ClassTableVisualStyleTest {
                 hasAssignmentB = false,
                 assignmentsIgnoredA = false,
                 assignmentsIgnoredB = marks,
+                outlineRequired = outlineRequired,
                 onPickConflict = { _, _, _, _ -> },
                 onLongPress = {},
                 onRename = {},
@@ -227,10 +302,16 @@ class ClassTableVisualStyleTest {
     }
 
     /** With [marks], the first lane's course has work due and the second's is ignored. */
-    private fun multiConflictCell(preset: VisualPreset, marks: Boolean = false, density: Float = 1f) {
+    private fun multiConflictCell(
+        preset: VisualPreset,
+        marks: Boolean = false,
+        density: Float = 1f,
+        courseA: Course = calculus,
+        outlineRequired: Boolean = false,
+    ) {
         val role = CellRole.MultiConflictStart(
             members = listOf(
-                CellRole.MultiConflictStart.Member(calculus, span = 2, offset = 0, lane = 0, firstPeriodId = "1"),
+                CellRole.MultiConflictStart.Member(courseA, span = 2, offset = 0, lane = 0, firstPeriodId = "1"),
                 CellRole.MultiConflictStart.Member(physics, span = 2, offset = 0, lane = 1, firstPeriodId = "1"),
             ),
             combinedSpan = 2,
@@ -246,6 +327,7 @@ class ClassTableVisualStyleTest {
                 weekday = 1,
                 hasAssignment = { marks && it == calculus.courseNo },
                 assignmentsIgnored = { marks && it == physics.courseNo },
+                outlineRequired = outlineRequired,
                 onSelect = { _, _ -> },
                 onLongPress = {},
                 onRename = {},

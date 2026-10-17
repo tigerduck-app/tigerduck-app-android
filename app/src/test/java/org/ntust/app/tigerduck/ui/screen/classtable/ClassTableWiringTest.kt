@@ -47,17 +47,36 @@ class ClassTableWiringTest {
         assertCalls("resetCourses", "if (wiped) fetchData() else _resetFailedEvent.tryEmit(semester)")
     }
 
-    /** tigerduck-app-android#347: an add landing after the DELETE would bring the course back. */
+    /**
+     * tigerduck-app-android#347: an add landing after the DELETE would bring the course back.
+     * A delete goes through PendingCourseDeletes, which keeps it until it lands and holds the
+     * adds back itself (see PendingCourseDeletesTest), so the view model must not take that
+     * lock around it: the lock is not reentrant.
+     */
     @Test
     fun `a delete and a reset reach the backend with no course add being sent`() {
-        for ((name, call) in listOf(
-            "deleteCourse" to "pushApiClient.deleteCourse(courseKey)",
-            "wipeTerm" to "termReset.run(semester)",
-        )) {
-            val body = body(name)
-            val held = body.indexOf("pendingCourseAdds.removing {")
-            assertTrue("$name no longer holds the course adds back over $call", held in 0 until body.indexOf(call))
-        }
+        val delete = body("deleteCourse")
+        assertTrue("deleteCourse no longer deletes through the outbox", "pendingCourseDeletes.send(semester, courseNo, queuedAt)" in delete)
+        assertTrue("deleteCourse takes the adds lock the outbox takes itself", "pendingCourseAdds.removing {" !in delete)
+
+        val wipe = body("wipeTerm")
+        val held = wipe.indexOf("pendingCourseAdds.removing {")
+        assertTrue("wipeTerm no longer holds the course adds back over the reset", held in 0 until wipe.indexOf("termReset.run(semester)"))
+    }
+
+    /**
+     * A retried delete of the term's, sent after the reset's refetch re-uploaded the roster,
+     * would take a course off the server again and tombstone it: the term's queued deletes go
+     * before the adds lock does, which the retry sends under.
+     */
+    @Test
+    fun `a reset drops the term's queued deletes before letting the adds lock go`() {
+        val wipe = body("wipeTerm")
+        val reset = wipe.indexOf("termReset.run(semester)")
+        val forgot = wipe.indexOf("pendingCourseDeletes.forgetTerm(semester)")
+        val released = wipe.indexOf("?: return false")
+        assertTrue("wipeTerm forgets the term's queued deletes after the reset lands", forgot > reset)
+        assertTrue("wipeTerm forgets them inside the adds lock", forgot < released)
     }
 
     /** tigerduck-app-android#380: sent again later, a waiting colour or name would bring a row the user removed back. */

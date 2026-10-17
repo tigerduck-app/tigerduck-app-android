@@ -58,6 +58,26 @@ class CourseSyncReconcilerTest {
     )
 
     /**
+     * A course deleted here whose DELETE has not landed yet (the outbox,
+     * [org.ntust.app.tigerduck.data.PendingCourseDeletes], still holds it):
+     * the snapshot lists its row, and with no tombstone here — a course taken
+     * back out of Add course writes none — the row would come back as a
+     * hand-added course, which the DELETE then removes again, or never does.
+     * As the iPhone's `mergesListedCourse(... deleting)`.
+     */
+    @Test
+    fun `a server row whose delete from here is still queued is not merged back`() {
+        val out = reconcile(
+            local = listOf(local("A")),
+            rows = listOf(server("A"), server("B")),
+            grace = setOf("B"),
+        )
+        assertTrue(out.merged.none { it.courseNo == "B" })
+        // Nor hidden on its account: the DELETE, once it lands, ends the matter.
+        assertEquals(emptySet<String>(), out.tombstones)
+    }
+
+    /**
      * The 加退選 case, end to end. The student dropped "B"; the backend still
      * carries it, because an upload only ever upserts and no explicit DELETE
      * was sent. Merging it back would put it on the timetable as a manual

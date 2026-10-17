@@ -403,7 +403,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }
 
     private val _showClassroomInClassTable =
-        MutableStateFlow(prefs.getBoolean("showClassroomInClassTable", false))
+        MutableStateFlow(prefs.getBoolean("showClassroomInClassTable", true))
 
     /**
      * Observable form of [showClassroomInClassTable], for the class table,
@@ -413,17 +413,55 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         _showClassroomInClassTable.asStateFlow()
 
     /**
-     * Print each course's room in the corner of its class-table cell. Off by
-     * default: the grid's job is which course, not where, and the cell is
-     * narrow enough that a second line is a deliberate trade. Device-local,
-     * like every display preference; the settings document the backend
-     * syncs does not carry it.
+     * Print each course's room in the corner of its class-table cell. On by
+     * default, as on the iPhone: where a class meets is what students look up
+     * next to which course it is. It defaulted off until 2.6, and a default
+     * is nothing stored, so the flip alone upgrades everyone who never
+     * touched the switch; whoever turned it off stored a false and keeps it.
+     * Device-local, like every display preference; the settings document the
+     * backend syncs does not carry it.
      */
     var showClassroomInClassTable: Boolean
         get() = _showClassroomInClassTable.value
         set(value) {
             prefs.edit().putBoolean("showClassroomInClassTable", value).apply()
             _showClassroomInClassTable.value = value
+        }
+
+    private val _pinTodayCoursesOnClassTable =
+        MutableStateFlow(prefs.getBoolean(PIN_TODAY_COURSES_ON_CLASS_TABLE, false))
+
+    /** Observable form of [pinTodayCoursesOnClassTable], for the class table. */
+    val pinTodayCoursesOnClassTableFlow: StateFlow<Boolean> =
+        _pinTodayCoursesOnClassTable.asStateFlow()
+
+    /**
+     * Show today's courses above the class table's grid. Off by default, as
+     * on the iPhone: Home already lists them, and without them the grid
+     * starts at the top of the page. Device-local.
+     */
+    var pinTodayCoursesOnClassTable: Boolean
+        get() = _pinTodayCoursesOnClassTable.value
+        set(value) {
+            prefs.edit().putBoolean(PIN_TODAY_COURSES_ON_CLASS_TABLE, value).apply()
+            _pinTodayCoursesOnClassTable.value = value
+        }
+
+    private val _outlineRequiredCourses =
+        MutableStateFlow(prefs.getBoolean(OUTLINE_REQUIRED_COURSES, false))
+
+    /** Observable form of [outlineRequiredCourses], for the class table. */
+    val outlineRequiredCoursesFlow: StateFlow<Boolean> = _outlineRequiredCourses.asStateFlow()
+
+    /**
+     * Outline each required course's class-table cell. Off by default, as on
+     * the iPhone, where it is a mark the user asks for. Device-local.
+     */
+    var outlineRequiredCourses: Boolean
+        get() = _outlineRequiredCourses.value
+        set(value) {
+            prefs.edit().putBoolean(OUTLINE_REQUIRED_COURSES, value).apply()
+            _outlineRequiredCourses.value = value
         }
 
     /**
@@ -904,12 +942,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     fun clearAllPrefs() {
         prefs.edit().clear().apply()
         forgetLegacyLastCourseSyncAt()
-        // `alwaysShowAllPeriods` and `showClassroomInClassTable` are read from
-        // in-memory mirrors rather than the file, so clearing the file alone
-        // leaves the class table pinned — and the Settings rows reading "on" —
-        // until the next process start.
+        // `alwaysShowAllPeriods` and the class table's display switches are
+        // read from in-memory mirrors rather than the file, so clearing the
+        // file alone leaves the class table pinned — and the Settings rows
+        // reading "on" — until the next process start.
         _alwaysShowAllPeriods.value = false
-        _showClassroomInClassTable.value = false
+        _showClassroomInClassTable.value = true
+        _pinTodayCoursesOnClassTable.value = false
+        _outlineRequiredCourses.value = false
         _schoolDataSyncedAtMs.value = 0L
         _librarySyncedAtMs.value = 0L
     }
@@ -1043,6 +1083,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     companion object {
         /** The same key the iPhone app stores its interface style under. */
         private const val VISUAL_PRESET_KEY = "visualPreset"
+        // The iPhone's UserDefaults key names, for whoever reads both apps.
+        private const val PIN_TODAY_COURSES_ON_CLASS_TABLE = "pinTodayCoursesOnClassTable"
+        private const val OUTLINE_REQUIRED_COURSES = "outlineRequiredCourses"
 
         const val WHATS_NEW_UNSET = -1
         const val WHATS_NEW_REPLAY = 0

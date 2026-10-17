@@ -92,6 +92,7 @@ class ClassTableViewModel @Inject constructor(
     private val importedClassTableStore: ImportedClassTableStore,
     private val importedCourseLookup: ImportedCourseLookup,
     private val pendingCourseAdds: org.ntust.app.tigerduck.data.PendingCourseAdds,
+    private val pendingCourseDeletes: org.ntust.app.tigerduck.data.PendingCourseDeletes,
     private val pendingCourseOverrides: org.ntust.app.tigerduck.data.PendingCourseOverrides,
     private val reviewPrompt: ReviewPrompt,
     @param:ApplicationScope private val appScope: CoroutineScope,
@@ -184,6 +185,14 @@ class ClassTableViewModel @Inject constructor(
     /** Drives the room hint in each cell's corner; see [CourseRoomHint]. */
     val showClassroomInClassTable: StateFlow<Boolean> =
         appPreferences.showClassroomInClassTableFlow
+
+    /** Whether today's courses show above the grid; see [AppPreferences.pinTodayCoursesOnClassTable]. */
+    val pinTodayCoursesOnClassTable: StateFlow<Boolean> =
+        appPreferences.pinTodayCoursesOnClassTableFlow
+
+    /** Whether a required course's cell is outlined; see [AppPreferences.outlineRequiredCourses]. */
+    val outlineRequiredCourses: StateFlow<Boolean> =
+        appPreferences.outlineRequiredCoursesFlow
 
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
@@ -915,6 +924,11 @@ class ClassTableViewModel @Inject constructor(
         val updated = _courses.value + flagged
         _courses.value = updated
         viewModelScope.launch {
+            // First, before the writes below: a removal asked after this add
+            // must read as the newer action however long they take. The
+            // launch runs here, on this thread, up to its first suspension
+            // (Main.immediate), so the stamp is the tap's.
+            val reAddedAt = pendingCourseDeletes.stamp()
             val semester = _currentSemester.value
             val deleted = dataCache.loadDeletedCourseNos()
             if (CourseTombstoneKeys.isHidden(course.courseNo, semester, deleted)) {
@@ -923,6 +937,10 @@ class ClassTableViewModel @Inject constructor(
                 )
             }
             dataCache.saveCourses(updated, _currentSemester.value)
+            // A delete of it still queued goes first, or it could land after
+            // this add and take the course off the server again; as the
+            // iPhone's `discardCourseDeletes` before an add.
+            pendingCourseDeletes.forget(semester, course.courseNo, reAddedAt)
             // Kept until it lands: in a term the server already has, no
             // sync would send it again otherwise.
             pendingCourseAdds.send(updated, semester, course.courseNo)
@@ -931,6 +949,34 @@ class ClassTableViewModel @Inject constructor(
         localEdits.noteEdit()
         TigerDuckTheme.buildCourseColorMap(updated)
         return true
+    }
+
+    /**
+     * Takes back a course [addCourse] added in this Add course session, for
+     * the sheet's tap-to-toggle: add a course, tap it again to back out.
+     * Without a tombstone of its own: one in `deletedCourseNos` would later
+     * hide a real enrolled course with the same [courseNo] from cache and
+     * network merges. Otherwise the regular delete, so the backend row the
+     * add already uploaded goes too, or the next full sync brings the course
+     * back. As the iPhone's `removeUserAddedCourse`, which sends the same
+     * `DELETE /sync/courses/{key}`.
+     *
+     * That DELETE writes a server tombstone binding every device (the
+     * backend's `delete_course`), which the next full sync imports into
+     * `deletedCourseNos` here and on the iPhone alike, and which a portal
+     * upload cannot lift: the course stays hidden until it is added back by
+     * hand, whose upload forces its key. The two apps agree on this; whether
+     * the backend should tombstone a take-back is an open question for both.
+     *
+     * Only a hand-added course: the sheet gates on its own session, and this
+     * is the net under it, so an enrolled course leaves only through
+     * [deleteCourse].
+     */
+    fun removeAddedCourse(courseNo: String) {
+        if (isShowingSomeoneElse) return
+        val course = _courses.value.firstOrNull { it.courseNo == courseNo } ?: return
+        if (!course.isManual) return
+        deleteCourse(courseNo, tombstone = false)
     }
 
     /**
@@ -1034,7 +1080,14 @@ class ClassTableViewModel @Inject constructor(
         localEdits.noteEdit()
     }
 
-    fun deleteCourse(courseNo: String) {
+    /**
+     * Removes [courseNo] from the term, here and on the backend. With a
+     * [tombstone] the course stays hidden here whatever the server lists;
+     * without one, for [removeAddedCourse], only the queued DELETE keeps it
+     * out, and the server tombstone that DELETE writes hides it from the next
+     * sync on.
+     */
+    fun deleteCourse(courseNo: String, tombstone: Boolean = true) {
         if (isShowingSomeoneElse) return
         val moodleId = _courses.value.firstOrNull { it.courseNo == courseNo }?.moodleIdNumber
         val updated = _courses.value.filter { it.courseNo != courseNo }
@@ -1050,22 +1103,26 @@ class ClassTableViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val deleted = CourseTombstoneKeys.hide(
-                courseNo, semester, dataCache.loadDeletedCourseNos()
-            )
-            dataCache.saveDeletedCourseNos(deleted)
+            // First, as for an add: a re-add asked before this removal must
+            // not let its delete go, however long the writes below take.
+            val queuedAt = pendingCourseDeletes.stamp()
+            if (tombstone) {
+                val deleted = CourseTombstoneKeys.hide(
+                    courseNo, semester, dataCache.loadDeletedCourseNos()
+                )
+                dataCache.saveDeletedCourseNos(deleted)
+            }
             dataCache.saveCourses(updated, semester)
             // A colour or name of it still waiting to go up goes with it; see
             // PendingCourseOverrides.forget.
             pendingCourseOverrides.forget(listOfNotNull(moodleId))
             widgetUpdater.requestUpdate()
-            val courseKey = "client:$semester:$courseNo"
-            // After an add of it already being sent, which landing later
-            // would bring it back; see PendingCourseAdds.removing.
-            pendingCourseAdds.removing {
-                runCatching { pushApiClient.deleteCourse(courseKey) }
-                    .onFailure { e -> Log.w("ClassTable", "deleteCourse backend failed: ${e.logSummary()}") }
-            }
+            // Kept and sent again by every full sync until it lands, which
+            // keeps the course out of the term meanwhile, and sent after an
+            // add of it already under way, which landing later would bring it
+            // back: the outbox takes PendingCourseAdds.removing itself, so it
+            // is not taken here. See PendingCourseDeletes.
+            pendingCourseDeletes.send(semester, courseNo, queuedAt)
             runCatching { pushApiClient.uploadCourses(updated, semester) }
                 .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed: ${e.logSummary()}") }
         }
@@ -1270,6 +1327,10 @@ class ClassTableViewModel @Inject constructor(
         // With no course add sent between the DELETE and the wipe; see PendingCourseAdds.removing.
         val held = pendingCourseAdds.removing {
             termReset.run(semester) { pushApiClient.deleteAllCourses(semester) }
+                // The wipe took the term's rows, queued single deletes included.
+                // Before the lock goes: a retry waiting behind the wipe would
+                // otherwise send one after the refetch re-uploads the roster.
+                ?.also { pendingCourseDeletes.forgetTerm(semester) }
         } ?: return false
         if (_currentSemester.value == semester) _courses.value = emptyList()
         // Their names went from the file with the term.

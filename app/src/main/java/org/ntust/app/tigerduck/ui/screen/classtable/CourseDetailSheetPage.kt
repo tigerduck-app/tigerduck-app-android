@@ -300,6 +300,13 @@ internal fun CourseDetailContent(
                 value = stringResource(it),
             )
         }
+        // Required or elective, between the duration and the credits as on the iPhone.
+        CourseDetailMetadata.requireOptionLabel(course.requireOption)?.let {
+            InfoRow(
+                label = stringResource(R.string.course_detail_require_option_label),
+                value = stringResource(it),
+            )
+        }
         InfoRow(
             label = stringResource(R.string.course_detail_credits_label),
             value = course.credits.formatCredits(),

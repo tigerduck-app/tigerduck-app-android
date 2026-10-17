@@ -130,6 +130,38 @@ class VisualStylePolicyTest {
         }
     }
 
+    // ---- required courses ----
+
+    @Test
+    fun `TigerDuck outlines a required course in its own colour`() {
+        colours.forEach { colour ->
+            assertEquals(colour, tigerDuck.classTableCourseOutline(colour))
+        }
+    }
+
+    @Test
+    fun `TAT outlines a required course so it stands out from its pastel`() {
+        colours.forEach { colour ->
+            val fill = tat.classTableCourseFill(colour, Color.Magenta, isDark = false)
+            val outline = contrast(tat.classTableCourseOutline(colour), fill)
+            assertTrue("outline on the pastel of $colour: $outline", outline >= 3.0)
+        }
+    }
+
+    @Test
+    fun `the pastel outline mixes each sRGB channel half toward black, as the iPhone app does`() {
+        // Within one step: an sRGB Color holds 8 bits a channel, so 0.5 lands on 128/255.
+        val step = 1 / 255f
+        val white = Color.White.pastelOutline()
+        assertEquals(0.5f, white.red, step)
+        assertEquals(0.5f, white.green, step)
+        assertEquals(0.5f, white.blue, step)
+        assertEquals(1f, white.alpha, 0f)
+        val coral = Color(0xFFFF6B6B).pastelOutline()
+        assertEquals(0.5f, coral.red, step)
+        assertEquals(0x6B / 255f * 0.5f, coral.green, step)
+    }
+
     // ---- course cards ----
 
     @Test

@@ -5,6 +5,7 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -42,6 +44,21 @@ internal fun VisualStylePolicy.courseFill(courseNo: String): Color = classTableC
     themeColor = TigerDuckTheme.courseColor(courseNo),
     isDark = TigerDuckTheme.isDarkMode,
 )
+
+/** A required course's outline on [courseFill], for the theme in effect. */
+internal fun VisualStylePolicy.courseOutline(courseNo: String): Color =
+    classTableCourseOutline(TigerDuckTheme.courseColorVibrant(courseNo))
+
+/**
+ * The 1dp outline a required course's cell draws just inside its [shape], or
+ * nothing: null where the course is not required or the user has the
+ * outlines off. Thin, as on the iPhone: a mark that the course stands out by,
+ * not a frame.
+ */
+internal fun Modifier.requiredCourseOutline(outline: Color?, shape: Shape): Modifier =
+    if (outline == null) this else border(REQUIRED_OUTLINE_WIDTH, outline, shape)
+
+private val REQUIRED_OUTLINE_WIDTH = 1.dp
 
 /** A course's name on [courseFill], for the theme in effect. */
 internal val VisualStylePolicy.courseTextColor: Color
@@ -186,15 +203,19 @@ internal fun ClassTablePeriodTiles(
     fill: Color,
     textColor: Color,
     lastTileBottomSpace: Dp,
+    /** A required course's outline, on each tile of the run; see [requiredCourseOutline]. */
+    outline: Color? = null,
 ) {
+    val tileShape = RoundedCornerShape(PERIOD_TILE_CORNER)
     Column(verticalArrangement = Arrangement.spacedBy(PERIOD_TILE_GAP)) {
         repeat(spanCount) { index ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(cellHeight - PERIOD_TILE_GAP)
-                    .clip(RoundedCornerShape(PERIOD_TILE_CORNER))
-                    .background(fill),
+                    .clip(tileShape)
+                    .background(fill)
+                    .requiredCourseOutline(outline, tileShape),
             ) {
                 ClassTableCourseNameText(
                     text = name,

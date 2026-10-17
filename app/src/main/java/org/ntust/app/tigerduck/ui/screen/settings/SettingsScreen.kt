@@ -125,6 +125,8 @@ fun SettingsScreen(
     val showAbsoluteTime = viewModel.appState.showAbsoluteAssignmentTime
     val alwaysShowAllPeriods = viewModel.appState.alwaysShowAllPeriods
     val showClassroomInClassTable = viewModel.appState.showClassroomInClassTable
+    val pinTodayCoursesOnClassTable = viewModel.appState.pinTodayCoursesOnClassTable
+    val outlineRequiredCourses = viewModel.appState.outlineRequiredCourses
     val browserPreference = viewModel.appState.browserPreference
     val useEnglishCourseAbbreviation = viewModel.appState.useEnglishCourseAbbreviation
     val useEnglishClassroomAbbreviation = viewModel.appState.useEnglishClassroomAbbreviation
@@ -328,11 +330,27 @@ fun SettingsScreen(
                             viewModel.appState.showAbsoluteAssignmentTime = it
                         }
                         HorizontalDivider()
+                        // The class table's switches in the iPhone's order: today's
+                        // courses above the grid, then what each cell shows.
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_pin_today_courses_on_class_table),
+                            pinTodayCoursesOnClassTable
+                        ) {
+                            viewModel.appState.pinTodayCoursesOnClassTable = it
+                        }
+                        HorizontalDivider()
                         SettingsToggleRow(
                             stringResource(R.string.settings_show_classroom_on_class_table),
                             showClassroomInClassTable
                         ) {
                             viewModel.appState.showClassroomInClassTable = it
+                        }
+                        HorizontalDivider()
+                        SettingsToggleRow(
+                            stringResource(R.string.settings_outline_required_courses),
+                            outlineRequiredCourses
+                        ) {
+                            viewModel.appState.outlineRequiredCourses = it
                         }
                         HorizontalDivider()
                         SettingsToggleRow(

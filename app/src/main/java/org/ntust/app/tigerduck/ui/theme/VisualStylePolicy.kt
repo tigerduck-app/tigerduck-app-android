@@ -55,6 +55,18 @@ data class VisualStylePolicy(val preset: VisualPreset) {
             ClassTableGridStyle.PeriodTiles -> courseColor.pastel()
         }
 
+    /**
+     * The outline of a required course on [classTableCourseFill], where the
+     * user has them outlined. [courseColor] is the course's own colour, as for
+     * the fill: on a translucent block that colour itself stands out; on a
+     * pastel tile it would all but vanish, so a darker mix of it is drawn, as
+     * the iPhone's `classTableCourseOutline` does.
+     */
+    fun classTableCourseOutline(courseColor: Color): Color = when (classTableGridStyle) {
+        ClassTableGridStyle.Blocks -> courseColor
+        ClassTableGridStyle.PeriodTiles -> courseColor.pastelOutline()
+    }
+
     /** A course's name on [classTableCourseFill]. */
     fun classTableCourseTextColor(isDark: Boolean): Color = when (classTableGridStyle) {
         ClassTableGridStyle.Blocks -> if (isDark) Color.White else Color(0xFF1C1C1E)
@@ -211,7 +223,21 @@ fun Color.pastel(whiteShare: Float = PASTEL_WHITE_SHARE): Color = Color(
     alpha = 1f,
 )
 
+/**
+ * This colour mixed half with black, opaque: a line on its own [pastel] that
+ * stands out from it at better than 3:1 whatever the colour, as the iPhone's
+ * `pastelOutline` is.
+ */
+fun Color.pastelOutline(): Color = Color(
+    red = red * (1f - PASTEL_OUTLINE_BLACK_SHARE),
+    green = green * (1f - PASTEL_OUTLINE_BLACK_SHARE),
+    blue = blue * (1f - PASTEL_OUTLINE_BLACK_SHARE),
+    alpha = 1f,
+)
+
 private const val PASTEL_WHITE_SHARE = 0.65f
+
+private const val PASTEL_OUTLINE_BLACK_SHARE = 0.5f
 
 /** A muted course card's pastel: paler, as a TigerDuck card's tint is fainter. */
 private const val MUTED_PASTEL_WHITE_SHARE = 0.82f

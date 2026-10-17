@@ -449,12 +449,19 @@ class PushApiClient @Inject constructor(
         }
     }
 
-    suspend fun deleteCourse(courseKey: String) = withContext(Dispatchers.IO) {
+    /**
+     * Deletes the course row [courseKey] names. [signIn] pins the request to
+     * that sign-in ([AuthTokenManager.signInGeneration]), as [uploadCourses]
+     * does: a delete queued as one account and sent after a sign-out and
+     * another sign-in goes without a token, not with the next account's,
+     * which could take that account's own course off.
+     */
+    suspend fun deleteCourse(courseKey: String, signIn: Int? = null) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val request = Request.Builder()
             .url("$baseUrl/sync/courses/$courseKey")
             .delete()
-            .addAuthHeader()
+            .addAuthHeader(signIn)
             .build()
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {

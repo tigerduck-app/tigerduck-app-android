@@ -88,6 +88,10 @@ object CourseSyncReconciler {
      * comes back in [SemesterOutcome.serverKnownNos] for the caller to
      * persist. It only ever grows; a number stays known after the course is
      * deleted, which is the point.
+     *
+     * [graceCourseNos] are the courses deleted here whose backend DELETE has
+     * not landed, from `PendingCourseDeletes.waitingIn`. The server may still
+     * list them: they are neither un-hidden nor merged back until it does.
      */
     fun reconcileSemester(
         semester: String,
@@ -179,8 +183,13 @@ object CourseSyncReconciler {
 
         val localNos = localCourses.map { it.courseNo }.toSet()
         val hidden = CourseTombstoneKeys.hiddenIn(semester, updated)
+        // Nor a row whose delete from here has not landed: a course taken
+        // back out of Add course writes no tombstone, so only the grace keeps
+        // the server's stale row from coming back as a hand-added course
+        // while PendingCourseDeletes retries the DELETE. As the iPhone's
+        // `mergesListedCourse(... deleting)`.
         val merged = rows
-            .filter { it.courseNo !in localNos && it.courseNo !in hidden }
+            .filter { it.courseNo !in localNos && it.courseNo !in hidden && it.courseNo !in graceCourseNos }
             .distinctBy { it.courseNo }
             .map(::toCourse)
 

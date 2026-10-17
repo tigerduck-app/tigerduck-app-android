@@ -113,6 +113,7 @@ class HomeBackendSync @Inject constructor(
     private val courseIgnoreSync: CourseIgnoreSync,
     private val unsentMarks: UnsentMarks,
     private val pendingCourseAdds: PendingCourseAdds,
+    private val pendingCourseDeletes: org.ntust.app.tigerduck.data.PendingCourseDeletes,
     private val pendingCourseOverrides: PendingCourseOverrides,
     private val reenableCheck: ReenableCheck,
     @param:ApplicationScope private val appScope: CoroutineScope,
@@ -144,11 +145,12 @@ class HomeBackendSync @Inject constructor(
             if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
             val account = authService.storedStudentId
             val generation = courseIgnoreSync.currentGeneration()
-            // Unsent course-ignore changes, marks, course adds and course
-            // colours and names go first, so the snapshot has them.
+            // Unsent course-ignore changes, marks, course adds and deletes and
+            // course colours and names go first, so the snapshot has them.
             courseIgnoreSync.retryPending()
             unsentMarks.retry()
             pendingCourseAdds.retry()
+            pendingCourseDeletes.retry()
             pendingCourseOverrides.retry()
             // The first-sync mark upload is pinned to the sign-in read here:
             // a sign-out and another sign-in meanwhile must not send these
@@ -447,6 +449,8 @@ class HomeBackendSync @Inject constructor(
                 tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones),
                 tombstones = tombstones,
                 serverKnownNos = serverKnown[semester].orEmpty().toSet(),
+                // Deletes the retry above could not land: the snapshot still lists them.
+                graceCourseNos = pendingCourseDeletes.waitingIn(semester),
                 selectionDroppedNos = selectionDropped[semester].orEmpty().toSet(),
             )
             tombstones = outcome.tombstones

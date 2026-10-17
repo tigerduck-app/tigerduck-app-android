@@ -97,7 +97,15 @@ fun AddCourseSheet(
     existingCourseNos: Set<String>,
     courseService: CourseService,
     sheetState: SheetState,
+    /**
+     * Returns true iff the course was actually persisted. The sheet uses this
+     * to gate [sessionAddedCourseNos]: a rejected add (a triple-period
+     * conflict, say) must not flip the row to a checkmark whose next tap
+     * would route through [onRemove].
+     */
     onAdd: (Course) -> Boolean,
+    /** Takes back a course added in this session; see [ClassTableViewModel.removeAddedCourse]. */
+    onRemove: (String) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
@@ -121,7 +129,10 @@ fun AddCourseSheet(
     var searchResults by remember { mutableStateOf<List<GroupedCourse>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var addedCourseNo by remember { mutableStateOf<String?>(null) }
+    // The courses added while this sheet is open, kept across searches: each
+    // stays tappable, and a second tap takes it back out. Courses that were
+    // already on the class table are not in it and stay as they are.
+    var sessionAddedCourseNos by remember { mutableStateOf<Set<String>>(emptySet()) }
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
     fun search() {
@@ -130,7 +141,6 @@ fun AddCourseSheet(
         errorMessage = null
         isSearching = true
         searchResults = emptyList()
-        addedCourseNo = null
         searchJob?.cancel()
 
         val isCourseCode = looksLikeCourseCode(trimmed)
@@ -352,13 +362,21 @@ fun AddCourseSheet(
                     contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
                     items(searchResults) { group ->
-                        val alreadyExists =
-                            group.courseNo in existingCourseNos || group.courseNo == addedCourseNo
+                        val rowState = addCourseRowState(group.courseNo, existingCourseNos, sessionAddedCourseNos)
+                        val isPresent = rowState != AddCourseRowState.Addable
 
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable(enabled = !alreadyExists) {
+                                // Courses the user already had are not removable here:
+                                // tap-to-remove would be a dangerous escape hatch. Only
+                                // courses added in this session toggle off.
+                                .clickable(enabled = rowState != AddCourseRowState.AlreadyThere) {
+                                    if (rowState == AddCourseRowState.AddedThisSession) {
+                                        sessionAddedCourseNos = sessionAddedCourseNos - group.courseNo
+                                        onRemove(group.courseNo)
+                                        return@clickable
+                                    }
                                     val course = Course.fromSchedule(
                                         courseNo = group.courseNo,
                                         courseName = group.courseName,
@@ -371,9 +389,10 @@ fun AddCourseSheet(
                                         classroomMap = group.classroomMap,
                                         dimension = group.dimension,
                                         allYear = group.allYear,
+                                        requireOption = group.requireOption,
                                     )
                                     if (onAdd(course)) {
-                                        addedCourseNo = group.courseNo
+                                        sessionAddedCourseNos = sessionAddedCourseNos + group.courseNo
                                     }
                                 }
                                 .padding(vertical = 12.dp),
@@ -409,7 +428,7 @@ fun AddCourseSheet(
                                     )
                                 }
                             }
-                            if (alreadyExists) {
+                            if (isPresent) {
                                 Icon(
                                     Icons.Filled.CheckCircle,
                                     contentDescription = stringResource(R.string.add_course_added),
@@ -481,11 +500,40 @@ private data class GroupedCourse(
     val nodeDisplay: String,
     /**
      * Carried straight from QueryCourse so a course added by hand shows its
-     * dimension and term span without waiting for the next refresh.
+     * dimension, term span and course type without waiting for the next refresh.
      */
     val dimension: String?,
     val allYear: String?,
+    val requireOption: String?,
 )
+
+/** What a result row offers; see [addCourseRowState]. */
+internal enum class AddCourseRowState {
+    /** Not on the class table: a tap adds it. */
+    Addable,
+
+    /** Added while this sheet has been open: a tap takes it back out. */
+    AddedThisSession,
+
+    /** On the class table before the sheet opened: left alone. */
+    AlreadyThere,
+}
+
+/**
+ * The state of the row for [courseNo], given the class table's courses and
+ * the ones added in this session. The session wins: an added course is on the
+ * class table too by the time the row is drawn again. As on the iPhone
+ * (tigerduck-app#84).
+ */
+internal fun addCourseRowState(
+    courseNo: String,
+    existingCourseNos: Set<String>,
+    sessionAddedCourseNos: Set<String>,
+): AddCourseRowState = when (courseNo) {
+    in sessionAddedCourseNos -> AddCourseRowState.AddedThisSession
+    in existingCourseNos -> AddCourseRowState.AlreadyThere
+    else -> AddCourseRowState.Addable
+}
 
 /**
  * Merge name-search and teacher-search results, preserving name-first order
@@ -547,6 +595,7 @@ private fun groupResults(
                 // the row naming the dimension need not be the first seen.
                 dimension = CourseService.firstNonEmpty(listOf(existing.dimension, result.dimension)),
                 allYear = CourseService.firstNonEmpty(listOf(existing.allYear, result.allYear)),
+                requireOption = CourseService.firstNonEmpty(listOf(existing.requireOption, result.requireOption)),
             )
         } else {
             order.add(key)
@@ -563,6 +612,7 @@ private fun groupResults(
                 nodeDisplay = result.node ?: "",
                 dimension = CourseService.firstNonEmpty(listOf(result.dimension)),
                 allYear = CourseService.firstNonEmpty(listOf(result.allYear)),
+                requireOption = CourseService.firstNonEmpty(listOf(result.requireOption)),
             )
         }
     }

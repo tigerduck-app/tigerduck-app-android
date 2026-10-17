@@ -1,6 +1,6 @@
-// The GE dimension and the course's term span: read off QueryCourse, kept on
-// the course, and shown as two rows in the detail dialog. Mirrors iOS
-// 69c530ad.
+// The GE dimension, the course's term span and whether it is required: read
+// off QueryCourse, kept on the course, and shown as rows in the detail dialog.
+// Mirrors iOS 69c530ad and tigerduck-app#208.
 
 package org.ntust.app.tigerduck.ui.screen.classtable
 
@@ -26,6 +26,19 @@ internal object CourseDetailMetadata {
     fun durationLabel(allYear: String?): Int? = when (allYear?.trim()?.uppercase()) {
         "F" -> R.string.course_detail_duration_full_year
         "H" -> R.string.course_detail_duration_one_semester
+        else -> null
+    }
+
+    /**
+     * The course type row's label. QueryCourse spells `RequireOption` "R"
+     * (required) or "E" (elective). Anything else, such as the null of a row
+     * merged from another device or cached before the field existed, says
+     * nothing, so the row is left out rather than shown blank.
+     */
+    @StringRes
+    fun requireOptionLabel(requireOption: String?): Int? = when (requireOption?.trim()?.uppercase()) {
+        "R" -> R.string.course_detail_require_option_required
+        "E" -> R.string.course_detail_require_option_elective
         else -> null
     }
 }

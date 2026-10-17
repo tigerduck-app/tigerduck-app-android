@@ -78,6 +78,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val storedPasswordLatch: StoredPasswordLatch,
     private val unsentMarks: UnsentMarks,
     private val pendingCourseAdds: PendingCourseAdds,
+    private val pendingCourseDeletes: org.ntust.app.tigerduck.data.PendingCourseDeletes,
     private val pendingCourseOverrides: PendingCourseOverrides,
     private val academicCalendar: AcademicCalendarStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
@@ -191,9 +192,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
             val generation = courseIgnoreSync.currentGeneration()
             courseIgnoreSync.retryPending()
             // Marks and course colours and names whose PATCH failed, and
-            // course adds whose upload did, go first, so the snapshot has them.
+            // course adds and deletes whose request did, go first, so the
+            // snapshot has them.
             unsentMarks.retry()
             pendingCourseAdds.retry()
+            pendingCourseDeletes.retry()
             pendingCourseOverrides.retry()
             val result = syncApiClient.fetchFullSync()
             pendingCourseAdds.listed(result.serverCourses)
@@ -291,6 +294,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
             tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones),
             tombstones = stored,
             serverKnownNos = knownHere,
+            // Deletes the retry above could not land: the snapshot still lists them.
+            graceCourseNos = pendingCourseDeletes.waitingIn(semester),
             selectionDroppedNos = dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet(),
         )
         if (outcome.tombstones != stored) {
@@ -425,6 +430,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     // them out would erase them.
                                     dimension = CourseService.firstNonEmpty(results.map { it.dimension }),
                                     allYear = CourseService.firstNonEmpty(results.map { it.allYear }),
+                                    requireOption = CourseService.firstNonEmpty(results.map { it.requireOption }),
                                 )
                             } else {
                                 CourseService.fallbackCourseFromMoodle(

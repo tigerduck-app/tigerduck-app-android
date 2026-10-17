@@ -14,8 +14,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -65,6 +72,8 @@ internal fun SoloCourseCell(
     periodId: String? = null,
     hasAssignment: Boolean,
     assignmentsIgnored: Boolean,
+    /** Whether a required course's cell is outlined; see [AppPreferences.outlineRequiredCourses]. */
+    outlineRequired: Boolean = false,
     onTap: () -> Unit,
     /** Null on someone else's class table, which is read-only and has no menu. */
     onLongPress: (() -> Unit)?,
@@ -79,6 +88,8 @@ internal fun SoloCourseCell(
     val cellBg = style.courseFill(course.courseNo)
     val cellTextColor = style.courseTextColor
     val cellSecondaryColor = style.courseSecondaryTextColor
+    val outline = if (outlineRequired && course.isRequired) style.courseOutline(course.courseNo) else null
+    val blockShape = RoundedCornerShape(if (tiles) PERIOD_TILE_CORNER else 6.dp)
     var showMenu by remember { mutableStateOf(false) }
     val cellLabel = classTableCellLabels()
         .label(course, weekday, periodId, hasAssignment, assignmentsIgnored)
@@ -97,9 +108,10 @@ internal fun SoloCourseCell(
             .height(cellHeight * spanCount)
             .absoluteOffset(x = x, y = y)
             .padding(1.dp)
-            .clip(RoundedCornerShape(if (tiles) PERIOD_TILE_CORNER else 6.dp))
-            // Period tiles fill themselves, leaving the gaps between them bare.
-            .then(if (tiles) Modifier else Modifier.background(cellBg))
+            .clip(blockShape)
+            // Period tiles fill themselves, leaving the gaps between them bare,
+            // and each draws its own outline.
+            .then(if (tiles) Modifier else Modifier.background(cellBg).requiredCourseOutline(outline, blockShape))
             .combinedClickable(
                 onClick = onTap,
                 // The app vibrates for this long press itself, through the Vibration setting;
@@ -135,6 +147,7 @@ internal fun SoloCourseCell(
                 } else {
                     hintSpace
                 },
+                outline = outline,
             )
         } else {
             ClassTableCourseNameText(
@@ -184,28 +197,14 @@ internal fun SoloCourseCell(
             onDismissRequest = { showMenu = false },
             shape = RoundedCornerShape(12.dp),
         ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.class_table_rename_title)) },
-                onClick = { showMenu = false; onRename(course) },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.class_table_pick_color)) },
-                onClick = { showMenu = false; onPickColor(course) },
-            )
-            if (onToggleIgnoreAssignments != null) {
-                IgnoreAssignmentsMenuItem(
-                    ignored = assignmentsIgnored,
-                    onClick = { showMenu = false; onToggleIgnoreAssignments(course) },
-                )
-            }
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(R.string.class_table_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+            CourseEditMenuItems(
+                assignmentsIgnored = assignmentsIgnored,
+                onRename = { showMenu = false; onRename(course) },
+                onPickColor = { showMenu = false; onPickColor(course) },
+                onToggleIgnoreAssignments = onToggleIgnoreAssignments?.let { toggle ->
+                    { showMenu = false; toggle(course) }
                 },
-                onClick = { showMenu = false; onDelete(course) },
+                onDelete = { showMenu = false; onDelete(course) },
             )
         }
     }
@@ -217,6 +216,53 @@ internal fun SoloCourseCell(
  * more and a two-line name no longer fits a one-period tile.
  */
 private val CORNER_MARK_SPACE = 13.dp
+
+/**
+ * A course's long-press actions, in the order the iPhone's menu has them, each
+ * with the glyph that makes the list quicker to scan than its words alone;
+ * Delete in the error colour, glyph and all, as the one that cannot be undone.
+ * Shared by the single-course cell and the per-course sections of a 衝堂
+ * cell's menu, so the two menus cannot drift apart.
+ */
+@Composable
+internal fun CourseEditMenuItems(
+    assignmentsIgnored: Boolean,
+    onRename: () -> Unit,
+    onPickColor: () -> Unit,
+    /** Null where the menu does not offer it; see [ClassTableViewModel.canIgnoreAssignments]. */
+    onToggleIgnoreAssignments: (() -> Unit)?,
+    onDelete: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_rename_title)) },
+        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+        onClick = onRename,
+    )
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_pick_color)) },
+        leadingIcon = { Icon(Icons.Filled.Palette, contentDescription = null) },
+        onClick = onPickColor,
+    )
+    if (onToggleIgnoreAssignments != null) {
+        IgnoreAssignmentsMenuItem(ignored = assignmentsIgnored, onClick = onToggleIgnoreAssignments)
+    }
+    DropdownMenuItem(
+        text = {
+            Text(
+                stringResource(R.string.class_table_delete),
+                color = MaterialTheme.colorScheme.error,
+            )
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        onClick = onDelete,
+    )
+}
 
 /** The long-press action that ignores a course's assignments, or stops ignoring them. */
 @Composable
@@ -231,6 +277,14 @@ internal fun IgnoreAssignmentsMenuItem(ignored: Boolean, onClick: () -> Unit) {
                         R.string.class_table_ignore_assignments
                     }
                 )
+            )
+        },
+        // The eye says what the action does to the course's marks: closed to
+        // start ignoring them, open to see them again.
+        leadingIcon = {
+            Icon(
+                if (ignored) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                contentDescription = null,
             )
         },
         onClick = onClick,

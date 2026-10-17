@@ -270,6 +270,28 @@ class AppState @Inject constructor(
             prefs.showClassroomInClassTable = value
         }
 
+    private var pinTodayCoursesOnClassTableState by mutableStateOf(prefs.pinTodayCoursesOnClassTable)
+
+    /** Show today's courses above the class table's grid. */
+    var pinTodayCoursesOnClassTable: Boolean
+        get() = pinTodayCoursesOnClassTableState
+        set(value) {
+            if (pinTodayCoursesOnClassTableState == value) return
+            pinTodayCoursesOnClassTableState = value
+            prefs.pinTodayCoursesOnClassTable = value
+        }
+
+    private var outlineRequiredCoursesState by mutableStateOf(prefs.outlineRequiredCourses)
+
+    /** Outline each required course's class-table cell. */
+    var outlineRequiredCourses: Boolean
+        get() = outlineRequiredCoursesState
+        set(value) {
+            if (outlineRequiredCoursesState == value) return
+            outlineRequiredCoursesState = value
+            prefs.outlineRequiredCourses = value
+        }
+
     private var useEnglishCourseAbbreviationState by mutableStateOf(prefs.useEnglishCourseAbbreviation)
 
     var useEnglishCourseAbbreviation: Boolean
@@ -557,6 +579,8 @@ class AppState @Inject constructor(
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
             alwaysShowAllPeriodsState = prefs.alwaysShowAllPeriods
             showClassroomInClassTableState = prefs.showClassroomInClassTable
+            pinTodayCoursesOnClassTableState = prefs.pinTodayCoursesOnClassTable
+            outlineRequiredCoursesState = prefs.outlineRequiredCourses
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation
             classroomMandarinDisplayState = prefs.classroomMandarinDisplay

@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Email</string>
     <string name="course_member_groups">Gruppi</string>
+    <string name="course_member_profile_picture">Foto profilo</string>
     <string name="course_members_auditors">Uditori</string>
     <string name="course_members_students">Studenti</string>
     <string name="course_members_tas">Assistenti alla didattica</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Condividi dati d\'uso anonimi (pagine visitate, utilizzo dei widget) per migliorare TigerDuck</string>
     <string name="settings_analytics_enabled">Analisi dell\'utilizzo</string>
     <string name="settings_api_endpoint">Endpoint API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Cambia</string>
+    <string name="settings_api_endpoint_change_alert_message">Dopo l\'accesso, questo endpoint riceve la tua matricola e il token Moodle. Verrà effettuata la disconnessione da tutti gli account.</string>
+    <string name="settings_api_endpoint_change_alert_title">Cambiare l\'endpoint API?</string>
     <string name="settings_api_endpoint_change_title">Cambia endpoint</string>
     <string name="settings_api_endpoint_checking">Verifica in corso…</string>
     <string name="settings_api_endpoint_effective_title">Endpoint effettivo</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Fissa i corsi di oggi in cima all\'orario</string>
     <string name="settings_privacy_policy">Informativa sulla privacy</string>
     <string name="settings_push_server_nav_label">Push server</string>
-    <string name="settings_remember_bulletin_filter">Ricorda i filtri del bollettino</string>
     <string name="settings_reset_course_colors">Riassegna i colori dei corsi</string>
     <string name="settings_reset_course_colors_confirm_message">Ogni corso riceverà un colore nuovo e univoco — prima dalla tavolozza preimpostata, poi in modo casuale una volta esaurita.</string>
     <string name="settings_reset_course_colors_confirm_title">Riassegnare i colori dei corsi?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Non riuscita</string>
     <string name="sync_status_hours_ago_short">%1$d h fa</string>
     <string name="sync_status_just_now">Proprio ora</string>
-    <string name="sync_status_last_synced">Ultima sincronizzazione</string>
     <string name="sync_status_last_updated">Ultimo aggiornamento</string>
     <string name="sync_status_minimal">Limitato</string>
     <string name="sync_status_minutes_ago_short">%1$d min fa</string>
     <string name="sync_status_nav_label">Stato di TigerSync</string>
-    <string name="sync_status_never_synced">Mai sincronizzato</string>
     <string name="sync_status_never_updated">Mai aggiornato</string>
     <string name="sync_status_ok">OK</string>
     <string name="sync_status_syncing">Sincronizzazione…</string>

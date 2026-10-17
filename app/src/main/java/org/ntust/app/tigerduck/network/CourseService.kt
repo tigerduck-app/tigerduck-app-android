@@ -368,6 +368,7 @@ class CourseService @Inject constructor(
             // across rows only names these on some of them.
             dimension = CourseService.firstNonEmpty(results.map { it.dimension }),
             allYear = CourseService.firstNonEmpty(results.map { it.allYear }),
+            requireOption = CourseService.firstNonEmpty(results.map { it.requireOption }),
         )
     }
 

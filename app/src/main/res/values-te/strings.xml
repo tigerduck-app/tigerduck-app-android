@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">ఇమెయిల్</string>
     <string name="course_member_groups">సమూహాలు</string>
+    <string name="course_member_profile_picture">ప్రొఫైల్ చిత్రం</string>
     <string name="course_members_auditors">ఆడిటర్లు</string>
     <string name="course_members_students">విద్యార్థులు</string>
     <string name="course_members_tas">టీచింగ్ అసిస్టెంట్లు</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck మెరుగుపరచడానికి అనామక వినియోగ డేటా (సందర్శించిన పేజీలు, విజెట్ వినియోగం) పంచుకోండి</string>
     <string name="settings_analytics_enabled">వినియోగ విశ్లేషణ</string>
     <string name="settings_api_endpoint">API ఎండ్‌పాయింట్</string>
+    <string name="settings_api_endpoint_change_alert_confirm">మార్చు</string>
+    <string name="settings_api_endpoint_change_alert_message">సైన్ ఇన్ చేసిన తర్వాత, ఈ ఎండ్‌పాయింట్ మీ విద్యార్థి ID మరియు Moodle టోకెన్‌ను అందుకుంటుంది. సైన్ ఇన్ అయిన అన్ని ఖాతాలు సైన్ అవుట్ అవుతాయి.</string>
+    <string name="settings_api_endpoint_change_alert_title">API ఎండ్‌పాయింట్‌ను మార్చాలా?</string>
     <string name="settings_api_endpoint_change_title">ఎండ్‌పాయింట్‌ను మార్చండి</string>
     <string name="settings_api_endpoint_checking">తనిఖీ చేస్తోంది…</string>
     <string name="settings_api_endpoint_effective_title">ప్రస్తుత ఎండ్‌పాయింట్</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">టైమ్‌టేబుల్ పైభాగంలో నేటి కోర్సులను పిన్ చేయి</string>
     <string name="settings_privacy_policy">గోప్యతా విధానం</string>
     <string name="settings_push_server_nav_label">సర్వర్ పుష్</string>
-    <string name="settings_remember_bulletin_filter">బులెటిన్ ఫిల్టర్‌లను గుర్తుంచుకో</string>
     <string name="settings_reset_course_colors">కోర్సు రంగులను తిరిగి కేటాయించండి</string>
     <string name="settings_reset_course_colors_confirm_message">ప్రతి కోర్సుకు కొత్త, ప్రత్యేకమైన రంగు కేటాయించబడుతుంది — మొదట ముందుగా అమర్చిన ప్యాలెట్ నుండి, ప్యాలెట్ అయిపోయాక యాదృచ్ఛికంగా.</string>
     <string name="settings_reset_course_colors_confirm_title">కోర్సు రంగులను తిరిగి కేటాయించాలా?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">విఫలమైంది</string>
     <string name="sync_status_hours_ago_short">%1$d గం. క్రితం</string>
     <string name="sync_status_just_now">ఇప్పుడే</string>
-    <string name="sync_status_last_synced">చివరిగా సమకాలీకరించబడింది</string>
     <string name="sync_status_last_updated">చివరిగా అప్‌డేట్ చేయబడింది</string>
     <string name="sync_status_minimal">పరిమితం</string>
     <string name="sync_status_minutes_ago_short">%1$d నిమి. క్రితం</string>
     <string name="sync_status_nav_label">TigerSync స్థితి</string>
-    <string name="sync_status_never_synced">ఎప్పుడూ సమకాలీకరించబడలేదు</string>
     <string name="sync_status_never_updated">ఎప్పుడూ అప్‌డేట్ చేయబడలేదు</string>
     <string name="sync_status_ok">సరే</string>
     <string name="sync_status_syncing">సింక్ అవుతోంది…</string>

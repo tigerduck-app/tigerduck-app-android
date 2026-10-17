@@ -89,6 +89,8 @@ internal fun ClassTableExportCard(
     showRoomHints: Boolean,
     weekdays: List<Int>,
     periods: List<TimetablePeriod>,
+    /** Outline each required course, as the screen does when it is switched on. */
+    outlineRequiredCourses: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -124,6 +126,7 @@ internal fun ClassTableExportCard(
             weekdays = weekdays,
             periods = periods,
             courseNosWithAssignments = emptySet(),
+            outlineRequiredCourses = outlineRequiredCourses,
         )
     }
 }

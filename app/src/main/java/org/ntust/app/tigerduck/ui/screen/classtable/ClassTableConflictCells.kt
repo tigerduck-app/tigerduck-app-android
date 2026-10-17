@@ -38,14 +38,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.ConflictLOrientation
 import org.ntust.app.tigerduck.ui.component.ConflictLShape
@@ -71,6 +69,8 @@ internal fun ConflictCourseCell(
     hasAssignmentB: Boolean,
     assignmentsIgnoredA: Boolean,
     assignmentsIgnoredB: Boolean,
+    /** Whether a required course's shape is outlined; see [AppPreferences.outlineRequiredCourses]. */
+    outlineRequired: Boolean = false,
     onPickConflict: (Course, Course, Int, String) -> Unit,
     /** Null on someone else's class table, which is read-only and has no menu. */
     onLongPress: (() -> Unit)?,
@@ -83,6 +83,8 @@ internal fun ConflictCourseCell(
     val textColor = style.courseTextColor
     val markColor = style.courseSecondaryTextColor
     fun bgFor(course: Course) = style.courseFill(course.courseNo)
+    fun outlineFor(course: Course) =
+        if (outlineRequired && course.isRequired) style.courseOutline(course.courseNo) else null
 
     val overlapStart = maxOf(cellRole.offsetA, cellRole.offsetB)
     val overlapEnd = minOf(cellRole.offsetA + cellRole.spanA, cellRole.offsetB + cellRole.spanB)
@@ -169,6 +171,7 @@ internal fun ConflictCourseCell(
                     .absoluteOffset(x = 0.dp, y = aTop)
                     .clip(shapeA)
                     .background(bgFor(cellRole.courseA))
+                    .requiredCourseOutline(outlineFor(cellRole.courseA), shapeA)
                     .semantics(mergeDescendants = true) {
                         contentDescription = labelA
                         role = Role.Button
@@ -223,6 +226,7 @@ internal fun ConflictCourseCell(
                     .absoluteOffset(x = 0.dp, y = bTop)
                     .clip(shapeB)
                     .background(bgFor(cellRole.courseB))
+                    .requiredCourseOutline(outlineFor(cellRole.courseB), shapeB)
                     .semantics(mergeDescendants = true) {
                         contentDescription = labelB
                         role = Role.Button
@@ -318,6 +322,8 @@ internal fun MultiConflictCourseCell(
     weekday: Int,
     hasAssignment: (String) -> Boolean,
     assignmentsIgnored: (String) -> Boolean,
+    /** Whether a required course's lane is outlined; see [AppPreferences.outlineRequiredCourses]. */
+    outlineRequired: Boolean = false,
     onSelect: (Course, String) -> Unit,
     /** Null on someone else's class table, which is read-only and has no menu. */
     onLongPress: (() -> Unit)?,
@@ -330,6 +336,9 @@ internal fun MultiConflictCourseCell(
     val textColor = style.courseTextColor
     val markColor = style.courseSecondaryTextColor
     fun bgFor(course: Course) = style.courseFill(course.courseNo)
+    fun outlineFor(course: Course) =
+        if (outlineRequired && course.isRequired) style.courseOutline(course.courseNo) else null
+    val laneShape = RoundedCornerShape(4.dp)
 
     val labels = classTableCellLabels()
 
@@ -360,8 +369,9 @@ internal fun MultiConflictCourseCell(
                         .height(mHeight)
                         .absoluteOffset(x = mLeft, y = mTop)
                         .padding(0.5.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(laneShape)
                         .background(bgFor(member.course))
+                        .requiredCourseOutline(outlineFor(member.course), laneShape)
                         .semantics(mergeDescendants = true) {
                             contentDescription = labels.label(
                                 member.course,
@@ -474,24 +484,11 @@ private fun CourseActionSection(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
         )
     }
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.class_table_rename_title)) },
-        onClick = onRename,
-    )
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.class_table_pick_color)) },
-        onClick = onPickColor,
-    )
-    if (onToggleIgnoreAssignments != null) {
-        IgnoreAssignmentsMenuItem(ignored = assignmentsIgnored, onClick = onToggleIgnoreAssignments)
-    }
-    DropdownMenuItem(
-        text = {
-            Text(
-                stringResource(R.string.class_table_delete),
-                color = MaterialTheme.colorScheme.error,
-            )
-        },
-        onClick = onDelete,
+    CourseEditMenuItems(
+        assignmentsIgnored = assignmentsIgnored,
+        onRename = onRename,
+        onPickColor = onPickColor,
+        onToggleIgnoreAssignments = onToggleIgnoreAssignments,
+        onDelete = onDelete,
     )
 }

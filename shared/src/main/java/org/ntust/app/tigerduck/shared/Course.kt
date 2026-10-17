@@ -68,10 +68,21 @@ data class Course(
      * same reason as [dimension].
      */
     val allYear: String? = null,
+    /**
+     * Required or elective from QueryCourse (`RequireOption`): "R" required,
+     * "E" elective, as the public course search answers. Null or blank when
+     * unknown, as for a row merged from another device or cached before this
+     * field existed. Nullable for the same reason as [dimension].
+     */
+    val requireOption: String? = null,
 ) {
     /** Resolved name for display: user override if set, else the derived default. */
     val displayName: String
         get() = customCourseName ?: courseName
+
+    /** Whether QueryCourse marks this course required; false while unknown. */
+    val isRequired: Boolean
+        get() = requireOption?.trim()?.uppercase() == "R"
 
     @Transient
     @Volatile
@@ -181,6 +192,7 @@ data class Course(
             isManual: Boolean = false,
             dimension: String? = null,
             allYear: String? = null,
+            requireOption: String? = null,
         ): Course {
             val stringKeyMap = schedule.mapKeys { it.key.toString() }
             val json = scheduleGson.toJson(stringKeyMap)
@@ -200,6 +212,7 @@ data class Course(
                 isManual = isManual,
                 dimension = dimension,
                 allYear = allYear,
+                requireOption = requireOption,
             )
         }
 

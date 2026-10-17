@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">אימייל</string>
     <string name="course_member_groups">קבוצות</string>
+    <string name="course_member_profile_picture">תמונת פרופיל</string>
     <string name="course_members_auditors">שומעים חופשיים</string>
     <string name="course_members_students">סטודנטים</string>
     <string name="course_members_tas">מתרגלים</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">שתף נתוני שימוש אנונימיים (דפים שביקרת, שימוש בווידג\'טים) כדי לעזור לשפר את TigerDuck</string>
     <string name="settings_analytics_enabled">ניתוח שימוש</string>
     <string name="settings_api_endpoint">נקודת קצה של API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">שנה</string>
+    <string name="settings_api_endpoint_change_alert_message">אחרי ההתחברות, נקודת הקצה הזו תקבל את מספר הסטודנט וטוקן Moodle שלך. כל החשבונות המחוברים יתנתקו.</string>
+    <string name="settings_api_endpoint_change_alert_title">לשנות את נקודת הקצה של API?</string>
     <string name="settings_api_endpoint_change_title">שנה נקודת קצה</string>
     <string name="settings_api_endpoint_checking">בודק…</string>
     <string name="settings_api_endpoint_effective_title">נקודת הקצה הנוכחית</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">הצמדת קורסי היום לראש לוח השיעורים</string>
     <string name="settings_privacy_policy">מדיניות פרטיות</string>
     <string name="settings_push_server_nav_label">דחיפת שרת</string>
-    <string name="settings_remember_bulletin_filter">זכור את מסנני העדכונים</string>
     <string name="settings_reset_course_colors">הקצאה מחדש של צבעי קורסים</string>
     <string name="settings_reset_course_colors_confirm_message">כל קורס יקבל צבע חדש וייחודי — תחילה מהפלטה המוגדרת מראש, ולאחר מכן באופן אקראי כשהפלטה מתמצה.</string>
     <string name="settings_reset_course_colors_confirm_title">להקצות מחדש צבעי קורסים?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">נכשל</string>
     <string name="sync_status_hours_ago_short">לפני %1$d ש</string>
     <string name="sync_status_just_now">הרגע</string>
-    <string name="sync_status_last_synced">סנכרון אחרון</string>
     <string name="sync_status_last_updated">עדכון אחרון</string>
     <string name="sync_status_minimal">מוגבל</string>
     <string name="sync_status_minutes_ago_short">לפני %1$d ד</string>
     <string name="sync_status_nav_label">סטטוס TigerSync</string>
-    <string name="sync_status_never_synced">מעולם לא סונכרן</string>
     <string name="sync_status_never_updated">מעולם לא עודכן</string>
     <string name="sync_status_ok">תקין</string>
     <string name="sync_status_syncing">מסנכרן…</string>
