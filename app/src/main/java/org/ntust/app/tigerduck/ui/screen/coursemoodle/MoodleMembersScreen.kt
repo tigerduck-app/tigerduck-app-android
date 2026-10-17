@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.coursemoodle
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,9 +56,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
+import org.ntust.app.tigerduck.data.moodle.MoodleDepartment
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberPlacement
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberSection
 import org.ntust.app.tigerduck.data.moodle.MoodleMembers
+import org.ntust.app.tigerduck.data.moodle.departmentKey
 import org.ntust.app.tigerduck.data.moodle.name
 import org.ntust.app.tigerduck.data.moodle.studentId
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
@@ -133,6 +136,7 @@ internal fun MembersList(
 ) {
     val state by store.members.state.collectAsStateWithLifecycle()
     val pictures by store.pictures.collectAsStateWithLifecycle()
+    val departmentNames = departmentShortNames()
     MoodleAutoRefresh(store, store.members.ttlMs, store::awaitCache, { store.members.state.value.fetchedAtMs }) {
         store.refreshMembers()
     }
@@ -140,7 +144,9 @@ internal fun MembersList(
     val refresher = rememberRefresher { store.refreshMembers() }
     val scope = rememberCoroutineScope()
     val list = state.value
-    val sections = remember(list, query) { list?.let { MoodleMembers.sections(it.members, query) }.orEmpty() }
+    val sections = remember(list, query, departmentNames) {
+        list?.let { MoodleMembers.sections(it.members, query, departmentNames = departmentNames) }.orEmpty()
+    }
 
     PullToRefreshBox(
         isRefreshing = pulling,
@@ -281,10 +287,11 @@ private fun MemberCardRow(
     }
 }
 
-/** A person in the list: picture, name, and student ID and department. */
+/** A person in the list: picture, name, and student ID and department, the department by its short name. */
 @Composable
 private fun MemberRow(member: MoodleMember, picture: androidx.compose.ui.graphics.ImageBitmap?, onClick: () -> Unit) {
-    val subline = listOfNotNull(member.studentId, member.department).joinToString(" · ")
+    val department = member.departmentKey?.let { departmentNameRes(it, short = true) }?.let { stringResource(it) }
+    val subline = listOfNotNull(member.studentId, department).joinToString(" · ")
     ListItem(
         modifier = Modifier
             .clickable(role = Role.Button, onClick = onClick)
@@ -317,4 +324,37 @@ internal fun placementTitle(placement: MoodleMemberPlacement): String = when (pl
     is MoodleMemberPlacement.Other -> placement.name
     MoodleMemberPlacement.Auditors -> stringResource(R.string.course_members_auditors)
     MoodleMemberPlacement.Students -> stringResource(R.string.course_members_students)
+}
+
+/**
+ * The app-translation string naming the department [key] ([MoodleDepartment]): the school's
+ * official name for a member's page, or the [short] one for the members list; null for a key it
+ * has none for. Chinese names in Chinese, the English name everywhere else (#697).
+ */
+@StringRes
+internal fun departmentNameRes(key: String, short: Boolean): Int? = when (key) {
+    "ad" -> if (short) R.string.course_member_department_ad_short else R.string.course_member_department_ad
+    "ba" -> if (short) R.string.course_member_department_ba_short else R.string.course_member_department_ba
+    "ch" -> if (short) R.string.course_member_department_ch_short else R.string.course_member_department_ch
+    "cs" -> if (short) R.string.course_member_department_cs_short else R.string.course_member_department_cs
+    "ct" -> if (short) R.string.course_member_department_ct_short else R.string.course_member_department_ct
+    "dt" -> if (short) R.string.course_member_department_dt_short else R.string.course_member_department_dt
+    "ee" -> if (short) R.string.course_member_department_ee_short else R.string.course_member_department_ee
+    "et" -> if (short) R.string.course_member_department_et_short else R.string.course_member_department_et
+    "hc" -> if (short) R.string.course_member_department_hc_short else R.string.course_member_department_hc
+    "im" -> if (short) R.string.course_member_department_im_short else R.string.course_member_department_im
+    "me" -> if (short) R.string.course_member_department_me_short else R.string.course_member_department_me
+    "tx" -> if (short) R.string.course_member_department_tx_short else R.string.course_member_department_tx
+    else -> null
+}
+
+/** The short names the list shows, by department key, so its search matches what its rows say. */
+@Composable
+internal fun departmentShortNames(): Map<String, String> {
+    val names = mutableMapOf<String, String>()
+    for (key in MoodleDepartment.keys) {
+        val res = departmentNameRes(key, short = true) ?: continue
+        names[key] = stringResource(res)
+    }
+    return names
 }

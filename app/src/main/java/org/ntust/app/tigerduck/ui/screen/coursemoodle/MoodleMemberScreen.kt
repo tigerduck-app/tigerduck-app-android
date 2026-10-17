@@ -52,6 +52,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleLookup
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberPlacement
 import org.ntust.app.tigerduck.data.moodle.MoodleMembers
+import org.ntust.app.tigerduck.data.moodle.departmentKey
 import org.ntust.app.tigerduck.data.moodle.name
 import org.ntust.app.tigerduck.data.moodle.studentId
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
@@ -132,15 +133,17 @@ private fun writeWithMailApp(context: Context, address: String) {
 internal data class MemberRow(val label: String, val value: String, val isEmail: Boolean = false)
 
 @Composable
-private fun memberRows(member: MoodleMember): List<MemberRow> {
+internal fun memberRows(member: MoodleMember): List<MemberRow> {
     val studentIdLabel = stringResource(R.string.sign_in_student_id)
     val departmentLabel = stringResource(R.string.course_member_department)
     val emailLabel = stringResource(R.string.course_member_email)
     val groupsLabel = stringResource(R.string.course_member_groups)
     val locale = LocalConfiguration.current.locales[0]
+    // The department by its official name, from the student ID; Moodle's own field is not shown (#697).
+    val department = member.departmentKey?.let { departmentNameRes(it, short = false) }?.let { stringResource(it) }
     return buildList {
         member.studentId?.let { add(MemberRow(studentIdLabel, it)) }
-        member.department?.let { add(MemberRow(departmentLabel, it)) }
+        department?.let { add(MemberRow(departmentLabel, it)) }
         member.email?.let { add(MemberRow(emailLabel, it, isEmail = true)) }
         if (member.groups.isNotEmpty()) add(MemberRow(groupsLabel, MoodleMembers.groupsText(member.groups, locale)))
         member.fields.forEach { add(MemberRow(it.name, it.value)) }

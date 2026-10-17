@@ -181,6 +181,43 @@ object MoodlePersonName {
 val MoodleMember.name: String get() = MoodlePersonName.displayName(fullName)
 val MoodleMember.studentId: String? get() = idNumber ?: MoodlePersonName.studentId(fullName)
 
+/**
+ * A student's department, read from their student ID (#697). Moodle's `department` field is of
+ * no use: NTUST fills it for the signed-in student alone, and with the degree level. A bachelor's
+ * ID is B, three digits of entry year, two of department and three of serial; the code is the
+ * department the student was admitted to, which a student who changed department keeps.
+ */
+object MoodleDepartment {
+
+    /**
+     * The `<code>` of `course_member_department_<code>` by department code: the codes the
+     * school's published course rosters confirm, and no other. The graduate codes are not
+     * confirmed, so only a bachelor's ID is read.
+     */
+    private val keysByCode = mapOf(
+        "01" to "im", "02" to "et", "03" to "me", "04" to "tx", "05" to "ct", "06" to "ch",
+        "07" to "ee", "08" to "ba", "10" to "dt", "13" to "ad", "15" to "cs", "30" to "hc",
+    )
+
+    /** Every department the app can name. */
+    val keys: Set<String> = keysByCode.values.toSet()
+
+    /** A bachelor's ID as NTUST writes it: B and eight ASCII digits, and nothing else, so a cut-short ID carries no code. */
+    private val bachelorId = Regex("""B[0-9]{8}""")
+
+    /** The department code of a bachelor's [studentId], its 5th and 6th characters; null for any other or malformed ID. */
+    fun code(studentId: String?): String? {
+        if (studentId == null || !bachelorId.matches(studentId)) return null
+        return studentId.substring(4, 6)
+    }
+
+    /** The key of the department [studentId] was admitted to; null for a code the app cannot name. */
+    fun key(studentId: String?): String? = code(studentId)?.let(keysByCode::get)
+}
+
+/** The key of the member's department, from their student ID; null where there is none to show. */
+val MoodleMember.departmentKey: String? get() = MoodleDepartment.key(studentId)
+
 /** Where a member is listed. A role the app does not know goes after the assistants, under Moodle's name for it. */
 sealed class MoodleMemberPlacement : Comparable<MoodleMemberPlacement> {
     data object Instructors : MoodleMemberPlacement()
@@ -234,10 +271,18 @@ object MoodleMembers {
     /** Whether anyone but the account is there to show, which a course split into groups may not have. */
     fun showsOthers(list: MoodleMemberList): Boolean = list.members.any { it.id != list.ownId }
 
-    /** The search runs here, never on Moodle, over what a row shows. */
-    fun sections(members: List<MoodleMember>, query: String = "", locale: Locale = Locale.getDefault()): List<MoodleMemberSection> {
+    /**
+     * The search runs here, never on Moodle, over what a row shows: the name, the student ID and
+     * the department as the list names it, [departmentNames] by [MoodleMember.departmentKey].
+     */
+    fun sections(
+        members: List<MoodleMember>,
+        query: String = "",
+        locale: Locale = Locale.getDefault(),
+        departmentNames: Map<String, String> = emptyMap(),
+    ): List<MoodleMemberSection> {
         val needle = query.trim()
-        val shown = if (needle.isEmpty()) members else members.filter { matches(it, needle) }
+        val shown = if (needle.isEmpty()) members else members.filter { matches(it, needle, departmentNames) }
         val collator = Collator.getInstance(locale)
         val byName = Comparator<MoodleMember> { a, b ->
             collator.compare(a.name, b.name).takeIf { it != 0 } ?: a.id.compareTo(b.id)
@@ -264,8 +309,8 @@ object MoodleMembers {
     fun groupsText(groups: List<String>, locale: Locale): String =
         groups.joinToString(if (locale.language in setOf("zh", "ja")) "、" else ", ")
 
-    private fun matches(member: MoodleMember, needle: String): Boolean =
-        listOfNotNull(member.name, member.studentId, member.department)
+    private fun matches(member: MoodleMember, needle: String, departmentNames: Map<String, String>): Boolean =
+        listOfNotNull(member.name, member.studentId, departmentNames[member.departmentKey])
             .any { it.contains(needle, ignoreCase = true) }
 }
 

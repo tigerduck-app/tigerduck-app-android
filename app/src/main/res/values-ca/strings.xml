@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">Correu electrònic</string>
     <string name="course_member_groups">Grups</string>
+    <string name="course_member_profile_picture">Foto de perfil</string>
     <string name="course_members_auditors">Oients</string>
     <string name="course_members_students">Estudiants</string>
     <string name="course_members_tas">Assistents de docència</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">Comparteix dades d\'ús anònimes (pàgines visitades, ús de widgets) per ajudar a millorar TigerDuck</string>
     <string name="settings_analytics_enabled">Anàlisi d\'ús</string>
     <string name="settings_api_endpoint">Punt final de l\'API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Canvia</string>
+    <string name="settings_api_endpoint_change_alert_message">Quan iniciïs la sessió, aquest punt final rebrà el teu ID d\'estudiant i el token de Moodle. Es tancarà la sessió de tots els comptes.</string>
+    <string name="settings_api_endpoint_change_alert_title">Vols canviar el punt final de l\'API?</string>
     <string name="settings_api_endpoint_change_title">Canvia el punt final</string>
     <string name="settings_api_endpoint_checking">Comprovant…</string>
     <string name="settings_api_endpoint_effective_title">Punt final efectiu</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Fixa els cursos d\'avui a dalt de l\'horari</string>
     <string name="settings_privacy_policy">Política de privadesa</string>
     <string name="settings_push_server_nav_label">Push del servidor</string>
-    <string name="settings_remember_bulletin_filter">Recordeu els filtres de butlletins</string>
     <string name="settings_reset_course_colors">Reassigna els colors dels cursos</string>
     <string name="settings_reset_course_colors_confirm_message">A cada curs se li assignarà un color nou i únic — primer de la paleta preestablerta i, després, aleatòriament quan s\'esgoti.</string>
     <string name="settings_reset_course_colors_confirm_title">Reassigna els colors dels cursos?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Ha fallat</string>
     <string name="sync_status_hours_ago_short">fa %1$d h</string>
     <string name="sync_status_just_now">Ara mateix</string>
-    <string name="sync_status_last_synced">Última sincronització</string>
     <string name="sync_status_last_updated">Última actualització</string>
     <string name="sync_status_minimal">Limitat</string>
     <string name="sync_status_minutes_ago_short">fa %1$d min</string>
     <string name="sync_status_nav_label">Estat de TigerSync</string>
-    <string name="sync_status_never_synced">Mai sincronitzat</string>
     <string name="sync_status_never_updated">Mai actualitzat</string>
     <string name="sync_status_ok">Correcte</string>
     <string name="sync_status_syncing">Sincronitzant…</string>

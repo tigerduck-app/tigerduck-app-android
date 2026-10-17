@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">البريد الإلكتروني</string>
     <string name="course_member_groups">المجموعات</string>
+    <string name="course_member_profile_picture">صورة الملف الشخصي</string>
     <string name="course_members_auditors">المستمعون</string>
     <string name="course_members_students">الطلاب</string>
     <string name="course_members_tas">مساعدو التدريس</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">شارك بيانات استخدام مجهولة الهوية (الصفحات المزارة، استخدام الأدوات) للمساعدة في تحسين TigerDuck</string>
     <string name="settings_analytics_enabled">تحليلات الاستخدام</string>
     <string name="settings_api_endpoint">نقطة نهاية API</string>
+    <string name="settings_api_endpoint_change_alert_confirm">تغيير</string>
+    <string name="settings_api_endpoint_change_alert_message">بعد تسجيل الدخول، تتلقى نقطة النهاية هذه رقم الطالب ورمز Moodle الخاصين بك. سيتم تسجيل الخروج من أي حسابات مسجّل الدخول إليها.</string>
+    <string name="settings_api_endpoint_change_alert_title">تغيير نقطة نهاية API؟</string>
     <string name="settings_api_endpoint_change_title">تغيير نقطة النهاية</string>
     <string name="settings_api_endpoint_checking">جارٍ التحقق…</string>
     <string name="settings_api_endpoint_effective_title">نقطة النهاية الحالية</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">تثبيت مقررات اليوم أعلى الجدول الدراسي</string>
     <string name="settings_privacy_policy">سياسة الخصوصية</string>
     <string name="settings_push_server_nav_label">دفع الخادم</string>
-    <string name="settings_remember_bulletin_filter">تذكر مرشحات النشرة</string>
     <string name="settings_reset_course_colors">إعادة تعيين ألوان المقررات</string>
     <string name="settings_reset_course_colors_confirm_message">سيُسنَد لكل مقرر لون فريد جديد — من اللوحة المحددة أولاً، ثم عشوائياً عند نفاد اللوحة.</string>
     <string name="settings_reset_course_colors_confirm_title">هل تريد إعادة تعيين ألوان المقررات؟</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">فشل</string>
     <string name="sync_status_hours_ago_short">منذ %1$d س</string>
     <string name="sync_status_just_now">للتو</string>
-    <string name="sync_status_last_synced">آخر مزامنة</string>
     <string name="sync_status_last_updated">آخر تحديث</string>
     <string name="sync_status_minimal">محدود</string>
     <string name="sync_status_minutes_ago_short">منذ %1$d د</string>
     <string name="sync_status_nav_label">حالة TigerSync</string>
-    <string name="sync_status_never_synced">لم تتم المزامنة قط</string>
     <string name="sync_status_never_updated">لم يتم التحديث قط</string>
     <string name="sync_status_ok">سليم</string>
     <string name="sync_status_syncing">جارٍ المزامنة…</string>

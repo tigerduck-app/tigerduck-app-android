@@ -346,6 +346,7 @@
     <string name="course_member_department_tx_short">Materials Science and Engineering</string>
     <string name="course_member_email">E-posta</string>
     <string name="course_member_groups">Gruplar</string>
+    <string name="course_member_profile_picture">Profil fotoğrafı</string>
     <string name="course_members_auditors">Dinleyiciler</string>
     <string name="course_members_students">Öğrenciler</string>
     <string name="course_members_tas">Asistanlar</string>
@@ -910,6 +911,9 @@
     <string name="settings_analytics_description">TigerDuck\'ı geliştirmeye yardımcı olmak için anonim kullanım verilerini (ziyaret edilen sayfalar, widget kullanımı) paylaş</string>
     <string name="settings_analytics_enabled">Kullanım analitiği</string>
     <string name="settings_api_endpoint">API uç noktası</string>
+    <string name="settings_api_endpoint_change_alert_confirm">Değiştir</string>
+    <string name="settings_api_endpoint_change_alert_message">Oturum açtıktan sonra bu uç nokta öğrenci numaranızı ve Moodle jetonunuzu alır. Oturum açılmış tüm hesaplardan çıkış yapılır.</string>
+    <string name="settings_api_endpoint_change_alert_title">API uç noktası değiştirilsin mi?</string>
     <string name="settings_api_endpoint_change_title">Uç noktayı değiştir</string>
     <string name="settings_api_endpoint_checking">Denetleniyor…</string>
     <string name="settings_api_endpoint_effective_title">Kullanılan uç nokta</string>
@@ -980,7 +984,6 @@
     <string name="settings_pin_today_courses_on_class_table">Bugünün derslerini ders programının üstüne sabitle</string>
     <string name="settings_privacy_policy">Gizlilik politikası</string>
     <string name="settings_push_server_nav_label">Sunucu push</string>
-    <string name="settings_remember_bulletin_filter">Bülten filtrelerini hatırla</string>
     <string name="settings_reset_course_colors">Ders renklerini yeniden ata</string>
     <string name="settings_reset_course_colors_confirm_message">Her ders yeni ve benzersiz bir renk alır — önce hazır paletten, palet bitince rastgele.</string>
     <string name="settings_reset_course_colors_confirm_title">Ders renkleri yeniden atansın mı?</string>
@@ -1054,12 +1057,10 @@
     <string name="sync_status_failed">Başarısız</string>
     <string name="sync_status_hours_ago_short">%1$d sa önce</string>
     <string name="sync_status_just_now">Az önce</string>
-    <string name="sync_status_last_synced">Son eşitleme</string>
     <string name="sync_status_last_updated">Son güncelleme</string>
     <string name="sync_status_minimal">Sınırlı</string>
     <string name="sync_status_minutes_ago_short">%1$d dk önce</string>
     <string name="sync_status_nav_label">TigerSync durumu</string>
-    <string name="sync_status_never_synced">Hiç eşitlenmedi</string>
     <string name="sync_status_never_updated">Hiç güncellenmedi</string>
     <string name="sync_status_ok">Tamam</string>
     <string name="sync_status_syncing">Eşitleniyor…</string>
