@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Konflikt zajęć</string>
     <string name="a11y_class_table_share_qr">QR Code udostępniania planu zajęć</string>
     <string name="a11y_class_table_switch">Przełącz plan zajęć</string>
+    <string name="a11y_color_picker_brightness">Jasność</string>
+    <string name="a11y_color_picker_hue">Odcień</string>
+    <string name="a11y_color_picker_saturation">Nasycenie</string>
     <string name="a11y_course_card_open_details_hint">Podwójne stuknięcie, aby zobaczyć szczegóły</string>
     <string name="a11y_course_color_swatch">Kolor %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Otwórz w Moodle</string>

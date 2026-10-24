@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Tuntiristiriita</string>
     <string name="a11y_class_table_share_qr">QR-koodi lukujärjestyksen jakamiseen</string>
     <string name="a11y_class_table_switch">Vaihda lukujärjestystä</string>
+    <string name="a11y_color_picker_brightness">Kirkkaus</string>
+    <string name="a11y_color_picker_hue">Sävy</string>
+    <string name="a11y_color_picker_saturation">Kylläisyys</string>
     <string name="a11y_course_card_open_details_hint">Kaksoisnapauta tarkempia tietoja varten</string>
     <string name="a11y_course_color_swatch">Väri %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Avaa Moodlessa</string>

@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Xung đột lịch học</string>
     <string name="a11y_class_table_share_qr">QR Code chia sẻ thời khóa biểu</string>
     <string name="a11y_class_table_switch">Chuyển thời khóa biểu</string>
+    <string name="a11y_color_picker_brightness">Độ sáng</string>
+    <string name="a11y_color_picker_hue">Sắc độ</string>
+    <string name="a11y_color_picker_saturation">Độ bão hòa</string>
     <string name="a11y_course_card_open_details_hint">Nhấn đúp để xem chi tiết</string>
     <string name="a11y_course_color_swatch">Màu %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Mở trong Moodle</string>

@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Óraütközés</string>
     <string name="a11y_class_table_share_qr">Órarend-megosztási QR-kód</string>
     <string name="a11y_class_table_switch">Órarend váltása</string>
+    <string name="a11y_color_picker_brightness">Fényerő</string>
+    <string name="a11y_color_picker_hue">Árnyalat</string>
+    <string name="a11y_color_picker_saturation">Telítettség</string>
     <string name="a11y_course_card_open_details_hint">Koppintson duplán a részletekért</string>
     <string name="a11y_course_color_swatch">%1$lld. szín</string>
     <string name="a11y_course_detail_open_moodle">Megnyitás Moodle-ban</string>

@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">時間割の重複</string>
     <string name="a11y_class_table_share_qr">時間割共有 QR コード</string>
     <string name="a11y_class_table_switch">時間割を切り替える</string>
+    <string name="a11y_color_picker_brightness">明るさ</string>
+    <string name="a11y_color_picker_hue">色相</string>
+    <string name="a11y_color_picker_saturation">彩度</string>
     <string name="a11y_course_card_open_details_hint">ダブルタップで詳細を表示</string>
     <string name="a11y_course_color_swatch">色 %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Moodle で開く</string>

@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Tímaárekstur</string>
     <string name="a11y_class_table_share_qr">QR-kóði til að deila stundaskrá</string>
     <string name="a11y_class_table_switch">Skipta um stundaskrá</string>
+    <string name="a11y_color_picker_brightness">Birtustig</string>
+    <string name="a11y_color_picker_hue">Litblær</string>
+    <string name="a11y_color_picker_saturation">Mettun</string>
     <string name="a11y_course_card_open_details_hint">Ýttu tvisvar fyrir upplýsingar</string>
     <string name="a11y_course_color_swatch">Litur %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Opna í Moodle</string>

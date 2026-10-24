@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Конфлікт занять</string>
     <string name="a11y_class_table_share_qr">QR-код для обміну розкладом</string>
     <string name="a11y_class_table_switch">Перемкнути розклад</string>
+    <string name="a11y_color_picker_brightness">Яскравість</string>
+    <string name="a11y_color_picker_hue">Відтінок</string>
+    <string name="a11y_color_picker_saturation">Насиченість</string>
     <string name="a11y_course_card_open_details_hint">Двічі торкніться для перегляду деталей</string>
     <string name="a11y_course_color_swatch">Колір %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Відкрити в Moodle</string>

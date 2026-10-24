@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">התנגשות שיעורים</string>
     <string name="a11y_class_table_share_qr">QR Code לשיתוף מערכת השעות</string>
     <string name="a11y_class_table_switch">החלפת מערכת שעות</string>
+    <string name="a11y_color_picker_brightness">בהירות</string>
+    <string name="a11y_color_picker_hue">גוון</string>
+    <string name="a11y_color_picker_saturation">רוויה</string>
     <string name="a11y_course_card_open_details_hint">הקש פעמיים לפרטים</string>
     <string name="a11y_course_color_swatch">צבע %1$lld</string>
     <string name="a11y_course_detail_open_moodle">פתח ב-Moodle</string>

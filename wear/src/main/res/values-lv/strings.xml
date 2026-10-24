@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Nodarbību konflikts</string>
     <string name="a11y_class_table_share_qr">Stundu plāna kopīgošanas QR kods</string>
     <string name="a11y_class_table_switch">Pārslēgt stundu plānu</string>
+    <string name="a11y_color_picker_brightness">Spilgtums</string>
+    <string name="a11y_color_picker_hue">Nokrāsa</string>
+    <string name="a11y_color_picker_saturation">Piesātinājums</string>
     <string name="a11y_course_card_open_details_hint">Divreiz pieskarieties, lai skatītu detaļas</string>
     <string name="a11y_course_color_swatch">Krāsa %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Atvērt Moodle</string>

@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Σύγκρουση μαθήματος</string>
     <string name="a11y_class_table_share_qr">QR Code κοινής χρήσης προγράμματος μαθημάτων</string>
     <string name="a11y_class_table_switch">Εναλλαγή προγράμματος μαθημάτων</string>
+    <string name="a11y_color_picker_brightness">Φωτεινότητα</string>
+    <string name="a11y_color_picker_hue">Απόχρωση</string>
+    <string name="a11y_color_picker_saturation">Κορεσμός</string>
     <string name="a11y_course_card_open_details_hint">Πατήστε δύο φορές για λεπτομέρειες</string>
     <string name="a11y_course_color_swatch">Χρώμα %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Άνοιγμα στο Moodle</string>

@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -40,17 +42,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -59,6 +74,8 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy
 import org.ntust.app.tigerduck.util.replaceIosArg
+import java.text.NumberFormat
+import kotlin.math.roundToInt
 
 /**
  * Bottom sheet that lets the user assign a tile color to a class.
@@ -309,6 +326,12 @@ private fun ColorSwatch(
     }
 }
 
+/**
+ * The saturation and brightness square. TalkBack gets it as two adjustable
+ * controls, Saturation over its top half and Brightness over its bottom, so
+ * a swipe up or down moves one value and exploring by touch finds both; they
+ * take no pointer input, so a finger still lands on the square under them.
+ */
 @Composable
 internal fun SatValSquare(
     hue: Float,
@@ -320,11 +343,55 @@ internal fun SatValSquare(
     val pureHueColor = remember(hue) {
         Color(android.graphics.Color.HSVToColor(floatArrayOf(hue, 1f, 1f)))
     }
+    val percent = NumberFormat.getPercentInstance(LocalConfiguration.current.locales[0])
 
-    Canvas(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(180.dp)
+    ) {
+        SatValCanvas(pureHueColor, sat, value, onSatValChange)
+        Column(Modifier.matchParentSize()) {
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .adjustable(
+                        name = stringResource(R.string.a11y_color_picker_saturation),
+                        state = percent.format(sat),
+                        current = sat,
+                        range = 0f..1f,
+                        shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
+                        onChange = { onSatValChange(it, value) },
+                    )
+            )
+            Box(
+                Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .adjustable(
+                        name = stringResource(R.string.a11y_color_picker_brightness),
+                        state = percent.format(value),
+                        current = value,
+                        range = 0f..1f,
+                        shape = RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp),
+                        onChange = { onSatValChange(sat, it) },
+                    )
+            )
+        }
+    }
+}
+
+@Composable
+private fun SatValCanvas(
+    pureHueColor: Color,
+    sat: Float,
+    value: Float,
+    onSatValChange: (sat: Float, value: Float) -> Unit,
+) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxSize()
             .clip(RoundedCornerShape(12.dp))
             .pointerInput(Unit) {
                 detectDragGestures { change, _ ->
@@ -363,12 +430,14 @@ internal fun SatValSquare(
     }
 }
 
+/** The hue bar; TalkBack gets it as an adjustable control named Hue, read in degrees. */
 @Composable
 internal fun HueSlider(
     hue: Float,
     onHueChange: (Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val degrees = NumberFormat.getIntegerInstance(LocalConfiguration.current.locales[0])
     val hueStops = remember {
         listOf(
             Color(0xFFFF0000),
@@ -385,6 +454,14 @@ internal fun HueSlider(
             .fillMaxWidth()
             .height(28.dp)
             .clip(RoundedCornerShape(14.dp))
+            .adjustable(
+                name = stringResource(R.string.a11y_color_picker_hue),
+                state = degrees.format(hue.roundToInt()) + "°",
+                current = hue,
+                range = 0f..360f,
+                shape = RoundedCornerShape(14.dp),
+                onChange = onHueChange,
+            )
             .pointerInput(Unit) {
                 detectDragGestures { change, _ ->
                     val h = (change.position.x / size.width * 360f).coerceIn(0f, 360f)
@@ -416,6 +493,58 @@ internal fun HueSlider(
         )
     }
 }
+
+/**
+ * One of the picker's values as TalkBack and a keyboard take it: a focusable
+ * control called [name], read as [state], holding [current] in [range]. A
+ * swipe up or down moves it a twentieth of the range (Compose's step for a
+ * range with no steps of its own), TalkBack's set-progress sets it, and the
+ * left and right arrow keys step it as the swipes do. Up and down, and an
+ * arrow that would push past either end, are left to move the focus on, so
+ * a keyboard never gets stuck in a control. While it has the keyboard's
+ * focus a ring in [shape] shows which one the arrows move: the square's two
+ * share its drawing. Each value reaches [onChange] within [range].
+ */
+private fun Modifier.adjustable(
+    name: String,
+    state: String,
+    current: Float,
+    range: ClosedFloatingPointRange<Float>,
+    shape: Shape,
+    onChange: (Float) -> Unit,
+): Modifier = composed {
+    var focused by remember { mutableStateOf(false) }
+    val ring = MaterialTheme.colorScheme.primary
+    val step = (range.endInclusive - range.start) / ADJUSTABLE_STEPS
+    this
+        .then(if (focused) Modifier.border(2.dp, ring, shape) else Modifier)
+        .semantics {
+            contentDescription = name
+            stateDescription = state
+            progressBarRangeInfo = ProgressBarRangeInfo(current.coerceIn(range), range)
+            setProgress { target ->
+                onChange(target.coerceIn(range))
+                true
+            }
+        }
+        .onFocusChanged { focused = it.isFocused }
+        .onKeyEvent { event ->
+            if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
+            val delta = when (event.key) {
+                Key.DirectionRight -> step
+                Key.DirectionLeft -> -step
+                else -> return@onKeyEvent false
+            }
+            val next = (current + delta).coerceIn(range)
+            if (next == current) return@onKeyEvent false
+            onChange(next)
+            true
+        }
+        .focusable()
+}
+
+/** How many steps a swipe or an arrow key takes across a value's whole range, as Compose steps a range with none of its own. */
+private const val ADJUSTABLE_STEPS = 20
 
 /**
  * Whether the color picker offers the palette's dark variants: in dark mode,

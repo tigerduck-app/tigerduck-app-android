@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Ders çakışması</string>
     <string name="a11y_class_table_share_qr">Ders programı paylaşım QR Kodu</string>
     <string name="a11y_class_table_switch">Ders programını değiştir</string>
+    <string name="a11y_color_picker_brightness">Parlaklık</string>
+    <string name="a11y_color_picker_hue">Ton</string>
+    <string name="a11y_color_picker_saturation">Doygunluk</string>
     <string name="a11y_course_card_open_details_hint">Ayrıntılar için çift dokunun</string>
     <string name="a11y_course_color_swatch">Renk %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Moodle\'da aç</string>

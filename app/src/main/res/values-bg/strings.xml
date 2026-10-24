@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Конфликт на часове</string>
     <string name="a11y_class_table_share_qr">QR код за споделяне на разписанието</string>
     <string name="a11y_class_table_switch">Превключване на разписанието</string>
+    <string name="a11y_color_picker_brightness">Яркост</string>
+    <string name="a11y_color_picker_hue">Нюанс</string>
+    <string name="a11y_color_picker_saturation">Наситеност</string>
     <string name="a11y_course_card_open_details_hint">Докоснете двукратно за подробности</string>
     <string name="a11y_course_color_swatch">Цвят %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Отвори в Moodle</string>

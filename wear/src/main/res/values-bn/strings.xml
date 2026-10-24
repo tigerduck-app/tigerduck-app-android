@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">ক্লাস দ্বন্দ্ব</string>
     <string name="a11y_class_table_share_qr">ক্লাস তালিকা শেয়ার করার QR Code</string>
     <string name="a11y_class_table_switch">ক্লাস তালিকা পরিবর্তন করুন</string>
+    <string name="a11y_color_picker_brightness">উজ্জ্বলতা</string>
+    <string name="a11y_color_picker_hue">হিউ</string>
+    <string name="a11y_color_picker_saturation">স্যাচুরেশন</string>
     <string name="a11y_course_card_open_details_hint">বিস্তারিত দেখতে দুবার ট্যাপ করুন</string>
     <string name="a11y_course_color_swatch">রং %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Moodle-এ খুলুন</string>

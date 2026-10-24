@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">வகுப்பு மோதல்</string>
     <string name="a11y_class_table_share_qr">வகுப்பு அட்டவணைப் பகிர்வு QR Code</string>
     <string name="a11y_class_table_switch">வகுப்பு அட்டவணையை மாற்று</string>
+    <string name="a11y_color_picker_brightness">ஒளிர்வு</string>
+    <string name="a11y_color_picker_hue">சாயல்</string>
+    <string name="a11y_color_picker_saturation">செறிவு</string>
     <string name="a11y_course_card_open_details_hint">விவரங்களுக்கு இருமுறை தட்டவும்</string>
     <string name="a11y_course_color_swatch">நிறம் %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Moodle-ல் திறக்கவும்</string>

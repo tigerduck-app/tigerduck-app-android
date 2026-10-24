@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">수업 충돌</string>
     <string name="a11y_class_table_share_qr">시간표 공유 QR 코드</string>
     <string name="a11y_class_table_switch">시간표 전환</string>
+    <string name="a11y_color_picker_brightness">밝기</string>
+    <string name="a11y_color_picker_hue">색조</string>
+    <string name="a11y_color_picker_saturation">채도</string>
     <string name="a11y_course_card_open_details_hint">두 번 탭하여 세부 정보 보기</string>
     <string name="a11y_course_color_swatch">색상 %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Moodle에서 열기</string>

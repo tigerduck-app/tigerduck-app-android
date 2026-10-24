@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">క్లాస్ వైరుధ్యం</string>
     <string name="a11y_class_table_share_qr">తరగతి షెడ్యూల్ షేర్ చేసే QR Code</string>
     <string name="a11y_class_table_switch">తరగతి షెడ్యూల్ మార్చండి</string>
+    <string name="a11y_color_picker_brightness">ప్రకాశం</string>
+    <string name="a11y_color_picker_hue">వర్ణం</string>
+    <string name="a11y_color_picker_saturation">సంతృప్తత</string>
     <string name="a11y_course_card_open_details_hint">వివరాల కోసం రెండుసార్లు నొక్కండి</string>
     <string name="a11y_course_color_swatch">రంగు %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Moodle లో తెరవండి</string>

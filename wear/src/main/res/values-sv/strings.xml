@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Lektionskonflikt</string>
     <string name="a11y_class_table_share_qr">QR-kod för att dela schema</string>
     <string name="a11y_class_table_switch">Byt schema</string>
+    <string name="a11y_color_picker_brightness">Ljusstyrka</string>
+    <string name="a11y_color_picker_hue">Nyans</string>
+    <string name="a11y_color_picker_saturation">Mättnad</string>
     <string name="a11y_course_card_open_details_hint">Dubbeltryck för detaljer</string>
     <string name="a11y_course_color_swatch">Färg %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Öppna i Moodle</string>

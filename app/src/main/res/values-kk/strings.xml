@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Сабақ қақтығысы</string>
     <string name="a11y_class_table_share_qr">Сабақ кестесін бөлісу QR коды</string>
     <string name="a11y_class_table_switch">Сабақ кестесін ауыстыру</string>
+    <string name="a11y_color_picker_brightness">Жарықтық</string>
+    <string name="a11y_color_picker_hue">Реңк</string>
+    <string name="a11y_color_picker_saturation">Қанықтық</string>
     <string name="a11y_course_card_open_details_hint">Толығырақ ақпарат алу үшін екі рет түртіңіз</string>
     <string name="a11y_course_color_swatch">Түс %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Moodle-да ашу</string>

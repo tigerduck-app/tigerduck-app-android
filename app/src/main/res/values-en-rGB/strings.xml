@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Class conflict</string>
     <string name="a11y_class_table_share_qr">Class table share QR code</string>
     <string name="a11y_class_table_switch">Switch class table</string>
+    <string name="a11y_color_picker_brightness">Brightness</string>
+    <string name="a11y_color_picker_hue">Hue</string>
+    <string name="a11y_color_picker_saturation">Saturation</string>
     <string name="a11y_course_card_open_details_hint">Double tap for details</string>
     <string name="a11y_course_color_swatch">Colour %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Open in Moodle</string>

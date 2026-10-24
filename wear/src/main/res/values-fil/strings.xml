@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Salungatan ng klase</string>
     <string name="a11y_class_table_share_qr">QR Code para i-share ang iskedyul ng klase</string>
     <string name="a11y_class_table_switch">Lumipat ng iskedyul ng klase</string>
+    <string name="a11y_color_picker_brightness">Liwanag</string>
+    <string name="a11y_color_picker_hue">Kulay</string>
+    <string name="a11y_color_picker_saturation">Saturasyon</string>
     <string name="a11y_course_card_open_details_hint">I-double tap para sa mga detalye</string>
     <string name="a11y_course_color_swatch">Kulay %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Buksan sa Moodle</string>

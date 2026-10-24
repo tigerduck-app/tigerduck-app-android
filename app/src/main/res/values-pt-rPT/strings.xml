@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Conflito de aula</string>
     <string name="a11y_class_table_share_qr">QR Code de partilha do horário</string>
     <string name="a11y_class_table_switch">Mudar de horário</string>
+    <string name="a11y_color_picker_brightness">Brilho</string>
+    <string name="a11y_color_picker_hue">Matiz</string>
+    <string name="a11y_color_picker_saturation">Saturação</string>
     <string name="a11y_course_card_open_details_hint">Toque duas vezes para ver detalhes</string>
     <string name="a11y_course_color_swatch">Cor %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Abrir no Moodle</string>

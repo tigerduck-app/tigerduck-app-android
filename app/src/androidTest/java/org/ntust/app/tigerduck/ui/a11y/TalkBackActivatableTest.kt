@@ -2,12 +2,17 @@ package org.ntust.app.tigerduck.ui.a11y
 
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -17,6 +22,8 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.component.HueSlider
+import org.ntust.app.tigerduck.ui.component.SatValSquare
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarGrid
 import org.ntust.app.tigerduck.ui.screen.calendar.dayCellDescription
 import org.ntust.app.tigerduck.ui.screen.classtable.SoloCourseCell
@@ -139,5 +146,45 @@ class TalkBackActivatableTest {
         assertTrue("the chosen swatch is not focusable to TalkBack", info.isFocusable)
         @Suppress("DEPRECATION")
         assertTrue("the chosen swatch does not read as checked", info.isChecked)
+    }
+
+    @Test
+    fun theColorPickersSquareAndHueBarCanBeAdjusted() {
+        var hue by mutableFloatStateOf(120f)
+        var sat by mutableFloatStateOf(0.5f)
+        var value by mutableFloatStateOf(0.5f)
+        rule.setContent {
+            Column {
+                SatValSquare(hue = hue, sat = sat, value = value, onSatValChange = { s, v -> sat = s; value = v })
+                HueSlider(hue = hue, onHueChange = { hue = it })
+            }
+        }
+
+        for (id in listOf(
+            R.string.a11y_color_picker_saturation,
+            R.string.a11y_color_picker_brightness,
+            R.string.a11y_color_picker_hue,
+        )) {
+            val label = context.getString(id)
+            val info = node(label)
+            assertTrue("\"$label\" is not focusable to TalkBack", info.isFocusable)
+            assertNotNull("\"$label\" has no range for TalkBack to read", info.rangeInfo)
+            assertTrue(
+                "\"$label\" cannot be swiped up to adjust",
+                AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD in info.actionList,
+            )
+            assertTrue(
+                "\"$label\" cannot be set by TalkBack",
+                AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS in info.actionList,
+            )
+        }
+
+        // A swipe up, as TalkBack sends it, moves each value a twentieth of its range.
+        assertTrue(node(context.getString(R.string.a11y_color_picker_hue)).performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD))
+        assertTrue(node(context.getString(R.string.a11y_color_picker_brightness)).performAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD))
+        rule.waitForIdle()
+        assertEquals(138f, hue, 0.01f)
+        assertEquals(0.45f, value, 0.001f)
+        assertEquals(0.5f, sat, 0.001f)
     }
 }

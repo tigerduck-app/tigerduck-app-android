@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">تعارض کلاس</string>
     <string name="a11y_class_table_share_qr">کد QR اشتراک‌گذاری برنامه کلاس‌ها</string>
     <string name="a11y_class_table_switch">تغییر برنامه کلاس‌ها</string>
+    <string name="a11y_color_picker_brightness">روشنایی</string>
+    <string name="a11y_color_picker_hue">فام</string>
+    <string name="a11y_color_picker_saturation">اشباع</string>
     <string name="a11y_course_card_open_details_hint">دو بار ضربه بزنید برای جزئیات</string>
     <string name="a11y_course_color_swatch">رنگ %1$lld</string>
     <string name="a11y_course_detail_open_moodle">باز کردن در Moodle</string>

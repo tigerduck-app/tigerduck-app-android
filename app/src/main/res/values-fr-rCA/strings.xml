@@ -10,6 +10,9 @@
     <string name="a11y_class_table_conflict_prefix">Conflit de cours</string>
     <string name="a11y_class_table_share_qr">QR Code de partage de l\'emploi du temps</string>
     <string name="a11y_class_table_switch">Changer d\'emploi du temps</string>
+    <string name="a11y_color_picker_brightness">Luminosité</string>
+    <string name="a11y_color_picker_hue">Teinte</string>
+    <string name="a11y_color_picker_saturation">Saturation</string>
     <string name="a11y_course_card_open_details_hint">Touchez deux fois pour les détails</string>
     <string name="a11y_course_color_swatch">Couleur %1$lld</string>
     <string name="a11y_course_detail_open_moodle">Ouvrir dans Moodle</string>
