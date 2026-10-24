@@ -19,6 +19,10 @@ on:
         description: Run every leg on GitHub's runners, not the build box
         type: boolean
         default: false
+      sha:
+        description: The commit to test, such as the pull request's merge commit; the branch head when empty
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -99,7 +103,9 @@ jobs:
             if [ "${online:-0}" -gt 0 ]; then offline=0; else offline=$((offline + 1)); fi
             if [ "$offline" -ge 2 ]; then
               echo "::warning::The build box went offline under this run; running the checks again on GitHub's runners."
-              gh workflow run ci.yaml --ref "$BRANCH" -f hosted=true
+              # The very commit this run tests: a pull request's run tests GitHub's merge
+              # commit, not the branch head, and a push meanwhile must not change it.
+              gh workflow run ci.yaml --ref "$BRANCH" -f hosted=true -f sha="$GITHUB_SHA"
               gh run cancel "$GITHUB_RUN_ID"
               exit 0
             fi
@@ -160,6 +166,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          # The commit a dispatch names (box-watchdog's), else the event's own.
+          ref: ${{ inputs.sha }}
           # name-abbr is required by verifyNameAbbrSubmodule; app-translation is
           # required by the generated-resources contract. Do not drop this.
           submodules: true
@@ -205,6 +213,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ inputs.sha }}
 
       - name: Test tools/play
         run: python3 -m unittest discover -s tools/play -v
