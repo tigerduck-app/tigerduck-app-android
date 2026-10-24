@@ -11,6 +11,14 @@ name: CI
 on:
   pull_request:
     branches: [ dev, main ]
+  # The same checks again on GitHub's runners, which box-watchdog starts when
+  # the build box goes offline under a run.
+  workflow_dispatch:
+    inputs:
+      hosted:
+        description: Run every leg on GitHub's runners, not the build box
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -38,11 +46,13 @@ jobs:
       - id: pick
         env:
           GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
-          FROM_THIS_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          # A dispatch can come only from someone who can write to the repository.
+          FROM_THIS_REPO: ${{ github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository }}
+          HOSTED: ${{ inputs.hosted == true }}
         run: |
           runner='"ubuntu-latest"'
           own=false
-          if [ "$FROM_THIS_REPO" = "true" ] && [ -n "$GH_TOKEN" ]; then
+          if [ "$FROM_THIS_REPO" = "true" ] && [ "$HOSTED" != "true" ] && [ -n "$GH_TOKEN" ]; then
             # Any failure to ask counts as offline: the gate must not wait on the box.
             online=$(gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
               --jq '[.runners[] | select(.status == "online" and (.labels | map(.name) | index("sam-runner-1")))] | length' \
@@ -55,6 +65,46 @@ jobs:
           echo "runner=$runner" >> "$GITHUB_OUTPUT"
           echo "own=$own" >> "$GITHUB_OUTPUT"
           echo "build-and-test runs on: $runner" >> "$GITHUB_STEP_SUMMARY"
+
+  box-watchdog:
+    # Legs sent to the box wait for it however long it is gone: a reboot or a
+    # lost connection after pick-runner saw it online would hold the gate until
+    # GitHub drops the queued jobs a day later. While any leg is unfinished,
+    # this checks the box every 30 seconds. Once it has been offline for two
+    # checks in a row, it starts the same checks on GitHub's runners (a
+    # dispatch with hosted) and cancels this run. The new run's checks are on
+    # the same commit, so they stand in for these.
+    name: box-watchdog
+    needs: pick-runner
+    if: needs.pick-runner.outputs.own == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          offline=0
+          while true; do
+            left=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+              --jq '[.jobs[] | select((.name | startswith("build-and-test")) and .status != "completed")] | length') || left=1
+            if [ "$left" -eq 0 ]; then exit 0; fi
+            online=$(GH_TOKEN="$STATUS_TOKEN" gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
+              --jq '[.runners[] | select(.status == "online" and (.labels | map(.name) | index("sam-runner-1")))] | length' \
+              2>/dev/null) || online=0
+            if [ "${online:-0}" -gt 0 ]; then offline=0; else offline=$((offline + 1)); fi
+            if [ "$offline" -ge 2 ]; then
+              echo "::warning::The build box went offline under this run; running the checks again on GitHub's runners."
+              gh workflow run ci.yaml --ref "$BRANCH" -f hosted=true
+              gh run cancel "$GITHUB_RUN_ID"
+              exit 0
+            fi
+            sleep 30
+          done
 
   build-and-test:
     # One runner per leg. The three used to run back to back in a single job
