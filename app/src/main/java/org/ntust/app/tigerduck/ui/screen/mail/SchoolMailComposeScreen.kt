@@ -4,6 +4,7 @@ import android.net.Uri
 import android.text.format.Formatter
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,6 +36,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -46,6 +51,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.AccessibilityManager
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -53,6 +60,7 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
@@ -66,6 +74,16 @@ import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.Compose
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.RecipientSlot
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.util.replaceIosArg
+
+/**
+ * How long a confirmed send is held for Undo: [SchoolMailComposeViewModel.SEND_HOLD_MS], or as
+ * long as the accessibility settings give an action ("Time to take action"), so a screen reader
+ * user has the time to reach Undo on the bar.
+ */
+internal fun sendHoldMillis(accessibility: AccessibilityManager?): Long =
+    accessibility?.calculateRecommendedTimeoutMillis(
+        SchoolMailComposeViewModel.SEND_HOLD_MS, containsIcons = false, containsText = true, containsControls = true,
+    ) ?: SchoolMailComposeViewModel.SEND_HOLD_MS
 
 /** Spec §6.4 — SubscriptionRuleEditorScreen's full-screen editor with Send in the top bar. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,6 +128,33 @@ fun SchoolMailComposeScreen(
     // the app once they later send or discard.
     LaunchedEffect(state.error) { if (state.error != null) heldMove.drop() }
 
+    // A confirmed send is held a few seconds with Undo on a bar, which goes when the hold ends,
+    // either way (tigerduck-app#555).
+    val snackbar = remember { SnackbarHostState() }
+    val sendingHold = stringResource(R.string.school_mail_sending_hold)
+    val undoSend = stringResource(R.string.school_mail_undo_send)
+    val sendUndone = stringResource(R.string.school_mail_send_undone)
+    val accessibility = LocalAccessibilityManager.current
+    LaunchedEffect(state.holding) {
+        if (!state.holding) return@LaunchedEffect
+        // In place of what an earlier Undo said, at once rather than after it.
+        snackbar.currentSnackbarData?.dismiss()
+        val answer = snackbar.showSnackbar(sendingHold, actionLabel = undoSend, duration = SnackbarDuration.Indefinite)
+        if (answer == SnackbarResult.ActionPerformed) viewModel.undoSend()
+    }
+    LaunchedEffect(state.undone) {
+        if (!state.undone) return@LaunchedEffect
+        snackbar.showSnackbar(sendUndone)
+        viewModel.acknowledgeUndone()
+    }
+    // Undo is out of reach once the screen leaves the foreground, for another app, the recent apps
+    // or the screen turning off, and the app may be closed from there: the held mail goes at once.
+    // Not for a dark-mode or font-size change, which rebuilds the activity with the screen still on it.
+    val activity = LocalActivity.current
+    LifecycleStartEffect(viewModel) {
+        onStopOrDispose { if (activity?.isChangingConfigurations != true) viewModel.sendHeldNow() }
+    }
+
     // While sending, back (and the nav-up icon, which shares this) does nothing: popping the
     // screen mid-send would clear the ViewModel and cancel the send, the original would never be
     // marked answered, a sent draft would never be discarded, and a failure would have nowhere to
@@ -139,6 +184,7 @@ fun SchoolMailComposeScreen(
     val fieldsEnabled = !state.sending && !state.loading
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 windowInsets = NoTopBarInsets,
@@ -267,7 +313,7 @@ fun SchoolMailComposeScreen(
             onDismissRequest = { showSendConfirm = false },
             title = stringResource(R.string.school_mail_send_confirm_title),
             confirmText = stringResource(R.string.school_mail_send),
-            onConfirm = { showSendConfirm = false; heldMove.drop(); viewModel.send() },
+            onConfirm = { showSendConfirm = false; heldMove.drop(); viewModel.send(sendHoldMillis(accessibility)) },
             dismissText = stringResource(R.string.school_mail_keep_editing),
             onDismiss = { showSendConfirm = false },
         )

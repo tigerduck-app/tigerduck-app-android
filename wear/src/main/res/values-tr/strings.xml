@@ -351,6 +351,7 @@
     <string name="course_member_email">E-posta</string>
     <string name="course_member_groups">Gruplar</string>
     <string name="course_member_me">Ben</string>
+    <string name="course_member_picture_unreadable">Bu fotoğraf açılamadı. Başka bir fotoğraf seçin.</string>
     <string name="course_member_profile_picture">Profil fotoğrafı</string>
     <string name="course_members_auditors">Dinleyiciler</string>
     <string name="course_members_students">Öğrenciler</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Bu posta gönderilsin mi?</string>
     <string name="school_mail_send_failed">Posta gönderilemedi</string>
     <string name="school_mail_send_unconfirmed">Postanın gönderilip gönderilmediği doğrulanamadı; yeniden denemek iki kez teslim edilmesine yol açabilir</string>
+    <string name="school_mail_send_undone">Gönderme iptal edildi. Posta düzenleyiciye geri döndü.</string>
+    <string name="school_mail_sending_hold">Gönderiliyor…</string>
     <string name="school_mail_sent_copy_failed">Posta gönderildi, ancak kopyası Gönderilmişe kaydedilemedi.</string>
     <string name="school_mail_sent_copy_no_folder">Posta gönderildi, ancak kopyayı saklayacak bir Gönderilmiş klasörü yok.</string>
     <string name="school_mail_sent_copy_not_saved">Posta gönderildi, ancak kopyası Gönderilmişe kaydedilmedi</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Konu</string>
     <string name="school_mail_to">Kime</string>
     <string name="school_mail_too_large">Ekler 50 MB sınırını aşıyor</string>
+    <string name="school_mail_undo_send">Geri al</string>
     <string name="school_mail_unread_only">Yalnızca okunmamışları göster</string>
     <string name="school_mail_use_other_app">Başka bir uygulama kullan</string>
     <string name="school_mail_view_formatted">Biçimli</string>

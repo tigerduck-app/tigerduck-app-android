@@ -351,6 +351,7 @@
     <string name="course_member_email">ایمیل</string>
     <string name="course_member_groups">گروه‌ها</string>
     <string name="course_member_me">من</string>
+    <string name="course_member_picture_unreadable">این عکس باز نشد. عکس دیگری انتخاب کنید.</string>
     <string name="course_member_profile_picture">تصویر نمایه</string>
     <string name="course_members_auditors">مستمعان آزاد</string>
     <string name="course_members_students">دانشجویان</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">این ایمیل ارسال شود؟</string>
     <string name="school_mail_send_failed">ارسال ایمیل ممکن نشد</string>
     <string name="school_mail_send_unconfirmed">ارسال ایمیل تأیید نشد؛ تلاش دوباره ممکن است آن را دو بار برساند</string>
+    <string name="school_mail_send_undone">ارسال لغو شد. ایمیل به ویرایشگر برگشت.</string>
+    <string name="school_mail_sending_hold">در حال ارسال…</string>
     <string name="school_mail_sent_copy_failed">ایمیل ارسال شد، ولی ذخیرهٔ کپی در ارسال‌شده ممکن نشد.</string>
     <string name="school_mail_sent_copy_no_folder">ایمیل ارسال شد، ولی پوشه ارسال‌شده‌ای برای نگه‌داشتن کپی وجود ندارد.</string>
     <string name="school_mail_sent_copy_not_saved">ایمیل ارسال شد، ولی کپی آن در ارسال‌شده ذخیره نشد</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">موضوع</string>
     <string name="school_mail_to">گیرنده</string>
     <string name="school_mail_too_large">پیوست‌ها از محدودیت 50 مگابایت بیشتر است</string>
+    <string name="school_mail_undo_send">واگرد</string>
     <string name="school_mail_unread_only">فقط خوانده‌نشده‌ها را نشان بده</string>
     <string name="school_mail_use_other_app">استفاده از برنامه‌ای دیگر</string>
     <string name="school_mail_view_formatted">قالب‌بندی‌شده</string>

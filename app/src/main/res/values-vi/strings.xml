@@ -351,6 +351,7 @@
     <string name="course_member_email">Email</string>
     <string name="course_member_groups">Nhóm</string>
     <string name="course_member_me">Tôi</string>
+    <string name="course_member_picture_unreadable">Không thể mở ảnh này. Vui lòng chọn ảnh khác.</string>
     <string name="course_member_profile_picture">Ảnh hồ sơ</string>
     <string name="course_members_auditors">Sinh viên dự thính</string>
     <string name="course_members_students">Sinh viên</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Gửi thư này?</string>
     <string name="school_mail_send_failed">Không thể gửi thư</string>
     <string name="school_mail_send_unconfirmed">Không thể xác nhận thư đã được gửi hay chưa; thử lại có thể khiến người nhận nhận được hai lần</string>
+    <string name="school_mail_send_undone">Đã hủy gửi. Thư đã quay lại trình soạn thảo.</string>
+    <string name="school_mail_sending_hold">Đang gửi…</string>
     <string name="school_mail_sent_copy_failed">Thư đã được gửi, nhưng không thể lưu bản sao vào Đã gửi.</string>
     <string name="school_mail_sent_copy_no_folder">Thư đã được gửi, nhưng không có thư mục Đã gửi để lưu bản sao.</string>
     <string name="school_mail_sent_copy_not_saved">Đã gửi thư, nhưng bản sao chưa được lưu vào Đã gửi</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Chủ đề</string>
     <string name="school_mail_to">Đến</string>
     <string name="school_mail_too_large">Tệp đính kèm vượt quá giới hạn 50 MB</string>
+    <string name="school_mail_undo_send">Hoàn tác</string>
     <string name="school_mail_unread_only">Chỉ hiện thư chưa đọc</string>
     <string name="school_mail_use_other_app">Dùng ứng dụng khác</string>
     <string name="school_mail_view_formatted">Có định dạng</string>

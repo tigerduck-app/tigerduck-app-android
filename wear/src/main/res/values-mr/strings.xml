@@ -351,6 +351,7 @@
     <string name="course_member_email">ईमेल</string>
     <string name="course_member_groups">गट</string>
     <string name="course_member_me">मी</string>
+    <string name="course_member_picture_unreadable">हा फोटो उघडता आला नाही. दुसरा फोटो निवडा.</string>
     <string name="course_member_profile_picture">प्रोफाइल फोटो</string>
     <string name="course_members_auditors">ऑडिटर</string>
     <string name="course_members_students">विद्यार्थी</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">हा मेल पाठवायचा?</string>
     <string name="school_mail_send_failed">मेल पाठवता आला नाही</string>
     <string name="school_mail_send_unconfirmed">मेल पाठवला गेला की नाही याची खात्री करता आली नाही; पुन्हा प्रयत्न केल्यास तो दोनदा पोहोचू शकतो</string>
+    <string name="school_mail_send_undone">पाठवणे रद्द केले. मेल पुन्हा एडिटरमध्ये आला आहे.</string>
+    <string name="school_mail_sending_hold">पाठवत आहे…</string>
     <string name="school_mail_sent_copy_failed">मेल पाठवला गेला, पण कॉपी पाठवलेले मध्ये जतन करता आली नाही.</string>
     <string name="school_mail_sent_copy_no_folder">मेल पाठवला गेला, पण कॉपी ठेवण्यासाठी पाठवलेले फोल्डर नाही.</string>
     <string name="school_mail_sent_copy_not_saved">मेल पाठवला गेला, पण त्याची कॉपी पाठवलेले मध्ये जतन झाली नाही</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">विषय</string>
     <string name="school_mail_to">प्रति</string>
     <string name="school_mail_too_large">अटॅचमेंट 50 MB च्या मर्यादेपेक्षा जास्त आहेत</string>
+    <string name="school_mail_undo_send">पूर्ववत करा</string>
     <string name="school_mail_unread_only">फक्त न वाचलेले दाखवा</string>
     <string name="school_mail_use_other_app">दुसरे ॲप वापरा</string>
     <string name="school_mail_view_formatted">फॉरमॅट केलेले</string>

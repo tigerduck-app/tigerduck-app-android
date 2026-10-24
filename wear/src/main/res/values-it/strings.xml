@@ -351,6 +351,7 @@
     <string name="course_member_email">Email</string>
     <string name="course_member_groups">Gruppi</string>
     <string name="course_member_me">Io</string>
+    <string name="course_member_picture_unreadable">Impossibile aprire questa foto. Scegline un\'altra.</string>
     <string name="course_member_profile_picture">Foto profilo</string>
     <string name="course_members_auditors">Uditori</string>
     <string name="course_members_students">Studenti</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Inviare questo messaggio?</string>
     <string name="school_mail_send_failed">Impossibile inviare il messaggio</string>
     <string name="school_mail_send_unconfirmed">Impossibile confermare l\'invio del messaggio; riprovare potrebbe inviarlo due volte</string>
+    <string name="school_mail_send_undone">Invio annullato. Il messaggio è di nuovo nell\'editor.</string>
+    <string name="school_mail_sending_hold">Invio in corso…</string>
     <string name="school_mail_sent_copy_failed">Il messaggio è stato inviato, ma non è stato possibile salvare la copia in Posta inviata.</string>
     <string name="school_mail_sent_copy_no_folder">Il messaggio è stato inviato, ma non esiste una cartella Posta inviata in cui conservare una copia.</string>
     <string name="school_mail_sent_copy_not_saved">Messaggio inviato, ma la copia non è stata salvata in Posta inviata</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Oggetto</string>
     <string name="school_mail_to">A</string>
     <string name="school_mail_too_large">Gli allegati superano il limite di 50 MB</string>
+    <string name="school_mail_undo_send">Annulla</string>
     <string name="school_mail_unread_only">Mostra solo da leggere</string>
     <string name="school_mail_use_other_app">Usa un\'altra app</string>
     <string name="school_mail_view_formatted">Formattato</string>

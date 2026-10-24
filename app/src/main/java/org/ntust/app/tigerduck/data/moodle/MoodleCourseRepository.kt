@@ -156,6 +156,7 @@ class MoodleCourseRepository internal constructor(
             downloads = downloads,
             filesDir = filesDir,
             decodePicture = decode,
+            onOwnPictureChanged = { ownPictureChanged(account, courseId) },
             assignmentRecords = assignmentsLocked(account, api).records.map { it.orEmpty() },
         ).also { stores[account to courseId] = it }
     }
@@ -206,6 +207,16 @@ class MoodleCourseRepository internal constructor(
      * downloaded files once the downloads have wound down, so none of the account's is left to
      * the next; the cache wipe deletes the rest.
      */
+    /** The account's picture changed in course [courseId]: its other courses' members show the old one. */
+    private fun ownPictureChanged(account: String, courseId: Int) {
+        scope.launch {
+            lock.withLock {
+                stores.filterKeys { (owner, course) -> owner == account && course != courseId }
+                    .values.forEach { it.members.expire() }
+            }
+        }
+    }
+
     private suspend fun clear() = lock.withLock {
         generation++
         downloads?.clear()

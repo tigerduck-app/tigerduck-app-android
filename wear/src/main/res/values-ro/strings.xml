@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Grupuri</string>
     <string name="course_member_me">Eu</string>
+    <string name="course_member_picture_unreadable">Fotografia nu a putut fi deschisă. Alege alta.</string>
     <string name="course_member_profile_picture">Fotografie de profil</string>
     <string name="course_members_auditors">Auditori</string>
     <string name="course_members_students">Studenți</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Trimiți acest e-mail?</string>
     <string name="school_mail_send_failed">E-mailul nu a putut fi trimis</string>
     <string name="school_mail_send_unconfirmed">Nu s-a putut confirma dacă e-mailul a fost trimis; o nouă încercare l-ar putea livra de două ori</string>
+    <string name="school_mail_send_undone">Trimiterea a fost anulată. E-mailul a revenit în editor.</string>
+    <string name="school_mail_sending_hold">Se trimite…</string>
     <string name="school_mail_sent_copy_failed">E-mailul a fost trimis, dar copia nu a putut fi salvată în Trimise.</string>
     <string name="school_mail_sent_copy_no_folder">E-mailul a fost trimis, dar nu există un folder Trimise în care să se păstreze o copie.</string>
     <string name="school_mail_sent_copy_not_saved">E-mail trimis, dar copia nu a fost salvată în Trimise</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Subiect</string>
     <string name="school_mail_to">Către</string>
     <string name="school_mail_too_large">Atașamentele depășesc limita de 50 MB</string>
+    <string name="school_mail_undo_send">Anulează</string>
     <string name="school_mail_unread_only">Afișează doar cele necitite</string>
     <string name="school_mail_use_other_app">Folosește altă aplicație</string>
     <string name="school_mail_view_formatted">Formatat</string>

@@ -351,6 +351,7 @@
     <string name="course_member_email">E-post</string>
     <string name="course_member_groups">Grupper</string>
     <string name="course_member_me">Meg</string>
+    <string name="course_member_picture_unreadable">Kunne ikke åpne dette bildet. Velg et annet.</string>
     <string name="course_member_profile_picture">Profilbilde</string>
     <string name="course_members_auditors">Hospitanter</string>
     <string name="course_members_students">Studenter</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Sende denne e-posten?</string>
     <string name="school_mail_send_failed">Kunne ikke sende e-posten</string>
     <string name="school_mail_send_unconfirmed">Kunne ikke bekrefte om e-posten ble sendt; et nytt forsøk kan levere den to ganger</string>
+    <string name="school_mail_send_undone">Sendingen ble avbrutt. E-posten er tilbake i redigeringsvinduet.</string>
+    <string name="school_mail_sending_hold">Sender…</string>
     <string name="school_mail_sent_copy_failed">E-posten ble sendt, men kopien kunne ikke lagres i Sendt.</string>
     <string name="school_mail_sent_copy_no_folder">E-posten ble sendt, men det finnes ingen Sendt-mappe å lagre en kopi i.</string>
     <string name="school_mail_sent_copy_not_saved">E-post sendt, men en kopi ble ikke lagret i Sendt</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Emne</string>
     <string name="school_mail_to">Til</string>
     <string name="school_mail_too_large">Vedlegg overskrider grensen på 50 MB</string>
+    <string name="school_mail_undo_send">Angre</string>
     <string name="school_mail_unread_only">Vis bare uleste</string>
     <string name="school_mail_use_other_app">Bruk en annen app</string>
     <string name="school_mail_view_formatted">Formatert</string>

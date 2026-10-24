@@ -351,6 +351,7 @@
     <string name="course_member_email">ইমেল</string>
     <string name="course_member_groups">গ্রুপ</string>
     <string name="course_member_me">আমি</string>
+    <string name="course_member_picture_unreadable">এই ফটোটি খোলা যায়নি। অন্য একটি ফটো বেছে নিন।</string>
     <string name="course_member_profile_picture">প্রোফাইল ছবি</string>
     <string name="course_members_auditors">অডিটর</string>
     <string name="course_members_students">শিক্ষার্থী</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">এই মেইলটি পাঠাবেন?</string>
     <string name="school_mail_send_failed">মেইল পাঠানো যায়নি</string>
     <string name="school_mail_send_unconfirmed">মেইল পাঠানো হয়েছে কি না নিশ্চিত করা যায়নি; আবার চেষ্টা করলে এটি দুবার পৌঁছাতে পারে</string>
+    <string name="school_mail_send_undone">পাঠানো বাতিল করা হয়েছে। মেইলটি আবার এডিটরে ফিরে এসেছে।</string>
+    <string name="school_mail_sending_hold">পাঠানো হচ্ছে…</string>
     <string name="school_mail_sent_copy_failed">মেইল পাঠানো হয়েছে, কিন্তু কপিটি প্রেরিতে সংরক্ষণ করা যায়নি।</string>
     <string name="school_mail_sent_copy_no_folder">মেইল পাঠানো হয়েছে, কিন্তু কপি রাখার জন্য কোনো প্রেরিত ফোল্ডার নেই।</string>
     <string name="school_mail_sent_copy_not_saved">মেইল পাঠানো হয়েছে, কিন্তু এর কপি প্রেরিতে সংরক্ষিত হয়নি</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">বিষয়</string>
     <string name="school_mail_to">প্রতি</string>
     <string name="school_mail_too_large">অ্যাটাচমেন্ট 50 MB সীমার বেশি</string>
+    <string name="school_mail_undo_send">পূর্বাবস্থায় ফেরান</string>
     <string name="school_mail_unread_only">শুধু অপঠিত দেখান</string>
     <string name="school_mail_use_other_app">অন্য অ্যাপ ব্যবহার করুন</string>
     <string name="school_mail_view_formatted">ফরম্যাট করা</string>

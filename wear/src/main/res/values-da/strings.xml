@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Grupper</string>
     <string name="course_member_me">Mig</string>
+    <string name="course_member_picture_unreadable">Dette foto kunne ikke åbnes. Vælg et andet.</string>
     <string name="course_member_profile_picture">Profilbillede</string>
     <string name="course_members_auditors">Tilhørere</string>
     <string name="course_members_students">Studerende</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Send denne mail?</string>
     <string name="school_mail_send_failed">Mailen kunne ikke sendes</string>
     <string name="school_mail_send_unconfirmed">Det kunne ikke bekræftes, om mailen blev sendt; et nyt forsøg kan sende den to gange</string>
+    <string name="school_mail_send_undone">Afsendelsen er annulleret. Mailen er tilbage i editoren.</string>
+    <string name="school_mail_sending_hold">Sender…</string>
     <string name="school_mail_sent_copy_failed">Mailen blev sendt, men kopien kunne ikke gemmes i Sendt.</string>
     <string name="school_mail_sent_copy_no_folder">Mailen blev sendt, men der er ingen Sendt-mappe at gemme en kopi i.</string>
     <string name="school_mail_sent_copy_not_saved">Mail sendt, men der blev ikke gemt en kopi i Sendt</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Emne</string>
     <string name="school_mail_to">Til</string>
     <string name="school_mail_too_large">Vedhæftninger overskrider grænsen på 50 MB</string>
+    <string name="school_mail_undo_send">Fortryd</string>
     <string name="school_mail_unread_only">Vis kun ulæste</string>
     <string name="school_mail_use_other_app">Brug en anden app</string>
     <string name="school_mail_view_formatted">Formateret</string>

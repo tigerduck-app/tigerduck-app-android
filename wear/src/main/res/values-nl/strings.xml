@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Groepen</string>
     <string name="course_member_me">Ik</string>
+    <string name="course_member_picture_unreadable">Deze foto kon niet worden geopend. Kies een andere.</string>
     <string name="course_member_profile_picture">Profielfoto</string>
     <string name="course_members_auditors">Toehoorders</string>
     <string name="course_members_students">Studenten</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Deze mail verzenden?</string>
     <string name="school_mail_send_failed">Mail kon niet worden verzonden</string>
     <string name="school_mail_send_unconfirmed">Kon niet bevestigen dat de mail is verzonden; opnieuw proberen kan hem twee keer bezorgen</string>
+    <string name="school_mail_send_undone">Verzenden geannuleerd. De mail staat weer in de editor.</string>
+    <string name="school_mail_sending_hold">Verzenden…</string>
     <string name="school_mail_sent_copy_failed">De mail is verzonden, maar de kopie kon niet worden opgeslagen in Verzonden.</string>
     <string name="school_mail_sent_copy_no_folder">De mail is verzonden, maar er is geen map Verzonden om een kopie in te bewaren.</string>
     <string name="school_mail_sent_copy_not_saved">Mail verzonden, maar er is geen kopie opgeslagen in Verzonden</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Onderwerp</string>
     <string name="school_mail_to">Aan</string>
     <string name="school_mail_too_large">Bijlagen overschrijden de limiet van 50 MB</string>
+    <string name="school_mail_undo_send">Ongedaan maken</string>
     <string name="school_mail_unread_only">Alleen ongelezen tonen</string>
     <string name="school_mail_use_other_app">Andere app gebruiken</string>
     <string name="school_mail_view_formatted">Opgemaakt</string>

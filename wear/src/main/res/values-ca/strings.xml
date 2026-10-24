@@ -351,6 +351,7 @@
     <string name="course_member_email">Correu electrònic</string>
     <string name="course_member_groups">Grups</string>
     <string name="course_member_me">Jo</string>
+    <string name="course_member_picture_unreadable">No s\'ha pogut obrir aquesta foto. Tria\'n una altra.</string>
     <string name="course_member_profile_picture">Foto de perfil</string>
     <string name="course_members_auditors">Oients</string>
     <string name="course_members_students">Estudiants</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Vols enviar aquest correu?</string>
     <string name="school_mail_send_failed">No s\'ha pogut enviar el correu</string>
     <string name="school_mail_send_unconfirmed">No s\'ha pogut confirmar si el correu s\'ha enviat; tornar-ho a provar el podria enviar dues vegades</string>
+    <string name="school_mail_send_undone">S\'ha cancel·lat l\'enviament. El correu ha tornat a l\'editor.</string>
+    <string name="school_mail_sending_hold">Enviant…</string>
     <string name="school_mail_sent_copy_failed">El correu s\'ha enviat, però no s\'ha pogut desar la còpia a Enviats.</string>
     <string name="school_mail_sent_copy_no_folder">El correu s\'ha enviat, però no hi ha cap carpeta Enviats on desar-hi una còpia.</string>
     <string name="school_mail_sent_copy_not_saved">Correu enviat, però no s\'ha desat cap còpia a Enviats</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Assumpte</string>
     <string name="school_mail_to">Per a</string>
     <string name="school_mail_too_large">Els fitxers adjunts superen el límit de 50 MB</string>
+    <string name="school_mail_undo_send">Desfés</string>
     <string name="school_mail_unread_only">Mostra només els no llegits</string>
     <string name="school_mail_use_other_app">Fes servir una altra app</string>
     <string name="school_mail_view_formatted">Amb format</string>

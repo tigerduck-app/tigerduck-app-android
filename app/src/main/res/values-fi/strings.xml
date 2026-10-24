@@ -351,6 +351,7 @@
     <string name="course_member_email">Sähköposti</string>
     <string name="course_member_groups">Ryhmät</string>
     <string name="course_member_me">Minä</string>
+    <string name="course_member_picture_unreadable">Tätä kuvaa ei voitu avata. Valitse toinen.</string>
     <string name="course_member_profile_picture">Profiilikuva</string>
     <string name="course_members_auditors">Kuuntelijat</string>
     <string name="course_members_students">Opiskelijat</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Lähetetäänkö tämä viesti?</string>
     <string name="school_mail_send_failed">Viestiä ei voitu lähettää</string>
     <string name="school_mail_send_unconfirmed">Viestin lähettämistä ei voitu vahvistaa; uusi yritys voi toimittaa sen kahdesti</string>
+    <string name="school_mail_send_undone">Lähetys peruttiin. Viesti palasi muokkausnäkymään.</string>
+    <string name="school_mail_sending_hold">Lähetetään…</string>
     <string name="school_mail_sent_copy_failed">Viesti lähetettiin, mutta kopiota ei voitu tallentaa Lähetetyt-kansioon.</string>
     <string name="school_mail_sent_copy_no_folder">Viesti lähetettiin, mutta Lähetetyt-kansiota ei ole, johon kopion voisi tallentaa.</string>
     <string name="school_mail_sent_copy_not_saved">Viesti lähetetty, mutta kopiota ei tallennettu Lähetetyt-kansioon</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Aihe</string>
     <string name="school_mail_to">Vastaanottaja</string>
     <string name="school_mail_too_large">Liitteet ylittävät 50 Mt:n rajan</string>
+    <string name="school_mail_undo_send">Kumoa</string>
     <string name="school_mail_unread_only">Näytä vain lukemattomat</string>
     <string name="school_mail_use_other_app">Käytä toista sovellusta</string>
     <string name="school_mail_view_formatted">Muotoiltu</string>

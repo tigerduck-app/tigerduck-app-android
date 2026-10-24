@@ -351,6 +351,7 @@
     <string name="course_member_email">E-post</string>
     <string name="course_member_groups">Grupper</string>
     <string name="course_member_me">Jag</string>
+    <string name="course_member_picture_unreadable">Det gick inte att öppna bilden. Välj en annan.</string>
     <string name="course_member_profile_picture">Profilbild</string>
     <string name="course_members_auditors">Åhörare</string>
     <string name="course_members_students">Studenter</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Skicka det här mejlet?</string>
     <string name="school_mail_send_failed">Mejlet kunde inte skickas</string>
     <string name="school_mail_send_unconfirmed">Det gick inte att bekräfta om mejlet skickades; ett nytt försök kan leverera det två gånger</string>
+    <string name="school_mail_send_undone">Skickandet avbröts. Mejlet är öppet för redigering igen.</string>
+    <string name="school_mail_sending_hold">Skickar…</string>
     <string name="school_mail_sent_copy_failed">Mejlet skickades, men kopian kunde inte sparas i Skickat.</string>
     <string name="school_mail_sent_copy_no_folder">Mejlet skickades, men det finns ingen mapp Skickat att spara en kopia i.</string>
     <string name="school_mail_sent_copy_not_saved">Mejl skickat, men en kopia sparades inte i Skickat</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Ämne</string>
     <string name="school_mail_to">Till</string>
     <string name="school_mail_too_large">Bilagorna överskrider gränsen på 50 MB</string>
+    <string name="school_mail_undo_send">Ångra</string>
     <string name="school_mail_unread_only">Visa bara olästa</string>
     <string name="school_mail_use_other_app">Använd en annan app</string>
     <string name="school_mail_view_formatted">Formaterat</string>

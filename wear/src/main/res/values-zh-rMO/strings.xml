@@ -351,6 +351,7 @@
     <string name="course_member_email">電郵</string>
     <string name="course_member_groups">群組</string>
     <string name="course_member_me">我</string>
+    <string name="course_member_picture_unreadable">開唔到呢張相片，請揀另一張。</string>
     <string name="course_member_profile_picture">頭像</string>
     <string name="course_members_auditors">旁聽生</string>
     <string name="course_members_students">學生</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">要傳送這封信嗎？</string>
     <string name="school_mail_send_failed">無法傳送郵件</string>
     <string name="school_mail_send_unconfirmed">無法確認郵件係咪已經寄出，再試可能會令對方收到兩封</string>
+    <string name="school_mail_send_undone">已取消寄出，郵件已返回編輯畫面。</string>
+    <string name="school_mail_sending_hold">正在寄出…</string>
     <string name="school_mail_sent_copy_failed">郵件已傳送，但副本無法儲存到寄件備份。</string>
     <string name="school_mail_sent_copy_no_folder">郵件已傳送，但目前沒有寄件備份資料夾可以保留副本。</string>
     <string name="school_mail_sent_copy_not_saved">郵件已傳送，但副本未儲存到寄件備份</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">主旨</string>
     <string name="school_mail_to">收件者</string>
     <string name="school_mail_too_large">附件超過 50 MB 上限</string>
+    <string name="school_mail_undo_send">取消</string>
     <string name="school_mail_unread_only">只看未讀</string>
     <string name="school_mail_use_other_app">用其他 App 收信</string>
     <string name="school_mail_view_formatted">格式化</string>

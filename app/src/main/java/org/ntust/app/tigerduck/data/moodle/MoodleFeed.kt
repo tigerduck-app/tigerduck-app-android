@@ -129,6 +129,23 @@ class MoodleFeed<T : Any>(
         scope.launch { context.cache.save(saved.first, saved.second, name) }
     }
 
+    /**
+     * Marks the value out of date, here and in the cache, so the next screen that shows it fetches
+     * it again at once; for a change made elsewhere that this copy does not show, such as the
+     * account's new picture changed from another course.
+     */
+    fun expire() {
+        if (!context.isCurrent()) return
+        val value = synchronized(this) {
+            val current = _state.value
+            val value = current.value ?: return
+            if (current.fetchedAtMs == null) return
+            _state.update { it.copy(fetchedAtMs = 0L) }
+            value
+        }
+        scope.launch { context.cache.save(value, 0L, name) }
+    }
+
     private suspend fun run(fetch: suspend () -> T) {
         awaitCache()
         _state.update { it.copy(isRefreshing = true) }

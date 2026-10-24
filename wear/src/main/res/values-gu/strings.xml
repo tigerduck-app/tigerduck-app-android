@@ -351,6 +351,7 @@
     <string name="course_member_email">ઇમેઇલ</string>
     <string name="course_member_groups">જૂથો</string>
     <string name="course_member_me">હું</string>
+    <string name="course_member_picture_unreadable">આ ફોટો ખોલી શકાયો નહીં. બીજો ફોટો પસંદ કરો.</string>
     <string name="course_member_profile_picture">પ્રોફાઇલ ફોટો</string>
     <string name="course_members_auditors">ઓડિટર</string>
     <string name="course_members_students">વિદ્યાર્થીઓ</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">આ મેઇલ મોકલવો છે?</string>
     <string name="school_mail_send_failed">મેઇલ મોકલી શકાયો નહીં</string>
     <string name="school_mail_send_unconfirmed">મેઇલ મોકલાયો કે નહીં તેની પુષ્ટિ થઈ શકી નહીં; ફરી પ્રયાસ કરવાથી તે બે વાર પહોંચી શકે છે</string>
+    <string name="school_mail_send_undone">મોકલવાનું રદ કર્યું. મેઇલ ફરી એડિટરમાં આવી ગયો છે.</string>
+    <string name="school_mail_sending_hold">મોકલી રહ્યાં છીએ…</string>
     <string name="school_mail_sent_copy_failed">મેઇલ મોકલાયો, પણ કૉપિ મોકલેલમાં સેવ થઈ શકી નહીં.</string>
     <string name="school_mail_sent_copy_no_folder">મેઇલ મોકલાયો, પણ કૉપિ રાખવા માટે કોઈ મોકલેલ ફોલ્ડર નથી.</string>
     <string name="school_mail_sent_copy_not_saved">મેઇલ મોકલાયો, પણ તેની કૉપિ મોકલેલમાં સેવ ન થઈ</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">વિષય</string>
     <string name="school_mail_to">પ્રતિ</string>
     <string name="school_mail_too_large">એટેચમેન્ટ 50 MB ની મર્યાદા કરતાં વધુ છે</string>
+    <string name="school_mail_undo_send">પૂર્વવત્ કરો</string>
     <string name="school_mail_unread_only">ફક્ત ન વાંચેલ બતાવો</string>
     <string name="school_mail_use_other_app">બીજી એપ વાપરો</string>
     <string name="school_mail_view_formatted">ફોર્મેટેડ</string>

@@ -351,6 +351,7 @@
     <string name="course_member_email">Ел. пошта</string>
     <string name="course_member_groups">Групи</string>
     <string name="course_member_me">Я</string>
+    <string name="course_member_picture_unreadable">Не вдалося відкрити це фото. Виберіть інше.</string>
     <string name="course_member_profile_picture">Фото профілю</string>
     <string name="course_members_auditors">Вільні слухачі</string>
     <string name="course_members_students">Студенти</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Надіслати цей лист?</string>
     <string name="school_mail_send_failed">Не вдалося надіслати лист</string>
     <string name="school_mail_send_unconfirmed">Не вдалося підтвердити, що лист надіслано; повторна спроба може доставити його двічі</string>
+    <string name="school_mail_send_undone">Надсилання скасовано. Лист знову в редакторі.</string>
+    <string name="school_mail_sending_hold">Надсилання…</string>
     <string name="school_mail_sent_copy_failed">Лист надіслано, але копію не вдалося зберегти в Надісланих.</string>
     <string name="school_mail_sent_copy_no_folder">Лист надіслано, але теки «Надіслані» немає, щоб зберегти в ній копію.</string>
     <string name="school_mail_sent_copy_not_saved">Лист надіслано, але копію не збережено в Надісланих</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Тема</string>
     <string name="school_mail_to">Кому</string>
     <string name="school_mail_too_large">Вкладення перевищують ліміт 50 МБ</string>
+    <string name="school_mail_undo_send">Скасувати</string>
     <string name="school_mail_unread_only">Показувати лише непрочитані</string>
     <string name="school_mail_use_other_app">Використати інший додаток</string>
     <string name="school_mail_view_formatted">Форматований</string>

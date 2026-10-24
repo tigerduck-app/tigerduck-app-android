@@ -13,8 +13,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.NtustSessionManager
@@ -197,6 +200,31 @@ class MoodleWebservice internal constructor(
         }
     }
 
+    /**
+     * Uploads [bytes] as [fileName] ([mimeType]) to a new draft area of [token]'s account through
+     * Moodle's `webservice/upload.php`, the token in the form, and returns the area's item id, which
+     * a function such as `core_user_update_picture` takes. Throws [MoodleWebserviceError] for
+     * Moodle's errors, which upload.php answers as the functions do.
+     */
+    suspend fun uploadDraft(token: String, fileName: String, mimeType: String, bytes: ByteArray): Long =
+        withContext(Dispatchers.IO) {
+            val form = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart("token", token)
+                .addFormDataPart("filearea", "draft")
+                // A new draft area, whose id the answer gives.
+                .addFormDataPart("itemid", "0")
+                .addFormDataPart("file", fileName, bytes.toRequestBody(mimeType.toMediaType()))
+                .build()
+            val body = execute(client(), Request.Builder().url(UPLOAD_URL).post(form).build())
+            val json = try {
+                JsonParser.parseString(body)
+            } catch (e: Exception) {
+                throw MoodleWebserviceError.MalformedResponse("upload not JSON: ${e.javaClass.simpleName}")
+            }
+            MoodleJson.draftItemId(json)
+        }
+
     /** The site info for [token], asked once per token. Concurrent callers share one request. */
     suspend fun siteInfo(token: String): MoodleSiteInfo {
         siteInfoCache?.takeIf { it.first == token }?.let { return it.second }
@@ -212,6 +240,7 @@ class MoodleWebservice internal constructor(
         const val SITE = "https://moodle2.ntust.edu.tw"
         const val SITE_HOST = "moodle2.ntust.edu.tw"
         const val WEBSERVICE_URL = "$SITE/webservice/rest/server.php"
+        const val UPLOAD_URL = "$SITE/webservice/upload.php"
         const val SITE_INFO_FUNCTION = "core_webservice_get_site_info"
 
         /** The web-service URL for [function] under [token]; the parameters go in the form body. */

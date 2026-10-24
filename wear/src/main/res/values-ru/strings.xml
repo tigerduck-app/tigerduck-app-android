@@ -351,6 +351,7 @@
     <string name="course_member_email">Эл. почта</string>
     <string name="course_member_groups">Группы</string>
     <string name="course_member_me">Я</string>
+    <string name="course_member_picture_unreadable">Не удалось открыть это фото. Выберите другое.</string>
     <string name="course_member_profile_picture">Фото профиля</string>
     <string name="course_members_auditors">Вольнослушатели</string>
     <string name="course_members_students">Студенты</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Отправить это письмо?</string>
     <string name="school_mail_send_failed">Не удалось отправить письмо</string>
     <string name="school_mail_send_unconfirmed">Не удалось подтвердить, что письмо отправлено; повторная попытка может доставить его дважды</string>
+    <string name="school_mail_send_undone">Отправка отменена. Письмо снова в редакторе.</string>
+    <string name="school_mail_sending_hold">Отправка…</string>
     <string name="school_mail_sent_copy_failed">Письмо было отправлено, но не удалось сохранить копию в Отправленных.</string>
     <string name="school_mail_sent_copy_no_folder">Письмо было отправлено, но папки «Отправленные» нет, чтобы сохранить в ней копию.</string>
     <string name="school_mail_sent_copy_not_saved">Письмо отправлено, но копия не сохранена в Отправленных</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Тема</string>
     <string name="school_mail_to">Кому</string>
     <string name="school_mail_too_large">Вложения превышают лимит 50 МБ</string>
+    <string name="school_mail_undo_send">Отменить</string>
     <string name="school_mail_unread_only">Показывать только непрочитанные</string>
     <string name="school_mail_use_other_app">Использовать другое приложение</string>
     <string name="school_mail_view_formatted">Форматированный</string>

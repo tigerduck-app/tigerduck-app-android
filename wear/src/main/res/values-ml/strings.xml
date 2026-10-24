@@ -351,6 +351,7 @@
     <string name="course_member_email">ഇമെയിൽ</string>
     <string name="course_member_groups">ഗ്രൂപ്പുകൾ</string>
     <string name="course_member_me">ഞാൻ</string>
+    <string name="course_member_picture_unreadable">ഈ ഫോട്ടോ തുറക്കാനായില്ല. മറ്റൊരു ഫോട്ടോ തിരഞ്ഞെടുക്കുക.</string>
     <string name="course_member_profile_picture">പ്രൊഫൈൽ ചിത്രം</string>
     <string name="course_members_auditors">ഓഡിറ്റർമാർ</string>
     <string name="course_members_students">വിദ്യാർഥികൾ</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">ഈ ഇമെയിൽ അയയ്ക്കണോ?</string>
     <string name="school_mail_send_failed">ഇമെയിൽ അയയ്ക്കാനായില്ല</string>
     <string name="school_mail_send_unconfirmed">ഇമെയിൽ അയച്ചോ എന്ന് സ്ഥിരീകരിക്കാനായില്ല; വീണ്ടും ശ്രമിച്ചാൽ ഇത് രണ്ടുതവണ എത്തിയേക്കാം</string>
+    <string name="school_mail_send_undone">അയയ്ക്കൽ റദ്ദാക്കി. ഇമെയിൽ വീണ്ടും എഡിറ്ററിലാണ്.</string>
+    <string name="school_mail_sending_hold">അയയ്ക്കുന്നു…</string>
     <string name="school_mail_sent_copy_failed">ഇമെയിൽ അയച്ചു, പക്ഷേ പകർപ്പ് അയച്ചവയിൽ സേവ് ചെയ്യാനായില്ല.</string>
     <string name="school_mail_sent_copy_no_folder">ഇമെയിൽ അയച്ചു, പക്ഷേ പകർപ്പ് സൂക്ഷിക്കാൻ അയച്ചവ ഫോൾഡർ ഇല്ല.</string>
     <string name="school_mail_sent_copy_not_saved">ഇമെയിൽ അയച്ചു, പക്ഷേ അതിന്റെ പകർപ്പ് അയച്ചവയിൽ സേവ് ചെയ്തില്ല</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">വിഷയം</string>
     <string name="school_mail_to">സ്വീകർത്താവ്</string>
     <string name="school_mail_too_large">അറ്റാച്ച്‌മെന്റുകൾ 50 MB പരിധി കടന്നു</string>
+    <string name="school_mail_undo_send">പഴയപടിയാക്കുക</string>
     <string name="school_mail_unread_only">വായിക്കാത്തവ മാത്രം കാണിക്കുക</string>
     <string name="school_mail_use_other_app">മറ്റൊരു ആപ്പ് ഉപയോഗിക്കുക</string>
     <string name="school_mail_view_formatted">ഫോർമാറ്റ് ചെയ്തത്</string>

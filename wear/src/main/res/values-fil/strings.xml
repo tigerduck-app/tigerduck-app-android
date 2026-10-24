@@ -351,6 +351,7 @@
     <string name="course_member_email">Email</string>
     <string name="course_member_groups">Mga grupo</string>
     <string name="course_member_me">Ako</string>
+    <string name="course_member_picture_unreadable">Hindi mabuksan ang larawang ito. Pumili ng iba.</string>
     <string name="course_member_profile_picture">Larawan sa profile</string>
     <string name="course_members_auditors">Mga auditor</string>
     <string name="course_members_students">Mga estudyante</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Ipadala ang mail na ito?</string>
     <string name="school_mail_send_failed">Hindi maipadala ang mail</string>
     <string name="school_mail_send_unconfirmed">Hindi makumpirma kung naipadala ang mail; kapag inulit, maaaring dalawang beses itong matanggap</string>
+    <string name="school_mail_send_undone">Kinansela ang pagpapadala. Nasa editor na ulit ang mail.</string>
+    <string name="school_mail_sending_hold">Ipinapadala…</string>
     <string name="school_mail_sent_copy_failed">Naipadala ang mail, pero hindi na-save ang kopya sa Naipadala.</string>
     <string name="school_mail_sent_copy_no_folder">Naipadala ang mail, pero walang folder na Naipadala na mapaglalagyan ng kopya.</string>
     <string name="school_mail_sent_copy_not_saved">Naipadala ang mail, pero hindi na-save ang kopya sa Naipadala</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Paksa</string>
     <string name="school_mail_to">Kay</string>
     <string name="school_mail_too_large">Lumagpas sa 50 MB limit ang mga attachment</string>
+    <string name="school_mail_undo_send">I-undo</string>
     <string name="school_mail_unread_only">Ipakita lang ang hindi pa nababasa</string>
     <string name="school_mail_use_other_app">Gumamit ng ibang app</string>
     <string name="school_mail_view_formatted">Naka-format</string>

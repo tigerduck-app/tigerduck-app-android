@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Grupy</string>
     <string name="course_member_me">Ja</string>
+    <string name="course_member_picture_unreadable">Nie udało się otworzyć tego zdjęcia. Wybierz inne.</string>
     <string name="course_member_profile_picture">Zdjęcie profilowe</string>
     <string name="course_members_auditors">Wolni słuchacze</string>
     <string name="course_members_students">Studenci</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Wysłać tę wiadomość?</string>
     <string name="school_mail_send_failed">Nie udało się wysłać wiadomości</string>
     <string name="school_mail_send_unconfirmed">Nie udało się potwierdzić, czy wiadomość została wysłana; ponowna próba może dostarczyć ją dwa razy</string>
+    <string name="school_mail_send_undone">Anulowano wysyłanie. Wiadomość wróciła do edytora.</string>
+    <string name="school_mail_sending_hold">Wysyłanie…</string>
     <string name="school_mail_sent_copy_failed">Wiadomość została wysłana, ale nie udało się zapisać kopii w folderze Wysłane.</string>
     <string name="school_mail_sent_copy_no_folder">Wiadomość została wysłana, ale nie ma folderu Wysłane, w którym można by zapisać kopię.</string>
     <string name="school_mail_sent_copy_not_saved">Wiadomość wysłana, ale kopia nie została zapisana w folderze Wysłane</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Temat</string>
     <string name="school_mail_to">Do</string>
     <string name="school_mail_too_large">Załączniki przekraczają limit 50 MB</string>
+    <string name="school_mail_undo_send">Cofnij</string>
     <string name="school_mail_unread_only">Pokaż tylko nieprzeczytane</string>
     <string name="school_mail_use_other_app">Użyj innej aplikacji</string>
     <string name="school_mail_view_formatted">Sformatowany</string>

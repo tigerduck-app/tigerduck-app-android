@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mel</string>
     <string name="course_member_groups">Kumpulan</string>
     <string name="course_member_me">Saya</string>
+    <string name="course_member_picture_unreadable">Tidak dapat membuka foto ini. Pilih foto lain.</string>
     <string name="course_member_profile_picture">Gambar profil</string>
     <string name="course_members_auditors">Pelajar audit</string>
     <string name="course_members_students">Pelajar</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Hantar e-mel ini?</string>
     <string name="school_mail_send_failed">Tidak dapat menghantar e-mel</string>
     <string name="school_mail_send_unconfirmed">Tidak dapat mengesahkan sama ada e-mel telah dihantar; mencuba semula mungkin menghantarnya dua kali</string>
+    <string name="school_mail_send_undone">Penghantaran dibatalkan. E-mel kembali ke editor.</string>
+    <string name="school_mail_sending_hold">Menghantar…</string>
     <string name="school_mail_sent_copy_failed">E-mel telah dihantar, tetapi salinan tidak dapat disimpan ke Dihantar.</string>
     <string name="school_mail_sent_copy_no_folder">E-mel telah dihantar, tetapi tiada folder Dihantar untuk menyimpan salinan.</string>
     <string name="school_mail_sent_copy_not_saved">E-mel telah dihantar, tetapi salinan tidak disimpan ke Dihantar</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Subjek</string>
     <string name="school_mail_to">Kepada</string>
     <string name="school_mail_too_large">Lampiran melebihi had 50 MB</string>
+    <string name="school_mail_undo_send">Buat asal</string>
     <string name="school_mail_unread_only">Papar yang belum dibaca sahaja</string>
     <string name="school_mail_use_other_app">Guna aplikasi lain</string>
     <string name="school_mail_view_formatted">Diformat</string>

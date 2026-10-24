@@ -351,6 +351,7 @@
     <string name="course_member_email">Email</string>
     <string name="course_member_groups">Groups</string>
     <string name="course_member_me">Me</string>
+    <string name="course_member_picture_unreadable">Couldn\'t open this photo. Choose another one.</string>
     <string name="course_member_profile_picture">Profile picture</string>
     <string name="course_members_auditors">Auditors</string>
     <string name="course_members_students">Students</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Send this mail?</string>
     <string name="school_mail_send_failed">Couldn\'t send the mail</string>
     <string name="school_mail_send_unconfirmed">Couldn\'t confirm the mail was sent; retrying may deliver it twice</string>
+    <string name="school_mail_send_undone">Sending cancelled. The mail is back in the editor.</string>
+    <string name="school_mail_sending_hold">Sending…</string>
     <string name="school_mail_sent_copy_failed">The mail was sent, but the copy couldn\'t be saved to Sent.</string>
     <string name="school_mail_sent_copy_no_folder">The mail was sent, but there\'s no Sent folder to keep a copy in.</string>
     <string name="school_mail_sent_copy_not_saved">Mail sent, but a copy wasn\'t saved to Sent</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Subject</string>
     <string name="school_mail_to">To</string>
     <string name="school_mail_too_large">Attachments are over the 50 MB limit</string>
+    <string name="school_mail_undo_send">Undo</string>
     <string name="school_mail_unread_only">Show unread only</string>
     <string name="school_mail_use_other_app">Use another app</string>
     <string name="school_mail_view_formatted">Formatted</string>

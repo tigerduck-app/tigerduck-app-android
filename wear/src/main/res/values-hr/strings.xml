@@ -351,6 +351,7 @@
     <string name="course_member_email">E-pošta</string>
     <string name="course_member_groups">Grupe</string>
     <string name="course_member_me">Ja</string>
+    <string name="course_member_picture_unreadable">Ovu fotografiju nije moguće otvoriti. Odaberite drugu.</string>
     <string name="course_member_profile_picture">Profilna slika</string>
     <string name="course_members_auditors">Slušači</string>
     <string name="course_members_students">Studenti</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Poslati ovu poruku?</string>
     <string name="school_mail_send_failed">Poruku nije moguće poslati</string>
     <string name="school_mail_send_unconfirmed">Nije moguće potvrditi je li poruka poslana; ponovni pokušaj mogao bi je dostaviti dvaput</string>
+    <string name="school_mail_send_undone">Slanje je otkazano. Poruka je ponovno u uređivaču.</string>
+    <string name="school_mail_sending_hold">Slanje…</string>
     <string name="school_mail_sent_copy_failed">Poruka je poslana, ali kopiju nije bilo moguće spremiti u mapu Poslano.</string>
     <string name="school_mail_sent_copy_no_folder">Poruka je poslana, ali ne postoji mapa Poslano u koju bi se spremila kopija.</string>
     <string name="school_mail_sent_copy_not_saved">Poruka je poslana, ali kopija nije spremljena u mapu Poslano</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Predmet</string>
     <string name="school_mail_to">Prima</string>
     <string name="school_mail_too_large">Privici prelaze ograničenje od 50 MB</string>
+    <string name="school_mail_undo_send">Poništi</string>
     <string name="school_mail_unread_only">Prikaži samo nepročitano</string>
     <string name="school_mail_use_other_app">Koristi drugu aplikaciju</string>
     <string name="school_mail_view_formatted">Formatirano</string>

@@ -89,6 +89,14 @@ interface MoodleCourseApi {
      */
     suspend fun download(file: MoodleFile, target: java.io.File, maxBytes: Long, progress: (Float) -> Unit)
 
+    /**
+     * Makes [jpeg] the account's profile picture, as the iPhone does: uploaded to a draft area,
+     * then set with [UPDATE_PICTURE_FUNCTION]. Throws [MoodleWebserviceError] when Moodle refuses
+     * either step or answers that the picture did not change. Only where the site allows the
+     * function; a stand-in that never offers it has nothing to change.
+     */
+    suspend fun changePicture(jpeg: ByteArray): Unit = throw MoodleWebserviceError.AccessDenied()
+
     companion object {
         const val FORUMS_FUNCTION = "mod_forum_get_forums_by_courses"
         const val DISCUSSIONS_FUNCTION = "mod_forum_get_forum_discussions"
@@ -101,6 +109,7 @@ interface MoodleCourseApi {
         const val COMMENTS_FUNCTION = "core_comment_get_comments"
         const val GROUPS_FUNCTION = "core_group_get_course_user_groups"
         const val CONTENTS_FUNCTION = "core_course_get_contents"
+        const val UPDATE_PICTURE_FUNCTION = "core_user_update_picture"
 
         /** Asked for explicitly: Moodle's default `perpage` of 0 returns every discussion at once. */
         const val DISCUSSIONS_PER_PAGE = 20
@@ -204,6 +213,16 @@ class LiveMoodleCourseApi internal constructor(
                 listOf("discussionid" to discussionId.toString()),
             )
         }
+    }
+
+    override suspend fun changePicture(jpeg: ByteArray) = webservice.withToken { token ->
+        val draft = webservice.uploadDraft(token, PICTURE_FILE_NAME, "image/jpeg", jpeg)
+        val answer = webservice.call(
+            MoodleCourseApi.UPDATE_PICTURE_FUNCTION,
+            token,
+            listOf("draftitemid" to draft.toString(), "delete" to "0"),
+        )
+        MoodleJson.pictureChanged(answer)
     }
 
     override suspend fun members(courseId: Int): MoodleMemberList = webservice.withToken { token ->
@@ -329,5 +348,10 @@ class LiveMoodleCourseApi internal constructor(
             ),
         )
         withContext(parse) { MoodleJson.summary(answer, courseId) }
+    }
+
+    private companion object {
+        /** The profile picture's name in its draft area; Moodle keeps the picture under its own. */
+        const val PICTURE_FILE_NAME = "picture.jpg"
     }
 }

@@ -351,6 +351,7 @@
     <string name="course_member_email">Е-пошта</string>
     <string name="course_member_groups">Групе</string>
     <string name="course_member_me">Ја</string>
+    <string name="course_member_picture_unreadable">Ову фотографију није могуће отворити. Изаберите другу.</string>
     <string name="course_member_profile_picture">Профилна слика</string>
     <string name="course_members_auditors">Слушаоци</string>
     <string name="course_members_students">Студенти</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Да пошаљем ову поруку?</string>
     <string name="school_mail_send_failed">Порука није послата</string>
     <string name="school_mail_send_unconfirmed">Није могуће потврдити да ли је порука послата; поновни покушај може да је испоручи двапут</string>
+    <string name="school_mail_send_undone">Слање је отказано. Порука је поново у уређивачу.</string>
+    <string name="school_mail_sending_hold">Слање…</string>
     <string name="school_mail_sent_copy_failed">Порука је послата, али копију није било могуће сачувати у фасцикли Послато.</string>
     <string name="school_mail_sent_copy_no_folder">Порука је послата, али не постоји фасцикла Послато у коју би се сачувала копија.</string>
     <string name="school_mail_sent_copy_not_saved">Порука је послата, али копија није сачувана у фасцикли Послато</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Тема</string>
     <string name="school_mail_to">Прима</string>
     <string name="school_mail_too_large">Прилози прелазе ограничење од 50 MB</string>
+    <string name="school_mail_undo_send">Опозови</string>
     <string name="school_mail_unread_only">Прикажи само непрочитано</string>
     <string name="school_mail_use_other_app">Користи другу апликацију</string>
     <string name="school_mail_view_formatted">Форматирано</string>

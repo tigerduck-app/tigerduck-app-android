@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Groupes</string>
     <string name="course_member_me">Moi</string>
+    <string name="course_member_picture_unreadable">Impossible d\'ouvrir cette photo. Choisissez-en une autre.</string>
     <string name="course_member_profile_picture">Photo de profil</string>
     <string name="course_members_auditors">Auditeurs libres</string>
     <string name="course_members_students">Étudiants</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Envoyer ce message ?</string>
     <string name="school_mail_send_failed">Impossible d\'envoyer le message</string>
     <string name="school_mail_send_unconfirmed">Impossible de confirmer l\'envoi du message ; réessayer pourrait l\'envoyer deux fois</string>
+    <string name="school_mail_send_undone">Envoi annulé. Le message est de retour dans l\'éditeur.</string>
+    <string name="school_mail_sending_hold">Envoi en cours…</string>
     <string name="school_mail_sent_copy_failed">Le message a été envoyé, mais la copie n\'a pas pu être enregistrée dans Envoyés.</string>
     <string name="school_mail_sent_copy_no_folder">Le message a été envoyé, mais il n\'y a pas de dossier Envoyés où conserver une copie.</string>
     <string name="school_mail_sent_copy_not_saved">Message envoyé, mais la copie n\'a pas été enregistrée dans Envoyés</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Objet</string>
     <string name="school_mail_to">À</string>
     <string name="school_mail_too_large">Les pièces jointes dépassent la limite de 50 Mo</string>
+    <string name="school_mail_undo_send">Annuler</string>
     <string name="school_mail_unread_only">Afficher uniquement les non lus</string>
     <string name="school_mail_use_other_app">Utiliser une autre application</string>
     <string name="school_mail_view_formatted">Mis en forme</string>

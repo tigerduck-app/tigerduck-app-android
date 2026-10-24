@@ -351,6 +351,7 @@
     <string name="course_member_email">E-post</string>
     <string name="course_member_groups">Rühmad</string>
     <string name="course_member_me">Mina</string>
+    <string name="course_member_picture_unreadable">Seda fotot ei õnnestunud avada. Vali mõni teine.</string>
     <string name="course_member_profile_picture">Profiilipilt</string>
     <string name="course_members_auditors">Vabakuulajad</string>
     <string name="course_members_students">Üliõpilased</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Kas saata see kiri?</string>
     <string name="school_mail_send_failed">Kirja saatmine ebaõnnestus</string>
     <string name="school_mail_send_unconfirmed">Ei õnnestunud kinnitada, kas kiri saadeti; uus katse võib selle kaks korda kohale toimetada</string>
+    <string name="school_mail_send_undone">Saatmine tühistati. Kiri on taas muutmisvaates.</string>
+    <string name="school_mail_sending_hold">Saatmine…</string>
     <string name="school_mail_sent_copy_failed">Kiri saadeti, kuid koopiat ei õnnestunud kausta Saadetud salvestada.</string>
     <string name="school_mail_sent_copy_no_folder">Kiri saadeti, kuid kausta Saadetud pole, kuhu koopiat hoida.</string>
     <string name="school_mail_sent_copy_not_saved">Kiri saadeti, kuid koopiat ei salvestatud kausta Saadetud</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Teema</string>
     <string name="school_mail_to">Kellele</string>
     <string name="school_mail_too_large">Manused ületavad 50 MB piirangu</string>
+    <string name="school_mail_undo_send">Võta tagasi</string>
     <string name="school_mail_unread_only">Kuva ainult lugemata</string>
     <string name="school_mail_use_other_app">Kasuta teist rakendust</string>
     <string name="school_mail_view_formatted">Vormindatud</string>

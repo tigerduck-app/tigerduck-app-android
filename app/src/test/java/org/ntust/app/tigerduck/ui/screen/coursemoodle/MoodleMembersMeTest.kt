@@ -2,10 +2,13 @@ package org.ntust.app.tigerduck.ui.screen.coursemoodle
 
 import android.app.Application
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasProgressBarRangeInfo
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -113,6 +116,59 @@ class MoodleMembersMeTest {
     @Test
     fun `the pencil opens Moodle's own profile editor`() {
         assertEquals("https://moodle2.ntust.edu.tw/user/edit.php", ownProfileEditorUrl())
+    }
+
+    @Test
+    fun `the camera badge on one's own picture picks a new one`() {
+        var picks = 0
+        composeRule.setContent {
+            MemberPage(
+                member = me, picture = null, onOpenPicture = null, openingPicture = false, onWrite = {},
+                onEditOnMoodle = {}, onChangePicture = { picks++ }, changingPicture = false,
+            )
+        }
+
+        composeRule.onNodeWithContentDescription(string(R.string.course_member_change_picture)).performClick()
+
+        assertEquals(1, picks)
+    }
+
+    @Test
+    fun `while the new picture goes up the picture spins and the badge takes no tap`() {
+        composeRule.setContent {
+            MemberPage(
+                member = me, picture = null, onOpenPicture = null, openingPicture = false, onWrite = {},
+                onEditOnMoodle = {}, onChangePicture = {}, changingPicture = true,
+            )
+        }
+
+        composeRule.onNode(hasProgressBarRangeInfo(ProgressBarRangeInfo.Indeterminate)).assertExists()
+        composeRule.onNodeWithContentDescription(string(R.string.course_member_change_picture)).assertIsNotEnabled()
+    }
+
+    @Test
+    fun `another member's page, or a site that does not allow it, has no camera badge`() {
+        composeRule.setContent {
+            MemberPage(
+                member = classmate, picture = null, onOpenPicture = null, openingPicture = false, onWrite = {},
+                onEditOnMoodle = null, onChangePicture = null, changingPicture = false,
+            )
+        }
+
+        composeRule.onNodeWithContentDescription(string(R.string.course_member_change_picture)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `a picked photo that cannot be read says so, and one that can opens the crop`() = kotlinx.coroutines.test.runTest {
+        var cropped = 0
+        var told = 0
+
+        openPickedPicture(decode = { null }, crop = { cropped++ }, unreadable = { told++ })
+        assertEquals(0 to 1, cropped to told)
+
+        val photo = android.graphics.Bitmap.createBitmap(4, 4, android.graphics.Bitmap.Config.ARGB_8888)
+        openPickedPicture(decode = { photo }, crop = { cropped++ }, unreadable = { told++ })
+        assertEquals(1 to 1, cropped to told)
     }
 
     @Test

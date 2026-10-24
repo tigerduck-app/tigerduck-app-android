@@ -351,6 +351,7 @@
     <string name="course_member_email">Netfang</string>
     <string name="course_member_groups">Hópar</string>
     <string name="course_member_me">Ég</string>
+    <string name="course_member_picture_unreadable">Ekki tókst að opna þessa mynd. Veldu aðra.</string>
     <string name="course_member_profile_picture">Prófílmynd</string>
     <string name="course_members_auditors">Áheyrnarnemar</string>
     <string name="course_members_students">Nemendur</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Senda þennan póst?</string>
     <string name="school_mail_send_failed">Ekki tókst að senda póstinn</string>
     <string name="school_mail_send_unconfirmed">Ekki tókst að staðfesta hvort pósturinn var sendur; ný tilraun gæti sent hann tvisvar</string>
+    <string name="school_mail_send_undone">Hætt var við sendingu. Pósturinn er aftur kominn í ritilinn.</string>
+    <string name="school_mail_sending_hold">Sendir…</string>
     <string name="school_mail_sent_copy_failed">Pósturinn var sendur, en ekki tókst að vista afritið í Sent.</string>
     <string name="school_mail_sent_copy_no_folder">Pósturinn var sendur, en það er engin Sent-mappa til að geyma afrit í.</string>
     <string name="school_mail_sent_copy_not_saved">Póstur sendur, en afrit var ekki vistað í Sent</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Efni</string>
     <string name="school_mail_to">Til</string>
     <string name="school_mail_too_large">Viðhengi fara yfir 50 MB mörkin</string>
+    <string name="school_mail_undo_send">Afturkalla</string>
     <string name="school_mail_unread_only">Sýna aðeins ólesið</string>
     <string name="school_mail_use_other_app">Nota annað forrit</string>
     <string name="school_mail_view_formatted">Sniðið</string>

@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Skupiny</string>
     <string name="course_member_me">Já</string>
+    <string name="course_member_picture_unreadable">Tuto fotku se nepodařilo otevřít. Vyberte jinou.</string>
     <string name="course_member_profile_picture">Profilová fotka</string>
     <string name="course_members_auditors">Posluchači</string>
     <string name="course_members_students">Studenti</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Odeslat tuto zprávu?</string>
     <string name="school_mail_send_failed">Zprávu se nepodařilo odeslat</string>
     <string name="school_mail_send_unconfirmed">Nepodařilo se ověřit, zda byla zpráva odeslána; opakování ji může doručit dvakrát</string>
+    <string name="school_mail_send_undone">Odeslání bylo zrušeno. Zpráva je zpět v editoru.</string>
+    <string name="school_mail_sending_hold">Odesílání…</string>
     <string name="school_mail_sent_copy_failed">Zpráva byla odeslána, ale kopii se nepodařilo uložit do složky Odeslaná pošta.</string>
     <string name="school_mail_sent_copy_no_folder">Zpráva byla odeslána, ale neexistuje složka Odeslaná pošta, do které by se dala uložit kopie.</string>
     <string name="school_mail_sent_copy_not_saved">Zpráva odeslána, ale kopie se neuložila do složky Odeslaná pošta</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Předmět</string>
     <string name="school_mail_to">Komu</string>
     <string name="school_mail_too_large">Přílohy překračují limit 50 MB</string>
+    <string name="school_mail_undo_send">Vrátit zpět</string>
     <string name="school_mail_unread_only">Zobrazit jen nepřečtené</string>
     <string name="school_mail_use_other_app">Použít jinou aplikaci</string>
     <string name="school_mail_view_formatted">Formátovaný</string>

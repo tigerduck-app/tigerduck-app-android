@@ -351,6 +351,7 @@
     <string name="course_member_email">Correo electrónico</string>
     <string name="course_member_groups">Grupos</string>
     <string name="course_member_me">Yo</string>
+    <string name="course_member_picture_unreadable">No se pudo abrir esta foto. Elige otra.</string>
     <string name="course_member_profile_picture">Foto de perfil</string>
     <string name="course_members_auditors">Oyentes</string>
     <string name="course_members_students">Estudiantes</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">¿Enviar este correo?</string>
     <string name="school_mail_send_failed">No se pudo enviar el correo</string>
     <string name="school_mail_send_unconfirmed">No se pudo confirmar si el correo se envió; reintentarlo podría enviarlo dos veces</string>
+    <string name="school_mail_send_undone">Envío cancelado. El correo está de nuevo en el editor.</string>
+    <string name="school_mail_sending_hold">Enviando…</string>
     <string name="school_mail_sent_copy_failed">El correo se envió, pero no se pudo guardar la copia en Enviados.</string>
     <string name="school_mail_sent_copy_no_folder">El correo se envió, pero no hay ninguna carpeta Enviados donde guardar una copia.</string>
     <string name="school_mail_sent_copy_not_saved">Correo enviado, pero no se guardó una copia en Enviados</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Asunto</string>
     <string name="school_mail_to">Para</string>
     <string name="school_mail_too_large">Los adjuntos superan el límite de 50 MB</string>
+    <string name="school_mail_undo_send">Deshacer</string>
     <string name="school_mail_unread_only">Mostrar solo no leídos</string>
     <string name="school_mail_use_other_app">Usar otra app</string>
     <string name="school_mail_view_formatted">Con formato</string>

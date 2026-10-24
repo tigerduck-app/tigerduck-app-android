@@ -84,16 +84,21 @@ class SchoolMailComposeViewModelTest {
     private fun handle(mode: ComposeMode, folder: String = "", uid: Long = -1, mailto: String = "") =
         SavedStateHandle(mapOf("mode" to mode.name, "folder" to folder, "uid" to uid, "mailto" to mailto))
 
+    // With no hold before a send, as every test but the hold's own expects; see [heldVm].
     private fun vm(mode: ComposeMode, folder: String = "", uid: Long = -1, mailto: String = "") =
         SchoolMailComposeViewModel(handle(mode, folder, uid, mailto), repo, account, cache, noPicks, notices, main.dispatcher)
-            .also { it.prefill(labels) }
+            .also { it.sendHoldMs = 0; it.prefill(labels) }
+
+    /** A new mail to one recipient, held before it goes out as on the phone. */
+    private fun heldVm() = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, main.dispatcher)
+        .also { it.prefill(labels); it.setTo("amy@mail.ntust.edu.tw"); it.setSubject("Hi") }
 
     @Test
     fun `quoting an HTML original waits on the IO dispatcher instead of parsing on the main thread`() {
         repo.add("INBOX", mailSummary(5, subject = "期中考"))
         repo.bodies[5] = MailBody("<p>line1</p>", null, emptyList(), emptyMap())
         val io = HeldDispatcher()
-        val vm = SchoolMailComposeViewModel(handle(ComposeMode.REPLY, "INBOX", 5), repo, account, cache, noPicks, notices, io)
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.REPLY, "INBOX", 5), repo, account, cache, noPicks, notices, io).also { it.sendHoldMs = 0 }
         vm.prefill(labels)
         // The original is already fetched, and neither jsoup pass has run: the form is still
         // loading rather than sanitizing and flattening the sender's HTML on Main.
@@ -155,7 +160,7 @@ class SchoolMailComposeViewModelTest {
         assertNull(runBlocking { account.signIn("b10000001", "pw") })
         repo.correspondence = listOf(mailSummary(1, from = MailAddress("王大明", "wang@example.com")))
         val io = HeldDispatcher()
-        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, io)
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, io).also { it.sendHoldMs = 0 }
         // The load gets its answer once the next student has left this one behind, and before their
         // sign-in moves the account on.
         account.onLockWait = { io.drain() }
@@ -164,6 +169,104 @@ class SchoolMailComposeViewModelTest {
 
         vm.updateRecipients(RecipientSlot.TO) { it.typed(emptyList(), "wang") }
         assertEquals(emptyList<MailAddress>(), vm.state.value.suggestions(RecipientSlot.TO))
+    }
+
+    @Test
+    fun `a sent mail is held for five seconds before it goes out`() {
+        val vm = heldVm()
+
+        vm.send()
+
+        assertTrue(vm.state.value.holding)
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS - 1)
+        assertTrue("nothing goes out during the hold", repo.sent.isEmpty())
+        main.dispatcher.scheduler.advanceTimeBy(1)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(listOf("amy@mail.ntust.edu.tw"), repo.sent.single().first.to.map { it.address })
+        assertFalse(vm.state.value.holding)
+        assertTrue(vm.state.value.done)
+    }
+
+    @Test
+    fun `a longer hold asked for, as accessibility settings ask, keeps the mail that long`() {
+        val vm = heldVm()
+
+        vm.send(holdMs = 20_000)
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(vm.state.value.holding)
+        assertTrue(repo.sent.isEmpty())
+        main.dispatcher.scheduler.advanceTimeBy(20_000)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(1, repo.sent.size)
+    }
+
+    @Test
+    fun `undo during the hold sends nothing and leaves the mail in the editor`() {
+        val vm = heldVm()
+        vm.send()
+
+        vm.undoSend()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS * 2)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.sent.isEmpty())
+        val state = vm.state.value
+        assertFalse(state.holding)
+        assertFalse(state.sending)
+        assertFalse(state.done)
+        assertTrue("the screen says the mail is back", state.undone)
+        assertEquals(listOf("amy@mail.ntust.edu.tw"), state.to.entries)
+        assertEquals("Hi", state.subject)
+        vm.acknowledgeUndone()
+        assertFalse(vm.state.value.undone)
+        assertTrue("it can be sent again", vm.requestSend())
+    }
+
+    @Test
+    fun `leaving the screen during the hold sends the mail at once`() {
+        val vm = heldVm()
+        vm.send()
+
+        vm.sendHeldNow()
+
+        assertEquals(1, repo.sent.size)
+        assertTrue(vm.state.value.done)
+        // The hold's end comes and goes with nothing left to send.
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS * 2)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(1, repo.sent.size)
+    }
+
+    @Test
+    fun `a mail held while its account signs out does not go out`() {
+        val vm = heldVm()
+        vm.send()
+
+        account.signOut()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.sent.isEmpty())
+        assertFalse(vm.state.value.sending)
+    }
+
+    @Test
+    fun `during the hold nothing else is sent or saved, and undo after it has gone does nothing`() {
+        val vm = heldVm()
+        vm.send()
+
+        assertFalse(vm.requestSend())
+        vm.send()
+        vm.saveDraft()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS)
+        main.dispatcher.scheduler.runCurrent()
+        vm.undoSend()
+
+        assertEquals(1, repo.sent.size)
+        assertTrue(repo.drafts.isEmpty())
+        assertFalse(vm.state.value.undone)
     }
 
     @Test
@@ -277,7 +380,7 @@ class SchoolMailComposeViewModelTest {
     @Test
     fun `a pick that can't be measured shows the attachment error instead of vanishing silently`() {
         val unmeasurable = PickedAttachmentReader { null }
-        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, unmeasurable, notices, main.dispatcher)
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, unmeasurable, notices, main.dispatcher).also { it.sendHoldMs = 0 }
         vm.addPicked(listOf<Uri?>(null))
         assertEquals(ComposeError.TooLarge, vm.state.value.error)
         assertTrue(vm.state.value.attachments.isEmpty())
@@ -290,7 +393,7 @@ class SchoolMailComposeViewModelTest {
         val vm = SchoolMailComposeViewModel(
             handle(ComposeMode.NEW, mailto = "mailto:office@mail.ntust.edu.tw?cc=b@x.tw&subject=%E8%AB%8B%E5%95%8F&body=Hi"),
             repo, account, cache, noPicks, notices, main.dispatcher,
-        )
+        ).also { it.sendHoldMs = 0 }
         vm.prefill(labels)
         val s = vm.state.value
         assertEquals(listOf("office@mail.ntust.edu.tw"), s.to.entries)
@@ -364,7 +467,7 @@ class SchoolMailComposeViewModelTest {
         repo.sentCopy = SentCopy.NotAttempted
         // Unconfined, so the sign-out's cleanup has run by the time the send comes back.
         val notices = SentCopyNotices(account, CoroutineScope(SupervisorJob() + Dispatchers.Unconfined))
-        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, main.dispatcher)
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, main.dispatcher).also { it.sendHoldMs = 0 }
         vm.prefill(labels)
         vm.setTo("a@x.tw")
         repo.onSend = { account.signOut() }
@@ -633,7 +736,7 @@ class SchoolMailComposeViewModelTest {
         val slowReader = PickedAttachmentReader {
             ComposeAttachment("p", "p.txt", "text/plain", 3, ComposeAttachment.Source.Local { ByteArrayInputStream("hi!".toByteArray()) })
         }
-        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, slowReader, notices, pickerDispatcher)
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, slowReader, notices, pickerDispatcher).also { it.sendHoldMs = 0 }
         vm.setTo("a@x.tw")
         vm.addPicked(listOf<Uri?>(null))
         assertTrue(vm.state.value.pendingPicks > 0)

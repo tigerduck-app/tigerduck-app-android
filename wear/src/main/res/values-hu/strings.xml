@@ -351,6 +351,7 @@
     <string name="course_member_email">E-mail</string>
     <string name="course_member_groups">Csoportok</string>
     <string name="course_member_me">Én</string>
+    <string name="course_member_picture_unreadable">Nem sikerült megnyitni ezt a fotót. Válasszon másikat.</string>
     <string name="course_member_profile_picture">Profilkép</string>
     <string name="course_members_auditors">Vendéghallgatók</string>
     <string name="course_members_students">Hallgatók</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Elküldi ezt az üzenetet?</string>
     <string name="school_mail_send_failed">Nem sikerült elküldeni az üzenetet</string>
     <string name="school_mail_send_unconfirmed">Nem sikerült megerősíteni, hogy elment-e az üzenet; az újrapróbálkozás kétszer is kézbesítheti</string>
+    <string name="school_mail_send_undone">Küldés visszavonva. Az üzenet visszakerült a szerkesztőbe.</string>
+    <string name="school_mail_sending_hold">Küldés…</string>
     <string name="school_mail_sent_copy_failed">Az üzenet elküldve, de a másolatot nem sikerült elmenteni az Elküldött üzenetek mappába.</string>
     <string name="school_mail_sent_copy_no_folder">Az üzenet elküldve, de nincs Elküldött üzenetek mappa, amelybe el lehetne menteni a másolatot.</string>
     <string name="school_mail_sent_copy_not_saved">Elküldve, de a másolat nem mentődött el az Elküldött üzenetek mappába</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Tárgy</string>
     <string name="school_mail_to">Címzett</string>
     <string name="school_mail_too_large">A mellékletek meghaladják az 50 MB-os korlátot</string>
+    <string name="school_mail_undo_send">Visszavonás</string>
     <string name="school_mail_unread_only">Csak olvasatlanok megjelenítése</string>
     <string name="school_mail_use_other_app">Másik alkalmazás használata</string>
     <string name="school_mail_view_formatted">Formázott</string>

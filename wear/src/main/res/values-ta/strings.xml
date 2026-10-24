@@ -351,6 +351,7 @@
     <string name="course_member_email">மின்னஞ்சல்</string>
     <string name="course_member_groups">குழுக்கள்</string>
     <string name="course_member_me">நான்</string>
+    <string name="course_member_picture_unreadable">இந்தப் புகைப்படத்தைத் திறக்க முடியவில்லை. வேறு புகைப்படத்தைத் தேர்ந்தெடுக்கவும்.</string>
     <string name="course_member_profile_picture">சுயவிவரப் படம்</string>
     <string name="course_members_auditors">பார்வையாளர் மாணவர்கள்</string>
     <string name="course_members_students">மாணவர்கள்</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">இந்த மின்னஞ்சலை அனுப்பவா?</string>
     <string name="school_mail_send_failed">மின்னஞ்சலை அனுப்ப முடியவில்லை</string>
     <string name="school_mail_send_unconfirmed">மின்னஞ்சல் அனுப்பப்பட்டதா என உறுதிசெய்ய முடியவில்லை; மீண்டும் முயன்றால் அது இருமுறை சென்றடையக்கூடும்</string>
+    <string name="school_mail_send_undone">அனுப்புதல் ரத்துசெய்யப்பட்டது. மின்னஞ்சல் மீண்டும் திருத்தியில் உள்ளது.</string>
+    <string name="school_mail_sending_hold">அனுப்புகிறது…</string>
     <string name="school_mail_sent_copy_failed">மின்னஞ்சல் அனுப்பப்பட்டது, ஆனால் நகலை அனுப்பியவையில் சேமிக்க முடியவில்லை.</string>
     <string name="school_mail_sent_copy_no_folder">மின்னஞ்சல் அனுப்பப்பட்டது, ஆனால் நகலை வைத்திருக்க அனுப்பியவை கோப்புறை இல்லை.</string>
     <string name="school_mail_sent_copy_not_saved">மின்னஞ்சல் அனுப்பப்பட்டது, ஆனால் நகல் அனுப்பியவையில் சேமிக்கப்படவில்லை</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">பொருள்</string>
     <string name="school_mail_to">பெறுநர்</string>
     <string name="school_mail_too_large">இணைப்புகள் 50 MB வரம்பை மீறுகின்றன</string>
+    <string name="school_mail_undo_send">செயல்தவிர்</string>
     <string name="school_mail_unread_only">படிக்காதவை மட்டும் காட்டு</string>
     <string name="school_mail_use_other_app">வேறு ஆப்பைப் பயன்படுத்து</string>
     <string name="school_mail_view_formatted">வடிவமைக்கப்பட்டது</string>

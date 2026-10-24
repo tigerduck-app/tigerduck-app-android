@@ -351,6 +351,7 @@
     <string name="course_member_email">อีเมล</string>
     <string name="course_member_groups">กลุ่ม</string>
     <string name="course_member_me">ฉัน</string>
+    <string name="course_member_picture_unreadable">เปิดรูปภาพนี้ไม่ได้ โปรดเลือกรูปภาพอื่น</string>
     <string name="course_member_profile_picture">รูปโปรไฟล์</string>
     <string name="course_members_auditors">ผู้ร่วมฟัง</string>
     <string name="course_members_students">นักศึกษา</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">ส่งอีเมลนี้หรือไม่?</string>
     <string name="school_mail_send_failed">ส่งอีเมลไม่สำเร็จ</string>
     <string name="school_mail_send_unconfirmed">ไม่สามารถยืนยันได้ว่าส่งอีเมลแล้วหรือไม่ การลองอีกครั้งอาจทำให้ผู้รับได้รับสองฉบับ</string>
+    <string name="school_mail_send_undone">ยกเลิกการส่งแล้ว อีเมลกลับมาอยู่ในหน้าแก้ไข</string>
+    <string name="school_mail_sending_hold">กำลังส่ง…</string>
     <string name="school_mail_sent_copy_failed">ส่งอีเมลแล้ว แต่บันทึกสำเนาลงในส่งแล้วไม่สำเร็จ</string>
     <string name="school_mail_sent_copy_no_folder">ส่งอีเมลแล้ว แต่ไม่มีโฟลเดอร์ส่งแล้วสำหรับเก็บสำเนา</string>
     <string name="school_mail_sent_copy_not_saved">ส่งอีเมลแล้ว แต่ไม่ได้บันทึกสำเนาไว้ในส่งแล้ว</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">หัวเรื่อง</string>
     <string name="school_mail_to">ถึง</string>
     <string name="school_mail_too_large">ไฟล์แนบเกินขีดจำกัด 50 MB</string>
+    <string name="school_mail_undo_send">เลิกทำ</string>
     <string name="school_mail_unread_only">แสดงเฉพาะที่ยังไม่อ่าน</string>
     <string name="school_mail_use_other_app">ใช้แอปอื่น</string>
     <string name="school_mail_view_formatted">จัดรูปแบบ</string>

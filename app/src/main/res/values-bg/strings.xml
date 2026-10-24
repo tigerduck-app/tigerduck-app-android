@@ -351,6 +351,7 @@
     <string name="course_member_email">Имейл</string>
     <string name="course_member_groups">Групи</string>
     <string name="course_member_me">Аз</string>
+    <string name="course_member_picture_unreadable">Тази снимка не можа да бъде отворена. Изберете друга.</string>
     <string name="course_member_profile_picture">Профилна снимка</string>
     <string name="course_members_auditors">Свободни слушатели</string>
     <string name="course_members_students">Студенти</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Да изпратя ли този имейл?</string>
     <string name="school_mail_send_failed">Имейлът не можа да бъде изпратен</string>
     <string name="school_mail_send_unconfirmed">Не може да се потвърди дали имейлът е изпратен; повторен опит може да го изпрати два пъти</string>
+    <string name="school_mail_send_undone">Изпращането е отменено. Имейлът е отново в редактора.</string>
+    <string name="school_mail_sending_hold">Изпращане…</string>
     <string name="school_mail_sent_copy_failed">Имейлът бе изпратен, но копието не можа да се запази в Изпратени.</string>
     <string name="school_mail_sent_copy_no_folder">Имейлът бе изпратен, но няма папка Изпратени, в която да се съхрани копие.</string>
     <string name="school_mail_sent_copy_not_saved">Имейлът е изпратен, но копие не бе запазено в Изпратени</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Тема</string>
     <string name="school_mail_to">До</string>
     <string name="school_mail_too_large">Прикачените файлове надвишават лимита от 50 MB</string>
+    <string name="school_mail_undo_send">Отмяна</string>
     <string name="school_mail_unread_only">Показвай само непрочетените</string>
     <string name="school_mail_use_other_app">Използвай друго приложение</string>
     <string name="school_mail_view_formatted">Форматиран</string>

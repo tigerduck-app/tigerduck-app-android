@@ -351,6 +351,7 @@
     <string name="course_member_email">メール</string>
     <string name="course_member_groups">グループ</string>
     <string name="course_member_me">自分</string>
+    <string name="course_member_picture_unreadable">この写真を開けませんでした。別の写真を選択してください。</string>
     <string name="course_member_profile_picture">プロフィール写真</string>
     <string name="course_members_auditors">聴講生</string>
     <string name="course_members_students">学生</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">このメールを送信しますか？</string>
     <string name="school_mail_send_failed">メールを送信できませんでした</string>
     <string name="school_mail_send_unconfirmed">メールが送信されたか確認できませんでした。再試行すると相手に 2 通届く可能性があります</string>
+    <string name="school_mail_send_undone">送信を取り消しました。メールは編集画面に戻りました。</string>
+    <string name="school_mail_sending_hold">送信中…</string>
     <string name="school_mail_sent_copy_failed">メールは送信されましたが、コピーを送信済みフォルダに保存できませんでした。</string>
     <string name="school_mail_sent_copy_no_folder">メールは送信されましたが、コピーを保存できる送信済みフォルダがありません。</string>
     <string name="school_mail_sent_copy_not_saved">メールは送信されましたが、コピーは送信済みフォルダに保存されませんでした</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">件名</string>
     <string name="school_mail_to">宛先</string>
     <string name="school_mail_too_large">添付ファイルが50 MBの上限を超えています</string>
+    <string name="school_mail_undo_send">元に戻す</string>
     <string name="school_mail_unread_only">未読のみ表示</string>
     <string name="school_mail_use_other_app">他のアプリを使う</string>
     <string name="school_mail_view_formatted">書式付き</string>

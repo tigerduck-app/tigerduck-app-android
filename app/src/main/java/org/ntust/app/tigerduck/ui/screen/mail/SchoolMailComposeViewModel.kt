@@ -1,11 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
 import android.net.Uri
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
@@ -15,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.MailAccount
@@ -143,6 +146,14 @@ class SchoolMailComposeViewModel @Inject constructor(
         val errorAcknowledged: Boolean = false,
         val done: Boolean = false,
         val savedDraft: Boolean = false,
+        /**
+         * A send the student confirmed, held for [SEND_HOLD_MS] before it goes out, so Undo can
+         * still take it back (tigerduck-app#555). [sending] is true with it: the form is the one
+         * being sent, and nothing else may be sent or saved, nor the screen left, meanwhile.
+         */
+        val holding: Boolean = false,
+        /** An Undo took the held mail back; the screen says so once and [acknowledgeUndone]s it. */
+        val undone: Boolean = false,
         /** The people the recipient fields suggest, from the mail on the phone; see [suggestions]. */
         val contacts: List<RecipientSuggestions.Contact> = emptyList(),
         internal val baseline: Fields = Fields(),
@@ -451,7 +462,21 @@ class SchoolMailComposeViewModel @Inject constructor(
         return true
     }
 
-    fun send() {
+    /** How long a confirmed send waits for an Undo; zero in tests that are not about it. */
+    @VisibleForTesting
+    internal var sendHoldMs = SEND_HOLD_MS
+
+    /** Answers the held send: true sends it now, false takes it back. Null while none is held. */
+    private var heldSend: CompletableDeferred<Boolean>? = null
+
+    /**
+     * Sends the form as it is now, once [holdMs] has passed with no [undoSend]; [sendHeldNow]
+     * ends the wait early. What goes out is what was confirmed: the form is read here, and cannot
+     * change during the hold, the screen disabling it as for a send. The screen asks for longer
+     * than [SEND_HOLD_MS] where the accessibility settings give an action more time
+     * ([sendHoldMillis]).
+     */
+    fun send(holdMs: Long = sendHoldMs) {
         val s = _state.value
         if (s.sending || s.loading || s.pendingPicks > 0) return
         val error = sendValidationError(s)
@@ -459,6 +484,46 @@ class SchoolMailComposeViewModel @Inject constructor(
             _state.update { it.copy(error = error, errorAcknowledged = false) }
             return
         }
+        // The sign-in the student confirmed the send under: a mail held while another student
+        // signed in over them must not go out as the next one's.
+        val confirmedUnder = account.accountGeneration
+        val answer = CompletableDeferred<Boolean>()
+        heldSend = answer
+        _state.update { it.copy(sending = true, holding = true, undone = false) }
+        viewModelScope.launch {
+            val goes = withTimeoutOrNull(holdMs) { answer.await() } ?: true
+            heldSend = null
+            if (!goes || account.accountGeneration != confirmedUnder) {
+                _state.update { it.copy(sending = false, holding = false, undone = !goes) }
+                return@launch
+            }
+            _state.update { it.copy(holding = false) }
+            ship(s)
+        }
+    }
+
+    /**
+     * Takes the held send back, the form left as it was for the student to change and send
+     * again. Nothing once it has gone out.
+     */
+    fun undoSend() {
+        heldSend?.complete(false)
+    }
+
+    /**
+     * Ends the hold and sends at once: the screen is leaving the foreground, to another app, the
+     * recent apps or the screen turning off, where Undo is out of reach. Held on, the mail would be
+     * lost with the screen if the app were then closed; sent now, it goes as a send without a hold
+     * would have.
+     */
+    fun sendHeldNow() {
+        heldSend?.complete(true)
+    }
+
+    fun acknowledgeUndone() = _state.update { it.copy(undone = false) }
+
+    /** The send itself, of the form [s] as it was confirmed. */
+    private fun ship(s: UiState) {
         val to = ComposeRules.parseRecipients(s.to.entries)
         val cc = ComposeRules.parseRecipients(s.cc.entries)
         val bcc = ComposeRules.parseRecipients(s.bcc.entries)
@@ -577,4 +642,10 @@ class SchoolMailComposeViewModel @Inject constructor(
             }
         }
     }
+
+    companion object {
+        /** How long a confirmed send waits for an Undo before it goes out (tigerduck-app#555). */
+        const val SEND_HOLD_MS = 5_000L
+    }
 }
+

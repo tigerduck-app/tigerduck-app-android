@@ -351,6 +351,7 @@
     <string name="course_member_email">Электрондық пошта</string>
     <string name="course_member_groups">Топтар</string>
     <string name="course_member_me">Мен</string>
+    <string name="course_member_picture_unreadable">Бұл фотосуретті ашу мүмкін болмады. Басқасын таңдаңыз.</string>
     <string name="course_member_profile_picture">Профиль суреті</string>
     <string name="course_members_auditors">Ерікті тыңдаушылар</string>
     <string name="course_members_students">Студенттер</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Бұл хат жіберілсін бе?</string>
     <string name="school_mail_send_failed">Хатты жіберу мүмкін болмады</string>
     <string name="school_mail_send_unconfirmed">Хаттың жіберілгенін растау мүмкін болмады; қайта жіберу оны екі рет жеткізуі мүмкін</string>
+    <string name="school_mail_send_undone">Жіберу тоқтатылды. Хат өңдеу терезесіне қайтарылды.</string>
+    <string name="school_mail_sending_hold">Жіберілуде…</string>
     <string name="school_mail_sent_copy_failed">Хат жіберілді, бірақ көшірмесі Жіберілген қалтасына сақтала алмады.</string>
     <string name="school_mail_sent_copy_no_folder">Хат жіберілді, бірақ көшірмені сақтайтын Жіберілген қалтасы жоқ.</string>
     <string name="school_mail_sent_copy_not_saved">Хат жіберілді, бірақ көшірмесі Жіберілген қалтасына сақталмады</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Тақырып</string>
     <string name="school_mail_to">Кімге</string>
     <string name="school_mail_too_large">Тіркемелер 50 МБ шегінен асып кетті</string>
+    <string name="school_mail_undo_send">Болдырмау</string>
     <string name="school_mail_unread_only">Тек оқылмағандарды көрсету</string>
     <string name="school_mail_use_other_app">Басқа қолданбаны пайдалану</string>
     <string name="school_mail_view_formatted">Пішімделген</string>

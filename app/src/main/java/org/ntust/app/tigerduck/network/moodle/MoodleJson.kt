@@ -42,6 +42,18 @@ object MoodleJson {
         )
     }
 
+    /** `webservice/upload.php`'s answer: the item id of the draft area the files went to. */
+    fun draftItemId(json: JsonElement): Long =
+        json.arrayOrThrow("upload").firstNotNullOfOrNull { it.objOrNull()?.long("itemid") }
+            ?: throw MoodleWebserviceError.MalformedResponse("upload answered no draft area")
+
+    /** `core_user_update_picture`: anything but `success: true` is a picture left as it was. */
+    fun pictureChanged(json: JsonElement) {
+        if (json.objOrNull()?.bool("success") != true) {
+            throw MoodleWebserviceError.MalformedResponse("${MoodleCourseApi.UPDATE_PICTURE_FUNCTION} did not change the picture")
+        }
+    }
+
     /** `mod_forum_get_forums_by_courses`. */
     fun forums(json: JsonElement): List<MoodleForum> =
         json.arrayOrThrow("forums").mapNotNull { el ->

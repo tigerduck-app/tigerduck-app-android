@@ -351,6 +351,7 @@
     <string name="course_member_email">Email</string>
     <string name="course_member_groups">Grup</string>
     <string name="course_member_me">Saya</string>
+    <string name="course_member_picture_unreadable">Tidak dapat membuka foto ini. Pilih foto lain.</string>
     <string name="course_member_profile_picture">Foto profil</string>
     <string name="course_members_auditors">Mahasiswa pendengar</string>
     <string name="course_members_students">Mahasiswa</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Kirim email ini?</string>
     <string name="school_mail_send_failed">Tidak dapat mengirim email</string>
     <string name="school_mail_send_unconfirmed">Tidak dapat memastikan email sudah terkirim; mencoba lagi dapat membuatnya terkirim dua kali</string>
+    <string name="school_mail_send_undone">Pengiriman dibatalkan. Email kembali ke editor.</string>
+    <string name="school_mail_sending_hold">Mengirim…</string>
     <string name="school_mail_sent_copy_failed">Email sudah terkirim, tetapi salinannya tidak dapat disimpan ke Terkirim.</string>
     <string name="school_mail_sent_copy_no_folder">Email sudah terkirim, tetapi tidak ada folder Terkirim untuk menyimpan salinan.</string>
     <string name="school_mail_sent_copy_not_saved">Email terkirim, tetapi salinan tidak tersimpan di Terkirim</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Subjek</string>
     <string name="school_mail_to">Kepada</string>
     <string name="school_mail_too_large">Lampiran melebihi batas 50 MB</string>
+    <string name="school_mail_undo_send">Urungkan</string>
     <string name="school_mail_unread_only">Tampilkan yang belum dibaca saja</string>
     <string name="school_mail_use_other_app">Gunakan aplikasi lain</string>
     <string name="school_mail_view_formatted">Terformat</string>

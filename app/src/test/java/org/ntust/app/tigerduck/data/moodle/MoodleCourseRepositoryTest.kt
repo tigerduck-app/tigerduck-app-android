@@ -55,11 +55,11 @@ class MoodleCourseRepositoryTest {
         override suspend fun save(value: Any, fetchedAtMs: Long, name: String) = Unit
     }
 
-    private fun TestScope.repository() = MoodleCourseRepository(
+    private fun TestScope.repository(liveApi: MoodleCourseApi = live) = MoodleCourseRepository(
         signedIn = { authState.value },
         account = { account },
         isDemo = { demo },
-        liveApi = live,
+        liveApi = liveApi,
         demoApi = { Api(demoGrade) },
         idMap = { mapOf("1151CS3005301" to 5) },
         cachePort = { account -> cachedFor += account; noCache },
@@ -87,6 +87,26 @@ class MoodleCourseRepositoryTest {
         assertFalse("and the first one's store knows it is no longer current", first!!.isCurrent())
         assertTrue(other!!.isCurrent())
     }
+
+    @Test
+    fun `a picture changed in one course has the account's other courses fetch their members again`() =
+        runTest(UnconfinedTestDispatcher()) {
+            val api = object : MoodleCourseApi by live {
+                override suspend fun functions() = setOf(MoodleCourseApi.MEMBERS_FUNCTION, MoodleCourseApi.UPDATE_PICTURE_FUNCTION)
+                override suspend fun changePicture(jpeg: ByteArray) = Unit
+            }
+            val repository = repository(api)
+            val here = repository.store(5)!!
+            val other = repository.store(6)!!
+            other.refreshMembers()
+            assertTrue(other.members.state.value.fetchedAtMs!! > 0)
+
+            assertNull(here.changePicture { byteArrayOf(1) })
+
+            // Out of date, so its members screen fetches them at once.
+            assertEquals(0L, other.members.state.value.fetchedAtMs)
+            assertTrue("this course fetched its own anew", here.members.state.value.fetchedAtMs!! > 0)
+        }
 
     @Test
     fun `sign-out drops every store, and none is handed out signed out`() = runTest(UnconfinedTestDispatcher()) {

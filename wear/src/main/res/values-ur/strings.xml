@@ -351,6 +351,7 @@
     <string name="course_member_email">ای میل</string>
     <string name="course_member_groups">گروپس</string>
     <string name="course_member_me">میں</string>
+    <string name="course_member_picture_unreadable">یہ تصویر نہیں کھولی جا سکی۔ کوئی اور تصویر منتخب کریں۔</string>
     <string name="course_member_profile_picture">پروفائل تصویر</string>
     <string name="course_members_auditors">آڈیٹر طلبہ</string>
     <string name="course_members_students">طلبہ</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">کیا یہ ای میل بھیجیں؟</string>
     <string name="school_mail_send_failed">ای میل بھیجی نہیں جا سکی</string>
     <string name="school_mail_send_unconfirmed">تصدیق نہیں ہو سکی کہ ای میل بھیجی گئی یا نہیں؛ دوبارہ کوشش کرنے سے یہ دو بار پہنچ سکتی ہے</string>
+    <string name="school_mail_send_undone">بھیجنا منسوخ کر دیا گیا۔ ای میل واپس ایڈیٹر میں آ گئی ہے۔</string>
+    <string name="school_mail_sending_hold">بھیجی جا رہی ہے…</string>
     <string name="school_mail_sent_copy_failed">ای میل بھیج دی گئی، لیکن کاپی بھیجی گئی میں محفوظ نہیں ہو سکی۔</string>
     <string name="school_mail_sent_copy_no_folder">ای میل بھیج دی گئی، لیکن کاپی محفوظ کرنے کے لیے کوئی بھیجی گئی فولڈر نہیں ہے۔</string>
     <string name="school_mail_sent_copy_not_saved">ای میل بھیج دی گئی، لیکن اس کی کاپی بھیجی گئی میں محفوظ نہیں ہوئی</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">موضوع</string>
     <string name="school_mail_to">وصول کنندہ</string>
     <string name="school_mail_too_large">منسلکات 50 MB کی حد سے تجاوز کر گئے ہیں</string>
+    <string name="school_mail_undo_send">واپس لیں</string>
     <string name="school_mail_unread_only">صرف غیر پڑھی ہوئی دکھائیں</string>
     <string name="school_mail_use_other_app">دوسری ایپ استعمال کریں</string>
     <string name="school_mail_view_formatted">فارمیٹڈ</string>

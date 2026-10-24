@@ -351,6 +351,7 @@
     <string name="course_member_email">电子邮件</string>
     <string name="course_member_groups">分组</string>
     <string name="course_member_me">我</string>
+    <string name="course_member_picture_unreadable">无法打开这张照片，请选择其他照片。</string>
     <string name="course_member_profile_picture">头像</string>
     <string name="course_members_auditors">旁听生</string>
     <string name="course_members_students">学生</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">要发送这封邮件吗？</string>
     <string name="school_mail_send_failed">无法发送邮件</string>
     <string name="school_mail_send_unconfirmed">无法确认邮件是否已寄出，重试可能会导致对方收到两封</string>
+    <string name="school_mail_send_undone">已取消发送，邮件已回到编辑界面。</string>
+    <string name="school_mail_sending_hold">正在发送…</string>
     <string name="school_mail_sent_copy_failed">邮件已发送，但副本无法保存到已发送。</string>
     <string name="school_mail_sent_copy_no_folder">邮件已发送，但目前没有已发送文件夹可以保留副本。</string>
     <string name="school_mail_sent_copy_not_saved">邮件已发送，但副本未保存到已发送</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">主题</string>
     <string name="school_mail_to">收件人</string>
     <string name="school_mail_too_large">附件超过 50 MB 上限</string>
+    <string name="school_mail_undo_send">撤销</string>
     <string name="school_mail_unread_only">只看未读</string>
     <string name="school_mail_use_other_app">用其他 App 收信</string>
     <string name="school_mail_view_formatted">格式化</string>

@@ -351,6 +351,7 @@
     <string name="course_member_email">ಇಮೇಲ್</string>
     <string name="course_member_groups">ಗುಂಪುಗಳು</string>
     <string name="course_member_me">ನಾನು</string>
+    <string name="course_member_picture_unreadable">ಈ ಫೋಟೋವನ್ನು ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಬೇರೆ ಫೋಟೋ ಆಯ್ಕೆಮಾಡಿ.</string>
     <string name="course_member_profile_picture">ಪ್ರೊಫೈಲ್ ಚಿತ್ರ</string>
     <string name="course_members_auditors">ಆಡಿಟರ್‌ಗಳು</string>
     <string name="course_members_students">ವಿದ್ಯಾರ್ಥಿಗಳು</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">ಈ ಇಮೇಲ್ ಕಳುಹಿಸಬೇಕೇ?</string>
     <string name="school_mail_send_failed">ಇಮೇಲ್ ಕಳುಹಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ</string>
     <string name="school_mail_send_unconfirmed">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆಯೇ ಎಂದು ದೃಢಪಡಿಸಲಾಗಲಿಲ್ಲ; ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿದರೆ ಅದು ಎರಡು ಬಾರಿ ತಲುಪಬಹುದು</string>
+    <string name="school_mail_send_undone">ಕಳುಹಿಸುವಿಕೆಯನ್ನು ರದ್ದುಮಾಡಲಾಗಿದೆ. ಇಮೇಲ್ ಮತ್ತೆ ಎಡಿಟರ್‌ನಲ್ಲಿದೆ.</string>
+    <string name="school_mail_sending_hold">ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ…</string>
     <string name="school_mail_sent_copy_failed">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆ, ಆದರೆ ನಕಲನ್ನು ಕಳುಹಿಸಿದವುಗಳಲ್ಲಿ ಉಳಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</string>
     <string name="school_mail_sent_copy_no_folder">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆ, ಆದರೆ ನಕಲನ್ನು ಇರಿಸಲು ಯಾವುದೇ ಕಳುಹಿಸಿದವು ಫೋಲ್ಡರ್ ಇಲ್ಲ.</string>
     <string name="school_mail_sent_copy_not_saved">ಇಮೇಲ್ ಕಳುಹಿಸಲಾಗಿದೆ, ಆದರೆ ಅದರ ನಕಲನ್ನು ಕಳುಹಿಸಿದವುಗಳಲ್ಲಿ ಉಳಿಸಲಾಗಿಲ್ಲ</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">ವಿಷಯ</string>
     <string name="school_mail_to">ಸ್ವೀಕರಿಸುವವರು</string>
     <string name="school_mail_too_large">ಲಗತ್ತುಗಳು 50 MB ಮಿತಿಯನ್ನು ಮೀರಿವೆ</string>
+    <string name="school_mail_undo_send">ರದ್ದುಗೊಳಿಸಿ</string>
     <string name="school_mail_unread_only">ಓದದಿರುವುದನ್ನು ಮಾತ್ರ ತೋರಿಸಿ</string>
     <string name="school_mail_use_other_app">ಬೇರೆ ಆ್ಯಪ್ ಬಳಸಿ</string>
     <string name="school_mail_view_formatted">ಫಾರ್ಮ್ಯಾಟ್ ಮಾಡಲಾಗಿದೆ</string>

@@ -351,6 +351,7 @@
     <string name="course_member_email">E-pošta</string>
     <string name="course_member_groups">Skupine</string>
     <string name="course_member_me">Jaz</string>
+    <string name="course_member_picture_unreadable">Te fotografije ni bilo mogoče odpreti. Izberite drugo.</string>
     <string name="course_member_profile_picture">Profilna slika</string>
     <string name="course_members_auditors">Slušatelji</string>
     <string name="course_members_students">Študenti</string>
@@ -837,6 +838,8 @@
     <string name="school_mail_send_confirm_title">Želite poslati to sporočilo?</string>
     <string name="school_mail_send_failed">Sporočila ni bilo mogoče poslati</string>
     <string name="school_mail_send_unconfirmed">Ni bilo mogoče potrditi, ali je bilo sporočilo poslano; ponoven poskus ga lahko dostavi dvakrat</string>
+    <string name="school_mail_send_undone">Pošiljanje je preklicano. Sporočilo je spet v urejevalniku.</string>
+    <string name="school_mail_sending_hold">Pošiljanje…</string>
     <string name="school_mail_sent_copy_failed">Sporočilo je bilo poslano, vendar kopije ni bilo mogoče shraniti v Poslano.</string>
     <string name="school_mail_sent_copy_no_folder">Sporočilo je bilo poslano, vendar ne obstaja mapa Poslano, v katero bi shranili kopijo.</string>
     <string name="school_mail_sent_copy_not_saved">Sporočilo je poslano, vendar kopija ni bila shranjena v Poslano</string>
@@ -858,6 +861,7 @@
     <string name="school_mail_subject">Zadeva</string>
     <string name="school_mail_to">Komu</string>
     <string name="school_mail_too_large">Priloge presegajo omejitev 50 MB</string>
+    <string name="school_mail_undo_send">Razveljavi</string>
     <string name="school_mail_unread_only">Prikaži samo neprebrano</string>
     <string name="school_mail_use_other_app">Uporabi drugo aplikacijo</string>
     <string name="school_mail_view_formatted">Oblikovano</string>
