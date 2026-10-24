@@ -16,6 +16,46 @@ permissions:
   contents: read
 
 jobs:
+  pick-runner:
+    # Where the build-and-test legs run: on the maintainer's build box, the
+    # self-hosted runners labelled sam-runner-1, while one of them is online,
+    # else on GitHub's runners as before. The box keeps its Gradle caches
+    # between runs, so a leg there skips most of the download and compile a
+    # fresh runner does.
+    #
+    # Only a pull request from a branch of this repository goes there. One
+    # from a fork would run its code on a private machine; it also gets no
+    # secrets, so without RUNNER_STATUS_TOKEN the check below falls back to
+    # GitHub's runners on its own as well. Listing the repository's runners
+    # needs a token that can read its administration settings, which
+    # GITHUB_TOKEN cannot.
+    name: pick-runner
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+      own: ${{ steps.pick.outputs.own }}
+    steps:
+      - id: pick
+        env:
+          GH_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          FROM_THIS_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          runner='"ubuntu-latest"'
+          own=false
+          if [ "$FROM_THIS_REPO" = "true" ] && [ -n "$GH_TOKEN" ]; then
+            # Any failure to ask counts as offline: the gate must not wait on the box.
+            online=$(gh api "repos/$GITHUB_REPOSITORY/actions/runners" \
+              --jq '[.runners[] | select(.status == "online" and (.labels | map(.name) | index("sam-runner-1")))] | length' \
+              2>/dev/null) || online=0
+            if [ "${online:-0}" -gt 0 ]; then
+              runner='["self-hosted", "sam-runner-1"]'
+              own=true
+            fi
+          fi
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+          echo "own=$own" >> "$GITHUB_OUTPUT"
+          echo "build-and-test runs on: $runner" >> "$GITHUB_STEP_SUMMARY"
+
   build-and-test:
     # One runner per leg. The three used to run back to back in a single job
     # (~7 min), yet none of them needs another's output, so the gate now takes
@@ -25,7 +65,8 @@ jobs:
     # caches the release workflow writes on main, so the split does not mean
     # downloading the world once per leg.
     name: build-and-test (${{ matrix.leg }})
-    runs-on: ubuntu-latest
+    needs: pick-runner
+    runs-on: ${{ fromJSON(needs.pick-runner.outputs.runner) }}
     strategy:
       # Let every leg report: a compile error in one flavor must not hide a
       # failing test in the other.
@@ -81,6 +122,11 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+        with:
+          # The build box keeps its own Gradle home between runs; restoring
+          # and saving GitHub's cache there would only move gigabytes over a
+          # home connection.
+          cache-disabled: ${{ needs.pick-runner.outputs.own == 'true' }}
 
       - name: Gradle (${{ matrix.leg }})
         env:
