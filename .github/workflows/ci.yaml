@@ -91,6 +91,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           STATUS_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
+          # What this run's legs check out: a dispatch's own sha, else the event's commit,
+          # which for a pull request is GitHub's merge commit. Through the environment,
+          # never pasted into the script, as a dispatch's input is free text.
+          TESTED_SHA: ${{ inputs.sha || github.sha }}
         run: |
           offline=0
           while true; do
@@ -103,9 +107,8 @@ jobs:
             if [ "${online:-0}" -gt 0 ]; then offline=0; else offline=$((offline + 1)); fi
             if [ "$offline" -ge 2 ]; then
               echo "::warning::The build box went offline under this run; running the checks again on GitHub's runners."
-              # The very commit this run tests: a pull request's run tests GitHub's merge
-              # commit, not the branch head, and a push meanwhile must not change it.
-              gh workflow run ci.yaml --ref "$BRANCH" -f hosted=true -f sha="$GITHUB_SHA"
+              # The very commit this run tests, so a push meanwhile does not change it.
+              gh workflow run ci.yaml --ref "$BRANCH" -f hosted=true -f sha="$TESTED_SHA"
               gh run cancel "$GITHUB_RUN_ID"
               exit 0
             fi
