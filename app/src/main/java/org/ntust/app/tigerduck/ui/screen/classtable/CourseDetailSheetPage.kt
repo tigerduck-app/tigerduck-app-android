@@ -14,10 +14,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -62,13 +61,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.text.SimpleDateFormat
+import java.util.Locale
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.component.WholeWordsText
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleCourseSection
@@ -81,8 +85,6 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.formatCredits
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 /**
  * The class table's selected course, in full, as its sheet's page:
@@ -268,23 +270,14 @@ internal fun CourseDetailContent(
         )
     }
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.height(IntrinsicSize.Min),
-    ) {
+    SideBySideOrStacked(gap = 12.dp) {
         EmphasisCard(
             label = stringResource(R.string.course_detail_classroom_label),
             value = classroomValue,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
         )
         EmphasisCard(
             label = stringResource(R.string.course_detail_time_label),
             value = timeValue,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
         )
     }
 
@@ -414,15 +407,15 @@ private fun EmphasisCard(
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(
+            WholeWordsText(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            // weight(1f) on the value Box lets sibling cards in an
-            // IntrinsicSize.Min row equalize on the taller card's
-            // intrinsic height by letting this Box absorb the extra
-            // vertical space, vertically centering the value inside it.
+            // weight(1f) on the value Box lets side-by-side cards share
+            // the taller card's height (see SideBySideOrStacked) by
+            // letting this Box absorb the extra vertical space,
+            // vertically centering the value inside it.
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -438,6 +431,48 @@ private fun EmphasisCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Its cards in a row, sharing the width and the height of the taller, while each card's longest
+ * word fits its share. At the app's largest sizes "Classroom" no longer does, and used to break
+ * as "Classroo" / "m", so the cards then go one under the other, each across the whole width.
+ */
+@Composable
+private fun SideBySideOrStacked(gap: Dp, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = Modifier.fillMaxWidth()) { measurables, constraints ->
+        val gapPx = gap.roundToPx()
+        val gaps = gapPx * (measurables.size - 1)
+        // Unbounded, as an intrinsic measurement asks: each card as wide as its longest word.
+        val share = if (constraints.hasBoundedWidth) {
+            (constraints.maxWidth - gaps) / measurables.size
+        } else {
+            measurables.maxOf { it.minIntrinsicWidth(Constraints.Infinity) }
+        }
+        val width = if (constraints.hasBoundedWidth) constraints.maxWidth else share * measurables.size + gaps
+        if (measurables.all { it.minIntrinsicWidth(Constraints.Infinity) <= share }) {
+            // The last card takes what flooring the shares left over.
+            val widths = measurables.indices.map { if (it == measurables.lastIndex) width - gaps - share * it else share }
+            val height = measurables.indices.maxOf { measurables[it].minIntrinsicHeight(widths[it]) }
+            val placeables = measurables.indices.map { measurables[it].measure(Constraints.fixed(widths[it], height)) }
+            layout(width, height) {
+                var x = 0
+                placeables.forEach {
+                    it.placeRelative(x, 0)
+                    x += it.width + gapPx
+                }
+            }
+        } else {
+            val placeables = measurables.map { it.measure(Constraints.fixed(width, it.minIntrinsicHeight(width))) }
+            layout(width, placeables.sumOf { it.height } + gaps) {
+                var y = 0
+                placeables.forEach {
+                    it.placeRelative(0, y)
+                    y += it.height + gapPx
+                }
             }
         }
     }
