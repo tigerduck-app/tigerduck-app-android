@@ -37,18 +37,33 @@ class AcademicCalendarEventsTest {
             zone = taipei,
         )
 
+    private fun holidayRows(languageTag: String = "en-US") = events(languageTag).filter { it.eventId.startsWith("holiday:") }
+
     @Test
-    fun `a multi-day holiday produces one row, not one per day`() {
-        // Eight identical rows for a week-long break would bury the Moodle
-        // deadlines the calendar exists to show.
-        val holidays = events().filter { it.eventId.startsWith("holiday:") }
-        assertEquals(1, holidays.size)
+    fun `a multi-day holiday has a row on every day it covers`() {
+        // The screen lists the selected day's events only: a day in the
+        // middle of a break must show the holiday, and its toggle, too.
+        assertEquals(
+            listOf("2026-09-25", "2026-09-26", "2026-09-27").map(::taipeiDate),
+            holidayRows().map { it.date },
+        )
     }
 
     @Test
-    fun `the holiday row sits on its first day`() {
-        val holiday = events().single { it.eventId == "holiday:4" }
-        assertEquals(taipeiDate("2026-09-25"), holiday.date)
+    fun `each day's row has an id of its own`() {
+        val ids = holidayRows().map { it.eventId }
+        assertEquals(ids.distinct(), ids)
+    }
+
+    @Test
+    fun `a one-day holiday has one row`() {
+        val oneDay = AcademicCalendarEvents.eventsFor(
+            calendar.copy(
+                holidays = listOf(Holiday(5, "颱風假", "Typhoon day", LocalDate.parse("2026-10-23"), LocalDate.parse("2026-10-23"))),
+            ),
+            "en-US", { it }, { it }, { it }, taipei,
+        ).filter { it.eventId.startsWith("holiday:") }
+        assertEquals(listOf(taipeiDate("2026-10-23")), oneDay.map { it.date })
     }
 
     @Test
@@ -76,14 +91,14 @@ class AcademicCalendarEventsTest {
 
     @Test
     fun `the holiday title follows the language tag`() {
-        assertEquals("Mid-Autumn", events("en-US").single { it.eventId == "holiday:4" }.title)
-        assertEquals("中秋節", events("zh-Hant-TW").single { it.eventId == "holiday:4" }.title)
+        assertEquals(listOf("Mid-Autumn"), holidayRows("en-US").map { it.title }.distinct())
+        assertEquals(listOf("中秋節"), holidayRows("zh-Hant-TW").map { it.title }.distinct())
     }
 
     @Test
-    fun `a holiday row maps back to its holiday`() {
-        val holiday = events().single { it.eventId == "holiday:4" }
-        assertEquals(4, AcademicCalendarEvents.holidayIdFor(holiday))
+    fun `every day's row maps back to its one holiday`() {
+        // So the toggle on any day of it applies to the whole holiday.
+        assertEquals(listOf(4, 4, 4), holidayRows().map(AcademicCalendarEvents::holidayIdFor))
     }
 
     @Test
