@@ -18,8 +18,11 @@ import java.io.File
  */
 class ReleaseLogLinesTest {
 
-    /** Sources that reach a release build: the phone's flavors, :shared, and the watch. */
-    private val shipped = listOf("src/main", "src/play", "src/fdroid", "../shared/src/main", "../wear/src/main")
+    /** Sources that reach a release build: the phone's flavors and the modules it is built from, :shared, and the watch. */
+    private val shipped = listOf("src/main", "src/play", "src/fdroid", "../shared/src/main", "../wear/src/main") +
+        listOf("../core", "../feature").flatMap { group ->
+            File(group).listFiles().orEmpty().sorted().map { "$group/${it.name}/src/main" }
+        }
 
     @Test
     fun `no warning or error in shipped code logs an exception's text or user data`() {

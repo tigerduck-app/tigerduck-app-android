@@ -171,11 +171,15 @@ android {
             }
             // ReleaseLogLinesTest and AllHttpsClientsPinnedTest read the watch's
             // sources too, and BuiltInPinsTest the watch's manifest, network
-            // config and build file, which nothing here builds.
+            // config and build file, which nothing here builds. The two read
+            // the phone's own modules' sources as well, which a change to a
+            // comment alone would otherwise leave them UP-TO-DATE on.
             all {
                 it.inputs.files(
                     fileTree("../wear/src/main") { include("**/*.kt", "AndroidManifest.xml", "res/xml/**") },
                     file("../wear/build.gradle.kts"),
+                    fileTree("../core") { include("*/src/main/**/*.kt") },
+                    fileTree("../feature") { include("*/src/main/**/*.kt") },
                 ).withPathSensitivity(PathSensitivity.RELATIVE)
             }
         }
