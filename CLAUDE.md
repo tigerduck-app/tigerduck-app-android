@@ -2,10 +2,11 @@
 
 Multi-module Gradle project: `:app` (phone), `:wear` (watch OS), `:shared`
 (domain models reused on both), `:core:strings` (the phone's generated
-strings), `:core:ui` (the phone's theme and shared components; it cannot see
-`:app`, and asks it for anything through an interface `:app` implements, bound
-in `di/CoreUiModule.kt` or passed in).
-Phone has `play` and `fdroid` flavors; `:wear` is play-only.
+strings), `:core:ui` (the phone's theme and shared components) and
+`:feature:files` (the file viewer). Neither of the last two can see `:app`:
+each asks it for anything through an interface `:app` implements, bound in
+`di/CoreUiModule.kt` or `di/FilesModule.kt`, or passed in. Phone has `play`
+and `fdroid` flavors; `:wear` is play-only.
 Localization strings come from the `app-translation/` submodule and are
 generated on every build (see below); none are committed.
 

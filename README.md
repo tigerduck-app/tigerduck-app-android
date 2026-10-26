@@ -323,6 +323,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       └── TigerDuckApp.kt
 ├── core/strings/                       # 手機的字串與語系清單，從 app-translation 產生（`:core:strings`）
 ├── core/ui/                            # 主題、共用 Composable、震動回饋（`:core:ui`，套件名稱不變）
+├── feature/files/                      # 檔案檢視器：PDF、圖片、影音、文字、Office、壓縮檔（`:feature:files`）
 ├── shared/                             # 手機 + 手錶共用模組（`:shared`）
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock 抽象（可被 debug 時鐘覆寫）

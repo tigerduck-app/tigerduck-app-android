@@ -344,6 +344,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       └── TigerDuckApp.kt
 ├── core/strings/                       # The phone's strings and locale list, generated from app-translation (`:core:strings`)
 ├── core/ui/                            # Theme, shared composables, haptics (`:core:ui`, packages unchanged)
+├── feature/files/                      # File viewer: PDF, pictures, video, text, Office, archives (`:feature:files`)
 ├── shared/                             # Phone + watch shared module (`:shared`)
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock abstraction (overridable by debug clock)
