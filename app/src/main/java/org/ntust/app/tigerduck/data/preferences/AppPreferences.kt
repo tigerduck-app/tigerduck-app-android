@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences.Companion.themeCo
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.ClassReminders
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.ui.haptics.HapticPreferences
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.VisualPreset
 import javax.inject.Inject
@@ -107,7 +108,7 @@ internal fun restoreHomeSections(json: String?, gson: Gson): List<HomeSection> {
 
 @Singleton
 class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
-    FirstTriggerSeenStore, AssignmentReminderPrefs, ReviewPromptStore {
+    FirstTriggerSeenStore, AssignmentReminderPrefs, ReviewPromptStore, HapticPreferences {
 
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE)
@@ -1275,7 +1276,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getLong("semesterCatalogRefreshedAt", 0L)
         set(value) = prefs.edit().putLong("semesterCatalogRefreshedAt", value).apply()
 
-    fun hapticStrength(scenario: HapticScenario): Int =
+    override fun hapticStrength(scenario: HapticScenario): Int =
         prefs.getInt("haptic_strength_${scenario.prefKey}", scenario.defaultStrengthPct)
             .coerceIn(0, 100)
 
@@ -1285,7 +1286,7 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             .apply()
     }
 
-    fun hapticDurationMs(scenario: HapticScenario): Int =
+    override fun hapticDurationMs(scenario: HapticScenario): Int =
         prefs.getInt("haptic_duration_${scenario.prefKey}", scenario.defaultDurationMs)
             .coerceIn(MIN_TUNABLE_HAPTIC_DURATION_MS, MAX_TUNABLE_HAPTIC_DURATION_MS)
 

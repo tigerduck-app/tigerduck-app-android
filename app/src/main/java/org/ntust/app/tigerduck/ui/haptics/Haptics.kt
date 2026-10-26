@@ -10,21 +10,29 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
+
+/**
+ * The strength and length the user set for each [HapticScenario.userTunable]
+ * scenario: :app's AppPreferences, bound in its Hilt graph.
+ */
+interface HapticPreferences {
+    fun hapticStrength(scenario: HapticScenario): Int
+    fun hapticDurationMs(scenario: HapticScenario): Int
+}
 
 object Haptics {
 
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface PrefsEntryPoint {
-        fun appPreferences(): AppPreferences
+        fun hapticPreferences(): HapticPreferences
     }
 
     fun perform(context: Context, scenario: HapticScenario) {
         val (strengthPct, durationMs) = if (scenario.userTunable) {
             val prefs = EntryPointAccessors
                 .fromApplication(context.applicationContext, PrefsEntryPoint::class.java)
-                .appPreferences()
+                .hapticPreferences()
             prefs.hapticStrength(scenario) to prefs.hapticDurationMs(scenario)
         } else {
             scenario.defaultStrengthPct to scenario.defaultDurationMs

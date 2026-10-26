@@ -94,10 +94,10 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.core.strings.R
 
 /** The heights a [DetentSheet] rests at. */
-internal enum class DetentSheetValue { Hidden, Half, Full }
+enum class DetentSheetValue { Hidden, Half, Full }
 
 /** How a [DetentSheet] moves. */
-internal object DetentSheetMotion {
+object DetentSheetMotion {
     /**
      * How long the sheet takes to get where it's going. Material3's sheet settles with a spring
      * (damping 0.9, stiffness 700) in about 250 ms, and with a fling behind it, past its top and
@@ -145,7 +145,7 @@ internal object DetentSheetMotion {
 
 /** Where a [DetentSheet] is and how it moves there. Offsets are from the top of the window, in px. */
 @Stable
-internal class DetentSheetState(initialValue: DetentSheetValue, private val density: Density) {
+class DetentSheetState(initialValue: DetentSheetValue, private val density: Density) {
 
     val draggable = AnchoredDraggableState(initialValue)
 
@@ -159,7 +159,7 @@ internal class DetentSheetState(initialValue: DetentSheetValue, private val dens
      * Whether the sheet rests out of sight. Not just named so: a finger on a sheet still rising
      * stops its move and leaves it named for where it set out from, out of sight, while it shows.
      */
-    internal val isClosed: Boolean
+    val isClosed: Boolean
         get() = currentValue == DetentSheetValue.Hidden && !draggable.isAnimationRunning &&
             abs(draggable.offset - draggable.anchors.positionOf(DetentSheetValue.Hidden)) < 0.5f
 
@@ -331,7 +331,7 @@ internal class DetentSheetState(initialValue: DetentSheetValue, private val dens
 
 /** A [DetentSheetState] that comes back as it was after the activity is recreated, as for a change of dark mode. */
 @Composable
-internal fun rememberDetentSheetState(): DetentSheetState {
+fun rememberDetentSheetState(): DetentSheetState {
     val density = LocalDensity.current
     return rememberSaveable(saver = DetentSheetState.Saver(density)) {
         DetentSheetState(DetentSheetValue.Hidden, density)
@@ -356,7 +356,7 @@ internal fun rememberDetentSheetState(): DetentSheetState {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun DetentSheet(
+fun DetentSheet(
     onDismissed: () -> Unit,
     state: DetentSheetState = rememberDetentSheetState(),
     halfHeight: Boolean = false,

@@ -224,7 +224,7 @@ fun buildCourseColorAssignments(courses: List<Course>): Map<String, Color> {
  * palette slot, probing on past every colour in [taken], then a colour derived
  * from the course number once the palette is used up.
  */
-internal fun pickFreeCourseColor(courseNo: String, taken: Set<Color>): Color {
+fun pickFreeCourseColor(courseNo: String, taken: Set<Color>): Color {
     val base = courseHashIndex(courseNo)
     var idx = base
     var probes = 0
@@ -315,7 +315,7 @@ object CornerRadius {
 // iOS-inspired, Material 3 color scheme. Keeping the slots explicit (rather
 // than letting M3 derive tonal variants from `primary`) prevents the pinkish
 // tint M3 otherwise applies to surfaceVariant when primary is blue.
-internal val LightColorScheme = lightColorScheme(
+val LightColorScheme = lightColorScheme(
     primary = Color(0xFF007AFF),
     onPrimary = Color.White,
     primaryContainer = Color(0xFFDDE7FF),
@@ -349,7 +349,7 @@ internal val LightColorScheme = lightColorScheme(
     surfaceTint = Color(0xFF007AFF),
 )
 
-internal val DarkColorScheme = darkColorScheme(
+val DarkColorScheme = darkColorScheme(
     primary = Color(0xFF0A84FF),
     onPrimary = Color.White,
     primaryContainer = Color(0xFF003585),

@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.Velocity
  * with the content scrolled away from its top stops at the top, and only the next one, started
  * there, moves the sheet.
  */
-internal class SheetContentScroll(private val scroll: ScrollState) {
+class SheetContentScroll(private val scroll: ScrollState) {
 
     /** Whether the gesture under way began with the content at its top. */
     private var startedAtTop = true

@@ -17,7 +17,6 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.BuildConfig
-import org.ntust.app.tigerduck.ui.AppState
 
 /**
  * While [secure] is true, applies `WindowManager.LayoutParams.FLAG_SECURE` to
@@ -59,18 +58,26 @@ fun SecureScreen(secure: Boolean = true) {
 private fun rememberScreenCaptureProtectionOverridden(): Boolean {
     if (!BuildConfig.DEBUG) return false
     val context = LocalContext.current
-    val appState = remember(context) {
+    val switch = remember(context) {
         EntryPointAccessors
             .fromApplication(context.applicationContext, SecureScreenEntryPoint::class.java)
-            .appState()
+            .screenCaptureProtectionSwitch()
     }
-    return appState.disableScreenCaptureProtection
+    return switch.disableScreenCaptureProtection
+}
+
+/**
+ * Settings → Developer's switch for [SecureScreen]'s protection, which only a
+ * debug build reads: :app's AppState, bound in its Hilt graph.
+ */
+interface ScreenCaptureProtectionSwitch {
+    val disableScreenCaptureProtection: Boolean
 }
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 internal interface SecureScreenEntryPoint {
-    fun appState(): AppState
+    fun screenCaptureProtectionSwitch(): ScreenCaptureProtectionSwitch
 }
 
 /**

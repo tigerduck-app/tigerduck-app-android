@@ -40,6 +40,7 @@ import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.ui.component.ScreenCaptureProtectionSwitch
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.theme.AccentGradient
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -123,7 +124,7 @@ class AppState @Inject constructor(
     val librarySession: LibrarySession,
     private val wearBridge: org.ntust.app.tigerduck.wear.WearScheduleBridge,
     private val browserData: org.ntust.app.tigerduck.browser.BrowserDataCleaner,
-) {
+) : ScreenCaptureProtectionSwitch {
     /**
      * Whether the demo account was signed in when this process started.
      *
@@ -504,7 +505,7 @@ class AppState @Inject constructor(
     private var disableScreenCaptureProtectionState by
             mutableStateOf(prefs.disableScreenCaptureProtection)
 
-    var disableScreenCaptureProtection: Boolean
+    override var disableScreenCaptureProtection: Boolean
         get() = disableScreenCaptureProtectionState
         set(value) {
             if (disableScreenCaptureProtectionState == value) return

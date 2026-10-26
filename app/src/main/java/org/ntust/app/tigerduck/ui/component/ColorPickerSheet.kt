@@ -368,7 +368,7 @@ private fun ColorSwatch(
  * take no pointer input, so a finger still lands on the square under them.
  */
 @Composable
-internal fun SatValSquare(
+fun SatValSquare(
     hue: Float,
     sat: Float,
     value: Float,
@@ -467,7 +467,7 @@ private fun SatValCanvas(
 
 /** The hue bar; TalkBack gets it as an adjustable control named Hue, read in degrees. */
 @Composable
-internal fun HueSlider(
+fun HueSlider(
     hue: Float,
     onHueChange: (Float) -> Unit,
     modifier: Modifier = Modifier
@@ -586,5 +586,5 @@ private const val ADJUSTABLE_STEPS = 20
  * as the class table's blocks draw them, but not under TAT, whose pastel is
  * made from the light color in either theme.
  */
-internal fun VisualStylePolicy.colorPickerOffersDarkPalette(isDark: Boolean): Boolean =
+fun VisualStylePolicy.colorPickerOffersDarkPalette(isDark: Boolean): Boolean =
     isDark && courseColorStyle == VisualStylePolicy.CourseColorStyle.Tint
