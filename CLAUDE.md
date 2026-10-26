@@ -1,9 +1,10 @@
 # TigerDuck Android — Agent Notes
 
 Multi-module Gradle project: `:app` (phone), `:wear` (watch OS), `:shared`
-(domain models reused on both). Phone has `play` and `fdroid` flavors;
-`:wear` is play-only. Localization strings come from the `app-translation/`
-submodule and are generated on every build (see below); none are committed.
+(domain models reused on both), `:core:strings` (the phone's generated
+strings). Phone has `play` and `fdroid` flavors; `:wear` is play-only.
+Localization strings come from the `app-translation/` submodule and are
+generated on every build (see below); none are committed.
 
 For human-facing contributor guidance see `CONTRIBUTING.md`. This file
 exists to surface project-specific invariants AI agents have to know
@@ -53,12 +54,17 @@ default is silently dropped and the field is null at runtime.
   `app/src/play/`. Don't sprinkle Play-Services imports into `main/`.
 - **Localization strings are generated at build time** from the `app-translation/`
   submodule's `source/*.json`, by `generateAppTranslationStrings`
-  (`gradle/app-translation.gradle.kts`, applied by `:app` and `:wear`), which runs
+  (`gradle/app-translation.gradle.kts`, applied by `:core:strings` and `:wear`), which runs
   `tools/localization/sync_localizations.py` and the submodule's generator into
-  `build/generated/appTranslation/res`, a generated resource directory. Neither
-  this repo nor the submodule commits Android's `strings.xml` or
-  `locales_config.xml`, so a translation change is a submodule pin bump and
-  nothing else. Edit strings in the submodule's JSON. Building needs Python 3.9
+  `build/generated/appTranslation/res`, a generated resource directory. The phone's
+  strings live in `:core:strings`, with the `xml/locales_config.xml` that `:app`'s
+  manifest names; `android.nonTransitiveRClass` is on, so phone code reaches them as
+  `org.ntust.app.tigerduck.core.strings.R` (aliased `StringsR` in a file that also
+  uses `:app`'s own resources), never through `:app`'s R.
+  `tools/dev/rewrite_string_imports.py` rewrites code still written against
+  `:app`'s R. Neither this repo nor the submodule commits Android's
+  `strings.xml` or `locales_config.xml`, so a translation change is a submodule
+  pin bump and nothing else. Edit strings in the submodule's JSON. Building needs Python 3.9
   or newer (`python3`, `python` or `py` on PATH; 3.9 is macOS's own `python3`,
   and CI tests it and the newest); the task fails without it rather than
   ship an app with no strings.
