@@ -1,11 +1,12 @@
 // The phone app's theme (ui/theme) and the components its screens share
 // (ui/component), with the little they need that is no screen's: the haptics
-// (ui/haptics), AppProcessing and the iOS placeholder helper (util). Each keeps
-// its package, so moving here changed no import. What they ask of the app,
-// they ask through an interface :app's Hilt graph binds (CoreUiModule):
-// HapticPreferences, ScreenCaptureProtectionSwitch; PinMismatchHost takes a
-// PinMismatchQuestions. Nothing here reaches :app, and no data class comes
-// down with it.
+// (ui/haptics), AppProcessing and the iOS placeholder helper (util); and what
+// the app shares with the file viewer, the one link opener (ui/OpenLink.kt) and
+// the FileProvider's authority (util). Each keeps its package, so moving here
+// changed no import. What they ask of the app, they ask through an interface
+// :app's Hilt graph binds (CoreUiModule): HapticPreferences,
+// ScreenCaptureProtectionSwitch; PinMismatchHost takes a PinMismatchQuestions.
+// Nothing here reaches :app, and no data class comes down with it.
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
@@ -56,6 +57,8 @@ dependencies {
     implementation(project(":core:strings"))
 
     implementation(libs.androidx.core.ktx)
+    // OpenLink's Custom Tabs.
+    implementation(libs.androidx.browser)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(platform(libs.androidx.compose.bom))

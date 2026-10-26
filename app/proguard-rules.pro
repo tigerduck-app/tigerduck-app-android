@@ -73,12 +73,6 @@
 -dontwarn org.graalvm.nativeimage.hosted.Feature
 -dontwarn org.graalvm.nativeimage.hosted.RuntimeReflection
 
-# The file viewer's archives: Commons Compress reads Zstandard through the
-# zstd-jni native library, which the app doesn't ship; Archives marks a
-# Zstandard entry as unsupported before anything reaches that class.
-# R8-generated via missing_rules.txt.
--dontwarn com.github.luben.zstd.ZstdInputStream
-
 # Release builds drop Log.v, Log.d and Log.i. Logcat is open to adb and to
 # every bug report, and those lines print course numbers, ids and server
 # replies. Log.w and Log.e stay, so they name an exception by its class and

@@ -4,6 +4,7 @@ import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
+import org.ntust.app.tigerduck.files.WEB_PAGE_EXTENSIONS
 
 /**
  * Where a file a Moodle answer lists downloads from, as the Moodle app fetches it: under
@@ -90,11 +91,3 @@ fun org.ntust.app.tigerduck.network.model.moodle.MoodleFile.checkableMimeType():
 /** Whether the file's own name says it is a web page. */
 fun org.ntust.app.tigerduck.network.model.moodle.MoodleFile.isWebPage(): Boolean =
     name.substringAfterLast('.', "").lowercase() in WEB_PAGE_EXTENSIONS
-
-private val WEB_PAGE_EXTENSIONS = setOf("html", "htm", "shtml", "xhtml", "mht", "mhtml")
-
-/**
- * The extensions of a web page or an SVG, which a browser renders and may run scripts in: such a
- * file never opens in a viewer but goes to the share sheet, as iOS keeps it out of Quick Look.
- */
-val SHARED_NOT_VIEWED_EXTENSIONS = WEB_PAGE_EXTENSIONS + "svg"

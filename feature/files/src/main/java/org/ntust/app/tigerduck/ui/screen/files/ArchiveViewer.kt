@@ -93,7 +93,7 @@ import kotlin.concurrent.thread
  * when there is none to give, and what it failed on.
  */
 @Composable
-internal fun ArchiveViewer(file: ViewedFile, onFailed: (reason: Int?, failure: ViewerFailure) -> Unit, onOpenElsewhere: () -> Unit) {
+fun ArchiveViewer(file: ViewedFile, onFailed: (reason: Int?, failure: ViewerFailure) -> Unit, onOpenElsewhere: () -> Unit) {
     val context = LocalContext.current
     // Kept through a recreation, so the files already taken out are found again.
     val session = rememberSaveable(file.uri) { UUID.randomUUID().toString() }

@@ -12,7 +12,7 @@ import java.util.Locale
  * What a viewer failed on: the [error], a [note] when there's no error to give or the error
  * alone doesn't say enough, and the [track] a player had.
  */
-internal class ViewerFailure(val error: Throwable? = null, val note: String? = null, val track: Format? = null)
+class ViewerFailure(val error: Throwable? = null, val note: String? = null, val track: Format? = null)
 
 /** A failure as the page shows it: its [details], and whether the device can't decode the file's encoding. */
 internal data class ShownFailure(val details: String, val unsupportedEncoding: Boolean)
