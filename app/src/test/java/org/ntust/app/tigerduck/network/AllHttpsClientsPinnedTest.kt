@@ -39,7 +39,12 @@ class AllHttpsClientsPinnedTest {
         "../wear/src/main/java",
     ).map(::File).filter { it.isDirectory }
 
-    private val sources: Map<String, String> = roots
+    /** The modules the phone app is built from, which ship in it as its own sources do. */
+    private val moduleRoots = listOf("../core", "../feature")
+        .flatMap { group -> File(group).listFiles().orEmpty().sorted().map { File(it, "src/main/java") } }
+        .filter { it.isDirectory }
+
+    private val sources: Map<String, String> = (roots + moduleRoots)
         .flatMap { root -> root.walkTopDown().filter { it.extension == "kt" }.map { it to root } }
         .associate { (file, _) -> file.invariantSeparatorsPath to file.readText() }
 
@@ -59,6 +64,7 @@ class AllHttpsClientsPinnedTest {
     @Test
     fun `the sources were found`() {
         assertEquals(6, roots.size)
+        assertTrue(moduleRoots.any { it.invariantSeparatorsPath.endsWith("core/ui/src/main/java") })
         assertEquals(true, sources.keys.any { it.endsWith("tls/PinnedHttp.kt") })
     }
 

@@ -171,11 +171,15 @@ android {
             }
             // ReleaseLogLinesTest and AllHttpsClientsPinnedTest read the watch's
             // sources too, and BuiltInPinsTest the watch's manifest, network
-            // config and build file, which nothing here builds.
+            // config and build file, which nothing here builds. The two read
+            // the phone's own modules' sources as well, which a change to a
+            // comment alone would otherwise leave them UP-TO-DATE on.
             all {
                 it.inputs.files(
                     fileTree("../wear/src/main") { include("**/*.kt", "AndroidManifest.xml", "res/xml/**") },
                     file("../wear/build.gradle.kts"),
+                    fileTree("../core") { include("*/src/main/**/*.kt") },
+                    fileTree("../feature") { include("*/src/main/**/*.kt") },
                 ).withPathSensitivity(PathSensitivity.RELATIVE)
             }
         }
@@ -567,6 +571,8 @@ dependencies {
     // The strings, generated from app-translation's source/*.json on every
     // build, and the locale list the manifest's localeConfig names.
     implementation(project(":core:strings"))
+    // The theme and the components the screens share; see core/ui/build.gradle.kts.
+    implementation(project(":core:ui"))
     "playImplementation"(libs.play.services.wearable)
     "playImplementation"(libs.play.app.update.ktx)
     // In-app review (issue #332): Play only, as fdroid has no Play Store to rate on.

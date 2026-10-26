@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
-import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 
 /** The end color and direction of the accent gradient picked; its start is the accent color. */
@@ -63,10 +62,10 @@ private val DarkText = Color(0xFF1C1C1E)
  * the gradient is half way, and two ends far apart, light yellow into black,
  * leave the start's text unreadable there.
  */
-internal fun readableOnGradient(start: Color, end: Color, onStart: Color): Color {
+fun readableOnGradient(start: Color, end: Color, onStart: Color): Color {
     val other = if (onStart.luminance() > 0.5f) DarkText else Color.White
     val middle = listOf(0.35f, 0.5f, 0.65f).map { shaderMix(start, end, it) }
-    fun worst(text: Color) = middle.minOf { AccentPolicy.contrast(text, it) }
+    fun worst(text: Color) = middle.minOf { contrastRatio(text, it) }
     return if (worst(other) > worst(onStart)) other else onStart
 }
 

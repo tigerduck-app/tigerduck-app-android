@@ -33,9 +33,10 @@ jobs:
       matrix:
         include:
           # Compiling each flavor's unit tests compiles its main sources first,
-          # so the test tasks cover the flavor compiles on their own.
+          # so the test tasks cover the flavor compiles on their own. The
+          # phone's library modules have no flavors; their tests run once, here.
           - leg: play
-            tasks: :shared:test :app:testPlayDebugUnitTest
+            tasks: :shared:test :core:ui:testDebugUnitTest :app:testPlayDebugUnitTest
           - leg: fdroid + wear
             tasks: :app:testFdroidDebugUnitTest :wear:testDebugUnitTest
           # :wear's release build is minified with its own proguard-rules.pro,

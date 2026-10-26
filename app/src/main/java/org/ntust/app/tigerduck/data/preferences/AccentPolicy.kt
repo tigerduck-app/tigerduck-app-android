@@ -3,10 +3,8 @@ package org.ntust.app.tigerduck.data.preferences
 import android.os.Build
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import kotlin.math.max
-import kotlin.math.min
+import org.ntust.app.tigerduck.ui.theme.contrastRatio
 
 /**
  * Which accent each surface draws, from the preferences behind the accent
@@ -140,12 +138,8 @@ object AccentPolicy {
 
     private fun rgb(hex: Int) = Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
 
-    /** WCAG's contrast ratio between [a] and [b], from 1 to 21. */
-    internal fun contrast(a: Color, b: Color): Float {
-        val la = a.luminance() + 0.05f
-        val lb = b.luminance() + 0.05f
-        return max(la, lb) / min(la, lb)
-    }
+    /** WCAG's contrast ratio between [a] and [b], from 1 to 21: the theme's, which its gradients use too. */
+    internal fun contrast(a: Color, b: Color): Float = contrastRatio(a, b)
 
     /**
      * Whether the app's own screens draw the wallpaper's colors on Android

@@ -12,15 +12,15 @@ package org.ntust.app.tigerduck.util
  * escape — and so the right fix (submodule emits `%s` directly) has exactly
  * one chase point to delete.
  */
-internal fun String.replaceIosArg(arg: Int, value: String): String =
+fun String.replaceIosArg(arg: Int, value: String): String =
     replace("%$arg\$@", value)
 
 /** [replaceIosArg] for a string's one unnumbered `%@`. */
-internal fun String.replaceIosArg(value: String): String = replace("%@", value)
+fun String.replaceIosArg(value: String): String = replace("%@", value)
 
 /**
  * The integer form of [replaceIosArg]: iOS writes a count as `%1$lld` (or `%1$ld`, `%1$d`),
  * and Java's formatter rejects the `ll` length modifier outright.
  */
-internal fun String.replaceIosArg(arg: Int, value: Long): String =
+fun String.replaceIosArg(arg: Int, value: Long): String =
     replace(Regex("%$arg\\$(?:ll|l)?d"), value.toString())

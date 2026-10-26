@@ -48,8 +48,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
+import kotlinx.coroutines.flow.StateFlow
 import org.ntust.app.tigerduck.core.strings.R
-import org.ntust.app.tigerduck.network.tls.PinMismatchPrompts
 import org.ntust.app.tigerduck.shared.tls.PinMismatch
 import org.ntust.app.tigerduck.util.replaceIosArg
 import java.security.MessageDigest
@@ -88,9 +88,27 @@ data class PinCertificateRow(
     val fingerprint: String,
 )
 
+/**
+ * What [PinMismatchHost] asks of the prompts waiting for an answer: :app's
+ * PinMismatchPrompts, which queues them.
+ */
+interface PinMismatchQuestions {
+    /** The prompt to show, or null. */
+    val pending: StateFlow<PinMismatch?>
+
+    /** Continue on the prompt shown. */
+    fun continueToSite()
+
+    /** Cancel on the prompt shown. */
+    fun cancel()
+
+    /** Retires the prompt waiting to be shown if it may no longer be offered. */
+    fun revalidate()
+}
+
 /** The app-root host: the queued prompt, when there is one, with its strings. */
 @Composable
-fun PinMismatchHost(prompts: PinMismatchPrompts) {
+fun PinMismatchHost(prompts: PinMismatchQuestions) {
     val mismatch by prompts.pending.collectAsState()
     // Checked again on its way in, and each time the app comes back: one queued or left up in
     // the background may have lapsed meanwhile.
@@ -236,13 +254,13 @@ private fun CertificateField(label: String, value: String, monospace: Boolean = 
 }
 
 /** The organisation that issued [certificate], or its common name when it names none (D19). */
-internal fun issuerOrganisation(certificate: X509Certificate): String {
+fun issuerOrganisation(certificate: X509Certificate): String {
     val issuer = SslCertificate(certificate).issuedBy
     return issuer.oName.takeIf { it.isNotBlank() } ?: issuer.cName.takeIf { it.isNotBlank() } ?: certificate.issuerX500Principal.name
 }
 
 /** The validated chain's sections: the leaf headed by its host, then the intermediates, then the root. */
-internal fun certificateRows(mismatch: PinMismatch, texts: PinMismatchTexts, locale: Locale): List<PinCertificateRow> {
+fun certificateRows(mismatch: PinMismatch, texts: PinMismatchTexts, locale: Locale): List<PinCertificateRow> {
     val dates = DateFormat.getDateInstance(DateFormat.MEDIUM, locale)
     val last = mismatch.chain.lastIndex
     return mismatch.chain.mapIndexed { index, certificate ->

@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.shared.tls.PinMismatch
+import org.ntust.app.tigerduck.ui.component.PinMismatchQuestions
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -21,11 +22,11 @@ class PinMismatchPrompts(
     private val onContinue: (PinMismatch) -> Unit,
     /** Whether a mismatch may still be offered (D18); checked when queued, shown and answered. */
     private val eligible: (PinMismatch) -> Boolean = { true },
-) {
+) : PinMismatchQuestions {
     private val _pending = MutableStateFlow<PinMismatch?>(null)
 
     /** The prompt to show, or null. */
-    val pending: StateFlow<PinMismatch?> = _pending.asStateFlow()
+    override val pending: StateFlow<PinMismatch?> = _pending.asStateFlow()
 
     private val backlog = LinkedHashMap<String, PinMismatch>()
     private val answered = mutableSetOf<String>()
@@ -66,7 +67,7 @@ class PinMismatchPrompts(
 
     /** Continue on the prompt shown. */
     @Synchronized
-    fun continueToSite() {
+    override fun continueToSite() {
         val mismatch = _pending.value ?: return
         answered += mismatch.setId
         // No longer offered: nothing is stored, as for a Cancel, but no quiet hour starts.
@@ -78,7 +79,7 @@ class PinMismatchPrompts(
 
     /** Cancel on the prompt shown: nothing is stored, and the set is quiet for an hour. */
     @Synchronized
-    fun cancel() {
+    override fun cancel() {
         val mismatch = _pending.value ?: return
         answered += mismatch.setId
         store.cancelled(mismatch.setId, clock())
@@ -91,7 +92,7 @@ class PinMismatchPrompts(
      * document lapsed while the app was in the background, and shows the next one that is.
      */
     @Synchronized
-    fun revalidate() {
+    override fun revalidate() {
         val shown = _pending.value ?: return
         if (eligible(shown)) return
         answers.remove(shown.setId)?.complete(false)

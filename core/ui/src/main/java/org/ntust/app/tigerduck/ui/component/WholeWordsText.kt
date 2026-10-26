@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.Constraints
  * A line cut short by [overflow] doesn't count; only where the lines before it end.
  */
 @Composable
-internal fun WholeWordsText(
+fun WholeWordsText(
     text: String,
     style: TextStyle,
     modifier: Modifier = Modifier,

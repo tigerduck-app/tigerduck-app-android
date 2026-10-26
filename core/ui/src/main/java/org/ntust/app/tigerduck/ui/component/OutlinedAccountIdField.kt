@@ -384,21 +384,21 @@ private fun Context.findActivity(): Activity? {
  * into the numeric layout the field flips to after its leading letter, so it gets the standard
  * one, which goes again once the touch keyboard is back, unless the user chose it.
  */
-internal fun usesStandardKeyboard(chosen: Boolean?, hardwareKeyboard: Boolean): Boolean = chosen ?: hardwareKeyboard
+fun usesStandardKeyboard(chosen: Boolean?, hardwareKeyboard: Boolean): Boolean = chosen ?: hardwareKeyboard
 
 /**
  * The user's choice with the toggle, null until they tap it. Saved: a keyboard attached or taken
  * away recreates the activity, and a choice lost there would hand the field back to the keyboard.
  */
 @Composable
-internal fun rememberStandardKeyboardChoice(): MutableState<Boolean?> = rememberSaveable { mutableStateOf(null) }
+fun rememberStandardKeyboardChoice(): MutableState<Boolean?> = rememberSaveable { mutableStateOf(null) }
 
 /**
  * Whether a hardware keyboard is attached and not tucked away, as the configuration says: a
  * slide-out keyboard closed reports itself hidden.
  */
 @Composable
-internal fun hardwareKeyboardInUse(): Boolean {
+fun hardwareKeyboardInUse(): Boolean {
     val configuration = LocalConfiguration.current
     return configuration.keyboard == Configuration.KEYBOARD_QWERTY &&
         configuration.hardKeyboardHidden != Configuration.HARDKEYBOARDHIDDEN_YES

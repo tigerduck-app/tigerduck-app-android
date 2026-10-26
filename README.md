@@ -301,7 +301,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       ├── sensor/                     # 翻面偵測（FlipDetector）
 │       ├── serverpush/                 # 伺服器推播彈窗協調 + intent token
 │       ├── ui/
-│       │   ├── component/              # 共用 Composable
+│       │   ├── component/              # 綁著 App 狀態的少數共用 Composable（其餘在 `:core:ui`）
 │       │   ├── navigation/             # NavHost / Tab navigation
 │       │   ├── screen/                 # 各頁面與 ViewModel
 │       │   │   ├── home/               # 首頁（時間滑條、作業、區塊客製化）
@@ -315,7 +315,6 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       │   │   ├── settings/           # 設定（語言、Tab、通知、震動、伺服器推播、即時動態、來源碼）
 │       │   │   ├── whatsnew/           # 「新功能說明」頁面
 │       │   │   └── onboarding/         # 初次使用引導 + 隱私同意
-│       │   ├── theme/                  # 主題、配色、視覺預設
 │       │   └── AppState.kt
 │       ├── update/                     # In-App Update gate + What's new repository
 │       ├── util/                       # 共用小函式（學分格式化等）
@@ -323,6 +322,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt
 ├── core/strings/                       # 手機的字串與語系清單，從 app-translation 產生（`:core:strings`）
+├── core/ui/                            # 主題、共用 Composable、震動回饋（`:core:ui`，套件名稱不變）
 ├── shared/                             # 手機 + 手錶共用模組（`:shared`）
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock 抽象（可被 debug 時鐘覆寫）

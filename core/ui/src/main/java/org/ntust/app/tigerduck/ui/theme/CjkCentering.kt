@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.theme
 
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -26,9 +27,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
+import androidx.core.content.pm.PackageInfoCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.BuildConfig
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -232,10 +233,34 @@ private class PaintGlyphs(
 private object KeptCorrections {
     const val FILE = "cjk_centering"
 
-    fun key(density: Density, fontWeightAdjustment: Int, locales: LocaleList) = listOf(
-        BuildConfig.VERSION_CODE, Build.FINGERPRINT, density.density, density.fontScale,
+    fun key(versionCode: Long, density: Density, fontWeightAdjustment: Int, locales: LocaleList) = listOf(
+        versionCode, Build.FINGERPRINT, density.density, density.fontScale,
         fontWeightAdjustment, locales.toLanguageTags(),
     ).joinToString("|")
+
+    /** [versionCode] once looked up; it cannot change while the process lives. */
+    @Volatile
+    private var installedVersionCode: Long? = null
+
+    /**
+     * The app's versionCode, from its installed package: a library's BuildConfig
+     * has none. The number the app's own BuildConfig.VERSION_CODE holds, so the
+     * key a launch before this module existed kept still matches. Looked up once,
+     * as the app starts ([preloadKeptCjkCorrections]), so the first frame finds it.
+     */
+    fun versionCode(context: Context): Long =
+        installedVersionCode ?: lookUpVersionCode(context).also { installedVersionCode = it }
+
+    private fun lookUpVersionCode(context: Context): Long {
+        val manager = context.packageManager
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            manager.getPackageInfo(context.packageName, PackageManager.PackageInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            manager.getPackageInfo(context.packageName, 0)
+        }
+        return PackageInfoCompat.getLongVersionCode(info)
+    }
 
     private fun prefs(context: Context) = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
 
@@ -251,11 +276,13 @@ private object KeptCorrections {
 }
 
 /**
- * Starts loading the kept measurement from disk, so the theme's first read of
- * it doesn't wait for the file. Called as the app starts.
+ * Starts loading the kept measurement from disk, and looks up the versionCode
+ * that keys it, so the theme's first read of it waits for neither. Called as
+ * the app starts.
  */
-internal fun preloadKeptCjkCorrections(context: Context) {
+fun preloadKeptCjkCorrections(context: Context) {
     context.getSharedPreferences(KeptCorrections.FILE, Context.MODE_PRIVATE)
+    KeptCorrections.versionCode(context)
 }
 
 /** How a measurement is taken: on the device, or a test's stand-in. */
@@ -282,7 +309,10 @@ internal fun rememberCjkCenteredTypography(base: Typography, measuring: CjkMeasu
     val locales = configuration.locales
     val fonts = LocalFontFamilyResolver.current
     val weightAdjustment = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) configuration.fontWeightAdjustment else 0
-    val key = remember(density, weightAdjustment, locales) { KeptCorrections.key(density, weightAdjustment, locales) }
+    val versionCode = remember(context) { KeptCorrections.versionCode(context) }
+    val key = remember(versionCode, density, weightAdjustment, locales) {
+        KeptCorrections.key(versionCode, density, weightAdjustment, locales)
+    }
     // A fresh state for each key: another density or language starts from what's kept for
     // it, not from the last one's.
     val corrections = remember(key, base) { mutableStateOf(KeptCorrections.read(context, key)) }
