@@ -9,6 +9,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import org.ntust.app.tigerduck.browser.AndroidWebViewStorage
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
 import org.ntust.app.tigerduck.browser.BrowserCleanup
@@ -87,8 +88,8 @@ object BrowserModule {
         autologin: MoodleAutologin,
         tokenService: MoodleTokenService,
         ssoLoginService: SsoLoginService,
-        // Lazily: the school sign-in it runs is needed only once SSO asks for a password.
-        authService: dagger.Lazy<org.ntust.app.tigerduck.auth.AuthService>,
+        credentials: org.ntust.app.tigerduck.data.preferences.CredentialManager,
+        @ApplicationScope appScope: CoroutineScope,
         demoAccount: DemoAccount,
         cleanup: BrowserCleanup,
     ): BrowserSignIns {
@@ -103,7 +104,25 @@ object BrowserModule {
         )
         val school = SchoolBrowserSignIn(
             run = ssoLoginService::signInForBrowser,
-            warm = { authService.get().ensureAuthenticated() },
+            // The app's own sign-in, guarded as ever (one at a time, a refused password held back),
+            // by the way of the site: it signs in to SSO again whatever the app thinks of its
+            // session. In the app's scope, awaited: a timeout leaves it to finish for the app.
+            warm = { target ->
+                appScope.async {
+                    val id = credentials.ntustStudentId ?: return@async false
+                    val password = credentials.ntustPassword ?: return@async false
+                    try {
+                        ssoLoginService.ensureServiceLogin(target, id.trim().uppercase(), password) {
+                            // Not for an account that signed out while it waited.
+                            credentials.ntustStudentId == id
+                        }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        false
+                    }
+                }.await()
+            },
             isDemo = { demoAccount.isActive },
             usable = usable,
             generation = { BrowserSession.generation.value },

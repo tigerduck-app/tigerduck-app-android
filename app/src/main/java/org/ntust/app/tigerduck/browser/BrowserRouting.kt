@@ -61,34 +61,53 @@ object BrowserRouting {
      */
     /**
      * Whether [url] signs the student out of a school site, on `ntust.edu.tw` or a host under it but
-     * Moodle's, whose logout is [isMoodleLogout]'s, page by page: a
-     * path segment that ends in logout, logoff or signout once its extension and all but its
-     * letters are left out (`Logout.aspx`, `LogOff`, `AGLogout`, `sign-out`), SSO's `endsession`,
-     * or an action the query names so (`?action=logout`). Read as the server reads it, as
-     * [isMoodleLogout] is. Each site's session is TigerDuck's to end, at its own sign-out: a logout
-     * inside the browser could end the SSO session or leave the student at a sign-in page.
+     * Moodle's, whose logout is [isMoodleLogout]'s, page by page: a path segment a server routes as
+     * a logout, logoff or signout ([routeName]: `Logout.aspx`, `LogOff`, `AGLogout`, `sign-out`,
+     * `logout;jsessionid=…`), SSO's `endsession`, or an action the query names so
+     * (`?action=logout`). Read as the server reads it, as [isMoodleLogout] is. A document named so
+     * (`logout.pdf`) is no logout. Each site's session is TigerDuck's to end, at its own sign-out:
+     * a logout inside the browser could end the SSO session or leave the student at a sign-in page.
+     *
+     * What no WebView callback sees goes unchecked, as for Moodle's: where a server redirects a
+     * frame's or a script's request, and what a form or a script sends in a body.
      */
     fun isSchoolLogout(url: String): Boolean {
         val parsed = url.toHttpUrlOrNull() ?: return false
         val host = parsed.host.trimEnd('.').lowercase()
         if (host != SCHOOL_DOMAIN && !host.endsWith(".$SCHOOL_DOMAIN")) return false
         if (host == MoodleWebservice.SITE_HOST.lowercase()) return false
-        val segments = parsed.pathSegments.map(::letters)
-        if (segments.any { it == END_SESSION || it.isNotEmpty() && LOGOUT_WORDS.any(it::endsWith) }) return true
+        val routed = parsed.pathSegments.map(::routeName)
+        if (routed.any { it == END_SESSION || it.isNotEmpty() && SCHOOL_LOGOUT_WORDS.any(it::endsWith) }) return true
         return parsed.queryParameterNames.any { name ->
-            name.lowercase() in ACTION_PARAMETERS && parsed.queryParameterValues(name).any { letters(it.orEmpty()) in LOGOUT_WORDS }
+            name.lowercase() in ACTION_PARAMETERS && parsed.queryParameterValues(name).any { letters(it.orEmpty()) in SCHOOL_LOGOUT_WORDS }
         }
     }
 
-    /** [text] before its first dot, lowercased, letters only. */
-    private fun letters(text: String): String = text.substringBefore('.').lowercase().filter(Char::isLetter)
+    /**
+     * What a server routes [segment] by, lowercased, letters only: its path parameters left out
+     * (`;jsessionid=…`) and a script's extension ([SCRIPT_EXTENSIONS]). A file of any other type is
+     * a document, not a route: empty.
+     */
+    private fun routeName(segment: String): String {
+        val path = segment.substringBefore(';')
+        val dot = path.lastIndexOf('.')
+        if (dot > 0 && path.substring(dot + 1).lowercase() !in SCRIPT_EXTENSIONS) return ""
+        return letters(if (dot > 0) path.substring(0, dot) else path)
+    }
+
+    private fun letters(text: String): String = text.lowercase().filter(Char::isLetter)
 
     private const val SCHOOL_DOMAIN = "ntust.edu.tw"
     private const val END_SESSION = "endsession"
-    private val LOGOUT_WORDS = listOf("logout", "logoff", "signout")
+
+    /** What a school logout's route ends in, letters only; [BrowserPageScripts.HIDE_SCHOOL_LOGOUT] goes by these too. */
+    internal val SCHOOL_LOGOUT_WORDS = listOf("logout", "logoff", "signout")
+
+    /** The extensions of the pages a server runs, which name a route rather than a document. */
+    internal val SCRIPT_EXTENSIONS = listOf("aspx", "asp", "ashx", "php", "jsp", "jspx", "do", "action", "cgi", "pl", "cfm", "html", "htm", "shtml")
 
     /** The query parameters sites name an action by. */
-    private val ACTION_PARAMETERS = setOf("action", "act", "op", "cmd", "do", "mode", "method", "task", "func")
+    internal val ACTION_PARAMETERS = listOf("action", "act", "op", "cmd", "do", "mode", "method", "task", "func")
 
     fun isMoodleLogout(url: String): Boolean {
         val parsed = url.toHttpUrlOrNull() ?: return false

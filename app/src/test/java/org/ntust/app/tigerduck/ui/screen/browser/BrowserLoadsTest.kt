@@ -255,6 +255,10 @@ class BrowserLoadsTest {
     }
 
     private companion object {
+        const val SITE_A = "https://stuinfosys.ntust.edu.tw/StudentInformation"
+        const val SITE_B = "https://cour01.ntust.edu.tw/StudentDoubleMajor/"
+        const val AUTHORIZE = "https://ssoam2.ntust.edu.tw/connect/authorize?client_id=made-up"
+        const val SSO_LOGIN = "https://ssoam2.ntust.edu.tw/account/login?ReturnUrl=%2Fconnect%2Fauthorize%3Fclient_id%3Dmade-up"
         const val IMAGE = "https://files.ntust.edu.tw/logo.png"
         const val A = "https://moodle2.ntust.edu.tw/user/edit.php"
         const val B = "https://moodle2.ntust.edu.tw/course/view.php?id=1"
@@ -262,5 +266,51 @@ class BrowserLoadsTest {
         const val SIGN_IN_PAGE = "https://moodle2.ntust.edu.tw/login/index.php"
         const val SIGNED_IN = "https://moodle2.ntust.edu.tw/admin/tool/mobile/autologin.php?userid=1&key=k&urltogo=x"
         const val SSO = "https://ssoam2.ntust.edu.tw/nidp/app/login"
+    }
+
+    /** The school's sites, as far as where a sign-in may go on to; the sign-in itself never runs here. */
+    private val school = org.ntust.app.tigerduck.browser.SchoolBrowserSignIn(
+        run = { error("no sign-in here") },
+        warm = { false },
+        isDemo = { false },
+        usable = { true },
+        generation = { 0 },
+        writeCookie = { _, _ -> },
+        flush = {},
+    )
+    private val schoolLoads = BrowserLoads(state, BrowserSignIns(listOf(moodle, school)))
+
+    @Test
+    fun `a school site's sign-in goes on to the page asked for, through SSO's authorize on the way`() {
+        schoolLoads.requested(SITE_A)
+        schoolLoads.requested(AUTHORIZE)
+
+        assertEquals(SITE_A, schoolLoads.signInReturn(SSO_LOGIN))
+    }
+
+    @Test
+    fun `from a school page, a sign-in goes on to the page asked for next, not the one shown`() {
+        state.url = SITE_A
+        schoolLoads.requested(SITE_B)
+        schoolLoads.requested(AUTHORIZE)
+
+        assertEquals(SITE_B, schoolLoads.signInReturn(SSO_LOGIN))
+    }
+
+    @Test
+    fun `a form's POST to a school page is the page asked for`() {
+        state.url = SITE_A
+        schoolLoads.mainFrameRequested(SITE_B)
+
+        assertEquals(SITE_B, schoolLoads.signInReturn(SSO_LOGIN))
+    }
+
+    @Test
+    fun `a page no provider signs in leaves no school page asked for`() {
+        schoolLoads.requested(SITE_A)
+        schoolLoads.requested("https://example.com/")
+        schoolLoads.requested(AUTHORIZE)
+
+        assertFalse(schoolLoads.signInReturn(SSO_LOGIN) == SITE_A)
     }
 }

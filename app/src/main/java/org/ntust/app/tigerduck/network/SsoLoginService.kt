@@ -6,6 +6,7 @@ import okhttp3.Cookie
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
@@ -14,6 +15,9 @@ import org.ntust.app.tigerduck.shared.CredentialPost
 import org.ntust.app.tigerduck.shared.executeCredentialPost
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/** What a sign-in for the TigerDuck browser hands it: the cookies its site set, and whether SSO signed the site in. */
+data class BrowserSiteSession(val cookies: List<Cookie>, val signedIn: Boolean)
 
 sealed class SsoLoginError : Exception() {
     class LoginFormNotFound : SsoLoginError()
@@ -286,27 +290,37 @@ class SsoLoginService internal constructor(
 
     /**
      * Signs [target]'s school site in for the TigerDuck browser with the SSO session the app
-     * already holds, and hands back the cookies the site set: its session, for the browser alone.
-     * The run has a jar of its own ([newCookieJar]) that starts with what the app's shared jar
-     * sends SSO and nothing else, and nothing goes back into the shared jar, so the site's session
-     * is never one the app's own calls also use. Nothing the run started with is handed back.
+     * already holds, and hands back what the site set: its session, for the browser alone.
+     *
+     * The run has a jar of its own ([newCookieJar]) that starts with SSO's own cookies from the
+     * app's shared jar and nothing else, so no cookie of the whole domain goes to the site on the
+     * way, and nothing goes back into the shared jar: the site's session is never one the app's
+     * own calls also use. What it hands back is what [target]'s host set for itself alone: not
+     * SSO's, not another host's met on the way, and not one scoped to reach the school's other
+     * sites. The calls go out apart from the caller ([awaitApart]), so cancelling it, as a timeout
+     * does, cancels them.
      *
      * No password is posted, and none is filled into a page: SSO asking for one ends the run
      * ([SsoLoginError.SessionMissing]), and so does ssoam's NetIQ page, which only a person signs
-     * in to ([SsoLoginError.InteractiveLoginRequired]). A page that asks for no sign-in hands back
-     * whatever its site set.
+     * in to ([SsoLoginError.InteractiveLoginRequired]). A page that asks for no sign-in hands
+     * back whatever its site set, as not [BrowserSiteSession.signedIn].
      */
-    suspend fun signInForBrowser(target: String): List<Cookie> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+    suspend fun signInForBrowser(target: String): BrowserSiteSession {
+        val site = target.toHttpUrlOrNull() ?: throw SsoLoginError.InvalidResponse()
+        val host = site.host.lowercase()
         val jar = newCookieJar()
-        val seeded = client.cookieJar.loadForRequest(SSO_SITE)
-        jar.saveFromResponse(SSO_SITE, seeded)
-        val run = client.newBuilder().cookieJar(jar).build()
-        val (html, url) = fetchPage(target, run)
-        val (landedHtml, landed) = resolveOIDCBridgeForms(html, url, client = run)
-        if (HtmlParser.findFormById(landedHtml, "IDPLogin") != null) throw SsoLoginError.InteractiveLoginRequired()
-        if (HtmlParser.isSsoHost(landed.host)) throw SsoLoginError.SessionMissing()
-        val started = seeded.map { Triple(it.name, it.domain, it.path) }.toSet()
-        jar.all().filter { Triple(it.name, it.domain, it.path) !in started && !HtmlParser.isSsoHost(it.domain) }
+        jar.saveFromResponse(SSO_SITE, client.cookieJar.loadForRequest(SSO_SITE).filter { it.domain.equals(SSO_SITE.host, ignoreCase = true) })
+        val calls = RunningCalls()
+        val run = client.newBuilder().cookieJar(jar).eventListener(calls).build()
+        return awaitApart(calls::cancelAll) {
+            val (html, url) = fetchPage(target, run)
+            // The site sent the browser through SSO, which signed it in, as against a page that asks for no sign-in.
+            val throughSso = HtmlParser.isSsoHost(url.host)
+            val (landedHtml, landed) = resolveOIDCBridgeForms(html, url, client = run)
+            if (HtmlParser.findFormById(landedHtml, "IDPLogin") != null) throw SsoLoginError.InteractiveLoginRequired()
+            if (HtmlParser.isSsoHost(landed.host)) throw SsoLoginError.SessionMissing()
+            BrowserSiteSession(jar.setBy(host).filter { it.domain.equals(host, ignoreCase = true) }, signedIn = throughSso)
+        }
     }
 
     /**

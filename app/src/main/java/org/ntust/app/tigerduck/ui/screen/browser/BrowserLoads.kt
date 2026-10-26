@@ -33,8 +33,26 @@ internal class BrowserLoads(private val state: BrowserPageState, private val sig
     /** A page whose error came before the page started. */
     private var failedBeforeStart: String? = null
 
+    /**
+     * The last page asked for that a sign-in could go on to, by a load, a page's navigation or a
+     * form's POST: kept through its site's sign-in pages, SSO's authorize on the way to its form
+     * among them, which would otherwise stand for it, and dropped for a page no provider signs in.
+     * Written off the main thread too.
+     */
+    @Volatile
+    private var intended: String? = null
+
+    private fun asked(url: String) {
+        val provider = signIns.forUrl(url)
+        when {
+            provider == null -> intended = null
+            provider.isReturnPage(url) -> intended = url
+        }
+    }
+
     /** A load the app chose, or a page's navigation the browser let through. */
     fun requested(url: String) {
+        asked(url)
         current = url
         // A navigation of its own, or the redirect a request went to: the request is no longer the page's.
         mainFrameRequest = null
@@ -46,6 +64,7 @@ internal class BrowserLoads(private val state: BrowserPageState, private val sig
      * form's POST included, which nothing else reports before its page starts.
      */
     fun mainFrameRequested(url: String) {
+        asked(url)
         mainFrameRequest = url
     }
 
@@ -96,12 +115,13 @@ internal class BrowserLoads(private val state: BrowserPageState, private val sig
 
     /**
      * The page the site's sign-in page at [url] came in the way of, for the sign-in to go on to:
-     * the one a sign-in under way is for, or else the page being loaded or shown, where the site
-     * can go back to it. Never one of the site's sign-in links, which work once.
+     * the one a sign-in under way is for, or else the last one asked for ([intended]), or the page
+     * being loaded or shown, where the site can go back to it. Never one of the site's sign-in
+     * links, which work once.
      */
     fun signInReturn(url: String): String {
         val provider = signIns.forUrl(url)
         val returnable = { page: String? -> page?.takeIf { provider?.isReturnPage(it) == true } }
-        return signInTarget ?: returnable(current) ?: returnable(state.url) ?: url
+        return signInTarget ?: returnable(intended) ?: returnable(current) ?: returnable(state.url) ?: url
     }
 }

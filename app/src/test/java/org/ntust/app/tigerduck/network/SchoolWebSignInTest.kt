@@ -55,6 +55,15 @@ class SchoolWebSignInTest {
     /** Where SSO's bridge form posts, for a browser that holds its session. */
     private var bridgeAction = CALLBACK
 
+    /** The cookies each request to the site carried, by name. */
+    private val sentToSite = CopyOnWriteArrayList<List<String>>()
+
+    /** Cookies of the whole domain that SSO's authorize and the site's callback set on the way. */
+    private var domainCookiesOnTheWay = false
+
+    /** Whether the call the blocking page waits on saw its cancel. */
+    @Volatile private var blockedCallCancelled = false
+
     private val school = OkHttpClient.Builder().cookieJar(appJar).addInterceptor { chain -> answer(chain) }.build()
 
     private fun service(): SsoLoginService {
@@ -78,10 +87,11 @@ class SchoolWebSignInTest {
     fun `with the app's SSO session it posts no password and hands back the site's cookies alone`() = runTest(UnconfinedTestDispatcher()) {
         appHoldsSsoSession()
 
-        val cookies = service().signInForBrowser(SITE_PAGE)
+        val session = service().signInForBrowser(SITE_PAGE)
 
-        assertEquals(listOf(SITE_COOKIE), cookies.map { it.name })
-        assertTrue(cookies.all { it.domain == SITE_HOST })
+        assertEquals(listOf(SITE_COOKIE), session.cookies.map { it.name })
+        assertTrue(session.cookies.all { it.domain == SITE_HOST })
+        assertTrue("through SSO", session.signedIn)
         assertEquals("no password posted", emptyList<String>(), passwordPosts)
         assertEquals("POST $CALLBACK", requests.single { it.startsWith("POST") })
     }
@@ -107,9 +117,10 @@ class SchoolWebSignInTest {
 
     @Test
     fun `a page the site serves with no sign-in hands back the site's own cookies`() = runTest(UnconfinedTestDispatcher()) {
-        val cookies = service().signInForBrowser(PUBLIC_PAGE)
+        val session = service().signInForBrowser(PUBLIC_PAGE)
 
-        assertEquals(listOf("ASP.NET_SessionId"), cookies.map { it.name })
+        assertEquals(listOf("ASP.NET_SessionId"), session.cookies.map { it.name })
+        assertTrue("no sign-in", !session.signedIn)
         assertTrue(requests.none { SSO_HOST in it })
     }
 
@@ -134,9 +145,44 @@ class SchoolWebSignInTest {
     fun `nothing the run started with, SSO's or the domain's, is handed back`() = runTest(UnconfinedTestDispatcher()) {
         appHoldsSsoSession()
 
-        val names = service().signInForBrowser(SITE_PAGE).map { it.name }
+        val names = service().signInForBrowser(SITE_PAGE).cookies.map { it.name }
 
         assertTrue(names.none { it == SSO_COOKIE || it == "shared" })
+    }
+
+    @Test
+    fun `a cookie of the whole domain set on the way, SSO's or the site's, is not handed back`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        domainCookiesOnTheWay = true
+
+        val names = service().signInForBrowser(SITE_PAGE).cookies.map { it.name }
+
+        assertEquals(listOf(SITE_COOKIE), names)
+    }
+
+    @Test
+    fun `the site gets SSO's own cookies alone on the way, none of the whole domain's`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+
+        service().signInForBrowser(SITE_PAGE)
+
+        assertTrue(sentToSite.isNotEmpty())
+        assertTrue(sentToSite.toString(), sentToSite.none { "shared" in it })
+    }
+
+    @Test
+    fun `a cancelled run cancels the request it waits on, and lets go at once`() = runTest(UnconfinedTestDispatcher()) {
+        appHoldsSsoSession()
+        val started = System.nanoTime()
+
+        val session = kotlinx.coroutines.withTimeoutOrNull(500) { service().signInForBrowser(BLOCKING_PAGE) }
+
+        assertEquals(null, session)
+        val waited = (System.nanoTime() - started) / 1_000_000
+        assertTrue("let go after $waited ms", waited < 4_000)
+        val deadline = System.currentTimeMillis() + 3_000
+        while (!blockedCallCancelled && System.currentTimeMillis() < deadline) Thread.sleep(20)
+        assertTrue(blockedCallCancelled)
     }
 
     private suspend fun expectFailure(type: Class<out Throwable>, block: suspend () -> Unit) {
@@ -156,18 +202,36 @@ class SchoolWebSignInTest {
         requests += "${request.method} $url"
         val jar = callersJar(chain)
         val holdsSso = jar.loadForRequest("https://$SSO_HOST/connect/authorize".toHttpUrl()).any { it.name == SSO_COOKIE }
+        if (request.url.host == SITE_HOST) sentToSite += jar.loadForRequest(request.url).map { it.name }
+        if (url == BLOCKING_PAGE) {
+            // A page that never answers, as a stuck server does, till its call is cancelled.
+            val until = System.currentTimeMillis() + 5_000
+            while (System.currentTimeMillis() < until) {
+                if (chain.call().isCanceled()) {
+                    blockedCallCancelled = true
+                    throw java.io.IOException("Canceled")
+                }
+                Thread.sleep(20)
+            }
+            error("never cancelled")
+        }
         val (landed, html, sets) = when {
             request.method == "POST" && request.url.host == SSO_HOST -> {
                 passwordPosts += url
                 Triple(SSO_LOGIN, LOGIN_PAGE, emptyList())
             }
-            request.method == "POST" && url == CALLBACK ->
+            request.method == "POST" && url == CALLBACK -> {
+                if (domainCookiesOnTheWay) jar.saveFromResponse(request.url, listOf(domainCookie("site-wide")))
                 Triple(SITE_PAGE, "<html><body>Student record</body></html>", listOf("$SITE_COOKIE=site-made-up; Path=/; Secure; HttpOnly"))
+            }
             // The site sends a signed-out visitor to SSO's authorize, which skips its form for a browser holding its session.
             url == SITE_PAGE ->
                 if (jar.loadForRequest(request.url).any { it.name == SITE_COOKIE }) {
                     Triple(SITE_PAGE, "<html><body>Student record</body></html>", emptyList())
                 } else if (holdsSso) {
+                    if (domainCookiesOnTheWay) {
+                        jar.saveFromResponse("https://$SSO_HOST/connect/authorize".toHttpUrl(), listOf(domainCookie("sso-wide")))
+                    }
                     Triple("https://$SSO_HOST/connect/authorize/callback", bridgePage(bridgeAction), emptyList())
                 } else {
                     Triple(SSO_LOGIN, LOGIN_PAGE, emptyList())
@@ -187,8 +251,12 @@ class SchoolWebSignInTest {
             .build()
     }
 
+    /** Built, not parsed: a Domain attribute sends OkHttp's parser to the public suffix list, which tests lack. */
+    private fun domainCookie(name: String) = Cookie.Builder().name(name).value("made-up").domain("ntust.edu.tw").path("/").secure().build()
+
     private companion object {
         const val NOW = 1_800_000_000_000L
+        const val BLOCKING_PAGE = "https://stuck.ntust.edu.tw/"
         const val STUDENT = "B00015999"
         const val PASSWORD = "made-up-password"
         const val SSO_HOST = "ssoam2.ntust.edu.tw"

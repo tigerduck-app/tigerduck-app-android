@@ -73,17 +73,27 @@ class BrowserPageScriptsTest {
     }
 
     @Test
-    fun `a school site's logout links, forms, buttons and controls named for it are hidden, those drawn later too`() {
+    fun `a school site's logout links and forms are found by the routing's own rule, and controls by their words`() {
         val script = BrowserPageScripts.HIDE_SCHOOL_LOGOUT
 
-        listOf(
-            "a[href*=\"logout\" i]", "a[href*=\"logoff\" i]", "a[href*=\"signout\" i]", "a[href*=\"endsession\" i]",
-            "form[action*=\"logout\" i]", "[onclick*=\"logout\" i]", "[class*=\"logout\" i]",
-        ).forEach { assertTrue(it, script.contains(it)) }
+        assertTrue("reads each address as a URL", script.contains("new URL("))
+        // The routing's words, script extensions and action parameters, not a copy of them.
+        BrowserRouting.SCHOOL_LOGOUT_WORDS.forEach { assertTrue(it, script.contains("'$it'")) }
+        BrowserRouting.SCRIPT_EXTENSIONS.forEach { assertTrue(it, script.contains("'$it'")) }
+        BrowserRouting.ACTION_PARAMETERS.forEach { assertTrue(it, script.contains("'$it'")) }
+        assertTrue("path parameters off", script.contains("split(';')"))
         assertTrue("by the words on them", script.contains("登出") && script.contains("sign"))
-        assertTrue("as a stylesheet, before the page has a head", script.contains("createElement('style')") && script.contains("document.documentElement"))
         assertTrue("as the page changes", script.contains("MutationObserver"))
         assertTrue("Moodle's go by its own rules", script.contains("moodle2.ntust.edu.tw"))
+    }
+
+    @Test
+    fun `a school page's wrappers stay, as no rule hides an element by its class or id alone`() {
+        val script = BrowserPageScripts.HIDE_SCHOOL_LOGOUT
+
+        assertFalse(script, script.contains("[class*=\"logout\" i] {"))
+        assertFalse(script, script.contains("display: none !important; }"))
+        assertFalse("no address matched by a substring", script.contains("href*="))
     }
 
     @Test

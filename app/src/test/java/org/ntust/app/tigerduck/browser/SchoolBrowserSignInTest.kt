@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.network.BrowserSiteSession
 import org.ntust.app.tigerduck.network.SsoLoginError
 
 /** The school's sites' sign-in in the TigerDuck browser: which pages it takes, and what it hands the browser. */
@@ -18,7 +19,7 @@ class SchoolBrowserSignInTest {
     private val written = mutableListOf<Pair<String, String>>()
     private var flushes = 0
     private val runs = mutableListOf<String>()
-    private var warms = 0
+    private val warms = mutableListOf<String>()
     private var warmWorks = true
     private var generation = 7
     private var usable = true
@@ -28,12 +29,12 @@ class SchoolBrowserSignInTest {
     private val site = "https://$SITE_HOST/".toHttpUrl()
     private val session = listOf(Cookie.parse(site, "$SITE_COOKIE=site-made-up; Path=/; Secure; HttpOnly")!!)
 
-    /** What a run does: hands back [session] unless set otherwise. */
-    private var answer: suspend (String) -> List<Cookie> = { session }
+    /** What a run does: hands back [session], signed in through SSO, unless set otherwise. */
+    private var answer: suspend (String) -> BrowserSiteSession = { BrowserSiteSession(session, signedIn = true) }
 
     private fun signIn(timeoutMs: Long = 15_000) = SchoolBrowserSignIn(
         run = { target -> runs += target; answer(target) },
-        warm = { warms++; warmWorks },
+        warm = { target -> warms += target; warmWorks },
         isDemo = { demo },
         usable = { usable },
         generation = { generation },
@@ -107,6 +108,8 @@ class SchoolBrowserSignInTest {
 
         assertTrue(school.hasSession(PAGE, "a=1; $SITE_COOKIE=site-made-up"))
         assertFalse("cookie gone", school.hasSession(PAGE, "a=1"))
+        assertFalse("another value", school.hasSession(PAGE, "$SITE_COOKIE=anon-made-up"))
+        assertFalse("emptied", school.hasSession(PAGE, "$SITE_COOKIE="))
         assertFalse("another site", school.hasSession("https://cour01.ntust.edu.tw/x", "$SITE_COOKIE=site-made-up"))
         // After the browser was cleared, nothing it was handed is its any more.
         generation++
@@ -114,12 +117,22 @@ class SchoolBrowserSignInTest {
     }
 
     @Test
-    fun `with no SSO session the app signs in to SSO and runs once more`() = runTest {
+    fun `a page that asked for no sign-in leaves the browser not signed in there`() = runTest {
+        val school = signIn()
+        answer = { BrowserSiteSession(session, signedIn = false) }
+        assertTrue(school.signInWithoutLink(PAGE, byHand = false))
+
+        assertEquals("its cookies still go in", 1, written.size)
+        assertFalse(school.hasSession(PAGE, "$SITE_COOKIE=site-made-up"))
+    }
+
+    @Test
+    fun `with no SSO session the app signs in to SSO by the way of the site and runs once more`() = runTest {
         var first = true
-        answer = { if (first) { first = false; throw SsoLoginError.SessionMissing() } else session }
+        answer = { if (first) { first = false; throw SsoLoginError.SessionMissing() } else BrowserSiteSession(session, signedIn = true) }
 
         assertTrue(signIn().signInWithoutLink(PAGE, byHand = false))
-        assertEquals(1, warms)
+        assertEquals(listOf(PAGE), warms)
         assertEquals(2, runs.size)
         assertEquals(1, written.size)
     }
@@ -130,7 +143,7 @@ class SchoolBrowserSignInTest {
         answer = { throw SsoLoginError.SessionMissing() }
 
         assertFalse(signIn().signInWithoutLink(PAGE, byHand = false))
-        assertEquals(1, warms)
+        assertEquals(1, warms.size)
         assertEquals(1, runs.size)
         assertTrue(written.isEmpty())
     }
@@ -140,7 +153,7 @@ class SchoolBrowserSignInTest {
         answer = { throw SsoLoginError.InteractiveLoginRequired() }
 
         assertFalse(signIn().signInWithoutLink(PAGE, byHand = false))
-        assertEquals(0, warms)
+        assertEquals(0, warms.size)
         assertTrue(written.isEmpty())
     }
 
@@ -171,7 +184,7 @@ class SchoolBrowserSignInTest {
 
     @Test
     fun `a run a sign-out overtook keeps nothing`() = runTest {
-        answer = { generation++; session }
+        answer = { generation++; BrowserSiteSession(session, signedIn = true) }
 
         assertFalse(signIn().signInWithoutLink(PAGE, byHand = false))
         assertTrue(written.isEmpty())
@@ -180,7 +193,7 @@ class SchoolBrowserSignInTest {
 
     @Test
     fun `a run that takes too long keeps nothing`() = runTest {
-        answer = { delay(20_000); session }
+        answer = { delay(20_000); BrowserSiteSession(session, signedIn = true) }
 
         assertFalse(signIn(timeoutMs = 15_000).signInWithoutLink(PAGE, byHand = false))
         assertTrue(written.isEmpty())

@@ -91,44 +91,73 @@ object BrowserPageScripts {
     /** Where [HIDE_LOGOUT] goes, as WebViewCompat.addDocumentStartJavaScript's origin rules. */
     val HIDE_LOGOUT_ORIGINS: Set<String> = setOf(MoodleWebservice.SITE)
 
-    /** Where a school site's link, form or control goes when it signs the student out, as [BrowserRouting.isSchoolLogout] reads it. */
-    private val SCHOOL_LOGOUT_WORDS = listOf("logout", "logoff", "signout", "log-out", "sign-out", "endsession")
-    private val SCHOOL_LOGOUT_SELECTOR: String = (
-        SCHOOL_LOGOUT_WORDS.map { "a[href*=\"$it\" i]" } +
-            SCHOOL_LOGOUT_WORDS.map { "form[action*=\"$it\" i]" } +
-            listOf("logout", "logoff", "signout").flatMap { listOf("[onclick*=\"$it\" i]", "[class*=\"$it\" i]", "[id*=\"$it\" i]") }
-        ).joinToString(", ")
+    private fun jsList(items: List<String>): String = items.joinToString(", ") { "'$it'" }
 
     /**
      * Hides a school site's logout, every site's but Moodle's, which [HIDE_LOGOUT] hides by its own
-     * rules: links and forms that go to one, controls whose script, class or id names one, and the
-     * buttons and links whose words are the logout's (登出, Log out, Sign out). A stylesheet for
-     * the first, a script for the words, as the page changes. The addresses themselves are refused
-     * besides ([BrowserRouting.isSchoolLogout]), so a control this misses signs no one out: each
-     * site's session is TigerDuck's to end, at its own sign-out.
+     * rules: a link or a form whose address [BrowserRouting.isSchoolLogout] would refuse, read by
+     * the same words, extensions and parameters, and a button, a link or a control whose words are
+     * the logout's (登出, Log out, Sign out) or whose script names one. The control alone goes, never
+     * an element around it. Run as the page loads and as it changes. The addresses themselves are
+     * refused besides, so a control this misses signs no one out.
      */
     val HIDE_SCHOOL_LOGOUT: String = """(function() {
-  if (location.hostname === '${MoodleWebservice.SITE_HOST}') return;
-  var style = document.createElement('style');
-  style.textContent = '$SCHOOL_LOGOUT_SELECTOR { display: none !important; }';
-  (document.head || document.documentElement).appendChild(style);
-  var words = /^(log\s*out|log\s*off|sign\s*out|登出|登出系統|安全登出|系統登出|註銷|注销)$/i;
-  var controls = 'a, button, input[type="button"], input[type="submit"], [role="button"], [role="menuitem"]';
+  var moodle = '${MoodleWebservice.SITE_HOST}';
+  if (location.hostname.replace(/\.$/, '').toLowerCase() === moodle) return;
+  var WORDS = [${jsList(BrowserRouting.SCHOOL_LOGOUT_WORDS)}];
+  var EXTENSIONS = [${jsList(BrowserRouting.SCRIPT_EXTENSIONS)}];
+  var PARAMETERS = [${jsList(BrowserRouting.ACTION_PARAMETERS)}];
+  var letters = function(text) { return text.toLowerCase().replace(/[^a-z]/g, ''); };
+  var routeName = function(segment) {
+    var path = segment.split(';')[0];
+    var dot = path.lastIndexOf('.');
+    if (dot > 0 && EXTENSIONS.indexOf(path.slice(dot + 1).toLowerCase()) < 0) return '';
+    return letters(dot > 0 ? path.slice(0, dot) : path);
+  };
+  var isLogout = function(address) {
+    var url;
+    try { url = new URL(address, location.href); } catch (e) { return false; }
+    var host = url.hostname.replace(/\.$/, '').toLowerCase();
+    if (host !== 'ntust.edu.tw' && host.slice(-13) !== '.ntust.edu.tw') return false;
+    if (host === moodle) return false;
+    var segments = url.pathname.split('/');
+    for (var i = 0; i < segments.length; i++) {
+      var segment = segments[i];
+      try { segment = decodeURIComponent(segment); } catch (e) {}
+      var name = routeName(segment);
+      if (name === 'endsession') return true;
+      if (name && WORDS.some(function(word) { return name.slice(-word.length) === word; })) return true;
+    }
+    var found = false;
+    url.searchParams.forEach(function(value, key) {
+      if (PARAMETERS.indexOf(key.toLowerCase()) >= 0 && WORDS.indexOf(letters(value)) >= 0) found = true;
+    });
+    return found;
+  };
+  var named = /^(log\s*out|log\s*off|sign\s*out|登出|登出系統|安全登出|系統登出|註銷|注销)$/i;
+  var scripted = /(log\s*out|log\s*off|sign\s*out)/i;
+  var controls = 'a, button, input[type="button"], input[type="submit"], [role="button"], [role="menuitem"], [onclick], ' +
+    '[class*="logout" i], [id*="logout" i], [class*="logoff" i], [class*="signout" i]';
+  var hide = function(element) { element.style.setProperty('display', 'none', 'important'); };
   var queued = false;
-  var hideNamed = function() {
+  var tidy = function() {
     queued = false;
+    document.querySelectorAll('a[href]').forEach(function(link) { if (isLogout(link.getAttribute('href'))) hide(link); });
+    document.querySelectorAll('form[action]').forEach(function(form) { if (isLogout(form.getAttribute('action'))) hide(form); });
     document.querySelectorAll(controls).forEach(function(control) {
-      var text = (control.value || control.textContent || '').trim();
-      if (words.test(text)) control.style.setProperty('display', 'none', 'important');
+      var words = (control.value || control.textContent || '').trim();
+      if (named.test(words) || scripted.test(control.getAttribute('onclick') || '')) hide(control);
     });
   };
   var later = function() {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(hideNamed);
+    requestAnimationFrame(tidy);
   };
-  document.addEventListener('DOMContentLoaded', hideNamed);
-  new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  document.addEventListener('DOMContentLoaded', tidy);
+  new MutationObserver(later).observe(document.documentElement, {
+    childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['href', 'action', 'onclick']
+  });
 })();"""
 
     /** Where [HIDE_SCHOOL_LOGOUT] goes: every school page, as WebViewCompat.addDocumentStartJavaScript's origin rules. */

@@ -120,6 +120,9 @@ class BrowserRoutingTest {
             "https://stu.ntust.edu.tw/x/../Logout.aspx",
             "https://ccdoc.ntust.edu.tw/docmgsystem/index.aspx?action=logout",
             "https://SUGGESTIONBOX.ntust.edu.tw./LOGOUT",
+            "https://stu.ntust.edu.tw/logout;jsessionid=ABC",
+            "https://stu.ntust.edu.tw/app/Logout.do",
+            "https://stu.ntust.edu.tw/app/logout.html",
             "http://suggestionbox.ntust.edu.tw/logout",
         ).forEach {
             assertTrue(it, BrowserRouting.isSchoolLogout(it))
@@ -135,6 +138,9 @@ class BrowserRoutingTest {
             "https://www.ntust.edu.tw/p/catalogoffice.php",
             "https://ssoam2.ntust.edu.tw/account/login?ReturnUrl=%2Flogout",
             "https://i.ntust.edu.tw/student?q=logout",
+            // Documents, not routes.
+            "https://www.ntust.edu.tw/docs/logout.pdf",
+            "https://www.ntust.edu.tw/img/logout.png",
             "https://example.com/logout",
             // Moodle's own rules decide its pages.
             "https://moodle2.ntust.edu.tw/blog/login/logout.php",

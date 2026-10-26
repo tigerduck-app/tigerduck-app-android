@@ -9,9 +9,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
-import okhttp3.Call
 import okhttp3.Cookie
-import okhttp3.EventListener
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -290,26 +288,6 @@ class MoodleTokenService internal constructor(
             .filter { it.name.startsWith(MOODLE_SESSION_COOKIE) || it.name.startsWith(MOODLE_ID_COOKIE) }
             .takeIf { cookies -> cookies.any { it.name.startsWith(MOODLE_SESSION_COOKIE) } }
             ?: throw MoodleWebserviceError.MalformedResponse("Moodle set no session cookie")
-    }
-
-    /**
-     * The calls one sign-in has started, to cancel together; one started after [cancelAll] is
-     * cancelled as it starts. Told of each as it starts ([callStart]), once the call is whole.
-     */
-    private class RunningCalls : EventListener() {
-        private val calls = mutableListOf<Call>()
-        private var cancelled = false
-
-        @Synchronized
-        override fun callStart(call: Call) {
-            if (cancelled) call.cancel() else calls += call
-        }
-
-        @Synchronized
-        fun cancelAll() {
-            cancelled = true
-            calls.forEach(Call::cancel)
-        }
     }
 
     /**
