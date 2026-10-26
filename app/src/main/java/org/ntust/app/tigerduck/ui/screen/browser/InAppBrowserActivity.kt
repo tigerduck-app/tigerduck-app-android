@@ -482,7 +482,7 @@ class InAppBrowserActivity : AppCompatActivity() {
     /** Opens [target]: signed in first where its site signs the browser in and no session is kept. */
     private fun open(target: String) {
         val provider = signIns.forUrl(target)
-        if (provider == null || provider.hasSession(CookieManager.getInstance().getCookie(target))) {
+        if (provider == null || !provider.signsInAhead(target) || provider.hasSession(target, CookieManager.getInstance().getCookie(target))) {
             load(target)
             return
         }
@@ -508,7 +508,7 @@ class InAppBrowserActivity : AppCompatActivity() {
     private fun handleNavigation(url: String): Boolean {
         val provider = signIns.forUrl(url)
         if (provider != null && provider.isSignInPage(url)) {
-            signInFlow.signInPageReached(provider, url)
+            signInFlow.signInPageReached(provider, url, from = state.url)
             return true
         }
         return when (val decision = BrowserRouting.navigation(url, allowlistStore.allowlist.value)) {
@@ -532,7 +532,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         // A navigation shouldOverrideUrlLoading was not asked about (a form's POST): checked here, and stopped.
         val provider = signIns.forUrl(url)
         if (provider != null && provider.isSignInPage(url)) {
-            signInFlow.signInPageReached(provider, url)
+            signInFlow.signInPageReached(provider, url, from = state.url)
             return
         }
         val decision = BrowserRouting.navigation(url, allowlistStore.allowlist.value)
@@ -564,7 +564,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         state.url = loads.address(url)
         state.title = webView.title
         state.certificate = webView.certificate?.let(CertificateInfo::of)
-        state.signedIn = signIns.forUrl(url)?.hasSession(CookieManager.getInstance().getCookie(url)) == true
+        state.signedIn = signIns.forUrl(url)?.hasSession(url, CookieManager.getInstance().getCookie(url)) == true
         updateHistory()
         probeTone()
     }

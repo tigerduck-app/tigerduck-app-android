@@ -20,8 +20,10 @@ import org.ntust.app.tigerduck.browser.BrowserSignIns
 import org.ntust.app.tigerduck.browser.MediaStoreDownloadTransfer
 import org.ntust.app.tigerduck.browser.MoodleBrowserSignIn
 import org.ntust.app.tigerduck.browser.MoodleWebSessionSignIn
+import org.ntust.app.tigerduck.browser.SchoolBrowserSignIn
 import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.network.MoodleTokenService
+import org.ntust.app.tigerduck.network.SsoLoginService
 import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
 import javax.inject.Singleton
 import org.ntust.app.tigerduck.shared.tls.PinnedTls
@@ -84,17 +86,31 @@ object BrowserModule {
         @ApplicationContext context: Context,
         autologin: MoodleAutologin,
         tokenService: MoodleTokenService,
+        ssoLoginService: SsoLoginService,
+        // Lazily: the school sign-in it runs is needed only once SSO asks for a password.
+        authService: dagger.Lazy<org.ntust.app.tigerduck.auth.AuthService>,
         demoAccount: DemoAccount,
         cleanup: BrowserCleanup,
     ): BrowserSignIns {
+        val usable = { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() }
         val webSession = MoodleWebSessionSignIn(
             run = tokenService::signInToWebsite,
             isDemo = { demoAccount.isActive },
-            usable = { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() },
+            usable = usable,
             generation = { BrowserSession.generation.value },
             writeCookie = { url, value -> CookieManager.getInstance().setCookie(url, value) },
             flush = { CookieManager.getInstance().flush() },
         )
-        return BrowserSignIns(listOf(MoodleBrowserSignIn(autologin, webSession)))
+        val school = SchoolBrowserSignIn(
+            run = ssoLoginService::signInForBrowser,
+            warm = { authService.get().ensureAuthenticated() },
+            isDemo = { demoAccount.isActive },
+            usable = usable,
+            generation = { BrowserSession.generation.value },
+            writeCookie = { url, value -> CookieManager.getInstance().setCookie(url, value) },
+            flush = { CookieManager.getInstance().flush() },
+        )
+        // Moodle's first: its site is the school's too.
+        return BrowserSignIns(listOf(MoodleBrowserSignIn(autologin, webSession), school))
     }
 }

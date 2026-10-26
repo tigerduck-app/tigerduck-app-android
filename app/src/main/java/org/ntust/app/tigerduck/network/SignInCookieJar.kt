@@ -25,4 +25,8 @@ class SignInCookieJar(private val now: () -> Long = System::currentTimeMillis) :
     @Synchronized
     override fun loadForRequest(url: HttpUrl): List<Cookie> =
         cookies.filter { it.expiresAt > now() && it.matches(url) }
+
+    /** Every cookie the run holds, for any address. */
+    @Synchronized
+    fun all(): List<Cookie> = cookies.filter { it.expiresAt > now() }
 }

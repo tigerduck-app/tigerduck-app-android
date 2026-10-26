@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.network
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okhttp3.Cookie
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -31,6 +32,9 @@ sealed class SsoLoginError : Exception() {
     /** The service bounced to a login page OkHttp cannot complete (ssoam's NetIQ form, gated
      *  by a click-only reCAPTCHA). No session was established — only a WebView can finish it. */
     class InteractiveLoginRequired : SsoLoginError()
+
+    /** SSO asked for the password where a sign-in for the browser posts none: the app holds no SSO session it can use. */
+    class SessionMissing : SsoLoginError()
 }
 
 /**
@@ -77,11 +81,13 @@ internal suspend fun <T> Mutex.lockedUnlessStale(isStillWanted: () -> Boolean, s
 class SsoLoginService internal constructor(
     private val sessionManager: NtustSessionManager,
     private val passwordLatch: StoredPasswordLatch,
+    /** A jar for one sign-in for the TigerDuck browser, its own; see [signInForBrowser]. */
+    private val newCookieJar: () -> SignInCookieJar = { SignInCookieJar() },
     private val clientFor: () -> OkHttpClient,
 ) {
     @Inject
     constructor(sessionManager: NtustSessionManager, passwordLatch: StoredPasswordLatch) :
-        this(sessionManager, passwordLatch, { sessionManager.client })
+        this(sessionManager, passwordLatch, clientFor = { sessionManager.client })
 
     private val client: OkHttpClient get() = clientFor()
 
@@ -279,6 +285,31 @@ class SsoLoginService internal constructor(
     }
 
     /**
+     * Signs [target]'s school site in for the TigerDuck browser with the SSO session the app
+     * already holds, and hands back the cookies the site set: its session, for the browser alone.
+     * The run has a jar of its own ([newCookieJar]) that starts with what the app's shared jar
+     * sends SSO and nothing else, and nothing goes back into the shared jar, so the site's session
+     * is never one the app's own calls also use. Nothing the run started with is handed back.
+     *
+     * No password is posted, and none is filled into a page: SSO asking for one ends the run
+     * ([SsoLoginError.SessionMissing]), and so does ssoam's NetIQ page, which only a person signs
+     * in to ([SsoLoginError.InteractiveLoginRequired]). A page that asks for no sign-in hands back
+     * whatever its site set.
+     */
+    suspend fun signInForBrowser(target: String): List<Cookie> = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val jar = newCookieJar()
+        val seeded = client.cookieJar.loadForRequest(SSO_SITE)
+        jar.saveFromResponse(SSO_SITE, seeded)
+        val run = client.newBuilder().cookieJar(jar).build()
+        val (html, url) = fetchPage(target, run)
+        val (landedHtml, landed) = resolveOIDCBridgeForms(html, url, client = run)
+        if (HtmlParser.findFormById(landedHtml, "IDPLogin") != null) throw SsoLoginError.InteractiveLoginRequired()
+        if (HtmlParser.isSsoHost(landed.host)) throw SsoLoginError.SessionMissing()
+        val started = seeded.map { Triple(it.name, it.domain, it.path) }.toSet()
+        jar.all().filter { Triple(it.name, it.domain, it.path) !in started && !HtmlParser.isSsoHost(it.domain) }
+    }
+
+    /**
      * Steps 5 to 7: posts the sign-in form's [fields] to [actionUrl] and follows the answer. Throws
      * [SsoLoginError.LoginFailed] with the school's message when the school kept the sign-in on its
      * form, and for nothing else.
@@ -300,7 +331,7 @@ class SsoLoginService internal constructor(
         return true
     }
 
-    private fun fetchPage(url: String): Pair<String, HttpUrl> {
+    private fun fetchPage(url: String, client: OkHttpClient = this.client): Pair<String, HttpUrl> {
         try {
             val request = Request.Builder().url(url).get().build()
             client.newCall(request).execute().use { response ->
@@ -317,7 +348,8 @@ class SsoLoginService internal constructor(
     private fun resolveOIDCBridgeForms(
         html: String,
         url: HttpUrl,
-        maxSteps: Int = 3
+        maxSteps: Int = 3,
+        client: OkHttpClient = this.client,
     ): Pair<String, HttpUrl> {
         var currentHtml = html
         var currentUrl = url
@@ -330,7 +362,7 @@ class SsoLoginService internal constructor(
             // HTTPS and nowhere else, whatever the page names as the form's action. As on the
             // iPhone.
             if (!CredentialPost.isSchoolTarget(actionUrl)) throw SsoLoginError.InvalidResponse()
-            val (newHtml, newUrl) = postForm(actionUrl, form.inputs)
+            val (newHtml, newUrl) = postForm(actionUrl, form.inputs, client)
             currentHtml = newHtml
             currentUrl = newUrl
         }
@@ -360,7 +392,7 @@ class SsoLoginService internal constructor(
      * A bridge form's POST, which carries the ID token or the code the school hands the service: no
      * redirect sends the form on, and one that would ends the sign-in ([executeCredentialPost]).
      */
-    private fun postForm(url: HttpUrl, fields: List<Pair<String, String>>): Pair<String, HttpUrl> {
+    private fun postForm(url: HttpUrl, fields: List<Pair<String, String>>, client: OkHttpClient = this.client): Pair<String, HttpUrl> {
         try {
             val body = FormBody.Builder().apply {
                 fields.forEach { (name, value) -> add(name, value) }
@@ -406,3 +438,6 @@ class SsoLoginService internal constructor(
 internal fun isSignInHost(url: HttpUrl): Boolean = url.isHttps && url.host == SIGN_IN_HOST
 
 private const val SIGN_IN_HOST = "ssoam2.ntust.edu.tw"
+
+/** The sign-in host's site, whose cookies the app's shared jar sends SSO. */
+private val SSO_SITE: HttpUrl = "https://$SIGN_IN_HOST/".toHttpUrl()

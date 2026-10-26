@@ -46,13 +46,22 @@ internal class BrowserSignInFlow(
      * A site sent the browser to its own sign-in page, [url]: signed out there. Signs in again at
      * once, back to the page the sign-in page came in the way of. A link the site bounces back here
      * does not loop: Moodle's next is 6 minutes after the last, and the app's own sign-in runs by
-     * itself only as often as the provider allows.
+     * itself only as often as the provider allows. Reached from [from], the page shown, where the
+     * provider does not sign in by itself ([BrowserSignIn.signsInFrom]), the sign-in screen waits
+     * for the student's Retry.
      */
-    fun signInPageReached(provider: BrowserSignIn, url: String) {
+    fun signInPageReached(provider: BrowserSignIn, url: String, from: String? = null) {
         stopLoading()
         // A sign-in on its way loads nothing till it is done: this is the same navigation again.
         if (state.signIn?.working == true) return
-        signIn(provider, loads.signInReturn(url))
+        val target = loads.signInReturn(url)
+        if (!provider.signsInFrom(from)) {
+            loads.signInTarget = target
+            if (state.url == null) state.url = target
+            state.signIn = SignInState(provider.siteName, target)
+            return
+        }
+        signIn(provider, target)
     }
 
     /** Retry on the screen. */
@@ -82,7 +91,7 @@ internal class BrowserSignInFlow(
         if (signedIn != null) {
             state.signIn = null
             load(signedIn)
-        } else if (provider.maySignInWithoutLink(byHand) && signInByApp(provider, byHand)) {
+        } else if (provider.maySignInWithoutLink(target, byHand) && signInByApp(provider, target, byHand)) {
             state.signIn = null
             load(target)
         } else {
@@ -92,11 +101,11 @@ internal class BrowserSignInFlow(
     }
 
     /** The app's own sign-in, behind the spinner, which lets go however it ends. */
-    private suspend fun signInByApp(provider: BrowserSignIn, byHand: Boolean): Boolean {
+    private suspend fun signInByApp(provider: BrowserSignIn, target: String, byHand: Boolean): Boolean {
         val hold = processing.newHold()
         hold.start()
         return try {
-            provider.signInWithoutLink(byHand)
+            provider.signInWithoutLink(target, byHand)
         } finally {
             hold.stop()
         }

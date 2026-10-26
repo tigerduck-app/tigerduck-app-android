@@ -39,6 +39,10 @@ class BrowserSignInFlowTest {
         val asked = mutableListOf<String>()
         /** When the app's own sign-in ran. */
         val appRuns = mutableListOf<Long>()
+        /** The pages the app's own sign-in was told it goes on to. */
+        val appTargets = mutableListOf<String>()
+        /** Which pages a sign-in page reached from signs in by itself. */
+        var signsInFromPage: (String?) -> Boolean = { true }
         private var dueAt = firstDueAtMs
 
         override val siteName = "Moodle"
@@ -62,6 +66,11 @@ class BrowserSignInFlowTest {
             appRuns += clock()
             return appSignIn!!()
         }
+        override suspend fun signInWithoutLink(target: String, byHand: Boolean): Boolean {
+            appTargets += target
+            return signInWithoutLink(byHand)
+        }
+        override fun signsInFrom(page: String?) = signsInFromPage(page)
     }
 
     private val processing = AppProcessing()
@@ -94,6 +103,52 @@ class BrowserSignInFlowTest {
         assertEquals(1, stops)
         assertEquals(listOf("$SIGNED_IN$PAGE"), loaded)
         assertNull(state.signIn)
+    }
+
+    @Test
+    fun `a sign-in page another site sent the browser to waits for the student's Retry`() = runTest {
+        val site = Site().apply { signsInFromPage = { it == null || it.startsWith("https://moodle2.ntust.edu.tw/") } }
+        val flow = flow(site)
+        loads.requested(PAGE)
+
+        flow.signInPageReached(site, SIGN_IN_PAGE, from = "https://example.com/")
+        runCurrent()
+
+        assertEquals(1, stops)
+        assertEquals(emptyList<String>(), site.asked)
+        assertEquals(emptyList<String>(), loaded)
+        assertEquals(PAGE, state.signIn?.target)
+        assertEquals(false, state.signIn?.working)
+
+        flow.retry()
+        runCurrent()
+        assertEquals(listOf("$SIGNED_IN$PAGE"), loaded)
+        assertNull(state.signIn)
+    }
+
+    @Test
+    fun `a sign-in page reached from the site's own page signs in by itself`() = runTest {
+        val site = Site().apply { signsInFromPage = { it == null || it.startsWith("https://moodle2.ntust.edu.tw/") } }
+        val flow = flow(site)
+        loads.requested(PAGE)
+
+        flow.signInPageReached(site, SIGN_IN_PAGE, from = OTHER_PAGE)
+        runCurrent()
+
+        assertEquals(listOf("$SIGNED_IN$PAGE"), loaded)
+    }
+
+    @Test
+    fun `the app's own sign-in is told the page it goes on to`() = runTest {
+        val site = Site(works = false, appSignIn = { true })
+        val flow = flow(site)
+        loads.requested(PAGE)
+
+        flow.signInPageReached(site, SIGN_IN_PAGE)
+        runCurrent()
+
+        assertEquals(listOf(PAGE), site.appTargets)
+        assertEquals(listOf(PAGE), loaded)
     }
 
     @Test

@@ -25,6 +25,21 @@ interface BrowserSignIn {
     /** Whether the browser's [cookieHeader] for the site (`CookieManager.getCookie`) holds a session. */
     fun hasSession(cookieHeader: String?): Boolean
 
+    /** [hasSession] for [url]'s site, for a provider that signs in more than one site. */
+    fun hasSession(url: String, cookieHeader: String?): Boolean = hasSession(cookieHeader)
+
+    /**
+     * Whether opening [url] with no session kept signs the browser in before it loads; when not,
+     * only the site sending the browser to its sign-in page does.
+     */
+    fun signsInAhead(url: String): Boolean = true
+
+    /**
+     * Whether a sign-in page reached from [page], the one shown, null for none, signs the browser
+     * in by itself. When not, the sign-in screen waits for the student's Retry.
+     */
+    fun signsInFrom(page: String?): Boolean = true
+
     /**
      * Whether a main-frame navigation to [url] means the browser is signed
      * out: the site's own sign-in page, which the browser replaces with its
@@ -59,6 +74,12 @@ interface BrowserSignIn {
      * browser holds one.
      */
     suspend fun signInWithoutLink(byHand: Boolean = false): Boolean = false
+
+    /** [maySignInWithoutLink] for a sign-in that goes on to [target], for a provider that signs in more than one site. */
+    fun maySignInWithoutLink(target: String, byHand: Boolean): Boolean = maySignInWithoutLink(byHand)
+
+    /** [signInWithoutLink] for a sign-in that goes on to [target]. */
+    suspend fun signInWithoutLink(target: String, byHand: Boolean): Boolean = signInWithoutLink(byHand)
 }
 
 /**
