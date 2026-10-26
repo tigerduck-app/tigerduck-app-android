@@ -694,14 +694,3 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
-
-// The strings, generated from app-translation's source/*.json on every build.
-apply(from = rootProject.file("gradle/app-translation.gradle.kts"))
-val appTranslationStrings = tasks.named("generateAppTranslationStrings")
-
-androidComponents {
-    onVariants { variant ->
-        // The task's class lives in that script, so its output is reached by name.
-        variant.sources.res?.addGeneratedSourceDirectory(appTranslationStrings) { it.property("outputDir") as DirectoryProperty }
-    }
-}
