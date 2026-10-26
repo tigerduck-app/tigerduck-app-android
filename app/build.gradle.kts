@@ -573,6 +573,8 @@ dependencies {
     implementation(project(":core:strings"))
     // The theme and the components the screens share; see core/ui/build.gradle.kts.
     implementation(project(":core:ui"))
+    // The file viewer; see feature/files/build.gradle.kts.
+    implementation(project(":feature:files"))
     "playImplementation"(libs.play.services.wearable)
     "playImplementation"(libs.play.app.update.ktx)
     // In-app review (issue #332): Play only, as fdroid has no Play Store to rate on.
@@ -638,13 +640,16 @@ dependencies {
     implementation(libs.androidx.browser)
     // The TigerDuck browser clears everything a WebView keeps (WebStorageCompat.deleteBrowsingData).
     implementation(libs.androidx.webkit)
-    // The file viewer's video and sound.
-    implementation(libs.androidx.media3.exoplayer)
-    implementation(libs.androidx.media3.ui)
-    // The file viewer's archives: ZIP, tar and 7z, and XZ for 7z's LZMA and .xz.
-    implementation(libs.commons.compress)
-    implementation(libs.xz)
     implementation(libs.androidx.appcompat)
+
+    // ListenableFuture, which WorkManager and CameraX hand back, to compile
+    // against. Media3 declares Guava as an API dependency, so while the file
+    // viewer was part of this module it put Guava on this compile classpath;
+    // :feature:files keeps Media3 to itself now. Compile only, at the version
+    // Media3 brings, and without Guava's own dependencies, which Media3
+    // excludes: the app ships the Guava Media3 pulls in, as before, and the
+    // licenses page lists no annotation jar it never had.
+    compileOnly(libs.guava) { isTransitive = false }
 
     // Background work scheduling
     implementation(libs.androidx.work.runtime.ktx)
@@ -685,6 +690,9 @@ dependencies {
     testImplementation(libs.robolectric)
     // Hand-made certificates and Ed25519 keys for the TLS pin tests.
     testImplementation(libs.okhttp.tls)
+    // The archives ArchivesTest and ArchiveViewerTest build; the viewer that reads them is
+    // :feature:files', and ArchiveViewerTest needs this module's FileProvider.
+    testImplementation(libs.commons.compress)
     testImplementation(libs.bouncycastle.bcprov)
     // DebugPinDocument signs its stand-in for TigerSync's document; :shared ships it to every build already.
     debugImplementation(libs.bouncycastle.bcprov)
