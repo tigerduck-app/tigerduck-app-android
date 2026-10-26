@@ -567,6 +567,8 @@ dependencies {
     // The strings, generated from app-translation's source/*.json on every
     // build, and the locale list the manifest's localeConfig names.
     implementation(project(":core:strings"))
+    // The theme and the components the screens share; see core/ui/build.gradle.kts.
+    implementation(project(":core:ui"))
     "playImplementation"(libs.play.services.wearable)
     "playImplementation"(libs.play.app.update.ktx)
     // In-app review (issue #332): Play only, as fdroid has no Play Store to rate on.

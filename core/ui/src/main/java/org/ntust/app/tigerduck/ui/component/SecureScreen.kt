@@ -16,7 +16,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
-import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.core.ui.BuildConfig
 
 /**
  * While [secure] is true, applies `WindowManager.LayoutParams.FLAG_SECURE` to
