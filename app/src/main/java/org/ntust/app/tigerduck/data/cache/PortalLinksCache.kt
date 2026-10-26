@@ -10,6 +10,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.network.model.PortalLink
+import org.ntust.app.tigerduck.util.logSummary
 import java.io.File
 import java.io.IOException
 import java.util.Date
@@ -89,7 +90,7 @@ class PortalLinksCache @Inject constructor(@ApplicationContext context: Context)
                 tmp.delete()
             }
         } catch (e: Exception) {
-            Log.w(TAG, "atomic write failed for ${target.name}", e)
+            Log.w(TAG, "atomic write failed for ${target.name}: ${e.logSummary()}")
             tmp.delete()
         }
     }

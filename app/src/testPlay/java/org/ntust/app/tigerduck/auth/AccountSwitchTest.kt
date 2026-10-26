@@ -38,6 +38,8 @@ import org.ntust.app.tigerduck.browser.BrowserSettings
 import org.ntust.app.tigerduck.browser.StorageClearing
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.BulletinCache
+import org.ntust.app.tigerduck.data.cache.PortalLinksCache
+import org.ntust.app.tigerduck.data.cache.PortalLinksSnapshot
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -235,6 +237,7 @@ class AccountSwitchTest {
         val academicCalendar = AcademicCalendarStore(context, refusing, appPrefs)
         val dataCache = DataCache(context, academicCalendar)
         val bulletinCache = BulletinCache(context)
+        val portalLinksCache = PortalLinksCache(context)
         val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
         val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported)
         val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures))
@@ -292,6 +295,7 @@ class AccountSwitchTest {
             ),
             dataCache = dataCache,
             bulletinCache = bulletinCache,
+            portalLinksCache = portalLinksCache,
             bulletinReadStateStore = BulletinReadStateStore(context),
             importedClassTables = imported,
             widgetUpdater = WidgetUpdater(
@@ -345,6 +349,7 @@ class AccountSwitchTest {
         dataCache.saveMoodleData(listOf("forum"), System.currentTimeMillis(), "forums-7", FIRST)
         bulletinCache.save(emptyList())
         bulletinCache.saveFetchedAt(System.currentTimeMillis())
+        portalLinksCache.save(PortalLinksSnapshot(emptyList(), java.util.Date(), FIRST), "zh")
         val classmate = ClassTableShareCode(
             ClassTableShareCode.Format.TIGER_DUCK, CLASSMATE, null, listOf(ClassTableShareCode.Term(SEMESTER, listOf("CS1001"))),
         )
@@ -355,6 +360,9 @@ class AccountSwitchTest {
         File(bulletins, "summaries.json.tmp").writeText("[]")
         File(bulletins, "fetched_at.tmp").writeText("1")
         assertTrue(filesUnder(bulletins).isNotEmpty())
+        val portal = File(context.filesDir, "portal")
+        File(portal, "links_en.json.tmp").writeText("{}")
+        assertTrue(filesUnder(portal).isNotEmpty())
 
         /** Nothing of the first student's is left, and their School Mail and library account stay. */
         suspend fun assertNothingOfTheFirstLeft(after: String) {
@@ -364,6 +372,7 @@ class AccountSwitchTest {
             assertEquals(after, emptyList<String>(), listOf("cache", "data").flatMap { filesUnder(cacheRoots.getValue(it)) })
             assertEquals(after, emptyList<String>(), filesUnder(dataCache.moodleDownloadsRoot()))
             assertEquals(after, emptyList<String>(), filesUnder(bulletins))
+            assertEquals(after, emptyList<String>(), filesUnder(portal))
             assertEquals(after, emptyList<String>(), imported.load().people.map { it.nickname })
             assertFalse(after, importedUnfinished.exists())
             assertEquals(after, othersBefore, credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") })

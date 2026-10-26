@@ -58,6 +58,7 @@ Scopes:
 | The school session's cookies, in memory | `NtustSessionManager.signOut()` in `AuthService.logout()` |
 | Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.logout()` |
 | Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()` in `AuthService.logout()` |
+| The information system's portal links, `filesDir/portal/`, and what a write a process death cut short left there | `PortalLinksCache.clear()` in `AuthService.logout()` |
 | Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()` in `AuthService.logout()`; another student's sign-in empties it too (`accountDidSignIn`) |
 | A share link held for a sign-in, in memory | `HeldShareLink.drop()` in `AuthService.logout()` |
 | The demo account | `DemoAccount.exit()` in `AuthService.logout()` |
