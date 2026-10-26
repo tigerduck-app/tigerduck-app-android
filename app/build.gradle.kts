@@ -161,7 +161,7 @@ android {
             // slow ones, and four, more than the cores could run, 77-88 s. Each
             // JVM builds the Robolectric sandboxes its own classes need, so three
             // hold about 4.8 GB together.
-            all { it.maxParallelForks = (Runtime.getRuntime().availableProcessors() - 1).coerceIn(1, 4) }
+            all { it.maxParallelForks = providers.gradleProperty("diagForks").orNull?.toInt() ?: (Runtime.getRuntime().availableProcessors() - 1).coerceIn(1, 4) }
             // ReleaseLogRulesTest reads the R8 rules, which are no input of the
             // test task otherwise: a change to them alone would leave it UP-TO-DATE.
             all { it.inputs.file("proguard-rules.pro") }
