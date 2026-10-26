@@ -1,8 +1,8 @@
 name: CI
 
 # Diagnostic only, never merged: runs the play unit tests three times on one
-# runner (three JVMs from a cold Robolectric cache, then one JVM and three JVMs
-# warm) while sampling memory, swap and the test JVMs, for PR #580.
+# runner (one JVM from a cold Robolectric cache, then two and one JVMs in turn
+# and three, warm) while sampling memory, swap and the test JVMs, for PR #580.
 
 on:
   pull_request:
@@ -40,7 +40,7 @@ jobs:
       - name: Tests three times
         run: |
           (while true; do
-             echo "$(date +%s) mem_used=$(free -m | awk '/Mem:/{print $3}') mem_avail=$(free -m | awk '/Mem:/{print $7}') swap_used=$(free -m | awk '/Swap:/{print $3}') load=$(cut -d' ' -f1 /proc/loadavg) test_jvms=$(ps -eo rss,args | grep 'Gradle Test Executor' | grep -v grep | awk '{n++; s+=$1} END {print n+0 " test_rss_mb=" int(s/1024)}') daemons_rss_mb=$(ps -eo rss,args | grep -E 'GradleDaemon|KotlinCompileDaemon' | grep -v grep | awk '{s+=$1} END {print int(s/1024)}')"
+             echo "$(date +%s) mem_used=$(free -m | awk '/Mem:/{print $3}') mem_avail=$(free -m | awk '/Mem:/{print $7}') swap_used=$(free -m | awk '/Swap:/{print $3}') load=$(cut -d' ' -f1 /proc/loadavg) test_jvms=$(ps -eo rss,args | grep 'Gradle Test Executor' | grep -v grep | awk '{n++; s+=$1} END {print n+0 " test_rss_mb=" int(s/1024)}') daemons_rss_mb=$(ps -eo rss,args | grep -E 'GradleDaemon|KotlinCompileDaemon' | grep -v grep | awk '{s+=$1} END {print int(s/1024)}') cpu_ticks=$(for p in $(pgrep -f 'Gradle Test Executor'); do awk '{print $1, $14 + $15}' /proc/$p/stat 2>/dev/null; done | tr '\n' ',')"
              sleep 2
            done) > "$RUNNER_TEMP/sampler.log" &
           run() {
@@ -50,9 +50,11 @@ jobs:
               -PdiagForks=$2 :app:testPlayDebugUnitTest --rerun -q || rc=$?
             echo "== $1 end $(date +%s) rc=$rc"
           }
-          run cold-forks3 3
-          ls -la --time-style=+%s ~/.m2/repository/org/robolectric/android-all-instrumented/*/*.jar || true
-          run warm-forks1 1
+          run cold-forks1 1
+          run warm-forks2-a 2
+          run warm-forks1-a 1
+          run warm-forks2-b 2
+          run warm-forks1-b 1
           run warm-forks3 3
           sleep 3
           echo "== sampler"
