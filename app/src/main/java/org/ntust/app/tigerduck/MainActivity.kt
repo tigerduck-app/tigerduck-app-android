@@ -43,6 +43,7 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.library.LibraryQrShortcut
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager

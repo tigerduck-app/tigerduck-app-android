@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.ui.firsttrigger
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /** The flip-to-library offer in the approved words (tigerduck-app/tigerduck-app#434). */
 class FirstTriggerStringsTest {

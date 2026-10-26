@@ -8,7 +8,7 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.net.toUri
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /** The values Settings > "Open links with" stores in [AppState.browserPreference]. */
 object BrowserPreference {

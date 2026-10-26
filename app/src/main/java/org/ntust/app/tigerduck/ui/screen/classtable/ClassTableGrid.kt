@@ -32,8 +32,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.ntust.app.tigerduck.core.strings.R
 import androidx.compose.ui.platform.LocalDensity
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics

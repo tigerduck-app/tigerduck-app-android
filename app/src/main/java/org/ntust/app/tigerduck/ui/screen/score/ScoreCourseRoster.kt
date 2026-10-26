@@ -4,7 +4,7 @@
 
 package org.ntust.app.tigerduck.ui.screen.score
 
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.periodOrder

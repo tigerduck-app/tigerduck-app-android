@@ -46,7 +46,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
 import org.ntust.app.tigerduck.ui.component.middleEllipsize

@@ -24,7 +24,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.moodle.MoodleFileDownloads
 import org.ntust.app.tigerduck.data.storage.AppStorage
 import org.ntust.app.tigerduck.mail.store.MailCache

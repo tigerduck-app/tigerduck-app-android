@@ -44,7 +44,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.emptyclassroom.EmptyClassroomSchedule
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.time.LocalDate

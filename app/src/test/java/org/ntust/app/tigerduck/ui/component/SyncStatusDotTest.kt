@@ -67,7 +67,7 @@ class SyncStatusDotTest {
         ServerStatusTracker.moodleFailed(org.ntust.app.tigerduck.network.MoodleWebserviceError.SiteMaintenance())
         assertEquals(ServerStatus.FAILED, ServerStatusTracker.status(ServerKind.MOODLE))
         assertEquals(
-            org.ntust.app.tigerduck.R.string.error_moodle_site_maintenance,
+            org.ntust.app.tigerduck.core.strings.R.string.error_moodle_site_maintenance,
             ServerStatusTracker.notes.value[ServerKind.MOODLE],
         )
 

@@ -37,7 +37,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.emptyclassroom.BuildingDirectory
 import org.ntust.app.tigerduck.emptyclassroom.RoomUsage
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha

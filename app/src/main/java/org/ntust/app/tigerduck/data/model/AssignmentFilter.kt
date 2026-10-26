@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.data.model
 
 import androidx.annotation.StringRes
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 enum class AssignmentFilter(@param:StringRes val displayNameRes: Int) {
     INCOMPLETE(R.string.assignment_filter_incomplete),

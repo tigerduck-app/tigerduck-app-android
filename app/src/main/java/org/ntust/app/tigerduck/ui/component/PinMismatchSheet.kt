@@ -48,7 +48,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.network.tls.PinMismatchPrompts
 import org.ntust.app.tigerduck.shared.tls.PinMismatch
 import org.ntust.app.tigerduck.util.replaceIosArg

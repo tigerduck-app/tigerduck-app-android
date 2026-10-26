@@ -38,6 +38,7 @@ import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.activityIntent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.core.strings.R as StringsR
 
 /**
  * 1x1 home-screen widget that deep-links straight to the library QR page.
@@ -139,7 +140,7 @@ private fun LibraryShortcutContent(
                 }
                 Box(modifier = GlanceModifier.height(4.dp.scaled)) {}
                 Text(
-                    text = context.getString(R.string.widget_library_shortcut_title),
+                    text = context.getString(StringsR.string.widget_library_shortcut_title),
                     style = TextStyle(
                         color = ColorProvider(onSurface),
                         fontSize = 11.sp.scaled,

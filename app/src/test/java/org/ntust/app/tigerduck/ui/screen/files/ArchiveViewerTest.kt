@@ -22,7 +22,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.files.FileViewer
 import org.ntust.app.tigerduck.files.ViewerKind
 import org.ntust.app.tigerduck.files.markedEncrypted

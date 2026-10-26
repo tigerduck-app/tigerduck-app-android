@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import androidx.annotation.StringRes
 import org.ntust.app.tigerduck.BuildConfig
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 
 enum class ServerKind {

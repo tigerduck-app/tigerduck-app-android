@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import androidx.annotation.StringRes
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore

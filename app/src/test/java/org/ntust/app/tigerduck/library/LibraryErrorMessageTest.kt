@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.library
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.LibraryServiceError
 import java.io.IOException
 import java.net.SocketTimeoutException

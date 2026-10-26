@@ -23,7 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.blockClassroomFrom
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha

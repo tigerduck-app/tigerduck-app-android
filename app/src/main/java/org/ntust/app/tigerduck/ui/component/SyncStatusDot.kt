@@ -90,7 +90,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.clickable
 import kotlinx.coroutines.delay
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.util.concurrent.TimeUnit
 

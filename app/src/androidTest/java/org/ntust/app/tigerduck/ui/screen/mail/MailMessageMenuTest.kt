@@ -20,7 +20,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 

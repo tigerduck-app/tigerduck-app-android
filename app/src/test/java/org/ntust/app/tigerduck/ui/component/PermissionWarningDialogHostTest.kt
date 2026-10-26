@@ -27,7 +27,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment

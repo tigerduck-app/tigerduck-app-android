@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.library
 
 import androidx.annotation.StringRes
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.LibraryServiceError
 import java.io.IOException
 

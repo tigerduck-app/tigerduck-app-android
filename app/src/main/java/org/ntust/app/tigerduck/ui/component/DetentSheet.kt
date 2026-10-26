@@ -91,7 +91,7 @@ import kotlin.math.sign
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /** The heights a [DetentSheet] rests at. */
 internal enum class DetentSheetValue { Hidden, Half, Full }

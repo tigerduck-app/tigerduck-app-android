@@ -55,8 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.AppUrls
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets

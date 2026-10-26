@@ -85,8 +85,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.AppUrls
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons

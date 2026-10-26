@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.auth
 
 import android.content.Context
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.util.replaceIosArg
 

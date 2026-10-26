@@ -43,7 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.emptyclassroom.EmptyClassroomSchedule
 import org.ntust.app.tigerduck.emptyclassroom.RoomSlotUse
 import org.ntust.app.tigerduck.emptyclassroom.RoomUsage

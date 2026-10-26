@@ -51,7 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.moodle.MoodleAccountAssignments
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentEntry
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentLookup

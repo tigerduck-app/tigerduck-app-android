@@ -73,8 +73,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip

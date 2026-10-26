@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.data.model
 
 import androidx.annotation.StringRes
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /**
  * One block of the Home tab. Persisted by Gson as `homeSections` in

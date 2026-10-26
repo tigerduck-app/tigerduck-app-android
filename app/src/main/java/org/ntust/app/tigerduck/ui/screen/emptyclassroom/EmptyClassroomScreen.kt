@@ -28,7 +28,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.emptyclassroom.BuildingDirectory
 import org.ntust.app.tigerduck.emptyclassroom.EmptyClassroomSchedule
 import org.ntust.app.tigerduck.emptyclassroom.RoomPlace

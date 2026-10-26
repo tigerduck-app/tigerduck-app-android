@@ -87,7 +87,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlin.math.min
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.model.WhatsNewSummary
 import org.ntust.app.tigerduck.data.model.WhatsNewSummaryItem
 import org.ntust.app.tigerduck.ui.component.DetentSheet

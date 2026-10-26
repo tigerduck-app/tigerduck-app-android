@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.replaceIosArg
 

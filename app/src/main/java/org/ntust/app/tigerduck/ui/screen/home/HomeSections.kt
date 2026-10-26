@@ -42,8 +42,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter

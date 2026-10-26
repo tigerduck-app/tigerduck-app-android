@@ -98,7 +98,7 @@ internal fun TaxonomyResponse?.localizedTagLabel(
     context: android.content.Context,
 ): String {
     if (id == "server_notification") {
-        return context.getString(org.ntust.app.tigerduck.R.string.tag_server_notification)
+        return context.getString(org.ntust.app.tigerduck.core.strings.R.string.tag_server_notification)
     }
     return this?.tagLabel(id) ?: id
 }
