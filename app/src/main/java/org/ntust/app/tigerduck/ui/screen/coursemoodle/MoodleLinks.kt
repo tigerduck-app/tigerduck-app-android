@@ -23,7 +23,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.resolveAttachmentMimeType
 import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
 import org.ntust.app.tigerduck.files.FileViewer
-import org.ntust.app.tigerduck.network.moodle.SHARED_NOT_VIEWED_EXTENSIONS
+import org.ntust.app.tigerduck.files.SHARED_NOT_VIEWED_EXTENSIONS
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
 import org.ntust.app.tigerduck.ui.AppProcessing
 import org.ntust.app.tigerduck.ui.openLink

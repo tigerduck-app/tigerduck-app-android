@@ -8,14 +8,11 @@ import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.compose.foundation.isSystemInDarkTheme
 import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.EntryPointAccessors
 import org.ntust.app.tigerduck.core.strings.R
-import org.ntust.app.tigerduck.ui.AppScale
 import org.ntust.app.tigerduck.files.FileViewer
 import org.ntust.app.tigerduck.files.ViewerKind
-import org.ntust.app.tigerduck.ui.AppState
-import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import javax.inject.Inject
 
 /**
@@ -28,16 +25,19 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class FileViewerActivity : AppCompatActivity() {
 
-    @Inject lateinit var appState: AppState
+    @Inject lateinit var host: FileViewerHost
 
-    private var appScale = AppScale.DEFAULT
+    private var sizes: ActivitySizes? = null
     private var attachedConfiguration: Configuration? = null
 
     // The sizes picked on the Display and text size page, as every screen of the app has them.
     override fun attachBaseContext(newBase: Context) {
-        appScale = AppScale.stored(newBase)
+        val sizes = EntryPointAccessors.fromApplication(newBase.applicationContext, FileViewerHostEntryPoint::class.java)
+            .fileViewerHost()
+            .sizes(newBase)
+        this.sizes = sizes
         attachedConfiguration = Configuration(newBase.resources.configuration)
-        super.attachBaseContext(appScale.wrap(newBase))
+        super.attachBaseContext(sizes.wrap(newBase))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,22 +52,10 @@ class FileViewerActivity : AppCompatActivity() {
         }
         enableEdgeToEdge()
         setContent {
-            val dark = when (appState.themeMode) {
-                "dark" -> true
-                "light" -> false
-                else -> isSystemInDarkTheme()
-            }
-            TigerDuckAppTheme(
-                darkTheme = dark,
-                accentColor = appState.accentColor(dark),
-                onAccentColor = appState.accentOnColor(dark),
-                accentGradient = appState.accentGradient(dark),
-                useDynamicColor = appState.usesWallpaperColors,
-                visualPreset = appState.visualPreset,
-            ) {
+            host.Theme {
                 FileViewerScreen(
                     file = ViewedFile(uri, type, name, kind),
-                    browserPreference = appState.browserPreference,
+                    browserPreference = host.browserPreference,
                     onBack = ::finish,
                     onShare = { start(FileViewer.shareIntent(uri, type, name)) },
                     onOpenElsewhere = { start(FileViewer.elsewhereIntent(uri, type, name)) },
@@ -79,7 +67,7 @@ class FileViewerActivity : AppCompatActivity() {
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         // A new font scale or density: the stored sizes apply over it again.
-        if (attachedConfiguration?.let { appScale.isStale(it, newConfig) } == true) recreate()
+        if (attachedConfiguration?.let { sizes?.isStale(it, newConfig) } == true) recreate()
     }
 
     private fun start(intent: android.content.Intent) {

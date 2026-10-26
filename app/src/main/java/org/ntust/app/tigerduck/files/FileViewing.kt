@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.files
 
-import org.ntust.app.tigerduck.network.moodle.SHARED_NOT_VIEWED_EXTENSIONS
 import java.io.InputStream
 import java.net.URI
 import java.nio.ByteBuffer
@@ -8,6 +7,15 @@ import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
 import kotlin.math.roundToInt
+
+/** The extensions of a web page. */
+val WEB_PAGE_EXTENSIONS = setOf("html", "htm", "shtml", "xhtml", "mht", "mhtml")
+
+/**
+ * The extensions of a web page or an SVG, which a browser renders and may run scripts in: such a
+ * file never opens in a viewer but goes to the share sheet, as iOS keeps it out of Quick Look.
+ */
+val SHARED_NOT_VIEWED_EXTENSIONS = WEB_PAGE_EXTENSIONS + "svg"
 
 /** What the in-app viewer shows a file as. */
 enum class ViewerKind { PDF, IMAGE, VIDEO, AUDIO, TEXT, MARKDOWN, DOCX, PPTX, ARCHIVE }
