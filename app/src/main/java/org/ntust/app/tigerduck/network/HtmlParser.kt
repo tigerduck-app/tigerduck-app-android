@@ -23,13 +23,13 @@ object HtmlParser {
 
     fun isSSOLoginPage(html: String, url: HttpUrl): Boolean {
         if (!isSsoHost(url.host)) return false
-        // Two different login products live under the two SSO hosts (see
-        // NtustSsoAutoFill.kt's doc comment): ssoam2's #loginForm with
-        // Username/Password, and ssoam's NetIQ Access Manager #IDPLogin with
-        // Ecom_User_ID/Ecom_Password. Missing the second shape here used to
+        // Two different login products live under the two SSO hosts: ssoam2's
+        // #loginForm with Username/Password, and ssoam's NetIQ Access Manager
+        // #IDPLogin with Ecom_User_ID/Ecom_Password, whose submit button an
+        // invisible reCAPTCHA guards. Missing the second shape here used to
         // make this function report "not an SSO page" for a service that
         // bounced to ssoam, which SsoLoginService then took as a false
-        // "already logged in".
+        // "already logged in". Only ssoam2's form is ever posted to.
         return html.contains("id=\"loginForm\"") ||
                 html.contains("id=\"IDPLogin\"") ||
                 (html.contains("name=\"Username\"") && html.contains("name=\"Password\"")) ||

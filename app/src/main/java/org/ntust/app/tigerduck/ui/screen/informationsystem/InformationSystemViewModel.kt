@@ -53,14 +53,6 @@ class InformationSystemViewModel @Inject constructor(
         val selectedCategory: PortalCategory? = null,
         val searchText: String = "",
         val displayed: List<PortalLink> = emptyList(),
-        /** Set once a tapped link's session is bridged and ready; the screen
-         *  observes this to navigate, then calls [consumePendingLink]. */
-        val pendingLink: PortalLink? = null,
-        /** Set when [openLink] fails to bridge a session for the tapped link — the screen shows
-         *  this as a snackbar, then calls [consumeOpenLinkError]. Without this, a failed
-         *  [NtustPortalService.ensureWebViewSession] call used to leave the tap looking like it
-         *  did nothing at all. */
-        val openLinkError: String? = null,
     )
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
@@ -75,7 +67,6 @@ class InformationSystemViewModel @Inject constructor(
     private val accountScope get() = viewModelScope + accountJob
 
     private var hasLoaded = false
-    private var openLinkJob: Job? = null
     private var lastUseEnglish: Boolean? = null
 
     init {
@@ -153,59 +144,6 @@ class InformationSystemViewModel @Inject constructor(
 
     fun setSearch(text: String) =
         _state.update { applyFilters(it.copy(searchText = text)) }
-
-    /**
-     * Bridges the current SSO session's cookies into the WebView's own cookie
-     * store, then publishes [link] as pending — the screen observes
-     * [State.pendingLink] and navigates once it's non-null. Cookie work needs
-     * a coroutine (it may re-run SSO login), so this can't just return a URL
-     * to navigate to synchronously.
-     */
-    fun openLink(link: PortalLink) {
-        // One open at a time. Each open empties the shared WebView cookie store before installing
-        // the session, so a second tap's clear would wipe the session the first tap's page is
-        // loading with.
-        if (openLinkJob?.isActive == true) return
-        val studentId = authService.storedStudentId ?: return
-        val password = authService.storedPassword ?: return
-        openLinkJob = accountScope.launch {
-            // link.url's own host, not the portal host: NTUST's SSO is
-            // per-service, so a warm session on i.ntust.edu.tw does not
-            // imply this link's host has ever been visited.
-            val result = runCatching {
-                portalService.ensureWebViewSession(link.url, studentId, password)
-            }
-            // runCatching also catches the cancellation an account change sends; that must
-            // end this coroutine, not show an error in the next account's screen.
-            (result.exceptionOrNull() as? CancellationException)?.let { throw it }
-            val ready = result.getOrDefault(false)
-            if (!ready) {
-                // This used to just return@launch — a failed or throwing ensureWebViewSession
-                // left the tap looking like it did nothing at all, with nothing in logcat either.
-                reportOpenLinkFailure(link, result.exceptionOrNull())
-                return@launch
-            }
-            // A sign-out's WebView cookie wipe is asynchronous; installing this account's cookies
-            // before it lands would let it erase them.
-            authService.awaitWebViewCookieWipe()
-            if (!syncCookiesToWebView(portalService.allSessionCookies())) {
-                reportOpenLinkFailure(link, null)
-                return@launch
-            }
-            _state.update { it.copy(pendingLink = link) }
-        }
-    }
-
-    private fun reportOpenLinkFailure(link: PortalLink, cause: Throwable?) {
-        android.util.Log.w("InformationSystemViewModel", "openLink failed for ${link.url}", cause)
-        _state.update {
-            it.copy(openLinkError = context.getString(R.string.information_system_load_failed))
-        }
-    }
-
-    fun consumePendingLink() = _state.update { it.copy(pendingLink = null) }
-
-    fun consumeOpenLinkError() = _state.update { it.copy(openLinkError = null) }
 
     private fun applyFilters(s: State): State {
         val text = s.searchText.trim()

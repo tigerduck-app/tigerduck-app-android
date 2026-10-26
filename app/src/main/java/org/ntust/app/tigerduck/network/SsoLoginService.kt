@@ -233,11 +233,10 @@ class SsoLoginService internal constructor(
         // Step 5: Submit login form
         val form = HtmlParser.findFormById(html, "loginForm") ?: run {
             // ssoam's NetIQ Access Manager page (`id="IDPLogin"`) binds its submit control to an
-            // invisible reCAPTCHA that only resolves on a genuine click (see
-            // NtustSsoAutoFill.buildSsoAutoFillScript's doc comment) — a bare OkHttp POST can
-            // never produce a passing token. Nothing was authenticated, so this must not read
-            // as success: sign-in and scrapers need a real session. Only a caller about to hand
-            // the page to a WebView (NtustPortalService.ensureWebViewSession) may accept it.
+            // invisible reCAPTCHA that only a person's click passes, so no password goes there
+            // and nothing was authenticated: this must not read as success, as sign-in and
+            // scrapers need a real session. In the TigerDuck browser the student signs in there
+            // by hand.
             if (HtmlParser.findFormById(html, "IDPLogin") != null) {
                 throw SsoLoginError.InteractiveLoginRequired()
             }

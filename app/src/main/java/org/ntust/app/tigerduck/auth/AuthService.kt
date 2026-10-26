@@ -1,11 +1,8 @@
 package org.ntust.app.tigerduck.auth
 
 import android.content.Context
-import android.webkit.CookieManager
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -14,8 +11,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
@@ -82,10 +77,6 @@ class AuthService @Inject constructor(
      * Sampled once, at process start, like the rest of demo mode.
      */
     private val demoMode = demoAccount.isActive
-
-    /** The last logout's WebView cookie wipe, awaited by [awaitWebViewCookieWipe]. */
-    @Volatile
-    private var webViewCookieWipe: Deferred<Unit>? = null
 
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
@@ -410,10 +401,6 @@ class AuthService @Inject constructor(
         // opens on its own building.
         org.ntust.app.tigerduck.emptyclassroom.forgetEmptyClassroom(classroomUsage, prefs)
         sessionManager.signOut()
-        // The WebView cookie store is disk-backed and separate from the OkHttp jar cleared above.
-        // The portal WebView is its only authenticated user, so a leftover session cookie there
-        // would open the next account's portal link signed in as this one.
-        webViewCookieWipe = wipeWebViewCookies()
         bulletinReadStateStore.clear()
         // The cache they dated is wiped below; left behind, they would date
         // the next account's data, and hold its first background sync off.
@@ -474,48 +461,8 @@ class AuthService @Inject constructor(
         _loginError.value = null
     }
 
-    /**
-     * Suspends until the last logout's WebView cookie wipe has finished. `removeAllCookies` is
-     * asynchronous and `flush()` doesn't wait for it, so cookies installed for the next account
-     * before it completes could be erased by it — the WebView would then open signed out.
-     * Call before bridging a new session into the WebView.
-     */
-    suspend fun awaitWebViewCookieWipe() {
-        val wipe = webViewCookieWipe ?: return
-        // The callback only fails to arrive if the WebView provider is broken; a portal tap must
-        // not hang forever on that.
-        if (withTimeoutOrNull(WEBVIEW_COOKIE_WIPE_TIMEOUT_MS) { wipe.await() } == null) {
-            android.util.Log.w("AuthService", "WebView cookie wipe still pending; syncing anyway")
-        }
-    }
-
-    /**
-     * Starts removing every WebView cookie and returns a [Deferred] that completes once it's done,
-     * or right away if it can't start. Must run on a Looper thread, which the callback is posted
-     * to — both logout entry points are UI click handlers. Throws when the system WebView is
-     * missing or mid-update; logout must still go through.
-     */
-    private fun wipeWebViewCookies(): Deferred<Unit> {
-        val done = CompletableDeferred<Unit>()
-        runCatching {
-            val manager = CookieManager.getInstance()
-            manager.removeAllCookies {
-                // Runs later on the main looper, outside the runCatching around it: a throwing
-                // flush() would otherwise crash the app and leave `done` incomplete.
-                runCatching { manager.flush() }
-                    .onFailure { android.util.Log.w("AuthService", "WebView cookie flush failed on logout", it) }
-                done.complete(Unit)
-            }
-        }.onFailure {
-            android.util.Log.w("AuthService", "WebView cookie wipe failed on logout", it)
-            done.complete(Unit)
-        }
-        return done
-    }
-
     private companion object {
         // The service the school sign-in signs in to.
         const val SSO_SERVICE_URL = "https://courseselection.ntust.edu.tw/"
-        const val WEBVIEW_COOKIE_WIPE_TIMEOUT_MS = 5_000L
     }
 }

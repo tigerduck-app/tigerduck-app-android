@@ -61,23 +61,7 @@ fun InformationSystemScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val isLoading = state.loadState is InformationSystemViewModel.LoadState.Loading
 
-    LaunchedEffect(state.pendingLink) {
-        state.pendingLink?.let { link ->
-            onOpenLink(link.name, link.url)
-            viewModel.consumePendingLink()
-        }
-    }
-
-    val snackbarHostState = remember { SnackbarHostState() }
-    LaunchedEffect(state.openLinkError) {
-        state.openLinkError?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.consumeOpenLinkError()
-        }
-    }
-
     Box(Modifier.fillMaxSize()) {
-        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
         TigerPullToRefresh(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh(useEnglish) },
@@ -120,8 +104,9 @@ fun InformationSystemScreen(
                                 modifier = Modifier.padding(top = 32.dp),
                             )
                         } else {
+                            // The TigerDuck browser signs each school site in itself (SchoolBrowserSignIn).
                             PortalLinkList(links = state.displayed, groupByCategory = state.selectedCategory == null, onOpen = { link ->
-                                viewModel.openLink(link)
+                                onOpenLink(link.name, link.url)
                             })
                         }
                     }
