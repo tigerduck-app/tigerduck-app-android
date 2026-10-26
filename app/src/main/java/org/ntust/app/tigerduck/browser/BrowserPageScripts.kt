@@ -90,4 +90,47 @@ object BrowserPageScripts {
 
     /** Where [HIDE_LOGOUT] goes, as WebViewCompat.addDocumentStartJavaScript's origin rules. */
     val HIDE_LOGOUT_ORIGINS: Set<String> = setOf(MoodleWebservice.SITE)
+
+    /** Where a school site's link, form or control goes when it signs the student out, as [BrowserRouting.isSchoolLogout] reads it. */
+    private val SCHOOL_LOGOUT_WORDS = listOf("logout", "logoff", "signout", "log-out", "sign-out", "endsession")
+    private val SCHOOL_LOGOUT_SELECTOR: String = (
+        SCHOOL_LOGOUT_WORDS.map { "a[href*=\"$it\" i]" } +
+            SCHOOL_LOGOUT_WORDS.map { "form[action*=\"$it\" i]" } +
+            listOf("logout", "logoff", "signout").flatMap { listOf("[onclick*=\"$it\" i]", "[class*=\"$it\" i]", "[id*=\"$it\" i]") }
+        ).joinToString(", ")
+
+    /**
+     * Hides a school site's logout, every site's but Moodle's, which [HIDE_LOGOUT] hides by its own
+     * rules: links and forms that go to one, controls whose script, class or id names one, and the
+     * buttons and links whose words are the logout's (登出, Log out, Sign out). A stylesheet for
+     * the first, a script for the words, as the page changes. The addresses themselves are refused
+     * besides ([BrowserRouting.isSchoolLogout]), so a control this misses signs no one out: each
+     * site's session is TigerDuck's to end, at its own sign-out.
+     */
+    val HIDE_SCHOOL_LOGOUT: String = """(function() {
+  if (location.hostname === '${MoodleWebservice.SITE_HOST}') return;
+  var style = document.createElement('style');
+  style.textContent = '$SCHOOL_LOGOUT_SELECTOR { display: none !important; }';
+  (document.head || document.documentElement).appendChild(style);
+  var words = /^(log\s*out|log\s*off|sign\s*out|登出|登出系統|安全登出|系統登出|註銷|注销)$/i;
+  var controls = 'a, button, input[type="button"], input[type="submit"], [role="button"], [role="menuitem"]';
+  var queued = false;
+  var hideNamed = function() {
+    queued = false;
+    document.querySelectorAll(controls).forEach(function(control) {
+      var text = (control.value || control.textContent || '').trim();
+      if (words.test(text)) control.style.setProperty('display', 'none', 'important');
+    });
+  };
+  var later = function() {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(hideNamed);
+  };
+  document.addEventListener('DOMContentLoaded', hideNamed);
+  new MutationObserver(later).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+})();"""
+
+    /** Where [HIDE_SCHOOL_LOGOUT] goes: every school page, as WebViewCompat.addDocumentStartJavaScript's origin rules. */
+    val HIDE_SCHOOL_LOGOUT_ORIGINS: Set<String> = setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw")
 }

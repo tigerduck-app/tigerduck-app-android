@@ -71,4 +71,23 @@ class BrowserPageScriptsTest {
         assertFalse("the keyboard's ring is left alone", script.replace(":not(:focus-visible)", "").contains(":focus-visible"))
         assertEquals(setOf("https://moodle2.ntust.edu.tw"), BrowserPageScripts.TOUCH_FOCUS_ORIGINS)
     }
+
+    @Test
+    fun `a school site's logout links, forms, buttons and controls named for it are hidden, those drawn later too`() {
+        val script = BrowserPageScripts.HIDE_SCHOOL_LOGOUT
+
+        listOf(
+            "a[href*=\"logout\" i]", "a[href*=\"logoff\" i]", "a[href*=\"signout\" i]", "a[href*=\"endsession\" i]",
+            "form[action*=\"logout\" i]", "[onclick*=\"logout\" i]", "[class*=\"logout\" i]",
+        ).forEach { assertTrue(it, script.contains(it)) }
+        assertTrue("by the words on them", script.contains("登出") && script.contains("sign"))
+        assertTrue("as a stylesheet, before the page has a head", script.contains("createElement('style')") && script.contains("document.documentElement"))
+        assertTrue("as the page changes", script.contains("MutationObserver"))
+        assertTrue("Moodle's go by its own rules", script.contains("moodle2.ntust.edu.tw"))
+    }
+
+    @Test
+    fun `every school page loses its logout`() {
+        assertEquals(setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw"), BrowserPageScripts.HIDE_SCHOOL_LOGOUT_ORIGINS)
+    }
 }

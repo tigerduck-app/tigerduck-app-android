@@ -97,10 +97,47 @@ class BrowserRoutingTest {
             "https://moodle2.ntust.edu.tw/course/view.php?id=5&return=/login/logout.php",
             "https://moodle2.ntust.edu.tw/mod/page/view.php?id=1#/login/logout.php",
             "https://moodle2.ntust.edu.tw/blog/login/logout.php",
-            "https://sso.ntust.edu.tw/login/logout.php",
+            // Another school site that names the logout only where it goes back to.
+            "https://sso.ntust.edu.tw/login/index.php?return=/login/logout.php",
         ).forEach {
             assertEquals(it, NavigationDecision.Load, BrowserRouting.navigation(it, allowlist))
             assertFalse(it, BrowserRouting.blocksRequest(it, isForMainFrame = false, allowlist = allowlist))
         }
+    }
+
+    @Test
+    fun `a school site's logout is refused and never requested, however it is written`() {
+        listOf(
+            "https://interuniversity.ntust.edu.tw/Account/LogOff",
+            "https://sso.ntust.edu.tw/login/logout.php",
+            "https://suggestionbox.ntust.edu.tw/logout",
+            "https://ssoam2.ntust.edu.tw/connect/endsession?id_token_hint=made-up",
+            "https://ssoam.ntust.edu.tw/nidp/app/logout",
+            "https://ssoam.ntust.edu.tw/AGLogout",
+            "https://stu.ntust.edu.tw/stueduneed/Logout.aspx",
+            "https://sa02.ntust.edu.tw/classroom_user/sign-out",
+            "https://cour01.ntust.edu.tw/DMP_student/%4Cogout.aspx",
+            "https://stu.ntust.edu.tw/x/../Logout.aspx",
+            "https://ccdoc.ntust.edu.tw/docmgsystem/index.aspx?action=logout",
+            "https://SUGGESTIONBOX.ntust.edu.tw./LOGOUT",
+            "http://suggestionbox.ntust.edu.tw/logout",
+        ).forEach {
+            assertTrue(it, BrowserRouting.isSchoolLogout(it))
+            assertEquals(it, NavigationDecision.Refuse, BrowserRouting.navigation(it, BrowserAllowlist.DEFAULT))
+            assertTrue(it, BrowserRouting.blocksRequest(it, isForMainFrame = false, allowlist = BrowserAllowlist.DEFAULT))
+        }
+    }
+
+    @Test
+    fun `a school page that only looks like a logout, and another site's logout, go on`() {
+        listOf(
+            "https://stuinfosys.ntust.edu.tw/StudentInformation",
+            "https://www.ntust.edu.tw/p/catalogoffice.php",
+            "https://ssoam2.ntust.edu.tw/account/login?ReturnUrl=%2Flogout",
+            "https://i.ntust.edu.tw/student?q=logout",
+            "https://example.com/logout",
+            // Moodle's own rules decide its pages.
+            "https://moodle2.ntust.edu.tw/blog/login/logout.php",
+        ).forEach { assertFalse(it, BrowserRouting.isSchoolLogout(it)) }
     }
 }
