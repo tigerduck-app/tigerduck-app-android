@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.data.model
 
 import androidx.annotation.StringRes
 import com.google.gson.annotations.SerializedName
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 enum class AppFeature(val id: String) {
     HOME("home"),

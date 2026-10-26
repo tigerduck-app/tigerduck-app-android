@@ -55,7 +55,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.model.CourseSearchResult

@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
 import org.ntust.app.tigerduck.data.moodle.MoodleDownloadState
 import org.ntust.app.tigerduck.data.moodle.MoodleFileDownloads

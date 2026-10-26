@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.emptyclassroom
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /**
  * Every building the finder places rooms in is named from app-translation (#610), in the user's

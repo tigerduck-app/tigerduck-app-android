@@ -46,10 +46,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.ntust.app.tigerduck.core.strings.R
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.math.roundToInt
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.DisplayScale
 import org.ntust.app.tigerduck.ui.AppScale
 import org.ntust.app.tigerduck.ui.component.ContentCard

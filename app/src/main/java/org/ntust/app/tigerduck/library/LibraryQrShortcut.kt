@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.activityIntent
 import org.ntust.app.tigerduck.util.logSummary
+import org.ntust.app.tigerduck.core.strings.R as StringsR
 
 /**
  * The library QR opened from outside the app, as the iPhone's App Intents are to open it
@@ -24,8 +25,8 @@ internal object LibraryQrShortcut {
     /** The launcher shortcut, labelled in the language [context] has now. */
     fun shortcut(context: Context): ShortcutInfoCompat =
         ShortcutInfoCompat.Builder(context, ID)
-            .setShortLabel(context.getString(R.string.library_virtual_pass_title))
-            .setLongLabel(context.getString(R.string.library_qr_content_description))
+            .setShortLabel(context.getString(StringsR.string.library_virtual_pass_title))
+            .setLongLabel(context.getString(StringsR.string.library_qr_content_description))
             .setIcon(IconCompat.createWithResource(context, R.drawable.shortcut_library_qr))
             .setIntent(AppLink.Library.activityIntent(context))
             .build()

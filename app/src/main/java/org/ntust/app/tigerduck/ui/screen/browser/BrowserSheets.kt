@@ -126,12 +126,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.browser.BrowserAppearance
 import org.ntust.app.tigerduck.browser.BrowserDownload
 import org.ntust.app.tigerduck.browser.BrowserZoom
 import org.ntust.app.tigerduck.browser.CertificateInfo
 import org.ntust.app.tigerduck.browser.UploadSource
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.ui.component.DetentSheet
 import org.ntust.app.tigerduck.ui.component.DetentSheetMotion
 import org.ntust.app.tigerduck.ui.component.rememberDetentSheetState

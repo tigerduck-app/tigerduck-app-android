@@ -39,7 +39,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import kotlin.math.roundToInt
 
 /** "Make it your size": the app's and the widgets' display and text size, each on its own slider. */

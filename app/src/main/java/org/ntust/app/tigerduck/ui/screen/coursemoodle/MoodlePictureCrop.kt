@@ -45,7 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import java.io.ByteArrayOutputStream
 import kotlin.math.max
 import kotlin.math.min

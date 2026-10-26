@@ -28,8 +28,8 @@ import androidx.compose.ui.test.performTouchInput
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.browser.BrowserAppearance
+import org.ntust.app.tigerduck.core.strings.R
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import androidx.compose.material3.R as M3R

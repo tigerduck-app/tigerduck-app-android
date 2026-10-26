@@ -10,7 +10,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.mail.MainDispatcherRule

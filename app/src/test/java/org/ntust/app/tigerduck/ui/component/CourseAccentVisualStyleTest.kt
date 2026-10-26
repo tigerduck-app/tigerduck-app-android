@@ -33,7 +33,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseDetailContent

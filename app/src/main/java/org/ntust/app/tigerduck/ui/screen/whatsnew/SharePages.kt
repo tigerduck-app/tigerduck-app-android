@@ -37,7 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /**
  * "Share your class table": the share sheet's QR code, scanned on another

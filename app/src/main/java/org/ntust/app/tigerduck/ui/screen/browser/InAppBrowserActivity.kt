@@ -102,6 +102,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import javax.inject.Inject
 import org.ntust.app.tigerduck.debug.PretendMissingApps
+import org.ntust.app.tigerduck.core.strings.R as StringsR
 
 /**
  * Opens pages in the TigerDuck browser, the app's own browser built on a
@@ -210,7 +211,7 @@ class InAppBrowserActivity : AppCompatActivity() {
     }
     private val cameraPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) launchCamera() else {
-            Toast.makeText(this, R.string.browser_upload_camera_denied, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, StringsR.string.browser_upload_camera_denied, Toast.LENGTH_SHORT).show()
             deliverUpload(null)
         }
     }
@@ -600,7 +601,7 @@ class InAppBrowserActivity : AppCompatActivity() {
         when (plan) {
             // The page's own session: a page from before a clearing, not yet gone, starts nothing.
             is DownloadPlan.Save -> if (downloads.start(plan, session = loadedSession ?: return) == null) return
-            DownloadPlan.Refused -> Toast.makeText(this, R.string.browser_download_refused, Toast.LENGTH_SHORT).show()
+            DownloadPlan.Refused -> Toast.makeText(this, StringsR.string.browser_download_refused, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -742,7 +743,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             state.title?.let { send.putExtra(Intent.EXTRA_SUBJECT, it) }
             runCatching { startActivity(Intent.createChooser(send, null)) }
         }
-        override fun copy(url: String) = copyText(url, url, R.string.browser_copied)
+        override fun copy(url: String) = copyText(url, url, StringsR.string.browser_copied)
         override fun openExternal(url: String) = openOutside(url)
         override fun openCurrentExternal() {
             (loads.loadingUrl ?: state.url)?.let(::openOutside)
@@ -770,12 +771,12 @@ class InAppBrowserActivity : AppCompatActivity() {
             settings.appearance = appearance
         }
         override fun print() {
-            val name = state.title?.takeIf { it.isNotBlank() } ?: state.host ?: getString(R.string.app_name)
+            val name = state.title?.takeIf { it.isNotBlank() } ?: state.host ?: getString(StringsR.string.app_name)
             val printer = getSystemService(PrintManager::class.java) ?: return
             val web = web ?: return
             runCatching { printer.print(name, web.createPrintDocumentAdapter(name), null) }
         }
-        override fun copyCertificate(text: String) = copyText(getString(R.string.browser_certificate_title), text, R.string.browser_copied)
+        override fun copyCertificate(text: String) = copyText(getString(StringsR.string.browser_certificate_title), text, StringsR.string.browser_copied)
         override fun cancelDownload(id: Long) = downloads.cancel(id)
         override fun openDownload(download: BrowserDownload) {
             val uri = download.uri ?: return
@@ -785,7 +786,7 @@ class InAppBrowserActivity : AppCompatActivity() {
                 runCatching { startActivity(view) }.isSuccess
             }
             if (!opened) {
-                Toast.makeText(this@InAppBrowserActivity, R.string.browser_download_no_app, Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@InAppBrowserActivity, StringsR.string.browser_download_no_app, Toast.LENGTH_SHORT).show()
             }
         }
         override fun retry() {

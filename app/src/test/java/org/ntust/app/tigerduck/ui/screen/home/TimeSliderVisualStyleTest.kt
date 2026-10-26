@@ -31,9 +31,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride

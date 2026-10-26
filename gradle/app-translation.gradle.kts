@@ -1,10 +1,11 @@
 // The app's localized strings, generated from the app-translation submodule's
 // source/*.json on every build: nothing is checked in, here or in the
-// submodule, so a pin bump is all a translation change takes. Applied by :app
-// and :wear, which each add the task's output as a generated resource
-// directory: a script applied like this one can't see the Android plugin's
-// classes. Only :app also gets xml/locales_config.xml, for Android 13+'s
-// per-app language picker.
+// submodule, so a pin bump is all a translation change takes. Applied by
+// :core:strings, which holds the phone app's, and :wear, which each add the
+// task's output as a generated resource directory: a script applied like this
+// one can't see the Android plugin's classes. Only :core:strings also gets
+// xml/locales_config.xml, for Android 13+'s per-app language picker, which
+// :app's manifest names.
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -90,6 +91,6 @@ tasks.register("generateAppTranslationStrings", GenerateAppTranslationStrings::c
         root.file("tools/localization/sync_localizations.py"),
     )
     syncScript.set(root.file("tools/localization/sync_localizations.py"))
-    localesConfig.set(project.path == ":app")
+    localesConfig.set(project.path == ":core:strings")
     outputDir.set(layout.buildDirectory.dir("generated/appTranslation/res"))
 }

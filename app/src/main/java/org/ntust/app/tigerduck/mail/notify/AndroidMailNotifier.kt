@@ -12,7 +12,7 @@ import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.MainActivity
 import org.ntust.app.tigerduck.StartRoute
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar

@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /**
  * "Want to see the new features page again?" — the first of a release's

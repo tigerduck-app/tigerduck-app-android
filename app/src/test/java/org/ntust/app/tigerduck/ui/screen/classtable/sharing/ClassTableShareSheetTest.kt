@@ -26,7 +26,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.sharing.ClassTableShare
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
 import org.ntust.app.tigerduck.shared.Course

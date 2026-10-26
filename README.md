@@ -249,7 +249,7 @@ F-Droid 變體**，也不會出現在 F-Droid 商店上。
 - 翻譯原始檔在 `app-translation/source/`，共 55 份（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、
   `ar.json` …）
 - 每次編譯都會從子模組的 `source/*.json` 產生 Android 字串：`generateAppTranslationStrings`
-  （`gradle/app-translation.gradle.kts`，`:app` 與 `:wear` 都會套用）把 `values*/strings.xml` 和手機的
+  （`gradle/app-translation.gradle.kts`，放手機字串的 `:core:strings` 與 `:wear` 都會套用）把 `values*/strings.xml` 和手機的
   `xml/locales_config.xml` 寫進 `build/generated/appTranslation/res`。這邊和子模組都不再提交 Android 的字串，
   翻譯有更新時只要移動子模組的 pin。編譯需要 PATH 上有 Python 3.9 以上。
 - 子模組仍會提交 Apple（`generated/apple/`）與後端（`generated/backend/`）的輸出，給 Apple App 和後端讀取。
@@ -322,6 +322,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 │       ├── widget/                     # 桌面 widget
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt
+├── core/strings/                       # 手機的字串與語系清單，從 app-translation 產生（`:core:strings`）
 ├── shared/                             # 手機 + 手錶共用模組（`:shared`）
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock 抽象（可被 debug 時鐘覆寫）
@@ -338,6 +339,7 @@ tigerduck-app-android/                  # Android App + Wear OS（Kotlin 2.4 / C
 ├── app-translation/                    # ⤴ git submodule：65 語系翻譯（含 `watch_*` 鍵）
 ├── name-abbr/                          # ⤴ git submodule：課程 / 教室簡稱字典
 ├── tools/localization/                 # 每次編譯時從 app-translation 產生字串
+├── tools/dev/                          # rewrite_string_imports.py：把程式碼的字串改指向 `:core:strings` 的 R
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```

@@ -138,3 +138,8 @@ jobs:
 
       - name: Test tools/localization
         run: python3 -m unittest discover -s tools/localization -v
+
+      # The rewrite that points code at :core:strings' R, which a branch made
+      # before it runs on whatever Python 3 its author has.
+      - name: Test tools/dev
+        run: python3 -m unittest discover -s tools/dev -v

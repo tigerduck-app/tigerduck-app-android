@@ -9,6 +9,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.unit.sp
+import org.ntust.app.tigerduck.core.strings.R
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
@@ -22,7 +23,6 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.emptyclassroom.EmptyClassroomSchedule
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme

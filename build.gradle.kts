@@ -34,8 +34,10 @@ if (!isCI) {
     }
     val localBuildRoot = home.resolve(".tigerduck-build/checkouts").resolve(checkoutKey).toFile()
     rootProject.layout.buildDirectory.set(localBuildRoot.resolve(rootProject.name))
+    // By path rather than name, which is only the last part of it: :core:strings
+    // lands in core/strings, and no two modules of one name can meet in a directory.
     subprojects {
-        layout.buildDirectory.set(localBuildRoot.resolve(name))
+        layout.buildDirectory.set(localBuildRoot.resolve(path.removePrefix(":").replace(':', '/')))
     }
 }
 

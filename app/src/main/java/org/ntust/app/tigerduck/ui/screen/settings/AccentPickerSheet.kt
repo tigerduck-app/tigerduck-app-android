@@ -31,7 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.ui.component.ColorCodeField
 import org.ntust.app.tigerduck.ui.component.ColorCodeState

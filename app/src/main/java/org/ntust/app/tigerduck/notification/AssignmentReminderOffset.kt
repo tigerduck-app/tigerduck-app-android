@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.notification
 
 import androidx.annotation.StringRes
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /**
  * Fixed reminder lead times before an assignment's due date. Mirrors the

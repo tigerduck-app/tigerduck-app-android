@@ -60,10 +60,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.browser.BrowserAppearance
 import org.ntust.app.tigerduck.browser.BrowserDownload
 import org.ntust.app.tigerduck.browser.UploadSource
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.util.replaceIosArg
 
 /**

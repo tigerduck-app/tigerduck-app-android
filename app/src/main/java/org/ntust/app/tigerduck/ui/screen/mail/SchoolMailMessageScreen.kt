@@ -88,7 +88,7 @@ import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.util.fileProviderAuthority
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.TextCleaning

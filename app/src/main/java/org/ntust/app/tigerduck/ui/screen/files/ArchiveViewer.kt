@@ -61,7 +61,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeoutOrNull
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.files.ArchiveItem
 import org.ntust.app.tigerduck.files.ArchiveLimits
 import org.ntust.app.tigerduck.files.ArchiveListing

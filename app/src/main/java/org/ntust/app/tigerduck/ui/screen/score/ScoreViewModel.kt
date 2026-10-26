@@ -21,8 +21,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.demo.DemoAccount
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport

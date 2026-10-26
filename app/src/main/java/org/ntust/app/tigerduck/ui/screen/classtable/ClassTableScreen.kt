@@ -82,7 +82,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.sharing.ClassTableShare
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTables
 import org.ntust.app.tigerduck.ui.component.DetentSheet

@@ -10,7 +10,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import dagger.hilt.android.AndroidEntryPoint
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.ui.AppScale
 import org.ntust.app.tigerduck.files.FileViewer
 import org.ntust.app.tigerduck.files.ViewerKind

@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 class BulletinEmptyStateTest {
     @Test

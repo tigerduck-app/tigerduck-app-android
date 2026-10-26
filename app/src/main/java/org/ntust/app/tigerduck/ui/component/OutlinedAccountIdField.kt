@@ -59,7 +59,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 /**
  * Outlined text field for account-ID style inputs (NTUST student ID,

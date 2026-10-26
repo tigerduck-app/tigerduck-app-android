@@ -73,7 +73,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
 import org.ntust.app.tigerduck.data.moodle.MoodleRefreshSchedule
 import org.ntust.app.tigerduck.network.MoodleWebserviceError

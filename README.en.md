@@ -265,9 +265,9 @@ submodule and are shared with the iOS client.
 - Source files in `app-translation/source/` — 55 files (`en.json`, `zh-Hant.json`, `ja.json`,
   `ko.json`, `ar.json`, …)
 - Every build generates the Android strings from the submodule's `source/*.json`: the
-  `generateAppTranslationStrings` task (`gradle/app-translation.gradle.kts`, applied by `:app` and
-  `:wear`) writes `values*/strings.xml`, and the phone's `xml/locales_config.xml`, into
-  `build/generated/appTranslation/res`. Nothing is committed, here or in the submodule, so a
+  `generateAppTranslationStrings` task (`gradle/app-translation.gradle.kts`, applied by
+  `:core:strings`, which holds the phone's, and `:wear`) writes `values*/strings.xml`, and the
+  phone's `xml/locales_config.xml`, into `build/generated/appTranslation/res`. Nothing is committed, here or in the submodule, so a
   translation change only moves the submodule pin. It needs Python 3.9 or newer on PATH.
 - The submodule still commits its Apple (`generated/apple/`) and backend (`generated/backend/`)
   outputs, which the Apple app and the backend read.
@@ -343,6 +343,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       ├── widget/                     # Home screen widgets
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt
+├── core/strings/                       # The phone's strings and locale list, generated from app-translation (`:core:strings`)
 ├── shared/                             # Phone + watch shared module (`:shared`)
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock abstraction (overridable by debug clock)
@@ -359,6 +360,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 ├── app-translation/                    # ⤴ git submodule: 65 locale translations (incl. `watch_*` keys)
 ├── name-abbr/                          # ⤴ git submodule: course / classroom abbreviations
 ├── tools/localization/                 # Generates the strings from app-translation on every build
+├── tools/dev/                          # rewrite_string_imports.py: points code at `:core:strings`' R
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```

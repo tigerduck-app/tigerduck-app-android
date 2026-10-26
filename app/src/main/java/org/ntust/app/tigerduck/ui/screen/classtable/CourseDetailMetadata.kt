@@ -5,7 +5,7 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import androidx.annotation.StringRes
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 
 internal object CourseDetailMetadata {
 

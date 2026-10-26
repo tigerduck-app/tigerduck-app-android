@@ -20,8 +20,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import android.util.Log
 import kotlinx.coroutines.launch
-import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseOverrides

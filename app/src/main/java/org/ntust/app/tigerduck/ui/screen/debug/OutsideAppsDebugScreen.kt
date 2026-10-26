@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.debug.OutsideApp
 import org.ntust.app.tigerduck.debug.PretendMissingApps
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets

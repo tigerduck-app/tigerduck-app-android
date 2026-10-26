@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.util.replaceIosArg
 import org.robolectric.RobolectricTestRunner

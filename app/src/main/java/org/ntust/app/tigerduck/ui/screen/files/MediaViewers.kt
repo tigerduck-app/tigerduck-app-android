@@ -57,7 +57,7 @@ import com.mikepenz.markdown.compose.LazyMarkdownSuccess
 import com.mikepenz.markdown.m3.Markdown
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import org.ntust.app.tigerduck.files.TextPreview
 import org.ntust.app.tigerduck.files.TextPreviews
 import org.ntust.app.tigerduck.ui.openLink

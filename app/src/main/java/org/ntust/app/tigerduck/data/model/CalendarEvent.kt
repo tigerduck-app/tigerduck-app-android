@@ -3,7 +3,7 @@ package org.ntust.app.tigerduck.data.model
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.core.strings.R
 import java.time.LocalTime
 import java.util.Date
 
