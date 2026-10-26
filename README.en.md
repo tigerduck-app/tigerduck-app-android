@@ -322,7 +322,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       ├── sensor/                     # Flip-to-library detector
 │       ├── serverpush/                 # Server-push popup coordinator + intent token
 │       ├── ui/
-│       │   ├── component/              # Shared composables
+│       │   ├── component/              # The few shared composables bound to app state (the rest are in `:core:ui`)
 │       │   ├── navigation/             # NavHost / tab navigation
 │       │   ├── screen/                 # Screens and ViewModels
 │       │   │   ├── home/               # Home (Time Slider, assignments, customizable sections)
@@ -336,7 +336,6 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       │   │   ├── settings/           # Settings (language, tabs, notifications, haptics, server push, live activity, source)
 │       │   │   ├── whatsnew/           # "What's new" sheet
 │       │   │   └── onboarding/         # First-run onboarding + privacy gate
-│       │   ├── theme/                  # Tokens, palette, visual presets
 │       │   └── AppState.kt
 │       ├── update/                     # In-App Update gate + What's new repository
 │       ├── util/                       # Small shared helpers (credit formatting, …)
@@ -344,6 +343,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       ├── MainActivity.kt
 │       └── TigerDuckApp.kt
 ├── core/strings/                       # The phone's strings and locale list, generated from app-translation (`:core:strings`)
+├── core/ui/                            # Theme, shared composables, haptics (`:core:ui`, packages unchanged)
 ├── shared/                             # Phone + watch shared module (`:shared`)
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock abstraction (overridable by debug clock)
