@@ -20,4 +20,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "TigerDuck"
-include(":app", ":wear", ":shared")
+include(":app", ":wear", ":shared", ":core:strings")

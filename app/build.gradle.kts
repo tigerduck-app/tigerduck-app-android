@@ -564,6 +564,9 @@ fun bundledNotices(zip: ZipFile): List<Pair<String, String>> {
 
 dependencies {
     implementation(project(":shared"))
+    // The strings, generated from app-translation's source/*.json on every
+    // build, and the locale list the manifest's localeConfig names.
+    implementation(project(":core:strings"))
     "playImplementation"(libs.play.services.wearable)
     "playImplementation"(libs.play.app.update.ktx)
     // In-app review (issue #332): Play only, as fdroid has no Play Store to rate on.

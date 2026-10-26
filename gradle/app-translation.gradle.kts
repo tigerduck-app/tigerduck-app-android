@@ -90,6 +90,6 @@ tasks.register("generateAppTranslationStrings", GenerateAppTranslationStrings::c
         root.file("tools/localization/sync_localizations.py"),
     )
     syncScript.set(root.file("tools/localization/sync_localizations.py"))
-    localesConfig.set(project.path == ":app")
+    localesConfig.set(project.path == ":app" || project.path == ":core:strings")
     outputDir.set(layout.buildDirectory.dir("generated/appTranslation/res"))
 }
