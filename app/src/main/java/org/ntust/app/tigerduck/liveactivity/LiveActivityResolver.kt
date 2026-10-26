@@ -1,7 +1,9 @@
 package org.ntust.app.tigerduck.liveactivity
 
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.shared.collapseContiguousPeriods
+import org.ntust.app.tigerduck.AppLink
+import org.ntust.app.tigerduck.shared.blockClassroom
+import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalTime
@@ -13,11 +15,14 @@ import java.util.Date
  * Picks the single scenario that should drive the Live Update right now, or
  * null if nothing qualifies under current preferences.
  *
- * Priority mirrors the iOS spec:
- * 1. inClass         — current course for today
- * 2. classPreparing  — next course within `classPreparingLeadTime`
- * 3. assignmentUrgent — earliest uncompleted assignment due within
- *    `assignmentLeadTime`
+ * Priority mirrors iOS's `LiveActivityScenarioResolver`. The assignment
+ * comes first, a product decision, so a due-soon warning still shows during
+ * class; turning the assignment scenario off gives class-first behaviour.
+ * 1. assignmentUrgent — earliest uncompleted assignment due within
+ *    `assignmentLeadTime`. Ignored and marked-done ones are the caller's to
+ *    leave out; see [org.ntust.app.tigerduck.data.OutstandingAssignments].
+ * 2. inClass         — current course for today
+ * 3. classPreparing  — next course within `classPreparingLeadTime`
  */
 class LiveActivityResolver {
 
@@ -33,12 +38,21 @@ class LiveActivityResolver {
 
         val todaySlots = buildTodaySlots(courses, now)
             .filter { !it.isSkipped(skippedDates) }
+        // Whether or not the in-class scenario is on: a deadline shown now
+        // says whether a class is going on under it.
+        val current = todaySlots.firstOrNull { now in it.start..it.end }
 
-        if (preferences.showInClass) {
-            val current = todaySlots.firstOrNull { now in it.start..it.end }
-            if (current != null) {
-                return inClassSnapshot(current, now, accentHex)
-            }
+        if (preferences.showAssignment) {
+            val urgent = assignments
+                .asSequence()
+                .filter { !it.isCompleted && it.studentDueDate.after(now) }
+                .filter { (it.studentDueDate.time - now.time) / 1000 <= preferences.assignmentLeadTimeSec }
+                .minByOrNull { it.studentDueDate }
+            if (urgent != null) return assignmentSnapshot(urgent, accentHex, duringClass = current != null)
+        }
+
+        if (preferences.showInClass && current != null) {
+            return inClassSnapshot(current, now, accentHex)
         }
 
         if (preferences.showClassPreparing) {
@@ -51,15 +65,6 @@ class LiveActivityResolver {
                     return classPreparingSnapshot(upcoming, accentHex)
                 }
             }
-        }
-
-        if (preferences.showAssignment) {
-            val urgent = assignments
-                .asSequence()
-                .filter { !it.isCompleted && it.dueDate.after(now) }
-                .filter { (it.dueDate.time - now.time) / 1000 <= preferences.assignmentLeadTimeSec }
-                .minByOrNull { it.dueDate }
-            if (urgent != null) return assignmentSnapshot(urgent, accentHex)
         }
 
         return null
@@ -84,6 +89,7 @@ class LiveActivityResolver {
 
     data class Slot(
         val course: Course,
+        /** This block's periods, not every period of the course that day. */
         val periods: List<String>,
         val start: Date,
         val end: Date,
@@ -97,7 +103,8 @@ class LiveActivityResolver {
             return skippedDates[course.courseNo]?.contains(key) == true
         }
 
-        val classroom: String get() = course.classroom(weekday)
+        /** This block's room: a course meeting twice a day can switch rooms in between. */
+        val classroom: String get() = course.blockClassroom(weekday, periods)
     }
 
     private fun buildTodaySlots(courses: List<Course>, now: Date): List<Slot> {
@@ -118,15 +125,14 @@ class LiveActivityResolver {
         for (course in courses) {
             val periods = course.schedule[weekdayIdx] ?: continue
             if (periods.isEmpty()) continue
-            val ranges = collapseContiguousPeriods(periods)
-            for ((first, last) in ranges) {
-                val startTime = periodStart(first) ?: continue
-                val endTime = periodEnd(last) ?: continue
+            for (block in contiguousPeriodRuns(periods)) {
+                val startTime = periodStart(block.first()) ?: continue
+                val endTime = periodEnd(block.last()) ?: continue
                 val startZdt = ZonedDateTime.of(today, startTime, AppConstants.TAIPEI_ZONE)
                 val endZdt = ZonedDateTime.of(today, endTime, AppConstants.TAIPEI_ZONE)
                 results += Slot(
                     course = course,
-                    periods = periods,
+                    periods = block,
                     start = Date.from(startZdt.toInstant()),
                     end = Date.from(endZdt.toInstant()),
                     weekday = weekdayIdx,
@@ -150,6 +156,8 @@ class LiveActivityResolver {
             progress = progress,
             accentHex = accentHex,
             sourceId = "class-${slot.course.courseNo}-${slot.periods.firstOrNull()}",
+            link = AppLink.ClassTable,
+            duringClass = true,
         )
     }
 
@@ -164,19 +172,22 @@ class LiveActivityResolver {
             progress = null,
             accentHex = accentHex,
             sourceId = "prep-${slot.course.courseNo}-${slot.periods.firstOrNull()}",
+            link = AppLink.ClassTable,
         )
 
-    private fun assignmentSnapshot(a: Assignment, accentHex: Int): LiveActivitySnapshot =
+    private fun assignmentSnapshot(a: Assignment, accentHex: Int, duringClass: Boolean): LiveActivitySnapshot =
         LiveActivitySnapshot(
             scenario = LiveActivityScenario.ASSIGNMENT_URGENT,
             title = a.title,
             subtitle = a.courseName,
             locationText = null,
             instructor = null,
-            countdownTarget = a.dueDate,
+            countdownTarget = a.studentDueDate,
             progress = null,
             accentHex = accentHex,
             sourceId = "assignment-${a.assignmentId}",
+            link = AppLink.assignment(a.assignmentId),
+            duringClass = duringClass,
         )
 
     private fun formatTimeRange(start: Date, end: Date): String {

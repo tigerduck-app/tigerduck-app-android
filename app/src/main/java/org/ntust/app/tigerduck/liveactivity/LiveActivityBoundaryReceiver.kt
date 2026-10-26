@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.AndroidEntryPoint
+import org.ntust.app.tigerduck.util.logSummary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,7 +26,7 @@ class LiveActivityBoundaryReceiver : BroadcastReceiver() {
             try {
                 withTimeout(10_000) { liveActivityManager.refreshAndWait() }
             } catch (t: Throwable) {
-                android.util.Log.w("LiveActivityBoundary", "boundary refresh failed", t)
+                android.util.Log.w("LiveActivityBoundary", "boundary refresh failed: ${t.logSummary()}")
             } finally {
                 pending.finish()
                 scope.cancel()

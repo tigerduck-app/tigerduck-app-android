@@ -3,7 +3,9 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
+import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.HomeSection
+import org.ntust.app.tigerduck.data.model.WidgetItem
 
 /**
  * Order itself is carried by list position — nothing in the app sorts on
@@ -102,10 +104,11 @@ class HomeSectionLayoutTest {
         assertEquals(listOf(0, 1, 2), afterAdd.map { it.sortOrder })
     }
 
-    // AppPreferences.homeSections drops QUICK_WIDGETS out of a restored
-    // layout, which is the one way `add` receives a list whose highest
-    // sortOrder is >= its size. Deriving the new value from size alone would
-    // hand the new section a number an existing one already holds.
+    // Builds before 2.5 dropped QUICK_WIDGETS out of a restored layout, and a
+    // layout they re-saved can carry the gap, which is the one way `add`
+    // receives a list whose highest sortOrder is >= its size. Deriving the new
+    // value from size alone would hand the new section a number an existing
+    // one already holds.
     @Test
     fun `adding to a gapped layout does not duplicate a sort order`() {
         val gapped = listOf(section("a", 0), section("b", 1), section("d", 3))
@@ -117,5 +120,148 @@ class HomeSectionLayoutTest {
         )
         assertEquals(listOf(0, 1, 2, 3), out.map { it.sortOrder })
         assertEquals(listOf("a", "b", "d", "new"), out.map { it.id })
+    }
+
+    // --- Shortcuts (quick features) ---
+
+    private fun shortcutSection(
+        id: String,
+        type: HomeSection.HomeSectionType,
+        vararg features: AppFeature,
+    ) = HomeSection(
+        id = id,
+        type = type,
+        title = id,
+        sortOrder = 0,
+        isVisible = true,
+        widgets = features.map { WidgetItem(id = "w-${it.id}", feature = it) },
+    )
+
+    private val builtinOnly = listOf(
+        section("today", 0).copy(type = HomeSection.HomeSectionType.TODAY_COURSES),
+        section("assignments", 1).copy(type = HomeSection.HomeSectionType.UPCOMING_ASSIGNMENTS),
+    )
+
+    @Test
+    fun `adding a quick feature with no section to hold it creates a Quick widgets section`() {
+        // iOS parity (HomeViewModel.addQuickFeature): the Add sheet's list must
+        // always do something, so a layout without a shortcut grid grows one.
+        val out = HomeSectionLayout.addQuickFeature(
+            sections = builtinOnly,
+            feature = AppFeature.ANNOUNCEMENTS,
+            sectionId = "qw",
+            widgetId = "w1",
+            quickWidgetsTitle = "Quick widgets",
+        )
+        assertEquals(listOf("today", "assignments", "qw"), out.map { it.id })
+        val added = out.last()
+        assertEquals(HomeSection.HomeSectionType.QUICK_WIDGETS, added.type)
+        assertEquals("Quick widgets", added.title)
+        assertEquals(2, added.sortOrder)
+        assertEquals(listOf(WidgetItem("w1", AppFeature.ANNOUNCEMENTS)), added.widgets)
+    }
+
+    @Test
+    fun `adding a quick feature appends to the first section that holds shortcuts`() {
+        // A custom section counts: on iOS both types render the same grid, and
+        // the first one in layout order is the target.
+        val sections = builtinOnly +
+            shortcutSection("custom", HomeSection.HomeSectionType.CUSTOM, AppFeature.SCORE) +
+            shortcutSection("qw", HomeSection.HomeSectionType.QUICK_WIDGETS)
+        val out = HomeSectionLayout.addQuickFeature(
+            sections = sections,
+            feature = AppFeature.ANNOUNCEMENTS,
+            sectionId = "unused",
+            widgetId = "w1",
+            quickWidgetsTitle = "Quick widgets",
+        )
+        assertEquals(sections.map { it.id }, out.map { it.id })
+        assertEquals(
+            listOf(AppFeature.SCORE, AppFeature.ANNOUNCEMENTS),
+            out.first { it.id == "custom" }.widgets.map { it.feature },
+        )
+        assertEquals(emptyList<WidgetItem>(), out.first { it.id == "qw" }.widgets)
+    }
+
+    @Test
+    fun `adding a quick feature already on Home returns the very same list`() {
+        // The Add dialog hides features that are already placed; the model
+        // still refuses a second copy, so a double tap cannot slip one in.
+        val sections = builtinOnly +
+            shortcutSection("qw", HomeSection.HomeSectionType.QUICK_WIDGETS, AppFeature.SCORE)
+        assertSame(
+            sections,
+            HomeSectionLayout.addQuickFeature(sections, AppFeature.SCORE, "x", "y", "Quick widgets"),
+        )
+    }
+
+    @Test
+    fun `removing a shortcut leaves the section and the others in place`() {
+        val sections = builtinOnly + shortcutSection(
+            "qw", HomeSection.HomeSectionType.QUICK_WIDGETS,
+            AppFeature.ANNOUNCEMENTS, AppFeature.SCORE, AppFeature.EMPTY_CLASSROOM,
+        )
+        val out = HomeSectionLayout.removeWidget(sections, sectionId = "qw", widgetId = "w-score")
+        assertEquals(sections.map { it.id }, out.map { it.id })
+        assertEquals(
+            listOf(AppFeature.ANNOUNCEMENTS, AppFeature.EMPTY_CLASSROOM),
+            out.last().widgets.map { it.feature },
+        )
+    }
+
+    @Test
+    fun `removing an unknown shortcut returns the very same list`() {
+        val sections = builtinOnly +
+            shortcutSection("qw", HomeSection.HomeSectionType.QUICK_WIDGETS, AppFeature.SCORE)
+        assertSame(sections, HomeSectionLayout.removeWidget(sections, "qw", "nope"))
+        assertSame(sections, HomeSectionLayout.removeWidget(sections, "nope", "w-score"))
+    }
+
+    @Test
+    fun `moving a shortcut puts it at the target index`() {
+        val sections = builtinOnly + shortcutSection(
+            "qw", HomeSection.HomeSectionType.QUICK_WIDGETS,
+            AppFeature.ANNOUNCEMENTS, AppFeature.SCORE, AppFeature.EMPTY_CLASSROOM,
+        )
+        val down = HomeSectionLayout.moveWidget(sections, "qw", widgetId = "w-announcements", toIndex = 2)
+        assertEquals(
+            listOf(AppFeature.SCORE, AppFeature.EMPTY_CLASSROOM, AppFeature.ANNOUNCEMENTS),
+            down.last().widgets.map { it.feature },
+        )
+        val up = HomeSectionLayout.moveWidget(sections, "qw", widgetId = "w-emptyClassroom", toIndex = 0)
+        assertEquals(
+            listOf(AppFeature.EMPTY_CLASSROOM, AppFeature.ANNOUNCEMENTS, AppFeature.SCORE),
+            up.last().widgets.map { it.feature },
+        )
+    }
+
+    @Test
+    fun `the Add dialog offers the shipped shortcut features not yet on Home, in order`() {
+        // Whatever section holds the shortcut, custom included, it is taken.
+        val sections = builtinOnly +
+            shortcutSection("custom", HomeSection.HomeSectionType.CUSTOM, AppFeature.SCORE)
+        assertEquals(
+            AppFeature.widgetFeatures - AppFeature.SCORE,
+            HomeSectionLayout.addableQuickFeatures(sections),
+        )
+        assertEquals(AppFeature.widgetFeatures, HomeSectionLayout.addableQuickFeatures(builtinOnly))
+        val everything = builtinOnly + shortcutSection(
+            "qw", HomeSection.HomeSectionType.QUICK_WIDGETS, *AppFeature.widgetFeatures.toTypedArray(),
+        )
+        assertEquals(emptyList<AppFeature>(), HomeSectionLayout.addableQuickFeatures(everything))
+    }
+
+    @Test
+    fun `a shortcut move that changes nothing returns the very same list`() {
+        // Same identity contract as `move`: HomeViewModel persists on `!==`,
+        // and a drag is a stream of these calls, most of them no-ops.
+        val sections = builtinOnly + shortcutSection(
+            "qw", HomeSection.HomeSectionType.QUICK_WIDGETS, AppFeature.ANNOUNCEMENTS, AppFeature.SCORE,
+        )
+        assertSame(sections, HomeSectionLayout.moveWidget(sections, "qw", "w-score", toIndex = 1))
+        assertSame(sections, HomeSectionLayout.moveWidget(sections, "qw", "nope", toIndex = 0))
+        assertSame(sections, HomeSectionLayout.moveWidget(sections, "nope", "w-score", toIndex = 0))
+        assertSame(sections, HomeSectionLayout.moveWidget(sections, "qw", "w-score", toIndex = 5))
+        assertSame(sections, HomeSectionLayout.moveWidget(sections, "qw", "w-score", toIndex = -1))
     }
 }

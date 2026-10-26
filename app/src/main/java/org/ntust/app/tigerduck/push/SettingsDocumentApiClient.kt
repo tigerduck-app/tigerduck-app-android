@@ -4,14 +4,13 @@ import com.google.gson.Gson
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONException
 import org.json.JSONObject
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -72,7 +71,6 @@ class SettingsDocumentApiClient @Inject constructor(
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
     private val gson = Gson()
-    private val jsonType = "application/json".toMediaType()
 
     private val client = baseClient.newBuilder()
         .addInterceptor { chain ->
@@ -80,13 +78,17 @@ class SettingsDocumentApiClient @Inject constructor(
                 .header("Accept", "application/json")
             chain.proceed(builder.build())
         }
+        .guardedBy(authTokenManager)
         .build()
 
-    /** Adds a Bearer Authorization header if a v3 token is available. */
-    private suspend fun Request.Builder.addAuthHeader(): Request.Builder {
-        val authHeader = authTokenManager.authHeader()
-        return if (authHeader != null) header("Authorization", authHeader) else this
-    }
+    private val api = BackendServices(SettingsDocumentApi::class.java, client)
+
+    /**
+     * The Bearer Authorization header, signing in first when there is no
+     * session. Without one it throws [org.ntust.app.tigerduck.auth.NotSignedInException]
+     * and the request is not sent.
+     */
+    private suspend fun authHeader(): String = authTokenManager.requireAuthHeader()
 
     /** Reified convenience for [read] — see that overload for behaviour. */
     suspend inline fun <reified T> read(namespace: String): SettingsDocumentEnvelope<T>? =
@@ -102,12 +104,8 @@ class SettingsDocumentApiClient @Inject constructor(
      */
     suspend fun <T> read(namespace: String, type: Class<T>): SettingsDocumentEnvelope<T>? =
         withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("$baseUrl/settings/$namespace")
-                .get()
-                .addAuthHeader()
-                .build()
-            client.newCall(request).execute().use { response ->
+            val service = api.at(baseUrl)
+            service.document(authHeader(), namespace).execute().use { response ->
                 if (response.code == 404) return@use null
                 val text = response.body.string()
                 if (!response.isSuccessful) {
@@ -157,14 +155,10 @@ class SettingsDocumentApiClient @Inject constructor(
             "document" to document,
             "base_revision" to baseRevision,
         )
-        val body = gson.toJson(payload).toRequestBody(jsonType)
-        val request = Request.Builder()
-            .url("$baseUrl/settings/$namespace")
-            .put(body)
-            .addAuthHeader()
-            .build()
+        val service = api.at(baseUrl)
+        val call = service.putDocument(authHeader(), namespace, payload)
         if (!isCurrent()) return@withContext SettingsWriteResult.Abandoned
-        client.newCall(request).execute().use { response ->
+        call.execute().use { response ->
             val text = response.body.string()
             if (response.code == 409) {
                 if (text.isBlank()) throw SettingsDocumentApiException("write $namespace: empty conflict body")

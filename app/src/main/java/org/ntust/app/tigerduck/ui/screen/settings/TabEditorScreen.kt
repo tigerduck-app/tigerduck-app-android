@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,8 +57,6 @@ import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
-private const val MAX_CUSTOM_TABS = 4
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TabEditorScreen(
@@ -66,9 +65,7 @@ fun TabEditorScreen(
 ) {
     var activeTabs by remember { mutableStateOf(appState.configuredTabs) }
 
-    val allPinnable = AppFeature.pinnableFeatures.filter { feature ->
-        !feature.isLibraryRelated || appState.libraryFeatureEnabled
-    }
+    val allPinnable = AppFeature.pinnableFeatures
 
     val availableTabs by remember(activeTabs, allPinnable) {
         derivedStateOf { allPinnable.filter { it !in activeTabs } }
@@ -81,8 +78,8 @@ fun TabEditorScreen(
 
     // Drag state
     var draggingIndex by remember { mutableStateOf<Int?>(null) }
-    var dragOffsetY by remember { mutableStateOf(0f) }
-    var itemHeightPx by remember { mutableStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
@@ -235,7 +232,7 @@ fun TabEditorScreen(
 
             item {
                 Text(
-                    stringResource(R.string.tab_editor_max_items_hint, MAX_CUSTOM_TABS + 1),
+                    stringResource(R.string.tab_editor_max_items_hint, AppFeature.MAX_CUSTOM_TABS + 1),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -254,7 +251,7 @@ fun TabEditorScreen(
                             availableTabs.forEachIndexed { index, feature ->
                                 AvailableTabRow(
                                     feature = feature,
-                                    canAdd = activeTabs.size < MAX_CUSTOM_TABS,
+                                    canAdd = activeTabs.size < AppFeature.MAX_CUSTOM_TABS,
                                     onAdd = {
                                         save(activeTabs + feature)
                                     }

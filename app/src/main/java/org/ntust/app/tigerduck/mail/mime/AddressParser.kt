@@ -59,13 +59,22 @@ object AddressParser {
         return out.toString()
     }
 
-    /** Splits on `,` or `;` that are outside quotes and angle brackets. */
-    internal fun splitTopLevel(s: String): List<String> {
+    /**
+     * Splits on `,` or `;` that are outside quotes and angle brackets.
+     *
+     * With [spaceEndsAddress], whitespace there splits too, once the part holds an `@` outside
+     * quotes -- the compose screen's rule for turning typing into recipient bubbles, kept here so
+     * that a bubble follows quotes and brackets exactly as sending does. An `@` inside quotes is
+     * part of a name (`"john@gmail.com" <john@gmail.com>`), so the space after that name does not
+     * end the recipient.
+     */
+    internal fun splitTopLevel(s: String, spaceEndsAddress: Boolean = false): List<String> {
         val parts = mutableListOf<String>()
         val current = StringBuilder()
         var inQuote = false
         var depth = 0
         var escaped = false
+        var hasAddress = false
         for (c in s) {
             when {
                 escaped -> { current.append(c); escaped = false }
@@ -73,8 +82,15 @@ object AddressParser {
                 c == '"' -> { inQuote = !inQuote; current.append(c) }
                 c == '<' && !inQuote -> { depth++; current.append(c) }
                 c == '>' && !inQuote -> { depth = maxOf(0, depth - 1); current.append(c) }
-                (c == ',' || c == ';') && !inQuote && depth == 0 -> { parts += current.toString(); current.clear() }
-                else -> current.append(c)
+                !inQuote && depth == 0 && (c == ',' || c == ';' || (spaceEndsAddress && hasAddress && c.isWhitespace())) -> {
+                    parts += current.toString()
+                    current.clear()
+                    hasAddress = false
+                }
+                else -> {
+                    if (c == '@' && !inQuote) hasAddress = true
+                    current.append(c)
+                }
             }
         }
         parts += current.toString()

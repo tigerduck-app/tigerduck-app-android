@@ -1,8 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.content.Context
-import android.content.Intent
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,11 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import org.ntust.app.tigerduck.AppUrls
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.openLink
 
 /**
  * 其他, behind the row under 官網 in Settings' 關於 section: the links about
@@ -43,8 +41,24 @@ fun AboutOthersScreen(
     onNavigateToLicenses: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
+    AboutOthersContent(
+        browserPreference = viewModel.appState.browserPreference,
+        onBack = onBack,
+        onNavigateToSourceCode = onNavigateToSourceCode,
+        onNavigateToLicenses = onNavigateToLicenses,
+    )
+}
+
+/** [AboutOthersScreen] without its view model, so a test can tap the links. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun AboutOthersContent(
+    browserPreference: String,
+    onBack: () -> Unit,
+    onNavigateToSourceCode: () -> Unit,
+    onNavigateToLicenses: () -> Unit,
+) {
     val context = LocalContext.current
-    val browserPreference = viewModel.appState.browserPreference
 
     Scaffold(
         topBar = {
@@ -74,25 +88,25 @@ fun AboutOthersScreen(
                 ContentCard {
                     Column {
                         SettingsLinkRow(stringResource(R.string.settings_feedback_bug_report)) {
-                            openUrl(
+                            openLink(
                                 context,
-                                "https://github.com/tigerduck-app/tigerduck-app-android/issues",
+                                AppUrls.ISSUES,
                                 browserPreference,
                             )
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_privacy_policy)) {
-                            openUrl(
+                            openLink(
                                 context,
-                                "https://app.ntust.org/tigerduck/privacy",
+                                AppUrls.PRIVACY_POLICY,
                                 browserPreference,
                             )
                         }
                         HorizontalDivider()
                         SettingsLinkRow(stringResource(R.string.settings_delete_account)) {
-                            openUrl(
+                            openLink(
                                 context,
-                                "https://tigerduck.app/delete-account",
+                                AppUrls.DELETE_ACCOUNT,
                                 browserPreference,
                             )
                         }
@@ -108,14 +122,5 @@ fun AboutOthersScreen(
                 }
             }
         }
-    }
-}
-
-private fun openUrl(context: Context, url: String, browserPreference: String) {
-    val uri = url.toUri()
-    if (browserPreference == "inApp") {
-        CustomTabsIntent.Builder().build().launchUrl(context, uri)
-    } else {
-        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     }
 }

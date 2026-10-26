@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Build the Play release APK (:app:assemblePlayRelease) and adb install to a
-# chosen phone. Optionally also build :wear:assembleRelease and install to a
-# chosen watch. Useful for testing release-mode behavior (R8/ProGuard, signed
+# Build the Play release APK (:app:assemblePlayRelease) and adb install it on
+# the chosen phones. Optionally also build :wear:assembleRelease and install it
+# on the chosen watches. Useful for testing release-mode behavior (R8/ProGuard, signed
 # config, etc.) without going through Play Store / Internal Testing.
 
 set -euo pipefail
@@ -99,14 +99,16 @@ if ! keytool -list -keystore app/keystore.jks -storepass "$KEYSTORE_PASSWORD" \
   exit 1
 fi
 
-phone="$(pick_device phone)"
+choose_devices phone || exit 1
+phones=("${CHOSEN[@]}")
 
-watch=""
-if prompt_yn "Also install wear release to a paired watch?" n; then
-  watch="$(pick_device watch)"
+watches=()
+if prompt_yn "Also install wear release on paired watches?" n; then
+  choose_devices watch || exit 1
+  watches=("${CHOSEN[@]}")
 fi
 
-if [[ -n "$watch" ]]; then
+if (( ${#watches[@]} )); then
   # :wear resolves `keystore.jks` against its own project dir, so the release
   # signingConfig there needs its own copy — the same thing the release
   # workflow does. Without it AGP emits wear-release-unsigned.apk, which
@@ -123,11 +125,11 @@ else
 fi
 
 phone_apk="$(resolve_apk "$(module_outputs_dir app)/apk/play/release/app-play-release*.apk")"
-echo "==> Installing $phone_apk → $phone"
-adb_install "$phone" "org.ntust.app.tigerduck" "$phone_apk"
+install_each "org.ntust.app.tigerduck" "$phone_apk" "${phones[@]}"
 
-if [[ -n "$watch" ]]; then
+if (( ${#watches[@]} )); then
   watch_apk="$(resolve_apk "$(module_outputs_dir wear)/apk/release/wear-release*.apk")"
-  echo "==> Installing $watch_apk → $watch"
-  adb_install "$watch" "org.ntust.app.tigerduck" "$watch_apk"
+  install_each "org.ntust.app.tigerduck" "$watch_apk" "${watches[@]}"
 fi
+
+report_failures || exit 1

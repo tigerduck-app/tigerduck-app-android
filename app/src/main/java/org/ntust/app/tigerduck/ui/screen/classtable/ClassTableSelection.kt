@@ -8,10 +8,63 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
+import java.time.LocalDate
 import java.util.Calendar
 
 object ClassTableSelection {
+
+    /**
+     * Whether a course picked now is someone else's, which its detail shows read-only: one picked
+     * from the class table while it shows someone else's. One picked from the live term, as Home
+     * and the today strip pick it, is the user's own whatever the class table shows, as iOS opens
+     * it from Home.
+     */
+    fun isSomeoneElses(showingSomeoneElse: Boolean, fromLiveTerm: Boolean): Boolean =
+        showingSomeoneElse && !fromLiveTerm
+
+    /**
+     * The course the detail shows for [selected], as it is now, so a rename made from the detail
+     * shows at once: the copy in the term it was picked from. That is [courses], the grid's term,
+     * unless it was picked [fromAnotherTerm], the live term the today strip shows while the grid
+     * is on another, whose copy is in [liveCourses]; one course number can be in both. A course
+     * no longer listed keeps the copy that was picked.
+     */
+    fun detailCourse(
+        selected: Course?,
+        courses: List<Course>,
+        liveCourses: List<Course>,
+        fromAnotherTerm: Boolean,
+    ): Course? {
+        selected ?: return null
+        val term = if (fromAnotherTerm) liveCourses else courses
+        return term.firstOrNull { it.courseNo == selected.courseNo } ?: selected
+    }
+
+    /**
+     * The course a rename of [courseNo] is measured against and synced for: the copy of the term
+     * it was opened from, the live term's for a course picked from the today strip
+     * ([fromAnotherTerm]), else the grid term's; failing that, the other term's copy.
+     */
+    fun renameTarget(
+        courseNo: String,
+        courses: List<Course>,
+        liveCourses: List<Course>,
+        fromAnotherTerm: Boolean,
+    ): Course? {
+        val (first, second) = if (fromAnotherTerm) liveCourses to courses else courses to liveCourses
+        return first.firstOrNull { it.courseNo == courseNo } ?: second.firstOrNull { it.courseNo == courseNo }
+    }
+
+    /** [courses] with [courseNo]'s own name set to [name], or cleared with null. */
+    fun renamed(courses: List<Course>, courseNo: String, name: String?): List<Course> =
+        courses.map { if (it.courseNo == courseNo) it.copy(customCourseName = name) else it }
+
+    /** The detail's title: the user's own name for the course, else its [fullName], else its name. */
+    fun detailTitle(course: Course, fullName: String?): String =
+        course.customCourseName ?: fullName ?: course.displayName
 
     /** Weekday (Mon=1 … Sun=7) paired with minutes since midnight. */
     data class DayTime(val weekday: Int, val minuteOfDay: Int)
@@ -46,18 +99,74 @@ object ClassTableSelection {
         }
 
     /**
+     * The today carousel's courses: [coursesOn] for [today], or none on a
+     * quiet day, which hides the carousel as a day without classes does. The
+     * timetable is filled weeks before 開學, and no class meets on a holiday
+     * the user has not opted back into.
+     */
+    fun todayCourses(courses: List<Course>, today: LocalDate, quietDays: QuietDays): List<Course> =
+        if (today in quietDays) emptyList() else coursesOn(courses, today.dayOfWeek.value)
+
+    /**
      * "09:10 - 12:00" for the tapped day, spanning the course's first to last
      * period on it. Null when the course does not meet that day, or when a
      * period has no time mapping — better a missing line than a wrong one.
      */
-    fun timeRange(course: Course, weekday: Int): String? {
-        val periods = course.schedule[weekday]?.sortedBy {
-            AppConstants.Periods.chronologicalOrder.indexOf(it)
-        } ?: return null
-        if (periods.isEmpty()) return null
-        val first = AppConstants.PeriodTimes.mapping[periods.first()] ?: return null
-        val last = AppConstants.PeriodTimes.mapping[periods.last()] ?: return null
+    fun timeRange(course: Course, weekday: Int): String? =
+        course.schedule[weekday]?.let(::timeRange)
+
+    /** "10:20 - 12:10" from the first of [periods] to the last, in the order they are taught. */
+    fun timeRange(periods: List<String>): String? {
+        val sorted = periods.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
+        if (sorted.isEmpty()) return null
+        val first = AppConstants.PeriodTimes.mapping[sorted.first()] ?: return null
+        val last = AppConstants.PeriodTimes.mapping[sorted.last()] ?: return null
         return "${first.first} - ${last.second}"
+    }
+
+    /**
+     * The run of [course]'s periods on [weekday], consecutive in [order], that [periodId] falls
+     * in, or else the first after it: a 衝堂 pick names the cluster's first period, where the
+     * course may start later. The grid passes the rows it draws, which leave out a period no
+     * course takes, so two blocks either side of it are one cell and open together. As iOS
+     * `SDCourse.block`. Null when the course has no such run that day.
+     */
+    fun block(
+        course: Course,
+        weekday: Int,
+        periodId: String,
+        order: List<String> = AppConstants.Periods.chronologicalOrder,
+    ): List<String>? {
+        val own = course.schedule[weekday].orEmpty().toSet()
+        val runs = mutableListOf<MutableList<String>>()
+        order.forEachIndexed { index, row ->
+            if (row !in own) return@forEachIndexed
+            if (index > 0 && order[index - 1] in own && runs.isNotEmpty()) runs.last() += row
+            else runs += mutableListOf(row)
+        }
+        val start = order.indexOf(periodId)
+        return runs.firstOrNull { periodId in it }
+            ?: runs.firstOrNull { order.indexOf(it.first()) > start }
+    }
+
+    /**
+     * The course detail's time: the [block] it was opened on, so a course meeting twice a day
+     * shows the times of the one tapped; the whole day's without one.
+     */
+    fun detailTimeRange(course: Course, weekday: Int, block: List<String>?): String? =
+        block?.let(::timeRange) ?: timeRange(course, weekday)
+
+    /**
+     * The block of [course] on [weekday] a today-carousel card stands for at [minuteOfDay]: the
+     * first not yet over, or the last once all are. A course meeting twice a day shows the
+     * afternoon block's times and room once the morning one ends. Null when it does not meet.
+     */
+    fun carouselBlock(course: Course, weekday: Int, minuteOfDay: Int): List<String>? {
+        val runs = contiguousPeriodRuns(course.schedule[weekday].orEmpty())
+        return runs.firstOrNull { run ->
+            val end = AppConstants.PeriodTimes.mapping[run.last()]?.second?.let(::minuteOfDay)
+            end == null || minuteOfDay <= end
+        } ?: runs.lastOrNull()
     }
 
     /**

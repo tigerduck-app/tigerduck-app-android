@@ -12,6 +12,7 @@ class NextClassResolverTest {
     private val mondayMorningCourse = course("CN", mapOf(1 to listOf("1", "2")))      // 08:10-10:00
     private val mondayAfternoonCourse = course("AI", mapOf(1 to listOf("7", "8")))    // 14:20-16:20
     private val tuesdayCourse = course("DB", mapOf(2 to listOf("3", "4")))            // 10:20-12:10
+    private val wednesdayCourse = course("OS", mapOf(3 to listOf("1", "2")))          // 08:10-10:00
 
     @Test
     fun `Empty when no courses`() {
@@ -95,6 +96,51 @@ class NextClassResolverTest {
         val courses = listOf(mondayMorningCourse)
         val today = NextClassResolver.todaysClasses(courses, weekday = 1, minuteOfDay = 8 * 60 + 30)
         assertEquals(TodayClassStatus.Ongoing, today.single().status)
+    }
+
+    // A quiet day is outside the term, or a school holiday the user has not
+    // opted back into.
+
+    @Test
+    fun `on a quiet day nothing is on now and the next class is the next class day's`() {
+        val courses = listOf(mondayMorningCourse, mondayAfternoonCourse, tuesdayCourse)
+        // 08:30 Mon, inside CN's block, with AI later today.
+        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 8 * 60 + 30) {
+            it == 0
+        }
+        assertTrue(r is NextClassResult.NextFuture)
+        r as NextClassResult.NextFuture
+        assertEquals("DB", r.course.courseNo)
+        assertEquals(1, r.daysAhead)
+    }
+
+    @Test
+    fun `a quiet day ahead is skipped for the next class`() {
+        val courses = listOf(tuesdayCourse, wednesdayCourse)
+        // Monday evening, Tuesday quiet: Wednesday's class is next.
+        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 22 * 60) {
+            it == 1
+        }
+        assertTrue(r is NextClassResult.NextFuture)
+        r as NextClassResult.NextFuture
+        assertEquals("OS", r.course.courseNo)
+        assertEquals(2, r.daysAhead)
+    }
+
+    @Test
+    fun `Empty when today and the whole week ahead are quiet`() {
+        val courses = listOf(mondayMorningCourse, tuesdayCourse)
+        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 8 * 60 + 30) { true }
+        assertTrue(r is NextClassResult.Empty)
+    }
+
+    @Test
+    fun `today's classes are empty on a quiet day`() {
+        val courses = listOf(mondayMorningCourse, mondayAfternoonCourse)
+        val today = NextClassResolver.todaysClasses(
+            courses, weekday = 1, minuteOfDay = 11 * 60, quietToday = true,
+        )
+        assertTrue(today.isEmpty())
     }
 
     // ──────────────────────────────────────────────────────────────────────────

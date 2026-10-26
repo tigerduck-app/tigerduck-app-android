@@ -1,0 +1,8 @@
+<!-- ic_notification, unchanged, inside an InsetDrawable. ColorOS's island
+     paints a VectorDrawable small icon white and draws any other drawable as
+     it is, so the wrapper is what lets the duck yellow through there
+     (DeviceSkin.islandWhitensVectorSmallIcon). The zero inset leaves the
+     artwork exactly where ic_notification puts it. -->
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/ic_notification"
+    android:inset="0dp" />

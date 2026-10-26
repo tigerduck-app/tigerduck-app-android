@@ -15,7 +15,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -37,7 +41,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -47,6 +50,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
 import org.ntust.app.tigerduck.ui.component.middleEllipsize
+import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -61,33 +65,34 @@ internal fun SoloCourseCell(
     x: androidx.compose.ui.unit.Dp,
     y: androidx.compose.ui.unit.Dp,
     weekday: Int,
+    /**
+     * The period the tile starts at, which its TalkBack label names. Null reads the label
+     * without it, as before tiles named their period.
+     */
+    periodId: String? = null,
     hasAssignment: Boolean,
+    assignmentsIgnored: Boolean,
+    /** Whether a required course's cell is outlined; see [AppPreferences.outlineRequiredCourses]. */
+    outlineRequired: Boolean = false,
     onTap: () -> Unit,
-    onLongPress: () -> Unit,
+    /** Null on someone else's class table, which is read-only and has no menu. */
+    onLongPress: (() -> Unit)?,
     onRename: (Course) -> Unit,
     onPickColor: (Course) -> Unit,
+    /** Null where the menu does not offer it; see [ClassTableViewModel.canIgnoreAssignments]. */
+    onToggleIgnoreAssignments: ((Course) -> Unit)?,
     onDelete: (Course) -> Unit,
 ) {
-    val cellBg = if (TigerDuckTheme.isDarkMode) {
-        TigerDuckTheme.courseColor(course.courseNo)
-    } else {
-        TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
-    }
-    val cellTextColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
+    val style = LocalVisualStylePolicy.current
+    val tiles = style.drawsPeriodTiles
+    val cellBg = style.courseFill(course.courseNo)
+    val cellTextColor = style.courseTextColor
+    val cellSecondaryColor = style.courseSecondaryTextColor
+    val outline = if (outlineRequired && course.isRequired) style.courseOutline(course.courseNo) else null
+    val blockShape = RoundedCornerShape(if (tiles) PERIOD_TILE_CORNER else 6.dp)
     var showMenu by remember { mutableStateOf(false) }
-    val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
-    val cellRoom = course.classroom(weekday)
-    val cellLabel = buildString {
-        append(course.displayName)
-        if (cellRoom.isNotBlank()) {
-            append(", ")
-            append(cellRoom)
-        }
-        if (hasAssignment) {
-            append(". ")
-            append(assignmentLabel)
-        }
-    }
+    val cellLabel = classTableCellLabels()
+        .label(course, weekday, periodId, hasAssignment, assignmentsIgnored)
     // A notch under the course name, so the name keeps the visual weight:
     // the room is a reminder, not a second title.
     val hintFontSize = 10.sp * TigerDuckTheme.courseNameScale * 0.85f
@@ -103,40 +108,66 @@ internal fun SoloCourseCell(
             .height(cellHeight * spanCount)
             .absoluteOffset(x = x, y = y)
             .padding(1.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(cellBg)
-            .semantics(mergeDescendants = true) {
-                contentDescription = cellLabel
-                role = Role.Button
-            }
+            .clip(blockShape)
+            // Period tiles fill themselves, leaving the gaps between them bare,
+            // and each draws its own outline.
+            .then(if (tiles) Modifier else Modifier.background(cellBg).requiredCourseOutline(outline, blockShape))
             .combinedClickable(
                 onClick = onTap,
                 // The app vibrates for this long press itself, through the Vibration setting;
                 // Compose's own buzz would land on top of it and ignore that setting.
                 hapticFeedbackEnabled = false,
-                onLongClick = {
-                    onLongPress()
-                    showMenu = true
+                onLongClick = onLongPress?.let { press ->
+                    {
+                        press()
+                        showMenu = true
+                    }
                 },
-            ),
+            )
+            // The label stands for the name, room hint and badge drawn inside.
+            // Cleared here, after the clickable, rather than on a child: a child
+            // that clears its own semantics leaves this node unclickable to
+            // TalkBack, and a clear before the clickable would drop its actions.
+            .clearAndSetSemantics {
+                contentDescription = cellLabel
+                role = Role.Button
+            },
     ) {
-        ClassTableCourseNameText(
-            text = course.displayName,
-            color = cellTextColor,
-            maxLines = if (spanCount >= 2) 3 else 2,
-            modifier = Modifier
-                .padding(2.dp)
-                // Hand the hint's line back to it. Without this the centred
-                // name keeps the whole cell, and a two-line name in a
-                // one-period cell prints straight through the room.
-                .padding(bottom = hintSpace)
-                .align(Alignment.Center),
-        )
+        if (tiles) {
+            ClassTablePeriodTiles(
+                name = course.displayName,
+                spanCount = spanCount,
+                cellHeight = cellHeight,
+                fill = cellBg,
+                textColor = cellTextColor,
+                // A tile's third line reaches the bottom corners, so the last
+                // tile also leaves its line to the mark, not only to the hint.
+                lastTileBottomSpace = if (hasAssignment || assignmentsIgnored) {
+                    maxOf(hintSpace, CORNER_MARK_SPACE)
+                } else {
+                    hintSpace
+                },
+                outline = outline,
+            )
+        } else {
+            ClassTableCourseNameText(
+                text = course.displayName,
+                color = cellTextColor,
+                maxLines = if (spanCount >= 2) 3 else 2,
+                modifier = Modifier
+                    .padding(2.dp)
+                    // Hand the hint's line back to it. Without this the centred
+                    // name keeps the whole cell, and a two-line name in a
+                    // one-period cell prints straight through the room.
+                    .padding(bottom = hintSpace)
+                    .align(Alignment.Center),
+            )
+        }
         if (roomHint != null) {
             Text(
                 text = roomHint,
                 style = MaterialTheme.typography.labelSmall,
-                color = cellTextColor.copy(alpha = 0.7f),
+                color = cellSecondaryColor,
                 fontSize = hintFontSize,
                 lineHeight = hintLineHeight,
                 maxLines = 1,
@@ -145,46 +176,119 @@ internal fun SoloCourseCell(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     // Clear of the assignment badge in the opposite corner.
-                    .padding(start = 3.dp, bottom = 2.dp, end = if (hasAssignment) 18.dp else 3.dp)
-                    // Already in the cell's own label, which reads the room.
-                    .clearAndSetSemantics {},
+                    .padding(
+                        start = 3.dp,
+                        bottom = 2.dp,
+                        end = if (hasAssignment || assignmentsIgnored) 18.dp else 3.dp,
+                    ),
             )
         }
-        if (hasAssignment) {
-            Icon(
-                imageVector = Icons.Filled.Book,
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(3.dp)
-                    .size(12.dp),
-                tint = cellTextColor.copy(alpha = 0.7f),
-            )
-        }
+        CourseCellBadge(
+            hasAssignment = hasAssignment,
+            assignmentsIgnored = assignmentsIgnored,
+            tint = cellSecondaryColor,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(3.dp)
+                .size(12.dp),
+        )
         DropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false },
             shape = RoundedCornerShape(12.dp),
         ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.class_table_rename_title)) },
-                onClick = { showMenu = false; onRename(course) },
-            )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.class_table_pick_color)) },
-                onClick = { showMenu = false; onPickColor(course) },
-            )
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        stringResource(R.string.class_table_delete),
-                        color = MaterialTheme.colorScheme.error,
-                    )
+            CourseEditMenuItems(
+                assignmentsIgnored = assignmentsIgnored,
+                onRename = { showMenu = false; onRename(course) },
+                onPickColor = { showMenu = false; onPickColor(course) },
+                onToggleIgnoreAssignments = onToggleIgnoreAssignments?.let { toggle ->
+                    { showMenu = false; toggle(course) }
                 },
-                onClick = { showMenu = false; onDelete(course) },
+                onDelete = { showMenu = false; onDelete(course) },
             )
         }
     }
+}
+
+/**
+ * What a period tile's name leaves below it for the corner mark: the mark's
+ * 12dp and 3dp inset, less the 2dp the name already keeps around itself. Any
+ * more and a two-line name no longer fits a one-period tile.
+ */
+private val CORNER_MARK_SPACE = 13.dp
+
+/**
+ * A course's long-press actions, in the order the iPhone's menu has them, each
+ * with the glyph that makes the list quicker to scan than its words alone;
+ * Delete in the error colour, glyph and all, as the one that cannot be undone.
+ * Shared by the single-course cell and the per-course sections of a 衝堂
+ * cell's menu, so the two menus cannot drift apart.
+ */
+@Composable
+internal fun CourseEditMenuItems(
+    assignmentsIgnored: Boolean,
+    onRename: () -> Unit,
+    onPickColor: () -> Unit,
+    /** Null where the menu does not offer it; see [ClassTableViewModel.canIgnoreAssignments]. */
+    onToggleIgnoreAssignments: (() -> Unit)?,
+    onDelete: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_rename_title)) },
+        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+        onClick = onRename,
+    )
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_pick_color)) },
+        leadingIcon = { Icon(Icons.Filled.Palette, contentDescription = null) },
+        onClick = onPickColor,
+    )
+    if (onToggleIgnoreAssignments != null) {
+        IgnoreAssignmentsMenuItem(ignored = assignmentsIgnored, onClick = onToggleIgnoreAssignments)
+    }
+    DropdownMenuItem(
+        text = {
+            Text(
+                stringResource(R.string.class_table_delete),
+                color = MaterialTheme.colorScheme.error,
+            )
+        },
+        leadingIcon = {
+            Icon(
+                Icons.Filled.Delete,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        onClick = onDelete,
+    )
+}
+
+/** The long-press action that ignores a course's assignments, or stops ignoring them. */
+@Composable
+internal fun IgnoreAssignmentsMenuItem(ignored: Boolean, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                stringResource(
+                    if (ignored) {
+                        R.string.class_table_ignore_assignments_undo
+                    } else {
+                        R.string.class_table_ignore_assignments
+                    }
+                )
+            )
+        },
+        // The eye says what the action does to the course's marks: closed to
+        // start ignoring them, open to see them again.
+        leadingIcon = {
+            Icon(
+                if (ignored) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                contentDescription = null,
+            )
+        },
+        onClick = onClick,
+    )
 }
 
 @Composable

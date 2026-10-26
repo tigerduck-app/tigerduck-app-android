@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.mail.imap
 
+import jakarta.mail.Flags
+import jakarta.mail.Folder
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -70,6 +72,26 @@ class AngusMailSessionReadTest {
             val second = s.fetchPage("INBOX", beforeSeq = first.nextBeforeSeq, pageSize = 2)
             assertEquals(listOf("m1"), second.messages.map { it.subject })
             assertNull(second.nextBeforeSeq)
+        }
+    }
+
+    @Test
+    fun `a page spans the UIDs of its whole range, mail flagged deleted included`() {
+        (1..3).forEach { server.deliver("m$it") }
+        server.rawStore().use { store ->
+            val inbox = store.getFolder("INBOX")
+            inbox.open(Folder.READ_WRITE)
+            inbox.messages.first { it.subject == "m3" }.setFlag(Flags.Flag.DELETED, true)
+            inbox.close(false)
+        }
+        session().use { s ->
+            val page = s.fetchPage("INBOX", beforeSeq = null, pageSize = 2)
+            assertEquals(listOf("m2"), page.messages.map { it.subject })
+            // m3 is hidden but still inside the range read, so a list row for it is known gone.
+            val listed = page.messages.single().uid
+            val window = page.windowUids!!
+            assertEquals(listed, window.first)
+            assertTrue(window.last > listed)
         }
     }
 
@@ -191,6 +213,18 @@ class AngusMailSessionReadTest {
         session().use { s ->
             val uids = s.fetchPage("INBOX", null, 10).messages.map { it.uid }
             assertEquals(listOf("m3", "m1"), s.fetchByUids("INBOX", listOf(uids[2], uids[0])).map { it.subject })
+        }
+    }
+
+    @Test
+    fun `a folder's UIDVALIDITY is the one STATUS reports, read from the folder held open`() {
+        server.deliver("m1")
+        session().use { s ->
+            val expected = s.status("INBOX").uidValidity
+            assertEquals(expected, s.uidValidity("INBOX"))
+            // Answered from the open folder, which stays usable for the fetch that follows.
+            assertEquals(listOf("m1"), s.fetchPage("INBOX", null, 10).messages.map { it.subject })
+            assertEquals(expected, s.uidValidity("INBOX"))
         }
     }
 

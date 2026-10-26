@@ -4,6 +4,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.Course
 
@@ -54,6 +56,28 @@ class ClassTableCellLayoutTest {
         assertEquals(listOf(1, 2, 3, 4, 5), ClassTableCellLayout.activeWeekdays(emptyList()))
         val sat = course("S", mapOf(6 to listOf("1")))
         assertEquals(listOf(1, 2, 3, 4, 5, 6), ClassTableCellLayout.activeWeekdays(listOf(sat)))
+    }
+
+    // ---- a course meeting twice ----
+
+    @Test
+    fun `a course whose two blocks another course bridges keeps both`() {
+        // A meets on 1-2 and 4-5, B on 2-4: one cluster down to period 5, with A's second block
+        // in it (https://github.com/tigerduck-app/tigerduck-app/issues/470).
+        val courses = listOf(
+            course("A", mapOf(1 to listOf("1", "2", "4", "5"))),
+            course("B", mapOf(1 to listOf("2", "3", "4"))),
+        )
+        val role = roleAt(courses, 1, "1")
+        assertTrue("$role", role is CellRole.MultiConflictStart)
+        role as CellRole.MultiConflictStart
+        assertEquals(5, role.combinedSpan)
+        assertEquals(
+            listOf(Triple("A", 0, 2), Triple("B", 1, 3), Triple("A", 3, 2)),
+            role.members.map { Triple(it.course.courseNo, it.offset, it.span) },
+        )
+        assertEquals(listOf("1", "2", "4"), role.members.map { it.firstPeriodId })
+        assertEquals(CellRole.Skip, roleAt(courses, 1, "5"))
     }
 
     // ---- solo blocks ----
@@ -168,6 +192,82 @@ class ClassTableCellLayoutTest {
         assertEquals("8", byNo.getValue("C").firstPeriodId)
     }
 
+    // ---- lane runs (tigerduck-app-android#85, as the iPhone's tigerduck-app#153) ----
+
+    private fun member(no: String, span: Int, offset: Int, lane: Int) =
+        CellRole.MultiConflictStart.Member(course(no, emptyMap()), span, offset, lane, firstPeriodId = "1")
+
+    private fun runsOf(role: CellRole.MultiConflictStart, no: String) =
+        ClassTableCellLayout.laneRuns(role.members.first { it.course.courseNo == no }, role)
+
+    @Test
+    fun `a chain's end widens across every lane where it is alone`() {
+        // A on 6-7, B on 6-8, C on 8-9: C meets B on 8 and is alone on 9.
+        val courses = listOf(
+            course("A", mapOf(1 to listOf("6", "7"))),
+            course("B", mapOf(1 to listOf("6", "7", "8"))),
+            course("C", mapOf(1 to listOf("8", "9"))),
+        )
+        val role = roleAt(courses, 1, "6") as CellRole.MultiConflictStart
+        val laneOf = role.members.associate { it.course.courseNo to it.lane }
+
+        assertEquals(listOf(LaneRun(0, 2, laneOf.getValue("A")..laneOf.getValue("A"))), runsOf(role, "A"))
+        assertEquals(listOf(LaneRun(0, 3, laneOf.getValue("B")..laneOf.getValue("B"))), runsOf(role, "B"))
+        assertEquals(
+            listOf(LaneRun(2, 1, laneOf.getValue("C")..laneOf.getValue("C")), LaneRun(3, 1, 0..1)),
+            runsOf(role, "C"),
+        )
+    }
+
+    @Test
+    fun `a long course beside two short ones widens in each row it has alone`() {
+        val role = CellRole.MultiConflictStart(
+            members = listOf(member("L", span = 4, offset = 0, lane = 0), member("S", 1, 0, 1), member("T", 1, 2, 1)),
+            combinedSpan = 4,
+            laneCount = 2,
+        )
+        assertEquals(
+            listOf(LaneRun(0, 1, 0..0), LaneRun(1, 1, 0..1), LaneRun(2, 1, 0..0), LaneRun(3, 1, 0..1)),
+            runsOf(role, "L"),
+        )
+        assertEquals(listOf(LaneRun(0, 1, 1..1)), runsOf(role, "S"))
+        assertEquals(listOf(LaneRun(2, 1, 1..1)), runsOf(role, "T"))
+    }
+
+    @Test
+    fun `courses that always meet keep their own lanes`() {
+        val role = CellRole.MultiConflictStart(
+            members = listOf(member("A", 2, 0, 0), member("B", 2, 0, 1), member("C", 2, 0, 2)),
+            combinedSpan = 2,
+            laneCount = 3,
+        )
+        listOf("A" to 0, "B" to 1, "C" to 2).forEach { (no, lane) ->
+            assertEquals(no, listOf(LaneRun(0, 2, lane..lane)), runsOf(role, no))
+        }
+    }
+
+    // ---- the outline around a course's runs ----
+
+    @Test
+    fun `a course that widens is one outline, its seam bridged across the width the runs share`() {
+        // Its own lane on top, then both lanes, a 1px seam between the two.
+        val strips = ConflictLaneOutline.strips(listOf(Rect(0f, 0f, 10f, 10f), Rect(0f, 11f, 21f, 21f)))
+        assertEquals(listOf(Rect(0f, 0f, 10f, 10f), Rect(0f, 10f, 10f, 11f), Rect(0f, 11f, 21f, 21f)), strips)
+        assertEquals(
+            listOf(Offset(10f, 0f), Offset(10f, 11f), Offset(21f, 11f), Offset(21f, 21f), Offset(0f, 21f), Offset(0f, 0f)),
+            ConflictLaneOutline.corners(strips),
+        )
+    }
+
+    @Test
+    fun `one run is a plain rectangle`() {
+        val strips = ConflictLaneOutline.strips(listOf(Rect(2f, 3f, 12f, 30f)))
+        assertEquals(
+            listOf(Offset(12f, 3f), Offset(12f, 30f), Offset(2f, 30f), Offset(2f, 3f)),
+            ConflictLaneOutline.corners(strips),
+        )
+    }
+
     @Test
     fun `an empty slot and an out-of-range row are both Empty`() {
         val courses = listOf(course("A", mapOf(1 to listOf("3"))))
@@ -201,4 +301,44 @@ class ClassTableCellLayoutTest {
             ClassTableCellLayout.findTripleConflict(existing, course("C", mapOf(1 to listOf("3"))))
         )
     }
+
+    // ---- contentKey: which cells fade on a switch ----
+
+    @Test
+    fun `a course both class tables have at the same place keeps its key, whatever its colour`() {
+        val mine = course("CS1", mapOf(1 to listOf("2", "3")))
+        val theirs = mine.copy(customColorHex = "#E57373")
+
+        val a = ClassTableCellLayout.contentKey(roleAt(listOf(mine), 1, "2"), "TR-313")
+        val b = ClassTableCellLayout.contentKey(roleAt(listOf(theirs), 1, "2"), "TR-313")
+
+        assertEquals(a, b)
+    }
+
+    @Test
+    fun `another course, name, room or span makes a new key`() {
+        val base = course("CS1", mapOf(1 to listOf("2", "3")))
+        fun key(c: Course, room: String? = null) = ClassTableCellLayout.contentKey(roleAt(listOf(c), 1, "2"), room)
+
+        val keys = listOf(
+            key(base),
+            key(course("CS2", mapOf(1 to listOf("2", "3")))),
+            key(base.copy(customCourseName = "Renamed")),
+            key(base, room = "TR-313"),
+            key(course("CS1", mapOf(1 to listOf("2", "3", "4")))),
+        )
+
+        assertEquals(keys.size, keys.toSet().size)
+    }
+
+    @Test
+    fun `slots with no course of their own have no key, and conflicts have one`() {
+        val a = course("A", mapOf(1 to listOf("2", "3")))
+        val b = course("B", mapOf(1 to listOf("3", "4")))
+
+        assertNull(ClassTableCellLayout.contentKey(CellRole.Empty, null))
+        assertNull(ClassTableCellLayout.contentKey(CellRole.Skip, null))
+        assertNotNull(ClassTableCellLayout.contentKey(roleAt(listOf(a, b), 1, "2"), null))
+    }
 }
+

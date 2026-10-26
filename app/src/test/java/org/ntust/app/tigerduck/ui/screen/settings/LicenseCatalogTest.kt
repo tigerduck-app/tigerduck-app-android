@@ -142,7 +142,7 @@ class LicenseCatalogTest {
     fun `material that ships without a POM to describe it is listed too`() {
         for (flavor in listOf("play", "fdroid")) {
             val titles = shipped(flavor).map { it.title }
-            for (expected in listOf("name-abbr", "Public Suffix List", "Material Design Icons")) {
+            for (expected in listOf("name-abbr", "Public Suffix List", "Material Design Icons", "docx-preview", "JSZip", "pptx-to-html")) {
                 assertTrue("$flavor is missing $expected", expected in titles)
             }
         }

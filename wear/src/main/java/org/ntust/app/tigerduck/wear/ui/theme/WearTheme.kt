@@ -2,14 +2,88 @@ package org.ntust.app.tigerduck.wear.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
+import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.shared.Course
 
 val LocalAccentColor = staticCompositionLocalOf { Color(0xFF007AFF) }
+
+/**
+ * The rest of the phone's accent gradient, or null while the phone picks a
+ * single color: [LocalAccentColor] is its start. Draw the accent with
+ * [accentBrush], which reads both.
+ */
+val LocalAccentGradient = staticCompositionLocalOf<WearAccentGradient?> { null }
+
+/** The end color of the phone's accent gradient and the way it runs from [LocalAccentColor]. */
+@Immutable
+data class WearAccentGradient(val end: Color, val direction: AccentGradientDirection)
+
+/**
+ * The gradient a snapshot carries, or null for a single color or an end that
+ * is no color. An end with no direction runs the way a gradient picked before
+ * any direction was runs on the phone.
+ */
+fun wearAccentGradient(endHex: String?, direction: AccentGradientDirection?): WearAccentGradient? {
+    // parseColor throws an IllegalArgumentException for a name it does not
+    // know, and an IndexOutOfBoundsException for "".
+    val end = endHex?.let { hex -> runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull() }
+        ?: return null
+    return WearAccentGradient(end, direction ?: AccentGradientDirection.DEFAULT)
+}
+
+/**
+ * What a mark of the accent within [bounds] paints with: [start] alone, or
+ * the gradient from it laid across [bounds] in [gradient]'s direction, on
+ * the screen's own sides, as the phone draws it.
+ */
+fun accentBrush(start: Color, gradient: WearAccentGradient?, bounds: Rect): Brush {
+    gradient ?: return SolidColor(start)
+    val direction = gradient.direction
+    return Brush.linearGradient(
+        colors = listOf(start, gradient.end),
+        start = Offset(bounds.left + direction.startX * bounds.width, bounds.top + direction.startY * bounds.height),
+        end = Offset(bounds.left + direction.endX * bounds.width, bounds.top + direction.endY * bounds.height),
+    )
+}
+
+/**
+ * [color] as text and marks on the watch's black take it: itself when it reads there
+ * (4.5:1, WCAG's bar for text), otherwise lifted toward white until it does, its hue kept.
+ * A dark accent, such as the iPhone's own Indigo preset, would otherwise all but vanish.
+ */
+internal fun readableOnBlack(color: Color): Color {
+    if (contrast(color, Color.Black) >= 4.5f) return color
+    var lift = 0.05f
+    while (lift < 1f) {
+        val lifted = lerp(color, Color.White, lift)
+        if (contrast(lifted, Color.Black) >= 4.5f) return lifted
+        lift += 0.05f
+    }
+    return Color.White
+}
+
+/** Black or white, whichever reads better on [background]. */
+fun textOn(background: Color): Color =
+    if (contrast(Color.Black, background) >= contrast(Color.White, background)) Color.Black else Color.White
+
+/** WCAG's contrast ratio between [a] and [b], from 1 to 21. */
+internal fun contrast(a: Color, b: Color): Float {
+    val la = a.luminance()
+    val lb = b.luminance()
+    return (maxOf(la, lb) + 0.05f) / (minOf(la, lb) + 0.05f)
+}
 
 /**
  * Tinted card surface per course — mirrors iOS WatchVisualStylePolicy's
@@ -47,9 +121,15 @@ fun parseAccent(hex: String): Color = try {
 }
 
 @Composable
-fun WearTheme(accent: Color, paddingDp: Int, content: @Composable () -> Unit) {
+fun WearTheme(
+    accent: Color,
+    accentGradient: WearAccentGradient?,
+    paddingDp: Int,
+    content: @Composable () -> Unit,
+) {
     CompositionLocalProvider(
         LocalAccentColor provides accent,
+        LocalAccentGradient provides accentGradient,
         LocalScreenPadding provides paddingDp.dp,
     ) {
         MaterialTheme(content = content)

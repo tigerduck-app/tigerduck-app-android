@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 
 @HiltViewModel
@@ -61,7 +62,7 @@ class LiveActivitySettingsViewModel @Inject constructor(
                 .onSuccess { applied -> if (applied) _state.value = snapshot() }
                 .onFailure { e ->
                     if (e is CancellationException) throw e
-                    Log.w(TAG, "pulling live_activity settings failed", e)
+                    Log.w(TAG, "pulling live_activity settings failed: ${e.logSummary()}")
                 }
         }
     }

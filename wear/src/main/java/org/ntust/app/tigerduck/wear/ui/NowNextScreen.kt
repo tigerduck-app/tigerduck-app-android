@@ -18,17 +18,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
-import androidx.wear.compose.material3.LinearProgressIndicator
+import androidx.wear.compose.material3.ProgressIndicatorDefaults
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import org.ntust.app.tigerduck.wear.ui.theme.WatchCardStyle
+import org.ntust.app.tigerduck.wear.ui.theme.courseCardColors
 import org.ntust.app.tigerduck.wear.ui.theme.wearCourseColor
 import java.util.concurrent.TimeUnit
 
@@ -52,8 +53,9 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
             return@ScreenScaffold
         }
 
-        val (weekday, minuteOfDay) = currentTaipeiTick()
-        val result = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)
+        val (today, minuteOfDay) = currentTaipeiTick()
+        val result = snapshot.nextClass(today, minuteOfDay)
+        val cardStyle = WatchCardStyle.fromVisualPreset(snapshot.visualPreset)
 
         ScalingLazyColumn(
             modifier = Modifier
@@ -66,14 +68,15 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
             item { ListHeader { Text(stringResource(R.string.watch_now_next_title)) } }
             when (result) {
                 is NextClassResult.Ongoing -> {
-                    item { OngoingCard(result, minuteOfDay) }
+                    item { OngoingCard(result, minuteOfDay, cardStyle) }
                     result.nextToday?.let { next ->
                         item {
                             NextCard(
                                 course = next.course,
-                                weekday = next.weekday,
+                                classroom = next.classroom,
                                 statusText = nextStatusText(next.startMinute, minuteOfDay),
                                 titleResId = R.string.watch_next,
+                                style = cardStyle,
                             )
                         }
                     }
@@ -82,18 +85,20 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
                 is NextClassResult.NextToday -> item {
                     NextCard(
                         course = result.course,
-                        weekday = result.weekday,
+                        classroom = result.classroom,
                         statusText = nextStatusText(result.startMinute, minuteOfDay),
                         titleResId = null,
+                        style = cardStyle,
                     )
                 }
 
                 is NextClassResult.NextFuture -> item {
                     NextCard(
                         course = result.course,
-                        weekday = result.weekday,
-                        statusText = futureStatusText(result.daysAhead, result.startMinute, weekday),
+                        classroom = result.classroom,
+                        statusText = futureStatusText(result.daysAhead, result.startMinute, result.weekday),
                         titleResId = null,
+                        style = cardStyle,
                     )
                 }
 
@@ -107,38 +112,41 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
 }
 
 @Composable
-private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
-    val courseColor = wearCourseColor(result.course)
+private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int, style: WatchCardStyle) {
+    val colors = courseCardColors(style, wearCourseColor(result.course), tintAlpha = 0.22f, muted = false)
     val span = (result.endMinute - result.startMinute).coerceAtLeast(1)
     val progress = ((minuteOfDay - result.startMinute).toFloat() / span).coerceIn(0f, 1f)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(courseColor.copy(alpha = 0.22f))
+            .background(colors.fill)
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = stringResource(R.string.watch_now_ends_at, formatHm(result.endMinute)),
-            color = courseColor,
+            color = colors.emphasis,
         )
         Text(
             text = result.course.displayName,
+            color = colors.text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${result.course.classroom(result.weekday)} · ${result.course.instructor}",
+            text = "${result.classroom} · ${result.course.instructor}",
+            color = colors.secondaryText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(6.dp))
-        LinearProgressIndicator(
-            progress = { progress },
+        FollowingProgressIndicator(
+            value = progress,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(4.dp),
+            colors = ProgressIndicatorDefaults.colors(indicatorColor = colors.progress, trackColor = colors.progressTrack),
         )
     }
 }
@@ -154,35 +162,39 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int) {
 @Composable
 private fun NextCard(
     course: Course,
-    weekday: Int,
+    /** The room of the block the card is about, not every room of the course that day. */
+    classroom: String,
     statusText: String,
     titleResId: Int?,
+    style: WatchCardStyle,
 ) {
-    val courseColor = wearCourseColor(course)
+    val colors = courseCardColors(style, wearCourseColor(course), tintAlpha = 0.22f, muted = false)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(courseColor.copy(alpha = 0.22f))
+            .background(colors.fill)
             .padding(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         if (titleResId != null) {
-            Text(text = stringResource(titleResId), color = courseColor)
+            Text(text = stringResource(titleResId), color = colors.emphasis)
         }
         Text(
             text = course.displayName,
+            color = colors.text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${course.classroom(weekday)} · ${course.instructor}",
+            text = "$classroom · ${course.instructor}",
+            color = colors.secondaryText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = statusText,
-            color = courseColor,
+            color = colors.emphasis,
         )
     }
 }
@@ -198,14 +210,13 @@ private fun nextStatusText(startMinute: Int, minuteOfDay: Int): String {
 }
 
 @Composable
-private fun futureStatusText(daysAhead: Int, startMinute: Int, todayWeekday: Int): String =
+private fun futureStatusText(daysAhead: Int, startMinute: Int, weekday: Int): String =
     if (daysAhead == 1) {
         stringResource(R.string.watch_tomorrow_at, formatHm(startMinute))
     } else {
-        val targetWeekday = ((todayWeekday - 1 + daysAhead) % 7) + 1
         stringResource(
             R.string.watch_weekday_at,
-            weekdayShortName(targetWeekday),
+            stringResource(weekdayCaptionRes(weekday)),
             formatHm(startMinute),
         )
     }
@@ -237,16 +248,3 @@ private fun formatHm(minuteOfDay: Int): String {
     val m = minuteOfDay % 60
     return "%02d:%02d".format(h, m)
 }
-
-@Composable
-private fun weekdayShortName(weekday: Int): String = stringResource(
-    when (weekday) {
-        1 -> R.string.weekday_mon_short
-        2 -> R.string.weekday_tue_short
-        3 -> R.string.weekday_wed_short
-        4 -> R.string.weekday_thu_short
-        5 -> R.string.weekday_fri_short
-        6 -> R.string.weekday_sat_short
-        else -> R.string.weekday_sun_short
-    }
-)

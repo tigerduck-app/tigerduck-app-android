@@ -12,7 +12,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptKey
-import org.ntust.app.tigerduck.ui.navigation.FlipToLibraryFirstTrigger
+import org.ntust.app.tigerduck.ui.navigation.FlipToLibraryPrompt
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,7 +45,7 @@ class TriggersDebugArming @Inject constructor(
         _isFlipArmed.value = true
         job = scope.launch(Dispatchers.Main) {
             delay(ARM_DELAY_MS)
-            FlipToLibraryFirstTrigger.request(controller, appState)
+            FlipToLibraryPrompt.request(controller, appState.flipToLibrary)
             _isFlipArmed.value = false
             job = null
         }

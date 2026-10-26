@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import java.util.Date
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 
@@ -118,5 +119,62 @@ class HomeAssignmentFiltersTest {
         // An ignored assignment that has since left the list: the tab would
         // stand over an empty list.
         assertEquals(false, HomeAssignmentFilters.hasIgnored(all, setOf("gone")))
+    }
+
+    // An ignored course reaches these filters as the ignored ids of its
+    // assignments, which is how HomeViewModel hands them over.
+    private val term = "1141"
+    private val ignoredCourse = setOf(CourseIgnores.key(term, "C2"))
+
+    private fun inCourse(id: String, courseNo: String, completed: Boolean = false) =
+        assignment(id, at(1), completed).copy(courseNo = courseNo)
+
+    private fun ignoredWithCourses(all: List<Assignment>, ignoredIds: Set<String> = emptySet()) =
+        ignoredIds + CourseIgnores.assignmentIds(all, ignoredCourse, term)
+
+    @Test
+    fun `an ignored course's work leaves the incomplete tab for the ignored one`() {
+        val all = listOf(inCourse("kept", "C1"), inCourse("new", "C2"), inCourse("marked", "C2"))
+        val ignored = ignoredWithCourses(all)
+
+        val incomplete = HomeAssignmentFilters.visible(
+            all, ignored, markedCompletedIds = setOf("marked"),
+            filter = AssignmentFilter.INCOMPLETE, now = now,
+        )
+        val ignoredTab = HomeAssignmentFilters.visible(
+            all, ignored, markedCompletedIds = setOf("marked"),
+            filter = AssignmentFilter.IGNORED, now = now,
+        )
+
+        assertEquals(listOf("kept"), ids(incomplete))
+        assertEquals(setOf("new", "marked"), ids(ignoredTab).toSet())
+        assertEquals(true, HomeAssignmentFilters.hasIgnored(all, ignored))
+    }
+
+    @Test
+    fun `an ignored course's tile dot stays off`() {
+        val all = listOf(inCourse("open", "C2"))
+
+        assertEquals(
+            false,
+            HomeAssignmentFilters.anyUnfinishedFor(all, "C2", ignoredWithCourses(all), emptySet()),
+        )
+        assertEquals(
+            emptyList<String>(),
+            ids(HomeAssignmentFilters.unfinishedFor(all, "C2", ignoredWithCourses(all), emptySet())),
+        )
+    }
+
+    @Test
+    fun `an extended assignment is ordered and counted upcoming by the student's own date`() {
+        val all = listOf(
+            assignment("extended", at(-2)).copy(extensionDueDate = at(10)),
+            assignment("soon", at(5)),
+            assignment("past", at(-1)),
+        )
+        val incomplete = HomeAssignmentFilters.visible(all, emptySet(), emptySet(), AssignmentFilter.INCOMPLETE, now)
+        assertEquals(listOf("past", "soon", "extended"), ids(incomplete))
+        val everything = HomeAssignmentFilters.visible(all, emptySet(), emptySet(), AssignmentFilter.ALL, now)
+        assertEquals(listOf("soon", "extended", "past"), ids(everything))
     }
 }

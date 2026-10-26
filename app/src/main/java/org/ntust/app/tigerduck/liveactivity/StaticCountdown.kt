@@ -7,7 +7,7 @@ import java.util.Locale
 
 /**
  * The countdown for a chip that shows a fixed string instead of running a
- * clock — HyperOS's island, see
+ * clock — the HyperOS, ColorOS and OriginOS islands, see
  * [org.ntust.app.tigerduck.notification.DeviceSkin.chipShowsStaticText].
  *
  * Whole minutes, rounded up, so the text never runs ahead of the clock: with

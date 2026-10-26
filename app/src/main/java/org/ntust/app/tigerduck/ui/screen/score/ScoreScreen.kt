@@ -28,6 +28,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -53,6 +56,7 @@ import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
+import org.ntust.app.tigerduck.ui.screen.signin.AutoSignInFailedBanner
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.util.formatCredits
 
@@ -68,8 +72,18 @@ fun ScoreScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val rankingScope by viewModel.rankingScope.collectAsStateWithLifecycle()
     val collapsedTerms by viewModel.collapsedTerms.collectAsStateWithLifecycle()
+    val syncedAtMs by viewModel.syncedAtMs.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { viewModel.load() }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val resources = LocalResources.current
+    // Keyed on the view model, as Home's is, so a remount collects afresh.
+    LaunchedEffect(viewModel) {
+        viewModel.noNetworkEvent.collect {
+            snackbarHostState.showSnackbar(resources.getString(R.string.error_network_unavailable))
+        }
+    }
 
     // Published rankings plus a computed point for any term the school has
     // not posted yet. Derived here rather than in the view model so it is
@@ -96,8 +110,10 @@ fun ScoreScreen(
                     SyncStatusDot(
                         servers = listOf(ServerKind.COURSE_SELECTION),
                         isLoading = isRefreshing,
+                        syncedAtMs = syncedAtMs,
                     )
                 }
+                AutoSignInFailedBanner()
 
                 when {
                     !isLoggedIn -> EmptyStateView(
@@ -105,7 +121,8 @@ fun ScoreScreen(
                         title = stringResource(R.string.common_not_signed_in),
                         message = stringResource(R.string.score_not_signed_in_message),
                         modifier = Modifier.padding(top = 32.dp),
-                        onIconClick = onOpenSignInSettings,
+                        actionLabel = stringResource(R.string.onboarding_sign_in_button),
+                        onAction = onOpenSignInSettings,
                     )
 
                     !viewModel.hasContent && !isRefreshing -> EmptyStateView(
@@ -149,10 +166,15 @@ fun ScoreScreen(
                 }
             }
         }
+        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 
     selectedCourse?.let { course ->
-        CourseDetailDialog(course = course, onDismiss = { selectedCourse = null })
+        CourseDetailDialog(
+            course = course,
+            lookupRoster = viewModel::rosterCourse,
+            onDismiss = { selectedCourse = null },
+        )
     }
 }
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build :app:assembleFdroidDebug and adb install to a chosen phone.
+# Build :app:assembleFdroidDebug and adb install it on the chosen phones.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,14 +8,17 @@ source "$SCRIPT_DIR/_lib.sh"
 
 cd "$ROOT_DIR"
 
-phone="$(pick_device phone)"
+choose_devices phone || exit 1
+phones=("${CHOSEN[@]}")
 
 echo "==> Building :app:assembleFdroidDebug"
 ./gradlew :app:assembleFdroidDebug
 
 apk="$(resolve_apk "$(module_outputs_dir app)/apk/fdroid/debug/app-fdroid-debug*.apk")"
 
-echo "==> Installing $apk → $phone"
-adb_install "$phone" "org.ntust.app.tigerduck.fdroid" "$apk"
+install_each "org.ntust.app.tigerduck.fdroid" "$apk" "${phones[@]}"
 
-maybe_preset_clock "$phone" "org.ntust.app.tigerduck.fdroid"
+installed_everywhere=1
+report_failures || installed_everywhere=0
+maybe_preset_clock ${CLOCK_PAIRS[@]+"${CLOCK_PAIRS[@]}"}
+(( installed_everywhere )) || exit 1

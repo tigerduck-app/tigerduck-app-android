@@ -31,6 +31,12 @@ class AnnouncementDetailViewModel @Inject constructor(
 
     val bulletinId: Int = checkNotNull(savedState["id"])
 
+    /**
+     * The list row's summary, read before this page's fetch puts the detail's own in its place:
+     * the body's last fallback, after the detail's summary. See [BulletinBodyRenderer.bodyMarkdown].
+     */
+    val listSummary: String? = repository.summary(bulletinId)?.summary
+
     sealed interface State {
         /** No summary in cache yet — typically a deep-link cold open. */
         data class Loading(val taxonomy: TaxonomyResponse?) : State

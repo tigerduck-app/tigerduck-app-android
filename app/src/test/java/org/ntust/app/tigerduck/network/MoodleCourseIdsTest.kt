@@ -73,6 +73,14 @@ class MoodleCourseIdsTest {
         assertEquals(listOf("11413CS3003302"), nightSchool.idnumbers)
     }
 
+    /** NTU and NTNU number their courses `3` and one letter, which co-listed courses carry too. */
+    @Test
+    fun `a co-listed course of another school answers to its code`() {
+        val otherSchool = moodle(5, "1151CS5140701", "115.1【資工系】CS5140701 機器學習 / 【臺大】3N1010003 機器學習")
+
+        assertEquals(listOf("CS5140701", "3N1010003"), otherSchool.courseNos)
+    }
+
     @Test
     fun `an assignment is filed under the code the class table holds`() {
         assertEquals(

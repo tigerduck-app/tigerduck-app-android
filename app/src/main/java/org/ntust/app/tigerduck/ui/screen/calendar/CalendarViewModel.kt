@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.ui.screen.calendar
 
+import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
@@ -13,11 +15,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
@@ -26,12 +32,52 @@ import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
+import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.SingleFlight
+import org.ntust.app.tigerduck.widget.WidgetUpdater
+import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
+
+/**
+ * When the calendar fetches on its own — see [RefreshPolicy]. The same as
+ * Home's, because the calendar shows the same Moodle assignments.
+ */
+internal val CalendarRefreshPolicy = RefreshPolicy(
+    onLaunch = true,
+    onForeground = true,
+    onRevisit = true,
+    background = 15.minutes,
+    minInterval = 1.minutes,
+)
+
+/**
+ * [base] with its Moodle rows made from [assignments], the assignment
+ * cache's, and none when it holds none: an answer from Moodle with no
+ * assignments leaves it empty, and the rows of the ones it had must go
+ * with them (issue #160).
+ */
+internal fun withMoodleRows(
+    base: List<CalendarEvent>,
+    assignments: List<Assignment>,
+): List<CalendarEvent> =
+    base.filterNot { it.sourceRaw == EventSource.MOODLE.raw } + assignments.toCalendarEvents()
+
+private fun List<Assignment>.toCalendarEvents(): List<CalendarEvent> =
+    map { assignment ->
+        CalendarEvent(
+            eventId = CalendarEvent.moodleEventId(assignment.assignmentId),
+            title = assignment.title,
+            date = assignment.studentDueDate,
+            sourceRaw = EventSource.MOODLE.raw
+        )
+    }
 
 @HiltViewModel
 class CalendarViewModel @Inject constructor(
@@ -41,10 +87,14 @@ class CalendarViewModel @Inject constructor(
     private val authService: AuthService,
     private val dataCache: DataCache,
     private val prefs: AppPreferences,
+    private val uiLanguage: UiLanguageMonitor,
     @param:dagger.hilt.android.qualifiers.ApplicationContext
     private val context: android.content.Context,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
-    private val pushApiClient: org.ntust.app.tigerduck.push.PushApiClient,
+    private val pendingHolidayOverrides: org.ntust.app.tigerduck.data.PendingHolidayOverrides,
+    private val widgetUpdater: WidgetUpdater,
+    private val liveActivityManager: LiveActivityManager,
+    private val notificationScheduler: org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler,
 ) : ViewModel() {
 
 
@@ -62,7 +112,19 @@ class CalendarViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
+    /** For the sync dot's "Last synced" row; see [AppPreferences.schoolDataSyncedAtMs]. */
+    val schoolDataSyncedAtMs: StateFlow<Long> = prefs.schoolDataSyncedAtMs
+
     private var hasLoaded = false
+    private var loadJob: Job? = null
+
+    // Every fetch goes through this, so launch, a sign-in and a pull that
+    // land together fetch once. Above `init`, whose collectors run during
+    // construction.
+    private val fetchFlight = SingleFlight(viewModelScope)
+
+    private val refreshTriggers =
+        RefreshTriggers(CalendarRefreshPolicy, SystemClock::elapsedRealtime)
 
     /**
      * Semester boundaries and school holidays, from the published academic
@@ -84,12 +146,12 @@ class CalendarViewModel @Inject constructor(
         // keep reporting the *device* language: on a Taiwanese phone running
         // the app in English or Japanese every holiday came back as its
         // Chinese name and every term boundary as "115-1 開始", on a screen
-        // that was otherwise correctly translated.
-        val language = prefs.appLanguage
-        val localized = AppLanguageManager.localizedContext(context, language)
+        // that was otherwise correctly translated. The tag comes from the
+        // same context as the titles, so the two cannot disagree.
+        val localized = AppLanguageManager.localizedContext(context, prefs.appLanguage)
         return org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
             calendar = academicCalendar.current(),
-            languageTag = AppLanguageManager.currentLocale(language).toLanguageTag(),
+            languageTag = localized.resources.configuration.locales[0].toLanguageTag(),
             startTitle = { localized.getString(R.string.calendar_semester_start, it) },
             endTitle = { localized.getString(R.string.calendar_semester_end, it) },
             formatCode = { code ->
@@ -117,27 +179,34 @@ class CalendarViewModel @Inject constructor(
      * Flip the exception for one holiday.
      *
      * The local write is what makes the guard behave; the upload only makes
-     * the user's other devices agree, so a failure there is logged and
-     * swallowed rather than rolled back — the setting the user just made on
-     * this device should stand either way.
+     * the user's other devices agree, so a failure there is not rolled back —
+     * the setting the user just made on this device stands either way. It
+     * waits in [org.ntust.app.tigerduck.data.PendingHolidayOverrides] until the
+     * backend has it, marked as this launch runs up to its first suspension
+     * (Main.immediate), so a sync meanwhile keeps it.
      */
     fun setNotifyOnHoliday(holidayId: Int, notify: Boolean) {
         if (!academicCalendar.setNotifyOnHoliday(holidayId, notify)) return
         _holidayOverrides.value = academicCalendar.optedInHolidayIds
-        viewModelScope.launch {
-            runCatching { pushApiClient.putHolidayOverride(holidayId, notify) }
-                .onFailure { e ->
-                    if (e is kotlinx.coroutines.CancellationException) throw e
-                    android.util.Log.w(
-                        "CalendarViewModel", "holiday override upload failed", e
-                    )
-                }
-        }
+        // The widgets, the Live Update and the class reminders go quiet on a
+        // holiday the user has not opted back into. Without these they keep
+        // the old answer until their next class boundary or 30-minute refresh.
+        widgetUpdater.requestUpdate()
+        liveActivityManager.refresh()
+        viewModelScope.launch { pendingHolidayOverrides.send(holidayId) }
     }
 
     /** Replaces the academic rows in [base] with freshly-built ones. */
     private fun withAcademicEvents(base: List<CalendarEvent>): List<CalendarEvent> =
         base.filterNot { it.sourceRaw in ACADEMIC_SOURCES } + academicEvents()
+
+    /**
+     * [base] with its Moodle rows rebuilt from the assignment cache, which
+     * Home, the class table and the worker write as well. This screen used
+     * to see their fetches only through a fetch of its own.
+     */
+    private suspend fun withCachedAssignments(base: List<CalendarEvent>): List<CalendarEvent> =
+        withMoodleRows(base, dataCache.loadAssignments())
 
     init {
         viewModelScope.launch {
@@ -151,35 +220,77 @@ class CalendarViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            // A sync took another device's holiday choices: the switches show
+            // the set as it now stands, not the one this screen was built with.
+            academicCalendar.changes.collect { _holidayOverrides.value = academicCalendar.optedInHolidayIds }
+        }
+        viewModelScope.launch {
             // Switching language recreates the Activity, but this ViewModel is
             // retained across that, so the already-built rows would keep the
             // titles of the language they were built in. They are cheap to
-            // rebuild and nothing else refreshes them.
-            prefs.appLanguageChanged.collect {
+            // rebuild and nothing else refreshes them. UiLanguageMonitor, not
+            // the setting: on API 33+ the setting changes before the new
+            // language reaches the context the titles are read from.
+            uiLanguage.changes.collect {
                 _events.value = withAcademicEvents(_events.value)
             }
         }
         viewModelScope.launch {
-            // Clear / refresh in sync with auth changes.
+            // A fetch Home or the worker finished: launch and a return to the
+            // app fetch here only when the data is stale, so this is how
+            // most new assignments reach the calendar.
+            dataCache.backgroundSyncVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
+                val assignments = dataCache.loadAssignments()
+                // Signed out, or in as someone else, while the file was read:
+                // the rows are the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
+                // The other rows as they are after the read, not before: a
+                // fetch of this screen's own can land while the file is read.
+                _events.value = withMoodleRows(_events.value, assignments)
+            }
+        }
+        viewModelScope.launch {
+            // Clear / refresh in sync with auth changes — a sign-in while the
+            // app is open, not the value replayed to this collector. load()
+            // fetches for a user signed in at launch; fetching on the replay
+            // as well fetched twice on every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // A fetch still running belongs to the account that
+                    // left, and so does a load still reading its cache.
+                    fetchFlight.cancel()
+                    loadJob?.cancel()
                     // Holidays are public school information, so they stay
                     // on the calendar after a sign-out; only the account's
                     // own events go.
                     _events.value = academicEvents()
+                    // The sign-out cleared the departing account's holiday
+                    // choices before it said so, which the store does not emit.
+                    _holidayOverrides.value = academicCalendar.optedInHolidayIds
                     hasLoaded = false
-                } else {
-                    fetchData()
+                } else if (signedIn) {
+                    // As a launch, so the page counts as loaded and a return
+                    // to the app fetches again. Launched, so a sign-out
+                    // mid-fetch is not held up by it.
+                    loadNow(fetch = true)
                 }
             }
         }
     }
 
+    /** [events] by Taipei date, grouped once per change; see [groupByTaipeiDay]. */
+    val eventsByDay: StateFlow<Map<LocalDate, List<CalendarEvent>>> =
+        _events.map(::groupByTaipeiDay)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
+
     val selectedDateEvents: StateFlow<List<CalendarEvent>> =
-        combine(_events, _selectedDate) { events, selectedDate ->
-            events
-                .filter { it.date.isSameDay(selectedDate) }
-                .sortedBy { it.date }
+        combine(eventsByDay, _selectedDate) { days, selectedDate ->
+            days[selectedDate.taipeiDate()].orEmpty().sortedBy { it.date }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun eventsOnDate(date: Date): List<CalendarEvent> =
@@ -218,13 +329,46 @@ class CalendarViewModel @Inject constructor(
 
     fun load() {
         if (hasLoaded) return
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
+
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as CalendarRefreshPolicy says, and always on a sign-in, which
+     * is this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
         hasLoaded = true
-        viewModelScope.launch {
-            _events.value = withAcademicEvents(dataCache.loadCalendarEvents())
+        loadJob = viewModelScope.launch {
+            _events.value =
+                withAcademicEvents(withCachedAssignments(dataCache.loadCalendarEvents()))
             // The school ICS is public, but the user expects a logged-out
             // calendar to stay completely idle (no spinner, no network).
-            if (authService.authState.value) fetchData()
+            if (authService.authState.value && fetch) {
+                fetchFlight.join(::fetchData)
+            }
         }
+    }
+
+    /** The app came back to the foreground. */
+    fun onAppForeground() {
+        if (!hasLoaded || !authService.authState.value) return
+        if (refreshTriggers.onForeground()) fetchOnReturn()
+    }
+
+    /** The calendar was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) fetchOnReturn()
+    }
+
+    /** The page left the screen for another page; see PageLeftEffect. */
+    fun onPageLeft() = refreshTriggers.onLeft()
+
+    // Quietly, and not at all offline: nobody asked, so no snackbar.
+    private fun fetchOnReturn() {
+        if (!networkChecker.isAvailable()) return
+        viewModelScope.launch { fetchFlight.join(::fetchData) }
     }
 
     private val _noNetworkEvent = MutableSharedFlow<Unit>(
@@ -245,6 +389,8 @@ class CalendarViewModel @Inject constructor(
         // must still refresh it for a signed-out user.
         viewModelScope.launch { academicCalendar.refresh() }
         if (!authService.authState.value) return
+        // What Moodle has now, not an answer kept for sharing.
+        moodleService.expireSharedResults()
         viewModelScope.launch {
             _isLoading.value = true
             if (!networkChecker.isAvailable()) {
@@ -252,30 +398,30 @@ class CalendarViewModel @Inject constructor(
                 _isLoading.value = false
                 return@launch
             }
-            fetchData()
+            // What was just submitted, confirmed ones included.
+            moodleService.recheckingSubmissions { fetchFlight.join(::fetchData) }
         }
     }
 
     private suspend fun fetchData() {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
         _isLoading.value = true
         try {
-            val (schoolEvents, moodleEvents) = coroutineScope {
+            val (schoolEvents, assignments) = coroutineScope {
                 val schoolEventsJob = async { calendarService.fetchAndParseICS() }
-                val moodleEventsJob = async { fetchMoodleCalendarEvents() }
-                schoolEventsJob.await() to moodleEventsJob.await()
+                val assignmentsJob = async { refreshAssignments() }
+                schoolEventsJob.await() to assignmentsJob.await()
             }
 
-            val current = _events.value.toMutableList()
+            val hadMoodleRows = _events.value.any { it.sourceRaw == EventSource.MOODLE.raw }
+            val current = withMoodleRows(_events.value, assignments).toMutableList()
 
             if (schoolEvents.isNotEmpty()) {
                 current.removeAll { it.sourceRaw == EventSource.SCHOOL.raw }
                 current.addAll(schoolEvents)
             }
-            if (moodleEvents.isNotEmpty()) {
-                current.removeAll { it.sourceRaw == EventSource.MOODLE.raw }
-                current.addAll(moodleEvents)
-            }
-            if (schoolEvents.isNotEmpty() || moodleEvents.isNotEmpty()) {
+            if (schoolEvents.isNotEmpty() || assignments.isNotEmpty() || hadMoodleRows) {
                 _events.value = withAcademicEvents(current)
                 dataCache.saveCalendarEvents(current)
                 _syncCompleteEvent.tryEmit(Unit)
@@ -287,42 +433,45 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    private suspend fun fetchMoodleCalendarEvents(): List<CalendarEvent> {
+    /** The assignment cache as a refresh from Moodle leaves it, failed or not. */
+    private suspend fun refreshAssignments(): List<Assignment> {
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
 
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) {
-            return dataCache.loadAssignments().toCalendarEvents()
+            return dataCache.loadAssignments()
         }
 
         return try {
             // Re-establish NTUST session before Moodle call, so calendar refresh works standalone.
             if (!authService.ensureAuthenticated()) {
-                return dataCache.loadAssignments().toCalendarEvents()
+                return dataCache.loadAssignments()
             }
             val enrolled = moodleService.fetchEnrolledCourses()
-            val assignments = moodleService.fetchAssignments(enrolled)
-            // Same guard as the class table's: an empty answer is upstream
-            // failing quietly, and overwriting with it empties the calendar
-            // on every other screen too.
-            if (assignments.isEmpty()) return dataCache.loadAssignments().toCalendarEvents()
-            dataCache.saveAssignments(assignments)
-            assignments.toCalendarEvents()
+            val cached = dataCache.loadAssignments()
+            // The same rules Home and the class table store by: a fetch with
+            // no course to ask about keeps the cache, and a confirmed
+            // submission stays submitted. This cache is every screen's, so a
+            // status call that failed here used to mark the assignment
+            // outstanding everywhere.
+            val answer = moodleService.fetchAssignments(enrolled) ?: return cached
+            val merged = CourseRosterMerge.assignmentsToStore(
+                remote = answer.assignments,
+                cached = cached,
+            ) ?: return cached
+            // The list as written, which the write reconciles against newer
+            // answers; nothing to publish when the write was refused.
+            val assignments = moodleService.storeAssignments(merged, answer) ?: return cached
+            // The reminders and the Live Update follow the cache, as Home
+            // and the worker make them do.
+            notificationScheduler.rescheduleFromCache(dataCache, prefs)
+            liveActivityManager.refresh()
+            assignments
         } catch (_: Exception) {
             // Keep calendar useful when Moodle auth/network is temporarily unavailable.
-            dataCache.loadAssignments().toCalendarEvents()
+            dataCache.loadAssignments()
         }
     }
-
-    private fun List<Assignment>.toCalendarEvents(): List<CalendarEvent> =
-        map { assignment ->
-            CalendarEvent(
-                eventId = "moodle-${assignment.assignmentId}",
-                title = assignment.title,
-                date = assignment.dueDate,
-                sourceRaw = EventSource.MOODLE.raw
-            )
-        }
 
     /**
      * Both sources the academic feed produces. Rows carrying either are

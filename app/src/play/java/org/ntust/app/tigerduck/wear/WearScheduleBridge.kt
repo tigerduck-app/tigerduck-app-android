@@ -6,16 +6,27 @@ import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.academic.AcademicCalendar
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.library.libraryCredentialsForWatch
+import org.ntust.app.tigerduck.network.tls.PinManager
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.WearProtocol
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.tls.PinAcceptances
+import org.ntust.app.tigerduck.util.logSummary
 import java.io.ByteArrayOutputStream
+import java.time.LocalDate
 import java.util.zip.GZIPOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,6 +38,8 @@ class WearScheduleBridge @Inject constructor(
     private val authService: AuthService,
     private val appPreferences: AppPreferences,
     private val credentials: CredentialManager,
+    private val academicCalendar: AcademicCalendarStore,
+    private val pins: PinManager,
 ) {
     private val gson = Gson()
 
@@ -39,6 +52,19 @@ class WearScheduleBridge @Inject constructor(
         "wear_bridge_state", Context.MODE_PRIVATE
     )
 
+    /**
+     * The TLS pins push's version: the wall clock, or one past the last when the clock is behind
+     * it. A clock-based start keeps a reinstalled phone, whose counter would begin again at 1,
+     * ahead of what the watch last took, so its pushes, empty acceptances included, aren't
+     * refused.
+     */
+    @Synchronized
+    private fun nextTlsPinsEpoch(): Long {
+        val next = tlsPinsVersion(bridgePrefs.getLong(KEY_TLS_PINS_EPOCH, 0L), System.currentTimeMillis())
+        bridgePrefs.edit().putLong(KEY_TLS_PINS_EPOCH, next).apply()
+        return next
+    }
+
     @Synchronized
     private fun nextCredentialEpoch(): Long {
         val next = bridgePrefs.getLong(KEY_CRED_EPOCH, 0L) + 1
@@ -47,8 +73,9 @@ class WearScheduleBridge @Inject constructor(
     }
 
     /**
-     * Publishes the current course list, accent color, and login state to the
-     * watch via DataClient. Safe to call repeatedly — same payload no-ops.
+     * Publishes the current course list, accent color, login state and the
+     * user's quiet days to the watch via DataClient. Safe to call repeatedly —
+     * same payload no-ops.
      */
     suspend fun publish() {
         val loggedIn = authService.authState.value
@@ -58,7 +85,8 @@ class WearScheduleBridge @Inject constructor(
             // On logout, explicitly clear the watch's view.
             emptyList()
         }
-        val accentHex = "#%06X".format(0xFFFFFF and appPreferences.accentColorHex)
+        val accentHex = wearAccentHex(appPreferences)
+        val accentGradient = wearAccentGradient(appPreferences)
         val payload = gson.toJson(courses.map { it.toDto() }).toByteArray()
         val gzipped = ByteArrayOutputStream().also { bos ->
             GZIPOutputStream(bos).use { it.write(payload) }
@@ -77,9 +105,22 @@ class WearScheduleBridge @Inject constructor(
         val disableScreenCaptureProtection =
             BuildConfig.DEBUG && appPreferences.disableScreenCaptureProtection
 
+        val quietDays = wearQuietDays(
+            academicCalendar.current(),
+            academicCalendar.optedInHolidayIds,
+            AppClock.localDateTime().toLocalDate(),
+        )
+
         val request = PutDataMapRequest.create(WearProtocol.Schedule.PATH).apply {
             dataMap.putByteArray(WearProtocol.Schedule.KEY_COURSES, gzipped)
             dataMap.putString(WearProtocol.Schedule.KEY_ACCENT, accentHex)
+            dataMap.putString(WearProtocol.Schedule.KEY_VISUAL_PRESET, appPreferences.visualPreset.rawValue)
+            // Left out for a single color: each publish is a whole new item,
+            // so the watch then reads no gradient.
+            if (accentGradient != null) {
+                dataMap.putString(WearProtocol.Schedule.KEY_ACCENT_END, accentGradient.endHex)
+                dataMap.putInt(WearProtocol.Schedule.KEY_ACCENT_DIRECTION, accentGradient.directionCode)
+            }
             dataMap.putLong(WearProtocol.Schedule.KEY_SYNCED_AT, System.currentTimeMillis())
             dataMap.putBoolean(WearProtocol.Schedule.KEY_LOGGED_IN, loggedIn)
             dataMap.putString(WearProtocol.Schedule.KEY_LANGUAGE, languageTag)
@@ -87,13 +128,18 @@ class WearScheduleBridge @Inject constructor(
                 WearProtocol.Schedule.KEY_DISABLE_SCREEN_CAPTURE_PROTECTION,
                 disableScreenCaptureProtection,
             )
+            dataMap.putStringArrayList(WearProtocol.Schedule.KEY_QUIET_DAYS, quietDays)
         }.asPutDataRequest().setUrgent()
 
         try {
             Wearable.getDataClient(context).putDataItem(request).await()
-            Log.d(TAG, "publish ok: ${courses.size} courses, ${gzipped.size} bytes")
+            Log.d(
+                TAG,
+                "publish ok: ${courses.size} courses, ${gzipped.size} bytes, " +
+                    "${quietDays.size} quiet days",
+            )
         } catch (t: Throwable) {
-            Log.w(TAG, "publish failed: ${t.message}")
+            Log.w(TAG, "publish failed: ${t.logSummary()}")
         }
     }
 
@@ -101,12 +147,14 @@ class WearScheduleBridge @Inject constructor(
      * Push the current library credentials to the watch over the Data Layer so
      * it can independently call `api.lib.ntust.edu.tw` for the rotating QR.
      * Sends a `hasCredentials=false` packet when the user is logged out so the
-     * watch wipes its local copy rather than holding stale creds.
+     * watch wipes its local copy rather than holding stale creds — and while
+     * the library has refused the stored password; see [libraryCredentialsForWatch].
      */
     suspend fun publishLibraryCredentials() {
-        val username = credentials.libraryUsername
-        val password = credentials.libraryPassword
-        val hasCredentials = username != null && password != null
+        val account = libraryCredentialsForWatch(credentials)
+        val username = account?.first
+        val password = account?.second
+        val hasCredentials = account != null
 
         val request = PutDataMapRequest.create(WearProtocol.LibraryCredentials.PATH).apply {
             dataMap.putBoolean(WearProtocol.LibraryCredentials.KEY_HAS_CREDENTIALS, hasCredentials)
@@ -140,7 +188,31 @@ class WearScheduleBridge @Inject constructor(
             Wearable.getDataClient(context).putDataItem(request).await()
             Log.d(TAG, "library credentials publish ok (has=$hasCredentials)")
         } catch (t: Throwable) {
-            Log.w(TAG, "library credentials publish failed: ${t.message}")
+            Log.w(TAG, "library credentials publish failed: ${t.logSummary()}")
+        }
+    }
+
+    /**
+     * The TLS pins for the watch (TLS pins spec, A8): the document envelope the phone verified,
+     * as received, and the student's acceptances, each with the phone's build number. The watch
+     * verifies the envelope with its own keys and applies an acceptance only while its build is
+     * the matching one.
+     */
+    suspend fun publishTlsPins() = tlsPins.publish()
+
+    private val tlsPins = TlsPinsPublisher(
+        snapshot = {
+            PutDataMapRequest.create(WearProtocol.TlsPins.PATH).apply {
+                pins.envelope?.let { dataMap.putByteArray(WearProtocol.TlsPins.KEY_ENVELOPE, it) }
+                dataMap.putString(WearProtocol.TlsPins.KEY_ACCEPTANCES, PinAcceptances.encode(pins.currentAcceptances))
+                dataMap.putLong(WearProtocol.TlsPins.KEY_VERSION, nextTlsPinsEpoch())
+            }.asPutDataRequest().setUrgent()
+        },
+    ) { request ->
+        try {
+            Wearable.getDataClient(context).putDataItem(request).await()
+        } catch (t: Throwable) {
+            Log.w(TAG, "TLS pins publish failed: ${t.logSummary()}")
         }
     }
 
@@ -172,8 +244,66 @@ class WearScheduleBridge @Inject constructor(
     private companion object {
         const val TAG = "WearBridge"
         const val KEY_CRED_EPOCH = "libraryCredentialEpoch"
+        const val KEY_TLS_PINS_EPOCH = "tlsPinsEpoch"
     }
 }
+
+/** The TLS pins push after [last]: the wall clock [now], or one past [last] when the clock is behind. */
+internal fun tlsPinsVersion(last: Long, now: Long): Long = maxOf(last + 1, now)
+
+/**
+ * The accent the watch is sent, as `#RRGGBB`: the swatch last picked, or the
+ * start of the gradient last picked (see [wearAccentGradient] for the rest of
+ * it), also while the phone follows the wallpaper, as the watch has no
+ * wallpaper colors of its own to follow (see [AccentPolicy]).
+ */
+internal fun wearAccentHex(prefs: AppPreferences): String = wearHex(prefs.accentColorHex)
+
+/** The rest of the accent gradient the watch is sent: its end as `#RRGGBB` and its direction's code. */
+internal data class WearAccentGradient(val endHex: String, val directionCode: Int)
+
+/**
+ * The end and direction of the gradient picked, which the watch draws from
+ * [wearAccentHex], or null for a single color. A gradient counts by the rule
+ * the phone's own screens follow, so one an older build picked over goes no
+ * more.
+ */
+internal fun wearAccentGradient(prefs: AppPreferences): WearAccentGradient? {
+    val end = AccentPolicy.gradientEnd(prefs.accentColorHex, prefs.accentGradientStartHex, prefs.accentGradientEndHex)
+        ?: return null
+    return WearAccentGradient(wearHex(end), prefs.accentGradientDirection.code)
+}
+
+/**
+ * [lightHex] as the watch draws it: a preset as it always has gone, and a
+ * color of the user's own as dark mode draws it, as the watch draws on black,
+ * where a dark one would leave its rings and guides invisible.
+ */
+private fun wearHex(lightHex: Int): String {
+    val sent = if (AccentPolicy.isPreset(lightHex)) lightHex else AccentPolicy.darkHex(lightHex)
+    return "#%06X".format(0xFFFFFF and sent)
+}
+
+/**
+ * How far ahead the watch is told about quiet days. Bounded because every day
+ * after the last published term is quiet, and the list shares the Data Layer
+ * item with the courses; the phone sends a fresh list at every app start and
+ * watch sync request, far sooner than a year runs out.
+ */
+internal const val WEAR_QUIET_DAYS_AHEAD = 366L
+
+/**
+ * The days from [today] through [WEAR_QUIET_DAYS_AHEAD] days later on which
+ * no class meets for this user ([AcademicCalendar.isQuietDay]), in the form
+ * the watch reads under [WearProtocol.Schedule.KEY_QUIET_DAYS].
+ */
+internal fun wearQuietDays(
+    calendar: AcademicCalendar,
+    optedInHolidayIds: Set<Int>,
+    today: LocalDate,
+): ArrayList<String> = WearProtocol.Schedule.encodeQuietDays(
+    calendar.quietDays(optedInHolidayIds, today, today.plusDays(WEAR_QUIET_DAYS_AHEAD))
+)
 
 internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBridge.CourseDto(
     courseNo = courseNo,
@@ -188,3 +318,13 @@ internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBrid
     customColorHex = customColorHex,
     isManual = isManual,
 )
+
+/**
+ * Publishes the TLS pins item one at a time (A8): a snapshot, its version included, is taken and
+ * put with no other publish in between, so the item last put is always the newest.
+ */
+internal class TlsPinsPublisher<T>(private val snapshot: () -> T, private val put: suspend (T) -> Unit) {
+    private val mutex = Mutex()
+
+    suspend fun publish() = mutex.withLock { put(snapshot()) }
+}

@@ -10,8 +10,11 @@ import androidx.compose.animation.core.keyframes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,6 +55,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
@@ -219,20 +224,52 @@ internal fun AccountRow(
         }
     }
 }
+/**
+ * A row's [label] and its [value]: side by side, the value at the end, while
+ * both fit on one line, and otherwise the value under the label. Kept at its
+ * full width beside the label, a long value squeezed the label at a large
+ * font size until it broke mid-word ("La / ng"), and the row cut off what
+ * no longer fitted its height.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LabelAndValue(
+    label: String,
+    labelColor: Color,
+    modifier: Modifier = Modifier,
+    value: @Composable () -> Unit,
+) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        itemVerticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            label,
+            // The gap to a value beside it; at a line's end when the value goes under it.
+            modifier = Modifier.padding(end = 8.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = labelColor,
+        )
+        value()
+    }
+}
+
 @Composable
 internal fun SettingsRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(SettingRowHeight)
-            .padding(horizontal = 16.dp),
+            .heightIn(min = SettingRowHeight)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(
-            value, style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-        )
+        LabelAndValue(label = label, labelColor = Color.Unspecified, modifier = Modifier.weight(1f)) {
+            Text(
+                value, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+            )
+        }
     }
 }
 @Composable
@@ -241,12 +278,29 @@ internal fun SettingsToggleRow(
     checked: Boolean,
     enabled: Boolean = true,
     subtitle: String? = null,
+    /** Said in place of on/off while the row is disabled, such as why it is. */
+    disabledStateDescription: String? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = SettingRowHeight)
+            // The whole row is the switch, so TalkBack reads the label and
+            // summary with its state and a tap anywhere on it toggles.
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            )
+            .then(
+                if (!enabled && disabledStateDescription != null) {
+                    Modifier.semantics { stateDescription = disabledStateDescription }
+                } else {
+                    Modifier
+                },
+            )
             .padding(horizontal = 16.dp, vertical = if (subtitle != null) 8.dp else 0.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -270,18 +324,24 @@ internal fun SettingsToggleRow(
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            // The row handles it; a second target would be read on its own.
+            onCheckedChange = null,
             enabled = enabled,
             colors = tigerDuckSwitchColors(),
         )
     }
 }
+/**
+ * [enabled] greys the row out in place and stops it opening, as
+ * [SettingsToggleRow] does for a switch.
+ */
 @Composable
 internal fun SettingsPickerRow(
     label: String,
     value: String,
     options: List<Pair<String, String>>,
     selectedKey: String,
+    enabled: Boolean = true,
     onSelect: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -294,36 +354,45 @@ internal fun SettingsPickerRow(
             // clipped — Mandarin labels are tall enough to need the extra
             // room.
             .heightIn(min = SettingRowHeight)
-            .clickable { expanded = true }
+            .clickable(enabled = enabled) { expanded = true }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Box {
-            Text(
-                value, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
-            )
-
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                options.forEach { (key, display) ->
-                    DropdownMenuItem(
-                        text = { Text(display) },
-                        onClick = {
-                            onSelect(key)
-                            expanded = false
-                        },
-                        leadingIcon = {
-                            RadioButton(
-                                selected = selectedKey == key,
-                                onClick = null
-                            )
-                        }
+        LabelAndValue(
+            label = label,
+            labelColor = MaterialTheme.colorScheme.onSurface.copy(
+                alpha = if (enabled) 1f else ContentAlpha.DISABLED,
+            ),
+            modifier = Modifier.weight(1f),
+        ) {
+            Box {
+                Text(
+                    value, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(
+                        alpha = if (enabled) ContentAlpha.SECONDARY else ContentAlpha.DISABLED,
                     )
+                )
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    options.forEach { (key, display) ->
+                        DropdownMenuItem(
+                            text = { Text(display) },
+                            onClick = {
+                                onSelect(key)
+                                expanded = false
+                            },
+                            leadingIcon = {
+                                RadioButton(
+                                    selected = selectedKey == key,
+                                    onClick = null
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -363,24 +432,31 @@ internal fun SettingsLinkRow(label: String, enabled: Boolean = true, onClick: ()
         )
     }
 }
+/** [enabled] greys the row out in place and stops it opening, as [SettingsLinkRow] does. */
 @Composable
-internal fun SettingsLinkRowWithValue(label: String, value: String, onClick: () -> Unit) {
+internal fun SettingsLinkRowWithValue(label: String, value: String, enabled: Boolean = true, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(SettingRowHeight)
+            .heightIn(min = SettingRowHeight)
             .semantics(mergeDescendants = true) { role = Role.Button }
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
+            .clickable(enabled = enabled) { onClick() }
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-        Text(
-            value,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
-            maxLines = 1,
-        )
+        LabelAndValue(
+            label = label,
+            labelColor = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
+            modifier = Modifier.weight(1f),
+        ) {
+            Text(
+                value,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(
+                    alpha = if (enabled) ContentAlpha.SECONDARY else ContentAlpha.DISABLED,
+                ),
+            )
+        }
         Spacer(Modifier.width(8.dp))
         Icon(
             Icons.Filled.ChevronRight,

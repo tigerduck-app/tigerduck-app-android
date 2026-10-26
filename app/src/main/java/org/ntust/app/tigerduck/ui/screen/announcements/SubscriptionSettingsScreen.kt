@@ -1,10 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.announcements
 
-import android.Manifest
-import android.os.Build
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +66,7 @@ import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.screen.settings.rememberAllowNotificationsAction
 
 private data class EditingTarget(
     val rule: SubscriptionRule,
@@ -411,13 +408,9 @@ private fun ruleSubtitle(rule: SubscriptionRule, taxonomy: TaxonomyResponse?): S
 
 @Composable
 private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
-    LocalContext.current
     var state by remember { mutableStateOf(systemPermissions.state(AppPermission.NOTIFICATIONS)) }
 
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) systemPermissions.recordCurrentGrants()
+    val allowNotifications = rememberAllowNotificationsAction(systemPermissions) {
         state = systemPermissions.state(AppPermission.NOTIFICATIONS)
     }
 
@@ -479,13 +472,7 @@ private fun NotificationPermissionCard(systemPermissions: SystemPermissions) {
                     tint = Color(0xFF34C759),
                 )
 
-                else -> Button(onClick = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } else {
-                        systemPermissions.openSettings(AppPermission.NOTIFICATIONS)
-                    }
-                }) {
+                else -> Button(onClick = allowNotifications) {
                     Text(stringResource(R.string.action_allow))
                 }
             }

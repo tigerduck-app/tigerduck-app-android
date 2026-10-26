@@ -2,6 +2,7 @@
 <img width="2000" src="https://github.com/user-attachments/assets/cf6a1d18-a348-4b83-adfd-81c6dc82855f" />
 <br>
 
+[![Version](https://img.shields.io/badge/Version-v2.4.0-00BB00?style=for-the-badge)](https://github.com/tigerduck-app/tigerduck-app-android/releases/tag/v2.4.0)
 [![License](https://img.shields.io/github/license/tigerduck-app/tigerduck-app-android?style=for-the-badge)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-10.0%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com)
@@ -29,9 +30,7 @@
 
 TigerDuck is a campus companion app built by a group of students at **NTUST**.  
 It was created to solve common pain points: scattered resources, delayed notifications, and
-unintuitive interfaces.  
-Ever used [TAT](https://github.com/morris13579/tat_ntust)? We're working hard to make TigerDuck feel
-even more OAO!
+unintuitive interfaces.
 
 > The project is under active development; some features are still being polished.
 
@@ -95,8 +94,9 @@ even more OAO!
 
 ### 🔄 **Auto-Update** (Play only)
 
-- Play In-App Update FLEXIBLE flow built in — proactively prompts when a new version ships
-- Post-upgrade "What's new" dialog highlights what changed at a glance
+- When Play has a newer version, an update prompt appears: **Update now** opens the Play Store page, or pick **Later** or **Skip this version**
+- Prompts once Play has offered a version for 3 days, and not again for that version for 7 days after **Later**; **Settings → About → Check for updates** checks any time
+- Post-upgrade "What's new" sheet highlights what changed at a glance
 
 ### ⌚ **Wear OS** (Play only)
 
@@ -161,7 +161,7 @@ even more OAO!
 
 - [x] **TigerDuck-branded notification icons + per-scenario haptics**
 - [x] **Bulletin notification channels** (sound / silent) — adjustable independently
-- [x] **In-App Update + What's new dialog** — Play build prompts on new releases
+- [x] **In-App Update + What's new sheet** — Play build prompts on new releases
 - [x] **`FLAG_SECURE` on sensitive screens** — Login and library QR block screenshots /
   screen recording
 - [x] **Account deletion entry** — Request deletion of the server-side push identity from
@@ -206,7 +206,7 @@ even more OAO!
 
 - Android Studio (latest preferred)
 - Android SDK Platform 37
-- JDK 21 (Gradle 9.7 / AGP 9.3 require JDK 17+)
+- JDK 21 (Gradle 9.8 / AGP 9.4 require JDK 17+)
 
 ### Android App
 
@@ -219,14 +219,15 @@ cd tigerduck-app-android
 git submodule update --init --recursive
 
 # Open in Android Studio, or build directly with Gradle.
-# There are two product flavors — fdroid and play — pick one:
-./gradlew :app:assembleFdroidDebug   # or :app:assemblePlayDebug
-./gradlew :app:installFdroidDebug    # or :app:installPlayDebug
+# There are two product flavors — play and fdroid — pick one:
+./gradlew :app:assemblePlayDebug     # or :app:assembleFdroidDebug
+./gradlew :app:installPlayDebug      # or :app:installFdroidDebug
 ```
 
-> 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (
-`app-translation/generated/android/`) come from submodules. **Always** initialize submodules before
-> opening Android Studio, otherwise the build will fail to locate resource files.
+> 💡 Course / classroom abbreviations (`name-abbr/`) and localization strings (`app-translation/`)
+> come from submodules. **Always** initialize submodules before opening Android Studio, otherwise the
+> build will fail to locate resource files. Building also needs Python 3.9 or newer, which generates the strings
+> (macOS's own `python3` is 3.9; CI tests 3.9 and the newest).
 
 ### Wear OS App (`:wear` module)
 
@@ -263,26 +264,13 @@ submodule and are shared with the iOS client.
 
 - Source files in `app-translation/source/` — 55 files (`en.json`, `zh-Hant.json`, `ja.json`,
   `ko.json`, `ar.json`, …)
-- Generated outputs in `app-translation/generated/`:
-    - Android: `android/values/strings.xml` (Traditional Chinese as default),
-      `android/values-<lang>/strings.xml`
-    - Apple (iOS / macOS): `apple/<lang>.lproj/Localizable.strings`
-- The Android app's `app/src/main/res/values*/strings.xml` is overwritten by the same script — **do
-  not** edit generated files by hand.
-
-Run a one-shot sync:
-
-```bash
-python3 tools/localization/sync_localizations.py
-```
-
-Gradle can also run it before a build, but this is **opt-in**: `syncLocalizations` is only wired
-into `preBuild` when you pass `-PsyncLocalizations` (see `app/build.gradle.kts` and
-`wear/build.gradle.kts`):
-
-```bash
-./gradlew :app:assemblePlayDebug -PsyncLocalizations
-```
+- Every build generates the Android strings from the submodule's `source/*.json`: the
+  `generateAppTranslationStrings` task (`gradle/app-translation.gradle.kts`, applied by `:app` and
+  `:wear`) writes `values*/strings.xml`, and the phone's `xml/locales_config.xml`, into
+  `build/generated/appTranslation/res`. Nothing is committed, here or in the submodule, so a
+  translation change only moves the submodule pin. It needs Python 3.9 or newer on PATH.
+- The submodule still commits its Apple (`generated/apple/`) and backend (`generated/backend/`)
+  outputs, which the Apple app and the backend read.
 
 For new locales or strings, open a separate PR against the
 [`app-translation/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
@@ -346,7 +334,7 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 │       │   │   ├── score/              # Historical GPA & rankings
 │       │   │   ├── more/               # "More" hub
 │       │   │   ├── settings/           # Settings (language, tabs, notifications, haptics, server push, live activity, source)
-│       │   │   ├── whatsnew/           # "What's new" dialog
+│       │   │   ├── whatsnew/           # "What's new" sheet
 │       │   │   └── onboarding/         # First-run onboarding + privacy gate
 │       │   ├── theme/                  # Tokens, palette, visual presets
 │       │   └── AppState.kt
@@ -358,19 +346,19 @@ tigerduck-app-android/                  # Android App + Wear OS (Kotlin 2.4 / Co
 ├── shared/                             # Phone + watch shared module (`:shared`)
 │   └── src/main/java/org/ntust/app/tigerduck/shared/
 │       ├── clock/                      # AppClock abstraction (overridable by debug clock)
-│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver
+│       └── …                           # Course / PeriodTimes / CourseScheduleUtils / NextClassResolver / library QR / WearProtocol
 ├── wear/                               # ⌚ Wear OS app (Play only, `:wear`)
 │   └── src/main/java/org/ntust/app/tigerduck/wear/
-│       ├── ui/                         # Now & Next / Today / course detail / settings
+│       ├── ui/                         # Now & Next / Today / course detail / library QR / settings
 │       ├── tile/                       # NextClassTileService
 │       ├── complication/               # NextClassComplicationService
-│       └── data/                       # DataLayerListener / SchedulePersistence / Repository / SyncRequester
+│       └── data/                       # DataLayerListener / SchedulePersistence / SyncRequester / library credentials
 ├── debug/                              # Quick install scripts and [DEBUG.md](debug/DEBUG.md) (build variants, debug clock, push)
 ├── gradle/
 │   └── libs.versions.toml              # Version Catalog
 ├── app-translation/                    # ⤴ git submodule: 65 locale translations (incl. `watch_*` keys)
 ├── name-abbr/                          # ⤴ git submodule: course / classroom abbreviations
-├── tools/localization/                 # Translation sync script (opt in via -PsyncLocalizations)
+├── tools/localization/                 # Generates the strings from app-translation on every build
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```
@@ -385,9 +373,10 @@ Before submitting, please make sure to:
 2. Run at least `:app:compileFdroidDebugKotlin` / `:app:compilePlayDebugKotlin` or
    `:app:assembleFdroidDebug` / `:app:assemblePlayDebug` once
 3. Name your branch using `feature/your-feature` or `fix/your-fix`
-4. Target the `dev` branch when opening a PR, and tick every box on the pre-merge checklist the bot
-   posts (the `main` variant additionally asks you to run the three `debug/` scripts, verify the
-   upgrade path from the previous release, and update `app/src/main/assets/whatsnew.json`)
+4. Target the `dev` branch when opening a PR, and meet the pre-merge checklist in
+   [`CONTRIBUTING.md`](CONTRIBUTING.md) (a PR into `main` additionally asks you to run the three
+   `debug/` scripts and verify the upgrade path from the previous release; CI also requires a
+   version bump and an `app/src/main/assets/whatsnew.json` entry for it)
 5. For translation strings, open a separate PR against the
    [`app-translation/`](https://github.com/tigerduck-app/app-translation) submodule — do **not** edit
    generated files

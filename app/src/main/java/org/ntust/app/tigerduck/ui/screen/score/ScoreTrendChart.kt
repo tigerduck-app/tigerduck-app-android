@@ -13,9 +13,14 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,6 +39,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -46,19 +52,24 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import kotlin.math.roundToInt
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import kotlin.math.roundToInt
+import org.ntust.app.tigerduck.util.replaceIosArg
 
-private val trendAccent = Color(0xFF4ECDC4)
 private val AXIS_LABEL_WIDTH = 28.dp
 @Composable
 internal fun RankingsTrendCard(
@@ -156,6 +167,10 @@ private fun TrendChart(
     selectedTerm: String?,
     onSelect: (String) -> Unit,
 ) {
+    // The accent, as everything else that marks a choice is, and as the
+    // iPhone draws its trend.
+    val trendAccent = MaterialTheme.colorScheme.primary
+    val onTrendAccent = MaterialTheme.colorScheme.onPrimary
     val onSurface = MaterialTheme.colorScheme.onSurface
     val axisColor = onSurface.copy(alpha = 0.25f)
     val ruleColor = onSurface.copy(alpha = 0.35f)
@@ -172,173 +187,245 @@ private fun TrendChart(
     }
     val yDomain = remember(values) { computeYDomain(values) }
 
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(160.dp)
-            .pointerInput(points, scope) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        // minimumDistance-0 drag: we treat press and drag the
-                        // same so a single tap pins a point, matching iOS.
-                        val change = event.changes.firstOrNull() ?: continue
-                        if (change.pressed) {
-                            val plotLeft = with(density) { AXIS_LABEL_WIDTH.toPx() }
-                            val plotRight = size.width.toFloat()
-                            val plotWidth = (plotRight - plotLeft).coerceAtLeast(1f)
-                            val ratio = ((change.position.x - plotLeft) / plotWidth)
-                                .coerceIn(0f, 1f)
-                            val idx = ((points.size - 1) * ratio).roundToInt()
-                                .coerceIn(0, points.lastIndex)
-                            onSelect(points[idx].term)
-                            change.consume()
+    // The Canvas draws nothing TalkBack can read, so the chart is named and
+    // carries the pinned term as its state, and each plotted term gets an
+    // element of its own on top, as iOS's chart has. Those elements take no
+    // touches: scrubbing still lands on the Canvas.
+    val chartLabel = stringResource(R.string.a11y_rankings_trend_chart)
+    val pointTemplate = stringResource(R.string.a11y_rankings_trend_point)
+    val provisionalLabel = stringResource(R.string.score_gpa_provisional)
+    fun describe(point: GpaTrendPoint, value: Double): String =
+        trendPointLabel(pointTemplate, provisionalLabel, point, value)
+    val selection = resolvedSelection(points, selectedTerm)
+    val selectionValue = selection?.let { gpa(it, scope) }
+    val selectionLabel = if (selection != null && selectionValue != null) {
+        describe(selection, selectionValue)
+    } else {
+        stringResource(R.string.a11y_rankings_trend_no_selection)
+    }
+
+    // Left-anchored like the Canvas, which plots left to right in RTL too.
+    BoxWithConstraints(
+        Modifier.fillMaxWidth().height(160.dp),
+        contentAlignment = AbsoluteAlignment.TopLeft,
+    ) {
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics {
+                    contentDescription = chartLabel
+                    stateDescription = selectionLabel
+                }
+                .pointerInput(points, scope) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            // minimumDistance-0 drag: we treat press and drag the
+                            // same so a single tap pins a point, matching iOS.
+                            val change = event.changes.firstOrNull() ?: continue
+                            if (change.pressed) {
+                                val plotLeft = with(density) { AXIS_LABEL_WIDTH.toPx() }
+                                val plotRight = size.width.toFloat()
+                                val plotWidth = (plotRight - plotLeft).coerceAtLeast(1f)
+                                val ratio = ((change.position.x - plotLeft) / plotWidth)
+                                    .coerceIn(0f, 1f)
+                                val idx = ((points.size - 1) * ratio).roundToInt()
+                                    .coerceIn(0, points.lastIndex)
+                                onSelect(points[idx].term)
+                                change.consume()
+                            }
                         }
                     }
                 }
-            }
-    ) {
-        val plotLeft = AXIS_LABEL_WIDTH.toPx()
-        val plotTop = 8.dp.toPx()
-        val plotRight = size.width
-        val plotBottom = size.height - 8.dp.toPx()
-        val plotWidth = plotRight - plotLeft
-        val plotHeight = plotBottom - plotTop
+        ) {
+            val plotLeft = AXIS_LABEL_WIDTH.toPx()
+            val plotTop = 8.dp.toPx()
+            val plotRight = size.width
+            val plotBottom = size.height - 8.dp.toPx()
+            val plotWidth = plotRight - plotLeft
+            val plotHeight = plotBottom - plotTop
 
-        fun x(index: Int): Float = if (points.size == 1) {
-            plotLeft + plotWidth / 2f
-        } else {
-            plotLeft + plotWidth * index / (points.size - 1).toFloat()
-        }
-
-        fun y(value: Double): Float {
-            val range = (yDomain.second - yDomain.first).takeIf { it > 0 } ?: 1.0
-            val frac = ((value - yDomain.first) / range).toFloat().coerceIn(0f, 1f)
-            return plotBottom - frac * plotHeight
-        }
-
-        // Y-axis guide ticks + labels (4 tiers)
-        val tickCount = 4
-        for (i in 0 until tickCount) {
-            val frac = i / (tickCount - 1f)
-            val yPos = plotBottom - frac * plotHeight
-            val tickValue = yDomain.first + frac * (yDomain.second - yDomain.first)
-            drawLine(
-                color = axisColor,
-                start = Offset(plotLeft, yPos),
-                end = Offset(plotRight, yPos),
-                strokeWidth = 1f
-            )
-            val label = "%.1f".format(tickValue)
-            val layout = textMeasurer.measure(label, axisStyle)
-            drawText(
-                textLayoutResult = layout,
-                topLeft = Offset(
-                    x = plotLeft - layout.size.width - 4.dp.toPx(),
-                    y = yPos - layout.size.height / 2f
-                )
-            )
-        }
-
-        // Where each term sits, or null where it has no GPA to plot.
-        val offsets = values.mapIndexed { index, value ->
-            value?.let { Offset(x(index), y(it)) }
-        }
-
-        // Solid stretches cover published terms only: an estimate ends the
-        // run rather than joining it, so the solid stroke never bridges one.
-        val runs = mutableListOf<List<Offset>>()
-        var run = mutableListOf<Offset>()
-        points.forEachIndexed { index, point ->
-            val offset = offsets[index]
-            if (point.isProvisional || offset == null) {
-                if (run.size >= 2) runs.add(run)
-                run = mutableListOf()
+            fun x(index: Int): Float = if (points.size == 1) {
+                plotLeft + plotWidth / 2f
             } else {
-                run.add(offset)
+                plotLeft + plotWidth * index / (points.size - 1).toFloat()
             }
-        }
-        if (run.size >= 2) runs.add(run)
 
-        // Monotone cubic Bezier path connecting successive valid points —
-        // same visual as iOS's Chart `.interpolationMethod(.monotone)`.
-        val lineStroke = Stroke(
-            width = 2.5.dp.toPx(),
-            cap = StrokeCap.Round,
-            join = StrokeJoin.Round
-        )
-        runs.forEach { segment ->
-            drawPath(
-                path = monotoneCubicPath(segment),
-                color = trendAccent,
-                style = lineStroke
-            )
-        }
+            fun y(value: Double): Float {
+                val range = (yDomain.second - yDomain.first).takeIf { it > 0 } ?: 1.0
+                val frac = ((value - yDomain.first) / range).toFloat().coerceIn(0f, 1f)
+                return plotBottom - frac * plotHeight
+            }
 
-        // Each estimate joined back to the term before it, dashed, so the
-        // line carries on into the estimate instead of leaving it floating
-        // — while still reading as a different kind of line.
-        val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
-            floatArrayOf(5.dp.toPx(), 4.dp.toPx())
-        )
-        points.forEachIndexed { index, point ->
-            if (!point.isProvisional || index == 0) return@forEachIndexed
-            val start = offsets[index - 1] ?: return@forEachIndexed
-            val end = offsets[index] ?: return@forEachIndexed
-            drawLine(
-                color = trendAccent,
-                start = start,
-                end = end,
-                strokeWidth = 2.5.dp.toPx(),
+            // Y-axis guide ticks + labels (4 tiers)
+            val tickCount = 4
+            for (i in 0 until tickCount) {
+                val frac = i / (tickCount - 1f)
+                val yPos = plotBottom - frac * plotHeight
+                val tickValue = yDomain.first + frac * (yDomain.second - yDomain.first)
+                drawLine(
+                    color = axisColor,
+                    start = Offset(plotLeft, yPos),
+                    end = Offset(plotRight, yPos),
+                    strokeWidth = 1f
+                )
+                val label = "%.1f".format(tickValue)
+                val layout = textMeasurer.measure(label, axisStyle)
+                drawText(
+                    textLayoutResult = layout,
+                    topLeft = Offset(
+                        x = plotLeft - layout.size.width - 4.dp.toPx(),
+                        y = yPos - layout.size.height / 2f
+                    )
+                )
+            }
+
+            // Where each term sits, or null where it has no GPA to plot.
+            val offsets = values.mapIndexed { index, value ->
+                value?.let { Offset(x(index), y(it)) }
+            }
+
+            // Solid stretches cover published terms only: an estimate ends the
+            // run rather than joining it, so the solid stroke never bridges one.
+            val runs = mutableListOf<List<Offset>>()
+            var run = mutableListOf<Offset>()
+            points.forEachIndexed { index, point ->
+                val offset = offsets[index]
+                if (point.isProvisional || offset == null) {
+                    if (run.size >= 2) runs.add(run)
+                    run = mutableListOf()
+                } else {
+                    run.add(offset)
+                }
+            }
+            if (run.size >= 2) runs.add(run)
+
+            // Monotone cubic Bezier path connecting successive valid points —
+            // same visual as iOS's Chart `.interpolationMethod(.monotone)`.
+            val lineStroke = Stroke(
+                width = 2.5.dp.toPx(),
                 cap = StrokeCap.Round,
-                pathEffect = dash
+                join = StrokeJoin.Round
             )
-        }
-
-        // Plotted points — enlarged for the selected one, hollow for an
-        // estimate, so which end of the trend the school has actually
-        // confirmed is legible without reading the summary row.
-        val selected = resolvedSelection(points, selectedTerm)
-        points.forEachIndexed { index, point ->
-            val center = offsets[index] ?: return@forEachIndexed
-            val isSel = point.term == selected?.term
-            val radius = if (isSel) 7.dp.toPx() else 3.5.dp.toPx()
-            if (point.isProvisional) {
-                val ring = 2.dp.toPx()
-                drawCircle(color = cardColor, radius = radius, center = center)
-                drawCircle(
+            runs.forEach { segment ->
+                drawPath(
+                    path = monotoneCubicPath(segment),
                     color = trendAccent,
-                    radius = radius - ring / 2f,
-                    center = center,
-                    style = Stroke(width = ring)
+                    style = lineStroke
                 )
-            } else {
-                drawCircle(color = trendAccent, radius = radius, center = center)
+            }
+
+            // Each estimate joined back to the term before it, dashed, so the
+            // line carries on into the estimate instead of leaving it floating
+            // — while still reading as a different kind of line.
+            val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                floatArrayOf(5.dp.toPx(), 4.dp.toPx())
+            )
+            points.forEachIndexed { index, point ->
+                if (!point.isProvisional || index == 0) return@forEachIndexed
+                val start = offsets[index - 1] ?: return@forEachIndexed
+                val end = offsets[index] ?: return@forEachIndexed
+                drawLine(
+                    color = trendAccent,
+                    start = start,
+                    end = end,
+                    strokeWidth = 2.5.dp.toPx(),
+                    cap = StrokeCap.Round,
+                    pathEffect = dash
+                )
+            }
+
+            // Plotted points — enlarged for the selected one, hollow for an
+            // estimate, so which end of the trend the school has actually
+            // confirmed is legible without reading the summary row.
+            val selected = resolvedSelection(points, selectedTerm)
+            points.forEachIndexed { index, point ->
+                val center = offsets[index] ?: return@forEachIndexed
+                val isSel = point.term == selected?.term
+                val radius = if (isSel) 7.dp.toPx() else 3.5.dp.toPx()
+                if (point.isProvisional) {
+                    val ring = 2.dp.toPx()
+                    drawCircle(color = cardColor, radius = radius, center = center)
+                    drawCircle(
+                        color = trendAccent,
+                        radius = radius - ring / 2f,
+                        center = center,
+                        style = Stroke(width = ring)
+                    )
+                } else {
+                    drawCircle(color = trendAccent, radius = radius, center = center)
+                }
+            }
+
+            // Crosshair + inner dot on the pinned point
+            selected?.let { sel ->
+                val index = points.indexOfFirst { it.term == sel.term }
+                if (index < 0) return@let
+                val v = values[index] ?: return@let
+                val cx = x(index)
+                drawLine(
+                    color = ruleColor,
+                    start = Offset(cx, plotTop),
+                    end = Offset(cx, plotBottom),
+                    strokeWidth = 1f,
+                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
+                        floatArrayOf(3.dp.toPx(), 3.dp.toPx())
+                    )
+                )
+                // On a confirmed term's filled point, the accent's own text
+                // color: white on every swatch, but the wallpaper's dark-mode
+                // primary is too light for white to show on. An estimate's
+                // hollow point keeps white on the card.
+                drawCircle(
+                    color = if (sel.isProvisional) Color.White else onTrendAccent,
+                    radius = 3.dp.toPx(),
+                    center = Offset(cx, y(v))
+                )
             }
         }
-
-        // Crosshair + inner dot on the pinned point
-        selected?.let { sel ->
-            val index = points.indexOfFirst { it.term == sel.term }
-            if (index < 0) return@let
-            val v = values[index] ?: return@let
-            val cx = x(index)
-            drawLine(
-                color = ruleColor,
-                start = Offset(cx, plotTop),
-                end = Offset(cx, plotBottom),
-                strokeWidth = 1f,
-                pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(
-                    floatArrayOf(3.dp.toPx(), 3.dp.toPx())
-                )
-            )
-            drawCircle(
-                color = Color.White,
-                radius = 3.dp.toPx(),
-                center = Offset(cx, y(v))
+        val plotWidth = maxWidth - AXIS_LABEL_WIDTH
+        points.forEachIndexed { index, point ->
+            val value = values[index] ?: return@forEachIndexed
+            val centerX = if (points.size == 1) {
+                AXIS_LABEL_WIDTH + plotWidth / 2
+            } else {
+                AXIS_LABEL_WIDTH + plotWidth * index / (points.size - 1)
+            }
+            val label = describe(point, value)
+            val isSelected = point.term == selection?.term
+            Box(
+                Modifier
+                    .absoluteOffset(x = centerX - TREND_POINT_TARGET / 2)
+                    .width(TREND_POINT_TARGET)
+                    .fillMaxHeight()
+                    .semantics {
+                        contentDescription = label
+                        if (isSelected) selected = true
+                        onClick { onSelect(point.term); true }
+                    }
             )
         }
     }
+}
+
+/** How wide each term's TalkBack element is, centred on its point. */
+private val TREND_POINT_TARGET = 24.dp
+
+/**
+ * What TalkBack reads for one plotted term: the term and its GPA to two
+ * places, then whether it is an estimate, as iOS reads it. [template] is
+ * `a11y_rankings_trend_point`.
+ */
+internal fun trendPointLabel(
+    template: String,
+    provisionalLabel: String,
+    point: GpaTrendPoint,
+    value: Double,
+): String {
+    val base = template
+        .replaceIosArg(1, displayTermShort(point.term))
+        .replaceIosArg(2, "%.2f".format(value))
+    return if (point.isProvisional) "$base · $provisionalLabel" else base
 }
 @Composable
 private fun TrendSummaryRow(

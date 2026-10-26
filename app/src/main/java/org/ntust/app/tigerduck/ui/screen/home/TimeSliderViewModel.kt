@@ -8,6 +8,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
+import java.time.LocalDate
 import java.util.Calendar
 import java.util.Date
 import kotlin.math.abs
@@ -38,14 +39,20 @@ class TimeSliderViewModel {
     val hasCourses: Boolean get() = timeSlots.isNotEmpty()
 
     private var allCourses: List<Course> = emptyList()
+    private var isQuietDay: (LocalDate) -> Boolean = { false }
     private var timelineCenterDate: Date = Date(AppClock.nowMillis())
     private var lastHapticSlot: Int = 0
 
     // Compressed position cache
     private var anchors: List<Pair<Date, Float>> = emptyList()
 
-    fun configure(courses: List<Course>) {
+    /**
+     * Rebuild the timeline from [courses], leaving off the slots on every day
+     * [isQuietDay] says no class meets, so the days around it keep theirs.
+     */
+    fun configure(courses: List<Course>, isQuietDay: (LocalDate) -> Boolean = { false }) {
         allCourses = courses
+        this.isQuietDay = isQuietDay
         rebuildTimeline(Date(AppClock.nowMillis()))
         if (!isUserDragging) {
             selectedTime = Date(AppClock.nowMillis())
@@ -55,6 +62,7 @@ class TimeSliderViewModel {
     private fun rebuildTimeline(center: Date) {
         timelineCenterDate = center
         timeSlots = CourseTimeSlot.buildMultiDaySlots(allCourses, center, TIMELINE_DAY_RADIUS)
+            .filterNot { isQuietDay(it.localDate) }
         slotLayouts = computeSlotLayouts(timeSlots)
         rebuildAnchors()
     }

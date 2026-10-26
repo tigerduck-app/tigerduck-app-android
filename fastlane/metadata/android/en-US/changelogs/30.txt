@@ -1,0 +1,9 @@
+• Moodle in the app: announcements, grades, classmates, materials and assignments.
+• Share your class table as a QR code or a link.
+• School Mail: mute notifications by source, and set quiet hours.
+• More theme colors: gradients, or your own.
+• Empty classrooms: suggests the nearest free room.
+• More reliable syncing.
+• TLS pins from TigerSync: no app update needed when a school certificate changes.
+• Set the layout and text size of the app and widgets.
+• Smoother layouts and animations.

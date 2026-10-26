@@ -6,6 +6,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.FirstTriggerSeenStore
+import org.ntust.app.tigerduck.data.preferences.ReviewPromptStore
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -13,4 +14,7 @@ object PreferencesModule {
 
     @Provides
     fun provideFirstTriggerSeenStore(prefs: AppPreferences): FirstTriggerSeenStore = prefs
+
+    @Provides
+    fun provideReviewPromptStore(prefs: AppPreferences): ReviewPromptStore = prefs
 }

@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.periodOrder
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
@@ -121,6 +122,10 @@ data class CourseTimeSlot(
     }
 }
 
+/** This slot's day, in Taipei tz. */
+val CourseTimeSlot.localDate: LocalDate
+    get() = date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+
 /** Weekday (1=Mon..7=Sun) for this slot's date, in Taipei tz. */
 val CourseTimeSlot.weekday: Int
     get() {
@@ -132,6 +137,13 @@ val CourseTimeSlot.weekday: Int
             Calendar.SUNDAY -> 7; else -> 1
         }
     }
+
+/** What the class table's course detail opens on: the course, the weekday and the period it was tapped at. */
+data class CourseDetailSelection(val course: Course, val weekday: Int, val periodId: String)
+
+/** This slot's course on its own day and first period, so the detail shows this slot's room and time. */
+val CourseTimeSlot.detailSelection: CourseDetailSelection
+    get() = CourseDetailSelection(course, weekday, periods.firstOrNull().orEmpty())
 
 /**
  * Classroom resolved per-period for this slot — iterates [periods] through

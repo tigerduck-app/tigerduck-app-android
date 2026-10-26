@@ -13,6 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.wear.WearLicenses
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -331,7 +332,7 @@ class LicenseRepository @Inject constructor(
 
     /** [block], or null and a line in the log — never an exception. */
     private fun <T> readOrWarn(what: String, block: () -> T): T? =
-        runCatching(block).onFailure { Log.w(TAG, "Could not read $what", it) }.getOrNull()
+        runCatching(block).onFailure { Log.w(TAG, "Could not read $what: ${it.logSummary()}") }.getOrNull()
 
     private fun raw(id: Int): String =
         context.resources.openRawResource(id).bufferedReader().use { it.readText() }

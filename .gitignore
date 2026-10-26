@@ -706,6 +706,9 @@ mono_crash.*
 !app/src/fdroid/java/org/ntust/app/tigerduck/debug/
 !app/src/debug/java/org/ntust/app/tigerduck/debug/
 !app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/
+!app/src/test/java/org/ntust/app/tigerduck/ui/screen/debug/
+!app/src/test/java/org/ntust/app/tigerduck/debug/
+!app/src/testDebug/java/org/ntust/app/tigerduck/debug/
 !wear/src/debug/
 !wear/src/debug/java/org/ntust/app/tigerduck/wear/debug/
 !wear/src/main/java/org/ntust/app/tigerduck/wear/debug/
@@ -1081,3 +1084,6 @@ FodyWeavers.xsd
 # root). Pure build state — they were briefly committed by an over-broad
 # `git add -A` and are here so that cannot repeat.
 .kotlin/
+
+# The debug build's file viewer samples include a zip on purpose.
+!app/src/debug/assets/viewer-samples/*.zip

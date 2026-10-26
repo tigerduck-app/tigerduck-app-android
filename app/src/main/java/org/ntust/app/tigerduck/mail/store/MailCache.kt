@@ -8,6 +8,7 @@ import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailPage
 import java.io.File
 import java.security.MessageDigest
+import java.util.UUID
 
 /**
  * Versioned JSON files under cacheDir/mail (spec §8.1). The server is the
@@ -50,10 +51,36 @@ class MailCache(
         )
     }
 
+    /**
+     * [saveFolder] while [stillCurrent] says the page is still the signed-in account's, asked
+     * under the lock [clearAll] takes, and says whether it saved. As [saveBodyIf]: a sign-out
+     * moves its account before it clears the cache, so a page it allows lands before that clear
+     * and goes with it, and a page that lands after it is not kept for whoever signs in next.
+     */
+    @Synchronized
+    fun saveFolderIf(folder: String, page: MailPage, stillCurrent: () -> Boolean): Boolean {
+        if (!stillCurrent()) return false
+        saveFolder(folder, page)
+        return true
+    }
+
     /** Drops [folder]'s cached page, e.g. once its UIDVALIDITY no longer matches the server's. */
     @Synchronized
     fun deleteFolder(folder: String) {
         File(foldersDir, key(folder)).delete()
+    }
+
+    /**
+     * Drops [folder]'s cached page only while it is still the one read under [uidValidity]. A
+     * caller that found that generation gone on the server must not take with it a page the
+     * current generation has written since -- the only offline copy of the new mailbox there is.
+     * Read, compared and deleted under the one lock, so a save in between is never the page that goes.
+     */
+    @Synchronized
+    fun deleteFolderUnder(folder: String, uidValidity: Long) {
+        val file = File(foldersDir, key(folder))
+        val dto = read(file, FolderCacheDto::class.java) ?: return
+        if (dto.uidValidity == uidValidity) file.delete()
     }
 
     @Synchronized
@@ -70,6 +97,18 @@ class MailCache(
     @Synchronized
     fun saveBody(folder: String, uid: Long, uidValidity: Long, body: MailBody) {
         saveBounded(File(bodiesDir, key(bodyKey(folder, uid))), body.toDto(uidValidity, uid))
+    }
+
+    /**
+     * [saveBody] while [stillCurrent] says the body is still the signed-in account's, asked under
+     * the lock [clearAll] takes, and says whether it saved. A sign-out moves its account before it
+     * clears the cache, so a body it allows lands before that clear and goes with it.
+     */
+    @Synchronized
+    fun saveBodyIf(folder: String, uid: Long, uidValidity: Long, body: MailBody, stillCurrent: () -> Boolean): Boolean {
+        if (!stillCurrent()) return false
+        saveBody(folder, uid, uidValidity, body)
+        return true
     }
 
     /**
@@ -106,6 +145,45 @@ class MailCache(
     fun clearAll() {
         root.deleteRecursively()
     }
+
+    /** The cached folder pages, bodies and sources: what [clearMessages] deletes. */
+    @Synchronized
+    fun messagesBytes(): Long =
+        listOf(foldersDir, bodiesDir).sumOf { dir -> dir.walkTopDown().filter { it.isFile }.sumOf { it.length() } }
+
+    /**
+     * Deletes the cached folder pages, bodies and sources, as Settings' Storage page does: each
+     * downloads again when it's next read. The attachments stay, which Storage counts on their own,
+     * and so do the files a send is staging.
+     */
+    @Synchronized
+    fun clearMessages() {
+        foldersDir.deleteRecursively()
+        bodiesDir.deleteRecursively()
+    }
+
+    /** The [attachmentsDir] folders an attachment is still being written into, by name. */
+    private val slotsInUse = HashSet<String>()
+
+    /**
+     * A new folder under [attachmentsDir] for one attachment, in use until [releaseAttachmentSlot]:
+     * Settings' "Downloaded files" leaves it alone however long its download waits for the mail
+     * session, since the download holds its file open the whole time.
+     */
+    @Synchronized
+    fun newAttachmentSlot(): File =
+        File(attachmentsDir, UUID.randomUUID().toString()).also {
+            it.mkdirs()
+            slotsInUse += it.name
+        }
+
+    @Synchronized
+    fun releaseAttachmentSlot(slot: File) {
+        slotsInUse -= slot.name
+    }
+
+    @Synchronized
+    fun attachmentSlotsInUse(): Set<String> = slotsInUse.toSet()
 
     private fun <T> read(file: File, type: Class<T>): T? {
         if (!file.exists()) return null
@@ -167,5 +245,8 @@ class MailCache(
 
     companion object {
         const val VERSION = 1
+
+        /** How a send's staging folder under [attachmentsDir] is named. */
+        const val OUTGOING_PREFIX = "outgoing-"
     }
 }

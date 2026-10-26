@@ -14,10 +14,16 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.classtable.CourseColorPick
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 object CourseSyncReconciler {
 
@@ -82,6 +88,27 @@ object CourseSyncReconciler {
      * comes back in [SemesterOutcome.serverKnownNos] for the caller to
      * persist. It only ever grows; a number stays known after the course is
      * deleted, which is the point.
+     *
+     * [graceCourseNos] are the courses deleted here whose backend DELETE has
+     * not landed, from `PendingCourseDeletes.waitingIn`. The server may still
+     * list them: they are neither un-hidden nor merged back until it does.
+     *
+     * [pendingAddNos] are the courses added here by hand whose upload has not
+     * landed, from `PendingCourseAdds.waitingIn`. Kept whatever the server
+     * says until it does, as the iPhone keeps them (tigerduck-app#727): one the
+     * server once listed, then deleted and added back here, is known by then,
+     * and a tombstone or the server's silence would hide it for good, its add
+     * then let go unsent. The add forces its key past the tombstone once it
+     * lands.
+     *
+     * [restoredNos] are the courses a course selection answer brought back
+     * from a deleted hand-added course's hide that no snapshot has listed
+     * since, from `DataCache.restoredCoursesIn`: the roster upload naming
+     * them may not have landed, so the server's silence is no delete
+     * elsewhere. A tombstone still hides them: the backend leaves the one
+     * this device's delete wrote out of its snapshot, so one there is
+     * another device's. [tombstones] holds none of their hides: see
+     * [withoutRestored].
      */
     fun reconcileSemester(
         semester: String,
@@ -91,7 +118,9 @@ object CourseSyncReconciler {
         tombstones: Set<String>,
         serverKnownNos: Set<String> = emptySet(),
         graceCourseNos: Set<String> = emptySet(),
+        pendingAddNos: Set<String> = emptySet(),
         selectionDroppedNos: Set<String> = emptySet(),
+        restoredNos: Set<String> = emptySet(),
     ): SemesterOutcome {
         // Misfiled rows are neither a roster nor evidence of presence, and
         // neither is a course 選課 has dropped.
@@ -107,9 +136,13 @@ object CourseSyncReconciler {
         // to delete: the server has never seen it, so nothing the server
         // says can be about it. A tombstone naming its number belongs to a
         // course some other device once held — the same rule that keeps
-        // server absence from deleting it below.
-        val unsyncedManualNos = localCourses
-            .filter { it.isManual && it.courseNo !in serverKnownNos }
+        // server absence from deleting it below. Nor can anything the server
+        // says be about a course whose add from here has not landed: the add
+        // is newer.
+        fun notOnServerYet(course: Course) = course.courseNo in pendingAddNos ||
+            (course.isManual && course.courseNo !in serverKnownNos)
+        val notOnServerYetNos = localCourses
+            .filter(::notOnServerYet)
             .map { it.courseNo }
             .toSet()
 
@@ -121,7 +154,7 @@ object CourseSyncReconciler {
         // refresh — the backend refuses that upload, silently — which is
         // how a reset on one phone never reached the other.
         for (courseNo in tombstoneNos) {
-            if (courseNo in serverNos || courseNo in unsyncedManualNos) continue
+            if (courseNo in serverNos || courseNo in notOnServerYetNos) continue
             if (CourseTombstoneKeys.isHidden(courseNo, semester, updated)) continue
             updated = CourseTombstoneKeys.hide(courseNo, semester, updated)
         }
@@ -157,7 +190,7 @@ object CourseSyncReconciler {
         // a snapshot has carried the number, absence is a deletion.
         for (course in localCourses) {
             if (course.courseNo in serverNos) continue
-            if (course.isManual && course.courseNo !in serverKnownNos) continue
+            if (notOnServerYet(course) || course.courseNo in restoredNos) continue
             if (CourseTombstoneKeys.isHidden(course.courseNo, semester, updated)) continue
             updated = CourseTombstoneKeys.hide(course.courseNo, semester, updated)
         }
@@ -173,8 +206,13 @@ object CourseSyncReconciler {
 
         val localNos = localCourses.map { it.courseNo }.toSet()
         val hidden = CourseTombstoneKeys.hiddenIn(semester, updated)
+        // Nor a row whose delete from here has not landed: a course taken
+        // back out of Add course writes no tombstone, so only the grace keeps
+        // the server's stale row from coming back as a hand-added course
+        // while PendingCourseDeletes retries the DELETE. As the iPhone's
+        // `mergesListedCourse(... deleting)`.
         val merged = rows
-            .filter { it.courseNo !in localNos && it.courseNo !in hidden }
+            .filter { it.courseNo !in localNos && it.courseNo !in hidden && it.courseNo !in graceCourseNos }
             .distinctBy { it.courseNo }
             .map(::toCourse)
 
@@ -183,6 +221,46 @@ object CourseSyncReconciler {
             merged = merged,
             serverKnownNos = serverKnownNos + serverNos,
         )
+    }
+
+    /**
+     * [tombstones], a sync's read of the hides, without those of
+     * [restoredNos], [semester]'s courses being brought back
+     * (`DataCache.restoredCoursesIn`), read after the term's courses: a
+     * course selection answer may have lifted them since the read, and the
+     * term's courses may hold them again. What the reconcile is handed, and
+     * what its commit (`DataCache.updateDeletedCourseNos`) is measured
+     * against, so such a course is neither pruned from the term by the older
+     * read nor written back as a removal over a delete of it made since.
+     */
+    fun withoutRestored(semester: String, tombstones: Set<String>, restoredNos: Set<String>): Set<String> =
+        tombstones - restoredNos.mapTo(mutableSetOf()) { CourseTombstoneKeys.key(semester, it) }
+
+    /**
+     * The term's courses as a sync commits them: [current], the list as it
+     * stands now, without the courses the sync pruned from [read], its own
+     * earlier load, as [kept] says, that [hidden], the course numbers hidden
+     * in the term now, still names, and with the rows it merged down
+     * ([merged]) that [current] still lacks and [hidden] does not name. A
+     * course a delete or a fetch took out or put in since the read stays as
+     * that left it, where writing [kept] back would undo it: one pruned for a
+     * hide a course selection answer has lifted since is back in the term.
+     * [newlyHidden], the course numbers whose hide the sync's commit added
+     * (`DataCache.commitSyncHides`), go as the pruned do, so the term holds
+     * none that such an answer saved back into it since the read.
+     */
+    fun committedCourses(
+        current: List<Course>,
+        read: List<Course>,
+        kept: List<Course>,
+        merged: List<Course>,
+        hidden: Set<String>,
+        newlyHidden: Set<String> = emptySet(),
+    ): List<Course> {
+        val pruned = read.mapTo(mutableSetOf()) { it.courseNo } - kept.mapTo(mutableSetOf()) { it.courseNo } + newlyHidden
+        val held = current.filter { it.courseNo !in pruned || it.courseNo !in hidden }
+        val heldNos = held.mapTo(mutableSetOf()) { it.courseNo }
+        return held + merged.filter { it.courseNo !in heldNos && it.courseNo !in hidden }
     }
 
     data class SemesterOutcome(
@@ -304,6 +382,66 @@ object CourseSyncReconciler {
     private const val RESET_STAMP_GRACE_MS = 60_000L
 
     /**
+     * Whether a full sync reconciles the course list: with its switch on
+     * ([switchOn]), and not from switching course sync back on until the
+     * re-enable check finds no difference or the user has answered it. A
+     * reconcile in that window would answer for the user — it un-hides a
+     * course deleted here while sync was off, because the server still lists
+     * it, and Use Local could then no longer keep it deleted. iOS holds the
+     * course list the same way.
+     */
+    fun syncsCourseList(switchOn: Boolean, pendingConflictCategories: Set<String>): Boolean =
+        switchOn && REENABLE_CATEGORY !in pendingConflictCategories
+
+    private const val REENABLE_CATEGORY = "courses"
+
+    /**
+     * Whether a full sync applies the server's course colours: with their
+     * switch on ([switchOn]), and not from switching colour sync back on
+     * until the re-enable check finds no difference or the user has answered
+     * it. Applied in that window, the server's colours would answer for the
+     * user, and Use Local could no longer keep this phone's. iOS holds the
+     * course overrides the same way.
+     */
+    fun syncsCourseColors(switchOn: Boolean, pendingConflictCategories: Set<String>): Boolean =
+        switchOn && "course_colors" !in pendingConflictCategories
+
+    /** [syncsCourseColors] for the custom names and their re-enable check. */
+    fun syncsCourseNames(switchOn: Boolean, pendingConflictCategories: Set<String>): Boolean =
+        switchOn && "course_names" !in pendingConflictCategories
+
+    /**
+     * What a full sync does with the server's `courses_reset_at`: whether to
+     * [apply][CourseReset.apply] it, and what to [remember][CourseReset.remember]
+     * for the next sync to compare. Both times are the server's, so a phone
+     * whose clock runs ahead or behind can neither miss a reset nor apply one
+     * twice.
+     *
+     * [lastSeen] is the value the last full sync remembered: null before the
+     * account's first sync here, which has nothing from before a reset to drop
+     * and so only remembers the server's, and empty once a sync found none, so
+     * that the first reset after it counts as new. As iOS's
+     * `AppState.coursesReset` (tigerduck-app/tigerduck-app#236).
+     * [legacyLastSyncMs] is an older build's stamp; see the first branch.
+     */
+    fun coursesReset(server: String?, lastSeen: String?, legacyLastSyncMs: Long = 0L): CourseReset {
+        val serverAt = backendInstant(server)
+        if (lastSeen == null) {
+            // The first sync since the update, on an install an older build
+            // synced: it kept this phone's clock at its last sync, the old
+            // rule, read this once so a reset made elsewhere just before the
+            // update is not remembered unapplied.
+            val applyLegacy = legacyLastSyncMs > 0 && serverAt != null && serverAt.toEpochMilli() > legacyLastSyncMs
+            return CourseReset(apply = applyLegacy, remember = server.takeIf { serverAt != null } ?: "")
+        }
+        if (serverAt == null) return CourseReset(apply = false, remember = lastSeen)
+        val seenAt = backendInstant(lastSeen)
+        return CourseReset(apply = seenAt == null || serverAt > seenAt, remember = server!!)
+    }
+
+    data class CourseReset(val apply: Boolean, val remember: String)
+
+    /**
      * The terms to reconcile: everything the server knows plus the picker's,
      * less [excluding] — see [termsResetAfter].
      */
@@ -320,31 +458,78 @@ object CourseSyncReconciler {
     }.sorted()
 
     /**
+     * [courses] with the server's colours applied, and the courses that had
+     * to move off a colour a later pick took ([moved], by course number, with
+     * the colour each moved to), for the caller to send to the server.
+     */
+    data class ColorOutcome(
+        val courses: List<Course>,
+        val moved: Map<String, String>,
+    )
+
+    /**
      * Courses with server colours applied, or null when nothing changed —
      * the caller uses null to skip a cache write and a widget reload.
      *
      * An override matches on courseNo first and Moodle id second, because
      * manually-added courses may have no courseNo the server recognises.
+     *
+     * Applied in one pass, oldest pick first (`color_hex_updated_at`, with
+     * a row that has none counted as the oldest and ties broken by course
+     * number), each as a pick on the class table is ([CourseColorPick]): a
+     * course pinned to the colour moves to a colour of its own. So where the
+     * server holds two courses on one colour, as an older build left it, the
+     * latest pick keeps it, the same way on every device and every sync, and
+     * the course that moved is reported in [ColorOutcome.moved] for the
+     * caller to send, so the server stops holding the duplicate. Applied row
+     * by row, both kept the colour for good (tigerduck-app-android#295). The
+     * iPhone app applies them in the same order
+     * (`AppState.serverCourseColors`, tigerduck-app/tigerduck-app#252).
+     *
+     * [held] are the keys ([PendingCourseOverride.key]) of the colours this
+     * phone has waiting to go up, or sent after the snapshot was fetched
+     * (`PendingCourseOverrides.held`): the snapshot's value for them is the
+     * older one. Such a course's own colour counts as the latest pick in
+     * place of the server's, so a course the snapshot has on that colour
+     * moves off it here, as it will everywhere once the PATCH lands.
      */
     fun applyColorOverrides(
         courses: List<Course>,
         overrides: List<CourseOverrideResult>,
         syncColors: Boolean,
-    ): List<Course>? {
+        held: Set<String> = emptySet(),
+    ): ColorOutcome? {
         if (!syncColors || courses.isEmpty()) return null
-        var changed = false
-        val updated = courses.map { course ->
-            val override = overrides.find { it.courseNo == course.courseNo }
-                ?: overrides.find { it.moodleCourseId == course.moodleIdNumber }
-            val newHex = override?.colorHex ?: return@map course
-            if (newHex != course.customColorHex) {
-                changed = true
-                course.copy(customColorHex = newHex)
-            } else {
-                course
-            }
+        val serverHex = mutableMapOf<String, String>()
+        val picks = courses.mapNotNull { course ->
+            // By the course's own Moodle id first: the snapshot carries every
+            // term's rows, and a course taken again keeps its number.
+            val override = course.moodleIdNumber?.let { id -> overrides.find { it.moodleCourseId == id } }
+                ?: overrides.find { it.courseNo == course.courseNo }
+            // By the row's id and by the course's own: a row made before the
+            // course had an idnumber is keyed by its term and number instead.
+            // A held course counts with no row of its own too: a row's colour
+            // on another course would move it off the one it has waiting.
+            val pending = override?.let { PendingCourseOverride.colorKey(it.moodleCourseId) in held } == true ||
+                course.moodleIdNumber?.let { PendingCourseOverride.colorKey(it) in held } == true
+            val hex = (if (pending) course.customColorHex else override?.colorHex) ?: return@mapNotNull null
+            serverHex[course.courseNo] = hex.uppercase()
+            val pickedAt = if (pending) Instant.MAX else backendInstant(override?.colorHexUpdatedAt) ?: Instant.MIN
+            Triple(course.courseNo, hex, pickedAt)
+        }.sortedWith(compareBy({ it.third }, { it.first }))
+
+        var updated = courses
+        val displaced = mutableSetOf<String>()
+        for ((courseNo, hex, _) in picks) {
+            val pick = CourseColorPick.assign(updated, courseNo, hex, CourseColorPick.shownColors(updated))
+            updated = pick.courses
+            displaced += pick.changed.keys - courseNo
         }
-        return if (changed) updated else null
+        val moved = updated
+            .filter { it.courseNo in displaced && it.customColorHex?.uppercase() != serverHex[it.courseNo] }
+            .mapNotNull { course -> course.customColorHex?.let { course.courseNo to it } }
+            .toMap()
+        return if (updated == courses && moved.isEmpty()) null else ColorOutcome(updated, moved)
     }
 
     /**
@@ -352,25 +537,50 @@ object CourseSyncReconciler {
      * changed. An empty name from the server means "cleared", so it removes
      * that locale rather than storing a blank; a course left with no locales
      * drops out of the map entirely instead of leaving an empty entry behind.
+     *
+     * [held] are the keys ([PendingCourseOverride.key]) of the names this
+     * phone has waiting to go up, or sent after the snapshot was fetched
+     * (`PendingCourseOverrides.held`): the snapshot's value for them is the
+     * older one, and is left out.
      */
     fun mergeCustomNames(
         existing: Map<String, Map<String, String>>,
         overrides: List<CourseOverrideResult>,
         syncNames: Boolean,
+        held: Set<String> = emptySet(),
     ): Map<String, Map<String, String>>? {
         if (!syncNames) return null
         val merged = existing.mapValues { it.value.toMutableMap() }.toMutableMap()
         var changed = false
         for (o in overrides) {
             val no = o.courseNo ?: continue
-            if (o.customNames.isEmpty()) continue
+            val names = o.customNames.filterKeys { PendingCourseOverride.nameKey(o.moodleCourseId, it) !in held }
+            if (names.isEmpty()) continue
             val entry = merged[no]?.toMutableMap() ?: mutableMapOf()
-            for ((locale, name) in o.customNames) {
+            for ((locale, name) in names) {
                 if (name.isEmpty()) entry.remove(locale) else entry[locale] = name
             }
             if (entry.isEmpty()) merged.remove(no) else merged[no] = entry
             changed = true
         }
         return if (changed) merged.mapValues { it.value.toMap() } else null
+    }
+}
+
+/**
+ * A backend timestamp: Python's `isoformat()`, which carries microseconds
+ * unless they are zero, and an offset. Null for anything unparseable, and
+ * for a time with no offset read as UTC, which is what the backend writes.
+ */
+internal fun backendInstant(value: String?): Instant? {
+    if (value.isNullOrBlank()) return null
+    return try {
+        OffsetDateTime.parse(value).toInstant()
+    } catch (_: Exception) {
+        try {
+            LocalDateTime.parse(value).toInstant(ZoneOffset.UTC)
+        } catch (_: Exception) {
+            null
+        }
     }
 }

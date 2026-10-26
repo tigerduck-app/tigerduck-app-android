@@ -15,22 +15,19 @@ import com.google.gson.annotations.SerializedName
 // `live_activity` is new in v2.1.0 — every document written before it exists
 // lacks the key entirely, so a non-null type here (even with a Kotlin
 // default) would read back null anyway via Gson's Unsafe-allocate path and
-// crash the first caller that assumes otherwise. `courses` is owned by
-// iOS/the backend (§4.2) — Android only round-trips it so a write here
-// never drops what another platform wrote — so it gets the same treatment
-// rather than an assumed-present non-null type.
+// crash the first caller that assumes otherwise. `courses` gets the same
+// treatment: older Android builds never wrote it, and an iPhone that has not
+// opened its class reminder settings may not have either.
 
 /**
  * The `notification` settings document.
  *
  * Android mutates [assignments] and [liveActivity] (each gated on its own
  * "同步內容" switch, `AppPreferences.syncAssignmentReminders` /
- * `syncLiveActivity`, plus `cloudSyncEnabled`); [courses] is read back and
- * re-sent unchanged so a write from this client never clobbers what
- * iOS/the backend wrote there. See `NotificationSettingsSync` for the
- * read-modify-write cycle that keeps every section this client does not
- * own — [courses], and any key a newer build of either platform adds —
- * untouched.
+ * `syncLiveActivity`, plus `cloudSyncEnabled`) and [courses] (gated on
+ * `cloudSyncEnabled` alone, as on iOS). See `NotificationSettingsSync` for
+ * the read-modify-write cycle that keeps every key this client does not
+ * own — any a newer build of either platform adds — untouched.
  */
 data class NotificationSettingsDocument(
     @SerializedName("assignments") val assignments: AssignmentsSection? = null,
@@ -56,7 +53,12 @@ data class AssignmentsSection(
     @SerializedName("reminder_offsets_minutes") val reminderOffsetsMinutes: List<Int>? = null,
 )
 
-/** Course-start reminders. Android never writes this section (§4.2). */
+/**
+ * Class reminders: the switch and the one lead time, in minutes, iOS's Class
+ * reminders screen sets. An absent field means the backend's default, on and
+ * 10 minutes before. See `ClassReminderSyncValues.documentUpdates` for when
+ * Android writes the lead time.
+ */
 data class CoursesSection(
     @SerializedName("enabled") val enabled: Boolean? = null,
     @SerializedName("reminder_offsets_minutes") val reminderOffsetsMinutes: List<Int>? = null,

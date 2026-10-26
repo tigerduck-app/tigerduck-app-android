@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.logSummary
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,7 +72,7 @@ class WidgetBoundaryScheduler @Inject constructor(
                 )
             }
         } catch (e: SecurityException) {
-            android.util.Log.w("WidgetBoundaryScheduler", "Exact alarm denied, falling back to inexact", e)
+            android.util.Log.w("WidgetBoundaryScheduler", "Exact alarm denied, falling back to inexact: ${e.logSummary()}")
             alarmManager.set(
                 AlarmManager.RTC_WAKEUP,
                 AppClock.realTimeFor(triggerMillis),

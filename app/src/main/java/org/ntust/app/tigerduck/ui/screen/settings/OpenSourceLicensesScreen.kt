@@ -1,9 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.content.Context
-import android.content.Intent
 import androidx.annotation.StringRes
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -39,7 +36,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -55,6 +51,7 @@ import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.scrollbar
+import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import javax.inject.Inject
 
@@ -230,7 +227,7 @@ fun LicenseDetailScreen(
     val licenses by viewModel.licenses.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val browserPreference = viewModel.appState.browserPreference
-    val open: (String) -> Unit = { url -> openUrl(context, url, browserPreference) }
+    val open: (String) -> Unit = { url -> openLink(context, url, browserPreference) }
 
     if (key == APP_LICENSE_KEY) {
         val appLicense = licenses?.appLicense
@@ -453,14 +450,5 @@ private fun LicenseRow(title: String, subtitle: String, onClick: () -> Unit) {
             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.DISABLED),
             modifier = Modifier.size(18.dp),
         )
-    }
-}
-
-private fun openUrl(context: Context, url: String, browserPreference: String) {
-    val uri = url.toUri()
-    if (browserPreference == "inApp") {
-        CustomTabsIntent.Builder().build().launchUrl(context, uri)
-    } else {
-        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
     }
 }

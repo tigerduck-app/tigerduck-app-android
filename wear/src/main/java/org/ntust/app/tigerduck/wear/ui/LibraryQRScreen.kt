@@ -37,9 +37,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
@@ -58,17 +61,20 @@ import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import androidx.wear.remote.interactions.RemoteActivityHelper
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.shared.LibraryApi
-import org.ntust.app.tigerduck.shared.LibraryService
-import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.LibraryQRController
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchLibraryCredentialStore
+import org.ntust.app.tigerduck.wear.data.WatchLibraryServiceHolder
 import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
+import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentGradient
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import org.ntust.app.tigerduck.wear.ui.theme.WearAccentGradient
+import org.ntust.app.tigerduck.wear.ui.theme.accentBrush
 import kotlin.math.abs
 
 @Composable
@@ -153,11 +159,14 @@ private fun LoggedInState(username: String?) {
     val qrSidePx = with(density) { qrSideDp.dp.roundToPx() }
 
     val store = remember(context) { WatchLibraryCredentialStore.get(context) }
-    val service = remember(store) { LibraryService(store, isDebugBuild = BuildConfig.DEBUG) }
+    // The process's one: a sign-in still out from the last time the page was open is joined.
+    val service = remember(context) { WatchLibraryServiceHolder.get(context) }
     val scope = rememberCoroutineScope()
-    val controller = remember(service) {
-        LibraryQRController(service, scope)
+    val accountChanged = stringResource(R.string.watch_open_phone_to_sync)
+    val controller = remember(service, accountChanged) {
+        LibraryQRController(service::generateQRCode, scope, accountChanged)
     }
+    val accounts = remember(store) { store.state.map { it.username } }
 
     val bitmap by controller.qrBitmap.collectAsState()
     val patternBounds by controller.qrPatternBounds.collectAsState()
@@ -168,7 +177,7 @@ private fun LoggedInState(username: String?) {
     // Re-render the bitmap at the new size when the user toggles fullscreen,
     // otherwise the upscaled small QR is mushy under a scanner.
     DisposableEffect(controller, qrSidePx) {
-        controller.start(qrSidePx)
+        controller.start(qrSidePx, accounts)
         onDispose { controller.stop() }
     }
 
@@ -265,14 +274,17 @@ private fun NormalQR(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = error,
-                    textAlign = TextAlign.Center,
-                    color = Color.Gray,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // Empty when the failure gave no reason; the line above says enough.
+                if (error.isNotEmpty()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = error,
+                        textAlign = TextAlign.Center,
+                        color = Color.Gray,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
 
             else -> Text(
@@ -367,20 +379,13 @@ private fun CountdownRow(countdown: Int) {
         label = "library_qr_countdown_progress",
     )
     val accent = LocalAccentColor.current
+    val gradient = LocalAccentGradient.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
         Canvas(modifier = Modifier.size(16.dp)) {
-            val stroke = 2.dp.toPx()
-            drawCircle(color = accent.copy(alpha = 0.18f), style = Stroke(width = stroke))
-            drawArc(
-                color = accent,
-                startAngle = -90f,
-                sweepAngle = 360f * progress,
-                useCenter = false,
-                style = Stroke(width = stroke),
-            )
+            drawCountdownRing(progress, accent, gradient, strokePx = 2.dp.toPx())
         }
         Spacer(Modifier.width(6.dp))
         Text(
@@ -388,6 +393,27 @@ private fun CountdownRow(countdown: Int) {
             color = Color.Gray,
         )
     }
+}
+
+/**
+ * The countdown's ring: [progress] of it in the accent, from the top and
+ * clockwise, over a faint track of the accent all the way round.
+ */
+internal fun DrawScope.drawCountdownRing(
+    progress: Float,
+    accent: Color,
+    gradient: WearAccentGradient?,
+    strokePx: Float,
+) {
+    val brush = accentBrush(accent, gradient, Rect(Offset.Zero, size))
+    drawCircle(brush = brush, alpha = 0.18f, style = Stroke(width = strokePx))
+    drawArc(
+        brush = brush,
+        startAngle = -90f,
+        sweepAngle = 360f * progress,
+        useCenter = false,
+        style = Stroke(width = strokePx),
+    )
 }
 
 @Composable
@@ -446,13 +472,15 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
 }
 
 /**
- * Largest fullscreen-QR square side (in dp) that fits without being clipped by
- * either the round chassis (corners) or the user's configured QR padding.
+ * The fullscreen QR's square side (in dp): the largest square the chassis shows
+ * whole, pulled in by the user's QR padding on each side.
  *
- * On a round face the chassis caps the side at `diameter / √2` — pushing past
- * that even with zero padding would clip the corners through the round mask.
- * The configured padding is a flat per-side inset and only tightens the
- * result when set large enough to drop below the chassis cap.
+ * On a round face that square is `diameter / √2` — pushing past it even with
+ * zero padding would clip the corners through the round mask. The padding
+ * insets from it, not from the screen's edge: measured from the edge, any
+ * padding up to the setting's 24 dp left the side at the round cap, so the
+ * setting did nothing on a round watch. Never under 96 dp, which a scanner
+ * still reads.
  *
  * Shared by [LoggedInState]'s fullscreen rendering and by
  * `QRPaddingSettingsScreen`'s corner-bracket preview so both show the exact
@@ -465,6 +493,5 @@ internal fun qrFullscreenSideDp(
 ): Float {
     val chassisLimit =
         if (isScreenRound) minScreenSideDp / 1.41421356f else minScreenSideDp.toFloat()
-    val paddingLimit = (minScreenSideDp - 2 * qrPaddingDp).coerceAtLeast(0).toFloat()
-    return minOf(chassisLimit, paddingLimit).coerceAtLeast(96f)
+    return (chassisLimit - 2 * qrPaddingDp).coerceAtLeast(96f)
 }

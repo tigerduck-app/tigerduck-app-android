@@ -127,4 +127,126 @@ class ClassTableCourseMergeTest {
         assertNull(out.single().customColorHex)
         assertFalse(out.single().isManual)
     }
+
+    // --- Looking a stored course up again (tigerduck-app-android#264) ---
+
+    /** A hand-added course as stored: the snapshot taken when it was added, plus what the user did to it. */
+    private val stored = Course.fromSchedule(
+        courseNo = "MINE",
+        courseName = "Old name",
+        instructor = "Old teacher",
+        credits = 2f,
+        classroom = "T4-101",
+        enrolledCount = 10,
+        maxCount = 40,
+        schedule = mapOf(1 to listOf("3", "4")),
+        classroomMap = mapOf("1-3" to "T4-101", "1-4" to "T4-101"),
+        moodleIdNumber = "1151MINE",
+        moodleNumericCourseId = 77,
+        isManual = true,
+        dimension = null,
+        allYear = "H",
+    ).copy(customColorHex = "#FF0000", customCourseName = "我的課")
+
+    /** The same course as QueryCourse has it now: moved to another room and day, renamed. */
+    private val fresh = Course.fromSchedule(
+        courseNo = "MINE",
+        courseName = "New name",
+        instructor = "New teacher",
+        credits = 3f,
+        classroom = "IB-202",
+        enrolledCount = 25,
+        maxCount = 50,
+        schedule = mapOf(2 to listOf("5", "6")),
+        classroomMap = mapOf("2-5" to "IB-202", "2-6" to "IB-202"),
+        moodleIdNumber = "1151MINE-from-lookup",
+        moodleNumericCourseId = null,
+        dimension = "C",
+        allYear = "F",
+    )
+
+    @Test
+    fun `a course looked up again takes the school's fields and keeps the user's and its identity`() {
+        val out = ClassTableCourseMerge.refreshed(stored, fresh)
+        // The school's view: what a room or time change has to reach.
+        assertEquals("New name", out.courseName)
+        assertEquals("New teacher", out.instructor)
+        assertEquals(3f, out.credits)
+        assertEquals("IB-202", out.classroom)
+        assertEquals(25, out.enrolledCount)
+        assertEquals(50, out.maxCount)
+        assertEquals(mapOf(2 to listOf("5", "6")), out.schedule)
+        assertEquals(mapOf("2-5" to "IB-202", "2-6" to "IB-202"), out.classroomMap)
+        assertEquals("C", out.dimension)
+        assertEquals("F", out.allYear)
+        // The user's: the colour, the rename, the manual flag.
+        assertEquals("#FF0000", out.customColorHex)
+        assertEquals("我的課", out.customCourseName)
+        assertTrue(out.isManual)
+        // Its identity: the overrides and the Moodle link are keyed by these.
+        assertEquals("MINE", out.courseNo)
+        assertEquals("1151MINE", out.moodleIdNumber)
+        assertEquals(77, out.moodleNumericCourseId)
+    }
+
+    @Test
+    fun `the manual courses the roster does not list are the ones to look up again`() {
+        val cached = listOf(
+            course("A"),
+            course("LISTED", manual = true),
+            course("MINE", manual = true),
+        )
+        // LISTED's own lookup is the roster's; A is not the user's to refresh.
+        assertEquals(listOf("MINE"), ClassTableCourseMerge.manualNosToLookUp(cached, listOf("A", "LISTED")))
+    }
+
+    @Test
+    fun `a looked-up manual course is refreshed in place and the rest left alone`() {
+        val cached = listOf(course("A"), stored, course("OTHER", manual = true))
+        val out = ClassTableCourseMerge.withLookedUp(cached, mapOf("MINE" to fresh, "UNKNOWN" to fresh))
+        assertEquals(listOf("A", "MINE", "OTHER"), out.map { it.courseNo })
+        assertEquals("IB-202", out[1].classroom)
+        assertTrue(out[1].isManual)
+        assertEquals(course("A"), out[0])
+        assertEquals(course("OTHER", manual = true), out[2])
+    }
+
+    @Test
+    fun `a looked-up manual course carries its new room through the merge`() {
+        val cached = ClassTableCourseMerge.withLookedUp(listOf(course("A"), stored), mapOf("MINE" to fresh))
+        val out = merge(fetched = listOf(course("A")), cached = cached)
+        val mine = out.single { it.courseNo == "MINE" }
+        assertEquals("IB-202", mine.classroom)
+        assertTrue(mine.isManual)
+        assertEquals("#FF0000", mine.customColorHex)
+    }
+
+    @Test
+    fun `the courses without a room are looked up again, stubs without a schedule not`() {
+        val timed = Course.fromSchedule("TIMED", "Timed", schedule = mapOf(1 to listOf("1")))
+        val roomed = Course.fromSchedule("ROOMED", "Roomed", classroom = "T4-101", schedule = mapOf(1 to listOf("1")))
+        // A historical term's Moodle stub: QueryCourse does not index it, so asking again is a request for nothing.
+        val stub = Course.fromSchedule("STUB", "Stub")
+        assertEquals(listOf("TIMED"), ClassTableCourseMerge.nosWithoutRoom(listOf(roomed, timed, stub)))
+    }
+
+    @Test
+    fun `a room found takes the course's row, a room still missing changes nothing`() {
+        val noRoom = Course.fromSchedule("A", "A", schedule = mapOf(1 to listOf("1")), isManual = true)
+            .copy(customColorHex = "#00FF00")
+        val roomed = Course.fromSchedule("B", "B", classroom = "T4-101", schedule = mapOf(1 to listOf("1")))
+        val found = Course.fromSchedule("A", "A now", classroom = "IB-202", schedule = mapOf(1 to listOf("1", "2")))
+        val stillNone = Course.fromSchedule("A", "A now", schedule = mapOf(1 to listOf("1", "2")))
+
+        val out = ClassTableCourseMerge.withRoomsFound(listOf(noRoom, roomed), mapOf("A" to found, "B" to found))
+        assertEquals("IB-202", out!![0].classroom)
+        assertEquals(mapOf(1 to listOf("1", "2")), out[0].schedule)
+        assertEquals("#00FF00", out[0].customColorHex)
+        assertTrue(out[0].isManual)
+        // B had a room; the room pass is not a refresh of it.
+        assertEquals(roomed, out[1])
+
+        assertNull(ClassTableCourseMerge.withRoomsFound(listOf(noRoom, roomed), mapOf("A" to stillNone)))
+        assertNull(ClassTableCourseMerge.withRoomsFound(listOf(noRoom, roomed), emptyMap()))
+    }
 }

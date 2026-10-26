@@ -20,7 +20,11 @@ import javax.net.ssl.SSLPeerUnverifiedException
 sealed class MailError(message: String, cause: Throwable? = null) : Exception(message, cause) {
     class AuthFailed(cause: Throwable? = null) : MailError("authentication failed", cause)
     class Network(cause: Throwable? = null) : MailError("network error", cause)
-    /** Includes a pin mismatch from network_security_config.xml. Never offer to continue. */
+    /**
+     * Includes a pin mismatch. The mail screens never offer to continue: where the chain may be
+     * continued past, PinManager queues the app-wide prompt itself, and the next connect after a
+     * Continue or a newer pin document goes through (TLS pins spec, A4).
+     */
     class Certificate(cause: Throwable? = null) : MailError("certificate check failed", cause)
     class ServerBusy(cause: Throwable? = null) : MailError("server busy", cause)
     class SearchUnsupported(cause: Throwable? = null) : MailError("search unsupported", cause)
@@ -31,6 +35,17 @@ sealed class MailError(message: String, cause: Throwable? = null) : Exception(me
     class DemoMode : MailError("demo mode never opens sockets")
     /** A folder's UIDVALIDITY no longer matches the caller's cached page; nothing on the server was touched. */
     class FolderChanged : MailError("folder changed; refresh")
+    /**
+     * The request was no longer wanted by the time the session came free -- the account or the
+     * view that asked had gone -- so it was never sent; see [SchoolMailRepository.loadPage]'s
+     * `stillWanted`. Not a failure of anything: the page that asked simply lets it go.
+     */
+    class Abandoned : MailError("request abandoned before it was sent")
+    /**
+     * The whole mail went to the SMTP server, whose reply never came: it may have been delivered,
+     * and sending it again may deliver it twice. As the iPhone's `sendUnconfirmed`.
+     */
+    class SendUnconfirmed(cause: Throwable? = null) : MailError("send unconfirmed", cause)
 }
 
 object MailErrors {

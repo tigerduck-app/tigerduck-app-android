@@ -156,47 +156,42 @@ private fun coursesAt(courses: List<Course>, weekday: Int, periodId: String): Li
     courses.filter { it.schedule[weekday]?.contains(periodId) == true }
 
 /**
- * Transitive closure of courses reachable from [startIndex]. For every course
+ * Transitive closure of blocks reachable from [startIndex]. For every block
  * in the closure, records its (course, first-index-in-activePeriodIds, span)
- * covering its full contiguous block on [weekday]. Adjacent courses that touch
- * any row of an already-added course are pulled in recursively, matching
- * ClassTableViewModel.blockFor + cellRole.
+ * covering one contiguous run of its course on [weekday]. Blocks that touch
+ * any row of an already-added block are pulled in recursively, matching
+ * ClassTableCellLayout.roleAt. A block is keyed by course and first row, so a
+ * course meeting twice joins with each block another course bridges to.
  */
 private fun buildClosure(
     activePeriodIds: List<String>,
     courses: List<Course>,
     weekday: Int,
     startIndex: Int,
-): LinkedHashMap<String, Triple<Course, Int, Int>> {
-    val closure = linkedMapOf<String, Triple<Course, Int, Int>>()
+): LinkedHashMap<Pair<String, Int>, Triple<Course, Int, Int>> {
+    val closure = linkedMapOf<Pair<String, Int>, Triple<Course, Int, Int>>()
 
-    fun spanFor(course: Course): Pair<Int, Int> {
-        val schedule = course.schedule[weekday] ?: return startIndex to 0
-        val hitIdxs = activePeriodIds
-            .mapIndexedNotNull { idx, pid -> if (pid in schedule) idx else null }
-            .filter { it >= startIndex }
-        if (hitIdxs.isEmpty()) return startIndex to 0
-        val first = hitIdxs.first()
-        var span = 1
-        while (first + span < activePeriodIds.size &&
-            activePeriodIds[first + span] in schedule
-        ) span++
-        return first to span
+    // The run of [course] that holds row [seed], as its first row and length.
+    fun blockAt(course: Course, seed: Int): Pair<Int, Int> {
+        val schedule = course.schedule[weekday] ?: return seed to 0
+        if (activePeriodIds.getOrNull(seed) !in schedule) return seed to 0
+        var first = seed
+        while (first - 1 >= 0 && activePeriodIds[first - 1] in schedule) first--
+        var last = seed
+        while (last + 1 < activePeriodIds.size && activePeriodIds[last + 1] in schedule) last++
+        return first to (last - first + 1)
     }
 
-    fun add(course: Course) {
-        if (course.courseNo in closure) return
-        val (first, span) = spanFor(course)
+    fun add(course: Course, seed: Int) {
+        val (first, span) = blockAt(course, seed)
         if (span == 0) return
-        closure[course.courseNo] = Triple(course, first, span)
+        if (closure.putIfAbsent(course.courseNo to first, Triple(course, first, span)) != null) return
         for (k in first until first + span) {
             val pid = activePeriodIds.getOrNull(k) ?: continue
-            for (other in coursesAt(courses, weekday, pid)) {
-                if (other.courseNo !in closure) add(other)
-            }
+            for (other in coursesAt(courses, weekday, pid)) add(other, k)
         }
     }
 
-    coursesAt(courses, weekday, activePeriodIds[startIndex]).forEach { add(it) }
+    coursesAt(courses, weekday, activePeriodIds[startIndex]).forEach { add(it, startIndex) }
     return closure
 }

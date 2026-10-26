@@ -9,6 +9,7 @@ import org.ntust.app.tigerduck.mail.mime.TextCleaning
 import org.ntust.app.tigerduck.mail.model.InlineImage
 import org.ntust.app.tigerduck.mail.sanitize.HtmlSanitizer
 import org.ntust.app.tigerduck.mail.sanitize.MailLink
+import org.ntust.app.tigerduck.mail.sanitize.MailReadableHtml
 
 class MailHtmlDocumentTest {
     private val png = InlineImage("image/png", byteArrayOf(1, 2, 3))
@@ -43,10 +44,10 @@ class MailHtmlDocumentTest {
         assertTrue(doc.contains("<body><p>x</p></body>"))
     }
 
-    // --- theme: the page's own surface, never a sender's colours -----------------------------
+    // --- theme: the page's own surface, and a sender's colors where they read ---------------
 
     @Test
-    fun `dark theme colours reach the document`() {
+    fun `dark theme colors reach the document`() {
         val html = MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, dark).html
         assertTrue(html, html.contains("background:#121212"))
         assertTrue(html, html.contains("color:#e6e6e6"))
@@ -58,17 +59,81 @@ class MailHtmlDocumentTest {
         assertTrue(MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, light).html.contains("color-scheme:light"))
     }
 
+    // The sanitizer keeps background-color and drops the background shorthand, so these use the
+    // one a sanitized mail can carry.
     @Test
-    fun `sender's own inline style is left alone`() {
-        val body = """<p style="background:#ffeeaa;color:#003300">branded</p>"""
+    fun `a sender's color that reads on its own background is left as sent`() {
+        val body = """<p style="background-color: #ffeeaa; color: #003300">branded</p>"""
         val html = MailHtmlDocument.build(body, emptyMap(), false, dark).html
-        assertTrue(html, html.contains("""style="background:#ffeeaa;color:#003300""""))
+        assertTrue(html, html.contains("<body>$body</body>"))
+    }
+
+    @Test
+    fun `a sender's color that does not read on the page is moved to 7 to 1`() {
+        val body = """<p style="color: #003300">branded</p>"""
+        val html = MailHtmlDocument.build(body, emptyMap(), false, dark).html
+        assertTrue(html, html.contains("""<body><p style="color: #79ab75">branded</p></body>"""))
+        val (moved, page) = listOf("#79ab75", "#121212").map { MailReadableHtml.parse(it, legacy = false)!! }
+        assertTrue(MailReadableHtml.contrast(moved, page) >= MailReadableHtml.MINIMUM_CONTRAST)
     }
 
     @Test
     fun `white is no longer hardcoded`() {
         val html = MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, dark).html
         assertFalse(html, html.contains("background:#fff;"))
+    }
+
+    @Test
+    fun `view in light mode is white paper with black text in the light scheme`() {
+        val html = MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, MailHtmlTheme.LIGHT).html
+        assertTrue(html, html.contains("color-scheme:light"))
+        assertTrue(html, html.contains("background:#ffffff;color:#000000"))
+    }
+
+    // --- links: drawn in the color their contrast is judged in ------------------------------
+
+    @Test
+    fun `the page draws links in its theme's link color`() {
+        val html = MailHtmlDocument.build("<p>hi</p>", emptyMap(), false, dark.copy(link = "#123456")).html
+        assertTrue(html, html.contains("a[href]{color:#123456}"))
+    }
+
+    @Test
+    fun `a page's links default to the colors Chromium draws them in, where those read`() {
+        assertEquals("#9e9eff", dark.link)
+        assertEquals("#0000ee", light.link)
+        assertEquals("#0000ee", MailHtmlTheme.LIGHT.link)
+        assertEquals("#0000ee", MailHtmlTheme(background = "#f2f2f7", foreground = "#1c1c1e", isDark = false).link)
+    }
+
+    @Test
+    fun `on the app's dark surface a link is drawn in a color that reads at 7 to 1 there`() {
+        // #9e9eff is 4.75:1 on the default dark theme's #3a3a3c.
+        val surface = MailHtmlTheme(background = "#3a3a3c", foreground = "#ffffff", isDark = true)
+        val (link, page) = listOf(surface.link, "#3a3a3c").map { MailReadableHtml.parse(it, legacy = false)!! }
+        assertTrue(surface.link, MailReadableHtml.contrast(link, page) >= MailReadableHtml.MINIMUM_CONTRAST)
+        val html = MailHtmlDocument.build("""<p><a href="https://example.com">x</a></p>""", emptyMap(), false, surface).html
+        assertTrue(html, html.contains("a[href]{color:${surface.link}}"))
+        assertTrue(html, html.contains("""<a href="https://link.invalid/0">x</a>"""))
+    }
+
+    @Test
+    fun `a link on the sender's white background is judged in the color the paper draws it in`() {
+        // #0000ee reads on white at 9.4:1, so both links stay the paper's own blue.
+        val body = """<table bgcolor="#ffffff"><tbody><tr><td><a href="https://example.com/a">Sign up</a></td></tr></tbody></table>""" +
+            """<p><a href="https://example.com/b">Another</a></p>"""
+        val html = MailHtmlDocument.build(body, emptyMap(), false, MailHtmlTheme.LIGHT).html
+        assertTrue(html, html.contains("""<td><a href="https://link.invalid/0">Sign up</a></td>"""))
+    }
+
+    @Test
+    fun `a link on a sender's background it does not read on is given a color that does`() {
+        val body = """<table bgcolor="#333333"><tbody><tr><td><a href="https://example.com/a">Sign up</a></td></tr></tbody></table>"""
+        val html = MailHtmlDocument.build(body, emptyMap(), false, dark).html
+        val given = Regex("""<a href="https://link.invalid/0" style="color: (#[0-9a-f]{6})">""").find(html)?.groupValues?.get(1)
+        assertTrue(html, given != null)
+        val (link, cell) = listOf(given!!, "#333333").map { MailReadableHtml.parse(it, legacy = false)!! }
+        assertTrue(MailReadableHtml.contrast(link, cell) >= MailReadableHtml.MINIMUM_CONTRAST)
     }
 
     // --- rewriteLinks: every <a href> becomes its index into the links it returns -------------
@@ -182,6 +247,36 @@ class MailHtmlDocumentTest {
         assertFalse(document.html.contains("href"))
         assertTrue(Jsoup.parseBodyFragment(document.html).select("a").isNotEmpty())
         assertLockstep(mail, sanitized.html, MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = dark))
+    }
+
+    @Test
+    fun `links stripped of their hrefs are judged again as the text they become`() {
+        // As above, each parse drops a newline after <pre>, so the anchors fall out of lockstep.
+        // Judged as a link, the anchor's blue reads on its own white; stripped, it inherits the
+        // div's white, on that same white.
+        val newline = Char(10).toString()
+        val mail = """<div style="background-color: #000000; color: #ffffff"><a href="https://a.example" style="background-color: #ffffff">y<pre>""" +
+            newline.repeat(8) + """x</pre></a></div>"""
+        val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
+        val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = MailHtmlTheme.LIGHT)
+        assertTrue(document.links.isEmpty())
+        val page = Jsoup.parse(document.html)
+        assertTrue(document.html, page.select("[href]").isEmpty())
+        val anchor = page.selectFirst("a")!!
+        assertEquals("background-color: #ffffff; color: #595959", anchor.attr("style"))
+    }
+
+    @Test
+    fun `text that reads like a target does not stop stripped links being judged again`() {
+        // The newline the second pass's parse drops sits before text that reads like an href.
+        val newline = Char(10).toString()
+        val mail = """<div style="background-color: #000000; color: #ffffff"><a href="https://a.example" style="background-color: #ffffff">y<pre>""" +
+            newline.repeat(3) + """href="z"</pre></a></div>"""
+        val sanitized = HtmlSanitizer.sanitize(mail, allowRemoteImages = false)
+        val document = MailHtmlDocument.build(sanitized.html, emptyMap(), allowRemoteImages = false, theme = MailHtmlTheme.LIGHT)
+        assertTrue(document.links.isEmpty())
+        val anchor = Jsoup.parse(document.html).selectFirst("a")!!
+        assertEquals("background-color: #ffffff; color: #595959", anchor.attr("style"))
     }
 
     @Test

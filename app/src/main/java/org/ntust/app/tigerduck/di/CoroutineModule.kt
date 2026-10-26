@@ -5,6 +5,7 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import org.ntust.app.tigerduck.util.logSummary
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -43,7 +44,7 @@ object CoroutineModule {
         CoroutineScope(
             SupervisorJob() + Dispatchers.Default +
                 CoroutineExceptionHandler { _, t ->
-                    Log.e("ApplicationScope", "Uncaught exception in application scope", t)
+                    Log.e("ApplicationScope", "Uncaught exception in application scope: ${t.logSummary()}")
                 }
         )
 }

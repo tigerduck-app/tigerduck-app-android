@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,7 +22,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
@@ -30,6 +34,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.status
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -43,6 +48,13 @@ private val BadgeGreen = Color(0xFF34C759)
 private val BadgeOrange = Color(0xFFFF9500)
 private val BadgeRed = Color(0xFFFF3B30)
 
+/**
+ * The font scale, the app's own text size included, from which a row stacks:
+ * beside the title, the status and the due time squeeze it to a few letters a
+ * line, so they go under it, as iOS does at its accessibility text sizes.
+ */
+internal const val STACKED_ROW_FONT_SCALE = 1.5f
+
 @Composable
 fun AssignmentItem(
     assignment: Assignment,
@@ -53,7 +65,9 @@ fun AssignmentItem(
     isIgnored: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
-    val courseColor = TigerDuckTheme.courseColorVibrant(assignment.courseNo)
+    val courseColor = TigerDuckTheme.courseColorVibrant(assignment.courseNo).let {
+        LocalVisualStylePolicy.current.courseAccentColor(it, tint = it)
+    }
     // Subscribe to AppClock changes so toggling the debug clock (forward,
     // back, or off) re-evaluates status — otherwise the badge would stay
     // pinned to whatever "now" was the first time this row composed.
@@ -61,23 +75,42 @@ fun AssignmentItem(
     val status = remember(
         assignment.assignmentId,
         assignment.isCompleted,
-        assignment.dueDate,
-        assignment.cutoffDate,
+        assignment.studentDueDate,
+        assignment.studentCutoffDate,
         assignment.submittedAt,
         clockVersion,
     ) { assignment.status() }
+    val stacked = LocalDensity.current.fontScale >= STACKED_ROW_FONT_SCALE
+
+    @Composable
+    fun trailing(alignment: Alignment.Horizontal) = AssignmentTrailing(
+        assignment = assignment,
+        status = status,
+        showAbsoluteTime = showAbsoluteTime,
+        markedCompleted = markedCompleted,
+        isIgnored = isIgnored,
+        clockVersion = clockVersion,
+        alignment = alignment,
+    )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .let { base -> if (onClick != null) base.clickable { onClick() } else base }
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            // Without a tap the row still reads to TalkBack as one element,
+            // as the click merges it, so the actions a caller puts on
+            // [modifier] stay with its text.
+            .let { base ->
+                if (onClick != null) base.clickable { onClick() } else base.semantics(mergeDescendants = true) {}
+            }
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            // As tall as its texts, so the bar can span them.
+            .then(if (stacked) Modifier.height(IntrinsicSize.Min) else Modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .width(4.dp)
-                .height(40.dp)
+                .then(if (stacked) Modifier.fillMaxHeight() else Modifier.height(40.dp))
                 .background(courseColor)
         )
 
@@ -94,18 +127,16 @@ fun AssignmentItem(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
             )
+            if (stacked) {
+                Spacer(Modifier.height(4.dp))
+                trailing(Alignment.Start)
+            }
         }
 
-        Spacer(Modifier.width(8.dp))
-
-        AssignmentTrailing(
-            assignment = assignment,
-            status = status,
-            showAbsoluteTime = showAbsoluteTime,
-            markedCompleted = markedCompleted,
-            isIgnored = isIgnored,
-            clockVersion = clockVersion,
-        )
+        if (!stacked) {
+            Spacer(Modifier.width(8.dp))
+            trailing(Alignment.End)
+        }
     }
 }
 
@@ -117,6 +148,7 @@ private fun AssignmentTrailing(
     markedCompleted: Boolean,
     isIgnored: Boolean,
     clockVersion: Long,
+    alignment: Alignment.Horizontal,
 ) {
     val moodleBadge = statusBadge(status)
     val markCompleteLabel = stringResource(R.string.assignment_mark_complete)
@@ -142,15 +174,15 @@ private fun AssignmentTrailing(
             markCompleteLabel to BadgeGreen
         (status == AssignmentStatus.SUBMITTED || status == AssignmentStatus.SUBMITTED_LATE) && isIgnored ->
             ignoredLabel to secondaryColor
-        (markedCompleted || isIgnored) && assignment.dueDate.before(now) -> {
-            if (assignment.cutoffDate != null && now.after(assignment.cutoffDate))
+        (markedCompleted || isIgnored) && assignment.studentDueDate.before(now) -> {
+            if (assignment.studentCutoffDate?.let(now::after) == true)
                 overdueRejectedLabel to BadgeRed
             else overdueLabel to BadgeRed
         }
         else -> null
     }
 
-    Column(horizontalAlignment = Alignment.End) {
+    Column(horizontalAlignment = alignment) {
         val badges = listOfNotNull(
             secondaryBadge,
             moodleBadge,
@@ -158,7 +190,7 @@ private fun AssignmentTrailing(
             if (secondaryBadge?.first == markCompleteLabel) null else markedBadge,
         )
         if (badges.isNotEmpty()) {
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = alignment) {
                 badges.forEach { (label, color) ->
                     Text(
                         text = label,
@@ -173,12 +205,13 @@ private fun AssignmentTrailing(
         }
 
         val useAbsolute = showAbsoluteTime ||
-                ((assignment.isCompleted || markedCompleted || isIgnored) && assignment.dueDate.before(now))
-        val timeText = if (useAbsolute) formatAbsolute(assignment.dueDate)
-        else formatRelative(assignment.dueDate, now)
+                ((assignment.isCompleted || markedCompleted || isIgnored) && assignment.studentDueDate.before(now))
+        // The student's own date, an extension included, as everything here judges by.
+        val timeText = if (useAbsolute) formatAbsolute(assignment.studentDueDate)
+        else formatRelative(assignment.studentDueDate, now)
         val timeColor = when {
             isOverdue -> BadgeRed
-            (isIgnored || markedCompleted) && assignment.dueDate.before(now) -> BadgeRed
+            (isIgnored || markedCompleted) && assignment.studentDueDate.before(now) -> BadgeRed
             else -> MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
         }
         val timeWeight = if (emphasise) FontWeight.Bold else FontWeight.Normal

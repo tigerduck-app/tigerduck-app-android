@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
+import org.ntust.app.tigerduck.util.logSummary
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -14,12 +15,22 @@ import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * A three-digit ROC academic year in a link's text on the calendar page, as the school writes
+ * it: "115學年度行事曆(ics檔案)". Digits on either side rule a match out, not word boundaries:
+ * Android's regex follows Unicode, where 學 is a word character, so `\b` between the year and
+ * 學年度 never matched and the page gave no years at all.
+ */
+internal const val CALENDAR_LINK_YEAR = """(?<!\d)(1\d{2})(?!\d)"""
+
 @Singleton
-class CalendarService @Inject constructor(
+class CalendarService internal constructor(
     baseClient: OkHttpClient,
+    /** The page listing the academic calendar's ICS files, or a redirect to it. */
+    private val calendarPageUrl: String,
 ) {
 
-    private val calendarPageUrl = "https://r.xinshou.tw/ntust-calender"
+    @Inject constructor(baseClient: OkHttpClient) : this(baseClient, CALENDAR_PAGE_URL)
 
     private val browserClient = baseClient.newBuilder()
         .addInterceptor { chain ->
@@ -34,15 +45,16 @@ class CalendarService @Inject constructor(
     suspend fun fetchCalendarUrls(): Map<Int, String> = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder().url(calendarPageUrl).get().build()
-            val (html, baseUrl) = browserClient.newCall(request).execute().use { response ->
-                response.body.string() to response.request.url.toString()
+            // Links on the page resolve against where the redirect led, not the address asked for.
+            val (html, pageUrl) = browserClient.newCall(request).execute().use { response ->
+                response.body.string() to response.request.url
             }
 
             val linkRegex = Regex(
                 "<a[^>]*href=\"([^\"]*)\"[^>]*>(.*?)</a>",
                 setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
             )
-            val yearRegex = Regex("""\b(1\d{2})\b""")
+            val yearRegex = Regex(CALENDAR_LINK_YEAR)
             val result = mutableMapOf<Int, String>()
 
             for (match in linkRegex.findAll(html)) {
@@ -55,22 +67,14 @@ class CalendarService @Inject constructor(
                 val yearMatch = yearRegex.find(text) ?: continue
                 val year = yearMatch.groupValues[1].toIntOrNull() ?: continue
 
-                val absoluteUrl = if (href.startsWith("http")) {
-                    href
-                } else if (href.startsWith("/")) {
-                    val parsed = java.net.URL(baseUrl)
-                    "${parsed.protocol}://${parsed.host}$href"
-                } else {
-                    val base = baseUrl.substringBeforeLast("/") + "/"
-                    base + href
-                }
-                result[year] = absoluteUrl
+                val absoluteUrl = pageUrl.resolve(href) ?: continue
+                result[year] = absoluteUrl.toString()
             }
             result
         } catch (e: Exception) {
             // Degrading to "no calendar" is the right UX, but log it —
             // otherwise a format drift on the calendar page is invisible.
-            android.util.Log.w("CalendarService", "Failed to fetch calendar URLs", e)
+            android.util.Log.w("CalendarService", "Failed to fetch calendar URLs: ${e.logSummary()}")
             emptyMap()
         }
     }
@@ -94,7 +98,7 @@ class CalendarService @Inject constructor(
             }
             parseICS(icsString)
         } catch (e: Exception) {
-            android.util.Log.w("CalendarService", "Failed to fetch/parse ICS", e)
+            android.util.Log.w("CalendarService", "Failed to fetch/parse ICS: ${e.logSummary()}")
             emptyList()
         }
     }
@@ -219,5 +223,13 @@ class CalendarService @Inject constructor(
             }
         }
         return events
+    }
+
+    companion object {
+        /**
+         * TigerDuck's own 307 to the school's academic calendar page. The backend keeps the
+         * target, so the page can move without a release.
+         */
+        const val CALENDAR_PAGE_URL = "https://api.tigerduck.app/links/ntust-calendar"
     }
 }

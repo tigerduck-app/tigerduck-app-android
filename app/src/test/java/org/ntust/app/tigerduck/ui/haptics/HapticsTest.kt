@@ -1,17 +1,15 @@
 package org.ntust.app.tigerduck.ui.haptics
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HapticsTest {
 
     @Test
-    fun `tunable filter excludes library warning`() {
+    fun `every scenario is tunable`() {
         val tunable = HapticScenario.tunable
-        assertEquals(7, tunable.size)
-        assertFalse(HapticScenario.LibraryWarning in tunable)
+        assertEquals(HapticScenario.entries, tunable)
         // Goes through the same per-scenario sliders as every other haptic,
         // so muting them in Settings → Vibration silences the copy too.
         assertTrue(HapticScenario.CourseCodeCopy in tunable)
@@ -35,14 +33,6 @@ class HapticsTest {
     fun `tick threshold matches contract`() {
         // Documents the cutoff used to choose PRIMITIVE_TICK vs PRIMITIVE_CLICK.
         assertEquals(10, Haptics.TICK_THRESHOLD_MS)
-    }
-
-    @Test
-    fun `LibraryWarning forces one-shot path`() {
-        // Composition primitives have fixed device-determined durations and
-        // cannot honor the 1-second alert intent. forceOneShot guarantees the
-        // createOneShot fallback path so the buzz lasts the full duration.
-        assertEquals(true, HapticScenario.LibraryWarning.forceOneShot)
     }
 
     @Test

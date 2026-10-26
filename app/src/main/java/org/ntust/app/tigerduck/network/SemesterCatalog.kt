@@ -10,6 +10,7 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.model.SemesterInfo
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -102,7 +103,7 @@ class SemesterCatalog @Inject constructor(
      */
     suspend fun refresh() {
         val list = runCatching { fetch() }.getOrElse {
-            Log.w(TAG, "Semester catalogue fetch failed; keeping previous values", it)
+            Log.w(TAG, "Semester catalogue fetch failed; keeping previous values: ${it.logSummary()}")
             return
         }
         val terms = list.mapNotNull { it.semester?.takeIf(String::isNotBlank) }

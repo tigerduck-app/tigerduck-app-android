@@ -1,0 +1,179 @@
+name: Licences update
+
+# Regenerates the committed licence lists on a PR's branch and commits them
+# back, signed by GitHub as the licences App, so a dependency change does not
+# have to be followed by the export by hand:
+# - on a Renovate branch into dev, on every push: hosted Renovate cannot run
+#   the export, and would otherwise fail licenses-up-to-date on every update;
+# - on any other PR from this repository, when someone adds the
+#   update-licenses label, which licenses-up-to-date suggests when it fails.
+#   The label is taken off again, so adding it once more runs it again.
+# A PR from a fork gets neither: the App cannot push to it.
+#
+# Two jobs, so the App's token never meets the branch's code:
+# - export runs Gradle, and with it whatever the updated dependencies run at
+#   build time, with a read-only GITHUB_TOKEN and no secrets. It uploads only
+#   the licence files that changed.
+# - commit runs nothing from the branch. It checks every path it received
+#   against the six licence files and commits them through the GitHub API.
+#
+# The App's commit starts this workflow again, which then finds nothing to
+# change. Renovate keeps rebasing the branch because .github/renovate.json
+# lists the App under gitIgnoredAuthors.
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened, labeled ]
+    branches: [ dev, main ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: licences-update-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  export:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository && (
+        (github.event.action == 'labeled' && github.event.label.name == 'update-licenses') ||
+        (github.event.action != 'labeled' && startsWith(github.head_ref, 'renovate/') && github.base_ref == 'dev')
+      )
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.stage.outputs.changed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          submodules: true
+          persist-credentials: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      - name: Regenerate the licence lists
+        run: ./gradlew --no-daemon -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease
+
+      - name: Keep Play services and Firebase out of the F-Droid list
+        run: |
+          if grep -qE '"(com\.google\.android\.gms|com\.google\.firebase)[:.]' app/src/fdroid/res/raw/aboutlibraries.json; then
+            echo "::error::The F-Droid licence list now names Play services or Firebase: this change pulls them into the fdroid flavor."
+            exit 1
+          fi
+
+      - name: Stage the changed licence files
+        id: stage
+        run: |
+          allowed=" app/src/play/res/raw/aboutlibraries.json app/src/play/res/raw/bundled_notices.json app/src/play/res/raw/aboutlibraries_wear.json app/src/play/res/raw/bundled_notices_wear.json app/src/fdroid/res/raw/aboutlibraries.json app/src/fdroid/res/raw/bundled_notices.json "
+          changed=$(git status --porcelain --untracked-files=all -- app/src/play/res/raw app/src/fdroid/res/raw | cut -c4-)
+          if [ -z "$changed" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for path in $changed; do
+            case "$allowed" in
+              *" $path "*) ;;
+              *) echo "::error::The export wrote $path, which is not one of the six licence files; commit it by hand."; exit 1 ;;
+            esac
+            mkdir -p "licences/$(dirname "$path")"
+            cp "$path" "licences/$path"
+          done
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.stage.outputs.changed == 'true'
+        with:
+          name: licences
+          path: licences/
+          retention-days: 1
+
+  commit:
+    needs: export
+    if: needs.export.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: licences
+          path: licences
+
+      - name: Mint licences App token
+        id: app_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # The App ID: the action reads client-id and the deprecated app-id
+          # alike, and GitHub takes either the App ID or the client ID.
+          client-id: ${{ secrets.LICENSES_APP_ID }}
+          private-key: ${{ secrets.LICENSES_APP_PRIVATE_KEY }}
+
+      # createCommitOnBranch, so GitHub signs the commit; expectedHeadOid, so a
+      # push that landed meanwhile (Renovate's own rebase, or the author's next
+      # commit) is never overwritten: the call fails instead.
+      - name: Commit the licence files
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.head_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 - <<'EOF'
+          import base64, json, os, pathlib, subprocess, sys
+          allowed = {
+              'app/src/play/res/raw/aboutlibraries.json',
+              'app/src/play/res/raw/bundled_notices.json',
+              'app/src/play/res/raw/aboutlibraries_wear.json',
+              'app/src/play/res/raw/bundled_notices_wear.json',
+              'app/src/fdroid/res/raw/aboutlibraries.json',
+              'app/src/fdroid/res/raw/bundled_notices.json',
+          }
+          root = pathlib.Path('licences')
+          files = sorted(p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file())
+          stray = [f for f in files if f not in allowed]
+          if stray or not files:
+              sys.exit(f'Refusing to commit unexpected files: {stray or "none at all"}')
+          additions = [
+              {'path': f, 'contents': base64.b64encode((root / f).read_bytes()).decode()}
+              for f in files
+          ]
+          query = '''mutation($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) { commit { oid } }
+          }'''
+          payload = {'query': query, 'variables': {'input': {
+              'branch': {'repositoryNameWithOwner': os.environ['REPOSITORY'],
+                         'branchName': os.environ['BRANCH']},
+              'expectedHeadOid': os.environ['HEAD_SHA'],
+              'message': {'headline': 'chore(licenses): regenerate the licence lists'},
+              'fileChanges': {'additions': additions},
+          }}}
+          out = subprocess.run(['gh', 'api', 'graphql', '--input', '-'],
+                               input=json.dumps(payload), capture_output=True, text=True)
+          print(out.stdout or out.stderr)
+          if out.returncode != 0 or '"errors"' in out.stdout:
+              sys.exit(1)
+          EOF
+
+  # Whatever the export found, the label has done its job: take it off so that
+  # adding it again runs the update again.
+  unlabel:
+    needs: [ export, commit ]
+    if: >-
+      always() && github.event.action == 'labeled' && github.event.label.name == 'update-licenses' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Take the label off
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/$REPOSITORY/issues/$PR/labels/update-licenses" --silent || true

@@ -23,12 +23,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,23 +33,33 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import org.ntust.app.tigerduck.R
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.foundation.interaction.InteractionSource
+import androidx.compose.ui.unit.DpRect
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.runtime.key
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.indication
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.ConflictLOrientation
 import org.ntust.app.tigerduck.ui.component.ConflictLShape
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -64,20 +71,31 @@ internal fun ConflictCourseCell(
     y: androidx.compose.ui.unit.Dp,
     weekday: Int,
     periodId: String,
+    /**
+     * The period of each of the cluster's rows, from its first, so each course's label names
+     * the period its own block starts at and that period's room. Empty names [periodId] for both.
+     */
+    clusterPeriods: List<String> = emptyList(),
     hasAssignmentA: Boolean,
     hasAssignmentB: Boolean,
+    assignmentsIgnoredA: Boolean,
+    assignmentsIgnoredB: Boolean,
+    /** Whether a required course's shape is outlined; see [AppPreferences.outlineRequiredCourses]. */
+    outlineRequired: Boolean = false,
     onPickConflict: (Course, Course, Int, String) -> Unit,
-    onLongPress: () -> Unit,
+    /** Null on someone else's class table, which is read-only and has no menu. */
+    onLongPress: (() -> Unit)?,
     onRename: (Course) -> Unit,
     onPickColor: (Course) -> Unit,
+    onToggleIgnoreAssignments: ((Course) -> Unit)?,
     onDelete: (Course) -> Unit,
 ) {
-    val textColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
-    fun bgFor(course: Course) = if (TigerDuckTheme.isDarkMode) {
-        TigerDuckTheme.courseColor(course.courseNo)
-    } else {
-        TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
-    }
+    val style = LocalVisualStylePolicy.current
+    val textColor = style.courseTextColor
+    val markColor = style.courseSecondaryTextColor
+    fun bgFor(course: Course) = style.courseFill(course.courseNo)
+    fun outlineFor(course: Course) =
+        if (outlineRequired && course.isRequired) style.courseOutline(course.courseNo) else null
 
     val overlapStart = maxOf(cellRole.offsetA, cellRole.offsetB)
     val overlapEnd = minOf(cellRole.offsetA + cellRole.spanA, cellRole.offsetB + cellRole.spanB)
@@ -143,27 +161,19 @@ internal fun ConflictCourseCell(
                 .coerceAtLeast(0.1f)
             val bBarFraction = (soloBelowB + 0.5f * (1f - soloAboveB - soloBelowB))
                 .coerceAtLeast(0.1f)
-            val conflictPrefix = stringResource(R.string.a11y_class_table_conflict_prefix)
-            val assignmentLabel =
-                stringResource(R.string.a11y_class_table_cell_assignment_indicator)
+            val labels = classTableCellLabels()
+            fun cellLabel(course: Course, offset: Int, hasAssignment: Boolean, assignmentsIgnored: Boolean) =
+                labels.label(
+                    course,
+                    weekday,
+                    clusterPeriods.getOrNull(offset) ?: periodId,
+                    hasAssignment,
+                    assignmentsIgnored,
+                    conflict = true,
+                )
 
-            fun cellLabel(course: Course, hasAssignment: Boolean): String = buildString {
-                append(conflictPrefix)
-                append(": ")
-                append(course.displayName)
-                val room = course.classroom(weekday)
-                if (room.isNotBlank()) {
-                    append(", ")
-                    append(room)
-                }
-                if (hasAssignment) {
-                    append(". ")
-                    append(assignmentLabel)
-                }
-            }
-
-            val labelA = cellLabel(cellRole.courseA, hasAssignmentA)
-            val labelB = cellLabel(cellRole.courseB, hasAssignmentB)
+            val labelA = cellLabel(cellRole.courseA, cellRole.offsetA, hasAssignmentA, assignmentsIgnoredA)
+            val labelB = cellLabel(cellRole.courseB, cellRole.offsetB, hasAssignmentB, assignmentsIgnoredB)
 
             Box(
                 modifier = Modifier
@@ -172,6 +182,7 @@ internal fun ConflictCourseCell(
                     .absoluteOffset(x = 0.dp, y = aTop)
                     .clip(shapeA)
                     .background(bgFor(cellRole.courseA))
+                    .requiredCourseOutline(outlineFor(cellRole.courseA), shapeA)
                     .semantics(mergeDescendants = true) {
                         contentDescription = labelA
                         role = Role.Button
@@ -190,7 +201,7 @@ internal fun ConflictCourseCell(
                         // The app vibrates for this long press itself, through the Vibration setting;
                         // Compose's own buzz would land on top of it and ignore that setting.
                         hapticFeedbackEnabled = false,
-                        onLongClick = { onLongPress(); showMenu = true },
+                        onLongClick = onLongPress?.let { press -> { press(); showMenu = true } },
                     ),
             ) {
                 // Course name uses the full width of the bar rectangle.
@@ -208,17 +219,15 @@ internal fun ConflictCourseCell(
                         maxLines = 2,
                     )
                 }
-                if (hasAssignmentA) {
-                    Icon(
-                        imageVector = Icons.Filled.Book,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(3.dp)
-                            .size(10.dp),
-                        tint = textColor.copy(alpha = 0.7f),
-                    )
-                }
+                CourseCellBadge(
+                    hasAssignment = hasAssignmentA,
+                    assignmentsIgnored = assignmentsIgnoredA,
+                    tint = markColor,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(3.dp)
+                        .size(10.dp),
+                )
             }
 
             Box(
@@ -228,6 +237,7 @@ internal fun ConflictCourseCell(
                     .absoluteOffset(x = 0.dp, y = bTop)
                     .clip(shapeB)
                     .background(bgFor(cellRole.courseB))
+                    .requiredCourseOutline(outlineFor(cellRole.courseB), shapeB)
                     .semantics(mergeDescendants = true) {
                         contentDescription = labelB
                         role = Role.Button
@@ -246,7 +256,7 @@ internal fun ConflictCourseCell(
                         // The app vibrates for this long press itself, through the Vibration setting;
                         // Compose's own buzz would land on top of it and ignore that setting.
                         hapticFeedbackEnabled = false,
-                        onLongClick = { onLongPress(); showMenu = true },
+                        onLongClick = onLongPress?.let { press -> { press(); showMenu = true } },
                     ),
             ) {
                 // Course name uses the full width of the bar rectangle.
@@ -264,17 +274,15 @@ internal fun ConflictCourseCell(
                         maxLines = 2,
                     )
                 }
-                if (hasAssignmentB) {
-                    Icon(
-                        imageVector = Icons.Filled.Book,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(3.dp)
-                            .size(10.dp),
-                        tint = textColor.copy(alpha = 0.7f),
-                    )
-                }
+                CourseCellBadge(
+                    hasAssignment = hasAssignmentB,
+                    assignmentsIgnored = assignmentsIgnoredB,
+                    tint = markColor,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(3.dp)
+                        .size(10.dp),
+                )
             }
 
             DropdownMenu(
@@ -282,13 +290,20 @@ internal fun ConflictCourseCell(
                 onDismissRequest = { showMenu = false },
                 shape = RoundedCornerShape(12.dp),
             ) {
-                listOf(cellRole.courseA, cellRole.courseB).forEachIndexed { idx, course ->
+                listOf(
+                    cellRole.courseA to assignmentsIgnoredA,
+                    cellRole.courseB to assignmentsIgnoredB,
+                ).forEachIndexed { idx, (course, ignored) ->
                     if (idx > 0) HorizontalDivider()
                     CourseActionSection(
                         course = course,
                         swatch = bgFor(course),
+                        assignmentsIgnored = ignored,
                         onRename = { showMenu = false; onRename(course) },
                         onPickColor = { showMenu = false; onPickColor(course) },
+                        onToggleIgnoreAssignments = onToggleIgnoreAssignments?.let { toggle ->
+                            { showMenu = false; toggle(course) }
+                        },
                         onDelete = { showMenu = false; onDelete(course) },
                     )
                 }
@@ -302,9 +317,11 @@ internal fun ConflictCourseCell(
  * each course occupies one column for its own row range, with greedy lane
  * coloring (see [ClassTableViewModel.cellRole]) packing non-overlapping
  * courses into the same lane so a chain like A(6-7) / B(6-8) / C(8-9) fits in
- * two columns instead of three. The 2-course L-shape ([ConflictCourseCell])
- * can't tile 3 shapes, so this is the fallback. Tapping a lane selects that
- * specific course directly (no picker), matching the home slider's per-band
+ * two columns instead of three. In the rows a course has alone it takes every
+ * lane, drawn as one rounded outline with its seams to the courses beside it
+ * kept ([ConflictLaneShape]), as the iPhone does (tigerduck-app#153) and as
+ * the 2-course L-shape ([ConflictCourseCell]) takes the full width. Tapping a
+ * course selects it directly (no picker), matching the home slider's per-band
  * behavior.
  */
 @OptIn(ExperimentalFoundationApi::class)
@@ -317,35 +334,24 @@ internal fun MultiConflictCourseCell(
     y: androidx.compose.ui.unit.Dp,
     weekday: Int,
     hasAssignment: (String) -> Boolean,
+    assignmentsIgnored: (String) -> Boolean,
+    /** Whether a required course's lane is outlined; see [AppPreferences.outlineRequiredCourses]. */
+    outlineRequired: Boolean = false,
     onSelect: (Course, String) -> Unit,
-    onLongPress: () -> Unit,
+    /** Null on someone else's class table, which is read-only and has no menu. */
+    onLongPress: (() -> Unit)?,
     onRename: (Course) -> Unit,
     onPickColor: (Course) -> Unit,
+    onToggleIgnoreAssignments: ((Course) -> Unit)?,
     onDelete: (Course) -> Unit,
 ) {
-    val textColor = if (TigerDuckTheme.isDarkMode) Color.White else Color(0xFF1C1C1E)
-    fun bgFor(course: Course) = if (TigerDuckTheme.isDarkMode) {
-        TigerDuckTheme.courseColor(course.courseNo)
-    } else {
-        TigerDuckTheme.courseColorVibrant(course.courseNo).copy(alpha = 0.50f)
-    }
-
-    val conflictPrefix = stringResource(R.string.a11y_class_table_conflict_prefix)
-    val assignmentLabel = stringResource(R.string.a11y_class_table_cell_assignment_indicator)
-    fun cellLabel(course: Course, hasAssignmentForCourse: Boolean): String = buildString {
-        append(conflictPrefix)
-        append(": ")
-        append(course.displayName)
-        val room = course.classroom(weekday)
-        if (room.isNotBlank()) {
-            append(", ")
-            append(room)
-        }
-        if (hasAssignmentForCourse) {
-            append(". ")
-            append(assignmentLabel)
-        }
-    }
+    val style = LocalVisualStylePolicy.current
+    val textColor = style.courseTextColor
+    val markColor = style.courseSecondaryTextColor
+    fun bgFor(course: Course) = style.courseFill(course.courseNo)
+    fun outlineFor(course: Course) =
+        if (outlineRequired && course.isRequired) style.courseOutline(course.courseNo) else null
+    val labels = classTableCellLabels()
 
     var menuForCourse by remember { mutableStateOf<Course?>(null) }
 
@@ -356,57 +362,121 @@ internal fun MultiConflictCourseCell(
             .absoluteOffset(x = x, y = y)
             .padding(1.dp),
     ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        // Lanes offset from the left in either direction, as the grid's blocks are.
+        BoxWithConstraints(modifier = Modifier.fillMaxSize(), contentAlignment = AbsoluteAlignment.TopLeft) {
             val rowHeight = maxHeight / cellRole.combinedSpan
             val laneWidth = maxWidth / cellRole.laneCount
+            val indication = LocalIndication.current
+            // A run within the cluster, inset by half the seam the lanes and rows keep between them.
+            fun rectOf(run: LaneRun) = DpRect(
+                left = laneWidth * run.lanes.first + LANE_SEAM / 2,
+                top = rowHeight * run.firstRow + LANE_SEAM / 2,
+                right = laneWidth * (run.lanes.last + 1) - LANE_SEAM / 2,
+                bottom = rowHeight * (run.firstRow + run.rowCount) - LANE_SEAM / 2,
+            )
 
             cellRole.members.forEach { member ->
-                val mTop = rowHeight * member.offset
-                val mHeight = rowHeight * member.span
-                val mLeft = laneWidth * member.lane
-                val hasAssignmentForMember = hasAssignment(member.course.courseNo)
-
-                Box(
-                    modifier = Modifier
-                        .width(laneWidth)
-                        .height(mHeight)
-                        .absoluteOffset(x = mLeft, y = mTop)
-                        .padding(0.5.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(bgFor(member.course))
-                        .semantics(mergeDescendants = true) {
-                            contentDescription = cellLabel(member.course, hasAssignmentForMember)
-                            role = Role.Button
-                        }
-                        .combinedClickable(
-                            onClick = { onSelect(member.course, member.firstPeriodId) },
-                            // The app vibrates for this long press itself, through the Vibration setting;
-                            // Compose's own buzz would land on top of it and ignore that setting.
-                            hapticFeedbackEnabled = false,
-                            onLongClick = {
-                                onLongPress()
-                                menuForCourse = member.course
-                            },
-                        ),
-                ) {
-                    ClassTableCourseNameText(
-                        text = member.course.displayName,
-                        color = textColor,
-                        maxLines = if (member.span >= 2) 3 else 2,
-                        modifier = Modifier
-                            .padding(2.dp)
-                            .align(Alignment.Center),
+                key(member.course.courseNo, member.offset) {
+                    // Across every lane in the rows the course has alone (ClassTableCellLayout.laneRuns).
+                    val runs = ClassTableCellLayout.laneRuns(member, cellRole)
+                    val rects = runs.map(::rectOf)
+                    val bounds = DpRect(
+                        left = rects.minOf { it.left },
+                        top = rects.minOf { it.top },
+                        right = rects.maxOf { it.right },
+                        bottom = rects.maxOf { it.bottom },
                     )
-                    if (hasAssignmentForMember) {
-                        Icon(
-                            imageVector = Icons.Filled.Book,
-                            contentDescription = null,
+                    fun DpRect.inBounds() = DpRect(left - bounds.left, top - bounds.top, right - bounds.left, bottom - bounds.top)
+                    val shape = remember(rects) { ConflictLaneShape(rects.map { it.inBounds() }, LANE_CORNER) }
+                    // The name goes in the course's largest run, the mark in the corner of its last.
+                    val labelRun = runs.indices.maxBy { runs[it].rowCount * (runs[it].lanes.last - runs[it].lanes.first + 1) }
+                    val label = rects[labelRun].inBounds()
+                    val last = rects.last().inBounds()
+                    val hasAssignmentForMember = hasAssignment(member.course.courseNo)
+                    val ignoredForMember = assignmentsIgnored(member.course.courseNo)
+                    // Shared by the course's runs, so a press on any of them shows on its whole shape.
+                    val interactionSource = remember { MutableInteractionSource() }
+
+                    Box(
+                        modifier = Modifier
+                            .absoluteOffset(x = bounds.left, y = bounds.top)
+                            .size(bounds.right - bounds.left, bounds.bottom - bounds.top)
+                            .clip(shape)
+                            .background(bgFor(member.course))
+                            .requiredCourseOutline(outlineFor(member.course), shape)
+                            .indication(interactionSource, indication),
+                        // The name and the mark are placed by absolute offsets, from the left in
+                        // either direction; TopStart would start them at the right edge in RTL.
+                        contentAlignment = AbsoluteAlignment.TopLeft,
+                    ) {
+                        ClassTableCourseNameText(
+                            text = member.course.displayName,
+                            color = textColor,
+                            maxLines = if (runs[labelRun].rowCount >= 2) 3 else 2,
                             modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(3.dp)
-                                .size(10.dp),
-                            tint = textColor.copy(alpha = 0.7f),
+                                .absoluteOffset(x = label.left, y = label.top)
+                                .size(label.right - label.left, label.bottom - label.top)
+                                .padding(2.dp)
+                                .wrapContentSize(Alignment.Center),
                         )
+                        CourseCellBadge(
+                            hasAssignment = hasAssignmentForMember,
+                            assignmentsIgnored = ignoredForMember,
+                            tint = markColor,
+                            modifier = Modifier
+                                .absoluteOffset(x = last.right - BADGE_INSET - BADGE_SIZE, y = last.bottom - BADGE_INSET - BADGE_SIZE)
+                                .size(BADGE_SIZE),
+                        )
+                    }
+
+                    // Taps land on the runs themselves: the shape's bounds reach over the courses
+                    // beside it. The run holding the name is the course's one button for TalkBack
+                    // and its one stop for a keyboard.
+                    rects.forEachIndexed { index, rect ->
+                        key(index) {
+                            // A press shows on the whole shape, from where it was made on this run.
+                            val runSource = remember { MutableInteractionSource() }
+                            val fromShape = with(LocalDensity.current) {
+                                Offset((rect.left - bounds.left).toPx(), (rect.top - bounds.top).toPx())
+                            }
+                            LaunchedEffect(runSource, fromShape) { forwardInteractions(runSource, interactionSource, fromShape) }
+                            Box(
+                                modifier = Modifier
+                                    .absoluteOffset(x = rect.left, y = rect.top)
+                                    .size(rect.right - rect.left, rect.bottom - rect.top)
+                                    .then(
+                                        if (index == labelRun) {
+                                            Modifier.semantics(mergeDescendants = true) {
+                                                contentDescription = labels.label(
+                                                    member.course,
+                                                    weekday,
+                                                    member.firstPeriodId,
+                                                    hasAssignmentForMember,
+                                                    ignoredForMember,
+                                                    conflict = true,
+                                                )
+                                                role = Role.Button
+                                            }
+                                        } else {
+                                            Modifier.clearAndSetSemantics {}.focusProperties { canFocus = false }
+                                        },
+                                    )
+                                    .combinedClickable(
+                                        interactionSource = runSource,
+                                        indication = null,
+                                        onClick = { onSelect(member.course, member.firstPeriodId) },
+                                        // The app vibrates for this long press itself, through the Vibration setting;
+                                        // Compose's own buzz would land on top of it and ignore that setting.
+                                        hapticFeedbackEnabled = false,
+                                        onLongClick = onLongPress?.let { press ->
+                                            {
+                                                press()
+                                                menuForCourse = member.course
+                                            }
+                                        },
+                                    ),
+                            )
+                        }
                     }
                 }
             }
@@ -420,8 +490,12 @@ internal fun MultiConflictCourseCell(
                     CourseActionSection(
                         course = course,
                         swatch = bgFor(course),
+                        assignmentsIgnored = assignmentsIgnored(course.courseNo),
                         onRename = { menuForCourse = null; onRename(course) },
                         onPickColor = { menuForCourse = null; onPickColor(course) },
+                        onToggleIgnoreAssignments = onToggleIgnoreAssignments?.let { toggle ->
+                            { menuForCourse = null; toggle(course) }
+                        },
                         onDelete = { menuForCourse = null; onDelete(course) },
                     )
                 }
@@ -452,8 +526,10 @@ internal fun MultiConflictCourseCell(
 private fun CourseActionSection(
     course: Course,
     swatch: Color,
+    assignmentsIgnored: Boolean,
     onRename: () -> Unit,
     onPickColor: () -> Unit,
+    onToggleIgnoreAssignments: (() -> Unit)?,
     onDelete: () -> Unit,
 ) {
     Row(
@@ -473,21 +549,42 @@ private fun CourseActionSection(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
         )
     }
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.class_table_rename_title)) },
-        onClick = onRename,
+    CourseEditMenuItems(
+        assignmentsIgnored = assignmentsIgnored,
+        onRename = onRename,
+        onPickColor = onPickColor,
+        onToggleIgnoreAssignments = onToggleIgnoreAssignments,
+        onDelete = onDelete,
     )
-    DropdownMenuItem(
-        text = { Text(stringResource(R.string.class_table_pick_color)) },
-        onClick = onPickColor,
-    )
-    DropdownMenuItem(
-        text = {
-            Text(
-                stringResource(R.string.class_table_delete),
-                color = MaterialTheme.colorScheme.error,
-            )
-        },
-        onClick = onDelete,
-    )
+}
+
+/** The gap between two lanes, and between two rows, of a cluster of three or more. */
+private val LANE_SEAM = 1.dp
+private val LANE_CORNER = 4.dp
+private val BADGE_SIZE = 10.dp
+private val BADGE_INSET = 3.dp
+
+/**
+ * Passes [from]'s interactions on to [to], a press moved by [offset], with its release or cancel
+ * ending the moved press: a run of a clashing course reports a press from its own corner, and the
+ * course's whole shape, which draws it, starts it from its own. A press still held when this ends
+ * (the run moved, which restarts it) is cancelled on [to], or the shape would stay pressed.
+ */
+internal suspend fun forwardInteractions(from: InteractionSource, to: MutableInteractionSource, offset: Offset) {
+    val moved = mutableMapOf<PressInteraction.Press, PressInteraction.Press>()
+    try {
+        from.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> PressInteraction.Press(interaction.pressPosition + offset).let {
+                    moved[interaction] = it
+                    to.emit(it)
+                }
+                is PressInteraction.Release -> moved.remove(interaction.press)?.let { to.emit(PressInteraction.Release(it)) }
+                is PressInteraction.Cancel -> moved.remove(interaction.press)?.let { to.emit(PressInteraction.Cancel(it)) }
+                else -> to.emit(interaction)
+            }
+        }
+    } finally {
+        moved.values.forEach { to.tryEmit(PressInteraction.Cancel(it)) }
+    }
 }

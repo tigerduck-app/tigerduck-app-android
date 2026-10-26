@@ -1,0 +1,171 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommitTypeAll(chore)"
+  ],
+  "baseBranchPatterns": [
+    "dev"
+  ],
+  "enabledManagers": [
+    "gradle",
+    "gradle-wrapper",
+    "github-actions",
+    "git-submodules"
+  ],
+  "git-submodules": {
+    "enabled": true
+  },
+  "labels": [
+    "dependencies"
+  ],
+  "semanticCommits": "enabled",
+  "timezone": "Asia/Taipei",
+  "schedule": [
+    "before 9am on monday"
+  ],
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "dependencyDashboard": true,
+  "automerge": false,
+  "gitIgnoredAuthors": [
+    "342786336+tigerduck-android-licenses[bot]@users.noreply.github.com"
+  ],
+  "vulnerabilityAlerts": {
+    "labels": [
+      "dependencies",
+      "security"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Major updates wait for a tick on the Dependency Dashboard.",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Supply-chain cooldown, as in tigerduck-app and tigerduck-backend. Submodules have no release timestamps.",
+      "matchManagers": [
+        "gradle",
+        "gradle-wrapper",
+        "github-actions"
+      ],
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "description": "Hosted Renovate cannot run the licence export; the Licences update workflow commits it.",
+      "matchManagers": [
+        "gradle"
+      ],
+      "prBodyNotes": [
+        "**Licences:** the Licences update workflow regenerates `res/raw` on this branch and commits it as the licences App. If it fails, run `./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease` here and commit the `res/raw` changes (signed). The F-Droid list must not gain a `com.google.android.gms` or `com.google.firebase` entry."
+      ]
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "description": "JDK 21 is also required by gradle/gradle-daemon-jvm.properties and the F-Droid build, so it moves by hand.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "java-jdk"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "matchPackageNames": [
+        "androidx.*"
+      ],
+      "groupName": "AndroidX"
+    },
+    {
+      "matchPackageNames": [
+        "androidx.compose:compose-bom"
+      ],
+      "groupName": "Compose BOM"
+    },
+    {
+      "matchPackageNames": [
+        "androidx.wear*"
+      ],
+      "groupName": "Wear OS libraries"
+    },
+    {
+      "description": "Compose compiler plugin shares the kotlin version; KSP has to support the new Kotlin.",
+      "matchPackageNames": [
+        "org.jetbrains.kotlin:*",
+        "org.jetbrains.kotlin.*",
+        "com.google.devtools.ksp*"
+      ],
+      "groupName": "Kotlin and KSP"
+    },
+    {
+      "matchPackageNames": [
+        "com.android.application*",
+        "com.android.library*",
+        "com.android.tools.build:*"
+      ],
+      "groupName": "Android Gradle Plugin"
+    },
+    {
+      "matchPackageNames": [
+        "com.google.dagger*",
+        "androidx.hilt:*"
+      ],
+      "groupName": "Hilt"
+    },
+    {
+      "description": "Play flavor and :wear only; the fdroid list must stay free of them.",
+      "matchPackageNames": [
+        "com.google.firebase:*",
+        "com.google.android.gms:*",
+        "com.google.gms.google-services*",
+        "com.google.android.play:*"
+      ],
+      "groupName": "Firebase and Play Services"
+    },
+    {
+      "matchPackageNames": [
+        "com.squareup.okhttp3:*"
+      ],
+      "groupName": "OkHttp"
+    },
+    {
+      "description": "Test-only, so the licence lists do not change. org.json uses date versions, which count as majors.",
+      "matchPackageNames": [
+        "junit:junit",
+        "org.robolectric:*",
+        "androidx.test*",
+        "com.icegreen:greenmail",
+        "org.json:json"
+      ],
+      "groupName": "Test libraries",
+      "separateMajorMinor": false,
+      "dependencyDashboardApproval": false
+    },
+    {
+      "description": "submodules-up-to-date fails every PR while a submodule lags its upstream tip.",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "schedule": [
+        "at any time"
+      ],
+      "prPriority": 10,
+      "prBodyNotes": [
+        "**Strings:** nothing else to do if `app-translation` moved: every build generates the strings from it."
+      ]
+    }
+  ]
+}

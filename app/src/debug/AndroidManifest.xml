@@ -23,6 +23,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Lets `adb shell am broadcast` drive the TLS pins; see DebugPinsReceiver. -->
+        <receiver
+            android:name="org.ntust.app.tigerduck.debug.DebugPinsReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="org.ntust.app.tigerduck.debug.INJECT_PIN_DOCUMENT" />
+                <action android:name="org.ntust.app.tigerduck.debug.SIMULATE_PIN_MISMATCH" />
+                <action android:name="org.ntust.app.tigerduck.debug.CLEAR_PINS" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

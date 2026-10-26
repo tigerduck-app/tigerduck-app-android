@@ -2,7 +2,9 @@ package org.ntust.app.tigerduck.data.model
 
 import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
+import java.time.LocalTime
 import java.util.Date
 
 data class CalendarEvent(
@@ -13,6 +15,38 @@ data class CalendarEvent(
 ) {
     val source: EventSource
         get() = EventSource.fromRaw(sourceRaw)
+
+    /**
+     * Whether this row is a whole day rather than a moment, so a time on it
+     * ("00:00") says nothing. Holidays and term boundaries are days by
+     * construction. A school row is one when the feed gave a date with no
+     * time, which `CalendarService` parses to midnight in Taipei. A Moodle
+     * deadline at midnight is a real deadline and keeps its time. The same
+     * rule as the iPhone's `SDCalendarEvent.isAllDay`.
+     *
+     * A getter, not a field: this class is cached through Gson.
+     */
+    val isAllDay: Boolean
+        get() = when (source) {
+            EventSource.HOLIDAY, EventSource.SEMESTER -> true
+            EventSource.SCHOOL -> date.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalTime() == LocalTime.MIDNIGHT
+            EventSource.MOODLE, EventSource.EXAM -> false
+        }
+
+    /**
+     * The id of the Moodle assignment this row is the deadline of, which a tap
+     * on the row opens, or null for any other row. A getter, as [isAllDay].
+     */
+    val moodleAssignmentId: String?
+        get() = eventId.removePrefix(MOODLE_ID_PREFIX)
+            .takeIf { source == EventSource.MOODLE && eventId.startsWith(MOODLE_ID_PREFIX) && it.isNotEmpty() }
+
+    companion object {
+        private const val MOODLE_ID_PREFIX = "moodle-"
+
+        /** The id of the row for the deadline of the Moodle assignment [assignmentId]. */
+        fun moodleEventId(assignmentId: String) = "$MOODLE_ID_PREFIX$assignmentId"
+    }
 }
 
 enum class EventSource(val raw: String) {

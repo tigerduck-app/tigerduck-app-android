@@ -1,7 +1,7 @@
 package org.ntust.app.tigerduck.wear.tile
 
 import android.content.Context
-import androidx.concurrent.futures.ResolvableFuture
+import androidx.concurrent.futures.CallbackToFutureAdapter
 import androidx.wear.protolayout.ActionBuilders
 import androidx.wear.protolayout.LayoutElementBuilders
 import androidx.wear.protolayout.ModifiersBuilders
@@ -19,13 +19,14 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
-import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.MainActivity
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
+import org.ntust.app.tigerduck.wear.ui.weekdayCaptionRes
+import java.time.LocalDate
 import java.time.ZoneId
 
 class NextClassTileService : TileService() {
@@ -40,42 +41,48 @@ class NextClassTileService : TileService() {
     override fun onTileRequest(
         request: RequestBuilders.TileRequest,
     ): ListenableFuture<TileBuilders.Tile> {
-        val future = ResolvableFuture.create<TileBuilders.Tile>()
-        serviceScope.launch {
-            try {
-                val snapshot = SchedulePersistenceHolder.get(this@NextClassTileService).flow.first()
-                future.set(buildTile(snapshot))
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                future.setException(e)
+        return CallbackToFutureAdapter.getFuture { completer ->
+            serviceScope.launch {
+                try {
+                    val snapshot = SchedulePersistenceHolder.get(this@NextClassTileService).flow.first()
+                    completer.set(buildTile(snapshot))
+                } catch (e: CancellationException) {
+                    // The service went away first: cancelled rather than left waiting forever.
+                    completer.setCancelled()
+                    throw e
+                } catch (e: Exception) {
+                    completer.setException(e)
+                }
             }
+            "NextClassTileService.onTileRequest"
         }
-        return future
     }
 
     override fun onTileResourcesRequest(
         request: RequestBuilders.ResourcesRequest,
     ): ListenableFuture<ResourceBuilders.Resources> {
         val resources = ResourceBuilders.Resources.Builder().setVersion(RESOURCES_VERSION).build()
-        return ResolvableFuture.create<ResourceBuilders.Resources>().also { it.set(resources) }
+        return CallbackToFutureAdapter.getFuture { completer ->
+            completer.set(resources)
+            "NextClassTileService.onTileResourcesRequest"
+        }
     }
 
     private fun buildTile(snapshot: WatchSnapshot): TileBuilders.Tile {
         val now = AppClock.localDateTime()
-        val weekday = now.dayOfWeek.value
+        val today = now.toLocalDate()
         val minuteOfDay = now.hour * 60 + now.minute
 
         val timeline = TimelineBuilders.Timeline.Builder()
 
         timeline.addTimelineEntry(
             TimelineBuilders.TimelineEntry.Builder()
-                .setLayout(layoutFor(snapshot, weekday, minuteOfDay))
+                .setLayout(layoutFor(snapshot, today, minuteOfDay))
                 .build()
         )
 
         if (snapshot.syncedAtMs != null && snapshot.courses.isNotEmpty()) {
-            addFutureEntries(timeline, snapshot, weekday, minuteOfDay, now)
+            addFutureEntries(timeline, snapshot, today, minuteOfDay)
         }
 
         return TileBuilders.Tile.Builder()
@@ -92,15 +99,14 @@ class NextClassTileService : TileService() {
     private fun addFutureEntries(
         timeline: TimelineBuilders.Timeline.Builder,
         snapshot: WatchSnapshot,
-        weekday: Int,
+        today: LocalDate,
         minuteOfDay: Int,
-        now: java.time.LocalDateTime,
     ) {
-        val todayBaseMs = now.toLocalDate()
+        val todayBaseMs = today
             .atStartOfDay(ZoneId.of("Asia/Taipei"))
             .toInstant().toEpochMilli()
 
-        val blocks = NextClassResolver.todaysClasses(snapshot.courses, weekday, minuteOfDay)
+        val blocks = snapshot.todaysClasses(today, minuteOfDay)
             .filter { it.endMinute > minuteOfDay }
 
         val transitions = mutableListOf<Int>()
@@ -122,7 +128,7 @@ class NextClassTileService : TileService() {
                             .setEndMillis(todayBaseMs + to.toLong() * 60_000L)
                             .build()
                     )
-                    .setLayout(layoutFor(snapshot, weekday, from))
+                    .setLayout(layoutFor(snapshot, today, from))
                     .build()
             )
         }
@@ -130,7 +136,7 @@ class NextClassTileService : TileService() {
 
     private fun layoutFor(
         snapshot: WatchSnapshot,
-        weekday: Int,
+        today: LocalDate,
         minuteOfDay: Int,
     ): LayoutElementBuilders.Layout {
         val (label, body, sub) = when {
@@ -142,11 +148,10 @@ class NextClassTileService : TileService() {
                 getString(R.string.watch_no_courses_synced), "", ""
             )
 
-            else -> when (val r =
-                NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)) {
+            else -> when (val r = snapshot.nextClass(today, minuteOfDay)) {
                 is NextClassResult.Ongoing -> Triple(
                     getString(R.string.watch_now_ends_at, formatHm(r.endMinute)),
-                    "${r.course.displayName}\n${r.course.classroom(r.weekday)} · ${r.course.instructor}",
+                    "${r.course.displayName}\n${r.classroom} · ${r.course.instructor}",
                     r.nextToday?.let {
                         getString(
                             R.string.watch_next_label,
@@ -158,7 +163,7 @@ class NextClassTileService : TileService() {
 
                 is NextClassResult.NextToday -> Triple(
                     getString(R.string.watch_starts_at, formatHm(r.startMinute)),
-                    "${r.course.displayName}\n${r.course.classroom(r.weekday)} · ${r.course.instructor}",
+                    "${r.course.displayName}\n${r.classroom} · ${r.course.instructor}",
                     "",
                 )
 
@@ -166,14 +171,13 @@ class NextClassTileService : TileService() {
                     if (r.daysAhead == 1) {
                         getString(R.string.watch_tomorrow_at, formatHm(r.startMinute))
                     } else {
-                        val targetWeekday = ((weekday - 1 + r.daysAhead) % 7) + 1
                         getString(
                             R.string.watch_weekday_at,
-                            weekdayShortName(targetWeekday),
+                            getString(weekdayCaptionRes(r.weekday)),
                             formatHm(r.startMinute),
                         )
                     },
-                    "${r.course.displayName}\n${r.course.classroom(r.weekday)} · ${r.course.instructor}",
+                    "${r.course.displayName}\n${r.classroom} · ${r.course.instructor}",
                     "",
                 )
 
@@ -217,18 +221,6 @@ class NextClassTileService : TileService() {
 
     private fun formatHm(minuteOfDay: Int): String =
         "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)
-
-    private fun weekdayShortName(weekday: Int): String = getString(
-        when (weekday) {
-            1 -> R.string.weekday_mon_short
-            2 -> R.string.weekday_tue_short
-            3 -> R.string.weekday_wed_short
-            4 -> R.string.weekday_thu_short
-            5 -> R.string.weekday_fri_short
-            6 -> R.string.weekday_sat_short
-            else -> R.string.weekday_sun_short
-        }
-    )
 
     companion object {
         private const val RESOURCES_VERSION = "1"

@@ -4,8 +4,6 @@
 
 package org.ntust.app.tigerduck.ui.screen.home
 
-import android.content.Context
-import android.content.Intent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -49,10 +47,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -61,6 +61,8 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.AssignmentItem
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.navigation.icon
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleWebPages
+import org.ntust.app.tigerduck.ui.screen.coursemoodle.openMoodleWebPage
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -128,7 +130,8 @@ internal fun AssignmentsEmptyState(
             icon = Icons.Filled.Lock,
             title = stringResource(R.string.common_not_signed_in),
             message = stringResource(R.string.common_sign_in_required_feature),
-            onIconClick = onOpenSignInSettings,
+            actionLabel = stringResource(R.string.onboarding_sign_in_button),
+            onAction = onOpenSignInSettings,
         )
         return
     }
@@ -174,7 +177,9 @@ internal fun AssignmentsEmptyState(
  *    when not yet ignored, undo arrow when already ignored).
  *  - Right swipe: toggle mark-as-complete (green icon on the left edge —
  *    tick when not yet marked, undo arrow when already marked). The undo
- *    affordance is what makes 標示為完成 reversible from the 全部 tab.
+ *    affordance is what makes a mark reversible from the all tab.
+ *
+ * Without [swipeEnabled] the row takes neither gesture.
  */
 @Composable
 internal fun SwipeableAssignmentRow(
@@ -182,6 +187,7 @@ internal fun SwipeableAssignmentRow(
     course: Course?,
     isIgnored: Boolean,
     isMarkedCompleted: Boolean,
+    swipeEnabled: Boolean,
     showAbsoluteTime: Boolean,
     onClick: () -> Unit,
     onToggleIgnore: () -> Unit,
@@ -199,6 +205,25 @@ internal fun SwipeableAssignmentRow(
     val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val ignoreColor = Color(0xFF8E8E93)
     val completeColor = Color(0xFF34C759)
+    // The swipes are drags TalkBack, Switch Access and a keyboard cannot
+    // perform, so the same two actions are offered as accessibility actions,
+    // named as the icon the swipe reveals: what it is about to do.
+    val markLabel = stringResource(
+        if (isMarkedCompleted) R.string.assignment_mark_complete_undo else R.string.assignment_mark_complete
+    )
+    val ignoreLabel = stringResource(
+        if (isIgnored) R.string.assignment_ignore_undo else R.string.assignment_ignore
+    )
+    val swipeActions = remember(swipeEnabled, markLabel, ignoreLabel) {
+        if (!swipeEnabled) {
+            emptyList()
+        } else {
+            listOf(
+                CustomAccessibilityAction(markLabel) { latestOnMarkCompleted(); true },
+                CustomAccessibilityAction(ignoreLabel) { latestOnToggleIgnore(); true },
+            )
+        }
+    }
 
     Box(modifier = Modifier.fillMaxWidth()) {
         val progress = (abs(swipeOffset.value) / thresholdPx).coerceIn(0f, 1f)
@@ -260,7 +285,8 @@ internal fun SwipeableAssignmentRow(
                 .fillMaxWidth()
                 .offset { IntOffset(swipeOffset.value.roundToInt(), 0) }
                 .background(MaterialTheme.colorScheme.surface)
-                .pointerInput(assignment.assignmentId) {
+                .pointerInput(assignment.assignmentId, swipeEnabled) {
+                    if (!swipeEnabled) return@pointerInput
                     detectHorizontalDragGestures(
                         onDragEnd = {
                             coroutineScope.launch {
@@ -303,6 +329,9 @@ internal fun SwipeableAssignmentRow(
         ) {
             AssignmentItem(
                 assignment = assignment,
+                // On the row's own clickable node, so the actions belong to
+                // the single element TalkBack focuses.
+                modifier = Modifier.semantics { customActions = swipeActions },
                 course = course,
                 showAbsoluteTime = showAbsoluteTime,
                 markedCompleted = isMarkedCompleted,
@@ -310,15 +339,5 @@ internal fun SwipeableAssignmentRow(
                 onClick = onClick,
             )
         }
-    }
-}
-internal fun openAssignmentInMoodle(context: Context, assignment: Assignment) {
-    val targets = listOfNotNull(assignment.moodleDeepLink, assignment.moodleUrl)
-    for (target in targets) {
-        val intent = Intent(Intent.ACTION_VIEW, target.toUri()).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NEW_DOCUMENT)
-        }
-        val opened = runCatching { context.startActivity(intent) }.isSuccess
-        if (opened) return
     }
 }

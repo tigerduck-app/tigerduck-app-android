@@ -1,0 +1,172 @@
+package org.ntust.app.tigerduck.notification
+
+import android.app.AlarmManager
+import android.app.Application
+import android.content.Intent
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendar
+import org.ntust.app.tigerduck.academic.SemesterTerm
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
+import org.robolectric.annotation.Config
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZonedDateTime
+
+/** What each "class starting soon" reminder is armed to say. */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class)
+class ClassPreparingNotificationSchedulerTest {
+
+    private lateinit var context: Application
+    private lateinit var scheduler: ClassPreparingNotificationScheduler
+
+    // A course meeting twice on Mondays, in a different room each time.
+    private val twice = Course.fromSchedule(
+        courseNo = "CS2001301",
+        courseName = "Data Structures",
+        classroom = "TR-313, TR-412",
+        schedule = mapOf(1 to listOf("3", "4", "7", "8")),
+        classroomMap = mapOf(
+            "1-3" to "TR-313", "1-4" to "TR-313",
+            "1-7" to "TR-412", "1-8" to "TR-412",
+        ),
+    )
+
+    @Before
+    fun setUp() {
+        context = RuntimeEnvironment.getApplication()
+        scheduler = ClassPreparingNotificationScheduler(context)
+        // 2026-10-12 is a Monday.
+        val mondayMorning = ZonedDateTime.of(2026, 10, 12, 7, 0, 0, 0, AppConstants.TAIPEI_ZONE)
+        AppClock.setOverride(
+            ClockOverride(mondayMorning.toInstant().toEpochMilli(), frozen = true, savedAtRealMillis = 0L)
+        )
+    }
+
+    @After
+    fun releaseClock() {
+        AppClock.setOverride(null)
+    }
+
+    /** The intent of every armed reminder, in the order the classes start. */
+    // Robolectric 4.17 deprecates the operation field but has no getter for it.
+    @Suppress("DEPRECATION")
+    private fun armed(): List<Intent> =
+        shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms
+            .map { shadowOf(it.operation).savedIntent }
+            .sortedBy { it.getLongExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, 0L) }
+
+    @Test
+    fun `each block of a course meeting twice is announced with its own room`() {
+        // Every argument named, the calendar ones too: they lose their defaults in #342.
+        scheduler.scheduleAll(
+            coursesByTerm = mapOf(noCalendarTerm to listOf(twice)),
+            skippedDates = emptyMap(),
+            leadTimeSec = 600,
+            calendar = AcademicCalendar.EMPTY,
+            optedInHolidayIds = emptySet(),
+        )
+
+        assertEquals(
+            listOf("TR-313", "TR-412"),
+            armed().take(2).map { it.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM) },
+        )
+    }
+
+    /** The term every day falls in with no calendar. */
+    private val noCalendarTerm = ClassPreparingNotificationScheduler.termOn(AcademicCalendar.EMPTY, LocalDate.now())
+
+    // One term ends on Friday 11 September 2026 and the next begins on the
+    // Monday after, so the ten days from Wednesday the 9th reach into both.
+    private val twoTerms = AcademicCalendar(
+        revision = 1L,
+        terms = listOf(
+            SemesterTerm("1142", LocalDate.of(2026, 2, 23), LocalDate.of(2026, 9, 11)),
+            SemesterTerm("1151", LocalDate.of(2026, 9, 14), LocalDate.of(2027, 1, 15)),
+        ),
+        holidays = emptyList(),
+    )
+
+    // The old term's course meets on Mondays and Thursdays, the new term's on Mondays.
+    private val oldTerm = Course.fromSchedule(
+        courseNo = "CS1001301",
+        courseName = "Old Term Course",
+        schedule = mapOf(1 to listOf("3", "4"), 4 to listOf("3", "4")),
+    )
+    private val newTerm = Course.fromSchedule(
+        courseNo = "CS2002301",
+        courseName = "New Term Course",
+        schedule = mapOf(1 to listOf("3", "4")),
+    )
+
+    /** Arms from Wednesday 9 September 2026, 07:00, with [coursesByTerm] cached. */
+    private fun armAcrossTermStart(coursesByTerm: Map<String, List<Course>>) {
+        val wednesday = ZonedDateTime.of(2026, 9, 9, 7, 0, 0, 0, AppConstants.TAIPEI_ZONE)
+        AppClock.setOverride(
+            ClockOverride(wednesday.toInstant().toEpochMilli(), frozen = true, savedAtRealMillis = 0L)
+        )
+        scheduler.scheduleAll(
+            coursesByTerm = coursesByTerm,
+            skippedDates = emptyMap(),
+            leadTimeSec = 600,
+            calendar = twoTerms,
+            optedInHolidayIds = emptySet(),
+        )
+    }
+
+    /** Each armed reminder as its course's name and its class's day. */
+    private fun armedByDay(): List<String> = armed().map {
+        val start = it.getLongExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, 0L)
+        val day = Instant.ofEpochMilli(start).atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+        "${it.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_COURSE_NAME)} $day"
+    }
+
+    @Test
+    fun `across a term start, each day is armed from its own term's courses`() {
+        armAcrossTermStart(mapOf("1142" to listOf(oldTerm), "1151" to listOf(newTerm)))
+
+        assertEquals(
+            listOf("Old Term Course 2026-09-10", "New Term Course 2026-09-14"),
+            armedByDay(),
+        )
+    }
+
+    @Test
+    fun `with only the old term cached, the new term's days get nothing`() {
+        // What LiveActivityManager hands over when the new term has never
+        // been fetched: its term, with no courses.
+        armAcrossTermStart(mapOf("1142" to listOf(oldTerm), "1151" to emptyList()))
+
+        assertEquals(listOf("Old Term Course 2026-09-10"), armedByDay())
+    }
+
+    @Test
+    fun `each reminder carries the term it was armed from`() {
+        armAcrossTermStart(mapOf("1142" to listOf(oldTerm), "1151" to listOf(newTerm)))
+
+        assertEquals(
+            listOf("1142", "1151"),
+            armed().map { it.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_TERM) },
+        )
+    }
+
+    @Test
+    fun `the days ahead need the courses of each term they fall in`() {
+        val wednesday = LocalDate.of(2026, 9, 9)
+
+        assertEquals(
+            setOf("1142", "1151"),
+            ClassPreparingNotificationScheduler.termsAhead(twoTerms, wednesday),
+        )
+    }
+}

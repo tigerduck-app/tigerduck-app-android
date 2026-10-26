@@ -1,19 +1,19 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
-import org.ntust.app.tigerduck.AppConstants
+import android.os.SystemClock
 import android.util.Log
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -29,8 +29,10 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -39,8 +41,14 @@ import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.OutstandingAssignments
+import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.RefreshTriggers
+import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.shared.Course
@@ -52,11 +60,28 @@ import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
+import org.ntust.app.tigerduck.review.ReviewPrompt
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
-import java.util.Calendar
+import org.ntust.app.tigerduck.util.SingleFlight
+import org.ntust.app.tigerduck.util.logSummary
 import java.util.Date
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.minutes
+
+/**
+ * When Home fetches on its own — see [RefreshPolicy]. Everything is on,
+ * because Home's assignment list is the one thing in the app that goes stale
+ * in minutes: something submitted on Moodle should show here without a pull.
+ */
+internal val HomeRefreshPolicy = RefreshPolicy(
+    onLaunch = true,
+    onForeground = true,
+    onRevisit = true,
+    background = 15.minutes,
+    minInterval = 1.minutes,
+)
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -76,6 +101,10 @@ class HomeViewModel @Inject constructor(
     private val syncApiClient: SyncApiClient,
     private val authTokenManager: AuthTokenManager,
     private val backendSync: HomeBackendSync,
+    private val unsentMarks: UnsentMarks,
+    private val localEdits: LocalEdits,
+    private val reenableCheck: org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck,
+    private val reviewPrompt: ReviewPrompt,
 ) : ViewModel() {
 
 
@@ -91,14 +120,17 @@ class HomeViewModel @Inject constructor(
             org.ntust.app.tigerduck.shared.clock.AppClock.localDateTime().toLocalDate()
         )
 
+    /** The days the time slider leaves off; see [QuietDays]. */
+    fun quietDays(): QuietDays = academicCalendar.quietDays()
+
+    /** Whether Home is being arranged; held here so leaving the page can end it (see [HomeEditing]). */
+    val editing = HomeEditing()
+
     private val _sections = MutableStateFlow(prefs.homeSections)
     val sections: StateFlow<List<HomeSection>> = _sections
 
     private val _allCourses = MutableStateFlow<List<Course>>(emptyList())
     val allCourses: StateFlow<List<Course>> = _allCourses
-
-    private val _todayCourses = MutableStateFlow<List<Course>>(emptyList())
-    val todayCourses: StateFlow<List<Course>> = _todayCourses
 
     // Full assignment list from the most recent load/fetch. The UI-visible
     // list is derived from this + the ignore set + the current tab filter.
@@ -116,6 +148,18 @@ class HomeViewModel @Inject constructor(
     private val _markedCompletedIds = MutableStateFlow<Set<String>>(emptySet())
     val markedCompletedIds: StateFlow<Set<String>> = _markedCompletedIds
 
+    // Courses ignored from the class table; see CourseIgnores. The class
+    // table writes them, so they are read back from the cache here.
+    private val _ignoredCourseKeys = MutableStateFlow<Set<String>>(emptySet())
+
+    /** Assignments ignored along with their whole course. */
+    val courseIgnoredIds: StateFlow<Set<String>> = combine(
+        _allAssignments,
+        _ignoredCourseKeys,
+    ) { all, keys ->
+        CourseIgnores.assignmentIds(all, keys, courseService.currentSemesterCode())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
+
     // Everything the backend sync touches, bundled so HomeBackendSync can
     // read and write it directly. Declared here rather than at the top of the
     // class because Kotlin runs property initializers in declaration order —
@@ -127,6 +171,7 @@ class HomeViewModel @Inject constructor(
     private val syncState = HomeSyncState(
         ignoredAssignmentIds = _ignoredAssignmentIds,
         markedCompletedIds = _markedCompletedIds,
+        ignoredCourseKeys = _ignoredCourseKeys,
         allAssignments = _allAssignments,
         allCourses = _allCourses,
         conflicts = MutableStateFlow(emptyList()),
@@ -134,6 +179,11 @@ class HomeViewModel @Inject constructor(
     )
 
     val syncConflicts: StateFlow<List<AssignmentSyncConflict>> = syncState.conflicts
+
+    // Full syncs under way. A poll that finds the server ahead leaves the
+    // change to them rather than fetch it a second time — as on a return,
+    // when the poll and Home's own sync start together.
+    private val backendPullsInFlight = AtomicInteger(0)
 
     /**
      * Answer the sync-conflict dialog.
@@ -188,27 +238,41 @@ class HomeViewModel @Inject constructor(
 
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
-        _ignoredAssignmentIds,
+        combine(_ignoredAssignmentIds, _ignoredCourseKeys, ::Pair),
         _markedCompletedIds,
         _assignmentFilter,
         appClockChanges,
-    ) { all, ignored, marked, filter, _ ->
-        HomeAssignmentFilters.visible(all, ignored, marked, filter, Date(AppClock.nowMillis()))
+    ) { all, (ignored, courseKeys), marked, filter, _ ->
+        HomeAssignmentFilters.visible(
+            all, ignoredIncludingCourses(all, ignored, courseKeys), marked, filter,
+            Date(AppClock.nowMillis()),
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    /** Whether the 已忽略 tab has anything to show; see [HomeAssignmentFilters.hasIgnored]. */
+    /** Whether the ignored tab has anything to show; see [HomeAssignmentFilters.hasIgnored]. */
     val hasIgnoredAssignments: StateFlow<Boolean> = combine(
         _allAssignments,
         _ignoredAssignmentIds,
-    ) { all, ignored ->
-        HomeAssignmentFilters.hasIgnored(all, ignored)
+        _ignoredCourseKeys,
+    ) { all, ignored, courseKeys ->
+        HomeAssignmentFilters.hasIgnored(all, ignoredIncludingCourses(all, ignored, courseKeys))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
     private val saveMarkedCompletedChannel = Channel<Set<String>>(Channel.CONFLATED)
 
+    // Swipes on Home, counted on the main thread; see reloadAdoptedMarks.
+    private var markTaps = 0
+
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    // Every remote fetch goes through this, so launch, a sign-in and a pull
+    // that land together run the pipeline once. Above `init`, whose
+    // collectors run during construction.
+    private val fetchFlight = SingleFlight(viewModelScope)
+
+    private val refreshTriggers = RefreshTriggers(HomeRefreshPolicy, SystemClock::elapsedRealtime)
 
     // Flips true after the first cache read returns (even if the cache is
     // empty). UI keeps empty-state placeholders hidden until this is set so
@@ -218,14 +282,15 @@ class HomeViewModel @Inject constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authService.authState
 
+    /** For the sync dot's "Last synced" row; see [AppPreferences.schoolDataSyncedAtMs]. */
+    val schoolDataSyncedAtMs: StateFlow<Long> = prefs.schoolDataSyncedAtMs
+
     private val _noNetworkEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST
     )
     val noNetworkEvent: SharedFlow<Unit> = _noNetworkEvent.asSharedFlow()
 
-    private val _selectedCourse = MutableStateFlow<SelectedCourseInfo?>(null)
-    val selectedCourse: StateFlow<SelectedCourseInfo?> = _selectedCourse
 
     private val _syncCompleteEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -285,37 +350,95 @@ class HomeViewModel @Inject constructor(
             // React to login/logout: clear immediately on sign-out, kick off a
             // fresh data fetch on sign-in so the UI never lingers on a prior
             // user's cached courses.
+            //
+            // A sign-in, not the value the StateFlow replays to a new
+            // collector: a user already signed in at launch is fetched for by
+            // load(), which MainNavigation calls straight after construction.
+            // Fetching here as well ran the whole school pipeline twice on
+            // every cold start.
+            var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
+                val signedIn = isAuthed && wasAuthed == false
+                wasAuthed = isAuthed
                 if (!isAuthed) {
+                    // Whatever is still in flight belongs to the account
+                    // that just left, a load still reading its cache too.
+                    fetchFlight.cancel()
+                    loadJob?.cancel()
                     _allCourses.value = emptyList()
-                    _todayCourses.value = emptyList()
                     _allAssignments.value = emptyList()
                     // _skippedDates.value = emptyMap()
                     _ignoredAssignmentIds.value = emptySet()
                     _markedCompletedIds.value = emptySet()
+                    _ignoredCourseKeys.value = emptySet()
+                    // The watermark is the departing account's: the next
+                    // account's feed read after it would skip that account's
+                    // own earlier changes. From 0 the poll runs a full sync
+                    // until one lands for the account that signs in.
+                    syncState.lastKnownRevision = 0
                     hasLoaded = false
                     _initialLoadComplete.value = true
-                } else {
-                    fetchData(forceRemote = true)
+                } else if (signedIn) {
+                    // As a launch, so the page counts as loaded and a return
+                    // to the app fetches again. Launched, so a sign-out
+                    // mid-fetch reaches the branch above without waiting for
+                    // the fetch to finish.
+                    loadNow(fetch = true)
                 }
             }
         }
         viewModelScope.launch {
             // Language change → re-fetch so today's courses and assignment
-            // names render in the new locale.
+            // names render in the new locale. A rerun: a fetch already in
+            // flight asked for the old language's names.
             prefs.appLanguageChanged.collect {
                 courseService.clearInMemoryLookupCache()
-                if (authService.authState.value) refresh()
+                if (authService.authState.value) requestRefresh(rerun = true)
             }
         }
         viewModelScope.launch {
             dataCache.backgroundSyncVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
                 val courses = dataCache.loadCourses()
                 val assignments = dataCache.loadAssignments()
-                _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
-                _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
+                val ignored = dataCache.loadIgnoredAssignments()
+                val marked = dataCache.loadMarkedCompletedAssignments()
+                val courseKeys = dataCache.loadIgnoredCourses()
+                // Signed out, or in as someone else, while the files were
+                // read: what they held was the departing account's.
+                if (!authService.isStillSignedInAs(account)) return@collect
+                _ignoredAssignmentIds.value = ignored
+                _markedCompletedIds.value = marked
+                _ignoredCourseKeys.value = courseKeys
                 TigerDuckTheme.buildCourseColorMap(courses)
                 updateCoursesAndAssignments(courses, assignments)
+            }
+        }
+        viewModelScope.launch {
+            // Marks a re-enable answer took (Use Server): read now, or the
+            // next swipe writes the ones held here back over them.
+            dataCache.marksAdoptedVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
+                reloadAdoptedMarks(
+                    read = { dataCache.loadIgnoredAssignments() to dataCache.loadMarkedCompletedAssignments() },
+                    tapsMade = { markTaps },
+                    stillSignedIn = { authService.isStillSignedInAs(account) },
+                ) { ignored, completed ->
+                    _ignoredAssignmentIds.value = ignored
+                    _markedCompletedIds.value = completed
+                }
+            }
+        }
+        viewModelScope.launch {
+            // Only the ignored courses: Home writes the other two sets itself,
+            // and reading them back here could undo a newer swipe.
+            dataCache.assignmentMarksVersion.drop(1).collect {
+                if (!authService.authState.value) return@collect
+                val account = authService.storedStudentId
+                val courseKeys = dataCache.loadIgnoredCourses()
+                if (authService.isStillSignedInAs(account)) _ignoredCourseKeys.value = courseKeys
             }
         }
         viewModelScope.launch {
@@ -354,15 +477,28 @@ class HomeViewModel @Inject constructor(
     // buildCourseColorAssignments.
 
     private var hasLoaded = false
+    private var loadJob: Job? = null
 
     fun load() {
         if (hasLoaded) return
-        hasLoaded = true
+        loadNow(fetch = refreshTriggers.onLaunch())
+    }
 
-        viewModelScope.launch {
+    /**
+     * The cache onto the screen, then the school servers if [fetch]: at
+     * launch as HomeRefreshPolicy says, and always on a sign-in, which is
+     * this page's launch for the account signing in.
+     */
+    private fun loadNow(fetch: Boolean) {
+        hasLoaded = true
+        // It pulls from the backend below, whichever way it goes.
+        backendPullStarting()
+
+        loadJob = viewModelScope.launch {
             // _skippedDates.value = dataCache.loadSkippedDates()
             _ignoredAssignmentIds.value = dataCache.loadIgnoredAssignments()
             _markedCompletedIds.value = dataCache.loadMarkedCompletedAssignments()
+            _ignoredCourseKeys.value = dataCache.loadIgnoredCourses()
 
             // Load cached data immediately
             val cachedCourses = dataCache.loadCourses()
@@ -373,26 +509,107 @@ class HomeViewModel @Inject constructor(
             }
             _initialLoadComplete.value = true
 
-            fetchData(forceRemote = true)
+            // The school servers as HomeRefreshPolicy says; the backend sync
+            // that carries other devices' marks runs either way, as it
+            // always has.
+            if (fetch) fetchRemote() else runCatching { syncAndRepublish() }
         }
     }
 
+    /**
+     * The app came back to the foreground. Used to sync only with the
+     * backend, so a morning in the background left the morning's
+     * assignments on screen until the user pulled.
+     */
+    fun onAppForeground() {
+        if (!hasLoaded || !authService.authState.value) return
+        if (refreshTriggers.onForeground()) fetchOnReturn()
+    }
+
+    /** Home was shown: on launch, or on coming back to it from another page. */
+    fun onPageShown() {
+        if (!authService.authState.value) return
+        if (refreshTriggers.onShown()) fetchOnReturn()
+    }
+
+    /** The page left the screen for another page; see PageLeftEffect. An ask it offered goes with it. */
+    fun onPageLeft() {
+        refreshTriggers.onLeft()
+        reviewPrompt.withdraw()
+    }
+
+    /**
+     * The page paused with the activity — a background trip, a system prompt
+     * over it: the Play rating's moment it offered is withdrawn, so the ask
+     * cannot outlive what was on screen. Its next resume may offer one again.
+     */
+    fun onPagePaused() = reviewPrompt.withdraw()
+
+    /**
+     * Home is on screen and the activity resumed: on coming to the page, and
+     * on each return from the background with it showing — the page's own
+     * ON_RESUME, so a return with another page up is not one. The Play
+     * rating's moment (issue #332), if ReviewPrompt agrees. A course opened
+     * from Home is the navigation's course detail sheet, a window of its own,
+     * so the launch's window-focus check keeps the ask off it. On the
+     * launch's first resume, before any load, ReviewPrompt declines.
+     * [pageResumed] is the page's own answer, asked again right before the
+     * launch, to whether it is still on screen and resumed.
+     */
+    fun onPageResumed(pageResumed: () -> Boolean) {
+        reviewPrompt.calmMoment(pageResumed)
+    }
+
+    private fun fetchOnReturn() {
+        // Quietly: nobody asked, so no snackbar, and a fetch bound to fail
+        // would only mark Moodle as failing on every return.
+        if (!networkChecker.isAvailable()) return
+        // Ahead of the ON_RESUME that follows, so its syncOnForeground leaves
+        // the backend to the pull this fetch starts with.
+        backendPullStarting()
+        viewModelScope.launch { fetchRemote() }
+    }
+
+    /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
     fun refresh() {
+        moodleService.expireSharedResults()
+        courseService.expireSharedResults()
+        requestRefresh(rerun = false)
+    }
+
+    private fun requestRefresh(rerun: Boolean) {
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) {
                 _noNetworkEvent.tryEmit(Unit)
+                // The user just saw an error, not a moment to ask for a rating.
+                reviewPrompt.loadFailed()
                 return@launch
             }
-            fetchData(forceRemote = true)
+            if (rerun) {
+                fetchFlight.rerun { fetchData(forceRemote = true) }
+            } else {
+                // A pull: what was just submitted, confirmed ones included.
+                moodleService.recheckingSubmissions { fetchRemote() }
+            }
         }
     }
 
-    private var lastForegroundSyncMs = 0L
+    /** The full fetch — backend, NTUST and Moodle — or the one already running. */
+    private suspend fun fetchRemote() = fetchFlight.join { fetchData(forceRemote = true) }
+
+    // When a pull from the backend last started, whatever started it. A full
+    // fetch begins with one, so a foreground sync on its heels would only
+    // repeat it.
+    private var lastBackendPullMs = 0L
+
+    private fun backendPullStarting() {
+        lastBackendPullMs = System.currentTimeMillis()
+    }
 
     fun syncOnForeground() {
         val now = System.currentTimeMillis()
-        if (now - lastForegroundSyncMs < 30_000) return
-        lastForegroundSyncMs = now
+        if (now - lastBackendPullMs < 30_000) return
+        lastBackendPullMs = now
         viewModelScope.launch {
             if (!networkChecker.isAvailable()) return@launch
             runCatching {
@@ -403,50 +620,50 @@ class HomeViewModel @Inject constructor(
 
     // --- Foreground revision polling ---
 
-    private var revisionPollingJob: Job? = null
+    private val revisionPoller = RevisionPoller(
+        scope = viewModelScope,
+        poll = ::pollRevision,
+        relogin = authService::attemptRelogin,
+        now = SystemClock::elapsedRealtime,
+    )
 
-    fun startRevisionPolling() {
-        if (revisionPollingJob?.isActive == true) {
-            Log.d("RevisionPoll", "[poll] startRevisionPolling skipped — job already active")
-            return
-        }
-        Log.d("RevisionPoll", "[poll] startRevisionPolling — launching 10s loop")
-        revisionPollingJob = viewModelScope.launch {
-            while (true) {
-                delay(10_000)
-                // cloudSyncEnabled already reads false on fdroid at its
-                // source (AppPreferences.cloudSyncEnabled), so no separate
-                // flavor check is needed here.
-                if (!prefs.cloudSyncEnabled) {
-                    Log.d("RevisionPoll", "[poll] tick skipped — cloudSyncEnabled=false")
-                    continue
-                }
-                if (!authTokenManager.isLoggedIn) {
-                    Log.d("RevisionPoll", "[poll] tick skipped — not logged in")
-                    continue
-                }
-                if (!networkChecker.isAvailable()) {
-                    Log.d("RevisionPoll", "[poll] tick skipped — no network")
-                    continue
-                }
-                Log.d("RevisionPoll", "[poll] tick — fetching revision (lastKnown=${syncState.lastKnownRevision})")
-                try {
-                    val revision = syncApiClient.fetchRevision()
-                    Log.d("RevisionPoll", "[poll] server revision=$revision lastKnown=${syncState.lastKnownRevision}")
-                    if (revision > syncState.lastKnownRevision) {
-                        Log.d("RevisionPoll", "[poll] revision changed — triggering full sync")
-                        syncAndRepublish()
-                    }
-                } catch (e: Exception) {
-                    Log.w("RevisionPoll", "[poll] tick failed", e)
-                }
-            }
+    // The first start is the launch, whose own sync has just pulled.
+    private var revisionPollingStarted = false
+
+    init {
+        // After the poller above, which the edits reach.
+        viewModelScope.launch {
+            localEdits.edits.collect { revisionPoller.noteActivity() }
         }
     }
 
-    fun stopRevisionPolling() {
-        revisionPollingJob?.cancel()
-        revisionPollingJob = null
+    /** The app is in the foreground again; see [RevisionPoller.start]. */
+    fun startRevisionPolling() {
+        revisionPoller.start(pollNow = revisionPollingStarted)
+        revisionPollingStarted = true
+    }
+
+    fun stopRevisionPolling() = revisionPoller.stop()
+
+    // cloudSyncEnabled already reads false on fdroid at its source
+    // (AppPreferences.cloudSyncEnabled), so no separate flavor check is
+    // needed here.
+    private suspend fun pollRevision(): RevisionPollOutcome = pollRevisionOnce(
+        syncEnabled = { prefs.cloudSyncEnabled },
+        online = networkChecker::isAvailable,
+        signIn = authTokenManager::signInIfSignedOut,
+        fetchRevision = syncApiClient::fetchRevision,
+        fetchChanges = syncApiClient::fetchChanges,
+        lastKnownRevision = { syncState.lastKnownRevision },
+        setLastKnownRevision = { syncState.lastKnownRevision = it },
+        signInGeneration = { authTokenManager.signInGeneration },
+        fullSyncsInFlight = backendPullsInFlight::get,
+        retryUnsent = backendSync::sendWhatWaits,
+        fullSync = ::syncAndRepublish,
+    ).also { outcome ->
+        // Reached the server with nothing new: a re-enable check that failed
+        // runs again here, as after a full sync (which a change starts).
+        if (outcome == RevisionPollOutcome.UNCHANGED) reenableCheck.runIfOwed()
     }
 
     /**
@@ -469,8 +686,17 @@ class HomeViewModel @Inject constructor(
         dataCache.loadDeletedCourseNos(),
     )
 
+    private suspend fun pullFromBackend() {
+        backendPullsInFlight.incrementAndGet()
+        try {
+            backendSync.pull(syncState)
+        } finally {
+            backendPullsInFlight.decrementAndGet()
+        }
+    }
+
     private suspend fun syncAndRepublish() {
-        backendSync.pull(syncState)
+        pullFromBackend()
         val courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
         val assignments = dataCache.loadAssignments()
         TigerDuckTheme.buildCourseColorMap(courses)
@@ -479,6 +705,9 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun fetchData(forceRemote: Boolean) {
+        // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
+        refreshTriggers.fetchStarted()
+        if (forceRemote) backendPullStarting()
         _isLoading.value = true
         try {
             var courses = dataCache.loadCourses()
@@ -488,7 +717,7 @@ class HomeViewModel @Inject constructor(
                 // Moodle-direct for the assignment/course list (proven,
                 // correct semester filtering). Backend handles override
                 // sync only (done/ignored marks across devices).
-                backendSync.pull(syncState)
+                pullFromBackend()
                 // Re-read after backend sync so server-merged courses and
                 // deletions are reflected even if the Moodle fetch below fails.
                 courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
@@ -505,25 +734,39 @@ class HomeViewModel @Inject constructor(
                         courses = HomeCourseMerge.mergeRemote(
                             remote = remoteCourses,
                             cached = dataCache.loadCourses(),
+                            names = dataCache.loadCourseCustomNames(),
+                            locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
                             deletedNos = hiddenNow(),
                         )
                         dataCache.saveCourses(courses)
+                        // The class table loaded: a day of use towards the
+                        // Play rating ask (issue #332). A source that failed
+                        // is a status dot, which ReviewPrompt reads.
+                        reviewPrompt.classTableLoaded()
                         widgetUpdater.requestUpdate()
                     }
 
-                    // Symmetric with the courses branch above: treat an empty
-                    // remote result as "upstream returned nothing useful"
-                    // (NetScaler challenge, token-rotation race, semester-code
-                    // skew in MoodleService.fetchAssignments) rather than
-                    // clobbering a valid cache with an empty list.
-                    if (!remoteAssignments.isNullOrEmpty()) {
-                        assignments = remoteAssignments
-                        dataCache.saveAssignments(remoteAssignments)
-                        runCatching { pushApiClient.uploadAssignments(remoteAssignments) }
-                            .onFailure {
-                                prefs.setLastSyncSource(SyncSource.LOCAL)
-                                Log.w("HomeViewModel", "uploadAssignments failed (non-fatal)", it)
-                            }
+                    // Null when Moodle failed or was not asked; an empty list
+                    // is its answer and replaces the cache like any other.
+                    // See CourseRosterMerge.assignmentsToStore. What is shown
+                    // and uploaded is the list as written, which the write
+                    // reconciles against newer answers; nothing when the write
+                    // was refused.
+                    val written = remoteAssignments?.let {
+                        moodleService.storeAssignments(it.assignments, it.answer)
+                    }
+                    if (written != null) {
+                        assignments = written
+                        try {
+                            pushApiClient.uploadAssignments(written)
+                        } catch (e: CancellationException) {
+                            // A sign-out cancels this fetch: taken for a failed upload, the
+                            // fetch would go on to show the departing account's lists again.
+                            throw e
+                        } catch (e: Exception) {
+                            prefs.setLastSyncSource(SyncSource.LOCAL)
+                            Log.w("HomeViewModel", "uploadAssignments failed (non-fatal): ${e.logSummary()}")
+                        }
                     }
                 }
             }
@@ -541,17 +784,21 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** A Moodle round's assignments as the cache should hold them, with the round that gave them; see [MoodleService.storeAssignments]. */
+    private class AssignmentsToStore(val assignments: List<Assignment>, val answer: MoodleService.AssignmentsAnswer)
+
     /**
      * One network round of the two enrolment sources (NTUST course-selection
      * portal + Moodle enrolled-courses) run in parallel, then per-course
      * detail lookups run in parallel while assignments are fetched alongside.
      * Returns (null, null) for any piece that failed so the caller can fall
-     * back to cached data cleanly.
+     * back to cached data cleanly, and null assignments when there was no
+     * course to ask Moodle about.
      */
     private suspend fun fetchCoursesAndAssignments(
         studentId: String,
         password: String,
-    ): Pair<List<Course>?, List<Assignment>?> = coroutineScope {
+    ): Pair<List<Course>?, AssignmentsToStore?> = coroutineScope {
         // TTL-throttled, so this costs one request an hour however often Home
         // refreshes. Resolved before the gate below, which depends on it.
         semesterCatalog.refreshIfStale()
@@ -570,9 +817,11 @@ class HomeViewModel @Inject constructor(
             try {
                 if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.MOODLE)
                 moodleService.fetchEnrolledCourses()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
-                Log.e("HomeViewModel", "Failed to fetch Moodle enrolled courses", e)
+                ServerStatusTracker.moodleFailed(e)
+                Log.e("HomeViewModel", "Failed to fetch Moodle enrolled courses: ${e.logSummary()}")
                 null
             }
         }
@@ -585,9 +834,11 @@ class HomeViewModel @Inject constructor(
                 val nos = courseService.fetchEnrolledCourseNos(studentId, password)
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.COURSE_SELECTION)
                 nos
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.COURSE_SELECTION)
-                Log.e("HomeViewModel", "Failed to fetch enrolled course numbers", e)
+                Log.e("HomeViewModel", "Failed to fetch enrolled course numbers: ${e.logSummary()}")
                 null
             }
         }
@@ -608,25 +859,35 @@ class HomeViewModel @Inject constructor(
 
             if (orderedCourseNos.isEmpty()) return@async emptyList()
 
+            // A course whose query fails keeps its row in the term, where
+            // Moodle's stand-in would take its times and room off this phone
+            // and, uploaded, off every other device (#417).
+            val cachedByNo = dataCache.loadCourses(semester).associateBy { it.courseNo }
             orderedCourseNos.map { courseNo ->
-                async { courseService.lookupOrFallback(semester, courseNo, moodleByNo[courseNo]) }
+                async {
+                    courseService.lookupOrFallback(semester, courseNo, moodleByNo[courseNo], kept = cachedByNo[courseNo])
+                }
             }.awaitAll().filterNotNull()
         }
 
         val assignmentsDef = async {
             if (moodleEnrolled == null) return@async null
             try {
-                val remote = moodleService.fetchAssignments(
+                val answer = moodleService.fetchAssignments(
                     enrolledCourses = moodleEnrolled,
                     rosterCourseNos = rosterCourseNos
                 )
-                val existingCompleted =
-                    CourseRosterMerge.completedIds(dataCache.loadAssignments())
+                val cached = dataCache.loadAssignments()
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
-                CourseRosterMerge.preserveConfirmedSubmissions(remote, existingCompleted)
+                answer?.let { AssignmentsToStore(CourseRosterMerge.assignmentsToStore(it.assignments, cached).orEmpty(), it) }
+            } catch (e: CancellationException) {
+                // A sign-out cancels the fetch; marking the servers failed
+                // here would land after the tracker was reset for the next
+                // account.
+                throw e
             } catch (e: Exception) {
-                ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.MOODLE)
-                Log.e("HomeViewModel", "Failed to fetch assignments", e)
+                ServerStatusTracker.moodleFailed(e)
+                Log.e("HomeViewModel", "Failed to fetch assignments: ${e.logSummary()}")
                 null
             }
         }
@@ -636,16 +897,8 @@ class HomeViewModel @Inject constructor(
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
         _allCourses.value = courses
-        val todayIndex = AppConstants.weekdayIndex(
-            AppClock.calendar().get(Calendar.DAY_OF_WEEK)
-        )
-        _todayCourses.value = courses.filter { it.schedule.containsKey(todayIndex) }
-        _allAssignments.value = assignments.sortedBy { it.dueDate }
+        _allAssignments.value = assignments.sortedBy { it.studentDueDate }
 
-        // Schedule notifications for upcoming assignments. Items the user has
-        // ignored or marked-done still get scheduled, but as safety-net
-        // reminders — they fire at the same lead time as regular alerts but
-        // call out that the homework was dismissed without being submitted.
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(assignments)
         }
@@ -654,33 +907,31 @@ class HomeViewModel @Inject constructor(
         liveActivityManager.refresh()
     }
 
-    /**
-     * Re-arm every assignment alarm against the current ignored/marked sets.
-     * The scheduler decides REGULAR vs SAFETY_NET per id; we just hand it the
-     * full list of non-completed assignments and the union of dismissed ids.
-     */
+    /** Re-arm every assignment alarm against the current ignored and marked-done sets. */
     private fun rescheduleAssignmentNotifications(assignments: List<Assignment>) {
-        val safetyNetIds = _ignoredAssignmentIds.value + _markedCompletedIds.value
         notificationScheduler.scheduleAll(
-            assignments.filter { !it.isCompleted },
-            safetyNetIds,
+            OutstandingAssignments.of(
+                assignments,
+                ignoredIds = ignoredIncludingCourses(assignments),
+                markedCompletedIds = _markedCompletedIds.value,
+            ),
             prefs.notifyAssignmentOffsets,
         )
     }
+
+    /** The ignored ids of [all], counting those ignored with their course. */
+    private fun ignoredIncludingCourses(
+        all: List<Assignment>,
+        ignored: Set<String> = _ignoredAssignmentIds.value,
+        courseKeys: Set<String> = _ignoredCourseKeys.value,
+    ): Set<String> =
+        ignored + CourseIgnores.assignmentIds(all, courseKeys, courseService.currentSemesterCode())
 
     fun hasUnfinishedAssignment(courseNo: String): Boolean =
         HomeAssignmentFilters.anyUnfinishedFor(
             all = _allAssignments.value,
             courseNo = courseNo,
-            ignoredIds = _ignoredAssignmentIds.value,
-            markedCompletedIds = _markedCompletedIds.value,
-        )
-
-    fun assignmentsFor(courseNo: String): List<Assignment> =
-        HomeAssignmentFilters.unfinishedFor(
-            all = _allAssignments.value,
-            courseNo = courseNo,
-            ignoredIds = _ignoredAssignmentIds.value,
+            ignoredIds = ignoredIncludingCourses(_allAssignments.value),
             markedCompletedIds = _markedCompletedIds.value,
         )
 
@@ -700,7 +951,9 @@ class HomeViewModel @Inject constructor(
     fun onHomePaused() {
         _ignoredTabPinned.value = false
         if (_assignmentFilter.value == AssignmentFilter.IGNORED &&
-            !HomeAssignmentFilters.hasIgnored(_allAssignments.value, _ignoredAssignmentIds.value)
+            !HomeAssignmentFilters.hasIgnored(
+                _allAssignments.value, ignoredIncludingCourses(_allAssignments.value),
+            )
         ) {
             _assignmentFilter.value = AssignmentFilter.INCOMPLETE
             prefs.homeAssignmentFilter = AssignmentFilter.INCOMPLETE
@@ -731,7 +984,8 @@ class HomeViewModel @Inject constructor(
      * 已忽略 and 標示為完成 are mutually exclusive, so setting either clears
      * the other — that is what [secondary] is for. The UI updates before the
      * PATCH goes out and is never rolled back if it fails: the id stays in
-     * this device's cache and the next sync re-asserts it, which is a better
+     * this device's cache, [UnsentMarks] keeps it, and the next sync keeps
+     * this device's value for it and sends it again, which is a better
      * outcome than a row that silently springs back under the user's finger.
      */
     private fun toggleOverride(
@@ -743,6 +997,7 @@ class HomeViewModel @Inject constructor(
         statusWhenSet: String,
     ) {
         val id = assignment.assignmentId
+        markTaps++
         val wasSet = id in primary.value
         primary.update { if (wasSet) it - id else it + id }
         if (!wasSet) {
@@ -755,24 +1010,18 @@ class HomeViewModel @Inject constructor(
         }
         val status = if (wasSet) AssignmentOverrideReconciler.STATUS_NONE else statusWhenSet
         pendingOverrides.add(id)
+        revisionPoller.noteActivity()
         viewModelScope.launch {
             try {
-                pushApiClient.patchAssignmentOverride(
-                    id.toIntOrNull() ?: return@launch, status,
-                )
-            } catch (e: Exception) {
-                Log.w("HomeViewModel", "override PATCH FAILED: $id → $status", e)
+                // Kept on disk until it lands; a failure is logged there.
+                unsentMarks.send(id, status)
             } finally {
-                // Always release the in-flight lock — a failed PATCH must not
-                // pin this id in pendingOverrides forever, which would block it
-                // from ever being reconciled from the server again.
+                // Always release the in-flight lock: from here on a PATCH
+                // that failed is protected by UnsentMarks, which lets the id
+                // go once the server has it, so it is not pinned for ever.
                 pendingOverrides.remove(id)
             }
         }
-    }
-
-    fun selectCourse(info: SelectedCourseInfo?) {
-        _selectedCourse.value = info
     }
 
     // 翹課 — see the block above _skippedDates.
@@ -815,6 +1064,34 @@ class HomeViewModel @Inject constructor(
         )
     }
 
+    /**
+     * A shortcut card for [feature], in the first section that holds them,
+     * or in a new Quick widgets section titled [quickWidgetsTitle] when Home
+     * has none. The title is passed in because the view model has no
+     * resources; HomeScreen resolves it as it does for [addSection].
+     */
+    fun addQuickFeature(feature: AppFeature, quickWidgetsTitle: String) {
+        val added = HomeSectionLayout.addQuickFeature(
+            sections = _sections.value,
+            feature = feature,
+            sectionId = java.util.UUID.randomUUID().toString(),
+            widgetId = java.util.UUID.randomUUID().toString(),
+            quickWidgetsTitle = quickWidgetsTitle,
+        )
+        if (added !== _sections.value) persistSections(added)
+    }
+
+    fun removeWidget(sectionId: String, widgetId: String) {
+        val removed = HomeSectionLayout.removeWidget(_sections.value, sectionId, widgetId)
+        if (removed !== _sections.value) persistSections(removed)
+    }
+
+    /** One step of a shortcut drag; see [moveSections] for why a no-op must not write. */
+    fun moveWidget(sectionId: String, widgetId: String, toIndex: Int) {
+        val moved = HomeSectionLayout.moveWidget(_sections.value, sectionId, widgetId, toIndex)
+        if (moved !== _sections.value) persistSections(moved)
+    }
+
     private fun persistSections(sections: List<HomeSection>) {
         _sections.value = sections
         prefs.homeSections = sections
@@ -822,8 +1099,20 @@ class HomeViewModel @Inject constructor(
 }
 
 /**
- * Selection context for the Home detail dialog. Carries the slot-resolved
- * classroom so the popup renders the room for the tapped period only, not
- * the union across the whole day's split rooms.
+ * Home's take-up of marks a re-enable answer wrote (`DataCache.adoptAssignmentMarks`):
+ * [read] the files and [apply] them, unless a swipe was made meanwhile
+ * ([tapsMade] moved), which the read may predate and must not undo, or the
+ * account signed out, whose marks they were.
  */
-data class SelectedCourseInfo(val course: Course, val classroom: String)
+internal suspend fun reloadAdoptedMarks(
+    read: suspend () -> Pair<Set<String>, Set<String>>,
+    tapsMade: () -> Int,
+    stillSignedIn: () -> Boolean,
+    apply: (ignored: Set<String>, completed: Set<String>) -> Unit,
+) {
+    val tapsBefore = tapsMade()
+    val (ignored, completed) = read()
+    if (tapsMade() != tapsBefore || !stillSignedIn()) return
+    apply(ignored, completed)
+}
+

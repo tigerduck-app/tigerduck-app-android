@@ -21,6 +21,9 @@ import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
 import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.SchoolMailRepository
+import org.ntust.app.tigerduck.mail.SentCopyNotice
+import org.ntust.app.tigerduck.mail.SentCopyNotices
+import org.ntust.app.tigerduck.mail.SentCopyOrigin
 import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mime.TextCleaning
@@ -30,6 +33,9 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.notify.MailNotifier
 import org.ntust.app.tigerduck.mail.sanitize.HtmlSanitizer
 import org.ntust.app.tigerduck.mail.sanitize.MailLink
+import org.ntust.app.tigerduck.mail.sanitize.MailReadableHtml
+import org.ntust.app.tigerduck.mail.sanitize.PlainTextLink
+import org.ntust.app.tigerduck.mail.sanitize.PlainTextLinks
 import org.ntust.app.tigerduck.mail.sanitize.SanitizedHtml
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.warning.LinkVerdict
@@ -45,12 +51,13 @@ import javax.inject.Inject
 /** One mail (spec §6.3, §9): three views, warnings, attachments, and the actions that close it. */
 @HiltViewModel
 class SchoolMailMessageViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val repository: SchoolMailRepository,
     private val account: MailAccount,
     private val notifier: MailNotifier,
     private val cache: MailCache,
     private val site: MailSite,
+    private val sentCopyNotices: SentCopyNotices,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ViewModel() {
     val folder: String = savedStateHandle.get<String>("folder").orEmpty()
@@ -61,7 +68,7 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     enum class ViewMode { FORMATTED, PLAIN, SOURCE }
 
-    enum class AttachmentAction { OPEN, SAVE }
+    enum class AttachmentAction { OPEN, SAVE, SHARE }
 
     data class PendingAttachment(val attachment: MailAttachment, val action: AttachmentAction)
 
@@ -87,6 +94,8 @@ class SchoolMailMessageViewModel @Inject constructor(
             val document: LinkedHtml?,
             val plain: String,
             val warnings: List<MailWarning>,
+            /** The URLs and addresses in [plain], which the plain view draws as links; see [plainLinkTarget]. */
+            val plainLinks: List<PlainTextLink> = emptyList(),
         ) : Content
     }
 
@@ -103,9 +112,13 @@ class SchoolMailMessageViewModel @Inject constructor(
         val parseFailed: Boolean = false,
         val source: String? = null,
         val sourceLoading: Boolean = false,
+        /** The source view's last load failed: shown in its place with a Retry ([retrySource]). */
+        val sourceError: MailError? = null,
         /** An attachment (open or save) that needs the risky/HTML/SVG confirmation first. */
         val confirmAttachment: PendingAttachment? = null,
         val openRequest: OpenRequest? = null,
+        /** A downloaded attachment for the screen to hand to the share sheet. */
+        val shareRequest: OpenRequest? = null,
         /** Set once a save is confirmed (or needed no confirmation): the screen launches the SAF picker for it. */
         val saveRequest: MailAttachment? = null,
         /** Attachment part IDs currently being downloaded, open or save alike -- keyed per part so two different attachments don't clear each other's spinner. */
@@ -114,36 +127,95 @@ class SchoolMailMessageViewModel @Inject constructor(
         val confirmDelete: Boolean = false,
         val confirmDeleteForever: Boolean = false,
         val actionError: MailError? = null,
-        /** Moved, deleted or marked unread: the screen pops. */
+        /** Moved or deleted: the screen pops. */
         val closed: Boolean = false,
+        /**
+         * The signed-in student's own address, which the header's To and Cc lines pick out. Read
+         * off the main thread when the screen opens: it comes out of the encrypted credential store.
+         */
+        val selfAddress: String? = null,
+        /**
+         * "View in light mode": the mail on [MailHtmlTheme.LIGHT]'s white paper while the app is
+         * drawn dark (see [MailHtmlTheme.page]). On for a mail that sets colors of its own, and
+         * from then on the reader's to change; see [setViewInLight].
+         */
+        val viewInLight: Boolean = false,
     ) {
         val folderKind: SpecialFolder? get() = folders?.kindOf(folder)
     }
 
-    private val _state = MutableStateFlow(UiState(folder = folder))
+    /**
+     * Whether this mail is viewed in light mode, null until its HTML has chosen. As the Apple app's
+     * `hasPickedPage`, it is chosen once, before the mail first shows -- white paper for a mail
+     * that sets colors of its own ([MailReadableHtml.setsColors]) -- so the mail is never drawn
+     * on one page and redrawn on the other, and a page the reader picks afterwards stays picked.
+     *
+     * Kept in [savedStateHandle], so a process restore of this screen opens the mail on the page
+     * it was left on, and never in preferences, so the next mail chooses its own.
+     */
+    private var viewInLight: Boolean?
+        get() = savedStateHandle[VIEW_IN_LIGHT]
+        set(value) {
+            savedStateHandle[VIEW_IN_LIGHT] = value
+        }
+
+    private val _state = MutableStateFlow(UiState(folder = folder, viewInLight = viewInLight == true))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    /** Whether a confirmed `mailto:` link can open this app's own compose, which sends as the school account. */
+    val signedIn: StateFlow<Boolean> = account.signedIn
+
     /**
-     * The app's own colours for the mail HTML page (spec §9.3 no longer means white paper). There
+     * A reply or forward of this mail, or a mail started from a link in it, went out without its
+     * copy reaching the sent folder. Only this mail's: a notice about any other send is not shown.
+     */
+    val sentCopyNotice: StateFlow<SentCopyNotice?> = sentCopyNotices.noticeFor(SentCopyOrigin.Message(folder, uid), viewModelScope)
+
+    fun dismissSentCopyNotice() = sentCopyNotices.dismiss()
+
+    init {
+        // Beside the load rather than ahead of it: the header never waits for it, and only gains
+        // the accent once it is in.
+        viewModelScope.launch {
+            val self = withContext(io) { account.ownAddress }
+            update { it.copy(selfAddress = self) }
+        }
+    }
+
+    /**
+     * The app's own colors for the mail HTML page (spec §9.3 no longer means white paper). There
      * is no Compose theme access from a view model, so [SchoolMailMessageScreen] pushes its current
      * `MaterialTheme.colorScheme` in through [setMailTheme] from a `LaunchedEffect` keyed on it;
-     * [render] and [loadRemoteImages] read it whenever they (re)build the document.
+     * [page] is drawn in it, or on white paper instead (see [viewInLight]).
      *
-     * A genuine change -- not merely a recomposition that recomputes the same colours -- also
-     * rebuilds the document already on screen, whenever content is already [Content.Ready], from
-     * the sanitized HTML and inline images already in hand: no re-fetch, no re-sanitize, just
-     * [MailHtmlDocument.build] run again. Without this, the WebView's *native* background (set
-     * independently, straight from the current colour scheme) repaints immediately on a
-     * dark/light flip while a mail is open, but the document itself would keep the colours it was
-     * built with -- a stale, wrongly-coloured page inside a freshly-coloured frame, which is
-     * exactly what this theming exists to prevent.
+     * A genuine change of [page] -- not merely a recomposition that recomputes the same colors,
+     * nor a change of a dark theme the mail is on white paper over -- also rebuilds the document
+     * already on screen, whenever content is already [Content.Ready], from the sanitized HTML and
+     * inline images already in hand: no re-fetch, no re-sanitize, just [MailHtmlDocument.build]
+     * run again. Without this, the WebView's *native* background (set independently, straight from
+     * the current color scheme) repaints immediately on a dark/light flip while a mail is open,
+     * but the document itself would keep the colors it was built with -- a stale,
+     * wrongly-colored page inside a freshly-colored frame, which is exactly what this theming
+     * exists to prevent.
      */
-    private var mailTheme = MailHtmlTheme(background = "#ffffff", foreground = "#000000", isDark = false)
+    private var appTheme = MailHtmlTheme.LIGHT
+
+    /** The page the mail is drawn on: [render], [loadRemoteImages] and every rebuild draw it. */
+    private val page: MailHtmlTheme get() = appTheme.page(viewInLight == true)
 
     fun setMailTheme(theme: MailHtmlTheme) {
-        if (theme == mailTheme) return
-        mailTheme = theme
-        rebuildDocument(theme)
+        if (theme == appTheme) return
+        val shown = page
+        appTheme = theme
+        if (page != shown) rebuildDocument(page)
+    }
+
+    /** The reader's "View in light mode", which this mail keeps from then on. */
+    fun setViewInLight(on: Boolean) {
+        val shown = page
+        viewInLight = on
+        update { it.copy(viewInLight = on) }
+        if (page != shown) rebuildDocument(page)
     }
 
     private var themeJob: Job? = null
@@ -191,16 +263,23 @@ class SchoolMailMessageViewModel @Inject constructor(
     fun load() {
         if (_state.value.content is Content.Ready) return
         viewModelScope.launch {
+            // The sign-in a rejection is for: one that comes back once it has left is not the next
+            // one's (spec §7.4), as the repository's own record of it already holds.
+            val generation = account.accountGeneration
             update { it.copy(content = Content.Loading) }
             try {
-                val folders = repository.folders()
-                update { it.copy(folders = folders) }
-                val summary = repository.summary(folder, uid) ?: throw MailError.Protocol("message is gone")
-                update { it.copy(content = Content.LoadingBody(summary)) }
-                val body = try {
-                    repository.body(folder, uid)
-                } catch (e: MailError.Protocol) {
-                    // A body we cannot parse is still readable as its source (spec §9.1).
+                // Ahead of the background download: otherwise one of its batches went before the
+                // summary and another between the summary and the body, seconds of waiting while
+                // the first download of a mailbox ran.
+                val (summary, body) = repository.ahead {
+                    val folders = repository.folders()
+                    update { it.copy(folders = folders) }
+                    val summary = repository.summary(folder, uid) ?: throw MailError.Protocol("message is gone")
+                    update { it.copy(content = Content.LoadingBody(summary)) }
+                    // A body we cannot parse is still readable as its source (spec §9.1): null.
+                    summary to try { repository.body(folder, uid) } catch (e: MailError.Protocol) { null }
+                }
+                if (body == null) {
                     update { it.copy(content = Content.Ready(summary, EMPTY_BODY, null, null, "", emptyList()), parseFailed = true) }
                     markSeen(summary)
                     selectMode(ViewMode.SOURCE)
@@ -211,44 +290,62 @@ class SchoolMailMessageViewModel @Inject constructor(
                 // remote images rather than hard-coding false, so a load that runs while that
                 // flag is already true (in principle reachable from a future retry path) never
                 // silently re-blocks images the user already opted into.
-                val ready = render(summary, body, allowRemote = _state.value.remoteImagesAllowed)
+                val rendered = render(summary, body, allowRemote = _state.value.remoteImagesAllowed)
+                val ready = rendered.content
+                if (viewInLight == null) rendered.viewInLight?.let { viewInLight = it }
                 update {
                     it.copy(
                         content = ready,
                         mode = if (ready.html != null) ViewMode.FORMATTED else ViewMode.PLAIN,
+                        viewInLight = viewInLight == true,
                     )
                 }
+                // The app's theme, or the reader's page, moved while this was built.
+                if (ready.document != null && page != rendered.page) rebuildDocument(page)
                 markSeen(summary)
                 resolvePendingSave()
             } catch (e: MailError) {
-                if (e is MailError.AuthFailed) account.onAuthFailure()
+                if (e is MailError.AuthFailed) account.onAuthFailure(generation)
                 update { it.copy(content = Content.Failed(e)) }
                 resolvePendingSave()
             }
         }
     }
 
+    /** What [render] made, the page it chose for the mail if the mail had none yet, and the page it drew. */
+    private class Rendered(val content: Content.Ready, val viewInLight: Boolean?, val page: MailHtmlTheme)
+
     /**
-     * Turns a fetched body into the [Content.Ready] the screen renders, entirely on [io].
+     * Turns a fetched body into the [Content.Ready] the screen renders, entirely on [io], on the
+     * page this mail is shown on: the one already chosen, or else the one its colors choose, so
+     * the first document is already the right one.
      *
      * Every step here is a jsoup parse or worse over a string the *sender* chose: the sanitizer's
-     * parse plus `Cleaner` plus its per-element CSS filter, [MailHtmlDocument.build]'s second
-     * parse and its Base64-encoding of every inline image into the document string, a third parse
-     * for the plain-text fallback, and the link/warning scan on top. `viewModelScope.launch`
+     * parse plus `Cleaner` plus its per-element CSS filter, [MailReadableHtml]'s parse and color
+     * search, [MailHtmlDocument.build]'s link parses and its Base64-encoding of every inline image
+     * into the document string, another parse for the plain-text fallback, and the link/warning
+     * scan on top. `viewModelScope.launch`
      * resumes on `Main.immediate`, so with none of this hopped off it, a mail with a large HTML
      * part and a few MB of inline images janked and could ANR -- on attacker-chosen input.
      */
-    private suspend fun render(summary: MailSummary, body: MailBody, allowRemote: Boolean): Content.Ready =
-        withContext(io) {
+    private suspend fun render(summary: MailSummary, body: MailBody, allowRemote: Boolean): Rendered {
+        // Read here, on Main, which is where they are written.
+        val app = appTheme
+        val chosen = viewInLight
+        return withContext(io) {
             val html = body.html?.let { HtmlSanitizer.sanitize(it, allowRemoteImages = allowRemote) }
-            val document = html?.let { MailHtmlDocument.build(it.html, body.inlineImages, allowRemote, mailTheme) }
+            val readable = html?.let { MailReadableHtml(it.html) }
+            val inLight = chosen ?: readable?.setsColors
+            val page = app.page(inLight == true)
+            val document = readable?.let { MailHtmlDocument.build(it, body.inlineImages, allowRemote, page) }
             val plain = body.plain ?: html?.let { HtmlSanitizer.plainText(it.html) }.orEmpty()
             val warnings = MailWarnings.evaluate(
                 summary.from, summary.subject, plain, html?.links.orEmpty(), body.attachments, summary.returnPath,
                 domain = mailDomain,
             )
-            Content.Ready(summary, body, html, document, plain, warnings)
+            Rendered(Content.Ready(summary, body, html, document, plain, warnings, PlainTextLinks.find(plain)), inLight, page)
         }
+    }
 
     private suspend fun markSeen(summary: MailSummary) {
         // Notification ids are derived from the UID alone, and only the inbox ever posts one.
@@ -259,6 +356,8 @@ class SchoolMailMessageViewModel @Inject constructor(
         if (!summary.flags.seen) {
             try {
                 repository.setSeen(folder, uid, true)
+                // So the menu offers Mark unread for the mail it now is.
+                showSeen(true)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -284,9 +383,9 @@ class SchoolMailMessageViewModel @Inject constructor(
         viewModelScope.launch {
             update { it.copy(loadingRemoteImages = true) }
             try {
-                // Captured, not read again at the end: the theme can change while this is in
+                // Captured, not read again at the end: the page can change while this is in
                 // flight, and the comparison below is what notices.
-                val builtWith = mailTheme
+                val builtWith = page
                 val (html, document) = withContext(io) {
                     val sanitized = HtmlSanitizer.sanitize(source, allowRemoteImages = true)
                     sanitized to MailHtmlDocument.build(sanitized.html, ready.body.inlineImages, allowRemoteImages = true, theme = builtWith)
@@ -299,9 +398,9 @@ class SchoolMailMessageViewModel @Inject constructor(
                     st.copy(remoteImagesAllowed = true, content = current.copy(html = html, document = document))
                 }
                 // This swap wins over any theme rebuild that was in flight -- their guard sees the
-                // new html and stands down -- so if the theme moved while this ran, the colours it
+                // new html and stands down -- so if the page moved while this ran, the colors it
                 // has just installed are stale and only this knows it.
-                if (mailTheme != builtWith) rebuildDocument(mailTheme)
+                if (page != builtWith) rebuildDocument(page)
             } finally {
                 update { it.copy(loadingRemoteImages = false) }
             }
@@ -321,14 +420,25 @@ class SchoolMailMessageViewModel @Inject constructor(
         viewModelScope.launch { loadSource() }
     }
 
+    /** The Retry on a failed source load. */
+    fun retrySource() {
+        val s = _state.value
+        if (s.source != null || s.sourceLoading) return
+        viewModelScope.launch { loadSource() }
+    }
+
     private suspend fun loadSource() {
-        update { it.copy(sourceLoading = true) }
+        // As in [load]: the sign-in a rejection is for.
+        val generation = account.accountGeneration
+        update { it.copy(sourceLoading = true, sourceError = null) }
         try {
             val raw = repository.rawSource(folder, uid)
             update { it.copy(source = TextCleaning.stripBidi(raw), sourceLoading = false) }
         } catch (e: MailError) {
-            if (e is MailError.AuthFailed) account.onAuthFailure()
-            update { it.copy(sourceLoading = false, actionError = e) }
+            if (e is MailError.AuthFailed) account.onAuthFailure(generation)
+            // In place of the source, not as a toast: a toast left a blank view behind it, and
+            // the way back was to switch views and back again.
+            update { it.copy(sourceLoading = false, sourceError = e) }
         }
     }
 
@@ -339,6 +449,17 @@ class SchoolMailMessageViewModel @Inject constructor(
      */
     fun linkTarget(index: Int): LinkTarget? =
         (_state.value.content as? Content.Ready)?.document?.links?.getOrNull(index)?.let { targetOf(it) }
+
+    /**
+     * What the link dialog judges, shows and opens for the plain view's link [index]
+     * ([Content.Ready.plainLinks]): the same [targetOf] an HTML link goes through, with the text
+     * on screen as the link's own text. Null for an index with no link.
+     */
+    fun plainLinkTarget(index: Int): LinkTarget? {
+        val ready = _state.value.content as? Content.Ready ?: return null
+        val link = ready.plainLinks.getOrNull(index) ?: return null
+        return targetOf(MailLink(ready.plain.substring(link.start, link.end), link.href))
+    }
 
     // --- attachments --------------------------------------------------------------------
 
@@ -354,6 +475,8 @@ class SchoolMailMessageViewModel @Inject constructor(
     fun requestOpen(attachment: MailAttachment) = request(attachment, AttachmentAction.OPEN)
 
     fun requestSave(attachment: MailAttachment) = request(attachment, AttachmentAction.SAVE)
+
+    fun requestShare(attachment: MailAttachment) = request(attachment, AttachmentAction.SHARE)
 
     private fun request(attachment: MailAttachment, action: AttachmentAction) {
         if (attachment.partId in _state.value.downloading) return
@@ -373,7 +496,10 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     private fun proceed(attachment: MailAttachment, action: AttachmentAction) {
         when (action) {
-            AttachmentAction.OPEN -> open(attachment)
+            AttachmentAction.OPEN -> open(attachment) { file -> update { it.copy(openRequest = OpenRequest(file, attachment.contentType)) } }
+            // Downloaded exactly as for opening; the screen hands the file to the share sheet
+            // instead of a viewer.
+            AttachmentAction.SHARE -> open(attachment) { file -> update { it.copy(shareRequest = OpenRequest(file, attachment.contentType)) } }
             // The SAF document picker is a Compose activity-result launcher this view model
             // can't drive directly; saveRequest tells the screen to launch it, and the actual
             // write happens in saveAttachment() once it returns a target.
@@ -383,13 +509,12 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     fun consumeSaveRequest() = update { it.copy(saveRequest = null) }
 
-    private fun open(attachment: MailAttachment) {
+    private fun open(attachment: MailAttachment, deliver: (File) -> Unit) {
         if (attachment.partId in _state.value.downloading) return
         act {
             update { it.copy(downloading = it.downloading + attachment.partId) }
             try {
-                val file = download(attachment)
-                update { it.copy(openRequest = OpenRequest(file, attachment.contentType)) }
+                deliver(download(attachment))
             } finally {
                 update { it.copy(downloading = it.downloading - attachment.partId) }
             }
@@ -397,6 +522,8 @@ class SchoolMailMessageViewModel @Inject constructor(
     }
 
     fun consumeOpenRequest() = update { it.copy(openRequest = null) }
+
+    fun consumeShareRequest() = update { it.copy(shareRequest = null) }
 
     /**
      * Into `attachmentsDir/<random>/<name>`, which the FileProvider serves; files older than a
@@ -409,14 +536,16 @@ class SchoolMailMessageViewModel @Inject constructor(
         val dir = cache.attachmentsDir
         dir.mkdirs()
         val cutoff = System.currentTimeMillis() - DAY_MS
-        dir.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.deleteRecursively() }
-        val slot = File(dir, UUID.randomUUID().toString()).apply { mkdirs() }
+        val inUse = cache.attachmentSlotsInUse()
+        dir.listFiles()?.filter { it.lastModified() < cutoff && it.name !in inUse }?.forEach { it.deleteRecursively() }
+        val slot = cache.newAttachmentSlot()
         val file = File(slot, safeFileName(attachment.fileName))
         var committed = false
         try {
             file.outputStream().use { out -> repository.writeAttachment(folder, uid, attachment.partId, out) }
             committed = true
         } finally {
+            cache.releaseAttachmentSlot(slot)
             if (!committed) withContext(NonCancellable) { slot.deleteRecursively() }
         }
         file
@@ -511,9 +640,23 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     // --- actions ------------------------------------------------------------------------
 
-    fun markUnread() = act {
-        repository.setSeen(folder, uid, false)
-        update { it.copy(closed = true) }
+    /**
+     * Mark read / Mark unread, whichever the mail is not: the flag changes on the server and on
+     * screen, and the mail stays open, as on the iPhone. The list behind this screen hears of it
+     * from the repository ([SchoolMailRepository.changes]) and shows it on the way back.
+     */
+    fun toggleSeen() {
+        val ready = _state.value.content as? Content.Ready ?: return
+        val seen = !ready.summary.flags.seen
+        act {
+            repository.setSeen(folder, uid, seen)
+            showSeen(seen)
+        }
+    }
+
+    private fun showSeen(seen: Boolean) = update { st ->
+        val ready = st.content as? Content.Ready ?: return@update st
+        st.copy(content = ready.copy(summary = ready.summary.copy(flags = ready.summary.flags.copy(seen = seen))))
     }
 
     fun moveTargets(): List<String> {
@@ -526,9 +669,8 @@ class SchoolMailMessageViewModel @Inject constructor(
      * already dropped its cache) surfaces through [act] like any other action error, so the mail
      * stays open with a toast rather than popping as if the move had gone through. It does not
      * need to reach into the list screen: both screens share the same singleton
-     * [SchoolMailRepository], and the list's own `load()` always re-fetches the selected folder
-     * from the server whenever the list screen is re-entered, so once the user backs out it
-     * shows the fresh page on its own.
+     * [SchoolMailRepository], which tells the list the folder changed
+     * ([SchoolMailRepository.changes]), and the list fetches the fresh page as it is shown again.
      */
     fun moveTo(target: String) = act {
         repository.move(folder, uid, target)
@@ -562,7 +704,15 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     fun dismissActionError() = update { it.copy(actionError = null) }
 
+    /**
+     * Runs [block], one of this screen's actions, and shows its failure. Not one the repository
+     * let go unsent ([MailError.Abandoned]), as it does a write whose student another signed in
+     * over while it waited; nor one of an account that has moved since the action began -- that
+     * student, or the same one signing in again -- whose rejected password must not mark the new
+     * sign-in rejected. The list drops the same ([SchoolMailListViewModel]).
+     */
     private fun act(block: suspend () -> Unit) {
+        val generation = account.accountGeneration
         viewModelScope.launch {
             try {
                 block()
@@ -570,32 +720,33 @@ class SchoolMailMessageViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 val error = MailErrors.classify(e)
-                if (error is MailError.AuthFailed) account.onAuthFailure()
+                if (error is MailError.Abandoned || account.accountGeneration != generation) return@launch
+                // Marked for that sign-in alone, in one step with any sign-in since.
+                if (error is MailError.AuthFailed) account.onAuthFailure(generation)
                 update { it.copy(actionError = error) }
             }
         }
     }
 
-    /**
-     * Nothing to release here. `SessionHolder`'s hold is a flag, not a count, and only the list
-     * view model owns it -- it pairs `acquire()` with `release()` around the page's lifecycle.
-     * This view model never calls `acquire()`, so the `release()` that used to live here armed
-     * an idle close on a connection someone else was holding: popping back to the list runs the
-     * list's ON_RESUME `acquire()` first and this `onCleared()` after it.
-     */
-    override fun onCleared() {
-        super.onCleared()
-    }
+    // No onCleared(): there is nothing to release here. `SessionHolder`'s hold is a flag, not a
+    // count, and only the list view model owns it -- it pairs `acquire()` with `release()` around
+    // the page's lifecycle. This view model never calls `acquire()`, so the `release()` its
+    // onCleared() used to make armed an idle close on a connection someone else was holding:
+    // popping back to the list runs the list's ON_RESUME `acquire()` first and this view model's
+    // onCleared() after it.
 
     companion object {
         private const val DAY_MS = 24L * 60 * 60 * 1000
         private const val MAX_NAME_LENGTH = 120
         private val EMPTY_BODY = MailBody(null, null, emptyList(), emptyMap())
+
+        /** [viewInLight]'s key in the saved state. */
+        private const val VIEW_IN_LIGHT = "viewInLight"
         private val UNPARSEABLE_VERDICT = LinkVerdict(host = "", shownHost = null, mismatch = false, punycode = false, insecure = false)
         private val UNSAFE_NAME = Regex("[\\\\/:*?\"<>|\\u0000-\\u001f]")
 
         /**
-         * The only schemes `openLink` can actually launch, and therefore the only ones
+         * The only schemes `openBodyLink` can actually launch, and therefore the only ones
          * [targetOf] offers an Open button for. Both sides read this one list, so the dialog
          * cannot drift into an enabled Open that does nothing -- which is what it showed for
          * every other scheme, `tel:`/`ftp:`/`intent:` included. (The sanitizer's own `a[href]`

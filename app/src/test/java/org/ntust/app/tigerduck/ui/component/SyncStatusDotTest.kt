@@ -61,4 +61,51 @@ class SyncStatusDotTest {
 
         assertEquals(ServerStatus.UNKNOWN, ServerStatusTracker.status(ServerKind.MOODLE))
     }
+
+    @Test
+    fun `Moodle's maintenance mode is said in words, and the next status clears it`() {
+        ServerStatusTracker.moodleFailed(org.ntust.app.tigerduck.network.MoodleWebserviceError.SiteMaintenance())
+        assertEquals(ServerStatus.FAILED, ServerStatusTracker.status(ServerKind.MOODLE))
+        assertEquals(
+            org.ntust.app.tigerduck.R.string.error_moodle_site_maintenance,
+            ServerStatusTracker.notes.value[ServerKind.MOODLE],
+        )
+
+        ServerStatusTracker.moodleFailed(java.io.IOException("offline"))
+        assertEquals("another failure carries no note", null, ServerStatusTracker.notes.value[ServerKind.MOODLE])
+
+        ServerStatusTracker.moodleFailed(org.ntust.app.tigerduck.network.MoodleWebserviceError.SiteMaintenance())
+        ServerStatusTracker.set(ServerStatus.OK, ServerKind.MOODLE)
+        assertEquals(null, ServerStatusTracker.notes.value[ServerKind.MOODLE])
+        ServerStatusTracker.reset()
+    }
+
+    // --- dataAge -------------------------------------------------------------
+
+    private val now = 1_800_000_000_000L
+    private val minute = 60_000L
+
+    @Test
+    fun `data never fetched has no age`() {
+        assertEquals(DataAge.Never, dataAge(0L, now))
+    }
+
+    @Test
+    fun `under a minute reads as just now`() {
+        assertEquals(DataAge.JustNow, dataAge(now - minute + 1, now))
+    }
+
+    @Test
+    fun `each step counts whole units, rounding down`() {
+        assertEquals(DataAge.Minutes(1), dataAge(now - minute, now))
+        assertEquals(DataAge.Minutes(59), dataAge(now - 60 * minute + 1, now))
+        assertEquals(DataAge.Hours(1), dataAge(now - 60 * minute, now))
+        assertEquals(DataAge.Hours(23), dataAge(now - 24 * 60 * minute + 1, now))
+        assertEquals(DataAge.Days(2), dataAge(now - 2 * 24 * 60 * minute, now))
+    }
+
+    @Test
+    fun `a stamp ahead of the clock reads as just now`() {
+        assertEquals(DataAge.JustNow, dataAge(now + 5 * minute, now))
+    }
 }

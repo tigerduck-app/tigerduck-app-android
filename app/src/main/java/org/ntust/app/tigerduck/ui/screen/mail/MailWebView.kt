@@ -6,10 +6,19 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import java.io.ByteArrayInputStream
 
@@ -47,59 +56,76 @@ fun MailWebView(
     val latestOnLink by rememberUpdatedState(onLink)
     val allowed by rememberUpdatedState(allowedRemoteUrls)
     val currentLinkCount by rememberUpdatedState(linkCount)
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            WebView(context).apply {
-                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                setBackgroundColor(backgroundColor)
-                isVerticalScrollBarEnabled = false
-                isHorizontalScrollBarEnabled = false
-                settings.apply {
-                    javaScriptEnabled = false
-                    javaScriptCanOpenWindowsAutomatically = false
-                    allowFileAccess = false
-                    allowContentAccess = false
-                    domStorageEnabled = false
-                    setGeolocationEnabled(false)
-                    setSupportMultipleWindows(false)
-                    mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                    cacheMode = WebSettings.LOAD_NO_CACHE
-                    blockNetworkLoads = true
-                    safeBrowsingEnabled = true
-                }
-                webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                        parseLinkIndex(request.url.toString(), currentLinkCount)?.let(latestOnLink)
-                        return true
+    // A WebView has no height until its page is first drawn, which left nothing at all under the
+    // header while it loaded: longest the first time, which starts the WebView itself too. The
+    // document last drawn, not a flag, so each later load (remote images let in, the mail's theme
+    // changed) shows progress too.
+    var drawnDocument by remember { mutableStateOf<Any?>(null) }
+    Box(modifier) {
+        AndroidView(
+            modifier = Modifier.fillMaxWidth(),
+            factory = { context ->
+                WebView(context).apply {
+                    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                    setBackgroundColor(backgroundColor)
+                    isVerticalScrollBarEnabled = false
+                    isHorizontalScrollBarEnabled = false
+                    settings.apply {
+                        javaScriptEnabled = false
+                        javaScriptCanOpenWindowsAutomatically = false
+                        allowFileAccess = false
+                        allowContentAccess = false
+                        domStorageEnabled = false
+                        setGeolocationEnabled(false)
+                        setSupportMultipleWindows(false)
+                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                        cacheMode = WebSettings.LOAD_NO_CACHE
+                        blockNetworkLoads = true
+                        safeBrowsingEnabled = true
                     }
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageCommitVisible(view: WebView, url: String?) {
+                            drawnDocument = view.tag
+                        }
 
-                    override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                        // loadDataWithBaseURL(null, document, ...) below DOES reach here as a
-                        // main-frame `data:` request (Chromium's own
-                        // testLoadDataWithBaseUrlTriggersShouldInterceptRequest confirms this) --
-                        // the mail renders only because of the `data:` exemption right below, not
-                        // because the main frame is skipped. Removing that exemption would blank
-                        // every mail. A later main-frame navigation away from the loaded document
-                        // is stopped one layer up, by shouldOverrideUrlLoading, before it would
-                        // ever reach here as a followable request.
-                        if (request.url.scheme == "data") return null
-                        if (SchoolMailMessageViewModel.normalizedHref(request.url.toString()) in allowed) return null
-                        return WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+                        // Should the page never say it was drawn, it has at least loaded.
+                        override fun onPageFinished(view: WebView, url: String?) {
+                            drawnDocument = view.tag
+                        }
+
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                            parseLinkIndex(request.url.toString(), currentLinkCount)?.let(latestOnLink)
+                            return true
+                        }
+
+                        override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                            // loadDataWithBaseURL(null, document, ...) below DOES reach here as a
+                            // main-frame `data:` request (Chromium's own
+                            // testLoadDataWithBaseUrlTriggersShouldInterceptRequest confirms this) --
+                            // the mail renders only because of the `data:` exemption right below, not
+                            // because the main frame is skipped. Removing that exemption would blank
+                            // every mail. A later main-frame navigation away from the loaded document
+                            // is stopped one layer up, by shouldOverrideUrlLoading, before it would
+                            // ever reach here as a followable request.
+                            if (request.url.scheme == "data") return null
+                            if (SchoolMailMessageViewModel.normalizedHref(request.url.toString()) in allowed) return null
+                            return WebResourceResponse("text/plain", "utf-8", 403, "Blocked", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+                        }
                     }
                 }
-            }
-        },
-        update = { view ->
-            view.settings.blockNetworkLoads = allowed.isEmpty()
-            view.setBackgroundColor(backgroundColor)
-            if (view.tag != document) {
-                view.tag = document
-                view.loadDataWithBaseURL(null, document, "text/html", "utf-8", null)
-            }
-        },
-        onRelease = { it.destroy() },
-    )
+            },
+            update = { view ->
+                view.settings.blockNetworkLoads = allowed.isEmpty()
+                view.setBackgroundColor(backgroundColor)
+                if (view.tag != document) {
+                    view.tag = document
+                    view.loadDataWithBaseURL(null, document, "text/html", "utf-8", null)
+                }
+            },
+            onRelease = { it.destroy() },
+        )
+        if (drawnDocument != document) CircularProgressIndicator(Modifier.align(Alignment.Center).padding(24.dp))
+    }
 }
 
 // Exactly what MailHtmlDocument.rewriteLinks emits: https://link.invalid/<decimal index>, no

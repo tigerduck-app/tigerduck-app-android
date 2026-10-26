@@ -14,12 +14,13 @@ import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUp
 import androidx.wear.watchface.complications.datasource.ComplicationRequest
 import androidx.wear.watchface.complications.datasource.SuspendingComplicationDataSourceService
 import kotlinx.coroutines.flow.first
-import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.MainActivity
+import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
+import org.ntust.app.tigerduck.wear.ui.weekdayCaptionRes
 
 class NextClassComplicationService : SuspendingComplicationDataSourceService() {
 
@@ -49,7 +50,6 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
         type: ComplicationType,
     ): ComplicationData {
         val now = AppClock.localDateTime()
-        val weekday = now.dayOfWeek.value
         val minuteOfDay = now.hour * 60 + now.minute
 
         if (snapshot.syncedAtMs == null || snapshot.courses.isEmpty()) {
@@ -57,7 +57,7 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
         }
 
         val tap = launchAppPendingIntent()
-        return when (val r = NextClassResolver.resolve(snapshot.courses, weekday, minuteOfDay)) {
+        return when (val r = snapshot.nextClass(now.toLocalDate(), minuteOfDay)) {
             is NextClassResult.Ongoing -> when (type) {
                 ComplicationType.SHORT_TEXT -> ShortTextComplicationData.Builder(
                     text = PlainComplicationText.Builder(truncate(r.course.displayName, 7)).build(),
@@ -66,7 +66,7 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
                 ).setTitle(PlainComplicationText.Builder("NOW").build()).setTapAction(tap).build()
 
                 ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
-                    text = PlainComplicationText.Builder(r.course.classroom(r.weekday)).build(),
+                    text = PlainComplicationText.Builder(r.classroom).build(),
                     contentDescription = PlainComplicationText.Builder(r.course.displayName)
                         .build(),
                 ).setTitle(
@@ -85,16 +85,16 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
             }
 
             is NextClassResult.NextToday -> shortOrLong(
-                type, r.course.displayName, r.course.classroom(r.weekday),
+                type, r.course.displayName, r.classroom,
                 titleShort = formatHm(r.startMinute),
                 titleLong = "${formatHm(r.startMinute)} · ${truncate(r.course.displayName, 7)}",
                 tap = tap,
             )
 
             is NextClassResult.NextFuture -> shortOrLong(
-                type, r.course.displayName, r.course.classroom(r.weekday),
+                type, r.course.displayName, r.classroom,
                 titleShort = formatHm(r.startMinute),
-                titleLong = "${formatHm(r.startMinute)} · +${r.daysAhead}d",
+                titleLong = laterDayTitle(this, r.daysAhead, r.weekday, formatHm(r.startMinute)),
                 tap = tap,
             )
 
@@ -143,3 +143,15 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
         }
     }
 }
+
+/**
+ * The long text title for a class on a later day: its day, then its [startTime], as the
+ * phone's Next class widget words it. "Tomorrow 08:10" for the next day, else the
+ * weekday's caption, "Tue 08:10".
+ */
+internal fun laterDayTitle(context: Context, daysAhead: Int, weekday: Int, startTime: String): String =
+    if (daysAhead == 1) {
+        context.getString(R.string.widget_tomorrow_time, startTime)
+    } else {
+        "${context.getString(weekdayCaptionRes(weekday))} $startTime"
+    }

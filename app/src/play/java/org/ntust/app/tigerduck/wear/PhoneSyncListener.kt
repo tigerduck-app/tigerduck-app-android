@@ -29,6 +29,7 @@ class PhoneSyncListener : WearableListenerService() {
             // schedule — republish the library credentials so a freshly
             // paired watch (or one that was cleared) catches up too.
             bridge.publishLibraryCredentials()
+            bridge.publishTlsPins()
         }
     }
 

@@ -1,8 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.content.Context
-import android.content.Intent
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -36,12 +33,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 private data class RepoEntry(
@@ -124,7 +121,7 @@ fun SourceCodePickerScreen(
                 ContentCard {
                     RepoLinkRow(
                         entry = ORG_ENTRY,
-                        onClick = { openUrl(context, ORG_ENTRY.url, browserPreference) },
+                        onClick = { openLink(context, ORG_ENTRY.url, browserPreference) },
                     )
                 }
             }
@@ -137,7 +134,7 @@ fun SourceCodePickerScreen(
                         REPO_ENTRIES.forEachIndexed { index, entry ->
                             RepoLinkRow(
                                 entry = entry,
-                                onClick = { openUrl(context, entry.url, browserPreference) },
+                                onClick = { openLink(context, entry.url, browserPreference) },
                             )
                             if (index < REPO_ENTRIES.lastIndex) {
                                 HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
@@ -200,13 +197,4 @@ private fun CurrentAppBadge() {
             .background(MaterialTheme.colorScheme.primaryContainer)
             .padding(horizontal = 6.dp, vertical = 2.dp),
     )
-}
-
-private fun openUrl(context: Context, url: String, browserPreference: String) {
-    val uri = url.toUri()
-    if (browserPreference == "inApp") {
-        CustomTabsIntent.Builder().build().launchUrl(context, uri)
-    } else {
-        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-    }
 }

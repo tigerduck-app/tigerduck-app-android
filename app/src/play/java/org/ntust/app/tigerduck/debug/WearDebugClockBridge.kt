@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
 import org.ntust.app.tigerduck.shared.WearProtocol
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,7 +45,7 @@ class WearDebugClockBridge @Inject constructor(
             Wearable.getDataClient(context).putDataItem(request).await()
             Log.d(TAG, "push ok: cleared=${override == null}")
         } catch (t: Throwable) {
-            Log.w(TAG, "push failed: ${t.message}")
+            Log.w(TAG, "push failed: ${t.logSummary()}")
         }
     }
 

@@ -28,11 +28,19 @@ data class MailCredentials(
      * it in `From`; under the override the ID may already be a whole address, in which case
      * that is the address.
      */
-    val address: String get() = when {
-        isSchool -> "${id.lowercase()}@${MailServerConfig.DOMAIN}"
-        '@' in id -> id
-        else -> "$id@${domain.trim().lowercase()}"
-    }
+    val address: String get() = addressOf(studentId, domain)
 
     override fun toString(): String = "MailCredentials(studentId=$studentId, password=***)"
+
+    companion object {
+        /** [address] from the ID and domain alone, for a caller that has no use for the password. */
+        fun addressOf(studentId: String, domain: String): String {
+            val id = studentId.trim()
+            return when {
+                domain.trim().equals(MailServerConfig.DOMAIN, ignoreCase = true) -> "${id.lowercase()}@${MailServerConfig.DOMAIN}"
+                '@' in id -> id
+                else -> "$id@${domain.trim().lowercase()}"
+            }
+        }
+    }
 }

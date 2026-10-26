@@ -10,6 +10,16 @@ import org.ntust.app.tigerduck.sensor.FlipDetector.Companion.isFaceDown
 import org.ntust.app.tigerduck.sensor.FlipDetector.Companion.nextState
 
 /**
+ * What the flip-to-library effect needs of a detector: switching it on and
+ * off with the lifecycle. An instrumented test supplies its own, since a test
+ * cannot feed the platform's sensors.
+ */
+interface FlipSensor {
+    fun register()
+    fun unregister()
+}
+
+/**
  * Detects a sustained "phone face-down" gesture using the rotation-vector
  * sensor. The two pure helpers ([isFaceDown] and [nextState]) carry all the
  * logic and are unit-tested in isolation; this class is just the
@@ -25,7 +35,7 @@ import org.ntust.app.tigerduck.sensor.FlipDetector.Companion.nextState
 class FlipDetector(
     context: Context,
     private val onFaceDown: () -> Unit,
-) {
+) : FlipSensor {
 
     private val sensorManager: SensorManager? =
         context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
@@ -50,7 +60,7 @@ class FlipDetector(
      * Idempotent. No-op if already registered or no rotation-vector sensor
      * exists on this device.
      */
-    fun register() {
+    override fun register() {
         if (registered) return
         val sm = sensorManager ?: return
         val s = sensor ?: return
@@ -62,7 +72,7 @@ class FlipDetector(
     }
 
     /** Idempotent. */
-    fun unregister() {
+    override fun unregister() {
         if (!registered) return
         sensorManager?.unregisterListener(listener)
         registered = false

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
 import androidx.lifecycle.SavedStateHandle
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -18,9 +19,13 @@ import org.ntust.app.tigerduck.mail.InMemoryMailStateStore
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailLimits
+import org.ntust.app.tigerduck.mail.SentCopyNotice
+import org.ntust.app.tigerduck.mail.SentCopyNotices
+import org.ntust.app.tigerduck.mail.SentCopyOrigin
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
+import org.ntust.app.tigerduck.mail.cancelAndJoinBlocking
 import org.ntust.app.tigerduck.mail.imap.ResolvedFolders
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.mailSummary
@@ -38,7 +43,9 @@ import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMod
 import java.io.ByteArrayOutputStream
 import kotlin.coroutines.CoroutineContext
 import kotlin.system.measureTimeMillis
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.runBlocking
 import org.ntust.app.tigerduck.mail.schoolMailSite
 
 /**
@@ -58,31 +65,46 @@ internal class HeldDispatcher : CoroutineDispatcher() {
     fun drain() {
         while (queued.isNotEmpty()) queued.removeFirst().run()
     }
+
+    /** Runs one block, so what happens between two hops can be seen. */
+    fun runNext() = queued.removeFirst().run()
 }
 
 class SchoolMailMessageViewModelTest {
     @get:Rule val main = MainDispatcherRule()
     @get:Rule val tmp = TemporaryFolder()
 
+    // What the account and the notices launch, joined before TemporaryFolder deletes the cache
+    // a sign-out may still be wiping there.
+    private val appScope = testApplicationScope()
+
+    @After
+    fun stopTheAppScope() = appScope.cancelAndJoinBlocking()
+
     private val repo = FakeSchoolMailRepository()
     private val notifier = RecordingNotifier()
+    private val credentials = InMemoryCredentialStore()
     private lateinit var account: MailAccount
     private lateinit var cache: MailCache
+    private lateinit var notices: SentCopyNotices
 
     @Before
     fun setUp() {
         cache = MailCache(tmp.newFolder("cache"))
-        account = MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), FakeMailServer().factory(), cache,
-            FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), testApplicationScope())
+        account = MailAccount(credentials, InMemoryMailStateStore(), FakeMailServer().factory(), cache,
+            FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), appScope)
+        notices = SentCopyNotices(account, appScope)
     }
 
     // The same TestDispatcher backs both Dispatchers.Main and the injected @IoDispatcher, so a
     // withContext(io) hop stays synchronous under the test the way every other action already is.
     // Pass a [HeldDispatcher] as [io] instead to make a hop off Main observable.
-    private fun vm(folder: String = "INBOX", uid: Long = 5, io: CoroutineDispatcher = main.dispatcher) =
-        SchoolMailMessageViewModel(
-            SavedStateHandle(mapOf("folder" to folder, "uid" to uid)), repo, account, notifier, cache, schoolMailSite(), io,
-        )
+    private fun vm(
+        folder: String = "INBOX",
+        uid: Long = 5,
+        io: CoroutineDispatcher = main.dispatcher,
+        saved: SavedStateHandle = SavedStateHandle(mapOf("folder" to folder, "uid" to uid)),
+    ) = SchoolMailMessageViewModel(saved, repo, account, notifier, cache, schoolMailSite(), notices, io)
 
     private fun ready(vm: SchoolMailMessageViewModel) = vm.state.value.content as Content.Ready
 
@@ -105,6 +127,24 @@ class SchoolMailMessageViewModelTest {
     }
 
     // --- none of the parsing happens on the main thread --------------------------------------
+
+    /** The header's To and Cc lines pick it out; it comes out of the encrypted credential store. */
+    @Test
+    fun `the student's own address is read off the main thread, without holding up the mail`() {
+        credentials.mailStudentId = "B10000001"
+        credentials.mailPassword = "pw"
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hi", emptyList(), emptyMap())
+        val io = HeldDispatcher()
+        val vm = vm(io = io)
+        vm.load()
+        assertEquals(null, vm.state.value.selfAddress)
+        // The header is already up.
+        assertTrue(vm.state.value.content is Content.LoadingBody)
+
+        io.drain()
+        assertEquals("b10000001@mail.ntust.edu.tw", vm.state.value.selfAddress)
+    }
 
     @Test
     fun `sanitizing, the document build and the plain-text pass all wait on the IO dispatcher`() {
@@ -146,6 +186,20 @@ class SchoolMailMessageViewModelTest {
         assertEquals(0, ready(vm).html!!.blockedRemoteImages)
     }
 
+    /**
+     * The mail goes out ahead of the background download: its summary and its body are asked for
+     * in one ahead block, so the download's next batch does not get in between the two.
+     */
+    @Test
+    fun `a mail's summary and body are asked for ahead of the background download`() {
+        repo.add("INBOX", mailSummary(5, seen = true))
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        assertTrue(vm.state.value.content is Content.Ready)
+        assertEquals(listOf("summary", "body"), repo.askedAhead)
+    }
+
     @Test
     fun `a plain-text mail opens as text and a read mail is not marked again`() {
         repo.add("INBOX", mailSummary(5, seen = true))
@@ -175,7 +229,7 @@ class SchoolMailMessageViewModelTest {
     }
 
     @Test
-    fun `a source that fails to load surfaces as an action error rather than a stuck spinner`() {
+    fun `a source that fails to load says so in place, and Retry loads it`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
         repo.rawSourceError = MailError.Network()
@@ -184,7 +238,81 @@ class SchoolMailMessageViewModelTest {
         vm.selectMode(ViewMode.SOURCE)
         assertNull(vm.state.value.source)
         assertFalse(vm.state.value.sourceLoading)
-        assertTrue(vm.state.value.actionError is MailError.Network)
+        // Where the source would be, not a toast that leaves a blank view behind it.
+        assertTrue(vm.state.value.sourceError is MailError.Network)
+        assertNull(vm.state.value.actionError)
+
+        repo.rawSourceError = null
+        vm.retrySource()
+        assertEquals(repo.raw, vm.state.value.source)
+        assertNull(vm.state.value.sourceError)
+    }
+
+    // A rejection that comes back after a sign-out, or another sign-in, is the account's that
+    // left: the repository records the refusal for the sign-in that sent the login, and the screen
+    // must not then mark the one signed in now as refused (spec §7.4).
+
+    @Test
+    fun `a mail refused after its account left leaves the next sign-in alone`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.onBody = { account.signOut() }
+        repo.bodyError = MailError.AuthFailed()
+
+        vm().load()
+
+        assertFalse(account.authFailed.value)
+    }
+
+    @Test
+    fun `a source refused after its account left leaves the next sign-in alone`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        repo.onRawSource = { account.signOut() }
+        repo.rawSourceError = MailError.AuthFailed()
+        val vm = vm()
+        vm.load()
+
+        vm.selectMode(ViewMode.SOURCE)
+
+        assertFalse(account.authFailed.value)
+    }
+
+    @Test
+    fun `a delete refused after its account left leaves the next sign-in alone`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        repo.onDelete = { account.signOut() }
+        repo.deleteError = MailError.AuthFailed()
+        val vm = vm()
+        vm.load()
+
+        vm.confirmDelete(true)
+
+        assertFalse(account.authFailed.value)
+    }
+
+    @Test
+    fun `a source refused for a rejected password still reaches the account`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        repo.rawSourceError = MailError.AuthFailed()
+        val vm = vm()
+        vm.load()
+        vm.selectMode(ViewMode.SOURCE)
+        assertTrue(account.authFailed.value)
+    }
+
+    @Test
+    fun `a body that fails to load is loaded again by Retry`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodyError = MailError.Network()
+        val vm = vm()
+        vm.load()
+        assertTrue(vm.state.value.content is Content.Failed)
+        repo.bodyError = null
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        vm.load()
+        assertEquals("hello", ready(vm).plain)
     }
 
     @Test
@@ -351,7 +479,7 @@ class SchoolMailMessageViewModelTest {
     // --- mail theme: a genuine change rebuilds the already-loaded document -------------------
 
     @Test
-    fun `a theme change while a mail is open rebuilds the document with the new colours, preserving remote-image state`() {
+    fun `a theme change while a mail is open rebuilds the document with the new colors, preserving remote-image state`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody("""<p><img src="https://t.example/p.gif"></p>""", null, emptyList(), emptyMap())
         val vm = vm()
@@ -368,6 +496,28 @@ class SchoolMailMessageViewModelTest {
         // The rebuild reads allowRemoteImages back off state rather than hardcoding false, so
         // remote images already allowed before the theme changed are not silently re-blocked.
         assertTrue(document.html, document.html.contains("img-src data: https: http:"))
+    }
+
+    @Test
+    fun `view in light mode redraws an open mail on white paper, and turning it off redraws it dark`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody("<p>hi</p>", null, emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        val dark = MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true)
+        vm.setMailTheme(dark)
+
+        vm.setViewInLight(true)
+        assertTrue(vm.state.value.viewInLight)
+        val light = ready(vm).document!!.html
+        assertTrue(light, light.contains("background:#ffffff;color:#000000"))
+        assertTrue(light, light.contains("color-scheme:light"))
+
+        vm.setViewInLight(false)
+        assertFalse(vm.state.value.viewInLight)
+        val back = ready(vm).document!!.html
+        assertTrue(back, back.contains("background:#121212;color:#e6e6e6"))
+        assertTrue(back, back.contains("color-scheme:dark"))
     }
 
     @Test
@@ -392,6 +542,119 @@ class SchoolMailMessageViewModelTest {
         vm.load()
         vm.setMailTheme(MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true))
         assertNull(ready(vm).document)
+    }
+
+    // --- the page a mail opens on: white paper for one that sets colors of its own -----------
+
+    private val darkApp = MailHtmlTheme(background = "#121212", foreground = "#e6e6e6", isDark = true)
+
+    private val colored = """<table bgcolor="#ffffff"><tr><td>Notice</td></tr></table>"""
+
+    private fun open(
+        html: String,
+        io: CoroutineDispatcher = main.dispatcher,
+        app: MailHtmlTheme = darkApp,
+        saved: SavedStateHandle = SavedStateHandle(mapOf("folder" to "INBOX", "uid" to 5L)),
+    ): SchoolMailMessageViewModel {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(html, null, emptyList(), emptyMap())
+        return vm(io = io, saved = saved).apply {
+            setMailTheme(app)
+            load()
+        }
+    }
+
+    private fun SchoolMailMessageViewModel.page() = ready(this).document!!.html
+
+    @Test
+    fun `a mail that sets colors of its own opens on white paper in a dark app, built once`() {
+        val io = HeldDispatcher()
+        val vm = open(colored, io)
+        // Step by step, so a document shown dark and then rebuilt would be seen in between.
+        val shown = mutableListOf<LinkedHtml>()
+        while (io.pending > 0) {
+            io.runNext()
+            (vm.state.value.content as? Content.Ready)?.document?.let { if (shown.lastOrNull() !== it) shown += it }
+        }
+        assertTrue(vm.state.value.viewInLight)
+        assertEquals("one document, built once", 1, shown.size)
+        assertTrue(shown.single().html, shown.single().html.contains("background:#ffffff;color:#000000"))
+    }
+
+    @Test
+    fun `the reader's choice of page sticks through theme changes and a process restore`() {
+        val saved = SavedStateHandle(mapOf("folder" to "INBOX", "uid" to 5L))
+        val vm = open(colored, saved = saved)
+        vm.setViewInLight(false)
+        assertFalse(vm.state.value.viewInLight)
+        assertTrue(vm.page(), vm.page().contains("background:#121212;color:#e6e6e6"))
+
+        vm.setMailTheme(MailHtmlTheme(background = "#f2f2f7", foreground = "#1c1c1e", isDark = false))
+        vm.setMailTheme(darkApp)
+        assertFalse(vm.state.value.viewInLight)
+        assertTrue(vm.page(), vm.page().contains("background:#121212;color:#e6e6e6"))
+
+        // The same saved state, as Android hands it to the view model made again after a process death.
+        val restored = vm(saved = saved).apply {
+            setMailTheme(darkApp)
+            load()
+        }
+        assertFalse(restored.state.value.viewInLight)
+        assertTrue(restored.page(), restored.page().contains("background:#121212;color:#e6e6e6"))
+    }
+
+    @Test
+    fun `a light app keeps its own page, and white paper comes back when it turns dark`() {
+        val lightApp = MailHtmlTheme(background = "#f2f2f7", foreground = "#1c1c1e", isDark = false)
+        val vm = open(colored, app = lightApp)
+        assertTrue(vm.state.value.viewInLight)
+        assertTrue(vm.page(), vm.page().contains("background:#f2f2f7;color:#1c1c1e"))
+
+        vm.setMailTheme(darkApp)
+        assertTrue(vm.page(), vm.page().contains("background:#ffffff;color:#000000"))
+    }
+
+    @Test
+    fun `a mail whose colors show nothing stays on the app's page`() {
+        val mails = listOf(
+            """<p>Read <a href="https://a.example" style="color: inherit">more</a></p>""",
+            """<p><span style="background-color: transparent">Pasted</span></p>""",
+            """<table><tr><td bgcolor="transparent">Cell</td></tr></table>""",
+            "<p>hi</p>",
+        )
+        for (mail in mails) {
+            val vm = open(mail)
+            val document = ready(vm).document!!.html
+            assertTrue("$mail -> $document", document.contains("background:#121212;color:#e6e6e6"))
+        }
+    }
+
+    // --- attachments: share -----------------------------------------------------------------
+
+    @Test
+    fun `sharing downloads the attachment for the share sheet, asking first for a risky one`() {
+        val risky = MailAttachment("2", "invoice.pdf.exe", "application/octet-stream", 10, null)
+        val safe = MailAttachment("3", "notes.txt", "text/plain", 5, null)
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "see attached", listOf(risky, safe), emptyMap())
+        val vm = vm()
+        vm.load()
+
+        vm.requestShare(safe)
+        val shared = vm.state.value.shareRequest!!
+        assertEquals("notes.txt", shared.file.name)
+        assertEquals("text/plain", shared.contentType)
+        assertEquals("attachment 3", shared.file.readText())
+        assertTrue(shared.file.canonicalPath.startsWith(cache.attachmentsDir.canonicalPath))
+        assertNull("sharing is not opening", vm.state.value.openRequest)
+        vm.consumeShareRequest()
+        assertNull(vm.state.value.shareRequest)
+
+        vm.requestShare(risky)
+        assertEquals(PendingAttachment(risky, AttachmentAction.SHARE), vm.state.value.confirmAttachment)
+        assertNull(vm.state.value.shareRequest)
+        vm.confirmAttachment(true)
+        assertEquals("invoice.pdf.exe", vm.state.value.shareRequest!!.file.name)
     }
 
     // --- attachments: open ------------------------------------------------------------------
@@ -646,6 +909,65 @@ class SchoolMailMessageViewModelTest {
         assertEquals(0, vm.state.value.savedCount)
     }
 
+    // --- read / unread ----------------------------------------------------------------------
+
+    @Test
+    fun `Mark unread keeps the mail open, and Mark read takes it back`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        // Opening it read it, and the menu has to know that to offer Mark unread.
+        assertTrue(ready(vm).summary.flags.seen)
+
+        vm.toggleSeen()
+        assertEquals(Triple("INBOX", 5L, false), repo.seenCalls.last())
+        assertFalse(ready(vm).summary.flags.seen)
+        assertFalse(vm.state.value.closed)
+
+        vm.toggleSeen()
+        assertEquals(Triple("INBOX", 5L, true), repo.seenCalls.last())
+        assertTrue(ready(vm).summary.flags.seen)
+        assertFalse(vm.state.value.closed)
+    }
+
+    @Test
+    fun `a read toggle the server refuses leaves the flag as it was`() {
+        repo.add("INBOX", mailSummary(5, seen = true))
+        repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+        repo.seenError = MailError.ServerBusy()
+        vm.toggleSeen()
+        assertTrue(ready(vm).summary.flags.seen)
+        assertTrue(vm.state.value.actionError is MailError.ServerBusy)
+    }
+
+    // --- links in a plain-text mail ------------------------------------------------------------
+
+    @Test
+    fun `a plain-text mail's URLs and addresses are links that go through the same check`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "Hours: https://www.lib.ntust.edu.tw/hours\nAsk library@mail.ntust.edu.tw", emptyList(), emptyMap())
+        val vm = vm()
+        vm.load()
+
+        val content = ready(vm)
+        assertEquals(ViewMode.PLAIN, vm.state.value.mode)
+        assertEquals(
+            listOf("https://www.lib.ntust.edu.tw/hours", "library@mail.ntust.edu.tw"),
+            content.plainLinks.map { content.plain.substring(it.start, it.end) },
+        )
+        val web = vm.plainLinkTarget(0)!!
+        assertEquals("https://www.lib.ntust.edu.tw/hours", web.href)
+        assertEquals("www.lib.ntust.edu.tw", web.verdict.host)
+        assertTrue(web.canOpen)
+        val mail = vm.plainLinkTarget(1)!!
+        assertEquals("mailto:library@mail.ntust.edu.tw", mail.href)
+        assertTrue(mail.canOpen)
+        assertNull(vm.plainLinkTarget(2))
+    }
+
     // --- link target: addressed by index into the rewritten document's links -----------------
 
     @Test
@@ -851,6 +1173,42 @@ class SchoolMailMessageViewModelTest {
         assertFalse(vm.state.value.closed)
     }
 
+    // --- writes that outlive the account ------------------------------------------------
+
+    @Test
+    fun `a move the repository let go unsent is no failure to show`() {
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "x", emptyList(), emptyMap())
+        // Another student signed in over this one while the move waited for the session.
+        repo.moveError = MailError.Abandoned()
+        val vm = vm()
+        vm.load()
+        vm.moveTo("回收筒")
+        assertNull("a write nobody wanted any more was shown as a failure", vm.state.value.actionError)
+        assertFalse(vm.state.value.closed)
+    }
+
+    @Test
+    fun `a delete whose password is rejected after the student signed in again is not theirs to see`() {
+        runBlocking { account.signIn("b10000001", "pw") }
+        repo.add("INBOX", mailSummary(5))
+        repo.bodies[5] = MailBody(null, "x", emptyList(), emptyMap())
+        // The delete is on the connection when the student signs in again with a new password.
+        val gate = CompletableDeferred<Unit>()
+        repo.writeGate = gate
+        repo.deleteError = MailError.AuthFailed()
+        val vm = vm()
+        vm.load()
+        vm.delete()
+        vm.confirmDelete(true)
+        runBlocking { account.signIn("b10000001", "pw") }
+        repo.writeGate = null
+        gate.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+        assertNull(vm.state.value.actionError)
+        assertFalse("the old password's rejection marked the new sign-in rejected", account.authFailed.value)
+    }
+
     // --- normalizedHref: direct asserts for the image-URL allowlist (MailWebView) -----------
 
     @Test
@@ -916,5 +1274,17 @@ class SchoolMailMessageViewModelTest {
         // A lone high surrogate at the very end (its low half was cut off) means a pair got
         // split; ending on a low surrogate is fine -- that IS a pair's completed second half.
         assertFalse(stem.isNotEmpty() && Character.isHighSurrogate(stem.last()))
+    }
+
+    @Test
+    fun `a sent-copy notice shows on the mail it was a reply to, and on no other`() {
+        val vm = vm("INBOX", 5)
+        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.Message("INBOX", 5), notices.accountGeneration)
+        assertEquals(SentCopyNotice.NoFolder, vm.sentCopyNotice.value)
+        val other = vm("INBOX", 6)
+        assertNull(other.sentCopyNotice.value)
+        // A new mail from the list is the list's to say.
+        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, notices.accountGeneration)
+        assertNull(vm.sentCopyNotice.value)
     }
 }

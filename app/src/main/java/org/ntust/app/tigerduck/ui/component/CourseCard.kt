@@ -19,6 +19,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,14 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.shared.blockClassroom
+import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
 /**
@@ -54,27 +55,41 @@ fun CourseCard(
     hasAssignment: Boolean = false,
     isFinished: Boolean = false,
     weekday: Int? = null,
+    /** The block of [weekday] the card stands for; its room is the one shown. */
+    periods: List<String>? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Vibrant (light-palette) color so the tint stays visible in dark mode.
-    val color = TigerDuckTheme.courseColorVibrant(course.courseNo)
-    val surface = MaterialTheme.colorScheme.surface
-    val lightAlpha = if (isFinished) 0.35f else 0.50f
-    val darkAlpha = if (isFinished) 0.35f else 0.55f
-    val cardColor = if (TigerDuckTheme.isDarkMode) {
-        color.copy(alpha = darkAlpha).compositeOver(surface)
-    } else {
-        color.copy(alpha = lightAlpha)
-    }
+    val style = LocalVisualStylePolicy.current
+    val isDark = TigerDuckTheme.isDarkMode
+    val cardColor = style.courseCardFill(
+        // Vibrant (light-palette) color so the tint stays visible in dark mode.
+        courseColor = TigerDuckTheme.courseColorVibrant(course.courseNo),
+        tintAlpha = when {
+            isFinished -> 0.35f
+            isDark -> 0.55f
+            else -> 0.50f
+        },
+        muted = isFinished,
+        surface = MaterialTheme.colorScheme.surface,
+        isDark = isDark,
+    )
+    // A class already over fades its text as well as its fill.
     val textAlpha = if (isFinished) 0.4f else 1f
+    val textColor = style.courseCardTextColor(MaterialTheme.colorScheme.onSurface).fadedBy(textAlpha)
+    val secondaryColor =
+        style.courseCardSecondaryTextColor(MaterialTheme.colorScheme.onSurface).fadedBy(textAlpha)
 
     Card(
         onClick = onClick,
         modifier = modifier
             .width(CourseCardWidth),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
+        colors = CardDefaults.cardColors(
+            containerColor = cardColor,
+            // The press ripple and anything left in the default colour read on the fill.
+            contentColor = style.courseCardTextColor(LocalContentColor.current),
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -90,18 +105,17 @@ fun CourseCard(
                     style = nameStyle.copy(
                         fontSize = nameStyle.fontSize * TigerDuckTheme.courseNameScale
                     ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = textAlpha),
+                    color = textColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                val room = if (weekday != null) course.classroom(weekday)
-                else Course.dedupRooms(course.classroom)
+                val room = cardRoom(course, weekday, periods)
                 if (room.isNotEmpty()) {
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = room,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha),
+                        color = secondaryColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -111,7 +125,7 @@ fun CourseCard(
                     Text(
                         text = timeRange,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY * textAlpha),
+                        color = secondaryColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -126,7 +140,7 @@ fun CourseCard(
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
                         .size(14.dp),
-                    tint = Color.Gray.copy(alpha = 0.5f * textAlpha)
+                    tint = style.courseCardMarkColor.fadedBy(textAlpha)
                 )
             }
         }
@@ -141,16 +155,21 @@ fun CurrentClassCard(
     currentMinute: Int,
     hasAssignment: Boolean = false,
     weekday: Int? = null,
+    /** The periods of the block going on; its room is the one shown. */
+    periods: List<String>? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val color = TigerDuckTheme.courseColorVibrant(course.courseNo)
-    val surface = MaterialTheme.colorScheme.surface
-    val cardColor = if (TigerDuckTheme.isDarkMode) {
-        color.copy(alpha = 0.70f).compositeOver(surface)
-    } else {
-        color.copy(alpha = 0.70f)
-    }
+    val style = LocalVisualStylePolicy.current
+    val cardColor = style.courseCardFill(
+        courseColor = TigerDuckTheme.courseColorVibrant(course.courseNo),
+        tintAlpha = 0.70f,
+        muted = false,
+        surface = MaterialTheme.colorScheme.surface,
+        isDark = TigerDuckTheme.isDarkMode,
+    )
+    val textColor = style.courseCardTextColor(MaterialTheme.colorScheme.onSurface)
+    val secondaryColor = style.courseCardSecondaryTextColor(MaterialTheme.colorScheme.onSurface)
     val progress = if (blockEndMinute > blockStartMinute) {
         ((currentMinute - blockStartMinute).toFloat() /
                 (blockEndMinute - blockStartMinute)).coerceIn(0f, 1f)
@@ -161,7 +180,10 @@ fun CurrentClassCard(
         onClick = onClick,
         modifier = modifier.width(CurrentClassCardWidth),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = cardColor),
+        colors = CardDefaults.cardColors(
+            containerColor = cardColor,
+            contentColor = style.courseCardTextColor(LocalContentColor.current),
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box {
@@ -178,7 +200,7 @@ fun CurrentClassCard(
                         text = stringResource(R.string.course_card_current_class),
                         style = MaterialTheme.typography.labelSmall
                             .copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = textColor
                     )
                 }
                 Spacer(Modifier.height(6.dp))
@@ -186,18 +208,16 @@ fun CurrentClassCard(
                     text = courseNameForDisplay(course.displayName, maxChars = 28),
                     style = MaterialTheme.typography.bodyMedium
                         .copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = textColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                val room = if (weekday != null) course.classroom(weekday)
-                else Course.dedupRooms(course.classroom)
+                val room = cardRoom(course, weekday, periods)
                 if (room.isNotEmpty()) {
                     Text(
                         text = room,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurface
-                            .copy(alpha = ContentAlpha.SECONDARY),
+                        color = secondaryColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -209,16 +229,15 @@ fun CurrentClassCard(
                         .fillMaxWidth()
                         .height(4.dp)
                         .clip(RoundedCornerShape(2.dp)),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f),
+                    color = textColor,
+                    trackColor = textColor.copy(alpha = 0.2f),
                     drawStopIndicator = {}
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = timeRange,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                        .copy(alpha = ContentAlpha.SECONDARY)
+                    color = secondaryColor
                 )
             }
 
@@ -230,12 +249,25 @@ fun CurrentClassCard(
                         .align(Alignment.BottomEnd)
                         .padding(8.dp)
                         .size(14.dp),
-                    tint = Color.Gray.copy(alpha = 0.5f)
+                    tint = style.courseCardMarkColor
                 )
             }
         }
     }
 }
 
+/** This colour with its alpha scaled by [share]. */
+private fun Color.fadedBy(share: Float): Color = copy(alpha = alpha * share)
+
 private fun formatHm(minuteOfDay: Int): String =
     "%02d:%02d".format(minuteOfDay / 60, minuteOfDay % 60)
+
+/**
+ * The room a course card shows: its block's when the card stands for one, so a course meeting in
+ * two rooms that day shows the one it is in; else the day's rooms, or the week's.
+ */
+internal fun cardRoom(course: Course, weekday: Int?, periods: List<String>?): String = when {
+    weekday == null -> Course.dedupRooms(course.classroom)
+    periods.isNullOrEmpty() -> course.classroom(weekday)
+    else -> course.blockClassroom(weekday, periods)
+}

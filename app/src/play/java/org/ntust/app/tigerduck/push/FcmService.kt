@@ -1,27 +1,28 @@
 package org.ntust.app.tigerduck.push
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Intent
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.MainActivity
-import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.NotificationGroup
+import org.ntust.app.tigerduck.notification.brandedNotification
 import org.ntust.app.tigerduck.serverpush.ServerPushIntentToken
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -34,6 +35,10 @@ class FcmService : FirebaseMessagingService() {
     lateinit var scope: CoroutineScope
     @Inject
     lateinit var intentToken: ServerPushIntentToken
+    @Inject
+    lateinit var notificationChannels: NotificationChannelRegistrar
+    @Inject
+    lateinit var authService: AuthService
 
     // Deprecated in firebase-messaging 25.1.2 with no replacement callback —
     // see the note in FcmBootstrap.start(). Suppressed rather than marked
@@ -62,14 +67,17 @@ class FcmService : FirebaseMessagingService() {
             )
         }
         val data = message.data
+        if (!handlesPush(data["kind"], signedIn = authService.authState.value)) {
+            Log.d(TAG, "Account push received while signed out — ignored")
+            return
+        }
         // Accept any case-variant the backend might emit ("true"/"True"/"TRUE")
         // plus "1"; anything else (including null) defaults to silent.
         val forceRing = data["force_ring"]?.lowercase() in setOf("true", "1")
         when (data["kind"]) {
             "sync_trigger" -> {
-                Log.d(TAG, "Silent sync trigger received — enqueuing background sync")
-                WorkManager.getInstance(this)
-                    .enqueue(OneTimeWorkRequestBuilder<BackgroundSyncWorker>().build())
+                Log.d(TAG, "Silent sync trigger received — requesting background sync")
+                BackgroundSyncWorker.requestSync(this)
                 return
             }
             "custom_push_bulletin" -> {
@@ -119,6 +127,8 @@ class FcmService : FirebaseMessagingService() {
         }
     }
 
+    // Checked: areNotificationsEnabled() returns early, which lint does not count.
+    @SuppressLint("MissingPermission")
     private fun showBulletinNotification(
         id: Int,
         title: String,
@@ -145,18 +155,11 @@ class FcmService : FirebaseMessagingService() {
         // POST_NOTIFICATIONS permission is denied; an uncaught throw here
         // would crash FirebaseMessagingService and the whole process.
         if (!manager.areNotificationsEnabled()) return
-        val notification = NotificationCompat.Builder(this, channelId)
-            // Status-bar small icon must be a transparent monochrome
-            // silhouette; passing the full-color launcher mipmap lets
-            // Android fall back to a generic circle.
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
-            // Large icon (rendered in the notification body) is the
-            // full-color TigerDuck character — gives the brand visible
-            // presence without violating the silhouette-only contract
-            // the status bar enforces above.
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+        notificationChannels.ensureRegistered()
+        // The full-colour logo as the large icon gives the brand a presence in
+        // the body, where the shade doesn't already show it; see
+        // brandedNotification.
+        val notification = brandedNotification(channelId, withLargeIcon = true)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -166,11 +169,17 @@ class FcmService : FirebaseMessagingService() {
                 if (forceRing) NotificationCompat.PRIORITY_HIGH
                 else NotificationCompat.PRIORITY_DEFAULT,
             )
+            .setGroup(NotificationGroup.OTHER.key)
             .build()
+        // The summary only once there is something under it, or a failed
+        // notify leaves it standing as an empty row.
         runCatching { manager.notify(id, notification) }
-            .onFailure { Log.w(TAG, "notify failed for bulletin $id", it) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
+            .onFailure { Log.w(TAG, "notify failed for bulletin $id: ${it.logSummary()}") }
     }
 
+    // Checked: areNotificationsEnabled() returns early, which lint does not count.
+    @SuppressLint("MissingPermission")
     private fun showServerPopupNotification(
         notificationId: String,
         title: String,
@@ -210,17 +219,12 @@ class FcmService : FirebaseMessagingService() {
         )
         val manager = NotificationManagerCompat.from(this)
         if (!manager.areNotificationsEnabled()) return
+        notificationChannels.ensureRegistered()
         val channelId =
             if (forceRing) NotificationChannels.BULLETINS_SOUND
             else NotificationChannels.BULLETINS_SILENT
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
-            // Same brand presence in the notification body as the bulletin
-            // path — see showBulletinNotification for the silhouette /
-            // large-icon split rationale.
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+        // Same large icon as the bulletin path; see showBulletinNotification.
+        val notification = brandedNotification(channelId, withLargeIcon = true)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -230,13 +234,15 @@ class FcmService : FirebaseMessagingService() {
                 if (forceRing) NotificationCompat.PRIORITY_HIGH
                 else NotificationCompat.PRIORITY_DEFAULT,
             )
+            .setGroup(NotificationGroup.OTHER.key)
             .build()
         // Use the raw notificationId as the notify() tag with a fixed int id
         // so distinct nids never collide in the shade — relying on
         // nid.hashCode() as the int id alone would let two different popups
         // overwrite each other on a 32-bit hash collision.
         runCatching { manager.notify(notificationId, NOTIFY_ID_SERVER_POPUP, notification) }
-            .onFailure { Log.w(TAG, "notify failed for popup $notificationId", it) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
+            .onFailure { Log.w(TAG, "notify failed for a server popup: ${it.logSummary()}") }
     }
 
     /**
@@ -244,11 +250,12 @@ class FcmService : FirebaseMessagingService() {
      * stacking. The account is either broken or it isn't — one row says
      * that as well as five.
      */
+    // Checked: areNotificationsEnabled() returns early, which lint does not count.
+    @SuppressLint("MissingPermission")
     private fun showReauthNotification(title: String, body: String) {
-        // `tigerduck://home` is not a registered deep link — the manifest only
-        // declares the `announcement` host and MainActivity routes nothing for
-        // a `home` authority — so open the launcher entry point rather than
-        // mint a URI no one consumes.
+        // `tigerduck://home` is not a link the app opens — AppLink.parse takes
+        // only `announcement`, `assignment`, `classtable` and `library` — so
+        // open the launcher entry point rather than mint a URI no one consumes.
         val intent = packageManager.getLaunchIntentForPackage(packageName)
             ?: Intent(this, MainActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -260,14 +267,9 @@ class FcmService : FirebaseMessagingService() {
         )
         val manager = NotificationManagerCompat.from(this)
         if (!manager.areNotificationsEnabled()) return
-        val notification = NotificationCompat.Builder(this, NotificationChannels.SYSTEM)
-            .setSmallIcon(R.drawable.ic_notification)
-            // Brand tint for the shade badge; the status-bar glyph stays mono.
-            .setColor(ContextCompat.getColor(this, R.color.duck_yellow))
-            // Same brand presence in the notification body as the bulletin
-            // path — see showBulletinNotification for the silhouette /
-            // large-icon split rationale.
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+        notificationChannels.ensureRegistered()
+        // Same large icon as the bulletin path; see showBulletinNotification.
+        val notification = brandedNotification(NotificationChannels.SYSTEM, withLargeIcon = true)
             // Title and body are rendered server-side in the device's
             // language; the client must never compose its own copy here.
             .setContentTitle(title)
@@ -276,9 +278,11 @@ class FcmService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setGroup(NotificationGroup.OTHER.key)
             .build()
         runCatching { manager.notify(REAUTH_NOTIFICATION_ID, notification) }
-            .onFailure { Log.w(TAG, "notify failed for reauth", it) }
+            .onSuccess { NotificationGroup.OTHER.postSummary(this) }
+            .onFailure { Log.w(TAG, "notify failed for reauth: ${it.logSummary()}") }
     }
 
     companion object {

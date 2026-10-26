@@ -109,12 +109,21 @@ and you get the v1.3.x → v1.4.0 incident again. **A green build is not
 proof** — the failure only triggers on release-flavor obfuscated builds
 running against caches written by a prior version.
 
-### 6. Are you reading from `DataCache` in a path that runs from `TigerDuckApp.onCreate`?
+### 6. Are you relying on `DataMigration` to make a read safe?
 
-`appScope.launch { wearBridge.publish() }` and similar safety-net
-launches run BEFORE `DataMigration` (which fires from MainActivity-
-triggered AppState injection). If your code reads cached data on
-Application.onCreate, assume the cache may be in pre-migration shape.
+Since `6ea41f62`, `DataMigration.run()` is the first call in
+`TigerDuckApp.onCreate`, ahead of the `DataCache` listener, the
+safety-net `wearBridge.publish()`, `BootReceiver` and
+`BackgroundSyncWorker`, so on the phone every pending step has run
+before anything reads the cache. That still does not make migration
+enough on its own:
+
+- A step only fixes what it was written to fix. A new field with no
+  step behind it reaches every reader as null.
+- `:wear` has no `DataMigration`. `SchedulePersistence` reads whatever
+  an older watch build wrote, and Data Layer payloads can come from a
+  phone that has not upgraded yet.
+
 Defend at the read site (token sentinel, try/catch, nullable fields)
 — do NOT rely on DataMigration alone.
 
@@ -144,8 +153,8 @@ have to be on disk from the prior version before your build runs.
 
 - ❌ Adding `val foo: String = ""` to `Course` because "it has a default,
   it'll be safe" — Gson Unsafe path drops the default.
-- ❌ Relying on `DataMigration` alone for read-path safety —
-  Application.onCreate races ahead of migration.
+- ❌ Relying on `DataMigration` alone for read-path safety — it covers
+  only the shapes a step was written for, and never the watch.
 - ❌ Removing the `requireContent = COURSE_NO_TOKEN` sentinel in
   `DataCache.loadCourses` — it's the load-bearing v1.4.0 cache
   rejection check.

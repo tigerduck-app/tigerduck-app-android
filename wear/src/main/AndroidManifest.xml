@@ -11,8 +11,11 @@
     <application
         android:name=".WearApplication"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="TigerDuck"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.TigerDuckWear">
@@ -57,22 +60,23 @@
 
         <service
             android:name=".tile.NextClassTileService"
+            android:description="@string/watch_widget_next_class_description"
             android:exported="true"
-            android:label="Next class"
+            android:label="@string/watch_widget_next_class"
             android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
             <intent-filter>
                 <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
             </intent-filter>
             <meta-data
                 android:name="androidx.wear.tiles.PREVIEW"
-                android:resource="@android:drawable/sym_def_app_icon" />
+                android:resource="@mipmap/ic_launcher" />
         </service>
 
         <service
             android:name=".complication.NextClassComplicationService"
             android:exported="true"
-            android:icon="@android:drawable/sym_def_app_icon"
-            android:label="Next class"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/watch_widget_next_class"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
                 <action android:name="android.support.wearable.complications.ACTION_COMPLICATION_UPDATE_REQUEST" />

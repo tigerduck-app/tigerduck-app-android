@@ -2,12 +2,125 @@
 
 ## Release workflows
 
-### `release-manual.yaml` — Release (Manual) — **active**
+### `release.yaml` — Release (Auto)
 
-Manually-dispatched release. Tags `main` (if the tag does not yet exist), builds
-signed `play` and `fdroid` phone AABs/APKs plus the signed `:wear` AAB/APK, pins
-the F-Droid metadata commit hash, and publishes a GitHub Release with the
-artifacts attached. Does **not** upload to Google Play.
+Runs on every commit to `main`, or from the Actions tab. It releases the version
+in `app/build.gradle.kts`, tagged `v<versionName>`. On a commit, if that tag
+already exists the run stops after its first job, so only a commit that bumps
+the version releases anything. The first job also refuses a new version whose
+phone `versionCode` is not above the previous tag's, or whose watch
+`versionCode` is not the phone's plus 10000: Play keeps every bundle it is sent,
+and an unbumped code would publish the old binary under the new name.
+
+A new version builds the same six artifacts as `release-manual.yaml` (see
+`release-build.yaml` below), then:
+
+1. Uploads the phone and watch bundles to Google Play and sends them for review,
+   all in one edit (`tools/play/publish.py`). The phone goes to `internal` and
+   `production`, the watch to `wear:internal` and `wear:production`: Play has
+   required Wear OS releases on their own form-factor tracks since 2023.
+   Both reach everyone at once: every tester on internal, every user on
+   production, unless a smaller production rollout is picked.
+2. Tags the build commit (GPG-signed), pins the F-Droid metadata commit hash,
+   and publishes the GitHub Release "TigerDuck Android vX.Y.Z" with every
+   artifact attached and its notes written (see below).
+3. Opens a pull request merging `main` back into `dev`
+   (`tools/github/back_merge.py`), so `dev` gets the F-Droid pin and anything
+   that went to `main` on its own, and the next release pull request does not
+   conflict on the metadata file. It opens none when `dev` already has
+   everything, or when one is already open. The Releaser App's token opens it,
+   so its CI runs; the App needs "Pull requests: Read and write" for that, and
+   without it the step only warns. Merge it with a merge commit, not a squash.
+
+Play comes before the tag so that a failed upload leaves nothing tagged and the
+workflow can simply be run again. If a later step fails, use "Re-run failed
+jobs": the upload skips any bundle Play already has, the tag step keeps a tag
+already on the same commit, and the pin and the GitHub Release tolerate their
+own earlier success. If Play refuses to send the release for review on its own
+(it does after a rejection, or with other changes pending), the edit is still
+saved and the run warns you to click "Send changes for review" in Play Console.
+
+A commit releases to all four tracks, production to every user. From the
+Actions tab you can tick which of phone/watch × internal/production to upload
+and pick the rollout: 100% by default, or a staged 10, 20 or 50%. On a version
+that is already tagged, a click sends it to the ticked tracks only, built from
+the tag, and does not tag or publish again; that is how a release goes from
+internal testing to production, or from a staged rollout to a wider one (which
+then starts at the percentage picked, not where it was). Everything is built either way, because the GitHub Release
+carries all six files and Play may not have a bundle yet.
+
+Runs queue one at a time, and each decides what to release only once the run
+before it has finished, so a commit landing mid-release finds the tag in place.
+The F-Droid metadata commit a release pushes does not start a run at all. GitHub
+keeps one pending run per queue, though: a click made while a release is running
+is dropped if another commit lands on `main` before it starts. Click again once
+the release is done.
+
+On a tagged version the build comes from the tag, but `tools/play/publish.py`
+comes from the commit the run started on, so tags made before the script
+existed can still be sent to Play.
+
+Release notes come from the `whatsnew.json` entry for the phone `versionCode`
+(the in-app "What's New" text), as `zh-TW` and `en-US`. To word them
+differently for a release, write
+`fastlane/metadata/android/{zh-TW,en-US}/changelogs/<versionCode>.txt`; that
+file wins, and F-Droid reads its changelogs from the same path. Play caps each
+language at 500 characters. For a new version the first job checks that before
+anything is built; a tagged version's notes are checked before the upload.
+Preview them with `python3 tools/play/publish.py notes --phone-code N`.
+
+Needs the `PLAY_SERVICE_ACCOUNT_JSON` secret, a service account with release
+permissions on the app in Play Console.
+
+The GitHub Release notes come from `.github/release-notes-template.md`. The
+script `tools/github/release_notes.py` fills in its placeholders:
+- `{{WHATS_NEW}}`: the What's New item titles for the phone `versionCode`, each
+  `zh-Hant` title with the `en` one under it.
+- `{{VERSION_NAME}}`, `{{PHONE_CODE}}` and `{{WATCH_CODE}}`: from the Gradle
+  files.
+- `{{COMPARE_URL}}`: the compare link from the previous `vX.Y.Z` tag.
+
+Everything else, the notes on upgrading and on the F-Droid build among it, is
+the template's own text: edit it there. The first job checks that the notes
+can be written, so a What's New entry whose two languages list different
+numbers of items fails before the build. The notes are written only when the
+release is created. A release that already exists keeps its notes, so editing
+them on GitHub afterwards is safe. Preview them with
+`python3 tools/github/release_notes.py --repo tigerduck-app/tigerduck-app-android`.
+
+### `release-build.yaml` — Release build
+
+The build both release workflows call: the six files, signed with the release
+key, on three runners side by side, the phone's `play` build, its `fdroid`
+build and the watch, each uploaded as an artifact for the calling workflow's
+`publish` job. A `preflight` job checks the secrets, the Releaser App token and
+the GPG key while they build; `publish` starts only once all three legs and
+the preflight have passed, so nothing is uploaded to Play, tagged or published
+unless every file was built. Each leg gives Gradle 6 GB and the Kotlin daemon
+3 GB, as `ci.yaml`'s legs do: built in one Gradle run on one runner, 2.4.0's
+release ran the Kotlin compiler out of memory.
+
+It also runs on its own, built and signed but uploading nothing, on a pull
+request that changes any of the three release workflows, so a change to how a
+release is built is seen to work before it reaches `main`. A pull request from
+a fork gets no secrets and is skipped. A click in the Actions tab does the same
+for any branch.
+
+### `release-manual.yaml` — Release (Manual)
+
+Manually dispatched, no inputs. Takes the commit `main` points at when the run
+starts, reads `versionName` from its `app/build.gradle.kts`, and releases it as
+`v<versionName>`: tags that commit if the tag does not yet exist, builds signed
+`play` and `fdroid` phone AABs/APKs plus the signed `:wear` AAB/APK, pins the
+F-Droid metadata commit hash, and publishes the GitHub Release "TigerDuck
+Android vX.Y.Z" with the artifacts attached and the same notes as Release
+(Auto). If the tag already exists, it checks the tag out and attaches the
+artifacts to the existing release, keeping that release's notes. Does **not**
+upload to Google Play.
+
+Both release workflows pin the F-Droid metadata only while the metadata on
+`main` still describes the version being released. If a newer version bump
+reached `main` during the build, the pin is left for that version's release.
 
 Six artifacts: `TigerDuck.{apk,aab}` (play), `TigerDuck-fdroid.{apk,aab}`, and
 `TigerDuck-Wear.{apk,aab}`. The watch is play-only — `:wear` has no product
@@ -16,51 +129,29 @@ watch build to ship. It is signed with the same keystore as the phone (same
 `applicationId`), which the workflow decodes into `wear/keystore.jks` as well as
 `app/keystore.jks`.
 
-Inputs:
-
-- `tag` — e.g. `v1.2.3`. Created on `main` if it does not already exist; if it
-  exists, the existing tag is checked out and artifacts are attached to the
-  existing release.
-
-This is the workflow currently used to cut releases.
-
-### `release.yaml` — Release (Auto) — **suspended**
-
-Triggered automatically on `v*` tag push. Builds signed artifacts, creates a
-GitHub Release with auto-generated notes, and uploads the play-flavor AAB to the
-Play Store production track at 10% staged rollout.
-
-Currently suspended — do not rely on it. Use `release-manual.yaml` instead.
-
-### `release-manual-playstore.yaml` — Release (Manual + Play Store) — **suspended**
-
-Manual dispatch by tag. Same as `release.yaml` but triggered manually: validates
-`vX.Y.Z` tag format, checks out the tag, builds, creates the GitHub Release, and
-pushes to the Play Store production track at 10% staged rollout.
-
-Currently suspended.
-
-### `release-manual-playstore-internal.yaml` — Release (Manual + Play Store (Internal)) — *
-*suspended**
-
-Manual dispatch by tag. Same as the production variant but uploads to the Play
-Store **internal** track with `status: completed` (no staged rollout). Accepts
-prerelease tags (e.g. `v1.2.3-beta.1`).
-
-Currently suspended.
-
 ## PR check workflows
 
 ### `ci.yaml`
 
 Runs on PRs to `main` and `dev`. Compiles both phone flavors plus `:wear`,
-builds the `:wear` release AAB/APK unsigned, and runs every JVM unit test. Lean
-on purpose: no emulator, no lint baseline.
+builds the `:wear` release AAB/APK and both phone flavors' release APKs
+unsigned, and runs every JVM unit test. Lean on purpose: no emulator, no lint
+baseline.
 
-The wear release build is there because `:wear` is minified with its own
-`proguard-rules.pro` and nothing else in the PR gate runs R8 over it — without
-this step a missing keep rule would surface for the first time on release day.
-Unsigned because fork PRs cannot read the `KEYSTORE_*` secrets.
+The release builds are there because the phone and `:wear` are each minified
+with their own `proguard-rules.pro` and nothing else in the PR gate runs R8
+over them — without them a missing keep rule would surface for the first time
+on release day, as the two upgrade crashes R8 and Gson caused did. Unsigned
+because fork PRs cannot read the `KEYSTORE_*` secrets, and the phone's without
+`google-services.json`, which only the release workflow decodes.
+
+It also tests the scripts the release workflows run, which otherwise first
+run once the PR is already on `main`: `tools/play/test_publish.py` runs the
+Play upload script against a fake Play (which bundles are uploaded, what each
+track is sent, the staged rollout, the commit and its fallback), ,
+`tools/github/test_release_notes.py` renders the GitHub Release notes from a
+scratch checkout, and `tools/github/test_back_merge.py` runs the pull request
+that merges `main` back into `dev` against a fake `gh`.
 
 ### `submodules-up-to-date.yaml`
 
@@ -73,7 +164,7 @@ submodule references.
 Runs on PRs to `main` and `dev`. Regenerates the Open-source licences data from
 each release variant's dependency graph and fails if it differs from what is
 committed, so a dependency change cannot ship with a stale list. Two files per
-flavor, both written by the one export command:
+flavor, plus the watch's pair on play, all written by the one export command:
 
 - `res/raw/aboutlibraries.json` — the libraries and the licences they are
   published under, read from their POMs.
@@ -131,7 +222,7 @@ good, so 2.0.1 ships as phone 24 / watch 10024.
 ### `whatsnew-has-version.yaml`
 
 Runs on PRs to `main`. Verifies `app/src/main/assets/whatsnew.json` has an entry
-for the `versionCode` in `app/build.gradle.kts`, so the "What's New" dialog is
-never empty on a fresh release.
+for the `versionCode` in `app/build.gradle.kts`, so the "What's New" sheet always
+ends on a summary page on a fresh release.
 
 

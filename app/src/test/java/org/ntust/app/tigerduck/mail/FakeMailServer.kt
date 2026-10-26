@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import java.io.ByteArrayInputStream
 import java.io.OutputStream
+import java.time.Instant
 import java.util.Properties
 
 /** An in-memory mailbox behind the MailSession interface, for logic tests. */
@@ -42,7 +43,14 @@ class FakeMailServer {
         callErrors.clear()
         callErrors.addAll(errors)
     }
-    var searchUnsupported = false
+    /** Every page a session fetched, by folder and cursor: a page answered on the phone adds nothing. */
+    val pageFetches = mutableListOf<Pair<String, Int?>>()
+
+    /** How many times a session listed a folder's UIDs, which the search index does before it fetches. */
+    var undeletedUidsCalls = 0
+
+    /** Fires inside a UID listing, before it answers: a test reads what is on screen while a download plans. */
+    var onUndeletedUids: (() -> Unit)? = null
     var expungeOnMove = true
 
     /** Every name a session was asked to CREATE, in order — what a test asserts on to prove nothing is created speculatively. */
@@ -56,6 +64,15 @@ class FakeMailServer {
     var opens = 0
         private set
 
+    /** How many LISTs sessions were asked for; a folder list the repository serves from its own resolution adds nothing here. */
+    var listCalls = 0
+
+    /** Fires inside a LIST, before it answers: a test acts while a folder list is out. */
+    var onListFolders: (() -> Unit)? = null
+
+    /** Fires inside a STORE of the seen flag, before it takes: a test acts while a mark-read is on the server. */
+    var onSetSeen: (() -> Unit)? = null
+
     /** How many times a session was actually asked for a mail's raw source -- a cache hit adds nothing here. */
     var rawSourceFetches = 0
         private set
@@ -64,6 +81,9 @@ class FakeMailServer {
 
     /** How many times a session was actually asked for a mail's body. */
     var bodyFetches = 0
+
+    /** Fires inside a body fetch, before it answers: a test reads what is on screen while one is out. */
+    var onFetchBody: (() -> Unit)? = null
 
     /** When true, `fetchBody` throws a network error instead of returning the mail's body. */
     var failBodyFetch = false
@@ -77,10 +97,11 @@ class FakeMailServer {
         messageId: String? = null,
         body: MailBody = MailBody(null, "body of $subject", emptyList(), emptyMap()),
         sizeBytes: Long = 100,
+        receivedAt: Instant? = null,
     ): Long {
         val uid = nextUid++
         folders.getOrPut(folder) { mutableListOf() } += Stored(
-            MailSummary(uid, from, emptyList(), emptyList(), emptyList(), subject, null, null,
+            MailSummary(uid, from, emptyList(), emptyList(), emptyList(), subject, null, receivedAt,
                 MailFlags.NONE.copy(seen = seen), sizeBytes, false, messageId, null, null),
             body,
         )
@@ -110,7 +131,11 @@ class FakeMailServer {
 
         override fun noop() = call { Unit }
 
-        override fun listFolders() = call { folders.keys.toList() }
+        override fun listFolders() = call {
+            listCalls++
+            onListFolders?.invoke()
+            folders.keys.toList()
+        }
 
         override fun createFolder(name: String) = call {
             createAttempts += name
@@ -125,6 +150,7 @@ class FakeMailServer {
         }
 
         override fun fetchPage(folder: String, beforeSeq: Int?, pageSize: Int) = call {
+            pageFetches += folder to beforeSeq
             val l = list(folder).sortedBy { it.summary.uid }
             val end = (beforeSeq ?: (l.size + 1)) - 1
             if (end < 1) MailPage(uidValidity, l.size, emptyList(), null) else {
@@ -145,6 +171,7 @@ class FakeMailServer {
 
         override fun fetchBody(folder: String, uid: Long) = call {
             bodyFetches++
+            onFetchBody?.invoke()
             if (failBodyFetch) throw MailError.Network()
             find(folder, uid).body
         }
@@ -158,6 +185,7 @@ class FakeMailServer {
             call { out.write("attachment $partId".toByteArray()) }
 
         override fun setSeen(folder: String, uids: List<Long>, seen: Boolean) = call {
+            onSetSeen?.invoke()
             list(folder).filter { it.summary.uid in uids }.forEach { it.summary = it.summary.copy(flags = it.summary.flags.copy(seen = seen)) }
         }
 
@@ -166,7 +194,8 @@ class FakeMailServer {
             s.summary = s.summary.copy(flags = s.summary.flags.copy(answered = true))
         }
 
-        override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>) = call {
+        override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>, uidValidity: Long?) = call {
+            refuseUnder(uidValidity)
             val s = find(folder, uid)
             val copyUid = nextUid++
             list(target) += Stored(s.summary.copy(uid = copyUid), s.body)
@@ -178,7 +207,8 @@ class FakeMailServer {
             expungeOnMove
         }
 
-        override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>) = call {
+        override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>, uidValidity: Long?) = call {
+            refuseUnder(uidValidity)
             if (failAfterFlag) {
                 val s = find(folder, uid)
                 s.summary = s.summary.copy(flags = s.summary.flags.copy(deleted = true))
@@ -187,10 +217,13 @@ class FakeMailServer {
             list(folder).remove(find(folder, uid))
         }
 
-        override fun search(folder: String, query: String) = call {
-            if (searchUnsupported) throw MailError.SearchUnsupported()
-            list(folder).map { it.summary }.filter { query in it.subject }.map { it.uid }.sortedDescending()
+        override fun undeletedUids(folder: String) = call {
+            undeletedUidsCalls++
+            onUndeletedUids?.invoke()
+            list(folder).filterNot { it.summary.flags.deleted }.map { it.summary.uid }
         }
+
+        override fun allUids(folder: String) = call { list(folder).map { it.summary.uid } }
 
         override fun append(folder: String, rfc822: ByteArray, flags: Set<AppendFlag>) = call {
             val msg = MimeMessage(Session.getInstance(Properties()), ByteArrayInputStream(rfc822))
@@ -211,6 +244,11 @@ class FakeMailServer {
         override fun close() {
             if (!closed) openSessions--
             closed = true
+        }
+
+        /** As a write's SELECT answers: a UID read under another UIDVALIDITY names another mail, and nothing is sent. */
+        private fun refuseUnder(uidValidity: Long?) {
+            if (uidValidity != null && uidValidity != this@FakeMailServer.uidValidity) throw MailError.FolderChanged()
         }
 
         private fun find(folder: String, uid: Long) =

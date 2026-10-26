@@ -18,6 +18,9 @@ import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import java.io.File
 import java.time.Instant
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 class MailCacheTest {
     @get:Rule val tmp = TemporaryFolder()
@@ -41,6 +44,20 @@ class MailCacheTest {
         assertEquals(7L, loaded.uidValidity)
         assertEquals(1, loaded.nextBeforeSeq)
         assertEquals(listOf(summary(3), summary(2)), loaded.messages!!.map { it.toModel() })
+        assertNull(cache.loadFolder("INBOX"))
+    }
+
+    @Test
+    fun `a folder page is dropped only under the validity it was saved under`() {
+        val cache = MailCache(tmp.root)
+        cache.saveFolder("INBOX", MailPage(2, 1, listOf(summary(1)), null))
+        // Validity 1 is what the caller found obsolete; this page is already the new generation's.
+        cache.deleteFolderUnder("INBOX", 1)
+        assertEquals(2L, cache.loadFolder("INBOX")!!.uidValidity)
+        cache.deleteFolderUnder("INBOX", 2)
+        assertNull(cache.loadFolder("INBOX"))
+        // Nothing cached is nothing to drop.
+        cache.deleteFolderUnder("INBOX", 2)
         assertNull(cache.loadFolder("INBOX"))
     }
 
@@ -203,5 +220,37 @@ class MailCacheTest {
         } finally {
             foldersDir.setWritable(true)
         }
+    }
+
+    /**
+     * A sign-out's clear that lands after the check said the account was still signed in waits
+     * for the save it allowed, and then removes it: the departing student's body is never left in
+     * the emptied cache (tigerduck-app/tigerduck-app-android#294).
+     */
+    @Test
+    fun `a clear that races a save allowed a moment earlier still leaves nothing`() {
+        val cache = MailCache(tmp.root)
+        val cleared = CountDownLatch(1)
+        var clearing: Thread? = null
+
+        val saved = cache.saveBodyIf("INBOX", 1, 7, body()) {
+            clearing = thread { cache.clearAll(); cleared.countDown() }
+            // Given the time to finish first if it could; held behind the save, it cannot.
+            cleared.await(300, TimeUnit.MILLISECONDS)
+            true
+        }
+        clearing!!.join(5_000)
+
+        assertTrue(saved)
+        assertNull(cache.loadBody("INBOX", 1, 7))
+    }
+
+    @Test
+    fun `a body is saved only while still current`() {
+        val cache = MailCache(tmp.root)
+        assertFalse(cache.saveBodyIf("INBOX", 1, 7, body()) { false })
+        assertNull(cache.loadBody("INBOX", 1, 7))
+        assertTrue(cache.saveBodyIf("INBOX", 2, 7, body()) { true })
+        assertTrue(cache.loadBody("INBOX", 2, 7) != null)
     }
 }

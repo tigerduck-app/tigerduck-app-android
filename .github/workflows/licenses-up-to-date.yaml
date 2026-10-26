@@ -55,6 +55,34 @@ jobs:
           if [ -n "$changed" ]; then
             echo "$changed"
             git diff -- app/src/play/res/raw app/src/fdroid/res/raw
-            echo "::error::The licence lists are stale. Run: ./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease"
+            echo "::error::The licence lists are stale. Add the update-licenses label to this PR, or run: ./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease"
             exit 1
           fi
+
+  # Says on the PR, once, how to fix a failure: the update-licenses label has
+  # licences-update.yaml commit the lists. Not on a fork's PR, which that
+  # workflow cannot push to, and whose token could not comment anyway. This job
+  # runs nothing from the branch.
+  explain:
+    needs: check
+    if: failure() && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Suggest the update-licenses label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          marker='<!-- licences-stale -->'
+          if gh api --paginate "repos/$REPOSITORY/issues/$PR/comments" --jq '.[].body' | grep -qF "$marker"; then
+            exit 0
+          fi
+          gh api "repos/$REPOSITORY/issues/$PR/comments" --silent -f body="$marker
+          The open-source licence lists are out of date for this PR's dependencies. Add the \`update-licenses\` label and the licences App regenerates them and commits them here, or run this and commit the \`res/raw\` changes:
+
+          \`\`\`
+          ./gradlew -PexportLicenses :app:exportLibraryDefinitionsPlayRelease :app:exportLibraryDefinitionsFdroidRelease :wear:exportLibraryDefinitionsRelease
+          \`\`\`"

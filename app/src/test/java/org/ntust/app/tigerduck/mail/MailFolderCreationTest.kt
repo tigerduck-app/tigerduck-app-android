@@ -15,6 +15,8 @@ import org.junit.rules.TemporaryFolder
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
+import org.ntust.app.tigerduck.mail.index.InMemoryMailSearchIndex
+import org.ntust.app.tigerduck.mail.index.RecordingIndexScheduler
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.smtp.MailSender
 import org.ntust.app.tigerduck.mail.smtp.SentCopy
@@ -42,10 +44,12 @@ class MailFolderCreationTest {
 
     private inner class TestSetup(scope: CoroutineScope) {
         val cache = MailCache(tmp.root)
+        val searchIndex = InMemoryMailSearchIndex()
+        val indexScheduler = RecordingIndexScheduler()
         val account = MailAccount(credentials, state, server.factory(), cache, demo, site, RecordingScheduler(), RecordingNotifier(), scope)
         val repository = MailRepository(
             account, server.factory(), cache, state,
-            MailSender(MessageBuilder(), transport, pause = {}), MessageBuilder(), demo, scope,
+            MailSender(MessageBuilder(), transport, pause = {}), MessageBuilder(), demo, searchIndex, indexScheduler, scope,
         )
     }
 

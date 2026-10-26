@@ -4,7 +4,8 @@ name: CI
 # Gradle invocation in the repo's lifecycle was the release workflow itself,
 # so a compile error or failing test could ride a merged PR all the way to
 # release day. Keep this lean: compile both phone flavors + wear, build the
-# wear release artifacts the release workflow ships, run every JVM unit test.
+# phone's and the watch's R8 release builds, run every JVM unit test, and test
+# the scripts the release workflows run.
 # No emulator, no lint baseline churn.
 
 on:
@@ -18,9 +19,11 @@ jobs:
   build-and-test:
     # One runner per leg. The three used to run back to back in a single job
     # (~7 min), yet none of them needs another's output, so the gate now takes
-    # as long as its slowest leg. Every leg restores the same dependency and
-    # transform caches the release workflow writes on main, so the split does
-    # not mean downloading the world three times.
+    # as long as its slowest leg. The phone's two release builds are a leg each
+    # for the same reason: together, R8 over both flavors took ~13 min, twice
+    # any other leg. Every leg restores the same dependency and transform
+    # caches the release workflow writes on main, so the split does not mean
+    # downloading the world once per leg.
     name: build-and-test (${{ matrix.leg }})
     runs-on: ubuntu-latest
     strategy:
@@ -34,7 +37,7 @@ jobs:
           - leg: play
             tasks: :shared:test :app:testPlayDebugUnitTest
           - leg: fdroid + wear
-            tasks: :app:testFdroidDebugUnitTest :wear:compileDebugKotlin
+            tasks: :app:testFdroidDebugUnitTest :wear:testDebugUnitTest
           # :wear's release build is minified with its own proguard-rules.pro,
           # and nothing else in the PR gate runs R8 over it — a keep-rule gap
           # would otherwise surface for the first time on release day, which is
@@ -44,6 +47,25 @@ jobs:
           # wear-release-unsigned.apk.
           - leg: wear release
             tasks: :wear:assembleRelease :wear:bundleRelease
+          # The phone's release builds, minified like the watch's, so a missing
+          # keep rule shows up here and not on release day: the last two
+          # upgrade crashes came from R8 renaming what Gson reads. Unsigned for
+          # the same reason, and built without google-services.json, which only
+          # the release workflow decodes; app/build.gradle.kts skips the plugin
+          # without it, as for the debug legs.
+          # Lint's release check (lintVital) is left out of these two legs
+          # and runs in legs of its own below: inside them it ran beside R8
+          # on the same four cores, and the two together set the gate's length.
+          - leg: play release
+            tasks: :app:assemblePlayRelease -x :app:lintVitalPlayRelease
+          - leg: fdroid release
+            tasks: :app:assembleFdroidRelease -x :app:lintVitalFdroidRelease
+          # The check assemble*Release runs before a release, so a fatal lint
+          # error still fails the pull request, not release day.
+          - leg: play lint
+            tasks: :app:lintVitalPlayRelease
+          - leg: fdroid lint
+            tasks: :app:lintVitalFdroidRelease
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -64,4 +86,56 @@ jobs:
         env:
           TASKS: ${{ matrix.tasks }}
         # $TASKS is unquoted on purpose: it is a space-separated task list.
-        run: ./gradlew --no-daemon $TASKS
+        # gradle.properties sizes the build for a laptop: a 2 GB heap, which
+        # the Kotlin daemon copies. A runner has 16 GB; with 6 GB for the
+        # build and 3 GB for the Kotlin daemon the release legs measured about
+        # half a minute faster. No --no-daemon: JVM settings unlike the
+        # launcher's make Gradle fork a single-use daemon anyway, a second JVM
+        # start. Not --parallel: it did not shorten the gate, and it runs a
+        # leg's test tasks side by side.
+        run: >-
+          ./gradlew
+          -Dorg.gradle.jvmargs="-Xmx6g -Dfile.encoding=UTF-8"
+          -Pkotlin.daemon.jvmargs=-Xmx3g
+          $TASKS
+
+  release-scripts:
+    # The scripts the release workflows run, which otherwise first run once
+    # the PR is merged: tools/play/publish.py sends every release to Google
+    # Play, tools/github/release_notes.py writes the GitHub Release notes, and
+    # tools/github/back_merge.py opens the pull request merging main back into
+    # dev. Their tests use a fake Play, a scratch checkout and a fake gh, so
+    # they need no key and no build, and touch no real release.
+    name: release-scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Test tools/play
+        run: python3 -m unittest discover -s tools/play -v
+
+      - name: Test tools/github
+        run: python3 -m unittest discover -s tools/github -v
+
+  localization:
+    # tools/localization/sync_localizations.py generates the app's strings on
+    # every Gradle build; its tests call into the app-translation submodule.
+    # Both run on whatever Python 3 the build finds, so the oldest one a
+    # contributor likely has (macOS's own 3.9) is tested as well as the newest.
+    name: localization (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.x"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Test tools/localization
+        run: python3 -m unittest discover -s tools/localization -v

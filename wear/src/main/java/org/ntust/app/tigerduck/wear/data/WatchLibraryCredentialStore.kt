@@ -5,6 +5,7 @@ package org.ntust.app.tigerduck.wear.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.channels.awaitClose
@@ -14,7 +15,9 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import org.ntust.app.tigerduck.shared.LibraryAccountGate
 import org.ntust.app.tigerduck.shared.LibraryCredentialStore
+import org.ntust.app.tigerduck.shared.sameStudentId
 
 /**
  * Watch-side mirror of the phone's library credentials, populated by the
@@ -25,48 +28,94 @@ import org.ntust.app.tigerduck.shared.LibraryCredentialStore
  * Backed by [EncryptedSharedPreferences] so the synced phone password and
  * token are not recoverable from a compromised or rooted watch — same at-rest
  * protection the phone gives them in `CredentialManager`. The synchronous
- * property getters/setters [LibraryService] expects keep working because
+ * property getters [LibraryService] expects keep working because
  * EncryptedSharedPreferences implements [SharedPreferences].
  */
-class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
+class WatchLibraryCredentialStore @VisibleForTesting internal constructor(
+    private val prefs: SharedPreferences,
+) : LibraryCredentialStore {
 
-    private val prefs: SharedPreferences = createEncryptedPrefs(context.applicationContext)
+    constructor(context: Context) : this(createEncryptedPrefs(context.applicationContext))
+
+    // Moved by the phone's wipe or another account it hands over, so the
+    // watch's own sign-in still running for the account before stores nothing.
+    private val account = LibraryAccountGate()
 
     /** Reactive snapshot for the UI layer — flips between "not synced", "logged out", and "logged in". */
     val state: Flow<LibrarySnapshot> = prefsFlow(prefs)
         .map { LibrarySnapshot(libraryUsername, libraryToken, libraryTokenExpiry) }
         .distinctUntilChanged()
 
-    override var libraryUsername: String?
+    override val libraryUsername: String?
         get() {
             purgeIfStale()
             return prefs.getString(KEY_USERNAME, null)
         }
-        set(value) = if (value != null) prefs.edit().putString(KEY_USERNAME, value).apply()
-        else prefs.edit().remove(KEY_USERNAME).apply()
 
-    override var libraryPassword: String?
+    override val libraryPassword: String?
         get() {
             purgeIfStale()
             return prefs.getString(KEY_PASSWORD, null)
         }
-        set(value) = if (value != null) prefs.edit().putString(KEY_PASSWORD, value).apply()
-        else prefs.edit().remove(KEY_PASSWORD).apply()
 
-    override var libraryToken: String?
+    override val libraryToken: String?
         get() {
             purgeIfStale()
             return prefs.getString(KEY_TOKEN, null)
         }
-        set(value) = if (value != null) prefs.edit().putString(KEY_TOKEN, value).apply()
-        else prefs.edit().remove(KEY_TOKEN).apply()
 
-    override var libraryTokenExpiry: Long
+    override val libraryTokenExpiry: Long
         get() = prefs.getLong(KEY_TOKEN_EXPIRY, 0L)
-        set(value) = prefs.edit().putLong(KEY_TOKEN_EXPIRY, value).apply()
 
     override val isLibraryTokenValid: Boolean
         get() = libraryToken != null && System.currentTimeMillis() < libraryTokenExpiry
+
+    override val libraryAccountGeneration: Int get() = account.current
+
+    override fun saveLibrarySignIn(
+        generation: Int,
+        username: String,
+        password: String,
+        token: String?,
+        tokenExpiry: Long,
+        byUser: Boolean,
+        stillCurrent: () -> Boolean,
+    ): Boolean = account.saveIfCurrent(generation, byUser, { prefs.getString(KEY_USERNAME, null) }, username, stillCurrent) {
+        prefs.edit()
+            .putString(KEY_USERNAME, username)
+            .putString(KEY_PASSWORD, password)
+            .putString(KEY_TOKEN, token)
+            .putLong(KEY_TOKEN_EXPIRY, tokenExpiry)
+            // A password the library took, so the page may send it again at once.
+            .remove(KEY_REFUSALS)
+            .remove(KEY_REFUSED_AT)
+            .apply()
+    }
+
+    /**
+     * The library's refusals in a row of the password the phone sent, counted
+     * by the watch's own sign-ins, so its page waits the schedule the phone
+     * keeps before it sends that password again. The same password sent again
+     * by the phone keeps them: the library refused it all the same. Another
+     * password or account from the phone, a wipe and a sign-in that works end
+     * them.
+     */
+    override val libraryPasswordRefusals: Int
+        get() = prefs.getInt(KEY_REFUSALS, 0)
+
+    override val libraryPasswordRefusedAt: Long
+        get() = prefs.getLong(KEY_REFUSED_AT, 0L)
+
+    override fun refuseLibraryPassword(generation: Int, password: String, at: Long): Boolean =
+        account.whileCurrent(generation) {
+            if (prefs.getString(KEY_PASSWORD, null) != password) return@whileCurrent false
+            // Written through: a page opened again after the process ended must wait too.
+            prefs.edit()
+                .putInt(KEY_REFUSALS, libraryPasswordRefusals + 1)
+                .putLong(KEY_REFUSED_AT, at)
+                .commit()
+            true
+        } ?: false
 
     /** Outcome of an incoming Data Layer push — for caller logging only. */
     enum class ApplyResult { APPLIED, WIPED, REJECTED_REPLAY, MALFORMED }
@@ -95,22 +144,39 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
         val edit = prefs.edit()
         if (hasCredentials) {
             if (username == null || password == null) return ApplyResult.MALFORMED
-            edit.putString(KEY_USERNAME, username)
-                .putString(KEY_PASSWORD, password)
-                .putLong(KEY_TOKEN_EXPIRY, tokenExpiry)
-                .putLong(KEY_ISSUED_AT_MS, issuedAtMs)
-            if (token == null) edit.remove(KEY_TOKEN) else edit.putString(KEY_TOKEN, token)
-            edit.putLong(KEY_LAST_VERSION, version).apply()
-            return ApplyResult.APPLIED
+            // Atomic with a refusal being counted, which checks the password it
+            // counts against is still the stored one.
+            return account.atomically {
+                val sameAccount = sameStudentId(prefs.getString(KEY_USERNAME, null), username)
+                if (!sameAccount || prefs.getString(KEY_PASSWORD, null) != password) {
+                    edit.remove(KEY_REFUSALS).remove(KEY_REFUSED_AT)
+                }
+                edit.putString(KEY_USERNAME, username)
+                    .putString(KEY_PASSWORD, password)
+                    .putLong(KEY_TOKEN_EXPIRY, tokenExpiry)
+                    .putLong(KEY_ISSUED_AT_MS, issuedAtMs)
+                if (token == null) edit.remove(KEY_TOKEN) else edit.putString(KEY_TOKEN, token)
+                edit.putLong(KEY_LAST_VERSION, version)
+                if (sameAccount) {
+                    edit.apply()
+                } else {
+                    account.replaceAccount { edit.apply() }
+                }
+                ApplyResult.APPLIED
+            }
         }
 
-        edit.remove(KEY_USERNAME)
-            .remove(KEY_PASSWORD)
-            .remove(KEY_TOKEN)
-            .remove(KEY_TOKEN_EXPIRY)
-            .remove(KEY_ISSUED_AT_MS)
-            .putLong(KEY_LAST_VERSION, version)
-            .apply()
+        account.signOut {
+            edit.remove(KEY_USERNAME)
+                .remove(KEY_PASSWORD)
+                .remove(KEY_TOKEN)
+                .remove(KEY_TOKEN_EXPIRY)
+                .remove(KEY_ISSUED_AT_MS)
+                .remove(KEY_REFUSALS)
+                .remove(KEY_REFUSED_AT)
+                .putLong(KEY_LAST_VERSION, version)
+                .apply()
+        }
         return ApplyResult.WIPED
     }
 
@@ -136,7 +202,7 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
     }
 
     fun clear() {
-        prefs.edit().clear().apply()
+        account.signOut { prefs.edit().clear().apply() }
     }
 
     data class LibrarySnapshot(
@@ -156,6 +222,8 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
         private const val KEY_PASSWORD = "library_password"
         private const val KEY_TOKEN = "library_token"
         private const val KEY_TOKEN_EXPIRY = "library_token_expiry"
+        private const val KEY_REFUSALS = "library_password_refusals"
+        private const val KEY_REFUSED_AT = "library_password_refused_at"
 
         // Phone composed-at timestamp; anchors the 7-day TTL.
         private const val KEY_ISSUED_AT_MS = "library_issued_at_ms"
@@ -198,7 +266,7 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
             return try {
                 attempt()
             } catch (e: Exception) {
-                Log.w(TAG, "EncryptedSharedPreferences unusable; resetting", e)
+                Log.w(TAG, "EncryptedSharedPreferences unusable; resetting: ${e.javaClass.simpleName}")
                 runCatching { appContext.deleteSharedPreferences(PREFS_NAME) }
                 try {
                     attempt()
@@ -207,7 +275,7 @@ class WatchLibraryCredentialStore(context: Context) : LibraryCredentialStore {
                     // means the keystore itself is unusable — surface a typed,
                     // logged error instead of whatever raw exception attempt()
                     // happened to throw.
-                    Log.e(TAG, "EncryptedSharedPreferences retry failed", retry)
+                    Log.e(TAG, "EncryptedSharedPreferences retry failed: ${retry.javaClass.simpleName}")
                     throw SecurityException("Cannot create encrypted credential storage", retry)
                 }
             }

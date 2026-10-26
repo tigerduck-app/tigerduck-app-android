@@ -8,15 +8,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import java.time.LocalDate
 import java.util.concurrent.TimeUnit
 
 /**
- * Returns (weekday, minuteOfDay) and recomposes once a minute so any screen
+ * Returns (date, minuteOfDay) and recomposes once a minute so any screen
  * driving its UI off the wall clock — class status, "starts in N min", etc. —
- * transitions on its own without the user navigating away.
+ * transitions on its own without the user navigating away. The date, not just
+ * the weekday, is what tells a quiet day apart.
  */
 @Composable
-internal fun currentTaipeiTick(): Pair<Int, Int> {
+internal fun currentTaipeiTick(): Pair<LocalDate, Int> {
     var tick by remember { mutableStateOf(taipeiNow()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -27,9 +29,8 @@ internal fun currentTaipeiTick(): Pair<Int, Int> {
     return tick
 }
 
-private fun taipeiNow(): Pair<Int, Int> {
+private fun taipeiNow(): Pair<LocalDate, Int> {
     val now = AppClock.localDateTime()
-    val weekday = now.dayOfWeek.value
     val minuteOfDay = now.hour * 60 + now.minute
-    return weekday to minuteOfDay
+    return now.toLocalDate() to minuteOfDay
 }

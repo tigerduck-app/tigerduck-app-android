@@ -3,25 +3,28 @@ package org.ntust.app.tigerduck.mail.imap
 import jakarta.mail.FetchProfile
 import jakarta.mail.Flags
 import jakarta.mail.Folder
+import jakarta.mail.Message
 import jakarta.mail.Part
 import jakarta.mail.Session
 import jakarta.mail.UIDFolder
 import jakarta.mail.internet.ContentType
+import jakarta.mail.internet.MimeBodyPart
 import jakarta.mail.internet.MimeMessage
 import jakarta.mail.internet.MimePart
-import jakarta.mail.search.BodyTerm
 import jakarta.mail.search.FlagTerm
-import jakarta.mail.search.FromStringTerm
-import jakarta.mail.search.OrTerm
 import jakarta.mail.search.SearchTerm
-import jakarta.mail.search.SubjectTerm
+import org.eclipse.angus.mail.iap.Response
 import org.eclipse.angus.mail.imap.IMAPFolder
 import org.eclipse.angus.mail.imap.IMAPMessage
 import org.eclipse.angus.mail.imap.IMAPStore
+import org.eclipse.angus.mail.imap.protocol.BODY
+import org.eclipse.angus.mail.imap.protocol.FetchResponse
 import org.eclipse.angus.mail.imap.protocol.IMAPProtocol
 import org.eclipse.angus.mail.imap.protocol.IMAPResponse
 import org.eclipse.angus.mail.imap.protocol.SearchSequence
 import org.eclipse.angus.mail.imap.protocol.Status
+import org.eclipse.angus.mail.imap.protocol.UID
+import org.eclipse.angus.mail.util.BASE64DecoderStream
 import org.ntust.app.tigerduck.mail.MailCredentials
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
@@ -29,6 +32,7 @@ import org.ntust.app.tigerduck.mail.MailLimits
 import org.ntust.app.tigerduck.mail.MailProperties
 import org.ntust.app.tigerduck.mail.MailServerConfig
 import org.ntust.app.tigerduck.mail.MailServerConfigSource
+import org.ntust.app.tigerduck.mail.index.MailSearchText
 import org.ntust.app.tigerduck.mail.mime.AddressParser
 import org.ntust.app.tigerduck.mail.mime.EncodedWords
 import org.ntust.app.tigerduck.mail.mime.MailCharsets
@@ -45,13 +49,20 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.io.SequenceInputStream
+import java.util.Properties
+import javax.net.ssl.SSLSocketFactory
 
-class AngusMailSessionFactory(private val configs: MailServerConfigSource) : MailSessionFactory {
+class AngusMailSessionFactory(
+    private val configs: MailServerConfigSource,
+    /** The app's TLS; see [MailProperties]. */
+    private val tls: SSLSocketFactory? = null,
+) : MailSessionFactory {
     constructor(config: MailServerConfig) : this(MailServerConfigSource { config })
 
     override fun open(credentials: MailCredentials): MailSession {
         val config = configs.current()
-        val session = Session.getInstance(MailProperties.imap(config))
+        val session = Session.getInstance(MailProperties.imap(config, tls))
         val store = session.getStore(MailProperties.imapProtocol(config)) as IMAPStore
         try {
             store.connect(config.imap.host, config.imap.port, credentials.loginName, credentials.password)
@@ -223,9 +234,14 @@ class AngusMailSession internal constructor(
         val start = maxOf(1, end - pageSize + 1)
         val messages = f.getMessages(start, end)
         f.fetch(messages, summaryProfile())
-        val summaries = messages.reversed().map { toSummary(f, it as IMAPMessage) }.filterNot { it.flags.deleted }
-        MailPage(f.uidValidity, total, summaries, if (start > 1) start else null)
+        val all = messages.reversed().map { toSummary(f, it as IMAPMessage) }
+        // Spanned before the \Deleted rows go: they are still in the range the page read.
+        val window = all.takeIf { it.isNotEmpty() }?.let { rows -> rows.minOf { it.uid }..rows.maxOf { it.uid } }
+        MailPage(f.uidValidity, total, all.filterNot { it.flags.deleted }, if (start > 1) start else null, window)
     }
+
+    /** From the folder held open (opening it if need be), not a STATUS, which would close it. */
+    override fun uidValidity(folder: String): Long = io { folder(folder, Folder.READ_ONLY).uidValidity }
 
     override fun fetchSince(folder: String, fromUid: Long): List<MailSummary> = io {
         val f = folder(folder, Folder.READ_ONLY)
@@ -335,12 +351,17 @@ class AngusMailSession internal constructor(
      * full local scan, so callers can tell "the server won't do this search"
      * from "here are the results" and act on spec §8.3 accordingly.
      */
-    private fun uidSearch(f: IMAPFolder, term: SearchTerm): Set<Long> {
+    private fun uidSearch(f: IMAPFolder, term: SearchTerm): Set<Long> = uidSearchCommand(f) { p ->
+        val ascii = SearchSequence.isAscii(term)
+        val args = SearchSequence(p).generateSequence(term, if (ascii) null else "UTF-8")
+        p.command(if (ascii) "UID SEARCH" else "UID SEARCH CHARSET UTF-8", args)
+    }
+
+    /** The UIDs a `UID SEARCH` that [send] sends finds; a NO or BAD throws, as [uidSearch]. */
+    private fun uidSearchCommand(f: IMAPFolder, send: (IMAPProtocol) -> Array<Response>): Set<Long> {
         @Suppress("UNCHECKED_CAST")
         return f.doCommand(IMAPFolder.ProtocolCommand { p: IMAPProtocol ->
-            val ascii = SearchSequence.isAscii(term)
-            val args = SearchSequence(p).generateSequence(term, if (ascii) null else "UTF-8")
-            val responses = p.command(if (ascii) "UID SEARCH" else "UID SEARCH CHARSET UTF-8", args)
+            val responses = send(p)
             val last = responses[responses.size - 1]
             val found = mutableSetOf<Long>()
             if (last.isOK) {
@@ -396,8 +417,9 @@ class AngusMailSession internal constructor(
         Unit
     }
 
-    override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>): Boolean = io {
+    override fun move(folder: String, uid: Long, target: String, ownedDeleted: Set<Long>, uidValidity: Long?): Boolean = io {
         val f = folder(folder, Folder.READ_WRITE)
+        requireUidValidity(f, uidValidity)
         val m = message(f, uid)
         // If copyMessages throws (e.g. target doesn't exist), we return here
         // and never reach setFlag below, so uid is not left \Deleted.
@@ -406,26 +428,118 @@ class AngusMailSession internal constructor(
         expungeIfOnlyOurs(f, ownedDeleted + uid)
     }
 
-    override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>): Boolean = io {
+    override fun deletePermanently(folder: String, uid: Long, ownedDeleted: Set<Long>, uidValidity: Long?): Boolean = io {
         val f = folder(folder, Folder.READ_WRITE)
+        requireUidValidity(f, uidValidity)
         message(f, uid).setFlag(Flags.Flag.DELETED, true)
         expungeIfOnlyOurs(f, ownedDeleted + uid)
     }
 
-    override fun search(folder: String, query: String): List<Long> = io {
+    /**
+     * The folder just selected for a write numbers its mail under [uidValidity], the one the
+     * caller read its UID under, or nothing is sent: under another the UID names another mail.
+     */
+    private fun requireUidValidity(f: IMAPFolder, uidValidity: Long?) {
+        if (uidValidity != null && f.uidValidity != uidValidity) throw MailError.FolderChanged()
+    }
+
+    override fun undeletedUids(folder: String): List<Long> = io {
         val f = folder(folder, Folder.READ_ONLY)
-        val term = OrTerm(arrayOf(FromStringTerm(query), SubjectTerm(query), BodyTerm(query)))
-        val uids = try {
-            uidSearch(f, term)
-        } catch (e: Exception) {
-            // Classify first so a real Network/Certificate/AuthFailed/ServerBusy
-            // failure is never mislabeled as "search unsupported"; only the
-            // generic fallback (a NO/BAD we don't otherwise recognize) and an
-            // already-classified SearchException become SearchUnsupported.
-            val classified = MailErrors.classify(e)
-            throw if (classified is MailError.Protocol) MailError.SearchUnsupported(e) else classified
+        uidSearch(f, FlagTerm(Flags(Flags.Flag.DELETED), false)).toList()
+    }
+
+    override fun allUids(folder: String): List<Long> = io {
+        val f = folder(folder, Folder.READ_ONLY)
+        // Answered from the server's own list, as fast as a SEARCH goes: no message is read.
+        uidSearchCommand(f) { p -> p.command("UID SEARCH ALL", null) }.toList()
+    }
+
+    override fun fetchSearchTexts(folder: String, uids: List<Long>): Map<Long, String> = io {
+        if (uids.isEmpty()) return@io emptyMap()
+        val f = folder(folder, Folder.READ_ONLY)
+        // One FETCH for the lot: each mail's header and the start of its body, its text read from
+        // them here. A FETCH per part, and a NOOP before each, was a dozen round trips a mail,
+        // which held the first download of a mailbox to a few mails a second.
+        //
+        // Of the header only the fields that say how the body is built: the rest, which the
+        // sender and the servers on the way choose and nothing bounds, is no use to the text, and
+        // the sender and subject come with the summary. Every literal of the FETCH is held at once
+        // until it ends, so it holds a batch's [SEARCH_TEXT_BYTES] apiece, and the few lines of
+        // these fields.
+        @Suppress("UNCHECKED_CAST")
+        val raw = f.doCommand(IMAPFolder.ProtocolCommand { p: IMAPProtocol ->
+            val responses = p.command(
+                "UID FETCH ${uids.joinToString(",")} " +
+                    "(UID BODY.PEEK[HEADER.FIELDS ($SEARCH_TEXT_HEADERS)] BODY.PEEK[TEXT]<0.$SEARCH_TEXT_BYTES>)",
+                null,
+            )
+            val last = responses[responses.size - 1]
+            val found = mutableMapOf<Long, Pair<ByteArray, ByteArray>>()
+            if (last.isOK) {
+                for (r in responses) {
+                    if (r !is FetchResponse) continue
+                    val uid = r.getItem(UID::class.java)?.uid ?: continue
+                    var header: ByteArray? = null
+                    var text: ByteArray? = null
+                    for (i in 0 until r.itemCount) {
+                        val item = r.getItem(i) as? BODY ?: continue
+                        if (item.isHeader) header = item.byteArray?.newBytes else text = item.byteArray?.newBytes
+                    }
+                    if (header != null) found[uid] = header to (text ?: ByteArray(0))
+                }
+            }
+            p.notifyResponseHandlers(responses)
+            p.handleResult(last)
+            found
+        }) as Map<Long, Pair<ByteArray, ByteArray>>
+        raw.mapValues { (_, parts) ->
+            // A mail that will not parse is searched by its sender and subject alone.
+            runCatching { searchText(MimeMessage(parseSession, SequenceInputStream(headerBlock(parts.first).inputStream(), parts.second.inputStream()))) }
+                .getOrDefault("")
         }
-        uids.sortedDescending()
+    }
+
+    /**
+     * [header] ending in exactly one blank line, which parts it from the body after it. RFC 3501
+     * has `BODY[HEADER.FIELDS]` include that line; a server that leaves it out would have the
+     * body's first line read as one more header.
+     */
+    private fun headerBlock(header: ByteArray): ByteArray {
+        var end = header.size
+        while (end > 0 && (header[end - 1] == '\r'.code.toByte() || header[end - 1] == '\n'.code.toByte())) end--
+        return header.copyOf(end) + "\r\n\r\n".toByteArray(Charsets.US_ASCII)
+    }
+
+    /**
+     * [m]'s text parts, as [fetchBody] reads them, without its images or attachments. Its body was
+     * fetched cut short, so the last part read can end anywhere: one that will not read at all
+     * leaves the parts before it as they are.
+     */
+    private fun searchText(m: Message): String {
+        val html = mutableListOf<String>()
+        val plain = mutableListOf<String>()
+        for (leaf in MimeWalker.leaves(m)) {
+            val kind = kindOf(leaf.part) as? PartKind.Text ?: continue
+            val text = runCatching { readCutText(leaf.part) }.getOrNull() ?: continue
+            if (kind.html) html += text else plain += text
+        }
+        return MailSearchText.of(plain.joinToString("\n\n").ifEmpty { null }, html.joinToString("\n").ifEmpty { null })
+    }
+
+    /**
+     * [readText] for a part that may be cut short. The cut can fall inside one of base64's groups
+     * of four, and the decoder a part hands out refuses the whole part for that; base64 is decoded
+     * here instead, by one that keeps what comes before the cut.
+     */
+    private fun readCutText(part: Part): String {
+        val raw = when {
+            !runCatching { (part as? MimePart)?.encoding }.getOrNull().equals("base64", ignoreCase = true) -> null
+            part is MimeBodyPart -> part.rawInputStream
+            part is MimeMessage -> part.rawInputStream
+            else -> null
+        } ?: return readText(part)
+        val bytes = BASE64DecoderStream(raw, true).use { readBounded(it, MailLimits.TEXT_PART_BYTES) }
+        return MailCharsets.decode(bytes, charsetOf(part))
     }
 
     override fun append(folder: String, rfc822: ByteArray, flags: Set<AppendFlag>) = io {
@@ -476,6 +590,21 @@ class AngusMailSession internal constructor(
             arrayOf("From", "Reply-To", "To", "Cc", "Subject", "Date", "Message-ID", "In-Reply-To", "References", "Return-Path")
         val WHITESPACE = Regex("\\s+")
 
+        /**
+         * How much of a mail's body a search reads: its first 64 KiB, which holds far more text
+         * than MailSearchText keeps, even under HTML or base64.
+         */
+        const val SEARCH_TEXT_BYTES = 64 * 1024
+
+        /**
+         * The header fields [fetchSearchTexts] parses a mail's text by: its type and transfer
+         * encoding, and the disposition that makes a part an attachment, as [kindOf] reads them.
+         */
+        const val SEARCH_TEXT_HEADERS = "MIME-Version Content-Type Content-Transfer-Encoding Content-Disposition"
+
+        /** Parses what [fetchSearchTexts] fetched, on the phone; a body cut short still parses. */
+        val parseSession: Session = Session.getInstance(Properties())
+
         fun kindOf(part: Part): PartKind {
             val disposition = runCatching { part.disposition?.lowercase() }.getOrNull()
             val fileName = runCatching { part.fileName }.getOrNull()
@@ -498,11 +627,10 @@ class AngusMailSession internal constructor(
         fun baseType(part: Part): String =
             runCatching { ContentType(part.contentType).baseType.lowercase() }.getOrDefault("application/octet-stream")
 
-        fun readText(part: Part): String {
-            val bytes = readBounded(part, MailLimits.TEXT_PART_BYTES)
-            val charset = runCatching { ContentType(part.contentType).getParameter("charset") }.getOrNull()
-            return MailCharsets.decode(bytes, charset)
-        }
+        fun readText(part: Part): String = MailCharsets.decode(readBounded(part, MailLimits.TEXT_PART_BYTES), charsetOf(part))
+
+        /** The charset [part]'s Content-Type names; null for none, or one that will not parse. */
+        fun charsetOf(part: Part): String? = runCatching { ContentType(part.contentType).getParameter("charset") }.getOrNull()
 
         /**
          * At most [limit] bytes of [part], however much the part claims to hold (or does not claim:
@@ -514,10 +642,13 @@ class AngusMailSession internal constructor(
          * Truncates rather than refuses: a mail that shows its first few megabytes of text, or
          * drops one outsized inline image, still opens. [writeBounded] makes the opposite trade.
          */
-        fun readBounded(part: Part, limit: Int): ByteArray = part.inputStream.use { input ->
+        fun readBounded(part: Part, limit: Int): ByteArray = part.inputStream.use { readBounded(it, limit) }
+
+        /** [readBounded] of a stream rather than a part. */
+        fun readBounded(input: InputStream, limit: Int): ByteArray {
             val out = ByteArrayOutputStream()
             copyBounded(input, out, limit.toLong())
-            out.toByteArray()
+            return out.toByteArray()
         }
 
         /**

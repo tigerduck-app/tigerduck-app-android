@@ -10,7 +10,8 @@
 // the same MailStateStore, so the toggle keeps exactly the scheduling side
 // effects it had before the move (MailBackgroundScheduler schedule/cancel).
 //
-// iOS carries the same page with the same contents in the same order.
+// iOS carries the same page with the same contents in the same order, quiet
+// hours and mute rules included (SchoolMailMuteSettings.kt).
 
 package org.ntust.app.tigerduck.ui.screen.mail
 
@@ -42,6 +43,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,10 +56,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.notification.AppPermission
+import org.ntust.app.tigerduck.notification.PermissionState
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.screen.settings.PermissionRow
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsToggleRow
+import org.ntust.app.tigerduck.ui.screen.settings.rememberAllowNotificationsAction
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,11 +73,17 @@ fun SchoolMailNotificationSettingsScreen(
     viewModel: SchoolMailSettingsViewModel = hiltViewModel(),
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val toggleEnabled by viewModel.notificationsToggleEnabled.collectAsStateWithLifecycle()
+    val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
+    val muteActions = remember(viewModel) { viewModel.muteActions() }
     val context = LocalContext.current
+    // The runtime prompt while the system will still show it, the settings page after that; the
+    // page reads the grant again once the prompt answers or the user comes back.
+    val allowNotifications = rememberAllowNotificationsAction(viewModel.systemPermissions) { viewModel.refresh() }
 
-    // The exact-alarm grant and the diagnostics log both change behind this
-    // screen — the user leaves to grant the permission, or a background check
-    // runs — so re-read them on the way back in.
+    // The exact-alarm and notification grants and the diagnostics log all change
+    // behind this screen — the user leaves to grant a permission, or a background
+    // check runs — so re-read them on the way back in.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh() }
@@ -103,9 +115,19 @@ fun SchoolMailNotificationSettingsScreen(
                     SettingsToggleRow(
                         label = stringResource(R.string.school_mail_settings_notifications),
                         checked = ui.notificationsEnabled,
+                        enabled = toggleEnabled,
                         subtitle = stringResource(R.string.school_mail_settings_notifications_hint),
                         onCheckedChange = viewModel::setNotifications,
                     )
+                    // Blocked by the system, a new mail could not be announced however the switch
+                    // is set: the row says so and leads to where that is fixed.
+                    if (ui.notificationsDenied) {
+                        HorizontalDivider()
+                        PermissionRow(
+                            state = PermissionState(AppPermission.NOTIFICATIONS, granted = false, applicable = true),
+                            onClick = allowNotifications,
+                        )
+                    }
                 }
             }
             if (ui.notificationsEnabled && !ui.canExactAlarm && Build.VERSION.SDK_INT >= 31) {
@@ -133,6 +155,8 @@ fun SchoolMailNotificationSettingsScreen(
                     }
                 }
             }
+            // Only while new mail notifies at all: muting is a question of which of it does.
+            mailMuteItems(ui.muteSettings, enabled = signedIn && ui.notificationsEnabled, actions = muteActions)
             item { SectionHeader(stringResource(R.string.school_mail_settings_diagnostics), Modifier.padding(top = 12.dp)) }
             item {
                 ContentCard {

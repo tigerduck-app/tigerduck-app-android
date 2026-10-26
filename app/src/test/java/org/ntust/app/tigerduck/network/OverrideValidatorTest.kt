@@ -141,4 +141,14 @@ class OverrideValidatorTest {
             OverrideValidator.validate("http://[2001:db8::1]:40000/v3"),
         )
     }
+
+    // --- One spelling per backend ---
+
+    @Test
+    fun `a backend named two ways resolves to one spelling, the one its requests carry`() {
+        // A session and the unregister its sign-out owes are matched to their backend by it.
+        assertEquals("https://backend.example/v3", resolveAnnouncementEndpoint("https://Backend.EXAMPLE:443/v3/").url)
+        assertEquals("http://127.0.0.1/v3", resolveAnnouncementEndpoint("http://127.0.0.1:80/v3").url)
+        assertEquals("http://127.0.0.1:9/v3", resolveAnnouncementEndpoint("http://127.0.0.1:9/v3").url)
+    }
 }

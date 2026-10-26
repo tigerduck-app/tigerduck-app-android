@@ -132,5 +132,77 @@
         "Improved scrolling and search on the bulletins page"
       ]
     }
+  },
+  "28": {
+    "zh-Hant": {
+      "title": "2.3.0 新功能",
+      "items": [
+        { "icon": "share", "title": "匯出課表圖片", "body": "可將課表存成圖片或分享。" },
+        { "icon": "notification", "title": "通知分類堆疊", "body": "課程、作業、信件與其他通知分開堆疊。" },
+        { "icon": "mail", "title": "信箱體驗優化", "body": "信箱介面與操作更順手。" },
+        { "icon": "language", "title": "修正通知類別語言", "body": "通知類別名稱會跟隨 App 語言（包含 HyperOS）。" },
+        { "icon": "sync", "title": "優化背景同步", "body": "背景同步更穩定。" },
+        { "icon": "sparkles", "title": "介面與操作優化", "body": "頁面切換與返回手勢更流暢，也不再重複詢問通知權限。" }
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.3.0",
+      "items": [
+        { "icon": "share", "title": "Export your class table", "body": "Save or share it as an image." },
+        { "icon": "notification", "title": "Notifications stack by kind", "body": "Classes, homework, mail and others stack separately." },
+        { "icon": "mail", "title": "A better mail experience", "body": "School Mail is smoother to use." },
+        { "icon": "language", "title": "Notification names fixed", "body": "Notification categories follow the app's language, HyperOS included." },
+        { "icon": "sync", "title": "Better background sync", "body": "Background sync is more reliable." },
+        { "icon": "sparkles", "title": "Optimized UI/UX", "body": "Smoother page transitions and back swipes, and no more repeated notification prompts." }
+      ]
+    }
+  },
+  "29": {
+    "zh-Hant": {
+      "title": "2.3.1 新功能",
+      "items": [
+        { "icon": "notification", "title": "通知、即時更新與動態島優化", "body": "針對 Pixel 即時更新、vivo 原子島、HONOR Magic Capsule、OPPO 流體雲、三星 Now Bar 與小米系列（含 Redmi、POCO）超級島逐一調校。" },
+        { "icon": "layout", "title": "修正「更多」頁文字溢出", "body": "放大字型或顯示大小時，卡片上的功能名稱不再被截斷。" },
+        { "icon": "sparkles", "title": "修正新功能說明頁異常", "body": "往上滑動後頁面不再自己彈跳，橫向或分割畫面時也不會被狀態列擋住。" }
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.3.1",
+      "items": [
+        { "icon": "notification", "title": "Better notifications, Live Updates and Dynamic Island", "body": "Tuned one by one for Pixel's Live Updates, vivo's Origin Island, HONOR's Magic Capsule, OPPO's Live Alerts, Samsung's Now Bar and HyperIsland on Xiaomi, Redmi and POCO." },
+        { "icon": "layout", "title": "More tab text fixed", "body": "Feature names on the cards no longer get cut off at larger font or display sizes." },
+        { "icon": "sparkles", "title": "What's new page fixed", "body": "It no longer bounces after a swipe up, and stays clear of the status bar in landscape or split screen." }
+      ]
+    }
+  },
+  "30": {
+    "zh-Hant": {
+      "title": "2.4.0 新功能",
+      "items": [
+        { "icon": "grades", "title": "Moodle 新功能", "body": "在 App 裡就能查看課程公告、成績、課堂成員、課程教材與作業詳細資料。" },
+        { "icon": "share", "title": "課表分享", "body": "用 QR code 或連結分享課表，對方用 TigerDuck 或任何掃描器都能打開。" },
+        { "icon": "mail", "title": "校園信箱功能增強", "body": "通知可以依來源關閉，例如臺科公告欄與 Moodle 繳交通知，也能設定勿擾時段。" },
+        { "icon": "theme", "title": "更多主題顏色", "body": "新增漸層色，也可以自訂顏色。" },
+        { "icon": "classroom", "title": "空教室查看", "body": "介面更好懂，還會自動推薦離你最近的空教室。" },
+        { "icon": "sync", "title": "TigerSync 與伺服器同步優化", "body": "與 TigerSync 及其他伺服器的同步更穩定。" },
+        { "icon": "privacy", "title": "TLS pin 改從 TigerSync 取得", "body": "學校網站更換憑證時，不必等 App 更新就能繼續安全連線。" },
+        { "icon": "textsize", "title": "自訂介面與文字大小", "body": "App 與小工具的介面和文字大小都能自己調整。" },
+        { "icon": "sparkles", "title": "介面顯示優化", "body": "許多畫面的排版與動畫更順暢。" }
+      ]
+    },
+    "en": {
+      "title": "What's new in 2.4.0",
+      "items": [
+        { "icon": "grades", "title": "More from Moodle", "body": "See course announcements, grades, classmates, course materials and assignment details right in the app." },
+        { "icon": "share", "title": "Share your class table", "body": "Share it as a QR code or a link. It opens in TigerDuck or in any QR scanner." },
+        { "icon": "mail", "title": "School Mail, upgraded", "body": "Turn notifications off by source, such as the NTUST bulletin board and Moodle submission notices, and set quiet hours." },
+        { "icon": "theme", "title": "More theme colors", "body": "Gradients, plus colors of your own." },
+        { "icon": "classroom", "title": "Empty classrooms", "body": "A clearer layout that suggests the nearest free room." },
+        { "icon": "sync", "title": "Better syncing", "body": "Syncing with TigerSync and the other servers is more reliable." },
+        { "icon": "privacy", "title": "TLS pins from TigerSync", "body": "When a school site changes its certificate, secure connections keep working without waiting for an app update." },
+        { "icon": "textsize", "title": "Choose your sizes", "body": "Set the size of the app's and widgets' layout and text." },
+        { "icon": "sparkles", "title": "Display improvements", "body": "Smoother layouts and animations across the app." }
+      ]
+    }
   }
 }

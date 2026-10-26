@@ -24,11 +24,16 @@ import org.ntust.app.tigerduck.mail.SocketMailConnectionProbe
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.imap.AngusMailSessionFactory
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
+import org.ntust.app.tigerduck.mail.index.MailIndexScheduler
+import org.ntust.app.tigerduck.mail.index.MailSearchIndex
+import org.ntust.app.tigerduck.mail.index.SqliteMailSearchIndex
+import org.ntust.app.tigerduck.mail.index.WorkManagerMailIndexScheduler
 import org.ntust.app.tigerduck.mail.notify.AndroidMailNotifier
 import org.ntust.app.tigerduck.mail.notify.MailNotifier
 import org.ntust.app.tigerduck.mail.smtp.AngusMailTransport
 import org.ntust.app.tigerduck.mail.smtp.MailSender
 import org.ntust.app.tigerduck.mail.smtp.MailTransport
+import org.ntust.app.tigerduck.mail.store.HeldSendStore
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.mail.store.MailStateStore
@@ -37,6 +42,7 @@ import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailAlarmScheduler
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.mail.sync.MailClock
+import org.ntust.app.tigerduck.shared.tls.PinnedTls
 import org.ntust.app.tigerduck.ui.screen.mail.ContentResolverAttachmentReader
 import org.ntust.app.tigerduck.ui.screen.mail.NtustAccountSource
 import org.ntust.app.tigerduck.ui.screen.mail.PickedAttachmentReader
@@ -64,8 +70,8 @@ object MailModule {
      */
     @Provides
     @Singleton
-    fun connectionProbe(credentials: MailCredentialStore, site: MailSite): MailConnectionProbe =
-        if (BuildConfig.DEBUG) SocketMailConnectionProbe(credentials, site) else MailConnectionProbe.Unavailable
+    fun connectionProbe(credentials: MailCredentialStore, site: MailSite, tls: PinnedTls): MailConnectionProbe =
+        if (BuildConfig.DEBUG) SocketMailConnectionProbe(credentials, site, tls.socketFactory) else MailConnectionProbe.Unavailable
 
     /**
      * Resolved per connection rather than provided as a value: [MailSite] can answer
@@ -78,11 +84,13 @@ object MailModule {
 
     @Provides
     @Singleton
-    fun sessionFactory(configs: MailServerConfigSource): MailSessionFactory = AngusMailSessionFactory(configs)
+    fun sessionFactory(configs: MailServerConfigSource, tls: PinnedTls): MailSessionFactory =
+        AngusMailSessionFactory(configs, tls.socketFactory)
 
     @Provides
     @Singleton
-    fun transport(configs: MailServerConfigSource): MailTransport = AngusMailTransport(configs)
+    fun transport(configs: MailServerConfigSource, tls: PinnedTls): MailTransport =
+        AngusMailTransport(configs, tls.socketFactory)
 
     @Provides
     @Singleton
@@ -97,9 +105,19 @@ object MailModule {
     @Singleton
     fun cache(@ApplicationContext context: Context): MailCache = MailCache(File(context.cacheDir, "mail"))
 
+    // Not the cache directory, which the system may empty to free space: a held mail must stay
+    // until it is sent or taken back. No backup copies this one.
+    @Provides
+    @Singleton
+    fun heldSends(@ApplicationContext context: Context): HeldSendStore = HeldSendStore(File(context.noBackupFilesDir, "mail_held_sends"))
+
     @Provides
     @Singleton
     fun state(@ApplicationContext context: Context): MailStateStore = SharedPrefsMailStateStore(context)
+
+    @Provides
+    @Singleton
+    fun searchIndex(@ApplicationContext context: Context): MailSearchIndex = SqliteMailSearchIndex(context)
 
     @Provides
     fun clock(): MailClock = MailClock { System.currentTimeMillis() }
@@ -134,6 +152,9 @@ abstract class MailBindings {
 
     @Binds
     abstract fun scheduler(impl: MailAlarmScheduler): MailBackgroundScheduler
+
+    @Binds
+    abstract fun indexScheduler(impl: WorkManagerMailIndexScheduler): MailIndexScheduler
 
     @Binds
     abstract fun exactAlarms(impl: MailAlarmScheduler): ExactAlarmAccess

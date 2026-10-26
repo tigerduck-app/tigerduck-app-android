@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.data.model.ManualCheckResult
 import org.ntust.app.tigerduck.data.model.PendingUpdate
 import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -103,9 +104,9 @@ class UpdateChecker @Inject constructor(
                     // death, etc.) must not be treated as if the user
                     // tapped Later.
                     _pendingUpdate.value = PendingUpdate(availableVersionCode = available)
-                }.onFailure { Log.w(TAG, "update prompt evaluation failed", it) }
+                }.onFailure { Log.w(TAG, "update prompt evaluation failed: ${it.logSummary()}") }
             }
-            .addOnFailureListener { Log.w(TAG, "appUpdateInfo query failed", it) }
+            .addOnFailureListener { Log.w(TAG, "appUpdateInfo query failed: ${it.logSummary()}") }
     }
 
     /** Re-check on return to foreground so a freshly-published build can arm. */
@@ -139,7 +140,7 @@ class UpdateChecker @Inject constructor(
         val task = try {
             manager.appUpdateInfo
         } catch (t: Throwable) {
-            Log.w(TAG, "appUpdateInfo manual query threw synchronously", t)
+            Log.w(TAG, "appUpdateInfo manual query threw synchronously: ${t.logSummary()}")
             _isCheckingForUpdate.value = false
             _lastManualCheckResult.value = ManualCheckResult.Failed
             return
@@ -163,13 +164,13 @@ class UpdateChecker @Inject constructor(
                         _lastManualCheckResult.value = ManualCheckResult.UpToDate
                     }
                 }.onFailure {
-                    Log.w(TAG, "manual update check evaluation failed", it)
+                    Log.w(TAG, "manual update check evaluation failed: ${it.logSummary()}")
                     _lastManualCheckResult.value = ManualCheckResult.Failed
                 }
             }
             .addOnFailureListener { error ->
                 _isCheckingForUpdate.value = false
-                Log.w(TAG, "appUpdateInfo manual query failed", error)
+                Log.w(TAG, "appUpdateInfo manual query failed: ${error.logSummary()}")
                 // ERROR_APP_NOT_OWNED (-10) fires whenever the install
                 // didn't come through Play — sideloaded APKs always hit
                 // it, even ones signed with the release key. Treat it as
@@ -227,7 +228,7 @@ class UpdateChecker @Inject constructor(
                 Uri.parse("https://play.google.com/store/apps/details?id=$storeId"),
             ).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }
             runCatching { activity.startActivity(webIntent) }
-                .onFailure { Log.w(TAG, "Play Store deep link failed", it) }
+                .onFailure { Log.w(TAG, "Play Store deep link failed: ${it.logSummary()}") }
                 .isSuccess
         }
         // Only retire the prompt once an intent actually launched. If both the

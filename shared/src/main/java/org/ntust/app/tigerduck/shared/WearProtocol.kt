@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.shared
 
+import java.time.LocalDate
+
 /**
  * Wire constants for the phone↔watch Wearable Data Layer protocol. Defined in
  * `:shared` so the two ends can never drift — a typo or rename on one side
@@ -11,7 +13,17 @@ object WearProtocol {
     object Schedule {
         const val PATH = "/tigerduck/schedule"
         const val KEY_COURSES = "courses"
+
+        /** The accent as `#RRGGBB`; with a gradient picked, its start. */
         const val KEY_ACCENT = "accentHex"
+
+        // The end of the accent gradient as `#RRGGBB`, and its direction as an
+        // [AccentGradientDirection.code] Int, both only while a gradient is
+        // picked. Neither is sent for a single color, and a phone that
+        // predates them sends neither: the watch then draws [KEY_ACCENT]
+        // alone, and a watch that predates them draws it alone too.
+        const val KEY_ACCENT_END = "accentEndHex"
+        const val KEY_ACCENT_DIRECTION = "accentDirection"
         const val KEY_SYNCED_AT = "syncedAtMs"
         const val KEY_LOGGED_IN = "loggedIn"
         const val KEY_LANGUAGE = "languageTag"
@@ -22,6 +34,33 @@ object WearProtocol {
         // LibraryQR SecureScreen reads the persisted value to decide whether
         // to apply FLAG_SECURE to the QR window.
         const val KEY_DISABLE_SCREEN_CAPTURE_PROTECTION = "disableScreenCaptureProtection"
+
+        // Days on which no class meets for this user, as [encodeQuietDays]
+        // writes them. A phone that predates the key sends none, which the
+        // watch reads as no quiet days, and a watch that predates it ignores it.
+        const val KEY_QUIET_DAYS = "quietDays"
+
+        // The interface style picked in Settings › Interface style, as the phone stores it
+        // ("default" for TigerDuck, [VISUAL_PRESET_TAT]): the key and values the iPhone's
+        // WatchWireFormat uses. A phone that predates it sends none, which the watch reads
+        // as TigerDuck, as it does a value it doesn't know; a watch that predates it ignores it.
+        const val KEY_VISUAL_PRESET = "visualPreset"
+
+        /** The TAT look's raw value under [KEY_VISUAL_PRESET]. */
+        const val VISUAL_PRESET_TAT = "tat"
+
+        /** ISO `yyyy-MM-dd` strings, the form [KEY_QUIET_DAYS] carries. */
+        fun encodeQuietDays(days: Collection<LocalDate>): ArrayList<String> =
+            days.sorted().mapTo(ArrayList(days.size)) { it.toString() }
+
+        /**
+         * Null, from a phone or a stored snapshot that predates
+         * [KEY_QUIET_DAYS], reads as none, so the watch shows every class as
+         * it did before. An entry that is not a date is dropped rather than
+         * failing the rest.
+         */
+        fun decodeQuietDays(raw: Collection<String>?): Set<LocalDate> =
+            raw.orEmpty().mapNotNullTo(HashSet()) { runCatching { LocalDate.parse(it) }.getOrNull() }
     }
 
     /** One-shot message watch → phone asking for a fresh [Schedule] publish. */
@@ -53,6 +92,37 @@ object WearProtocol {
         // watch's 7-day staleness TTL: independent of WC delivery time, so
         // a payload that sits queued for a week still expires correctly.
         const val KEY_ISSUED_AT_MS = "issuedAtMs"
+    }
+
+    /**
+     * TLS pins phone → watch (TLS pins spec, A8): the pin document the phone verified, as
+     * the envelope bytes it received, for the watch to verify again with its own keys, and the
+     * student's acceptances. The watch applies an acceptance only while its own build is the one
+     * the phone made it under.
+     */
+    object TlsPins {
+        const val PATH = "/tigerduck/tls_pins"
+
+        /** The verified envelope's exact bytes; absent while the phone holds no document. */
+        const val KEY_ENVELOPE = "envelope"
+
+        /**
+         * The acceptances, as [org.ntust.app.tigerduck.shared.tls.PinAcceptances] encodes them,
+         * each with the phone build number it was made under.
+         */
+        const val KEY_ACCEPTANCES = "acceptances"
+
+        /**
+         * Strictly increasing, from the wall clock, so it stays ahead across phone restarts and
+         * reinstalls; the watch drops a push not above its last.
+         */
+        const val KEY_VERSION = "version"
+
+        /**
+         * The watch's versionCode is the phone's plus this (wear/build.gradle.kts), so the watch
+         * reads the phone build an acceptance was made under against its own.
+         */
+        const val WATCH_VERSION_CODE_OFFSET = 10_000L
     }
 
     /** Debug-clock override pushed phone → watch (debug builds only). */

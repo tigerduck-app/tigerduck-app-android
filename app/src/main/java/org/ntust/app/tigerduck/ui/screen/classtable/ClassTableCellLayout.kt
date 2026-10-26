@@ -61,6 +61,13 @@ sealed class CellRole {
     object Skip : CellRole()
 }
 
+/**
+ * Rows of one [CellRole.MultiConflictStart.Member] that keep one horizontal extent, counted from
+ * the cluster's top: [lanes] is every lane where the member is the only course in those rows,
+ * else its own lane. As the iPhone's `ClassTableLaneRun`.
+ */
+data class LaneRun(val firstRow: Int, val rowCount: Int, val lanes: IntRange)
+
 data class TripleConflictError(
     val weekday: Int,
     val periodId: String,
@@ -70,6 +77,45 @@ data class TripleConflictError(
 )
 
 object ClassTableCellLayout {
+
+    /**
+     * How [member] of [role] is drawn row by row, as the iPhone's `ClassTableLayout.laneRuns`
+     * (tigerduck-app#153, tigerduck-app-android#85): across every lane in the rows where no other
+     * member meets, as the two-course L shape takes the full width where a course is alone, and
+     * in its own lane elsewhere. Consecutive rows with the same extent are one run.
+     */
+    fun laneRuns(member: CellRole.MultiConflictStart.Member, role: CellRole.MultiConflictStart): List<LaneRun> {
+        val runs = mutableListOf<LaneRun>()
+        for (row in member.offset until member.offset + member.span) {
+            val meeting = role.members.count { row >= it.offset && row < it.offset + it.span }
+            val lanes = if (meeting <= 1) 0 until role.laneCount else member.lane..member.lane
+            val last = runs.lastOrNull()
+            if (last != null && last.lanes == lanes) {
+                runs[runs.lastIndex] = last.copy(rowCount = last.rowCount + 1)
+            } else {
+                runs += LaneRun(row, 1, lanes)
+            }
+        }
+        return runs
+    }
+
+    /**
+     * What a cell's courses show, as the identity of its block: a change in name, room or rows
+     * makes a new block, which fades in where the old one fades out. The colour follows the
+     * course number and a mark changes in place, so neither is part of it. Null for a cell with
+     * no course of its own, an empty slot or one a course above reaches over.
+     */
+    fun contentKey(role: CellRole, roomHint: String?): String? {
+        fun shown(course: Course) = "${course.courseNo}|${course.displayName}"
+        return when (role) {
+            CellRole.Empty, CellRole.Skip -> null
+            is CellRole.SoloStart -> "solo ${role.spanCount} ${shown(role.course)}|${roomHint.orEmpty()}"
+            is CellRole.ConflictStart -> "pair ${role.combinedSpan} " +
+                "${role.spanA} ${role.offsetA} ${shown(role.courseA)} ${role.spanB} ${role.offsetB} ${shown(role.courseB)}"
+            is CellRole.MultiConflictStart -> "lanes ${role.combinedSpan} ${role.laneCount} " +
+                role.members.joinToString(" ") { "${it.span} ${it.offset} ${it.lane} ${shown(it.course)}" }
+        }
+    }
 
     /** Weekdays worth showing: Mon-Fri always, plus any weekend day in use. */
     fun activeWeekdays(courses: List<Course>): List<Int> {
@@ -149,23 +195,22 @@ object ClassTableCellLayout {
         val coursesHere = coursesAt(courses, weekday, period.id)
         if (coursesHere.isEmpty()) return CellRole.Empty
 
-        // Build transitive closure of courses whose blocks overlap with any
-        // course already in the cluster, rooted at the courses present in this
+        // Build transitive closure of blocks that overlap with any block
+        // already in the cluster, rooted at the courses present in this
         // cell. This guarantees we emit a ConflictStart at the earliest row
-        // of the union and Skip thereafter.
+        // of the union and Skip thereafter. A block is keyed by course and
+        // first row, so a course meeting twice joins with each block another
+        // course bridges to.
         val closure =
-            LinkedHashMap<String, Triple<Course, Int, Int>>() // courseNo -> (course, firstIndex, span)
+            LinkedHashMap<Pair<String, Int>, Triple<Course, Int, Int>>() // (courseNo, firstIndex) -> (course, firstIndex, span)
 
         fun addCourse(c: Course, seedIndex: Int) {
-            if (closure.containsKey(c.courseNo)) return
             val (first, span) = blockFor(courses, periods, weekday, seedIndex, c)
-            closure[c.courseNo] = Triple(c, first, span)
-            // Expand: any other course touching any row in [first, first+span)
+            if (closure.putIfAbsent(c.courseNo to first, Triple(c, first, span)) != null) return
+            // Expand: any other block touching any row in [first, first+span)
             for (i in first until first + span) {
                 val pid = periods.getOrNull(i)?.id ?: continue
-                for (other in coursesAt(courses, weekday, pid)) {
-                    if (!closure.containsKey(other.courseNo)) addCourse(other, i)
-                }
+                for (other in coursesAt(courses, weekday, pid)) addCourse(other, i)
             }
         }
         coursesHere.forEach { addCourse(it, periodIndex) }

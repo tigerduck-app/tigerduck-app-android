@@ -30,7 +30,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -90,15 +89,7 @@ internal fun LeadTimeRow(
             onValueChange = {
                 if (it != lastHapticValue) {
                     lastHapticValue = it
-                    // Fixed feel, not the user-tunable HapticScenario.TimeSliderTick
-                    // preference used by the home-screen time slider — these two
-                    // scenarios are unrelated and shouldn't be coupled through one
-                    // shared tunable strength/duration.
-                    Haptics.previewCustom(
-                        context,
-                        HapticScenario.TimeSliderTick.defaultStrengthPct,
-                        HapticScenario.TimeSliderTick.defaultDurationMs,
-                    )
+                    Haptics.sliderStep(context)
                 }
                 onValueChange(it)
             },

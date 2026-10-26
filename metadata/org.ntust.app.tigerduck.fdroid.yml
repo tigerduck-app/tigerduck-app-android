@@ -1,7 +1,7 @@
 AntiFeatures:
   NonFreeNet:
-    zh-TW: 依賴多個來自 ntust.edu.tw (*.ntust.edu.tw)、r.xinshou.tw 和 api.tigerduck.app (*.tigerduck.app) 的服務。
-    en-US: Relies on several services on ntust.edu.tw (*.ntust.edu.tw), r.xinshou.tw and api.tigerduck.app (*.tigerduck.app).
+    zh-TW: 依賴多個來自 ntust.edu.tw (*.ntust.edu.tw) 和 api.tigerduck.app (*.tigerduck.app) 的服務。
+    en-US: Relies on several services on ntust.edu.tw (*.ntust.edu.tw) and api.tigerduck.app (*.tigerduck.app).
 Categories:
   - Science & Education
 License: AGPL-3.0-only
@@ -16,9 +16,9 @@ RepoType: git
 Repo: https://github.com/tigerduck-app/tigerduck-app-android.git
 
 Builds:
-  - versionName: 2.2.0-fdroid
-    versionCode: 27
-    commit: <will be replaced by GitHub Action when creating release>
+  - versionName: 2.4.0-fdroid
+    versionCode: 30
+    commit: 2967bb55efbc850fb003e0630a1aadf0a71fed14
     subdir: app
     submodules: true
     gradle:
@@ -26,5 +26,5 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 2.2.0-fdroid
-CurrentVersionCode: 27
+CurrentVersion: 2.4.0-fdroid
+CurrentVersionCode: 30

@@ -1,12 +1,14 @@
 package org.ntust.app.tigerduck.network
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.annotations.SerializedName
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -14,18 +16,32 @@ import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.util.SharedFetch
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.util.toCreditsOrZero
+
+/**
+ * How long an answer from a school server is handed to the next caller that
+ * asks for the same thing — see [org.ntust.app.tigerduck.util.SharedFetch].
+ * Long enough to cover the screens of one launch, short enough that nothing
+ * automatic can serve a minute-old roster as new. A pull to refresh drops
+ * what is kept (`expireSharedResults`), so it never gets one at all.
+ */
+internal const val SHARED_ANSWER_WINDOW_MS = 60_000L
 
 sealed class CourseServiceError : Exception() {
     class NotAuthenticated : CourseServiceError()
@@ -42,9 +58,30 @@ class CourseService @Inject constructor(
     private val dataCache: DataCache,
     private val appPreferences: AppPreferences,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    @ApplicationScope appScope: CoroutineScope,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
     private val gson = Gson()
+
+    // Home, the class table and the worker all scrape the 選課清單 page, within
+    // seconds of each other on launch. Keyed by student, so one account's
+    // roster never reaches another's.
+    private val sharedCourseNos = SharedFetch<String, List<String>>(
+        appScope, SHARED_ANSWER_WINDOW_MS, SystemClock::elapsedRealtime,
+    )
+
+    // Only the lookups in flight: the TTL cache below keeps the answers.
+    // Without this, two screens that miss that cache together each look up
+    // every course on the roster.
+    private val lookupsInFlight = SharedFetch<String, List<CourseSearchResult>>(
+        appScope, windowMs = 0, SystemClock::elapsedRealtime,
+    )
+
+    /** See [MoodleService.expireSharedResults]. */
+    fun expireSharedResults() = sharedCourseNos.expire()
+
+    /** See [MoodleService.cancelSharedFetches]. */
+    fun cancelSharedFetches() = sharedCourseNos.cancelAll()
 
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
@@ -71,27 +108,41 @@ class CourseService @Inject constructor(
     private var classroomNameAbbr: Map<String, ClassroomAbbrEntry> = emptyMap()
 
     suspend fun fetchEnrolledCourseNos(studentId: String, password: String): List<String> =
-        withContext(Dispatchers.IO) {
-            val loggedIn =
-                ssoLoginService.ensureServiceLogin(courseSelectionRoot, studentId, password)
-            if (!loggedIn) throw CourseServiceError.NotAuthenticated()
-
-            val request = Request.Builder().url(courseListUrl).get().build()
-            client.newCall(request).execute().use { response ->
-                if (HtmlParser.isSsoHost(response.request.url.host)) {
-                    throw CourseServiceError.RedirectedToSSO()
-                }
-                val html = response.body.string()
-
-                val pattern = Regex("<tr>\\s*<td>\\s*(3?[A-Z]{2}[A-Z0-9]{6,7})\\s*</td>")
-                pattern.findAll(html).map { it.groupValues[1] }.toList()
+        sharedCourseNos.get(studentId) {
+            withContext(Dispatchers.IO) {
+                // AuthService.ensureAuthenticated logs in to this very
+                // service, so a session it left is used as it is — see
+                // fetchWithSsoSession.
+                val html = fetchWithSsoSession(
+                    sessionWarm = sessionManager.cookiesValid,
+                    logIn = {
+                        val loggedIn = ssoLoginService.ensureServiceLogin(
+                            courseSelectionRoot, studentId, password,
+                        )
+                        if (!loggedIn) throw CourseServiceError.NotAuthenticated()
+                    },
+                    fetch = { fetchCourseListPage() },
+                    bounced = { throw CourseServiceError.RedirectedToSSO() },
+                )
+                courseNosInListPage(html)
             }
         }
 
+    /** The 選課清單 page, or null when the request was bounced to SSO. */
+    private fun fetchCourseListPage(): String? {
+        val request = Request.Builder().url(courseListUrl).get().build()
+        client.newCall(request).execute().use { response ->
+            if (response.request.url.host.contains("ssoam2.ntust.edu.tw")) return null
+            return response.body.string()
+        }
+    }
+
+    /** [fresh] asks QueryCourse even when the cache holds a recent answer. */
     suspend fun lookupCourse(
         semester: String,
         courseNo: String,
         lang: String = preferredCourseApiLanguage(),
+        fresh: Boolean = false,
     ): List<CourseSearchResult> =
         withContext(Dispatchers.IO) {
             ensureLookupCacheLoaded()
@@ -100,32 +151,43 @@ class CourseService @Inject constructor(
             // applyAbbreviations runs at access time, so toggling the abbr
             // setting reuses the same cache entry and never refetches.
             val key = "${semester}_${courseNo}_${language}"
-            lookupCache[key]?.takeIf {
-                System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
-            }?.let { return@withContext applyAbbreviations(it.results, language) }
-
-            val requestBody =
-                gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
-                    .toRequestBody("application/json".toMediaType())
-
-            val request = Request.Builder()
-                .url(courseSearchApiUrl(language))
-                .header("Accept", "application/json")
-                .post(requestBody)
-                .build()
-
-            val fresh = client.newCall(request).execute().use { response ->
-                val body = response.body.string()
-                val type = object : TypeToken<List<CourseSearchResult>>() {}.type
-                gson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
+            if (!fresh) {
+                lookupCache[key]?.takeIf {
+                    System.currentTimeMillis() - it.cachedAt < LOOKUP_TTL_MS
+                }?.let { return@withContext applyAbbreviations(it.results, language) }
             }
 
-            if (fresh.isNotEmpty()) {
-                lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
-                persistLookupCache()
+            val answer = lookupsInFlight.get(key) {
+                withContext(Dispatchers.IO) { fetchLookup(key, semester, courseNo, language) }
             }
-            applyAbbreviations(fresh, language)
+            applyAbbreviations(answer, language)
         }
+
+    /** The querycourse request behind [lookupCourse], written through to its cache. */
+    private suspend fun fetchLookup(
+        key: String,
+        semester: String,
+        courseNo: String,
+        language: String,
+    ): List<CourseSearchResult> {
+        val requestBody =
+            gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
+                .toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url(courseSearchApiUrl(language))
+            .header("Accept", "application/json")
+            .post(requestBody)
+            .build()
+
+        val fresh = client.newCall(request).execute().use(::lookupAnswer)
+
+        if (fresh.isNotEmpty()) {
+            lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
+            persistLookupCache()
+        }
+        return fresh
+    }
 
     private suspend fun ensureLookupCacheLoaded() {
         if (lookupCacheLoaded) return
@@ -253,41 +315,27 @@ class CourseService @Inject constructor(
      * course-level fields.
      *
      * Returns null only when both sources come up empty. A lookup that throws
-     * degrades to the Moodle fallback rather than failing the whole roster —
-     * one unreachable course must not blank out a timetable.
+     * does not fail the whole roster: it comes to [afterFailedLookup] — one
+     * unreachable course must not blank out a timetable.
      */
     suspend fun lookupOrFallback(
         semester: String,
         courseNo: String,
         moodle: MoodleEnrolledCourse?,
+        /** The row the term already has for the course, which a failed query keeps. */
+        kept: Course? = null,
+        /**
+         * Told of a query that failed, which the fallback otherwise hides: a
+         * caller fetching term after term stops at the first, since the rest
+         * would fail the same way.
+         */
+        onLookupFailed: (() -> Unit)? = null,
     ): Course? = try {
         val results = lookupCourse(semester, courseNo)
         if (results.isEmpty()) {
             fallbackCourseFromMoodle(courseNo, moodle)
         } else {
-            val first = results.first()
-            val allRooms = LinkedHashSet<String>().apply {
-                for (row in results) {
-                    Course.splitRooms(row.classRoomNo ?: "").forEach { add(it) }
-                }
-            }
-            Course.fromSchedule(
-                courseNo = first.courseNo,
-                courseName = first.courseName,
-                instructor = first.courseTeacher,
-                credits = first.creditPoint.toCreditsOrZero(),
-                classroom = allRooms.joinToString(", "),
-                enrolledCount = first.chooseStudent ?: 0,
-                maxCount = first.maxEnrollment,
-                schedule = mergeSchedules(*results.map { it.node }.toTypedArray()),
-                classroomMap = buildClassroomMap(results),
-                moodleIdNumber = moodle?.idnumber ?: "${first.semester}${first.courseNo}",
-                moodleNumericCourseId = moodle?.id,
-                // First non-empty rather than the first row's: a course split
-                // across rows only names these on some of them.
-                dimension = CourseService.firstNonEmpty(results.map { it.dimension }),
-                allYear = CourseService.firstNonEmpty(results.map { it.allYear }),
-            )
+            courseFrom(results, moodle)
         }
     } catch (e: CancellationException) {
         // ClassTableViewModel cancels its load job on every semester flip, and
@@ -296,8 +344,40 @@ class CourseService @Inject constructor(
         // partially-applied result then renders as a blank timetable row.
         throw e
     } catch (e: Exception) {
-        Log.e(TAG_LOOKUP, "Failed to lookup course $courseNo", e)
-        fallbackCourseFromMoodle(courseNo, moodle)
+        Log.e(TAG_LOOKUP, "Failed to look up a course: ${e.logSummary()}")
+        onLookupFailed?.invoke()
+        afterFailedLookup(courseNo, moodle, kept)
+    }
+
+    /**
+     * One course from the QueryCourse rows [lookupCourse] returned for it, which must not be
+     * empty: schedules merged, the per-slot rooms mapped across every row, see [lookupOrFallback].
+     */
+    fun courseFrom(results: List<CourseSearchResult>, moodle: MoodleEnrolledCourse?): Course {
+        val first = results.first()
+        val allRooms = LinkedHashSet<String>().apply {
+            for (row in results) {
+                Course.splitRooms(row.classRoomNo ?: "").forEach { add(it) }
+            }
+        }
+        return Course.fromSchedule(
+            courseNo = first.courseNo,
+            courseName = first.courseName,
+            instructor = first.courseTeacher,
+            credits = first.creditPoint.toCreditsOrZero(),
+            classroom = allRooms.joinToString(", "),
+            enrolledCount = first.chooseStudent ?: 0,
+            maxCount = first.maxEnrollment,
+            schedule = mergeSchedules(*results.map { it.node }.toTypedArray()),
+            classroomMap = buildClassroomMap(results),
+            moodleIdNumber = moodle?.idnumber ?: "${first.semester}${first.courseNo}",
+            moodleNumericCourseId = moodle?.id,
+            // First non-empty rather than the first row's: a course split
+            // across rows only names these on some of them.
+            dimension = CourseService.firstNonEmpty(results.map { it.dimension }),
+            allYear = CourseService.firstNonEmpty(results.map { it.allYear }),
+            requireOption = CourseService.firstNonEmpty(results.map { it.requireOption }),
+        )
     }
 
     /**
@@ -347,8 +427,55 @@ class CourseService @Inject constructor(
          * GE dimension or term span on some of them, so the first row is not
          * enough.
          */
+        private val lookupGson = Gson()
+
+        /**
+         * QueryCourse's rows for one course code, an empty list for a code it does not know, or
+         * an [IOException] for a request that failed: a failed answer must not pass for an
+         * unknown course, which an import of someone's class table would leave out.
+         */
+        internal fun lookupAnswer(response: Response): List<CourseSearchResult> {
+            if (!response.isSuccessful) throw IOException("QueryCourse answered ${response.code}")
+            val body = response.body.string()
+            val type = object : TypeToken<List<CourseSearchResult>>() {}.type
+            return lookupGson.fromJson<List<CourseSearchResult>?>(body, type) ?: emptyList()
+        }
+
+        /**
+         * NTUST's course-number shape, the one rule the course-selection list, Moodle's course
+         * names and the share codes all read by: a head, then six or seven letters or digits. The
+         * head is the first that fits of `3` and two letters, two letters, or `3` and one letter,
+         * the last for a course taken at NTU or NTNU (`3N1004701`, `3T5287701`), which the list
+         * names beside NTUST's own (tigerduck-app/tigerduck-app#766). The groups are the head and
+         * the tail, which the share code's packed layout writes apart.
+         */
+        internal val COURSE_NO = Regex("(3[A-Z]{2}|[A-Z]{2}|3[A-Z])([A-Z0-9]{6,7})")
+
+        /** A row's first cell on the 選課清單 page, where a course lists its number. */
+        private val LIST_ROW_FIRST_CELL = Regex("<tr>\\s*<td>\\s*([A-Z0-9]+)\\s*</td>")
+
+        /** Whether the whole of [text] is a course number of [COURSE_NO]'s shape. */
+        fun isCourseNo(text: String): Boolean = COURSE_NO.matches(text)
+
+        /**
+         * The course numbers on the 選課清單 page, in its order: each row's first cell that holds
+         * one, so a header row or the credit total is left out.
+         */
+        internal fun courseNosInListPage(html: String): List<String> =
+            LIST_ROW_FIRST_CELL.findAll(html).map { it.groupValues[1] }.filter(::isCourseNo).toList()
+
         fun firstNonEmpty(values: List<String?>): String? =
             values.firstOrNull { !it.isNullOrBlank() }?.trim()
+
+        /**
+         * What a lookup of [courseNo] whose query failed comes to: [kept], the
+         * row the term already has, or Moodle's stand-in when there is none. The
+         * failure says nothing of the course, and the stand-in has no times and
+         * no room: saved and uploaded in the kept row's place, it took them off
+         * this phone and every other device (tigerduck-app#243 on iOS).
+         */
+        fun afterFailedLookup(courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? =
+            kept ?: fallbackCourseFromMoodle(courseNo, moodle)
 
         /**
          * Build a stub [Course] from Moodle enrolment metadata when QueryCourse

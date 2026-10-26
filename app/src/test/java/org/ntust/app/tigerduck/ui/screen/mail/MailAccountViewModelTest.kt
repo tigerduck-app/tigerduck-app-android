@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.mail
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -24,6 +25,7 @@ import org.ntust.app.tigerduck.mail.MailTransportSecurity
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.mail.RecordingNotifier
 import org.ntust.app.tigerduck.mail.RecordingScheduler
+import org.ntust.app.tigerduck.mail.cancelAndJoinBlocking
 import org.ntust.app.tigerduck.mail.schoolMailSite
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
@@ -33,6 +35,12 @@ class MailAccountViewModelTest {
     @get:Rule val tmp = TemporaryFolder()
 
     private val server = FakeMailServer()
+
+    // Where the sign-out test's cache wipe runs, stopped before TemporaryFolder deletes its folder.
+    private val appScope = testApplicationScope()
+
+    @After
+    fun stopAppScope() = appScope.cancelAndJoinBlocking()
 
     /**
      * The stored NTUST account. Invented values throughout -- no real password belongs in a
@@ -48,7 +56,7 @@ class MailAccountViewModelTest {
         ntust: NtustAccountSource = FakeNtustAccount(),
     ) = MailAccountViewModel(
         MailAccount(InMemoryCredentialStore(), InMemoryMailStateStore(), server.factory(), MailCache(tmp.root),
-            FakeDemoGate(), site, RecordingScheduler(), RecordingNotifier(), testApplicationScope()),
+            FakeDemoGate(), site, RecordingScheduler(), RecordingNotifier(), appScope),
         site,
         ntust,
     )

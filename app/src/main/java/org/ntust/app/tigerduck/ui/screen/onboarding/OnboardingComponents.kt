@@ -4,8 +4,6 @@
 package org.ntust.app.tigerduck.ui.screen.onboarding
 
 import android.content.Context
-import android.content.Intent
-import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -46,8 +46,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.BrowserPreference
+import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.screen.settings.NotificationSetupContent
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -207,14 +208,7 @@ internal fun AnalyticsOptInCard(
 // during onboarding the user has not been offered that choice yet, and the
 // links here are the same in-app hand-off the welcome page already uses.
 internal fun openUrl(context: Context, url: String) {
-    val uri = url.toUri()
-    runCatching {
-        CustomTabsIntent.Builder().build().launchUrl(context, uri)
-    }.onFailure {
-        runCatching {
-            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
-        }
-    }
+    openLink(context, url, BrowserPreference.IN_APP)
 }
 @Composable
 internal fun PermissionsPage(
@@ -333,6 +327,20 @@ internal fun OnboardingPageScaffold(
                     actions()
                 }
             }
+        }
+    }
+}
+
+/**
+ * The last page's "Start using TigerDuck": at least as wide as the other pages' buttons, and
+ * wider when its label needs it, up to the page's width, so it breaks onto a second line only
+ * when the page itself is too narrow.
+ */
+@Composable
+internal fun OnboardingStartButton(label: String, onClick: () -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Button(onClick = onClick, modifier = Modifier.widthIn(min = maxWidth * 0.6f)) {
+            Text(label, textAlign = TextAlign.Center)
         }
     }
 }

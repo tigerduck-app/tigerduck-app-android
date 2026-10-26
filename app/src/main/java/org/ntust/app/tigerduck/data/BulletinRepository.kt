@@ -19,15 +19,63 @@ import javax.inject.Singleton
 class BulletinRepository @Inject constructor() {
 
     private val summaries = HashMap<Int, BulletinSummary>()
+    // The list rows' own summaries, apart from what a detail later stores over them.
+    private val listSummaries = HashMap<Int, String>()
     private val details = HashMap<Int, BulletinDetail>()
 
     @Volatile
     private var taxonomyValue: TaxonomyResponse? = null
     private val taxonomyMutex = Mutex()
 
+    /**
+     * Where the list stood after its last refresh in this process: when the
+     * first page came back, which filter it was for, and the cursor of the
+     * first page not yet in the on-disk cache.
+     */
+    data class ListSession(
+        val fetchedAtMs: Long,
+        val includeDeleted: Boolean,
+        val nextCursor: Int?,
+    )
+
+    @Volatile
+    private var listSession: ListSession? = null
+
+    /** Records a refresh of the list's first page, at [nowMs] on a monotonic clock. */
+    @Synchronized
+    fun listRefreshed(nowMs: Long, includeDeleted: Boolean, nextCursor: Int?) {
+        listSession = ListSession(nowMs, includeDeleted, nextCursor)
+    }
+
+    /**
+     * Moves the cursor on once the pages before [nextCursor] are in the
+     * on-disk cache. Saved first, moved second: a cursor ahead of the cache
+     * would skip the pages in between for good.
+     */
+    @Synchronized
+    fun listAdvanced(includeDeleted: Boolean, nextCursor: Int?) {
+        val session = listSession ?: return
+        if (session.includeDeleted == includeDeleted) {
+            listSession = session.copy(nextCursor = nextCursor)
+        }
+    }
+
+    /**
+     * The list as the last refresh in this process left it, for the same
+     * filter; null when the list has not been refreshed since the app
+     * started. The list screen's view model is rebuilt on every visit, so
+     * this is how a visit tells a launch from a return.
+     */
+    fun listSession(includeDeleted: Boolean): ListSession? =
+        listSession?.takeIf { it.includeDeleted == includeDeleted }
+
     @Synchronized
     fun putSummaries(items: List<BulletinSummary>) {
-        for (item in items) summaries[item.id] = item
+        for (item in items) {
+            summaries[item.id] = item
+            val summary = item.summary?.takeIf { it.isNotBlank() }
+            if (summary != null) listSummaries[item.id] = summary else listSummaries.remove(item.id)
+        }
     }
 
     @Synchronized
@@ -36,7 +84,12 @@ class BulletinRepository @Inject constructor() {
     @Synchronized
     fun putDetail(detail: BulletinDetail) {
         details[detail.id] = detail
-        summaries[detail.id] = detail.toSummary()
+        // A detail without a summary keeps the list row's, which its page falls back to; never an
+        // earlier detail's, which the server has since cleared.
+        val listSummary = listSummaries[detail.id]
+        summaries[detail.id] = detail.toSummary().let {
+            if (it.summary.isNullOrBlank() && listSummary != null) it.copy(summary = listSummary) else it
+        }
     }
 
     @Synchronized

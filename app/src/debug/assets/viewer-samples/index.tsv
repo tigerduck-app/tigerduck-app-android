@@ -1,0 +1,43 @@
+group	name	mime	bytes
+Video	h264.mp4	video/mp4	99697
+Video	h264.mov	video/quicktime	99748
+Video	hevc-8bit.mov	video/quicktime	101375
+Video	hevc-main10-1080p.mov	video/quicktime	588244
+Video	hevc-main10-4k60.mov	video/quicktime	1547475
+Video	av1.mp4	video/mp4	98812
+Video	vp9.webm	video/webm	205390
+Video	h264.mkv	video/x-matroska	98032
+Video	h264.3gp	video/3gpp	26067
+Audio	tone.mp3	audio/mpeg	24428
+Audio	tone.m4a	audio/mp4	25800
+Audio	tone.ogg	audio/ogg	9035
+Audio	tone.opus	audio/ogg	16141
+Audio	tone.flac	audio/flac	24851
+Audio	tone.wav	audio/wav	88278
+Images	pattern.jpg	image/jpeg	15619
+Images	pattern.png	image/png	26672
+Images	animated.gif	image/gif	100115
+Images	pattern.webp	image/webp	7484
+Images	pattern.heic	image/heic	12227
+Images	pattern.bmp	image/bmp	172854
+Documents	three-pages.pdf	application/pdf	1405
+Documents	document.docx	application/vnd.openxmlformats-officedocument.wordprocessingml.document	1283
+Documents	slides.pptx	application/vnd.openxmlformats-officedocument.presentationml.presentation	5438
+Documents	utf8.txt	text/plain	87
+Documents	big5.txt	text/plain	75
+Documents	utf16.txt	text/plain	128
+Documents	notes.md	text/markdown	314
+Documents	sample.kt	text/plain	353
+Archives	archive.zip	application/zip	26483
+Archives	archive.tar	application/x-tar	40960
+Archives	archive.tar.gz	application/g-zip	26312
+Archives	archive.tar.bz2	application/x-bzip2	26757
+Archives	archive.tar.xz	application/x-xz	26260
+Archives	readme.txt.gz	application/g-zip	121
+Edge cases	sheet.xlsx	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet	1634
+Edge cases	vector.svg	image/svg+xml	195
+Edge cases	page.html	text/html	188
+Edge cases	zero-bytes.pdf	application/pdf	0
+Edge cases	truncated.mp4	video/mp4	33232
+Edge cases	mp4-named.mov	video/quicktime	99697
+Edge cases	mov-named.mp4	video/mp4	99748

@@ -67,6 +67,7 @@ fun TigerDuckDialog(
     onDismiss: () -> Unit = onDismissRequest,
     icon: (@Composable () -> Unit)? = null,
     confirmEnabled: Boolean = true,
+    dismissEnabled: Boolean = true,
     confirmColors: ButtonColors = ButtonDefaults.buttonColors(),
     dismissable: Boolean = true,
     content: (@Composable ColumnScope.() -> Unit)? = null,
@@ -138,6 +139,7 @@ fun TigerDuckDialog(
                         if (dismissText != null) {
                             OutlinedButton(
                                 onClick = onDismiss,
+                                enabled = dismissEnabled,
                                 modifier = Modifier.fillMaxWidth(),
                             ) { Text(dismissText) }
                         }

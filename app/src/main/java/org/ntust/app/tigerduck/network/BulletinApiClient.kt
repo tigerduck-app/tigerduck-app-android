@@ -3,13 +3,11 @@ package org.ntust.app.tigerduck.network
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.HttpUrl.Companion.toHttpUrl
-import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Call
 import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.BulletinDetail
 import org.ntust.app.tigerduck.network.model.BulletinListResponse
@@ -40,7 +38,6 @@ class BulletinApiClient @Inject constructor(
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url
     private val gson = Gson()
-    private val jsonType = "application/json".toMediaType()
 
     private val acceptInterceptor = okhttp3.Interceptor { chain ->
         chain.proceed(
@@ -52,39 +49,32 @@ class BulletinApiClient @Inject constructor(
 
     private val client = baseClient.newBuilder()
         .addInterceptor(acceptInterceptor)
+        .guardedBy(authTokenManager)
         .build()
 
-    /**
-     * Builds a Request.Builder with Bearer auth if a v3 token is available.
-     * Called from suspension context — must be called with [withContext] if
-     * not already on a suspend call stack.
-     */
-    private suspend fun Request.Builder.addAuthHeader(): Request.Builder {
-        val authHeader = authTokenManager.authHeader()
-        return if (authHeader != null) header("Authorization", authHeader) else this
-    }
+    private val api = BackendServices(BulletinApi::class.java, client)
 
-    suspend fun fetchTaxonomy(): TaxonomyResponse = getJson("$baseUrl/bulletins/taxonomy")
+    /**
+     * The Bearer Authorization header, signing in first when there is no
+     * session. Without one it throws [org.ntust.app.tigerduck.auth.NotSignedInException]
+     * and the request is not sent.
+     */
+    private suspend fun authHeader(): String = authTokenManager.requireAuthHeader()
+
+    suspend fun fetchTaxonomy(): TaxonomyResponse = getJson { it.taxonomy() }
 
     suspend fun fetchList(
         cursor: Int? = null,
         limit: Int = 30,
         includeDeleted: Boolean = false,
-    ): BulletinListResponse {
-        val url = "$baseUrl/bulletins".toHttpUrl().newBuilder().apply {
-            addQueryParameter("limit", limit.toString())
-            if (cursor != null) addQueryParameter("cursor", cursor.toString())
-            if (includeDeleted) addQueryParameter("include_deleted", "true")
-        }.build()
-        return getJson(url.toString())
-    }
+    ): BulletinListResponse = getJson { it.bulletins(limit, cursor, if (includeDeleted) "true" else null) }
 
-    suspend fun fetchDetail(id: Int): BulletinDetail = getJson("$baseUrl/bulletins/$id")
+    suspend fun fetchDetail(id: Int): BulletinDetail = getJson { it.bulletin(id) }
 
     // v3 subscription CRUD — device_id is implicit via Bearer JWT.
 
     suspend fun fetchSubscriptions(): SubscriptionsListResponse =
-        getJsonAuthed("$baseUrl/bulletin-subscriptions")
+        getJsonAuthed { service, auth -> service.subscriptions(auth) }
 
     suspend fun createSubscription(rule: SubscriptionRule): SubscriptionRule =
         withContext(Dispatchers.IO) {
@@ -95,13 +85,8 @@ class BulletinApiClient @Inject constructor(
                 mode = rule.mode,
                 enabled = rule.enabled,
             )
-            val body = gson.toJson(reqBody).toRequestBody(jsonType)
-            val request = Request.Builder()
-                .url("$baseUrl/bulletin-subscriptions")
-                .post(body)
-                .addAuthHeader()
-                .build()
-            client.newCall(request).execute().use { response ->
+            val service = api.at(baseUrl)
+            service.newSubscription(authHeader(), reqBody).execute().use { response ->
                 val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw BulletinApiException("createSubscription failed: HTTP ${response.code} $text")
@@ -121,13 +106,8 @@ class BulletinApiClient @Inject constructor(
                 mode = rule.mode,
                 enabled = rule.enabled,
             )
-            val body = gson.toJson(reqBody).toRequestBody(jsonType)
-            val request = Request.Builder()
-                .url("$baseUrl/bulletin-subscriptions/$id")
-                .patch(body)
-                .addAuthHeader()
-                .build()
-            client.newCall(request).execute().use { response ->
+            val service = api.at(baseUrl)
+            service.subscription(authHeader(), id, reqBody).execute().use { response ->
                 val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw BulletinApiException("updateSubscription failed: HTTP ${response.code} $text")
@@ -139,12 +119,8 @@ class BulletinApiClient @Inject constructor(
         }
 
     suspend fun deleteSubscription(id: Int) = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url("$baseUrl/bulletin-subscriptions/$id")
-            .delete()
-            .addAuthHeader()
-            .build()
-        client.newCall(request).execute().use { response ->
+        val service = api.at(baseUrl)
+        service.removeSubscription(authHeader(), id, EmptyBody).execute().use { response ->
             if (!response.isSuccessful) {
                 throw BulletinApiException("deleteSubscription failed: HTTP ${response.code}")
             }
@@ -157,35 +133,25 @@ class BulletinApiClient @Inject constructor(
      * `List<LinkedTreeMap<*,*>>` and the cast only blows up later when items
      * are accessed. For parameterised types, deserialize with a `TypeToken`.
      */
-    private suspend inline fun <reified T> getJson(url: String): T =
+    private suspend inline fun <reified T> getJson(crossinline call: (BulletinApi) -> Call): T =
+        withContext(Dispatchers.IO) { parsed(call(api.at(baseUrl))) }
+
+    private suspend inline fun <reified T> getJsonAuthed(crossinline call: (BulletinApi, String) -> Call): T =
         withContext(Dispatchers.IO) {
-            val request = Request.Builder().url(url).get().build()
-            client.newCall(request).execute().use { response ->
-                val text = response.body.string()
-                if (!response.isSuccessful) {
-                    throw BulletinApiException("GET $url failed: HTTP ${response.code}")
-                }
-                if (text.isBlank()) throw BulletinApiException("GET $url: empty body")
-                gson.fromJson(text, T::class.java)
-                    ?: throw BulletinApiException("GET $url: empty body")
-            }
+            val service = api.at(baseUrl)
+            parsed(call(service, authHeader()))
         }
 
-    private suspend inline fun <reified T> getJsonAuthed(url: String): T =
-        withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url(url)
-                .get()
-                .addAuthHeader()
-                .build()
-            client.newCall(request).execute().use { response ->
-                val text = response.body.string()
-                if (!response.isSuccessful) {
-                    throw BulletinApiException("GET $url failed: HTTP ${response.code}")
-                }
-                if (text.isBlank()) throw BulletinApiException("GET $url: empty body")
-                gson.fromJson(text, T::class.java)
-                    ?: throw BulletinApiException("GET $url: empty body")
+    private inline fun <reified T> parsed(call: Call): T {
+        val url = call.request().url.toString()
+        return call.execute().use { response ->
+            val text = response.body.string()
+            if (!response.isSuccessful) {
+                throw BulletinApiException("GET $url failed: HTTP ${response.code}")
             }
+            if (text.isBlank()) throw BulletinApiException("GET $url: empty body")
+            gson.fromJson(text, T::class.java)
+                ?: throw BulletinApiException("GET $url: empty body")
         }
+    }
 }

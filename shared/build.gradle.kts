@@ -8,6 +8,8 @@ android {
 
     defaultConfig {
         minSdk = 29
+        // See consumer-rules.pro: the classes Gson reads and writes, kept in every app.
+        consumerProguardFiles("consumer-rules.pro")
     }
 
     compileOptions {
@@ -22,6 +24,10 @@ android {
 
 dependencies {
     implementation(libs.gson)
+    // Ed25519 for the TLS pin document's signature (PinDocumentVerifier). Conscrypt has no
+    // Ed25519 on every Android version minSdk 29 covers; the lightweight API is used directly,
+    // with no JCA provider installed.
+    implementation(libs.bouncycastle.bcprov)
     // Library QR client is shared so the watch can call api.lib.ntust.edu.tw
     // directly without duplicating the request/response wire schema.
     implementation(libs.okhttp)
@@ -31,4 +37,6 @@ dependencies {
     // LibraryService uses Mutex / Dispatchers / withContext.
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
+    // Hand-made certificates for PinnedTrustManagerTest's local TLS server.
+    testImplementation(libs.okhttp.tls)
 }

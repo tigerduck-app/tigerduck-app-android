@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.network
 
 import okhttp3.HttpUrl
+import org.jsoup.Jsoup
 
 object HtmlParser {
 
@@ -34,6 +35,34 @@ object HtmlParser {
                 (html.contains("name=\"Username\"") && html.contains("name=\"Password\"")) ||
                 (html.contains("name=\"Ecom_User_ID\"") && html.contains("name=\"Ecom_Password\""))
     }
+
+    /**
+     * The message an SSO sign-in page shows after a refused sign-in ("wrong account or
+     * password", a lockout notice), or null when it shows none: the text of the first element of
+     * an error class that has any, nested markup and every item of a validation summary
+     * included, kept to [LOGIN_ERROR_MAX_LENGTH]. Mirrors iOS's
+     * `HTMLParser.loginErrorMessage(in:)`.
+     */
+    fun loginErrorMessage(html: String): String? {
+        val document = Jsoup.parse(html)
+        for (cls in LOGIN_ERROR_CLASSES) {
+            for (element in document.getElementsByClass(cls)) {
+                val text = element.text().trim()
+                if (text.isNotEmpty()) return text.take(LOGIN_ERROR_MAX_LENGTH).trim()
+            }
+        }
+        return null
+    }
+
+    private val LOGIN_ERROR_CLASSES = listOf(
+        "field-validation-error",
+        "validation-summary-errors",
+        "alert-danger",
+        "text-danger",
+    )
+
+    // The school's message is a line or two; anything longer is not one.
+    private const val LOGIN_ERROR_MAX_LENGTH = 200
 
     fun findFormById(html: String, id: String): FormData? {
         val escapedId = Regex.escape(id)

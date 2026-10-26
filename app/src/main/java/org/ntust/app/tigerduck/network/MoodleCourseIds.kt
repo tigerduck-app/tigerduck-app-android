@@ -56,11 +56,12 @@ object MoodleCourseIds {
      * NTUST course numbers as they appear in a Moodle `fullname`. The digit
      * after the letters keeps an all-caps English word in a bilingual title
      * from reading as a course number; the optional leading `3` is the 進修部
-     * form. Matched against whole tokens only — scanning finds `CS3003302`
-     * inside `3CS3003302` and would mint an alias for a course that does not
-     * exist.
+     * form, and `3` with one letter a course taken at NTU or NTNU
+     * ([CourseService.COURSE_NO]'s third head). Matched against whole tokens
+     * only — scanning finds `CS3003302` inside `3CS3003302` and would mint an
+     * alias for a course that does not exist.
      */
-    private val courseNoToken = Regex("3?[A-Z]{2,3}[0-9][A-Z0-9]{5,6}")
+    private val courseNoToken = Regex("(?:3?[A-Z]{2,3}|3[A-Z])[0-9][A-Z0-9]{5,6}")
     private val tokenSeparator = Regex("[^\\p{L}\\p{N}]+")
 
     /** See [MoodleEnrolledCourse.courseNos]. */

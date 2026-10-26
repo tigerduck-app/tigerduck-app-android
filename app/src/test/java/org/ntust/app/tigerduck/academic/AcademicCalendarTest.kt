@@ -14,6 +14,9 @@ class AcademicCalendarTest {
 
     private fun date(text: String) = LocalDate.parse(text)
 
+    private fun days(from: LocalDate, through: LocalDate): Set<LocalDate> =
+        generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(through) }.toSet()
+
     private val calendar = AcademicCalendar(
         revision = 1L,
         terms = listOf(
@@ -83,6 +86,69 @@ class AcademicCalendarTest {
         assertFalse(AcademicCalendar.EMPTY.suppressesClasses(date("2026-09-26"), emptySet()))
     }
 
+    // --- quiet days in a range ------------------------------------------
+
+    @Test
+    fun `quiet days list every day a holiday covers in the term`() {
+        assertEquals(
+            setOf(date("2026-09-25"), date("2026-09-26"), date("2026-09-27")),
+            calendar.quietDays(emptySet(), date("2026-09-07"), date("2026-12-25")),
+        )
+    }
+
+    @Test
+    fun `quiet days leave out an opted-in holiday's days`() {
+        assertTrue(calendar.quietDays(setOf(1), date("2026-09-07"), date("2026-12-25")).isEmpty())
+    }
+
+    @Test
+    fun `quiet days stay inside the asked range`() {
+        assertEquals(
+            setOf(date("2026-09-26"), date("2026-09-27")),
+            calendar.quietDays(emptySet(), date("2026-09-26"), date("2026-12-25")),
+        )
+    }
+
+    @Test
+    fun `quiet days leave out a day an opted-in holiday also covers`() {
+        val overlapping = calendar.copy(
+            holidays = calendar.holidays + Holiday(
+                3, "Anniversary", "Anniversary", date("2026-09-26"), date("2026-09-26")
+            )
+        )
+        assertEquals(
+            setOf(date("2026-09-25"), date("2026-09-27")),
+            overlapping.quietDays(setOf(3), date("2026-09-07"), date("2026-09-30")),
+        )
+    }
+
+    @Test
+    fun `quiet days list every day outside the term`() {
+        // 2026-12-26 on are between the terms, New Year's Day among them even
+        // when opted into.
+        assertEquals(
+            days(date("2026-12-26"), date("2027-01-05")),
+            calendar.quietDays(setOf(2), date("2026-12-20"), date("2027-01-05")),
+        )
+    }
+
+    @Test
+    fun `with no terms known quiet days list only the holidays`() {
+        assertEquals(
+            setOf(date("2027-01-01")),
+            calendar.copy(terms = emptyList())
+                .quietDays(emptySet(), date("2026-12-20"), date("2027-01-05")),
+        )
+    }
+
+    @Test
+    fun `an empty calendar lists no quiet days`() {
+        assertTrue(
+            AcademicCalendar.EMPTY.quietDays(emptySet(), date("2026-09-01"), date("2027-08-31"))
+                .isEmpty()
+        )
+    }
+
     // --- current term --------------------------------------------------
 
     @Test
@@ -125,6 +191,42 @@ class AcademicCalendarTest {
     @Test
     fun `an unknown calendar reads as in session`() {
         assertTrue(AcademicCalendar.EMPTY.isInSession(date("2027-01-20")))
+    }
+
+    // --- quiet days ----------------------------------------------------
+
+    @Test
+    fun `a class day in term is not quiet`() {
+        assertFalse(calendar.isQuietDay(date("2026-10-05"), emptySet()))
+    }
+
+    @Test
+    fun `a holiday the user has not opted back into is quiet`() {
+        assertTrue(calendar.isQuietDay(date("2026-09-25"), emptySet()))
+    }
+
+    @Test
+    fun `a holiday the user opted back into is not quiet`() {
+        assertFalse(calendar.isQuietDay(date("2026-09-25"), setOf(1)))
+    }
+
+    @Test
+    fun `a day outside the term is quiet whatever the user opted into`() {
+        // 元旦 falls between the two terms.
+        assertTrue(calendar.isQuietDay(date("2027-01-01"), setOf(2)))
+        assertTrue(calendar.isQuietDay(date("2027-01-20"), emptySet()))
+    }
+
+    @Test
+    fun `an empty calendar has no quiet day`() {
+        assertFalse(AcademicCalendar.EMPTY.isQuietDay(date("2027-01-20"), emptySet()))
+    }
+
+    @Test
+    fun `quiet days answer for the calendar and opt-ins they were read with`() {
+        assertTrue(date("2026-09-25") in QuietDays(calendar, emptySet()))
+        assertFalse(date("2026-09-25") in QuietDays(calendar, setOf(1)))
+        assertFalse(date("2026-10-05") in QuietDays(calendar, emptySet()))
     }
 
     // --- parsing -------------------------------------------------------

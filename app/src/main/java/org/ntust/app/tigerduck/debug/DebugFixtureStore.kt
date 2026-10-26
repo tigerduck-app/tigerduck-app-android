@@ -13,7 +13,7 @@ import javax.inject.Singleton
  * library sign-in with no demo account.
  *
  * Written by [org.ntust.app.tigerduck.demo.DemoAccount] at the demo sign-in
- * and cleared at sign-out. Only the display sites consult the overrides, so
+ * and cleared at sign-out, all but a demo library signed in ([clearSchool]). Only the display sites consult the overrides, so
  * clearing this one preferences file is all it takes to leave.
  *
  * Backed by its own SharedPreferences file, for the same reason
@@ -83,8 +83,26 @@ class DebugFixtureStore @Inject constructor(
         get() = prefs.getBoolean(KEY_DEMO_MODE, false)
         set(value) = prefs.edit().putBoolean(KEY_DEMO_MODE, value).apply()
 
+    /** The demo courses' announcements the demo account has opened, which stay read across restarts. */
+    var demoMoodleReadIds: Set<Int>
+        get() = prefs.getStringSet(KEY_DEMO_MOODLE_READ, null).orEmpty().mapNotNull { it.toIntOrNull() }.toSet()
+        set(value) = prefs.edit().putStringSet(KEY_DEMO_MOODLE_READ, value.map { it.toString() }.toSet()).apply()
+
     fun clear() {
         prefs.edit().clear().apply()
+    }
+
+    /**
+     * Leaving the demo account, a school sign-out: everything goes but a demo library signed in,
+     * which stays until its own sign-out, as a real library account stays through a school
+     * sign-out.
+     */
+    fun clearSchool() {
+        if (!libraryFakeSignedIn) return clear()
+        // The demo sign-in shows the library under the demo student ID, which goes below.
+        if (libraryUsername == null) libraryUsername = studentIdOverride
+        val library = listOf(KEY_QR_CONTENT, KEY_QR_FAKE_SIGNED_IN, KEY_LIBRARY_USERNAME)
+        prefs.edit().apply { prefs.all.keys.filter { it !in library }.forEach(::remove) }.apply()
     }
 
     private companion object {
@@ -94,5 +112,6 @@ class DebugFixtureStore @Inject constructor(
         const val KEY_QR_FAKE_SIGNED_IN = "library_qr_fake_signed_in"
         const val KEY_LIBRARY_USERNAME = "library_username"
         const val KEY_DEMO_MODE = "demo_mode"
+        const val KEY_DEMO_MOODLE_READ = "demo_moodle_read"
     }
 }

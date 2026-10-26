@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build :app:assemblePlayDebug and adb install to a chosen phone.
-# Optionally also build :wear:assembleDebug and install to a chosen watch.
+# Build :app:assemblePlayDebug and adb install it on the chosen phones.
+# Optionally also build :wear:assembleDebug and install it on the chosen watches.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -9,14 +9,16 @@ source "$SCRIPT_DIR/_lib.sh"
 
 cd "$ROOT_DIR"
 
-phone="$(pick_device phone)"
+choose_devices phone || exit 1
+phones=("${CHOSEN[@]}")
 
-watch=""
-if prompt_yn "Also install wear debug to a paired watch?" n; then
-  watch="$(pick_device watch)"
+watches=()
+if prompt_yn "Also install wear debug on paired watches?" n; then
+  choose_devices watch || exit 1
+  watches=("${CHOSEN[@]}")
 fi
 
-if [[ -n "$watch" ]]; then
+if (( ${#watches[@]} )); then
   echo "==> Building :app:assemblePlayDebug + :wear:assembleDebug"
   ./gradlew :app:assemblePlayDebug :wear:assembleDebug
 else
@@ -25,18 +27,15 @@ else
 fi
 
 phone_apk="$(resolve_apk "$(module_outputs_dir app)/apk/play/debug/app-play-debug*.apk")"
-echo "==> Installing $phone_apk → $phone"
-adb_install "$phone" "org.ntust.app.tigerduck" "$phone_apk"
+install_each "org.ntust.app.tigerduck" "$phone_apk" "${phones[@]}"
 
-if [[ -n "$watch" ]]; then
+if (( ${#watches[@]} )); then
   watch_apk="$(resolve_apk "$(module_outputs_dir wear)/apk/debug/wear-debug*.apk")"
-  echo "==> Installing $watch_apk → $watch"
-  adb_install "$watch" "org.ntust.app.tigerduck" "$watch_apk"
+  # Phone and watch share the same applicationId (org.ntust.app.tigerduck) on play.
+  install_each "org.ntust.app.tigerduck" "$watch_apk" "${watches[@]}"
 fi
 
-# Phone and watch share the same applicationId (org.ntust.app.tigerduck) on play.
-if [[ -n "$watch" ]]; then
-  maybe_preset_clock "$phone" "org.ntust.app.tigerduck" "$watch" "org.ntust.app.tigerduck"
-else
-  maybe_preset_clock "$phone" "org.ntust.app.tigerduck"
-fi
+installed_everywhere=1
+report_failures || installed_everywhere=0
+maybe_preset_clock ${CLOCK_PAIRS[@]+"${CLOCK_PAIRS[@]}"}
+(( installed_everywhere )) || exit 1

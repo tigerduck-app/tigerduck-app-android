@@ -27,12 +27,15 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +51,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.layout.layout
@@ -71,11 +74,13 @@ import androidx.core.os.LocaleListCompat
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
+import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 // import java.text.SimpleDateFormat  // 翹課 (parked) — isSkippedFor's date key
 import java.util.Calendar
@@ -87,18 +92,24 @@ import kotlin.math.roundToInt
 @Composable
 fun TimeSliderSection(
     courses: List<Course>,
+    quietDays: QuietDays,
     invertDirection: Boolean,
     isLoggedIn: Boolean = true,
     initialLoadComplete: Boolean = true,
+    /** Signed out: where its "Sign in" button goes. */
+    onSignIn: () -> Unit = {},
+    /**
+     * The slider's state, the time picked above all. Home holds its own, so the time outlives
+     * the section's turn as an outline while Home is arranged.
+     */
+    viewModel: TimeSliderViewModel = remember { TimeSliderViewModel() },
     // 翹課 — parked until after add-friend. See HomeViewModel._skippedDates.
     // skippedDates: Map<String, List<String>> = emptyMap(),
     // onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
-    onSelectCourse: (Course, String) -> Unit
+    onSelectCourse: (CourseTimeSlot) -> Unit
 ) {
-    val viewModel = remember { TimeSliderViewModel() }
-
-    LaunchedEffect(courses) {
-        viewModel.configure(courses)
+    LaunchedEffect(courses, quietDays) {
+        viewModel.configure(courses, quietDays::contains)
     }
 
     // Tick every second
@@ -183,6 +194,11 @@ fun TimeSliderSection(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
                 )
+                if (!isLoggedIn) {
+                    Button(onClick = onSignIn) {
+                        Text(stringResource(R.string.onboarding_sign_in_button))
+                    }
+                }
             }
         }
     }
@@ -193,7 +209,7 @@ private fun CourseTimeCard(
     state: CourseState,
     // skippedDates: Map<String, List<String>>,
     // onSkipCourse: (Course, Date) -> Unit,
-    onSelect: (Course, String) -> Unit
+    onSelect: (CourseTimeSlot) -> Unit
 ) {
     // val isoFmt = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
     // val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot ->
@@ -232,10 +248,10 @@ private fun CourseTimeCard(
                     state.slots.forEach { slot ->
                         SlotCard(
                             slot = slot,
-                            alpha = 1f,
+                            muted = false,
                             // isSkipped = isSkippedFor(slot),
                             // onSkipToggle = { onSkipCourse(slot.course, slot.date) },
-                            onClick = { onSelect(slot.course, slot.classroom) },
+                            onClick = { onSelect(slot) },
                         )
                     }
                 }
@@ -243,37 +259,37 @@ private fun CourseTimeCard(
                 is CourseState.Between -> {
                     state.previous?.let {
                         SlotCard(
-                            slot = it, alpha = 0.8f,
+                            slot = it, muted = true,
                             // isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                            onClick = { onSelect(it.course, it.classroom) },
+                            onClick = { onSelect(it) },
                         )
                     }
                     state.next?.let {
                         SlotCard(
-                            slot = it, alpha = 0.8f,
+                            slot = it, muted = true,
                             // isSkipped = isSkippedFor(it),
                             // onSkipToggle = { onSkipCourse(it.course, it.date) },
-                            onClick = { onSelect(it.course, it.classroom) },
+                            onClick = { onSelect(it) },
                         )
                     }
                 }
 
                 is CourseState.BeforeFirst -> {
                     SlotCard(
-                        slot = state.next, alpha = 0.8f,
+                        slot = state.next, muted = true,
                         // isSkipped = isSkippedFor(state.next),
                         // onSkipToggle = { onSkipCourse(state.next.course, state.next.date) },
-                        onClick = { onSelect(state.next.course, state.next.classroom) },
+                        onClick = { onSelect(state.next) },
                     )
                 }
 
                 is CourseState.AfterLast -> {
                     SlotCard(
-                        slot = state.previous, alpha = 0.8f,
+                        slot = state.previous, muted = true,
                         // isSkipped = isSkippedFor(state.previous),
                         // onSkipToggle = { onSkipCourse(state.previous.course, state.previous.date) },
-                        onClick = { onSelect(state.previous.course, state.previous.classroom) },
+                        onClick = { onSelect(state.previous) },
                     )
                 }
             }
@@ -344,7 +360,8 @@ private fun Modifier.fillBoundedHeight(): Modifier = layout { measurable, constr
 @Composable
 private fun SlotCard(
     slot: CourseTimeSlot,
-    alpha: Float,
+    // Beside the class the slider is on, rather than on it: a fainter card.
+    muted: Boolean,
     isSkipped: Boolean = false,
     onSkipToggle: (() -> Unit)? = null,
     onClick: () -> Unit,
@@ -458,26 +475,31 @@ private fun SlotCard(
                 .fillBoundedHeight()
         }
 
-        val slotSurface = MaterialTheme.colorScheme.surface
-        val slotLightAlpha = if (alpha >= 1f) 0.50f else 0.35f
-        val slotDarkAlpha = if (alpha >= 1f) 0.55f else 0.40f
-        val slotContainer = if (TigerDuckTheme.isDarkMode) {
-            color.copy(alpha = slotDarkAlpha)
-                .compositeOver(slotSurface)
-        } else {
-            color.copy(alpha = slotLightAlpha)
-        }
+        val style = LocalVisualStylePolicy.current
+        val isDark = TigerDuckTheme.isDarkMode
+        val slotContainer = style.courseCardFill(
+            courseColor = color,
+            tintAlpha = when {
+                isDark -> if (muted) 0.40f else 0.55f
+                else -> if (muted) 0.35f else 0.50f
+            },
+            muted = muted,
+            surface = MaterialTheme.colorScheme.surface,
+            isDark = isDark,
+        )
+        // Also the card's content colour, so its press ripple reads on the fill.
+        val nameColor = style.courseCardTextColor(LocalContentColor.current)
         Card(
             onClick = onClick,
             modifier = cardModifier,
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = slotContainer)
+            colors = CardDefaults.cardColors(containerColor = slotContainer, contentColor = nameColor)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 val metaStyle = MaterialTheme.typography.labelSmall
                 val metaBoldStyle = metaStyle.copy(fontWeight = FontWeight.Bold)
                 val metaColor =
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                    style.courseCardSecondaryTextColor(MaterialTheme.colorScheme.onSurface)
                 if (isToday) {
                     Text(timeRange, style = metaBoldStyle, color = metaColor)
                 } else {
@@ -493,7 +515,7 @@ private fun SlotCard(
                 Text(
                     courseNameForDisplay(slot.course.displayName, maxChars = 30),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = if (isSkipped) Color(0xFFFF2D55) else Color.Unspecified,
+                    color = if (isSkipped) Color(0xFFFF2D55) else nameColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -513,9 +535,12 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
     val context = LocalContext.current
     val density = LocalDensity.current
     val trackHeightDp = TimeSliderViewModel.FLUID_TRACK_HEIGHT.dp
-    var widthPx by remember { mutableStateOf(0f) }
+    var widthPx by remember { mutableFloatStateOf(0f) }
 
     val pxPerDp = with(density) { 1.dp.toPx() }
+    val style = LocalVisualStylePolicy.current
+    val activeOutline = style.timeSliderActiveOutline
+    val activeOutlineWidthPx = with(density) { 1.5.dp.toPx() }
     val a11yLabel = stringResource(R.string.home_time_slider_title)
     val a11ySwipeHint = stringResource(R.string.a11y_time_slider_swipe_hint)
     val selectedTimeLabel = formatTimeLabel(viewModel.selectedTime)
@@ -582,38 +607,50 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                         val isBottom = lane == laneCount - 1
                         val topR = if (isTop) cornerRadiusPx else 0f
                         val bottomR = if (isBottom) cornerRadiusPx else 0f
-                        val shape = androidx.compose.ui.graphics.Path().apply {
+                        // The lane's rounded box, drawn [inset] inside its edges.
+                        fun laneShape(inset: Float) = androidx.compose.ui.graphics.Path().apply {
+                            val topCorner = (topR - inset).coerceAtLeast(0f)
+                            val bottomCorner = (bottomR - inset).coerceAtLeast(0f)
                             addRoundRect(
                                 androidx.compose.ui.geometry.RoundRect(
-                                    left = left,
-                                    top = laneTop,
-                                    right = left + segW,
-                                    bottom = laneTop + laneH,
+                                    left = left + inset,
+                                    top = laneTop + inset,
+                                    right = left + segW - inset,
+                                    bottom = laneTop + laneH - inset,
                                     topLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                                        topR,
-                                        topR
+                                        topCorner,
+                                        topCorner
                                     ),
                                     topRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                                        topR,
-                                        topR
+                                        topCorner,
+                                        topCorner
                                     ),
                                     bottomLeftCornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                                        bottomR,
-                                        bottomR
+                                        bottomCorner,
+                                        bottomCorner
                                     ),
                                     bottomRightCornerRadius = androidx.compose.ui.geometry.CornerRadius(
-                                        bottomR,
-                                        bottomR
+                                        bottomCorner,
+                                        bottomCorner
                                     ),
                                 )
                             )
                         }
                         drawPath(
-                            path = shape,
-                            color = courseColor.copy(
-                                alpha = TigerDuckTheme.tintAlpha(if (isActive) 0.5f else 0.3f)
+                            path = laneShape(0f),
+                            color = style.timeSliderSegmentColor(
+                                courseColor,
+                                tintAlpha = TigerDuckTheme.tintAlpha(if (isActive) 0.5f else 0.3f),
                             ),
                         )
+                        if (isActive && activeOutline != null) {
+                            // Inside the lane, so it stays clear of a 衝堂 lane next to it.
+                            drawPath(
+                                path = laneShape(activeOutlineWidthPx / 2),
+                                color = activeOutline,
+                                style = Stroke(width = activeOutlineWidthPx),
+                            )
+                        }
                     }
                 }
 
@@ -661,7 +698,9 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
 
                 // Glow dot
                 val glowColor = when (val s = viewModel.currentCourseState) {
-                    is CourseState.InClass -> TigerDuckTheme.courseColorVibrant(s.slots.first().course.courseNo)
+                    is CourseState.InClass -> style.timeSliderInClassDotColor(
+                        TigerDuckTheme.courseColorVibrant(s.slots.first().course.courseNo)
+                    )
                     else -> Color.White
                 }
                 val gs = TimeSliderViewModel.GLOW_DOT_SIZE

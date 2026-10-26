@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -13,7 +14,6 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LunchDining
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.MeetingRoom
-import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Payments
@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Translate
 import androidx.compose.ui.graphics.vector.ImageVector
 import org.ntust.app.tigerduck.data.model.AppFeature
 
-@Suppress("DEPRECATION")
 val AppFeature.icon: ImageVector
     get() = when (this) {
         AppFeature.HOME -> Icons.Filled.Home
@@ -31,7 +30,7 @@ val AppFeature.icon: ImageVector
         AppFeature.CALENDAR -> Icons.Filled.CalendarMonth
         AppFeature.ANNOUNCEMENTS -> Icons.Filled.Campaign
         AppFeature.SCHOOL_MAIL -> Icons.Filled.Mail
-        AppFeature.LIBRARY -> Icons.Filled.MenuBook
+        AppFeature.LIBRARY -> Icons.AutoMirrored.Filled.MenuBook
         AppFeature.SCORE -> Icons.Filled.BarChart
         AppFeature.INFORMATION_SYSTEM -> Icons.Filled.AccountBalance
         AppFeature.COURSE_SELECTION -> Icons.Filled.EditNote

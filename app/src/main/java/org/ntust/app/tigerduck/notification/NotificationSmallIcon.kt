@@ -1,0 +1,25 @@
+package org.ntust.app.tigerduck.notification
+
+import androidx.annotation.DrawableRes
+import org.ntust.app.tigerduck.R
+
+/**
+ * The small icon every notification posts with: the duck-yellow brand icon,
+ * its white twin where the yellow would end up in the status bar
+ * ([DeviceSkin.statusBarKeepsColouredSmallIcon]), the yellow one wrapped so
+ * an island that whitens vectors leaves it alone
+ * ([DeviceSkin.islandWhitensVectorSmallIcon]), or the yellow one rendered
+ * to a bitmap for an island that greys anything else
+ * ([DeviceSkin.islandGreysNonBitmapSmallIcon]). Every notification the app
+ * builds gets it from [brandedNotification]. The one it can't, the push
+ * Firebase draws itself, names `ic_notification_white` in the play manifest:
+ * a resource can't vary by skin, and white is right in every status bar.
+ */
+@get:DrawableRes
+val DeviceSkin.notificationSmallIcon: Int
+    get() = when {
+        statusBarKeepsColouredSmallIcon -> R.drawable.ic_notification_white
+        islandWhitensVectorSmallIcon -> R.drawable.ic_notification_wrapped
+        islandGreysNonBitmapSmallIcon -> R.drawable.ic_notification_bitmap
+        else -> R.drawable.ic_notification
+    }

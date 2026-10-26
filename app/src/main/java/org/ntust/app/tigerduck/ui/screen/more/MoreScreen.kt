@@ -4,15 +4,17 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,14 +32,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
-import org.ntust.app.tigerduck.ui.AppState
+import org.ntust.app.tigerduck.data.model.FeatureCategory
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
 import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -45,71 +46,88 @@ import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.ntust.app.tigerduck.ui.navigation.icon
 import org.ntust.app.tigerduck.ui.navigation.toRoute
 
-private val implementedFeatures = setOf(
-    AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR,
-    AppFeature.ANNOUNCEMENTS, AppFeature.SCHOOL_MAIL,
-    AppFeature.LIBRARY, AppFeature.SCORE, AppFeature.INFORMATION_SYSTEM,
-    AppFeature.MORE, AppFeature.SETTINGS
-)
+/**
+ * The cards that open a page rather than "Coming soon". Derived from
+ * [AppFeature.isImplemented], the one place that decides, so shipping a
+ * feature is one edit and More cannot disagree with the tab bar.
+ */
+internal val implementedFeatures: Set<AppFeature> =
+    AppFeature.entries.filter { it.isImplemented }.toSet()
 
-@Composable
-fun MoreScreen(navController: NavController, appState: AppState) {
-    var showNotImplemented by remember { mutableStateOf(false) }
+/** The More page's first section: the pages a tab can show too. */
+private val pageFeatures =
+    listOf(AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR, AppFeature.SCHOOL_MAIL)
 
-    val pageFeatures = listOf(AppFeature.HOME, AppFeature.CLASS_TABLE, AppFeature.CALENDAR, AppFeature.SCHOOL_MAIL)
-
-    val grouped = AppFeature.moreFeatures
-        .filter { feature ->
-            feature !in pageFeatures &&
-                    (!feature.isLibraryRelated || appState.libraryFeatureEnabled)
-        }
+/** The More page's sections after the pages: every other shipped feature, by category. */
+internal fun moreCategorySections(): List<Pair<FeatureCategory?, List<AppFeature>>> =
+    AppFeature.moreFeatures
+        .filter { feature -> feature !in pageFeatures }
         .groupBy { it.category }
         .toList()
         .sortedBy { (cat, _) -> cat?.ordinal ?: 99 }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 32.dp)
-    ) {
-        item {
-            PageHeader(title = stringResource(R.string.feature_more)) {
-                IconButton(
-                    onClick = { navController.navigate(Screen.Settings.route) }
-                ) {
-                    Icon(
-                        Icons.Filled.Settings, stringResource(R.string.feature_settings),
-                        modifier = Modifier.size(28.dp)
-                    )
+@Composable
+fun MoreScreen(navController: NavController) {
+    var showNotImplemented by remember { mutableStateOf(false) }
+
+    val grouped = moreCategorySections()
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val columns = featureGridColumns(maxWidth)
+        val cardSize = rememberFeatureCardSize(
+            labels = (pageFeatures + grouped.flatMap { it.second }).map { stringResource(it.displayNameRes) },
+            gridWidthPx = constraints.maxWidth,
+            columns = columns,
+        )
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            item {
+                PageHeader(title = stringResource(R.string.feature_more)) {
+                    IconButton(
+                        onClick = { navController.navigate(Screen.Settings.route) }
+                    ) {
+                        Icon(
+                            Icons.Filled.Settings, stringResource(R.string.feature_settings),
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
             }
-        }
 
-        // Pages section (first section)
-        item { SectionHeader(title = stringResource(R.string.more_section_pages)) }
-        item {
-            FeatureGrid(
-                features = pageFeatures,
-                implementedFeatures = implementedFeatures,
-                navController = navController,
-                onNotImplemented = { showNotImplemented = true }
-            )
-        }
-
-        grouped.forEachIndexed { index, (category, features) ->
-            item {
-                SectionHeader(
-                    title = category?.let { stringResource(it.displayNameRes) }
-                        ?: stringResource(R.string.more_section_other),
-                    modifier = Modifier.padding(top = 16.dp)
-                )
-            }
+            // Pages section (first section)
+            item { SectionHeader(title = stringResource(R.string.more_section_pages)) }
             item {
                 FeatureGrid(
-                    features = features,
+                    features = pageFeatures,
+                    columns = columns,
+                    cardSize = cardSize,
                     implementedFeatures = implementedFeatures,
                     navController = navController,
                     onNotImplemented = { showNotImplemented = true }
                 )
+            }
+
+            grouped.forEachIndexed { index, (category, features) ->
+                item {
+                    SectionHeader(
+                        title = category?.let { stringResource(it.displayNameRes) }
+                            ?: stringResource(R.string.more_section_other),
+                        modifier = Modifier.padding(top = 16.dp)
+                    )
+                }
+                item {
+                    FeatureGrid(
+                        features = features,
+                        columns = columns,
+                        cardSize = cardSize,
+                        implementedFeatures = implementedFeatures,
+                        navController = navController,
+                        onNotImplemented = { showNotImplemented = true }
+                    )
+                }
             }
         }
     }
@@ -120,26 +138,22 @@ fun MoreScreen(navController: NavController, appState: AppState) {
 }
 
 @Composable
-private fun FeatureGrid(
+internal fun FeatureGrid(
     features: List<AppFeature>,
+    columns: Int,
+    cardSize: FeatureCardSize,
     implementedFeatures: Set<AppFeature>,
     navController: NavController,
     onNotImplemented: () -> Unit
 ) {
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
-    val columns = when {
-        screenWidthDp >= 840 -> 4
-        screenWidthDp >= 600 -> 3
-        else -> 2
-    }
     val rows = features.chunked(columns)
     Column(
-        modifier = Modifier.padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.padding(horizontal = FeatureGridPadding),
+        verticalArrangement = Arrangement.spacedBy(FeatureCardSpacing)
     ) {
         rows.forEach { rowFeatures ->
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(FeatureCardSpacing),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 rowFeatures.forEach { feature ->
@@ -164,7 +178,7 @@ private fun FeatureGrid(
                         interactionSource = interactionSource,
                         modifier = Modifier
                             .weight(1f)
-                            .aspectRatio(1.6f)
+                            .height(cardSize.height)
                             .graphicsLayer {
                                 scaleX = scale
                                 scaleY = scale
@@ -177,20 +191,22 @@ private fun FeatureGrid(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(14.dp),
+                                .padding(FeatureCardPadding),
                             verticalArrangement = Arrangement.SpaceBetween
                         ) {
                             Icon(
                                 imageVector = feature.icon,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
+                                modifier = Modifier.size(FeatureIconSize)
                             )
+                            val label = stringResource(feature.displayNameRes)
                             Text(
-                                text = stringResource(feature.displayNameRes),
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                text = label,
+                                modifier = Modifier.width(cardSize.labelWidth),
+                                style = cardSize.labelStyle(label, featureLabelStyle()),
+                                maxLines = FeatureLabelMaxLines,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }

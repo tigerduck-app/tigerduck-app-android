@@ -1,0 +1,22 @@
+<!doctype html>
+<!--
+  The Office viewer: renders the one document the app serves at /document, with the libraries
+  beside this file, and nothing from the network. The policy below allows scripts from here
+  only (and the import map by its hash), and requests to here only.
+-->
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1000">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'sha256-/51FmOwCzD5Yy2DSKahD3vZ+nr99M/WaQGPLys1cv14='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; media-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<link rel="stylesheet" href="office.css">
+<script src="office-guard.js"></script>
+<script type="importmap">{"imports":{"jszip":"./jszip-shim.js"}}</script>
+<script src="jszip.min.js"></script>
+<script src="docx-preview.min.js"></script>
+<script type="module" src="office.js"></script>
+</head>
+<body>
+<div id="document"></div>
+</body>
+</html>

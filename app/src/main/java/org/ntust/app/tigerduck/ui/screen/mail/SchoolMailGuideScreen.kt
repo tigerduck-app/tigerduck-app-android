@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
@@ -103,7 +104,7 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
                     TextButton(onClick = { failed = false; reloadKey++ }) {
                         Text(stringResource(R.string.action_retry))
                     }
-                    TextButton(onClick = { openMailLink(context, publicGuideUrl, browserPreference) }) {
+                    TextButton(onClick = { openLink(context, publicGuideUrl, browserPreference) }) {
                         Text(stringResource(R.string.school_mail_guide_open_in_browser))
                     }
                 }
@@ -115,7 +116,7 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
                 GuideWebView(
                     url = embedUrl,
                     backgroundColor = cs.background.toArgb(),
-                    onExternalLink = { link -> openMailLink(context, link, browserPreference) },
+                    onExternalLink = { link -> openLink(context, link, browserPreference) },
                     onError = { failed = true },
                     modifier = Modifier.fillMaxSize().padding(padding),
                 )

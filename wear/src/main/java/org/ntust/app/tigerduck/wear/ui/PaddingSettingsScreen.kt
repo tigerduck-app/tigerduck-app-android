@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
@@ -34,22 +36,19 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.Icon
+import androidx.wear.compose.material3.MaterialTheme
 import androidx.wear.compose.material3.IconButton
-import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.SchedulePersistence
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
-import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
-import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 
 @Composable
 fun PaddingSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val repo = remember(context) { SchedulePersistenceHolder.get(context) }
-    val pad = LocalScreenPadding.current
     val scope = rememberCoroutineScope()
 
     val current by repo.paddingDpFlow.collectAsState(initial = SchedulePersistence.DEFAULT_PADDING_DP)
@@ -63,10 +62,6 @@ fun PaddingSettingsScreen(onBack: () -> Unit) {
         if (clamped == current) return
         scope.launch { repo.writePaddingDp(clamped) }
     }
-
-    val range = (SchedulePersistence.MAX_PADDING_DP - SchedulePersistence.MIN_PADDING_DP).toFloat()
-    val progress = if (range == 0f) 0f else
-        (current - SchedulePersistence.MIN_PADDING_DP).toFloat() / range
 
     ScreenScaffold {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -94,7 +89,13 @@ fun PaddingSettingsScreen(onBack: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(start = pad, end = pad, top = 56.dp)
+                    // The default padding, not the one being set: the controls stay put
+                    // while the ring shows the padding.
+                    .padding(
+                        start = SchedulePersistence.DEFAULT_PADDING_DP.dp,
+                        end = SchedulePersistence.DEFAULT_PADDING_DP.dp,
+                        top = 56.dp,
+                    )
                     .onRotaryScrollEvent { event ->
                         val steps = (event.verticalScrollPixels / 120f).toInt()
                         if (steps != 0) {
@@ -122,8 +123,10 @@ fun PaddingSettingsScreen(onBack: () -> Unit) {
                             contentDescription = stringResource(R.string.watch_padding_decrease_cd),
                         )
                     }
-                    LinearProgressIndicator(
-                        progress = { progress },
+                    PaddingBar(
+                        valueDp = current,
+                        minDp = SchedulePersistence.MIN_PADDING_DP,
+                        maxDp = SchedulePersistence.MAX_PADDING_DP,
                         modifier = Modifier
                             .weight(1f)
                             .height(8.dp),
@@ -148,22 +151,31 @@ fun PaddingSettingsScreen(onBack: () -> Unit) {
  */
 @Composable
 private fun PaddingEdgeRing(currentDp: Int, modifier: Modifier = Modifier) {
-    val accent = LocalAccentColor.current
+    val color = MaterialTheme.colorScheme.outline
     val density = LocalDensity.current
     val paddingPx = with(density) { currentDp.dp.toPx() }
     val strokePx = with(density) { 2.dp.toPx() }
     Canvas(modifier = modifier) {
-        val cx = size.width / 2f
-        val cy = size.height / 2f
-        val outerR = minOf(cx, cy)
-        val ringR = (outerR - paddingPx).coerceAtLeast(0f)
-        if (ringR > 0f) {
-            drawCircle(
-                color = accent.copy(alpha = 0.6f),
-                radius = ringR,
-                center = Offset(cx, cy),
-                style = Stroke(width = strokePx),
-            )
-        }
+        drawPaddingEdgeRing(paddingPx, strokePx, color)
+    }
+}
+
+/** [PaddingEdgeRing]'s ring, [paddingPx] inside the largest circle that fits, in [color]. */
+internal fun DrawScope.drawPaddingEdgeRing(
+    paddingPx: Float,
+    strokePx: Float,
+    color: Color,
+) {
+    val center = Offset(size.width / 2f, size.height / 2f)
+    val outerR = minOf(center.x, center.y)
+    val ringR = (outerR - paddingPx).coerceAtLeast(0f)
+    if (ringR > 0f) {
+        drawCircle(
+            color = color,
+            radius = ringR,
+            center = center,
+            alpha = 0.6f,
+            style = Stroke(width = strokePx),
+        )
     }
 }

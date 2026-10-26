@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -25,8 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
-import org.ntust.app.tigerduck.ui.haptics.Haptics
-import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 
 /**
  * Root-level host for the single pending first-trigger prompt. Apply once near
@@ -39,60 +36,77 @@ fun FirstTriggerPromptHost(controller: FirstTriggerPromptController) {
     pending?.let { p ->
         FirstTriggerPromptDialog(
             key = p.key,
-            onKeep = { controller.finish(accept = true) },
-            onTurnOff = { controller.finish(accept = false) },
+            onAccept = { controller.finish(accept = true) },
+            onDecline = { controller.finish(accept = false) },
         )
     }
 }
 
+/**
+ * Whether the [pending] first-trigger prompt may show now: not over What's New
+ * or the update prompt, which it waits for rather than stacking on, as on the
+ * iPhone. The flip-to-library one also waits while the Library page shows,
+ * where it would cover the code: a flip there does not ask, but the debug
+ * Triggers screen's replay can come due on it. Held, it stays pending, and
+ * shows once the page is left.
+ */
+internal fun firstTriggerPromptMayShow(
+    whatsNewShowing: Boolean,
+    updatePromptShowing: Boolean,
+    pending: FirstTriggerPromptKey?,
+    libraryPageShown: Boolean,
+): Boolean =
+    !whatsNewShowing && !updatePromptShowing &&
+        !(pending == FirstTriggerPromptKey.FLIP_TO_LIBRARY && libraryPageShown)
+
 /** Per-key string + animation bundle for a first-trigger prompt. */
-private data class FirstTriggerStrings(
+internal data class FirstTriggerStrings(
     val titleRes: Int,
     val messageRes: Int,
-    val keepRes: Int,
-    val turnOffRes: Int,
+    val acceptRes: Int,
+    val declineRes: Int,
     val accessibilityRes: Int,
 )
 
-private fun stringsFor(key: FirstTriggerPromptKey): FirstTriggerStrings = when (key) {
+/**
+ * The flip-to-library question asks on a flip, in the words of its switch in
+ * Settings, whether to turn the gesture on.
+ */
+internal fun stringsFor(key: FirstTriggerPromptKey): FirstTriggerStrings = when (key) {
     FirstTriggerPromptKey.FLIP_TO_LIBRARY -> FirstTriggerStrings(
         titleRes = R.string.first_trigger_flip_to_library_title,
-        messageRes = R.string.first_trigger_flip_to_library_message,
-        keepRes = R.string.first_trigger_flip_to_library_keep,
-        turnOffRes = R.string.first_trigger_flip_to_library_turn_off,
+        messageRes = R.string.settings_flip_to_library_summary,
+        acceptRes = R.string.first_trigger_flip_to_library_turn_on,
+        declineRes = R.string.permission_warning_action_later,
         accessibilityRes = R.string.first_trigger_phone_flip_accessibility,
     )
 }
 
 /**
- * The flip-to-library opt-in, built on the shared [TigerDuckDialog]: a
- * non-dismissable popup (the user MUST tap Keep or Turn off) whose hero phone
- * glyph flips around its long edge — the motion of laying the phone face-down —
- * to anchor the prompt to the gesture that fired it. Honors the system "remove
+ * The flip-to-library offer, built on the shared [TigerDuckDialog]: a
+ * non-dismissable popup (the user MUST tap one of its two buttons) whose hero
+ * phone glyph flips around its long edge — the motion of laying the phone
+ * face-down — to show the gesture it offers. Honors the system "remove
  * animations" setting.
  */
 @Composable
 private fun FirstTriggerPromptDialog(
     key: FirstTriggerPromptKey,
-    onKeep: () -> Unit,
-    onTurnOff: () -> Unit,
+    onAccept: () -> Unit,
+    onDecline: () -> Unit,
 ) {
     val context = LocalContext.current
     val strings = stringsFor(key)
-
-    // Anchor the prompt to the flip gesture with the same haptic the steady-state
-    // navigation uses, so the prompt is felt as well as seen.
-    LaunchedEffect(Unit) { Haptics.perform(context, HapticScenario.FlipToLibrary) }
 
     TigerDuckDialog(
         onDismissRequest = {},
         dismissable = false,
         title = stringResource(strings.titleRes),
         message = stringResource(strings.messageRes),
-        confirmText = stringResource(strings.keepRes),
-        onConfirm = onKeep,
-        dismissText = stringResource(strings.turnOffRes),
-        onDismiss = onTurnOff,
+        confirmText = stringResource(strings.acceptRes),
+        onConfirm = onAccept,
+        dismissText = stringResource(strings.declineRes),
+        onDismiss = onDecline,
         icon = { PhoneFlipIcon(context, stringResource(strings.accessibilityRes)) },
     )
 }

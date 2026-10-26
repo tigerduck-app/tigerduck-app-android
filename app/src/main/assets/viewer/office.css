@@ -1,0 +1,6 @@
+html, body { margin: 0; background: #e9e9ec; }
+.deck-slide {
+  width: fit-content;
+  margin: 16px auto;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}

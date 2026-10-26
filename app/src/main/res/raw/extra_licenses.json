@@ -37,6 +37,42 @@
       "website": "https://fonts.google.com/icons",
       "note": "The 'menu_book' glyph, redrawn as widget_library_icon.xml because a Glance widget cannot render a Compose ImageVector.",
       "licenseRef": "Apache-2.0"
+    },
+    {
+      "id": "docx-preview",
+      "title": "docx-preview",
+      "licenseName": "Apache License 2.0",
+      "spdxId": "Apache-2.0",
+      "holders": [
+        "Copyright Volodymyr Baydalka"
+      ],
+      "website": "https://github.com/VolodymyrBaydalka/docxjs",
+      "note": "Renders a Word document in the file viewer. Version 0.4.1, shipped unmodified as assets/viewer/docx-preview.min.js.",
+      "licenseRef": "Apache-2.0"
+    },
+    {
+      "id": "jszip",
+      "title": "JSZip",
+      "licenseName": "MIT License",
+      "spdxId": "MIT",
+      "holders": [
+        "Copyright (c) 2009-2016 Stuart Knightley, David Duponchel, Franz Buchinger, António Afonso"
+      ],
+      "website": "https://github.com/Stuk/jszip",
+      "note": "Opens the zip that a Word or PowerPoint document is, for the file viewer. Version 3.10.2, dual-licensed MIT or GPL-3.0-or-later and used under MIT, shipped unmodified as assets/viewer/jszip.min.js.",
+      "licenseRef": "MIT"
+    },
+    {
+      "id": "pptx-to-html",
+      "title": "pptx-to-html",
+      "licenseName": "MIT License",
+      "spdxId": "MIT",
+      "holders": [
+        "Copyright (c) 2025 javier-mora"
+      ],
+      "website": "https://github.com/javier-mora/pptx-to-html",
+      "note": "Renders a PowerPoint deck's slides in the file viewer. Version 1.1.2 (@jvmr/pptx-to-html), shipped unmodified as assets/viewer/pptx-to-html.js.",
+      "licenseRef": "MIT"
     }
   ],
   "holders": {
@@ -45,7 +81,10 @@
     ],
     "androidx.glance:glance-appwidget-external-protobuf": [
       "Copyright 2008 Google Inc. All rights reserved."
+    ],
+    "org.tukaani:xz": [
+      "Copyright (C) The XZ for Java authors and contributors"
     ]
   },
-  "_holders_comment": "Copyright lines the artifact's own metadata omits. AndroidX repackages protobuf without its notice, and the POM names the Android Open Source Project rather than the code's author."
+  "_holders_comment": "Copyright lines the artifact's own metadata omits. AndroidX repackages protobuf without its notice, and the POM names the Android Open Source Project rather than the code's author. XZ for Java's jar carries no licence file, and its COPYING's copyright line is in no metadata."
 }

@@ -27,9 +27,9 @@ enum class FirstTriggerPromptKey(val storageKey: String) {
  * [requestIfFirstTime] calls past the first are dropped silently.
  *
  * Modeled on the iOS `FirstTriggerPromptCenter`. The "seen" flag is written in
- * [finish] on a Keep / Turn-off choice — never on display — so a prompt
- * dismissed by anything other than a deliberate choice re-arms on the next
- * trigger. Treating "shown" as "agreed" would arm a gesture without consent.
+ * [finish] on a tap on one of the prompt's two buttons — never on display — so
+ * a prompt closed any other way is asked again at the next trigger. Treating
+ * "shown" as an answer would answer for the user.
  */
 @Singleton
 class FirstTriggerPromptController @Inject constructor(

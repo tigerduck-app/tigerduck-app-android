@@ -8,8 +8,17 @@ import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
+import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.MoodleCourseIds
+import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
+import org.ntust.app.tigerduck.util.logSummary
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,6 +46,7 @@ class DemoAccount @Inject constructor(
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
     private val appPreferences: AppPreferences,
+    private val importedClassTables: ImportedClassTableStore,
 ) {
     /** Whether the demo account is signed in. Read live: sign-in flips it without a restart. */
     val isActive: Boolean
@@ -76,10 +86,9 @@ class DemoAccount @Inject constructor(
     }
 
     /**
-     * The demo library sign-out. Also run after every real library sign-in,
-     * including the one a real NTUST sign-in makes on the side: otherwise
-     * the library screen goes on showing the demo QR and user name in place
-     * of the real account's.
+     * The demo library sign-out. Also run after every real library sign-in:
+     * otherwise the library screen goes on showing the demo QR and user name
+     * in place of the real account's.
      */
     fun signOutLibrary() {
         store.libraryFakeSignedIn = false
@@ -114,22 +123,66 @@ class DemoAccount @Inject constructor(
         load(currentLang())?.let { write(it) }
     }
 
-    /** Leave the demo account. Part of sign-out, which clears the cached data itself. */
+    /**
+     * Leave the demo account. Part of the school sign-out, which clears the cached data itself; a
+     * demo library signed in stays, as a real library account does, until [signOutLibrary].
+     */
     fun exit() {
-        store.clear()
+        store.clearSchool()
         ServerStatusTracker.exitDemoMode()
+    }
+
+    /**
+     * The demo account's Moodle, which answers from the bundled file; null outside the demo
+     * account, or for a file without a `moodle` section.
+     */
+    fun moodleApi(): MoodleCourseApi? {
+        if (!isActive) return null
+        val moodle = load(currentLang())?.moodle ?: return null
+        return DemoMoodleCourseApi(
+            moodle,
+            readIds = { store.demoMoodleReadIds },
+            markRead = { store.demoMoodleReadIds = store.demoMoodleReadIds + it },
+        )
     }
 
     private suspend fun write(fixture: DemoFixture) {
         fixture.courses?.let { dataCache.saveCourses(it) }
+        // The ids the course detail finds the demo courses' Moodle content under. A course has
+        // no idnumber of its own, so it is looked up as `<term><courseNo>`, as one added by hand.
+        fixture.moodle?.let { moodle ->
+            val term = dataCache.currentSemesterCode()
+            val ids = moodle.courses.associate {
+                MoodleCourseIds.normalizedIdnumber(term + it.courseNo) to it.moodleId
+            }
+            dataCache.saveMoodleCourseIds(dataCache.loadMoodleCourseIds() + ids)
+        }
         fixture.assignments?.let { dataCache.saveAssignments(it) }
+        // The assignments' pages read these, as a round would have kept them.
+        fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty())) }
         fixture.bulletins?.let { bulletinCache.save(it) }
         fixture.calendar?.let { dataCache.saveCalendarEvents(it) }
     }
 
+    /**
+     * The classmates' class tables, imported as their share codes would import them, on the term
+     * the demo courses are in. Called by the demo sign-in once the store knows the demo account
+     * signed in, so another account's leftovers are gone first. Only at sign-in, not on each
+     * start: a classmate the reviewer deleted stays deleted. A sign-out empties them with every
+     * other import.
+     */
+    suspend fun importClassmates() {
+        val fixture = load(currentLang()) ?: return
+        val classmates = fixture.classmates ?: return
+        importDemoClassmates(
+            importedClassTables, dataCache.currentSemesterCode(), classmates,
+            AppClock.instant().truncatedTo(ChronoUnit.MINUTES),
+        )
+    }
+
     private fun load(lang: String): DemoFixture? = runCatching {
         context.assets.open(ASSET).bufferedReader().use { DemoFixture.parse(it.readText(), lang) }
-    }.onFailure { Log.e(TAG, "cannot read $ASSET", it) }.getOrNull()
+    }.onFailure { Log.e(TAG, "cannot read $ASSET: ${it.logSummary()}") }.getOrNull()
 
     /** The language the app is showing, resolved the way push registration resolves it. */
     private fun currentLang(): String {
@@ -143,3 +196,26 @@ class DemoAccount @Inject constructor(
         const val ASSET = "demo.json"
     }
 }
+
+/**
+ * Imports [classmates] into [store] on [semester], each as its share code shared at
+ * [sharedAt] would import it: the course codes NTUST's query can look up, with their details.
+ */
+internal suspend fun importDemoClassmates(
+    store: ImportedClassTableStore,
+    semester: String,
+    classmates: List<DemoFixture.Classmate>,
+    sharedAt: Instant,
+) {
+    for (classmate in classmates) {
+        val courses = classmate.courses.filter { CourseService.isCourseNo(it.courseNo) }
+        val code = ClassTableShareCode(
+            ClassTableShareCode.Format.TIGER_DUCK,
+            classmate.studentId,
+            sharedAt,
+            listOf(ClassTableShareCode.Term(semester, courses.map { it.courseNo })),
+        )
+        store.add(code, classmate.nickname, mapOf(semester to courses))
+    }
+}
+

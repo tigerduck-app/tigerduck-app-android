@@ -1,11 +1,15 @@
 package org.ntust.app.tigerduck.mail
 
 import java.util.Properties
+import javax.net.ssl.SSLSocketFactory
 
 /**
- * Angus Mail settings. The TLS socket factory is deliberately left at the
- * platform default: that is what makes network_security_config.xml's
- * ntust.edu.tw pins cover the mail connection (spec §1.4).
+ * Angus Mail settings. The TLS socket factory, when given, is the app's
+ * [PinnedTls][org.ntust.app.tigerduck.shared.tls.PinnedTls] one: the
+ * platform's trust, so network_security_config.xml's ntust.edu.tw pins
+ * cover the mail connection (spec §1.4), except where the student chose to
+ * continue past them. Left out, Angus takes the platform default, which
+ * checks the same pins with no way past them.
  */
 object MailProperties {
     @Volatile private var systemPropertiesInstalled = false
@@ -36,7 +40,7 @@ object MailProperties {
      * checked for both TLS schemes -- an overridden host is not pinned, so hostname
      * validation is the whole of what stands between it and the wrong certificate.
      */
-    private fun Properties.putSecurity(p: String, endpoint: MailEndpoint) {
+    private fun Properties.putSecurity(p: String, endpoint: MailEndpoint, tls: SSLSocketFactory?) {
         when (endpoint.security) {
             MailTransportSecurity.IMPLICIT_TLS -> put("$p.ssl.checkserveridentity", "true")
             MailTransportSecurity.STARTTLS -> {
@@ -46,9 +50,16 @@ object MailProperties {
             }
             MailTransportSecurity.NONE -> Unit
         }
+        // Angus makes both an implicit TLS connection and a STARTTLS upgrade with this one.
+        if (tls != null && endpoint.security != MailTransportSecurity.NONE) {
+            put("$p.ssl.socketFactory", tls)
+            // Otherwise Angus retries a connection the factory refused, a pin mismatch's
+            // included, with the platform's default factory, which has no pins.
+            put("$p.socketFactory.fallback", "false")
+        }
     }
 
-    fun imap(config: MailServerConfig): Properties {
+    fun imap(config: MailServerConfig, tls: SSLSocketFactory? = null): Properties {
         installSystemProperties()
         val p = "mail.${imapProtocol(config)}"
         return Properties().apply {
@@ -70,11 +81,11 @@ object MailProperties {
             // issues its own UID SEARCH via IMAPFolder.doCommand instead, so a
             // NO always throws. Left set here for defense in depth.
             put("$p.throwsearchexception", "true")
-            putSecurity(p, config.imap)
+            putSecurity(p, config.imap, tls)
         }
     }
 
-    fun smtp(config: MailServerConfig): Properties {
+    fun smtp(config: MailServerConfig, tls: SSLSocketFactory? = null): Properties {
         installSystemProperties()
         val p = "mail.${smtpProtocol(config)}"
         return Properties().apply {
@@ -84,7 +95,7 @@ object MailProperties {
             put("$p.connectiontimeout", "15000")
             put("$p.timeout", "60000")
             put("$p.writetimeout", "60000")
-            putSecurity(p, config.smtp)
+            putSecurity(p, config.smtp, tls)
         }
     }
 }

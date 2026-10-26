@@ -36,7 +36,7 @@ object AssignmentOverrideReconciler {
     /** No override recorded. Also what the server reports for an unknown id. */
     const val STATUS_NONE = "none"
 
-    /** 已忽略 — hidden from the main list, notifications become safety nets. */
+    /** Ignored: hidden from the main list, and no longer reminded. */
     const val STATUS_IGNORED = "ignored"
 
     /** 標示為完成 — user says done, distinct from Moodle's own isCompleted. */
@@ -49,6 +49,9 @@ object AssignmentOverrideReconciler {
     // translated line. Fixing that means a new string key, which is a
     // localization change and not this refactor's business.
     private const val KIND_ASSIGNMENT = "作業"
+
+    /** The re-enable conflict category these overrides belong to. */
+    private const val REENABLE_CATEGORY = "assignments"
 
     /**
      * What this device should end up with, plus anything the user has to
@@ -64,19 +67,26 @@ object AssignmentOverrideReconciler {
     )
 
     /**
-     * True when this device has overrides and the server has none at all.
+     * True when this device has overrides and the server has none at all, on
+     * the account's first sync of them here.
      *
-     * That combination means the account predates override sync (or the
-     * backend was reset), so the correct move is to push local state up
-     * rather than reconcile against an empty server — reconciling would read
-     * every local override as "server says none" and delete it.
+     * That combination means the account predates override sync, so the
+     * correct move is to push local state up rather than reconcile against
+     * an empty server — reconciling would read every local override as
+     * "server says none" and delete it.
+     *
+     * Only before [syncedBefore], though. Once a sync has taken this
+     * account's marks here, a server holding none means they were cleared on
+     * another device, and sending this device's older copy up again would
+     * bring them back everywhere.
      */
     fun isFirstUpload(
+        syncedBefore: Boolean,
         serverIgnored: Set<String>,
         serverCompleted: Set<String>,
         localIgnored: Set<String>,
         localCompleted: Set<String>,
-    ): Boolean = serverIgnored.isEmpty() && serverCompleted.isEmpty() &&
+    ): Boolean = !syncedBefore && serverIgnored.isEmpty() && serverCompleted.isEmpty() &&
         (localIgnored.isNotEmpty() || localCompleted.isNotEmpty())
 
     /**
@@ -178,6 +188,85 @@ object AssignmentOverrideReconciler {
             inFlightIgnored.filter { it in pendingOverrides },
         completed = (serverCompleted - pendingOverrides) +
             inFlightCompleted.filter { it in pendingOverrides },
+        conflicts = emptyList(),
+    )
+
+    /**
+     * The status to send for each id when, with sync back on, the user keeps
+     * this device's overrides: this device's own, then [STATUS_NONE] for an
+     * id only the server marks, which the next full sync would otherwise take
+     * as another device's mark and bring back. With empty server sets only
+     * this device's overrides go, so Use Local falls back to the re-enable
+     * check's snapshot when it cannot read the server again (see
+     * `serverForUseLocal`).
+     */
+    fun keepLocal(
+        localIgnored: Set<String>,
+        localCompleted: Set<String>,
+        serverIgnored: Set<String>,
+        serverCompleted: Set<String>,
+    ): Map<String, String> =
+        localIgnored.associateWith { STATUS_IGNORED } +
+            localCompleted.associateWith { STATUS_COMPLETED } +
+            (serverIgnored + serverCompleted - localIgnored - localCompleted).associateWith { STATUS_NONE }
+
+    /**
+     * Whether a full sync leaves this device's overrides as they are: from
+     * turning the Assignments sync back on until the re-enable check finds
+     * no difference or the user's answer to it has been applied. Taking the
+     * server's set in that window would answer for the user. The account's
+     * one-time first-sync upload ([isFirstUpload]) does not wait for it, on
+     * either app: Home's sync sends it whatever the check says.
+     */
+    fun isHeldForReenable(pendingConflictCategories: Set<String>): Boolean =
+        REENABLE_CATEGORY in pendingConflictCategories
+
+    /**
+     * Why a full sync leaves this device's marks as they are, or null to sync
+     * them. [syncsMarks] is the Assignments sync switch: with it off, the
+     * done and ignored marks are this device's own, as on iOS, and not even
+     * the first-sync upload goes. The re-enable check holds them too, except
+     * from that upload; see [isHeldForReenable].
+     */
+    fun reasonToLeaveMarks(syncsMarks: Boolean, pendingConflictCategories: Set<String>): String? = when {
+        !syncsMarks -> "Assignments sync is off"
+        isHeldForReenable(pendingConflictCategories) -> "re-enable check pending"
+        else -> null
+    }
+
+    /**
+     * Whether the background worker's full sync replaces this device's marks
+     * with the server's. Not with the Assignments switch off or the re-enable
+     * check pending ([reasonToLeaveMarks]), and not on the account's first
+     * sync here with marks the server lacks: the worker sends nothing up, and
+     * leaves them for Home's sync to ([isFirstUpload]).
+     */
+    fun backgroundTakesMarks(
+        syncsMarks: Boolean,
+        pendingConflictCategories: Set<String>,
+        syncedBefore: Boolean,
+        serverIgnored: Set<String>,
+        serverCompleted: Set<String>,
+        localIgnored: Set<String>,
+        localCompleted: Set<String>,
+    ): Boolean = reasonToLeaveMarks(syncsMarks, pendingConflictCategories) == null &&
+        !isFirstUpload(syncedBefore, serverIgnored, serverCompleted, localIgnored, localCompleted)
+
+    /**
+     * This device's marks after the background worker's full sync takes the
+     * server's ([backgroundTakesMarks]): the server's, except marks tapped
+     * here whose PATCH has not landed ([unsent], see `UnsentMarks`, by id),
+     * which take the status the tap set, whether it sets or clears the mark.
+     * The status comes from the waiting mark itself, not from a read of this
+     * device's marks: a tap made after that read would be undone.
+     */
+    fun backgroundMarks(
+        serverIgnored: Set<String>,
+        serverCompleted: Set<String>,
+        unsent: Map<String, String>,
+    ): Outcome = Outcome(
+        ignored = serverIgnored - unsent.keys + unsent.filterValues { it == STATUS_IGNORED }.keys,
+        completed = serverCompleted - unsent.keys + unsent.filterValues { it == STATUS_COMPLETED }.keys,
         conflicts = emptyList(),
     )
 

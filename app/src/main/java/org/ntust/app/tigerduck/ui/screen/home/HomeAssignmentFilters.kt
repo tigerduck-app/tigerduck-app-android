@@ -9,6 +9,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import java.util.Date
+import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
 
@@ -33,18 +34,18 @@ object HomeAssignmentFilters {
     ): List<Assignment> = when (filter) {
         AssignmentFilter.INCOMPLETE ->
             all.filter { !isDone(it, markedCompletedIds) && it.assignmentId !in ignoredIds }
-                .sortedBy { it.dueDate }
+                .sortedBy { it.studentDueDate }
 
         AssignmentFilter.ALL -> {
             // 全部 deliberately includes ignored and done items, matching iOS
             // allCandidates(). Future first (soonest on top), then past (most
             // recently due first).
-            val (future, past) = all.partition { !it.dueDate.before(now) }
-            future.sortedBy { it.dueDate } + past.sortedByDescending { it.dueDate }
+            val (future, past) = all.partition { !it.studentDueDate.before(now) }
+            future.sortedBy { it.studentDueDate } + past.sortedByDescending { it.studentDueDate }
         }
 
         AssignmentFilter.IGNORED ->
-            all.filter { it.assignmentId in ignoredIds }.sortedBy { it.dueDate }
+            all.filter { it.assignmentId in ignoredIds }.sortedBy { it.studentDueDate }
     }
 
     /**
@@ -89,8 +90,6 @@ object HomeAssignmentFilters {
         markedCompletedIds: Set<String>,
     ): Boolean =
         this.courseNo == courseNo &&
-            !isCompleted &&
-            assignmentId !in ignoredIds &&
-            assignmentId !in markedCompletedIds
+            OutstandingAssignments.isOutstanding(this, ignoredIds, markedCompletedIds)
 
 }

@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -33,7 +34,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
+import org.ntust.app.tigerduck.auth.StoredPasswordLatch
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -85,7 +93,56 @@ fun ServerFailureDebugScreen(onBack: () -> Unit) {
                     Text("Reset statuses")
                 }
             }
+
+            Spacer(Modifier.height(8.dp))
+            RefusedPasswordRow()
         }
+    }
+}
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+internal interface RefusedPasswordDebugEntryPoint {
+    fun storedPasswordLatch(): StoredPasswordLatch
+    fun credentialManager(): CredentialManager
+}
+
+/**
+ * Latches the stored-password refusal the school would, which no demo session can get from it,
+ * so the "Automatic sign-in failed" banner can be looked at. Signing in again, or out, lifts it.
+ */
+@Composable
+private fun RefusedPasswordRow() {
+    val context = LocalContext.current
+    val entryPoint = remember(context) {
+        EntryPointAccessors.fromApplication(context.applicationContext, RefusedPasswordDebugEntryPoint::class.java)
+    }
+    val latch = remember(entryPoint) { entryPoint.storedPasswordLatch() }
+    val credentials = remember(entryPoint) { entryPoint.credentialManager() }
+    val rejection by latch.rejection.collectAsState()
+    val signedIn = credentials.ntustStudentId != null && credentials.ntustPassword != null
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text("School refused the stored password", style = MaterialTheme.typography.titleSmall)
+            Text(
+                if (signedIn) "Stops automatic sign-ins and shows the banner" else "Needs a signed-in account",
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Switch(
+            checked = rejection != null,
+            enabled = signedIn || rejection != null,
+            onCheckedChange = { on ->
+                val studentId = credentials.ntustStudentId
+                val password = credentials.ntustPassword
+                if (!on) {
+                    latch.clear()
+                } else if (studentId != null && password != null) {
+                    latch.markRejected(latch.generation, studentId, password, reason = null)
+                }
+            },
+        )
     }
 }
 
@@ -101,6 +158,7 @@ private fun ServerFailureRow(
         ServerKind.MOODLE -> "Moodle"
         ServerKind.COURSE_SELECTION -> "Course Selection"
         ServerKind.BACKEND -> "TigerDuck Backend"
+        ServerKind.LIBRARY -> "Library"
     }
     val statusColor = when (currentStatus) {
         ServerStatus.UNKNOWN -> Color.Gray

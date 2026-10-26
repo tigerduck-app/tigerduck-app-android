@@ -25,9 +25,41 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = listOf(course("A", color = "#FF0000")),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = emptySet(),
         )
         assertEquals("#FF0000", merged.single().customColorHex)
+    }
+
+    /**
+     * Home writes the file the widgets, the Live Update and the watch read, and none of them
+     * looks the rename up again: dropped here, the school's name came back everywhere but the
+     * class table. Looked up as the class table does, in the stored names for the locale.
+     */
+    @Test
+    fun `a rename survives a refresh that does not know it`() {
+        val merged = HomeCourseMerge.mergeRemote(
+            remote = listOf(course("A", name = "Calculus (I)")),
+            cached = listOf(course("A", name = "Calculus (I)")),
+            names = mapOf("A" to mapOf("en" to "Calc")),
+            locale = "en",
+            deletedNos = emptySet(),
+        )
+        assertEquals("Calc", merged.single().displayName)
+    }
+
+    /** "Use Server" in Settings takes a rename out of the stored names; the cached copy goes too. */
+    @Test
+    fun `a rename gone from the stored names goes from the refreshed course`() {
+        val merged = HomeCourseMerge.mergeRemote(
+            remote = listOf(course("A", name = "Calculus (I)")),
+            cached = listOf(course("A", name = "Calculus (I)").copy(customCourseName = "Calc")),
+            names = emptyMap(),
+            locale = "en",
+            deletedNos = emptySet(),
+        )
+        assertEquals("Calculus (I)", merged.single().displayName)
     }
 
     @Test
@@ -35,6 +67,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = listOf(course("A"), course("MINE", manual = true)),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = emptySet(),
         )
         assertEquals(setOf("A", "MINE"), merged.map { it.courseNo }.toSet())
@@ -47,6 +81,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = listOf(course("A"), course("OLD")),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = emptySet(),
         )
         assertEquals(listOf("A"), merged.map { it.courseNo })
@@ -57,6 +93,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A"), course("B")),
             cached = emptyList(),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = setOf("B"),
         )
         assertEquals(listOf("A"), merged.map { it.courseNo })
@@ -70,6 +108,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = listOf(course("MINE", manual = true)),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = setOf("MINE"),
         )
         assertEquals(listOf("A"), merged.map { it.courseNo })
@@ -80,6 +120,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = listOf(course("A", manual = true)),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = emptySet(),
         )
         assertEquals(listOf("A"), merged.map { it.courseNo })
@@ -95,6 +137,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = listOf(course("A", manual = true)),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = emptySet(),
         )
         assertEquals(true, merged.single().isManual)
@@ -105,6 +149,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = listOf(course("A")),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = emptySet(),
         )
         assertEquals(false, merged.single().isManual)
@@ -115,6 +161,8 @@ class HomeCourseMergeTest {
         val merged = HomeCourseMerge.mergeRemote(
             remote = listOf(course("A")),
             cached = emptyList(),
+            names = emptyMap(),
+            locale = "en",
             deletedNos = emptySet(),
         )
         assertEquals(false, merged.single().isManual)

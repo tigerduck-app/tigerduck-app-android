@@ -7,18 +7,23 @@ import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
-import okhttp3.Request
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.model.AcademicCalendarDto
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -45,6 +50,7 @@ class AcademicCalendarStore @Inject constructor(
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private val client = baseClient.newBuilder().build()
+    private val api = BackendServices(AcademicCalendarApi::class.java, client)
     private val gson = Gson()
     private val refreshMutex = Mutex()
 
@@ -55,6 +61,21 @@ class AcademicCalendarStore @Inject constructor(
         MutableStateFlow(loadFromDisk())
     }
     val calendar: StateFlow<AcademicCalendar> get() = _calendar.asStateFlow()
+
+    private val _changes = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /**
+     * Emits when a refresh changes the calendar or the user's holiday opt-ins
+     * change, for the paired watch, which keeps the quiet days it was last
+     * sent and cannot ask this store, and for the empty-classroom finder, which
+     * may have read a day the calendar then takes off. Separate from
+     * [calendar], whose collectors would load the cached payload on every
+     * process start.
+     */
+    val changes: SharedFlow<Unit> = _changes.asSharedFlow()
 
     /**
      * Holidays this user asked to keep hearing about.
@@ -70,6 +91,9 @@ class AcademicCalendarStore @Inject constructor(
      *  coroutine to collect the flow in (alarm receivers, widgets). */
     fun current(): AcademicCalendar = _calendar.value
 
+    /** The days no class meets on, as the calendar and opt-ins now stand. */
+    fun quietDays(): QuietDays = QuietDays(current(), optedInHolidayIds)
+
     /**
      * Re-fetch, cheaply.
      *
@@ -81,14 +105,11 @@ class AcademicCalendarStore @Inject constructor(
      */
     suspend fun refresh(): Boolean = refreshMutex.withLock {
         withContext(Dispatchers.IO) {
-            val url = resolveAnnouncementEndpoint(appPreferences).url.trimEnd('/') +
-                "/calendar/semesters"
-            val builder = Request.Builder().url(url).get()
-                .header("Accept", "application/json")
-            prefs.getString(KEY_ETAG, null)?.let { builder.header("If-None-Match", it) }
+            val base = resolveAnnouncementEndpoint(appPreferences).url
+            val call = api.at(base).semesters("application/json", prefs.getString(KEY_ETAG, null))
 
             runCatching {
-                client.newCall(builder.build()).execute().use { response ->
+                call.execute().use { response ->
                     // This GET carries no account and runs on every app open
                     // whatever the sync setting is, which makes it the one
                     // signal that can tell the status dot whether the backend
@@ -104,11 +125,15 @@ class AcademicCalendarStore @Inject constructor(
                             val parsed = AcademicCalendar.from(
                                 gson.fromJson(body, AcademicCalendarDto::class.java)
                             )
+                            // Read before the write below: a first read loads
+                            // the payload from disk and would see the new one.
+                            val previous = _calendar.value
                             prefs.edit()
                                 .putString(KEY_PAYLOAD, body)
                                 .putString(KEY_ETAG, response.header("ETag"))
                                 .apply()
                             _calendar.value = parsed
+                            if (parsed != previous) _changes.tryEmit(Unit)
                             true
                         }
                         else -> false
@@ -117,7 +142,7 @@ class AcademicCalendarStore @Inject constructor(
             }.getOrElse { e ->
                 if (e is CancellationException) throw e
                 ServerStatusTracker.noteBackendReachable(false)
-                Log.w(TAG, "academic calendar refresh failed", e)
+                Log.w(TAG, "academic calendar refresh failed: ${e.logSummary()}")
                 false
             }
         }
@@ -135,12 +160,15 @@ class AcademicCalendarStore @Inject constructor(
         val next = if (notify) current + holidayId else current - holidayId
         if (next == current) return false
         appPreferences.holidayNotifyOverrides = next
+        _changes.tryEmit(Unit)
         return true
     }
 
     /** Replace the local set from a cloud-sync snapshot. */
     fun applySyncedOverrides(ids: Set<Int>) {
+        val changed = ids != appPreferences.holidayNotifyOverrides
         appPreferences.holidayNotifyOverrides = ids
+        if (changed) _changes.tryEmit(Unit)
     }
 
     private fun loadFromDisk(): AcademicCalendar {
@@ -151,7 +179,7 @@ class AcademicCalendarStore @Inject constructor(
             // A payload this build cannot read is worse than none: it would
             // pin a stale calendar forever. Drop it and let the next refresh
             // repopulate.
-            Log.w(TAG, "cached academic calendar unreadable; discarding", it)
+            Log.w(TAG, "cached academic calendar unreadable; discarding: ${it.logSummary()}")
             prefs.edit().remove(KEY_PAYLOAD).remove(KEY_ETAG).apply()
             AcademicCalendar.EMPTY
         }

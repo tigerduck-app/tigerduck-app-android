@@ -3,19 +3,24 @@ package org.ntust.app.tigerduck.ui.screen.mail
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.MailAccount
-import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.mail.notify.MailMutePreset
+import org.ntust.app.tigerduck.mail.notify.MailMuteRule
+import org.ntust.app.tigerduck.mail.notify.MailMuteSettings
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
+import org.ntust.app.tigerduck.notification.NotificationChannels
+import org.ntust.app.tigerduck.notification.SystemPermissions
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -38,9 +43,8 @@ class SchoolMailSettingsViewModel @Inject constructor(
     private val state: MailStateStore,
     private val scheduler: MailBackgroundScheduler,
     private val exactAlarms: ExactAlarmAccess,
-    private val cache: MailCache,
-    @IoDispatcher private val io: CoroutineDispatcher,
     account: MailAccount,
+    val systemPermissions: SystemPermissions,
 ) : ViewModel() {
     /**
      * The same flag the mail page and the Settings account row read
@@ -52,52 +56,74 @@ class SchoolMailSettingsViewModel @Inject constructor(
      */
     val signedIn: StateFlow<Boolean> = account.signedIn
 
+    /**
+     * Whether the new-mail switch can do anything. Signed out there is nothing to check, and
+     * after the server rejected the password no check runs either (spec §7.4: it is never sent
+     * again), so the switch would look on and do nothing. The stored value still shows.
+     */
+    val notificationsToggleEnabled: StateFlow<Boolean> =
+        combine(account.signedIn, account.authFailed) { signedIn, authFailed -> signedIn && !authFailed }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, account.signedIn.value && !account.authFailed.value)
+
     data class UiState(
         val notificationsEnabled: Boolean,
         val displayName: String,
         val canExactAlarm: Boolean,
         val diagnostics: List<String>,
+        /** The system blocks this app's notifications, or School Mail's channel, so new mail could not be announced. */
+        val notificationsDenied: Boolean,
+        /** Quiet hours and mute rules: which new mail is not notified. */
+        val muteSettings: MailMuteSettings,
     )
 
     private val _ui = MutableStateFlow(read())
     val ui: StateFlow<UiState> = _ui.asStateFlow()
 
-    /**
-     * Bytes under the mail cache root — folder pages, bodies, sources and downloaded
-     * attachments. Null while the first walk is still running, so the row can say "…" instead
-     * of claiming a size it hasn't measured yet.
-     */
-    private val _cacheBytes = MutableStateFlow<Long?>(null)
-    val cacheBytes: StateFlow<Long?> = _cacheBytes.asStateFlow()
-
-    /** Re-read on resume: the exact-alarm grant and the diagnostics change behind the screen. */
+    /** Re-read on resume: the exact-alarm and notification grants and the diagnostics change behind the screen. */
     fun refresh() {
         _ui.value = read().copy(displayName = _ui.value.displayName)
-    }
-
-    /** Walking a directory tree is IO, so the measurement never runs on the main thread. */
-    fun refreshCacheSize() {
-        viewModelScope.launch { _cacheBytes.value = withContext(io) { cache.sizeBytes() } }
-    }
-
-    /**
-     * Deletes the whole cache and re-measures, so the row shows the result rather than the
-     * figure from before. No confirmation on purpose: every byte here is re-downloadable, and
-     * signing out already wipes the same directory.
-     */
-    fun clearCache() {
-        viewModelScope.launch {
-            _cacheBytes.value = withContext(io) {
-                cache.clearAll()
-                cache.sizeBytes()
-            }
-        }
     }
 
     fun setNotifications(enabled: Boolean) {
         state.notificationsEnabled = enabled
         if (enabled) scheduler.schedule() else scheduler.cancel()
         _ui.update { it.copy(notificationsEnabled = enabled) }
+    }
+
+    fun setQuietHoursEnabled(enabled: Boolean) = editMute { it.copy(quietHours = it.quietHours.copy(enabled = enabled)) }
+
+    /** [minute] after midnight on the Taipei clock, as the picker shows it. */
+    fun setQuietHoursStart(minute: Int) = editMute { it.copy(quietHours = it.quietHours.copy(startMinute = minute)) }
+
+    fun setQuietHoursEnd(minute: Int) = editMute { it.copy(quietHours = it.quietHours.copy(endMinute = minute)) }
+
+    /** The last selected day stays: see [org.ntust.app.tigerduck.mail.notify.MailQuietHours.toggling]. */
+    fun toggleQuietDay(day: DayOfWeek) = editMute { it.copy(quietHours = it.quietHours.toggling(day)) }
+
+    fun setPreset(preset: MailMutePreset, on: Boolean) =
+        editMute { it.copy(presets = if (on) it.presets + preset else it.presets - preset) }
+
+    /** [rule] in place of the one with its id, or added last; its value trimmed, and none with nothing to match. */
+    fun saveRule(rule: MailMuteRule) {
+        val saved = rule.copy(value = rule.value.trim())
+        if (saved.value.isEmpty()) return
+        editMute { settings ->
+            val at = settings.rules.indexOfFirst { it.id == saved.id }
+            settings.copy(rules = if (at < 0) settings.rules + saved else settings.rules.toMutableList().apply { set(at, saved) })
+        }
+    }
+
+    fun deleteRule(id: String) = editMute { settings -> settings.copy(rules = settings.rules.filterNot { it.id == id }) }
+
+    /**
+     * Only while a mailbox is signed in: the settings are that student's, and the page greys them
+     * out signed out, as it does the new-mail switch.
+     */
+    private fun editMute(change: (MailMuteSettings) -> MailMuteSettings) {
+        if (!signedIn.value) return
+        val updated = change(state.muteSettings)
+        state.muteSettings = updated
+        _ui.update { it.copy(muteSettings = updated) }
     }
 
     fun setDisplayName(name: String) {
@@ -111,6 +137,8 @@ class SchoolMailSettingsViewModel @Inject constructor(
         displayName = state.displayName.orEmpty(),
         canExactAlarm = exactAlarms.canScheduleExactAlarms(),
         diagnostics = state.diagnostics.mapNotNull(MailDiagnostics::format),
+        notificationsDenied = systemPermissions.notificationsBlocked(NotificationChannels.SCHOOL_MAIL),
+        muteSettings = state.muteSettings,
     )
 
     private companion object {

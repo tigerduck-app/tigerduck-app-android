@@ -1,0 +1,3 @@
+TigerDuck viewer sample.
+臺灣科技大學 課表與作業。
+Line three: 0123456789.

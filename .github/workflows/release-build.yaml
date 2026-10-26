@@ -1,0 +1,149 @@
+name: Release build
+# The six release files, signed with the release key, built on three runners
+# side by side: the phone's Play build, its F-Droid build, and the watch.
+# Release (Auto) and Release (Manual) call this and publish what it uploads.
+# Built in one Gradle run on one runner, 2.4.0's release ran the Kotlin
+# compiler out of memory; apart, each runner compiles one variant.
+#
+# A pull request that changes how a release is built runs it too, signed but
+# uploading nothing, so the change is seen to build before it reaches main,
+# where a release would otherwise run it for the first time. So does a click
+# in the Actions tab, on any branch.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit or tag to build.
+        type: string
+        required: true
+      upload:
+        description: Upload the six files for the calling workflow to publish.
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - .github/workflows/release-build.yaml
+      - .github/workflows/release.yaml
+      - .github/workflows/release-manual.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.leg }}
+    # A pull request from a fork gets no secrets, so it has nothing to sign with.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    strategy:
+      # Every leg runs to the end, so one run shows each leg that fails. A
+      # release publishes only once all three have passed.
+      fail-fast: false
+      matrix:
+        include:
+          - leg: phone (play)
+            tasks: ":app:bundlePlayRelease :app:assemblePlayRelease"
+            apk: app/build/outputs/apk/play/release/app-play-release.apk
+            aab: app/build/outputs/bundle/playRelease/app-play-release.aab
+            name: TigerDuck
+          - leg: phone (fdroid)
+            tasks: ":app:bundleFdroidRelease :app:assembleFdroidRelease"
+            apk: app/build/outputs/apk/fdroid/release/app-fdroid-release.apk
+            aab: app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab
+            name: TigerDuck-fdroid
+          # Play only by construction: :wear has no flavors because it depends
+          # on play-services-wearable, so there is no F-Droid counterpart.
+          - leg: watch
+            tasks: ":wear:bundleRelease :wear:assembleRelease"
+            apk: wear/build/outputs/apk/release/wear-release.apk
+            aab: wear/build/outputs/bundle/release/wear-release.aab
+            name: TigerDuck-Wear
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # A pull request or a click builds what it runs on.
+          ref: ${{ inputs.ref || github.sha }}
+          persist-credentials: false
+          # name-abbr is required by verifyNameAbbrSubmodule; app-translation is
+          # required by the generated-resources contract. Do not drop this.
+          submodules: true
+
+      - name: Set up JDK
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5.0.2
+
+      # Both modules resolve `keystore.jks` relative to their own project dir,
+      # so the one secret is decoded twice. The watch must be signed with the
+      # phone's key: it ships under the same applicationId, and Play rejects a
+      # companion signed with anything else.
+      - name: Decode keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          cp app/keystore.jks wear/keystore.jks
+
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/src/play/google-services.json
+
+      # $TASKS is unquoted on purpose: it is a space-separated task list.
+      # gradle.properties sizes the build for a laptop: a 2 GB heap, which the
+      # Kotlin daemon copies. As ci.yaml's legs do on the same 16 GB runner,
+      # this gives the build 6 GB and the Kotlin daemon 3 GB.
+      - name: Build ${{ matrix.leg }}
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          TASKS: ${{ matrix.tasks }}
+        run: >-
+          ./gradlew
+          -Dorg.gradle.jvmargs="-Xmx6g -Dfile.encoding=UTF-8"
+          -Pkotlin.daemon.jvmargs=-Xmx3g
+          $TASKS
+
+      # An unsigned build would land as *-release-unsigned.apk, and this mv
+      # would fail the leg, which is the intended signal.
+      - name: Collect ${{ matrix.name }}.apk and .aab
+        env:
+          APK: ${{ matrix.apk }}
+          AAB: ${{ matrix.aab }}
+          NAME: ${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          mv "$APK" "dist/${NAME}.apk"
+          mv "$AAB" "dist/${NAME}.aab"
+          ls -l dist
+
+      # Only for a release to publish. A pull request's or a click's signed
+      # files stay on the runner: a downloadable build signed with the release
+      # key that no release published is not one to hand out.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: inputs.upload
+        with:
+          name: release-${{ matrix.name }}
+          path: dist/
+          if-no-files-found: error
+          # "Re-run failed jobs" builds a failed leg again under the same name.
+          overwrite: true
+          # As long as GitHub lets a run's failed jobs be re-run, so a publish
+          # that failed can be retried from these files without a rebuild.
+          retention-days: 30
+
+      - name: Clean up secrets
+        if: always()
+        run: |
+          rm -f app/keystore.jks
+          rm -f wear/keystore.jks
+          rm -f app/src/play/google-services.json

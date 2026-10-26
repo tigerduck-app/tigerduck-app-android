@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.wear.compose.foundation.pager.HorizontalPager
@@ -41,13 +42,16 @@ import org.ntust.app.tigerduck.wear.ui.SettingsListScreen
 import org.ntust.app.tigerduck.wear.ui.TodayScreen
 import org.ntust.app.tigerduck.wear.ui.theme.WearTheme
 import org.ntust.app.tigerduck.wear.ui.theme.parseAccent
+import org.ntust.app.tigerduck.wear.ui.theme.wearAccentGradient
 
 @Composable
 fun WearApp() {
     val context = LocalContext.current
     val repo = SchedulePersistenceHolder.get(context)
     val snapshot by repo.flow.collectAsState(
-        initial = WatchSnapshot(emptyList(), SchedulePersistence.DEFAULT_ACCENT, null, false, null)
+        initial = WatchSnapshot(
+            emptyList(), SchedulePersistence.DEFAULT_ACCENT, null, false, null, emptySet(),
+        )
     )
     val paddingDp by repo.paddingDpFlow.collectAsState(initial = SchedulePersistence.DEFAULT_PADDING_DP)
 
@@ -61,20 +65,30 @@ fun WearApp() {
     }
 
     // Re-apply the phone's chosen locale when it changes mid-session.
-    // attachBaseContext on the next instance will read the persisted tag and
-    // apply it; recreating the activity is the cleanest way to swap locale
-    // without rebuilding compose state by hand.
+    // attachBaseContext on the next instance applies the start-up copy of the
+    // tag; recreating the activity is the cleanest way to swap locale without
+    // rebuilding compose state by hand. WearLocaleSwitch keeps it from looping.
     val activity = context.findActivity()
+    val configuration = LocalConfiguration.current
     LaunchedEffect(snapshot.languageTag) {
-        val tag = snapshot.languageTag ?: return@LaunchedEffect
-        val current = context.resources.configuration.locales[0]?.toLanguageTag() ?: ""
-        if (current.equals(tag, ignoreCase = true)) return@LaunchedEffect
+        val tag = snapshot.languageTag
+        val switch = WearLocaleSwitch.process
+        if (switch.step(tag, configuration.locales[0]?.toLanguageTag()) != WearLocaleSwitch.Step.Recreate) {
+            return@LaunchedEffect
+        }
+        // False when a newer sync changed the language meanwhile: its own run of this effect decides.
+        if (tag == null || !repo.syncLanguageTag(tag)) return@LaunchedEffect
+        switch.recreating(tag)
         activity?.recreate()
     }
 
     val navController = rememberSwipeDismissableNavController()
 
-    WearTheme(accent = parseAccent(snapshot.accentHex), paddingDp = paddingDp) {
+    WearTheme(
+        accent = parseAccent(snapshot.accentHex),
+        accentGradient = wearAccentGradient(snapshot.accentEndHex, snapshot.accentDirection),
+        paddingDp = paddingDp,
+    ) {
         AppScaffold {
             SwipeDismissableNavHost(
                 navController = navController,

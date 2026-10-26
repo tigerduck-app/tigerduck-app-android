@@ -25,12 +25,13 @@ import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
 import androidx.wear.compose.material3.ListHeader
 import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
-import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.TodayClassEntry
 import org.ntust.app.tigerduck.shared.TodayClassStatus
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
+import org.ntust.app.tigerduck.wear.ui.theme.WatchCardStyle
+import org.ntust.app.tigerduck.wear.ui.theme.courseCardColors
 import org.ntust.app.tigerduck.wear.ui.theme.wearCourseColor
 
 @Composable
@@ -41,8 +42,9 @@ fun TodayScreen(
     val pad = LocalScreenPadding.current
     // Tick once a minute so a class transitioning to Ended (and losing its
     // Ongoing highlight) refreshes without the user navigating away.
-    val (weekday, minuteOfDay) = currentTaipeiTick()
-    val entries = NextClassResolver.todaysClasses(snapshot.courses, weekday, minuteOfDay)
+    val (today, minuteOfDay) = currentTaipeiTick()
+    val entries = snapshot.todaysClasses(today, minuteOfDay)
+    val cardStyle = WatchCardStyle.fromVisualPreset(snapshot.visualPreset)
     val listState = rememberScalingLazyListState()
 
     ScreenScaffold(scrollState = listState) {
@@ -65,7 +67,7 @@ fun TodayScreen(
                 }
             } else {
                 items(entries, key = { it.course.courseNo + it.firstPeriodId }) { entry ->
-                    TodayRow(entry = entry, onClick = { onRowClick(entry.course.courseNo) })
+                    TodayRow(entry = entry, style = cardStyle, onClick = { onRowClick(entry.course.courseNo) })
                 }
             }
         }
@@ -73,9 +75,11 @@ fun TodayScreen(
 }
 
 @Composable
-private fun TodayRow(entry: TodayClassEntry, onClick: () -> Unit) {
+private fun TodayRow(entry: TodayClassEntry, style: WatchCardStyle, onClick: () -> Unit) {
     val courseColor = wearCourseColor(entry.course)
-    val baseAlpha = if (entry.status == TodayClassStatus.Ended) 0.4f else 1f
+    val ended = entry.status == TodayClassStatus.Ended
+    // A TAT row that's over steps back with a paler pastel instead, its text still dark.
+    val baseAlpha = if (ended && style == WatchCardStyle.Tint) 0.4f else 1f
     // iOS WatchVisualStylePolicy (TigerDuck preset) tints every row's
     // background with the course's own color so back-to-back rows stay
     // distinguishable; the ongoing row simply lifts the alpha to mark it
@@ -85,12 +89,13 @@ private fun TodayRow(entry: TodayClassEntry, onClick: () -> Unit) {
         TodayClassStatus.Upcoming -> 0.12f
         TodayClassStatus.Ended -> 0.08f
     }
+    val colors = courseCardColors(style, courseColor, tintAlpha = bgAlpha, muted = ended)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(courseColor.copy(alpha = bgAlpha))
+            .background(colors.fill)
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp)
             .alpha(baseAlpha),
@@ -100,14 +105,15 @@ private fun TodayRow(entry: TodayClassEntry, onClick: () -> Unit) {
                 Modifier
                     .width(3.dp)
                     .height(28.dp)
-                    .background(courseColor)
+                    .background(colors.emphasis)
             )
             Spacer(Modifier.width(6.dp))
         }
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(text = entry.course.displayName, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = entry.course.displayName, color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
-                text = "${entry.course.classroom(entry.weekday)} · ${formatHm(entry.startMinute)}–${
+                color = colors.secondaryText,
+                text = "${entry.classroom} · ${formatHm(entry.startMinute)}–${
                     formatHm(
                         entry.endMinute
                     )

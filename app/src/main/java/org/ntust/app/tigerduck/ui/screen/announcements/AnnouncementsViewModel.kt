@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.announcements
 
+import android.os.SystemClock
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,16 +19,69 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.util.AppReturns
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.BulletinRepository
+import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.cache.BulletinCache
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
+import org.ntust.app.tigerduck.util.logSummary
 import java.time.Instant
 import javax.inject.Inject
+
+/**
+ * When the announcement list fetches on its own — see [RefreshPolicy]. The
+ * default: on the first visit after launch only. Bulletins arrive a few a
+ * day, and the ones a user subscribes to are pushed.
+ */
+internal val AnnouncementsRefreshPolicy = RefreshPolicy()
+
+/**
+ * The empty list's title and message. With bulletins loaded but none shown, a filter, a search or
+ * unread only is what hid them, and the message says nothing matches rather than that there is
+ * nothing at all.
+ */
+internal fun bulletinEmptyText(hasItems: Boolean, unreadOnly: Boolean, hasActiveFilter: Boolean): Pair<Int, Int> = when {
+    !hasItems -> R.string.bulletin_no_bulletins_title to R.string.bulletin_no_bulletins_message
+    else -> (if (unreadOnly) R.string.bulletin_no_unread_title else R.string.bulletin_no_bulletins_title) to
+        (if (unreadOnly || hasActiveFilter) R.string.bulletin_no_match_message else R.string.bulletin_no_bulletins_message)
+}
+
+internal enum class BulletinPlaceholder { EMPTY, FAILED }
+
+/**
+ * What stands in for an empty list, or null for none: the failure only while there are no
+ * bulletins at all -- bulletins a filter or search hides are still there, and saying the load
+ * failed would hide that it was the filter -- and the empty state once a load has answered or
+ * bulletins are in hand.
+ */
+internal fun bulletinPlaceholder(hasItems: Boolean, hasDisplayed: Boolean, loadState: AnnouncementsViewModel.LoadState): BulletinPlaceholder? = when {
+    hasDisplayed -> null
+    !hasItems && loadState is AnnouncementsViewModel.LoadState.Failed -> BulletinPlaceholder.FAILED
+    hasItems || loadState is AnnouncementsViewModel.LoadState.Loaded -> BulletinPlaceholder.EMPTY
+    else -> null
+}
+
+/**
+ * Whether a bulletin answers the search [text]: its title as shown, its original title -- the
+ * shown one may have been cleaned up past the wording someone remembers -- or its summary.
+ */
+internal fun BulletinSummary.matchesSearch(text: String): Boolean =
+    displayTitle.contains(text, ignoreCase = true) ||
+        title.contains(text, ignoreCase = true) ||
+        summary?.contains(text, ignoreCase = true) == true
+
+/** How long the app may sit in the background before the bulletin search is cleared on return. */
+internal const val BULLETIN_SEARCH_RESET_MS = 5 * 60_000L
+
+/** Whether coming back after [awayMs] in the background clears the search. */
+internal fun bulletinSearchResets(awayMs: Long): Boolean = awayMs > BULLETIN_SEARCH_RESET_MS
 
 /**
  * Drives AnnouncementsScreen. Ports BulletinsViewModel.swift faithfully:
@@ -36,11 +91,14 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class AnnouncementsViewModel @Inject constructor(
+    private val savedState: SavedStateHandle,
     private val api: BulletinApiClient,
     private val cache: BulletinCache,
     private val repository: BulletinRepository,
     private val readState: BulletinReadStateStore,
-    private val prefs: AppPreferences,
+    private val demoAccount: DemoAccount,
+    private val credentials: CredentialManager,
+    appReturns: AppReturns,
 ) : ViewModel() {
 
 
@@ -70,26 +128,50 @@ class AnnouncementsViewModel @Inject constructor(
          * readIds ticks don't re-run the filter pass on every read.
          */
         val displayed: List<BulletinSummary> = emptyList(),
+        /** For the sync dot's "Last synced" row; see [BulletinCache.loadFetchedAt]. */
+        val syncedAtMs: Long = 0L,
     ) {
         val hasUnread: Boolean
             get() = filtered.any { it.id !in readIds }
+
+        /** A department, category or search narrows the list, so an empty one has hidden bulletins. */
+        val hasActiveFilter: Boolean
+            get() = selectedOrgs.isNotEmpty() || selectedTags.isNotEmpty() || searchText.isNotBlank()
     }
 
     private val _state = MutableStateFlow(
-        // Seed selectedOrgs synchronously from prefs so the first applyFilters()
-        // pass (from cache seed in load()) already respects the remembered
-        // filter — avoids a flash of unfiltered cached items.
-        State(
-            selectedOrgs = if (prefs.rememberAnnouncementFilter) {
-                prefs.savedAnnouncementOrgs
-            } else emptySet()
-        )
+        // A return visit finds the department list in memory, so the chips are
+        // there from the first frame, with whatever this entry saved; a first
+        // visit waits for fetchTaxonomyOnce(). A new entry has nothing saved,
+        // so its filters start empty.
+        repository.taxonomy().let {
+            State(taxonomy = it, selectedOrgs = savedOrgs(it), selectedTags = savedTags(it))
+        }
     )
     val state: StateFlow<State> = _state.asStateFlow()
+
+    /**
+     * Counts the searches cleared on the app's return ([BULLETIN_SEARCH_RESET_MS]), for the screen
+     * to drop the search field's focus along with its text.
+     */
+    private val _searchResets = MutableStateFlow(0)
+    val searchResets: StateFlow<Int> = _searchResets.asStateFlow()
 
     init {
         readState.readIds
             .onEach { ids -> _state.update { withDisplayed(it.copy(readIds = ids)) } }
+            .launchIn(viewModelScope)
+        // A search left behind for more than five minutes in the background is cleared, so coming
+        // back later does not open on a stale filtered list; a quick switch to another app keeps
+        // it. The whole app's coming and going, not the list screen's: the app can be left from a
+        // bulletin's own page, where the list is not on screen to notice.
+        appReturns.returns
+            .onEach { away ->
+                if (bulletinSearchResets(away) && _state.value.searchText.isNotEmpty()) {
+                    setSearch("")
+                    _searchResets.update { it + 1 }
+                }
+            }
             .launchIn(viewModelScope)
     }
 
@@ -109,11 +191,39 @@ class AnnouncementsViewModel @Inject constructor(
         hasLoaded = true
         viewModelScope.launch {
             val cached = cache.load()
+            val fetchedAt = cache.loadFetchedAt()
+            _state.update { it.copy(syncedAtMs = fetchedAt) }
             if (cached.isNotEmpty()) {
                 repository.putSummaries(cached)
                 _state.update { applyFilters(it.copy(items = sortedUnique(cached))) }
             }
-            refresh()
+            // This view model is rebuilt on every visit, so each visit used
+            // to refetch the first page and prefetch five more behind it,
+            // only to replace the cached list with the same list. A return
+            // the policy does not fetch for keeps what the last refresh
+            // saved, and picks the cursor up where it stopped.
+            val session = repository.listSession(_state.value.showDeleted)
+            val policy = AnnouncementsRefreshPolicy
+            val fetch = when {
+                // Nothing to show: there is no list to keep.
+                cached.isEmpty() -> true
+                // The first visit since the app started.
+                session == null -> policy.onLaunch
+                else -> policy.onRevisit && RefreshPolicy.hasPassed(
+                    session.fetchedAtMs, SystemClock.elapsedRealtime(), policy.minInterval,
+                )
+            }
+            if (fetch) {
+                refresh()
+            } else {
+                // Without a session (a policy that skips the launch) there is
+                // no cursor either, so the cached list does not page on until
+                // a pull.
+                nextCursor = session?.nextCursor
+                _state.update {
+                    it.copy(loadState = LoadState.Loaded, hasMore = session?.nextCursor != null)
+                }
+            }
             launch {
                 try {
                     fetchTaxonomyOnce()
@@ -123,7 +233,7 @@ class AnnouncementsViewModel @Inject constructor(
                     // Taxonomy is decorative (org/tag labels); the list works
                     // without it. Still log — a permanently failing taxonomy
                     // endpoint would otherwise be invisible.
-                    android.util.Log.w("AnnouncementsVM", "Taxonomy fetch failed", e)
+                    android.util.Log.w("AnnouncementsVM", "Taxonomy fetch failed: ${e.logSummary()}")
                 }
             }
         }
@@ -134,10 +244,42 @@ class AnnouncementsViewModel @Inject constructor(
         val tax = repository.getOrFetchTaxonomy {
             runCatching { api.fetchTaxonomy() }.getOrNull()
         } ?: return
-        _state.update { it.copy(taxonomy = tax) }
+        _state.update {
+            applyFilters(it.copy(taxonomy = tax, selectedOrgs = savedOrgs(tax), selectedTags = savedTags(tax)))
+        }
+    }
+
+    /**
+     * The departments this back-stack entry has selected, from [savedState]: a
+     * selection belongs to the visit that made it, and when Android kills the
+     * process while a bulletin is open, Back arrives in a recreated view model
+     * that would otherwise start empty. None until the department list has
+     * loaded, and only those it still lists — a filter with no chip on screen
+     * to show it or turn it off is what this keeps out. A new entry has nothing
+     * saved; its filters start empty, as the Remember bulletin filters option
+     * once stopped doing (#376).
+     */
+    private fun savedOrgs(taxonomy: TaxonomyResponse?): Set<String> =
+        savedIds(KEY_SELECTED_ORGS, taxonomy?.orgs?.map { it.id })
+
+    /** The categories this entry has selected; see [savedOrgs]. */
+    private fun savedTags(taxonomy: TaxonomyResponse?): Set<String> =
+        savedIds(KEY_SELECTED_TAGS, taxonomy?.tags?.map { it.id })
+
+    private fun savedIds(key: String, known: List<String>?): Set<String> {
+        if (known == null) return emptySet()
+        val saved = savedState.get<Array<String>>(key) ?: return emptySet()
+        return saved.toSet() intersect known.toSet()
     }
 
     fun refresh() {
+        // The demo account's bulletins are the ones its sign-in cached, and
+        // DemoModeInterceptor refuses the fetch: the cached list is the loaded
+        // one, with no page behind it, rather than a refresh that can only fail.
+        if (demoAccount.isActive) {
+            _state.update { it.copy(loadState = LoadState.Loaded, hasMore = false) }
+            return
+        }
         inflight?.cancel()
         prefetch?.cancel()
         loadMoreJob?.cancel()
@@ -147,6 +289,8 @@ class AnnouncementsViewModel @Inject constructor(
             // can't desync the fetch filter from the UI state.
             val includeDeleted = _state.value.showDeleted
             _state.update { it.copy(loadState = LoadState.Loading, isPaginating = false) }
+            // The school account as it is now; a page that arrives for another is dropped.
+            val account = credentials.schoolAccountGeneration
             try {
                 val response = api.fetchList(
                     cursor = null,
@@ -156,6 +300,10 @@ class AnnouncementsViewModel @Inject constructor(
                 // call: writing nextCursor / items here would overwrite the
                 // newer refresh that triggered our cancellation.
                 coroutineContext.ensureActive()
+                if (droppedAfterSignOut(account)) return@launch
+                // Wall clock, for the "Last synced" row and across restarts;
+                // the session's elapsedRealtime below is neither.
+                val fetchedAt = System.currentTimeMillis()
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -165,10 +313,14 @@ class AnnouncementsViewModel @Inject constructor(
                             items = merged,
                             loadState = LoadState.Loaded,
                             hasMore = response.nextCursor != null,
+                            syncedAtMs = fetchedAt,
                         )
                     )
                 }
-                cache.save(merged)
+                if (!saveUnlessSignedOut(merged, fetchedAt, account)) return@launch
+                repository.listRefreshed(
+                    SystemClock.elapsedRealtime(), includeDeleted, response.nextCursor,
+                )
                 // Only prune when the cursor chain is exhausted — pruning on the
                 // first page would drop read-IDs for older bulletins not yet
                 // fetched (e.g., after Auto Backup restore on reinstall).
@@ -208,6 +360,7 @@ class AnnouncementsViewModel @Inject constructor(
             // legitimately a "load more" tap.
             var pages = 0
             var latest: List<BulletinSummary>? = null
+            val account = credentials.schoolAccountGeneration
             while (pages < 5 && nextCursor != null) {
                 pages++
                 delay(150)
@@ -220,6 +373,7 @@ class AnnouncementsViewModel @Inject constructor(
                     break
                 }
                 coroutineContext.ensureActive()
+                if (droppedAfterSignOut(account)) return@launch
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -236,7 +390,9 @@ class AnnouncementsViewModel @Inject constructor(
             }
             // Persist the final merged snapshot once when the prefetch chain
             // settles, instead of rewriting summaries.json on every page.
-            latest?.let { cache.save(it) }
+            latest?.let {
+                if (saveUnlessSignedOut(it, null, account)) repository.listAdvanced(includeDeleted, nextCursor)
+            }
         }
     }
 
@@ -255,9 +411,11 @@ class AnnouncementsViewModel @Inject constructor(
         prefetch?.cancel()
         _state.update { it.copy(isPaginating = true) }
         loadMoreJob = viewModelScope.launch {
+            val account = credentials.schoolAccountGeneration
             try {
                 val response = api.fetchList(cursor = cursor, includeDeleted = s.showDeleted)
                 coroutineContext.ensureActive()
+                if (droppedAfterSignOut(account)) return@launch
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -270,7 +428,8 @@ class AnnouncementsViewModel @Inject constructor(
                         )
                     )
                 }
-                cache.save(merged)
+                if (!saveUnlessSignedOut(merged, null, account)) return@launch
+                repository.listAdvanced(s.showDeleted, response.nextCursor)
                 if (response.nextCursor == null) {
                     val ids = merged.map { it.id }
                     readState.prune(ids)
@@ -285,17 +444,56 @@ class AnnouncementsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Whether a school sign-out has come since [account] was read from
+     * [CredentialManager.schoolAccountGeneration], before a fetch. The sign-out clears the cached
+     * list and its date ([org.ntust.app.tigerduck.auth.AuthService.logout]); a page that arrives
+     * after it would write them back, and the departing student's list would be the next one's
+     * first paint. Bulletins are public, but the sign-out is still where the list is let go of.
+     * So the page is dropped and the list starts over: the next visit reads the cleared cache,
+     * then the feed, as on the iPhone. The write to the cache that follows a page let through
+     * asks again, under the cache's lock; see [saveUnlessSignedOut].
+     */
+    private fun droppedAfterSignOut(account: Int): Boolean {
+        if (credentials.isSchoolAccount(account)) return false
+        startOver()
+        return true
+    }
+
+    /**
+     * Writes the list, and its date when given, unless a sign-out has come since [account] was
+     * read -- asked under the cache's lock, which the sign-out's clear takes too, so the check
+     * [droppedAfterSignOut] made a moment earlier cannot be overtaken between it and the write.
+     * Refused, the list starts over as there.
+     */
+    private suspend fun saveUnlessSignedOut(items: List<BulletinSummary>, fetchedAt: Long?, account: Int): Boolean {
+        if (cache.saveIf(items, fetchedAt) { credentials.isSchoolAccount(account) }) return true
+        startOver()
+        return false
+    }
+
+    /** Back to before the first visit: nothing in memory, and [load] seeds from the cache again. */
+    private fun startOver() {
+        prefetch?.cancel()
+        loadMoreJob?.cancel()
+        nextCursor = null
+        hasLoaded = false
+        _state.update {
+            applyFilters(
+                it.copy(items = emptyList(), loadState = LoadState.Idle, isPaginating = false, hasMore = true, syncedAtMs = 0L)
+            )
+        }
+    }
+
     fun setOrgFilter(orgs: Set<String>) {
-        // Always persist — the AppState setter for rememberAnnouncementFilter
-        // clears this key when the toggle goes false, so writing here can't
-        // accidentally revive a stale selection. Restore on launch is gated
-        // by the toggle (see _state initializer).
-        prefs.savedAnnouncementOrgs = orgs
+        savedState[KEY_SELECTED_ORGS] = orgs.toTypedArray()
         _state.update { applyFilters(it.copy(selectedOrgs = orgs)) }
     }
 
-    fun setTagFilter(tags: Set<String>) =
+    fun setTagFilter(tags: Set<String>) {
+        savedState[KEY_SELECTED_TAGS] = tags.toTypedArray()
         _state.update { applyFilters(it.copy(selectedTags = tags)) }
+    }
 
     fun setSearch(text: String) =
         _state.update { applyFilters(it.copy(searchText = text)) }
@@ -324,11 +522,7 @@ class AnnouncementsViewModel @Inject constructor(
             .filter {
                 s.selectedTags.isEmpty() || it.contentTags.any { tag -> tag in s.selectedTags }
             }
-            .filter {
-                if (text.isEmpty()) true
-                else it.displayTitle.contains(text, ignoreCase = true) ||
-                        it.summary?.contains(text, ignoreCase = true) == true
-            }
+            .filter { text.isEmpty() || it.matchesSearch(text) }
             .toList()
         return withDisplayed(s.copy(filtered = filtered))
     }
@@ -357,4 +551,10 @@ class AnnouncementsViewModel @Inject constructor(
         } catch (_: Exception) {
             Instant.EPOCH
         }
+
+    private companion object {
+        /** [SavedStateHandle] keys: the ids selected on this back-stack entry, as string arrays. */
+        const val KEY_SELECTED_ORGS = "selectedOrgs"
+        const val KEY_SELECTED_TAGS = "selectedTags"
+    }
 }

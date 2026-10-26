@@ -100,6 +100,8 @@ data class MailProbeCredentials(val username: String, val password: String) {
 class SocketMailConnectionProbe(
     private val credentials: MailCredentialStore,
     private val site: MailSite,
+    /** The app's pinned TLS, so every stage is the app's own connection; see [MailProperties]. */
+    private val socketFactory: SSLSocketFactory,
 ) : MailConnectionProbe {
 
     override suspend fun test(draft: MailDevServerSettings, typed: MailProbeCredentials): String {
@@ -219,8 +221,7 @@ class SocketMailConnectionProbe(
      * could point at the wrong stage.
      */
     private fun upgrade(socket: Socket, endpoint: MailEndpoint): SSLSocket {
-        val factory = SSLSocketFactory.getDefault() as SSLSocketFactory
-        val tls = factory.createSocket(socket, endpoint.host, endpoint.port, true) as SSLSocket
+        val tls = socketFactory.createSocket(socket, endpoint.host, endpoint.port, true) as SSLSocket
         tls.sslParameters = tls.sslParameters.apply { endpointIdentificationAlgorithm = "HTTPS" }
         tls.startHandshake()
         return tls
@@ -329,8 +330,8 @@ class SocketMailConnectionProbe(
             Leg.SMTP -> MailProperties.smtpProtocol(config)
         }
         val properties = when (leg) {
-            Leg.IMAP -> MailProperties.imap(config)
-            Leg.SMTP -> MailProperties.smtp(config)
+            Leg.IMAP -> MailProperties.imap(config, socketFactory)
+            Leg.SMTP -> MailProperties.smtp(config, socketFactory)
         }.impatient(protocol)
         val session = Session.getInstance(properties)
         val service = when (leg) {

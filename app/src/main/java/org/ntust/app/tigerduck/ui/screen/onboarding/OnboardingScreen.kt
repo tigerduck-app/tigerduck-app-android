@@ -11,14 +11,18 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -42,6 +46,7 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -80,6 +85,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.AppUrls
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.screen.debug.ApiEndpointDebugScreen
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
@@ -87,12 +93,6 @@ import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
-private const val URL_TIGERDUCK_WEBSITE = "https://tigerduck.app"
-private const val URL_TIGERDUCK_GITHUB = "https://github.com/tigerduck-app"
-private const val URL_PRIVACY_POLICY = "https://tigerduck.app/privacy-policy"
-private const val URL_DELETE_ACCOUNT = "https://tigerduck.app/delete-account"
-private const val URL_SERVER_STATUS = "https://status.tigerduck.app/"
-private const val URL_LEARN_MORE_TIGERSYNC = "https://tigerduck.app/tigersync"
 private val isFdroidFlavor: Boolean
     get() = BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)
 @Composable
@@ -120,7 +120,9 @@ fun OnboardingScreen(
     // Covers the pager with the API-endpoint editor. Someone running their
     // own backend has to point the app at it *before* signing in, because
     // the sign-in round-trip is one of the calls that goes there.
-    var showEndpointEditor by remember { mutableStateOf(false) }
+    // Saveable so an Activity recreation (a system dark-mode switch is not in
+    // the manifest's configChanges) doesn't drop the user out of the editor.
+    var showEndpointEditor by rememberSaveable { mutableStateOf(false) }
 
     // Track the furthest page the user has reached. The bottom-left forward
     // arrow is enabled only for pages already visited, so per-page gating
@@ -160,41 +162,63 @@ fun OnboardingScreen(
         scope.launch { pagerState.animateScrollToPage(page) }
     }
 
-    // System back: walk one page back inside onboarding; on page 0 fall
-    // through to the same two-press-to-exit pattern MainNavigation uses
+    // System back on page 0, where OnboardingStepNavigation hands it over
+    // (on the others it walks one page back): the same two-press-to-exit
+    // pattern MainNavigation uses
     // (we're rendered before MainNavigation, so its BackHandler isn't live
     // yet — duplicate the logic here so the UX is consistent).
     val context = LocalContext.current
     val backPressExitHint = stringResource(R.string.app_exit_confirm_toast)
     var lastBackPressMs by remember { mutableLongStateOf(0L) }
-    BackHandler {
-        if (pagerState.currentPage > 0) {
-            goToPage(pagerState.currentPage - 1)
+    fun backOnFirstPage() {
+        val now = SystemClock.elapsedRealtime()
+        if (now - lastBackPressMs < 2000L) {
+            (context as? Activity)?.finish()
         } else {
-            val now = SystemClock.elapsedRealtime()
-            if (now - lastBackPressMs < 2000L) {
-                (context as? Activity)?.finish()
-            } else {
-                lastBackPressMs = now
-                Toast.makeText(context, backPressExitHint, Toast.LENGTH_SHORT).show()
-            }
+            lastBackPressMs = now
+            Toast.makeText(context, backPressExitHint, Toast.LENGTH_SHORT).show()
         }
     }
 
     // Block screenshots / screen-recording while the NTUST password is
     // revealed as plaintext on the login page (issue #88). FLAG_SECURE is
     // window-wide, so it is only raised while the eye toggle is on AND the
-    // login page is the one on screen.
+    // login page is the one on screen — which it is not while the endpoint
+    // editor has replaced the pager.
     // Login page index shifts depending on whether the sync page is present.
     val loginPageIndex = if (showSyncPage) 4 else 3
-    SecureScreen(secure = passwordVisible && pagerState.currentPage == loginPageIndex)
+    SecureScreen(
+        secure = passwordVisible && pagerState.currentPage == loginPageIndex && !showEndpointEditor
+    )
 
     if (showEndpointEditor) {
         // Replaces the pager rather than layering over it: the editor owns a
-        // Scaffold with its own top bar and back affordance, and the
-        // onboarding BackHandler above would otherwise page backwards out
-        // from under it.
-        ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        // Scaffold with its own top bar and back affordance. In the main app
+        // system back is the NavHost's pop, so the editor has no BackHandler
+        // of its own; this one closes it, and the pager's own
+        // (OnboardingStepNavigation) is not composed meanwhile, so back
+        // doesn't page the hidden pager.
+        BackHandler { showEndpointEditor = false }
+
+        // The editor's top bar takes no window insets of its own, because in
+        // the main app it is a NavHost destination the root Scaffold has
+        // already padded by the system bars. Nothing does that up here, so
+        // without this Box the back button and title sit under the status
+        // bar and the camera cutout. The padding is the root Scaffold's own
+        // insets (system bars plus display cutout) — top and sides, over the
+        // page background — so the editor looks the same as when it is
+        // opened from Settings.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(
+                    ScaffoldDefaults.contentWindowInsets
+                        .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                )
+        ) {
+            ApiEndpointDebugScreen(onBack = { showEndpointEditor = false })
+        }
         return
     }
 
@@ -237,12 +261,12 @@ fun OnboardingScreen(
                     LinkRow(
                         icon = Icons.Filled.Public,
                         label = stringResource(R.string.onboarding_welcome_website_label),
-                        url = URL_TIGERDUCK_WEBSITE,
+                        url = AppUrls.WEBSITE,
                     )
                     LinkRow(
                         icon = Icons.Filled.Code,
                         label = stringResource(R.string.onboarding_welcome_github_label),
-                        url = URL_TIGERDUCK_GITHUB,
+                        url = AppUrls.GITHUB,
                     )
                 }
 
@@ -272,13 +296,13 @@ fun OnboardingScreen(
                     ) {
                         PrivacyCheckRow(
                             label = stringResource(R.string.onboarding_privacy_policy_label),
-                            url = URL_PRIVACY_POLICY,
+                            url = AppUrls.PRIVACY_POLICY,
                             checked = privacyPolicyAccepted,
                             onCheckedChange = { privacyPolicyAccepted = it },
                         )
                         PrivacyCheckRow(
                             label = stringResource(R.string.onboarding_privacy_delete_account_label),
-                            url = URL_DELETE_ACCOUNT,
+                            url = AppUrls.DELETE_ACCOUNT,
                             checked = deleteAccountAccepted,
                             onCheckedChange = { deleteAccountAccepted = it },
                         )
@@ -353,17 +377,17 @@ fun OnboardingScreen(
                             LinkRow(
                                 icon = Icons.Filled.Info,
                                 label = stringResource(R.string.settings_learn_more_backend),
-                                url = URL_LEARN_MORE_TIGERSYNC,
+                                url = AppUrls.LEARN_MORE_TIGERSYNC,
                             )
                             LinkRow(
                                 icon = Icons.Filled.Shield,
                                 label = stringResource(R.string.onboarding_privacy_policy_label),
-                                url = URL_PRIVACY_POLICY,
+                                url = AppUrls.PRIVACY_POLICY,
                             )
                             LinkRow(
                                 icon = Icons.Filled.AccountCircle,
                                 label = stringResource(R.string.onboarding_privacy_delete_account_label),
-                                url = URL_DELETE_ACCOUNT,
+                                url = AppUrls.DELETE_ACCOUNT,
                             )
                         }
                     }
@@ -406,55 +430,22 @@ fun OnboardingScreen(
                         title = stringResource(R.string.onboarding_sign_in_title),
                         subtitle = stringResource(R.string.onboarding_sign_in_subtitle),
                         actions = {
-                            if (isSignedIn) {
-                                // The session survived the upgrade, so this
-                                // page is a confirmation rather than a form —
-                                // an upgrading user is never asked to type a
-                                // password they already gave this install.
-                                Button(
-                                    onClick = { goToPage(permissionsPageIndex) },
-                                    modifier = Modifier.fillMaxWidth(0.6f),
-                                ) { Text(stringResource(R.string.action_next)) }
-                            } else {
-                                // Ordered least-committal first: look at the
-                                // server, then repoint the app at a different
-                                // one, then give up and skip. A sign-in that
-                                // fails here has no other way to tell the user
-                                // whether the backend is the reason.
-                                TextButton(onClick = { openUrl(context, URL_SERVER_STATUS) }) {
-                                    Text(stringResource(R.string.settings_check_server_status))
-                                }
-                                TextButton(onClick = { showEndpointEditor = true }) {
-                                    Text(stringResource(R.string.onboarding_custom_endpoint_button))
-                                }
-                                TextButton(onClick = { goToPage(permissionsPageIndex) }) {
-                                    Text(
-                                        stringResource(R.string.onboarding_skip_for_now),
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = ContentAlpha.SECONDARY)
-                                    )
-                                }
-                                Button(
-                                    onClick = {
-                                        focusManager.clearFocus()
-                                        viewModel.login(studentId, password) {
-                                            password = ""
-                                            goToPage(permissionsPageIndex)
-                                        }
-                                    },
-                                    enabled = studentId.isNotBlank() && password.isNotBlank() && !isLoggingIn,
-                                    modifier = Modifier.fillMaxWidth(0.8f),
-                                ) {
-                                    if (isLoggingIn) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(20.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                        )
-                                    } else {
-                                        Text(stringResource(R.string.onboarding_sign_in_button))
+                            SignInPageActions(
+                                isSignedIn = isSignedIn,
+                                isLoggingIn = isLoggingIn,
+                                canSignIn = studentId.isNotBlank() && password.isNotBlank(),
+                                onCheckServerStatus = { openUrl(context, AppUrls.SERVER_STATUS) },
+                                onCustomEndpoint = { showEndpointEditor = true },
+                                onSkip = { goToPage(permissionsPageIndex) },
+                                onSignIn = {
+                                    focusManager.clearFocus()
+                                    viewModel.login(studentId, password) {
+                                        password = ""
+                                        goToPage(permissionsPageIndex)
                                     }
-                                }
-                            }
+                                },
+                                onNext = { goToPage(permissionsPageIndex) },
+                            )
                         },
                     ) {
                         Column(
@@ -570,10 +561,10 @@ fun OnboardingScreen(
                     title = stringResource(R.string.onboarding_ready_title),
                     subtitle = stringResource(R.string.onboarding_ready_subtitle),
                     actions = {
-                        Button(
+                        OnboardingStartButton(
+                            label = stringResource(R.string.onboarding_start_button),
                             onClick = { viewModel.completeOnboarding() },
-                            modifier = Modifier.fillMaxWidth(0.6f)
-                        ) { Text(stringResource(R.string.onboarding_start_button)) }
+                        )
                     },
                 ) {}
             }
@@ -594,33 +585,15 @@ fun OnboardingScreen(
                 ),
         )
 
-        // Navigation arrows. Forward is gated to pages already visited so
-        // per-page requirements (privacy/login) still apply on first
-        // traversal.
-        FilledTonalIconButton(
-            onClick = { goToPage(pagerState.currentPage - 1) },
-            enabled = pagerState.currentPage > 0,
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 24.dp, bottom = 40.dp),
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(R.string.action_back),
-            )
-        }
-        FilledTonalIconButton(
-            onClick = { goToPage(pagerState.currentPage + 1) },
-            enabled = canAdvanceFrom(pagerState.currentPage),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 40.dp),
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = stringResource(R.string.action_next),
-            )
-        }
+        // Composed only while the pager shows: the endpoint editor has its
+        // own back.
+        OnboardingStepNavigation(
+            page = pagerState.currentPage,
+            canAdvance = canAdvanceFrom(pagerState.currentPage),
+            isLoggingIn = isLoggingIn,
+            onGoToPage = ::goToPage,
+            onBackOnFirstPage = ::backOnFirstPage,
+        )
 
         // Page indicator
         Row(
@@ -643,5 +616,130 @@ fun OnboardingScreen(
                 )
             }
         }
+    }
+}
+
+/**
+ * The sign-in page's buttons: Next once signed in, else the way out of a
+ * failing sign-in and the sign-in itself. Neither Next nor Skip while a
+ * sign-in runs: it cannot be stopped, so a student who skipped would be
+ * signed in anyway, and its completion would page the wizard on from
+ * wherever they had gone. The Settings sign-in sheet cannot be closed
+ * meanwhile either.
+ */
+@Composable
+internal fun SignInPageActions(
+    isSignedIn: Boolean,
+    isLoggingIn: Boolean,
+    canSignIn: Boolean,
+    onCheckServerStatus: () -> Unit,
+    onCustomEndpoint: () -> Unit,
+    onSkip: () -> Unit,
+    onSignIn: () -> Unit,
+    onNext: () -> Unit,
+) {
+    if (isSignedIn) {
+        // The session survived the upgrade, so this
+        // page is a confirmation rather than a form —
+        // an upgrading user is never asked to type a
+        // password they already gave this install. A sign-in
+        // here shows it too, once the school takes the password
+        // and while the rest of the sign-in, which then pages on
+        // by itself, still runs.
+        Button(
+            onClick = onNext,
+            enabled = !isLoggingIn,
+            modifier = Modifier.fillMaxWidth(0.6f),
+        ) { Text(stringResource(R.string.action_next)) }
+    } else {
+        // Ordered least-committal first: look at the
+        // server, then repoint the app at a different
+        // one, then give up and skip. A sign-in that
+        // fails here has no other way to tell the user
+        // whether the backend is the reason.
+        TextButton(onClick = onCheckServerStatus) {
+            Text(stringResource(R.string.settings_check_server_status))
+        }
+        // Not while a sign-in is in flight: it would
+        // repoint the backend mid-round-trip, and its
+        // completion pages the hidden pager on.
+        TextButton(
+            onClick = onCustomEndpoint,
+            enabled = !isLoggingIn,
+        ) {
+            Text(stringResource(R.string.onboarding_custom_endpoint_button))
+        }
+        TextButton(onClick = onSkip, enabled = !isLoggingIn) {
+            Text(
+                stringResource(R.string.onboarding_skip_for_now),
+                color = MaterialTheme.colorScheme.onBackground.copy(
+                    alpha = if (isLoggingIn) ContentAlpha.DISABLED else ContentAlpha.SECONDARY,
+                ),
+            )
+        }
+        Button(
+            onClick = onSignIn,
+            enabled = canSignIn && !isLoggingIn,
+            modifier = Modifier.fillMaxWidth(0.8f),
+        ) {
+            if (isLoggingIn) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+            } else {
+                Text(stringResource(R.string.onboarding_sign_in_button))
+            }
+        }
+    }
+}
+
+/**
+ * The wizard's back and forward arrows, and system back, which walks one
+ * page back and hands page 0's press to [onBackOnFirstPage]. Forward is
+ * gated to pages already visited ([canAdvance]) so per-page requirements
+ * (privacy/login) still apply on first traversal. None of them moves while
+ * a sign-in runs, for the reason [SignInPageActions] gives; system back is
+ * taken and dropped then, rather than left to close the app.
+ */
+@Composable
+internal fun BoxScope.OnboardingStepNavigation(
+    page: Int,
+    canAdvance: Boolean,
+    isLoggingIn: Boolean,
+    onGoToPage: (Int) -> Unit,
+    onBackOnFirstPage: () -> Unit,
+) {
+    BackHandler {
+        when {
+            isLoggingIn -> Unit
+            page > 0 -> onGoToPage(page - 1)
+            else -> onBackOnFirstPage()
+        }
+    }
+    FilledTonalIconButton(
+        onClick = { onGoToPage(page - 1) },
+        enabled = page > 0 && !isLoggingIn,
+        modifier = Modifier
+            .align(Alignment.BottomStart)
+            .padding(start = 24.dp, bottom = 40.dp),
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = stringResource(R.string.action_back),
+        )
+    }
+    FilledTonalIconButton(
+        onClick = { onGoToPage(page + 1) },
+        enabled = canAdvance && !isLoggingIn,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = 24.dp, bottom = 40.dp),
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+            contentDescription = stringResource(R.string.action_next),
+        )
     }
 }

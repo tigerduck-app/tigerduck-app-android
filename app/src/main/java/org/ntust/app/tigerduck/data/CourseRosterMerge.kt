@@ -102,8 +102,12 @@ object CourseRosterMerge {
      * Moodle reports submission status through a separate call per course; if
      * one fails, the assignment comes back `isCompleted = false` rather than
      * unknown. Treating that as truth flips a submitted item back to
-     * outstanding and re-arms its notification. Remote still wins when it
-     * says `true`, so a genuine un-submit is picked up.
+     * outstanding and re-arms its notification. So `false` never overrides a
+     * recorded submission, and a genuine un-submit (the student removing it,
+     * or a teacher reverting it to draft) is not picked up either: once
+     * recorded, an assignment stays submitted. Moodle is not even asked
+     * about those any more, but by a pull — see
+     * [org.ntust.app.tigerduck.network.MoodleService.confirmedSubmissions].
      */
     fun preserveConfirmedSubmissions(
         remote: List<Assignment>,
@@ -119,5 +123,31 @@ object CourseRosterMerge {
     /** Ids of everything already recorded as submitted, for the call above. */
     fun completedIds(assignments: List<Assignment>): Set<String> =
         assignments.filter { it.isCompleted }.mapTo(mutableSetOf()) { it.assignmentId }
+
+    /**
+     * What a Moodle fetch of [remote] should leave in the assignment cache,
+     * or null when the cache is better left as it is.
+     *
+     * Both rules every writer of that cache needs, in one place: a null
+     * [remote] is a fetch that had no course to ask Moodle about, so it
+     * writes nothing, while an empty one is Moodle's answer and empties the
+     * cache. Moodle leaves out a course the user cannot submit to, so for a
+     * TA account whose assignments were all in courses it TAs, that answer
+     * is what takes them off every screen (issue #160). A fetch that failed
+     * threw before this, see
+     * [org.ntust.app.tigerduck.network.MoodleService.fetchAssignments].
+     *
+     * And a submission [cached] already records is kept, see
+     * [preserveConfirmedSubmissions]. The calendar's refresh once kept the
+     * cache on an empty answer but not this, so one failed status call there
+     * marked a submitted assignment as outstanding for every screen.
+     */
+    fun assignmentsToStore(
+        remote: List<Assignment>?,
+        cached: List<Assignment>,
+    ): List<Assignment>? {
+        if (remote == null) return null
+        return preserveConfirmedSubmissions(remote, completedIds(cached))
+    }
 
 }

@@ -38,6 +38,17 @@ val localProps = Properties().apply {
     if (f.exists()) f.inputStream().use { load(it) }
 }
 
+/**
+ * Hands a test a file's path as a system property and declares the file an
+ * input of the test task, so the two cannot drift apart.
+ */
+class InputFileProperty(
+    @get:Input val name: String,
+    @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) val file: File,
+) : CommandLineArgumentProvider {
+    override fun asArguments() = listOf("-D$name=${file.absolutePath}")
+}
+
 fun localProp(key: String, default: String = ""): String =
     localProps.getProperty(key) ?: (project.findProperty(key) as? String) ?: default
 
@@ -49,17 +60,18 @@ android {
         applicationId = "org.ntust.app.tigerduck"
         minSdk = 29
         targetSdk = 36
-        versionCode = 27
-        versionName = "2.2.0"
+        versionCode = 30
+        versionName = "2.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Earliest pin-set expiration across network_security_config.xml.
-        // Used by TigerDuckApp to surface a logcat warning when pins are
-        // within 30 days of expiry; without a runtime check, post-expiry the
-        // platform silently falls back to system CA trust with no UI signal.
-        // 2027-01-18T00:00:00Z = 1800230400000L epoch ms.
-        buildConfigField("long", "PIN_EXPIRY_EPOCH", "1800230400000L")
+        // Earliest set expiry in :shared's BuiltInPins. Used by TigerDuckApp
+        // to surface a logcat warning when the built-in pins are within 30
+        // days of expiry; past it a set falls back to system CA trust unless
+        // a TigerSync document extends it.
+        // 2027-05-04T00:00:00Z = 1809388800000L epoch ms (the library set);
+        // BuiltInPinsTest fails when it stops matching the table.
+        buildConfigField("long", "PIN_EXPIRY_EPOCH", "1809388800000L")
     }
 
     signingConfigs {
@@ -126,6 +138,63 @@ android {
             // real android.util.Log call throws "not mocked", which would
             // limit migration and cache coverage to log-free code paths.
             isReturnDefaultValues = true
+            // Merged resources and manifest for Robolectric, so a Compose UI
+            // test can resolve stringResource and launch the ui-test-manifest
+            // ComponentActivity. CI runs the debug unit tests only, the
+            // variant that manifest is added to.
+            isIncludeAndroidResources = true
+            // Robolectric's API 36 sandbox sets up ApplicationSharedMemory by
+            // writing a FileDescriptor through jdk.internal.access.SharedSecrets,
+            // which java.base does not export. Without this, any test pinned
+            // to API 36 fails before its first line runs.
+            all { it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
+            // Gradle gives each test JVM 512 MB. One JVM running the whole suite
+            // filled that: G1 ran out of room to copy into and stopped for a
+            // full collection, which a 4-core CI runner took long enough over
+            // for a Glance test's 10 s wait to run out (WidgetScaleTest). At
+            // 320 MB it ran out of memory; at 1 GB it never collects in full.
+            all { it.maxHeapSize = "1g" }
+            // The test classes are dealt out to several JVMs at once: half the
+            // cores, and at most four. A CI runner's four cores are two, with two
+            // threads each, which one JVM nearly keeps busy: there two JVMs took
+            // the suite from 126-133 s to 105-114 s, and three were no faster
+            // for 1.5 GB more. Where there are more cores the JVMs gain more:
+            // four on sixteen took 52-65 s, against 103-123 s for one. Each JVM
+            // builds the Robolectric sandboxes its own classes need.
+            all { it.maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceIn(1, 4) }
+            // ReleaseLogRulesTest reads the R8 rules, which are no input of the
+            // test task otherwise: a change to them alone would leave it UP-TO-DATE.
+            all { it.inputs.file("proguard-rules.pro") }
+            // BuiltInPinsTest reads both network configs, to check no pin-set
+            // is left in them. They reach the test only through these
+            // providers, which declare each file an input, so an edit to the
+            // XML alone reruns the checks.
+            all {
+                it.jvmArgumentProviders += InputFileProperty(
+                    "tigerduck.nsc.release", file("src/main/res/xml/network_security_config.xml"),
+                )
+                it.jvmArgumentProviders += InputFileProperty(
+                    "tigerduck.nsc.debug", file("src/debug/res/xml/network_security_config.xml"),
+                )
+            }
+            // ReleaseLogLinesTest and AllHttpsClientsPinnedTest read the watch's
+            // sources too, and BuiltInPinsTest the watch's manifest, network
+            // config and build file, which nothing here builds.
+            all {
+                it.inputs.files(
+                    fileTree("../wear/src/main") { include("**/*.kt", "AndroidManifest.xml", "res/xml/**") },
+                    file("../wear/build.gradle.kts"),
+                ).withPathSensitivity(PathSensitivity.RELATIVE)
+            }
+            // AccountStateInventoryTest and AccountSwitchTest read the account state inventory
+            // and every source set's sources, the other flavor's and debug's included, which a
+            // test task of one variant does not compile.
+            all {
+                it.inputs.files(
+                    file("../docs/account-state.md"),
+                    fileTree("src") { include("main/java/**/*.kt", "play/java/**/*.kt", "fdroid/java/**/*.kt", "debug/java/**/*.kt") },
+                ).withPathSensitivity(PathSensitivity.RELATIVE)
+            }
         }
     }
 
@@ -140,6 +209,9 @@ android {
         create("play") {
             dimension = "distribution"
             // No suffix — this is the canonical applicationId.
+            // The variant Android Studio opens on. Without this AGP picks the
+            // first flavor alphabetically, which is fdroid.
+            isDefault = true
         }
         create("fdroid") {
             dimension = "distribution"
@@ -273,7 +345,9 @@ if (providers.gradleProperty("exportLicenses").isPresent) {
             // hash it reports for them: Angus Mail's EPL-2.0 and EDL-1.0
             // (published under names the plugin doesn't map to SPDX) and
             // GPL-2.0 with the Classpath Exception (whose SPDX text URL
-            // doesn't exist).
+            // doesn't exist). Also 0BSD's terms without the SPDX text's
+            // sample copyright line, which names its author, not XZ for
+            // Java's; extra_licenses.json carries XZ's own.
             configPath.set(file("aboutlibraries"))
             // BOMs only pin versions; nothing from them ships.
             includePlatform.set(false)
@@ -509,6 +583,8 @@ dependencies {
     implementation(project(":shared"))
     "playImplementation"(libs.play.services.wearable)
     "playImplementation"(libs.play.app.update.ktx)
+    // In-app review (issue #332): Play only, as fdroid has no Play Store to rate on.
+    "playImplementation"(libs.play.review)
     // WearScheduleBridge / WearDebugClockBridge use kotlinx.coroutines.tasks.await();
     // declare it directly instead of leaning on firebase-messaging's transitive edge.
     "playImplementation"(libs.kotlinx.coroutines.play.services)
@@ -516,6 +592,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    // Already shipped through emoji2; named here because AppReturns watches the whole app come and go.
+    implementation(libs.androidx.lifecycle.process)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
@@ -533,6 +611,7 @@ dependencies {
     // Network
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+    implementation(libs.retrofit)
     implementation(libs.gson)
     implementation(libs.jsoup)
 
@@ -548,6 +627,12 @@ dependencies {
 
     // QR Code
     implementation(libs.zxing.core)
+    // The camera that scans a class table's share code, decoding with ZXing above on both
+    // flavors: nothing about a scan leaves the device, unlike Google's code scanner, whose ML Kit
+    // reports its use to Google.
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.compose)
 
     // Firebase Cloud Messaging — confined to the `play` flavor so the
     // F-Droid APK contains zero Google Play Services code. FcmService.kt
@@ -559,6 +644,14 @@ dependencies {
 
     // In-app browser (Custom Tabs)
     implementation(libs.androidx.browser)
+    // The TigerDuck browser clears everything a WebView keeps (WebStorageCompat.deleteBrowsingData).
+    implementation(libs.androidx.webkit)
+    // The file viewer's video and sound.
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+    // The file viewer's archives: ZIP, tar and 7z, and XZ for 7z's LZMA and .xz.
+    implementation(libs.commons.compress)
+    implementation(libs.xz)
     implementation(libs.androidx.appcompat)
 
     // Background work scheduling
@@ -593,6 +686,21 @@ dependencies {
     testImplementation(libs.greenmail) {
         exclude(group = "org.eclipse.angus", module = "jakarta.mail")
     }
+    // A real WorkManager on the JVM, for what BackgroundSyncWorker queues.
+    // work-testing supplies the in-process WorkManager; Robolectric the
+    // Context and SQLite it runs on.
+    testImplementation(libs.androidx.work.testing)
+    testImplementation(libs.robolectric)
+    // Hand-made certificates and Ed25519 keys for the TLS pin tests.
+    testImplementation(libs.okhttp.tls)
+    testImplementation(libs.bouncycastle.bcprov)
+    // DebugPinDocument signs its stand-in for TigerSync's document; :shared ships it to every build already.
+    debugImplementation(libs.bouncycastle.bcprov)
+    // Compose UI tests on Robolectric, for composables whose behaviour hangs
+    // on permission state the JVM can fake and a device cannot: revoking a
+    // runtime permission kills the instrumented process.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -601,74 +709,13 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 }
 
-val syncLocalizations = tasks.register<Exec>("syncLocalizations") {
-    group = "localization"
-    description = "Generate Android localization files from shared JSON sources."
-    workingDir = rootProject.projectDir
-    // Placeholder; the real interpreter is resolved in doFirst so detection
-    // happens at execution time, not project sync.
-    commandLine("python3", "tools/localization/sync_localizations.py")
-    doFirst {
-        val script = "tools/localization/sync_localizations.py"
-        // Probe the common Python 3 launchers across Linux / macOS / Windows.
-        val python = listOf("python3", "python", "py").firstOrNull { candidate ->
-            runCatching {
-                val proc = ProcessBuilder(candidate, "--version")
-                    .redirectErrorStream(true)
-                    .start()
-                val output = proc.inputStream.readBytes().toString(Charsets.UTF_8)
-                proc.waitFor() == 0 && output.contains("Python 3")
-            }.getOrDefault(false)
-        } ?: throw GradleException(
-            "syncLocalizations requires Python 3 on PATH (tried python3, python, py). " +
-                    "Install Python 3 from https://www.python.org/ and re-run."
-        )
-        commandLine(python, script)
-    }
-}
+// The strings, generated from app-translation's source/*.json on every build.
+apply(from = rootProject.file("gradle/app-translation.gradle.kts"))
+val appTranslationStrings = tasks.named("generateAppTranslationStrings")
 
-val copyGeneratedAndroidLocalizations = tasks.register<Copy>("copyGeneratedAndroidLocalizations") {
-    group = "localization"
-    description = "Copy app-translation/generated/android values-* resources into app/src/main/res."
-
-    // Ensure the generator ran first.
-    dependsOn(syncLocalizations)
-
-    val sourceDir = rootProject.layout.projectDirectory.dir("app-translation/generated/android")
-    val destDir = layout.projectDirectory.dir("src/main/res")
-
-    // Only copy valid Android resource qualifier directories.
-    from(sourceDir) {
-        include("values*/strings.xml")
-        include("values-b+*/strings.xml")
-    }
-
-    into(destDir)
-    includeEmptyDirs = false
-
-    // Atomically clear stale generated files just before copying. If syncLocalizations
-    // fails, this doFirst never runs, so committed locale files remain on disk.
-    doFirst {
-        val resDir = destDir.asFile
-        fileTree(resDir) {
-            include("values*/strings.xml")
-            include("values-b+*/strings.xml")
-        }.forEach { it.delete() }
-
-        resDir.listFiles()
-            ?.filter { it.isDirectory && (it.name.startsWith("values-") || it.name.startsWith("values-b+")) }
-            ?.forEach { dir ->
-                val remaining = dir.listFiles()
-                if (remaining == null || remaining.isEmpty()) {
-                    dir.delete()
-                }
-            }
-    }
-}
-
-if (providers.gradleProperty("syncLocalizations").isPresent) {
-    tasks.named("preBuild") {
-        dependsOn(syncLocalizations)
-        dependsOn(copyGeneratedAndroidLocalizations)
+androidComponents {
+    onVariants { variant ->
+        // The task's class lives in that script, so its output is reached by name.
+        variant.sources.res?.addGeneratedSourceDirectory(appTranslationStrings) { it.property("outputDir") as DirectoryProperty }
     }
 }

@@ -36,7 +36,16 @@ data class DemoFixture(
     val assignments: List<Assignment>?,
     val bulletins: List<BulletinSummary>?,
     val calendar: List<CalendarEvent>?,
+    /** The courses' Moodle content; see [DemoMoodle]. */
+    val moodle: DemoMoodle?,
+    /**
+     * Made-up classmates whose class tables the demo account has imported, as from their share
+     * codes, so someone else's class table and the switcher show without a server.
+     */
+    val classmates: List<Classmate>? = null,
 ) {
+    data class Classmate(val studentId: String, val nickname: String, val courses: List<Course>)
+
     /**
      * Whether a school sign-in attempt names this account: the student ID
      * compared the way `AuthService.login` normalizes it, the school password
@@ -84,6 +93,8 @@ data class DemoFixture(
                 assignments = root.list("assignments") { o, _ -> parseAssignment(o, lang) },
                 bulletins = root.list("bulletins") { o, i -> parseBulletin(o, i) },
                 calendar = root.list("calendar") { o, i -> parseCalendarEvent(o, i) },
+                moodle = DemoMoodleFixture.parse(root, lang),
+                classmates = root.list("classmates") { o, _ -> parseClassmate(o, lang) },
             )
         }
 
@@ -124,6 +135,14 @@ data class DemoFixture(
                 schedule = schedule,
                 classroomMap = classroomMap,
             ).copy(customColorHex = json.str("colorHex"))
+        }
+
+        /** Skipped without a student ID or a nickname, which an imported person always has. */
+        private fun parseClassmate(json: JsonObject, lang: String): Classmate? {
+            val studentId = json.str("studentId")?.trim()?.uppercase() ?: return null
+            val nickname = localized(json, "nickname", lang).ifBlank { return null }
+            val courses = json.list("courses") { o, _ -> parseCourse(o, lang) }.orEmpty()
+            return Classmate(studentId, nickname, courses)
         }
 
         private fun parseAssignment(json: JsonObject, lang: String): Assignment? {

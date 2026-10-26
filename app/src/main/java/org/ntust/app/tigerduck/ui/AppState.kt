@@ -18,22 +18,33 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
+import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.data.preferences.DisplayScale
+import org.ntust.app.tigerduck.data.preferences.LibraryTabKeepMigration
 import org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled
+import org.ntust.app.tigerduck.library.FlipToLibraryDefaultOffMigration
+import org.ntust.app.tigerduck.library.FlipToLibrarySetting
+import org.ntust.app.tigerduck.library.LibrarySession
 import org.ntust.app.tigerduck.network.CalendarService
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
+import org.ntust.app.tigerduck.ui.theme.AccentGradient
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.ui.theme.VisualPreset
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,6 +67,45 @@ import javax.inject.Singleton
 internal fun effectiveCloudSyncWrite(requested: Boolean, flavor: String = BuildConfig.FLAVOR): Boolean =
     effectiveCloudSyncEnabled(storedValue = requested, flavor = flavor)
 
+/**
+ * Whether to store [AppFeature.previousDefaultTabs] as this install's bar now
+ * that the default has Mail in Calendar's place: only for an install that
+ * predates the change ([hasCompletedOnboarding]) and only when its bar is
+ * untouched — a stored bar is the user's own and stays as it is.
+ */
+internal fun keepsPreviousDefaultTabs(hasCompletedOnboarding: Boolean, hasStoredTabs: Boolean): Boolean =
+    hasCompletedOnboarding && !hasStoredTabs
+
+/**
+ * The bottom bar's one-time fix-ups at startup, in their order.
+ */
+internal fun settleBottomBar(prefs: AppPreferences) {
+    // An untouched bottom bar isn't stored — it follows
+    // AppFeature.defaultTabs — so when 2.3.0 swapped the default's Calendar
+    // for Mail, an existing user's bar would change under them. Keep their
+    // old default once instead; 2.3.0's What's New asks whether to
+    // switch. Checked once per install: a fresh install's first launch,
+    // before onboarding, has nothing to keep and gets the new default.
+    if (!prefs.previousDefaultTabsChecked) {
+        if (keepsPreviousDefaultTabs(prefs.hasCompletedOnboarding, prefs.hasStoredConfiguredTabs)) {
+            prefs.configuredTabs = AppFeature.previousDefaultTabs
+        }
+        prefs.previousDefaultTabsChecked = true
+    }
+    // TODO: remove in a future release once unfinished features ship (or
+    // enough time has passed that no users still have these entries
+    // persisted). Strips features that were once tab-pinnable but route
+    // to a placeholder, so the bottom bar never shows a "coming soon" tab.
+    val saved = prefs.configuredTabs
+    val cleaned = saved.filterNot { it in AppFeature.unfinishedFeatures }
+    if (cleaned != saved) {
+        prefs.configuredTabs = cleaned.ifEmpty { AppFeature.defaultTabs }
+    }
+    // After the pin above, so a pre-2.3.0 bar it stores stays as it is:
+    // What's New asks about Mail, then about Library.
+    LibraryTabKeepMigration.runIfNeeded(prefs)
+}
+
 @Singleton
 class AppState @Inject constructor(
     val authService: AuthService,
@@ -70,6 +120,9 @@ class AppState @Inject constructor(
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
     private val mailAccount: org.ntust.app.tigerduck.mail.MailAccount,
+    val librarySession: LibrarySession,
+    private val wearBridge: org.ntust.app.tigerduck.wear.WearScheduleBridge,
+    private val browserData: org.ntust.app.tigerduck.browser.BrowserDataCleaner,
 ) {
     /**
      * Whether the demo account was signed in when this process started.
@@ -115,15 +168,10 @@ class AppState @Inject constructor(
             DataMigration.Outcome.NeedsUserReset -> _needsUserReset.value = true
             DataMigration.Outcome.Ok -> Unit
         }
-        // TODO: remove in a future release once unfinished features ship (or
-        // enough time has passed that no users still have these entries
-        // persisted). Strips features that were once tab-pinnable but route
-        // to a placeholder, so the bottom bar never shows a "coming soon" tab.
-        val saved = prefs.configuredTabs
-        val cleaned = saved.filterNot { it in AppFeature.unfinishedFeatures }
-        if (cleaned != saved) {
-            prefs.configuredTabs = cleaned.ifEmpty { AppFeature.defaultTabs }
-        }
+        settleBottomBar(prefs)
+        // Before flipToLibraryEnabled is read below, so the switch it may
+        // store is the one this process starts with.
+        FlipToLibraryDefaultOffMigration.runIfNeeded(prefs)
     }
 
     private var hasCompletedOnboardingState by mutableStateOf(prefs.hasCompletedOnboarding)
@@ -164,30 +212,77 @@ class AppState @Inject constructor(
     val showOnboarding: Boolean
         get() = !hasCompletedOnboarding || needsOnboardingRerun
 
-    private var accentColorHexState by mutableIntStateOf(prefs.accentColorHex)
-
-    var accentColorHex: Int
-        get() = accentColorHexState
-        set(value) {
-            if (accentColorHexState == value) return
-            accentColorHexState = value
-            prefs.accentColorHex = value
-            widgetUpdater.requestUpdate()
-        }
+    // The widgets draw the swatch, and redraw only when asked.
+    private val accentSetting = AccentSetting(prefs, onFixedChange = { widgetUpdater.requestUpdate() })
 
     /**
-     * Accent color resolved for the current theme mode. [accentColorHex] always
-     * stores the canonical (light) hex; in dark mode we return the paired
-     * dark variant so the tint stays vibrant against dark surfaces.
+     * The accent swatch last picked, as its canonical (light) hex. It stays
+     * while the wallpaper's colors are picked, and is what every surface that
+     * cannot follow them draws; see [AccentPolicy].
      */
-    fun accentColor(isDark: Boolean = TigerDuckTheme.isDarkMode): Color {
-        val hex = if (isDark) {
-            AppPreferences.accentDarkVariant(accentColorHex)
-        } else {
-            accentColorHex
+    val accentColorHex: Int
+        get() = accentSetting.lightHex
+
+    /**
+     * Whether the app's screens draw the wallpaper's colors: picked in
+     * Settings, on Android 12 or later.
+     */
+    val usesWallpaperColors: Boolean
+        get() = accentSetting.appFollowsWallpaper
+
+    /** Picks the accent swatch of canonical (light) hex [lightHex], in place of the wallpaper too. */
+    fun pickAccentColor(lightHex: Int) = accentSetting.pick(lightHex)
+
+    /** Picks the wallpaper's colors for the app's screens, keeping the swatch for the rest. */
+    fun pickWallpaperColors() = accentSetting.pickWallpaper()
+
+    /**
+     * The accent as the current theme mode draws it. [accentColorHex] always
+     * stores the canonical (light) hex; in dark mode we return the paired
+     * dark variant so the tint stays vibrant against dark surfaces, and in
+     * light mode a tone dark enough for the light cards, which for Orange,
+     * Green and Teal is darker than their swatches (see [AccentPolicy.fixedColor]).
+     */
+    fun accentColor(isDark: Boolean = TigerDuckTheme.isDarkMode): Color =
+        AccentPolicy.fixedColor(accentColorHex, isDark)
+
+    /**
+     * The end of the gradient picked, as its canonical (light) hex, or null for
+     * a single color. [accentColorHex] is its start.
+     */
+    val accentGradientEndHex: Int?
+        get() = accentSetting.gradientEnd
+
+    /** The way the accent gradient runs. */
+    val accentGradientDirection: AccentGradientDirection
+        get() = accentSetting.gradientDirection
+
+    /** Picks the gradient from [startHex] to [endHex], canonical (light) hexes, in place of the wallpaper too. */
+    fun pickAccentGradient(startHex: Int, endHex: Int) = accentSetting.pickGradient(startHex, endHex)
+
+    /** Picks the way the accent gradient runs. */
+    fun pickAccentGradientDirection(direction: AccentGradientDirection) = accentSetting.pickDirection(direction)
+
+    /** The gradient picked as the current theme mode draws it, or null for a single color. */
+    fun accentGradient(isDark: Boolean = TigerDuckTheme.isDarkMode): AccentGradient? =
+        accentGradientEndHex?.let { AccentGradient(AccentPolicy.fixedColor(it, isDark), accentGradientDirection) }
+
+    /** What text on the accent draws in, for a color of the user's own; null for the theme's own. */
+    fun accentOnColor(isDark: Boolean = TigerDuckTheme.isDarkMode): Color? =
+        AccentPolicy.onAccent(accentColorHex, isDark)
+
+    private val visualPresetSetting =
+        VisualPresetSetting(prefs, onChange = { widgetUpdater.requestUpdate() })
+
+    /**
+     * The interface style picked in Settings > Display. The app root provides
+     * it to every screen through [org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy].
+     */
+    var visualPreset: VisualPreset
+        get() = visualPresetSetting.value
+        set(value) {
+            visualPresetSetting.value = value
         }
-        return Color(0xFF000000L or (hex.toLong() and 0xFFFFFFL))
-    }
 
     private var showAbsoluteAssignmentTimeState by mutableStateOf(prefs.showAbsoluteAssignmentTime)
 
@@ -221,21 +316,26 @@ class AppState @Inject constructor(
             prefs.showClassroomInClassTable = value
         }
 
-    private var rememberAnnouncementFilterState by mutableStateOf(prefs.rememberAnnouncementFilter)
+    private var pinTodayCoursesOnClassTableState by mutableStateOf(prefs.pinTodayCoursesOnClassTable)
 
-    /**
-     * When on, [org.ntust.app.tigerduck.announcements.AnnouncementsViewModel]
-     * restores the persisted org-filter selection on next launch. Flipping
-     * this off wipes the saved selection so re-enabling later doesn't
-     * silently revive a stale filter.
-     */
-    var rememberAnnouncementFilter: Boolean
-        get() = rememberAnnouncementFilterState
+    /** Show today's courses above the class table's grid. */
+    var pinTodayCoursesOnClassTable: Boolean
+        get() = pinTodayCoursesOnClassTableState
         set(value) {
-            if (rememberAnnouncementFilterState == value) return
-            rememberAnnouncementFilterState = value
-            prefs.rememberAnnouncementFilter = value
-            if (!value) prefs.savedAnnouncementOrgs = emptySet()
+            if (pinTodayCoursesOnClassTableState == value) return
+            pinTodayCoursesOnClassTableState = value
+            prefs.pinTodayCoursesOnClassTable = value
+        }
+
+    private var outlineRequiredCoursesState by mutableStateOf(prefs.outlineRequiredCourses)
+
+    /** Outline each required course's class-table cell. */
+    var outlineRequiredCourses: Boolean
+        get() = outlineRequiredCoursesState
+        set(value) {
+            if (outlineRequiredCoursesState == value) return
+            outlineRequiredCoursesState = value
+            prefs.outlineRequiredCourses = value
         }
 
     private var useEnglishCourseAbbreviationState by mutableStateOf(prefs.useEnglishCourseAbbreviation)
@@ -277,6 +377,17 @@ class AppState @Inject constructor(
             if (browserPreferenceState == value) return
             browserPreferenceState = value
             prefs.browserPreference = value
+        }
+
+    private var moodleOpenInState by mutableStateOf(prefs.moodleOpenIn)
+
+    /** The Open Moodle in setting; see [AppPreferences.moodleOpenIn]. */
+    var moodleOpenIn: String
+        get() = moodleOpenInState
+        set(value) {
+            if (moodleOpenInState == value) return
+            moodleOpenInState = value
+            prefs.moodleOpenIn = value
         }
 
     private var themeModeState by mutableStateOf(prefs.themeMode)
@@ -338,6 +449,19 @@ class AppState @Inject constructor(
             widgetUpdater.requestUpdate()
         }
 
+    private val displayScaleSetting = DisplayScaleSetting(prefs, onWidgetChange = { widgetUpdater.requestUpdate() })
+
+    /** A size on the Display and text size page; see [DisplayScale]. */
+    fun displayScale(scale: DisplayScale): Float = displayScaleSetting[scale]
+
+    /** Picks [value] for [scale]; a widget size redraws the widgets. */
+    fun setDisplayScale(scale: DisplayScale, value: Float) {
+        displayScaleSetting[scale] = value
+    }
+
+    /** The app's display and text sizes as picked, which MainActivity makes itself again at. */
+    val appScale: AppScale get() = displayScaleSetting.app
+
     private var rotationModeState by mutableStateOf(prefs.rotationMode)
 
     /** One of "auto", "enabled", "disabled". */
@@ -367,26 +491,17 @@ class AppState @Inject constructor(
     fun setNotifyAssignmentOffsetEnabled(offset: AssignmentReminderOffset, enabled: Boolean) =
         assignmentReminderSettings.setOffsetEnabled(offset, enabled)
 
-    private var libraryFeatureEnabledState by mutableStateOf(prefs.libraryFeatureEnabled)
-
-    var libraryFeatureEnabled: Boolean
-        get() = libraryFeatureEnabledState
-        set(value) {
-            if (libraryFeatureEnabledState == value) return
-            libraryFeatureEnabledState = value
-            prefs.libraryFeatureEnabled = value
-        }
-
-
-    private var flipToLibraryEnabledState by mutableStateOf(prefs.flipToLibraryEnabled)
+    /** The flip-to-library switch; read after the migrations above. */
+    val flipToLibrary = FlipToLibrarySetting(prefs)
 
     var flipToLibraryEnabled: Boolean
-        get() = flipToLibraryEnabledState
+        get() = flipToLibrary.enabled
         set(value) {
-            if (flipToLibraryEnabledState == value) return
-            flipToLibraryEnabledState = value
-            prefs.flipToLibraryEnabled = value
+            flipToLibrary.enabled = value
         }
+
+    /** The flip switch in Settings; see [FlipToLibrarySetting.setFromSettings]. */
+    fun setFlipToLibraryFromSettings(enabled: Boolean) = flipToLibrary.setFromSettings(enabled)
 
     private var cloudSyncEnabledState by mutableStateOf(prefs.cloudSyncEnabled)
 
@@ -410,18 +525,22 @@ class AppState @Inject constructor(
             prefs.disableScreenCaptureProtection = value
         }
 
-    // Transient signal from the library-shortcut widget: when the user taps
-    // the widget while the library feature is disabled, we navigate to
-    // Settings and flip this so SettingsScreen surfaces an "enable first"
-    // dialog. Not persisted — lives only within the process.
-    var pendingLibraryEnablePrompt by mutableStateOf(false)
-
     // Transient signal from signed-out empty states (Home, ClassTable,
-    // Calendar, Score): when the user taps the lock icon we navigate to
+    // Calendar, Score): when the user taps "Sign in" we navigate to
     // Settings and flip this so the NTUST account row pulses, drawing the
     // user's attention to the action they need to take. Consumed (cleared)
     // by SettingsScreen after the animation finishes.
     var pendingNtustSignInHighlight by mutableStateOf(false)
+
+    // "Sign in again", after the automatic sign-in failed: opens the school
+    // sign-in over whatever page asked (NtustSignInSheetHost), as the iPhone
+    // does. Not persisted.
+    var ntustSignInSheetRequested by mutableStateOf(false)
+
+    // The refusal whose "Automatic sign-in failed" banner the user closed. It
+    // stays closed on every page for the rest of this run; a later refusal is
+    // another object and shows again. Not persisted.
+    var dismissedPasswordRejection by mutableStateOf<StoredPasswordLatch.Rejection?>(null)
 
     private var configuredTabsState by mutableStateOf(prefs.configuredTabs)
 
@@ -478,8 +597,8 @@ class AppState @Inject constructor(
     // this name must mean "signed in", not "has a warm SSO cookie".
     val isNtustLoggedIn: Boolean get() = authService.authState.value
 
-    @Suppress("unused")
-    val isLibraryLoggedIn: Boolean get() = credentials.isLibraryTokenValid
+    /** Whether a library account is signed in, as Settings shows it; see [LibrarySession]. */
+    val isLibraryLoggedIn: Boolean get() = librarySession.signedIn.value
 
     fun completeOnboarding() {
         hasCompletedOnboarding = true
@@ -497,45 +616,51 @@ class AppState @Inject constructor(
     }
 
     /**
+     * The steps of a full reset, in [FullReset]. [DataCache.clearEverything],
+     * not `clearAllUserData`: a logout keeps device-wide caches on purpose,
+     * but this is a factory reset and a leftover cache is precisely what makes
+     * the "fresh start" it promises not one.
+     */
+    private val fullReset = FullReset(
+        // Its password, caches, alarms and posted notifications.
+        signOutMail = { mailAccount.signOut() },
+        // The school sign-out keeps a demo library signed in; a full reset does not.
+        signOutSchool = {
+            authService.logout()
+            demoAccount.signOutLibrary()
+        },
+        clearCaches = { dataCache.clearEverything() },
+        credentials = credentials,
+        prefs = prefs,
+        publishLibraryCredentialsToWatch = wearBridge::publishLibraryCredentials,
+        clearBrowser = browserData::clear,
+    )
+
+    /**
      * Wipe every piece of on-device user state (prefs, credentials, JSON
      * cache) and return the user to onboarding. Called from the reset
      * dialog after migration returns [DataMigration.Outcome.NeedsUserReset].
-     *
-     * [DataCache.clearEverything], not `clearAllUserData`: a logout keeps
-     * device-wide caches on purpose, but this is a factory reset and a
-     * leftover cache is precisely what makes the "fresh start" it promises
-     * not one. [CredentialManager.clearAll] and [AppPreferences.clearAllPrefs]
-     * both clear their whole store, so the library account and every library
-     * preference (feature toggle, flip-to-open consent) go with them —
-     * neither needs naming here, and neither should be, since a named list
-     * silently stops being complete.
+     * The steps are [FullReset]'s.
      */
     fun performFullReset() {
-        // The mail account is separate from the NTUST sign-in (spec §7.5), but a full reset wipes
-        // everything: its password, caches, alarms and posted notifications.
-        mailAccount.signOut()
-        authService.logout()
-        scope.launch {
-            runCatching { dataCache.clearEverything() }
-            credentials.clearAll()
-            prefs.clearAllPrefs()
-            // Re-stamp the schema so the dialog doesn't re-fire on next launch.
-            prefs.dataSchemaVersion = DataMigration.CURRENT_SCHEMA
-
+        fullReset.start(scope) {
             // The mutableState caches above were seeded from prefs at init
             // time. Re-read so the UI shows defaults instead of ghost values
             // from the wiped store.
             hasCompletedOnboardingState = prefs.hasCompletedOnboarding
             onboardingVersionState = prefs.onboardingVersion
-            accentColorHexState = prefs.accentColorHex
+            accentSetting.reload()
+            visualPresetSetting.reload()
             showAbsoluteAssignmentTimeState = prefs.showAbsoluteAssignmentTime
             alwaysShowAllPeriodsState = prefs.alwaysShowAllPeriods
             showClassroomInClassTableState = prefs.showClassroomInClassTable
-            rememberAnnouncementFilterState = prefs.rememberAnnouncementFilter
+            pinTodayCoursesOnClassTableState = prefs.pinTodayCoursesOnClassTable
+            outlineRequiredCoursesState = prefs.outlineRequiredCourses
             useEnglishCourseAbbreviationState = prefs.useEnglishCourseAbbreviation
             useEnglishClassroomAbbreviationState = prefs.useEnglishClassroomAbbreviation
             classroomMandarinDisplayState = prefs.classroomMandarinDisplay
             browserPreferenceState = prefs.browserPreference
+            moodleOpenInState = prefs.moodleOpenIn
             themeModeState = prefs.themeMode
             appLanguageState = prefs.appLanguage
             invertSliderDirectionState = prefs.invertSliderDirection
@@ -543,9 +668,9 @@ class AppState @Inject constructor(
                 TigerDuckTheme.setCourseNameScale(it)
             }
             rotationModeState = prefs.rotationMode
+            displayScaleSetting.reload()
             assignmentReminderSettings.reload()
-            libraryFeatureEnabledState = prefs.libraryFeatureEnabled
-            flipToLibraryEnabledState = prefs.flipToLibraryEnabled
+            flipToLibrary.reload()
             cloudSyncEnabledState = prefs.cloudSyncEnabled
             disableScreenCaptureProtectionState = prefs.disableScreenCaptureProtection
             configuredTabsState = prefs.configuredTabs
@@ -553,7 +678,11 @@ class AppState @Inject constructor(
                 hapticStrengthStates[scenario] = prefs.hapticStrength(scenario)
                 hapticDurationStates[scenario] = prefs.hapticDurationMs(scenario)
             }
+            // The widgets draw the wiped courses, accent and interface style,
+            // and redraw only when asked; reload() above does not ask.
+            widgetUpdater.requestUpdate()
 
+            librarySession.refresh()
             _needsUserReset.value = false
         }
     }
@@ -578,13 +707,13 @@ class AppState @Inject constructor(
             // must reach logcat — "sync silently does nothing" was previously
             // undiagnosable in the field.
             coursesResult.exceptionOrNull()?.let {
-                android.util.Log.w("AppState", "backgroundSync: courses fetch failed", it)
+                android.util.Log.w("AppState", "backgroundSync: courses fetch failed: ${it.logSummary()}")
             }
             assignmentsResult.exceptionOrNull()?.let {
-                android.util.Log.w("AppState", "backgroundSync: assignments fetch failed", it)
+                android.util.Log.w("AppState", "backgroundSync: assignments fetch failed: ${it.logSummary()}")
             }
             schoolEventsResult.exceptionOrNull()?.let {
-                android.util.Log.w("AppState", "backgroundSync: calendar fetch failed", it)
+                android.util.Log.w("AppState", "backgroundSync: calendar fetch failed: ${it.logSummary()}")
             }
 
             val anySucceeded =
@@ -596,9 +725,9 @@ class AppState @Inject constructor(
             if (assignmentsResult.isSuccess) {
                 val moodleEvents = dataCache.loadAssignments().map { assignment ->
                     CalendarEvent(
-                        eventId = "moodle-${assignment.assignmentId}",
+                        eventId = CalendarEvent.moodleEventId(assignment.assignmentId),
                         title = assignment.title,
-                        date = assignment.dueDate,
+                        date = assignment.studentDueDate,
                         sourceRaw = EventSource.MOODLE.raw
                     )
                 }

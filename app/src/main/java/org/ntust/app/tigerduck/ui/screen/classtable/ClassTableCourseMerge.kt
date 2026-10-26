@@ -56,4 +56,72 @@ object ClassTableCourseMerge {
         return CourseNameOverrides.resolve(restored + manualLeftovers, names, locale)
             .filter { it.courseNo !in deletedNos }
     }
+
+    // --- Looking a stored course up again (tigerduck-app-android#264) ---
+    //
+    // mergeFetched keeps a hand-added course, or one merged from another
+    // device, exactly as stored: the snapshot taken when it was added. A room
+    // or time the school changed since never reached it, nor did a room
+    // announced after a course was fetched without one. These fold a later
+    // lookup of the same course onto its stored row, as iOS's
+    // `SDCourse.updated(with:)` does.
+
+    /**
+     * [stored] with what the school says now, from [fresh], a lookup of the
+     * same course: name, instructor, credits, rooms, times, headcount,
+     * dimension and term span. What the user did to it stays — the colour, the
+     * rename, the manual flag — and so does its identity: the course number
+     * and the Moodle ids, which the overrides and the Moodle link are keyed by.
+     */
+    fun refreshed(stored: Course, fresh: Course): Course = fresh.copy(
+        courseNo = stored.courseNo,
+        moodleIdNumber = stored.moodleIdNumber,
+        moodleNumericCourseId = stored.moodleNumericCourseId,
+        customColorHex = stored.customColorHex,
+        isManual = stored.isManual,
+        customCourseName = stored.customCourseName,
+    )
+
+    /**
+     * The manual courses of [cached] a fetch has to look up itself: those
+     * [rosterNos] does not list. One the roster lists is looked up with the
+     * roster, and comes through [mergeFetched]'s fetched half.
+     */
+    fun manualNosToLookUp(cached: List<Course>, rosterNos: Collection<String>): List<String> =
+        cached.filter { it.isManual && it.courseNo !in rosterNos }.map { it.courseNo }
+
+    /**
+     * [cached] with each course [lookedUp] has an answer for [refreshed], in
+     * place. A course the lookup did not answer keeps its snapshot, which
+     * is more than the nothing a failed query would leave.
+     */
+    fun withLookedUp(cached: List<Course>, lookedUp: Map<String, Course>): List<Course> =
+        cached.map { course -> lookedUp[course.courseNo]?.let { refreshed(course, it) } ?: course }
+
+    /**
+     * The courses of [courses] to look up again for a room: those without one
+     * that have times. One with no times either is a Moodle stub for a term
+     * QueryCourse no longer indexes, and asking about it each visit would be
+     * a request for nothing.
+     */
+    fun nosWithoutRoom(courses: List<Course>): List<String> =
+        courses.filter { it.classroom.isBlank() && it.schedule.isNotEmpty() }.map { it.courseNo }
+
+    /**
+     * [courses] with the rooms [lookedUp] found: a course without a room whose
+     * lookup now names one takes that row, see [refreshed]. A course that has
+     * a room is not touched, nor is one whose lookup still has none. Null when
+     * nothing changed, so the caller can leave the cache alone.
+     */
+    fun withRoomsFound(courses: List<Course>, lookedUp: Map<String, Course>): List<Course>? {
+        var changed = false
+        val updated = courses.map { course ->
+            val found = lookedUp[course.courseNo]
+                ?.takeIf { course.classroom.isBlank() && it.classroom.isNotBlank() }
+                ?: return@map course
+            changed = true
+            refreshed(course, found)
+        }
+        return if (changed) updated else null
+    }
 }

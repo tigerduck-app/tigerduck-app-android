@@ -4,12 +4,22 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import androidx.annotation.StringRes
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.network.MoodleWebserviceError
 
 enum class ServerKind {
     MOODLE,
     COURSE_SELECTION,
     BACKEND,
+
+    /**
+     * The library's passport and code service. Only the server failure
+     * simulator uses it so far: no page's header lists it, so the sync dot
+     * never shows it.
+     */
+    LIBRARY,
 }
 
 enum class ServerStatus {
@@ -114,17 +124,37 @@ object ServerStatusTracker {
     fun enterDemoMode() {
         demoMode = true
         _statuses.value = ServerKind.entries.associateWith { ServerStatus.OK }
+        _notes.value = emptyMap()
     }
 
     /** Sign-out: drop the held OKs so real results fill the dots in again. */
     fun exitDemoMode() {
         demoMode = false
         _statuses.value = emptyMap()
+        _notes.value = emptyMap()
     }
 
-    fun set(status: ServerStatus, server: ServerKind) {
+    /**
+     * A sentence that says why a source failed, where the state alone would mislead: "Moodle is
+     * under maintenance" rather than a bare "Failed". The header's detail popup shows it under
+     * the sources. Cleared by the source's next status.
+     */
+    private val _notes = MutableStateFlow<Map<ServerKind, Int>>(emptyMap())
+    val notes: StateFlow<Map<ServerKind, Int>> = _notes.asStateFlow()
+
+    fun set(status: ServerStatus, server: ServerKind, @StringRes note: Int? = null) {
         if (demoMode) return
         _statuses.update { it + (server to status) }
+        _notes.update { if (note == null) it - server else it + (server to note) }
+    }
+
+    /** Moodle failed with [error]; its maintenance mode is said in words, as iOS does. */
+    fun moodleFailed(error: Throwable) {
+        set(
+            ServerStatus.FAILED,
+            ServerKind.MOODLE,
+            note = if (error is MoodleWebserviceError.SiteMaintenance) R.string.error_moodle_site_maintenance else null,
+        )
     }
 
     fun status(server: ServerKind): ServerStatus =
@@ -133,5 +163,6 @@ object ServerStatusTracker {
     fun reset() {
         if (demoMode) return
         _statuses.value = emptyMap()
+        _notes.value = emptyMap()
     }
 }

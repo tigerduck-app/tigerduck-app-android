@@ -26,8 +26,8 @@ android {
         // android.hardware.type.watch. It separates the ranges only while the
         // phone stays under 10000, which version-bumped.yaml asserts rather
         // than leaves to chance. versionName still tracks the phone exactly.
-        versionCode = 10027
-        versionName = "2.2.0"
+        versionCode = 10030
+        versionName = "2.4.0"
     }
 
     // Mirrors :app. The watch APK/AAB carries the same applicationId as the
@@ -72,76 +72,38 @@ android {
         compose = true
         buildConfig = true
     }
-}
 
-// ---- Localization pipeline (mirrors :app) ------------------------------
-//
-// Wear strings live alongside phone strings in the `~/app-translation`
-// submodule's source/*.json files (under the `shared` group, since they're
-// reused on Apple Watch). The submodule's Python generator emits per-locale
-// strings.xml under app-translation/generated/android/values-*/, and this opt-in
-// task copies them into wear/src/main/res/. Run with `-PsyncLocalizations` to
-// regenerate; otherwise builds use the committed copies.
+    // As in :app. The watch takes the language the phone app is set to
+    // (MainActivity.attachBaseContext), not the watch's own, and Play's
+    // per-language splits install only the watch's: any other choice would
+    // fall back to values/ (English). Every language goes in the base APK.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
 
-val syncLocalizations = tasks.register<Exec>("syncLocalizations") {
-    group = "localization"
-    description = "Generate Android localization files from shared JSON sources."
-    workingDir = rootProject.projectDir
-    commandLine("python3", "tools/localization/sync_localizations.py")
-    doFirst {
-        val script = "tools/localization/sync_localizations.py"
-        val python = listOf("python3", "python", "py").firstOrNull { candidate ->
-            runCatching {
-                val proc = ProcessBuilder(candidate, "--version")
-                    .redirectErrorStream(true)
-                    .start()
-                val output = proc.inputStream.readBytes().toString(Charsets.UTF_8)
-                proc.waitFor() == 0 && output.contains("Python 3")
-            }.getOrDefault(false)
-        } ?: throw GradleException(
-            "syncLocalizations requires Python 3 on PATH (tried python3, python, py)."
-        )
-        commandLine(python, script)
+    testOptions {
+        unitTests {
+            // Merged resources, so a Robolectric test reads the strings the watch ships.
+            isIncludeAndroidResources = true
+            // As in :app: Robolectric's API 36 sandbox needs jdk.internal.access.
+            all { it.jvmArgs("--add-exports=java.base/jdk.internal.access=ALL-UNNAMED") }
+            // As in :app, so ReleaseLogRulesTest runs again when the R8 rules change.
+            all { it.inputs.file("proguard-rules.pro") }
+        }
     }
 }
 
-val copyGeneratedAndroidLocalizations = tasks.register<Copy>("copyGeneratedAndroidLocalizations") {
-    group = "localization"
-    description = "Copy app-translation/generated/android values-* resources into wear/src/main/res."
-    dependsOn(syncLocalizations)
+// Wear strings live alongside the phone's in app-translation's source/*.json
+// (under the `shared` group, since they're reused on Apple Watch).
+apply(from = rootProject.file("gradle/app-translation.gradle.kts"))
+val appTranslationStrings = tasks.named("generateAppTranslationStrings")
 
-    val sourceDir = rootProject.layout.projectDirectory.dir("app-translation/generated/android")
-    val destDir = layout.projectDirectory.dir("src/main/res")
-
-    from(sourceDir) {
-        include("values*/strings.xml")
-        include("values-b+*/strings.xml")
-    }
-    into(destDir)
-    includeEmptyDirs = false
-
-    doFirst {
-        val resDir = destDir.asFile
-        fileTree(resDir) {
-            include("values*/strings.xml")
-            include("values-b+*/strings.xml")
-        }.forEach { it.delete() }
-
-        resDir.listFiles()
-            ?.filter { it.isDirectory && (it.name.startsWith("values-") || it.name.startsWith("values-b+")) }
-            ?.forEach { dir ->
-                val remaining = dir.listFiles()
-                if (remaining == null || remaining.isEmpty()) {
-                    dir.delete()
-                }
-            }
-    }
-}
-
-if (providers.gradleProperty("syncLocalizations").isPresent) {
-    tasks.named("preBuild") {
-        dependsOn(syncLocalizations)
-        dependsOn(copyGeneratedAndroidLocalizations)
+androidComponents {
+    onVariants { variant ->
+        // The task's class lives in that script, so its output is reached by name.
+        variant.sources.res?.addGeneratedSourceDirectory(appTranslationStrings) { it.property("outputDir") as DirectoryProperty }
     }
 }
 
@@ -184,6 +146,17 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.gson)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    // Hand-made pin documents for WatchTlsPinsTest.
+    testImplementation(libs.bouncycastle.bcprov)
+    // Compose UI tests under Robolectric (the padding bars); the manifest's
+    // test activity goes into debug builds only, never a release, so these
+    // run as debug unit tests, the variant CI runs, as in the phone app.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }
 
 // The watch's own dependencies, exported into the phone app's play

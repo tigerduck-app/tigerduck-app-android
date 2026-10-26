@@ -2,35 +2,57 @@ name: Release (Manual)
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to release (e.g. v1.0.0). Created if it does not exist.'
-        required: true
 
 permissions:
   contents: write
 
 jobs:
-  release:
+  resolve:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      tag_exists: ${{ steps.resolve.outputs.tag_exists }}
+      checkout_ref: ${{ steps.resolve.outputs.checkout_ref }}
 
     steps:
+      # The tag is v<versionName> from main's app/build.gradle.kts, so a
+      # release can only ever carry the version its code declares. main is
+      # pinned to one commit first and that commit is what gets built, so a
+      # version bump landing mid-run cannot be built under the older tag.
       - name: Resolve checkout ref
         id: resolve
         env:
-          TAG: ${{ github.event.inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
           set -e
+          main_sha=$(gh api "repos/${REPO}/commits/main" --jq .sha)
+          name=$(gh api -H "Accept: application/vnd.github.raw" "repos/${REPO}/contents/app/build.gradle.kts?ref=${main_sha}" \
+            | grep -E '^[[:space:]]*versionName[[:space:]]*=' | head -n1 | sed -E 's/.*=[[:space:]]*"([^"]+)".*/\1/')
+          if [ -z "$name" ]; then
+            echo "::error::Could not read versionName from app/build.gradle.kts on main (${main_sha})." >&2
+            exit 1
+          fi
+          TAG="v${name}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           if git ls-remote --exit-code --tags "https://github.com/${{ github.repository }}.git" "refs/tags/$TAG" >/dev/null 2>&1; then
             echo "tag_exists=true" >> "$GITHUB_OUTPUT"
             echo "checkout_ref=$TAG" >> "$GITHUB_OUTPUT"
             echo "Tag $TAG already exists; will checkout the tag and attach artifacts."
           else
             echo "tag_exists=false" >> "$GITHUB_OUTPUT"
-            echo "checkout_ref=main" >> "$GITHUB_OUTPUT"
-            echo "Tag $TAG not found; will tag 'main' and create the release."
+            echo "checkout_ref=$main_sha" >> "$GITHUB_OUTPUT"
+            echo "Tag $TAG not found; will tag main at $main_sha and create the release."
           fi
 
+  # Alongside the build, so a missing secret, an App token that cannot reach
+  # the repo, or a GPG key that cannot sign fails in seconds rather than after
+  # it. Publish waits for this too, so nothing is published without it.
+  preflight:
+    needs: resolve
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Mint Releaser App token
         id: app_token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -38,27 +60,14 @@ jobs:
           app-id: ${{ secrets.RELEASER_APP_ID }}
           private-key: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
-        with:
-          ref: ${{ steps.resolve.outputs.checkout_ref }}
-          fetch-depth: 0
-          persist-credentials: true
-          token: ${{ steps.app_token.outputs.token }}
-          submodules: true
-
-      - name: Capture build SHA
-        id: sha
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
+      # Imported only to prove it signs; the tag is made in publish.
       - name: Import release GPG key
-        if: steps.resolve.outputs.tag_exists == 'false'
+        if: needs.resolve.outputs.tag_exists == 'false'
         id: gpg
         uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
         with:
           gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
-          git_user_signingkey: true
-          git_tag_gpgsign: true
 
       - name: Preflight checks
         run: |
@@ -113,8 +122,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
           REPO: ${{ github.repository }}
-          TAG: ${{ github.event.inputs.tag }}
-          TAG_EXISTS: ${{ steps.resolve.outputs.tag_exists }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+          TAG_EXISTS: ${{ needs.resolve.outputs.tag_exists }}
           TAGGER_EMAIL: ${{ steps.gpg.outputs.email }}
           TAGGER_KEYID: ${{ steps.gpg.outputs.keyid }}
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
@@ -123,65 +132,90 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+  build:
+    needs: resolve
+    uses: ./.github/workflows/release-build.yaml
+    with:
+      ref: ${{ needs.resolve.outputs.checkout_ref }}
+      upload: true
+    secrets: inherit
+
+  publish:
+    needs: [resolve, preflight, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Mint Releaser App token
+        id: app_token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          java-version: '21'
-          distribution: 'temurin'
+          app-id: ${{ secrets.RELEASER_APP_ID }}
+          private-key: ${{ secrets.RELEASER_APP_PRIVATE_KEY }}
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c # v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ needs.resolve.outputs.checkout_ref }}
+          fetch-depth: 0
+          persist-credentials: true
+          token: ${{ steps.app_token.outputs.token }}
 
-      # Both modules resolve `keystore.jks` relative to their own project dir,
-      # so the one secret is decoded twice. The watch must be signed with the
-      # phone's key: it ships under the same applicationId, and Play rejects a
-      # companion signed with anything else.
-      - name: Decode keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      - name: Capture build SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Import release GPG key
+        if: needs.resolve.outputs.tag_exists == 'false'
+        id: gpg
+        uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
+        with:
+          gpg_private_key: ${{ secrets.RELEASE_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.RELEASE_GPG_PASSPHRASE }}
+          git_user_signingkey: true
+          git_tag_gpgsign: true
+
+      # The six files the build's three legs uploaded, side by side in dist/.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Check the six files are there
         run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
-          cp app/keystore.jks wear/keystore.jks
-
-      - name: Decode google-services.json
-        env:
-          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
-        run: echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 --decode > app/src/play/google-services.json
-
-      # Root-level task names fan out to every module, so this already covers
-      # :wear:assembleRelease / :wear:bundleRelease.
-      - name: Build release AAB and APK (phone + watch)
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          PUSH_SHARED_SECRET: ${{ secrets.PUSH_SHARED_SECRET }}
-        run: ./gradlew bundleRelease assembleRelease
-
-      - name: Rename build outputs
-        run: |
-          mv app/build/outputs/apk/play/release/app-play-release.apk "app/build/outputs/apk/play/release/TigerDuck.apk"
-          mv app/build/outputs/apk/fdroid/release/app-fdroid-release.apk "app/build/outputs/apk/fdroid/release/TigerDuck-fdroid.apk"
-          mv app/build/outputs/bundle/playRelease/app-play-release.aab "app/build/outputs/bundle/playRelease/TigerDuck.aab"
-          mv app/build/outputs/bundle/fdroidRelease/app-fdroid-release.aab "app/build/outputs/bundle/fdroidRelease/TigerDuck-fdroid.aab"
-          # Watch: play-only by construction — :wear has no flavors because it
-          # depends on play-services-wearable, so there is no fdroid counterpart
-          # to ship. An unsigned build would land as wear-release-unsigned.apk
-          # and this mv would fail the job, which is the intended signal.
-          mv wear/build/outputs/apk/release/wear-release.apk "wear/build/outputs/apk/release/TigerDuck-Wear.apk"
-          mv wear/build/outputs/bundle/release/wear-release.aab "wear/build/outputs/bundle/release/TigerDuck-Wear.aab"
+          set -euo pipefail
+          ls -l dist
+          for f in TigerDuck.apk TigerDuck.aab TigerDuck-fdroid.apk TigerDuck-fdroid.aab TigerDuck-Wear.apk TigerDuck-Wear.aab; do
+            if [ ! -s "dist/$f" ]; then
+              echo "::error::dist/$f is missing or empty." >&2
+              exit 1
+            fi
+          done
 
       - name: Create and push signed tag
-        if: steps.resolve.outputs.tag_exists == 'false'
+        if: needs.resolve.outputs.tag_exists == 'false'
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
-          TAG: ${{ github.event.inputs.tag }}
+          TAG: ${{ needs.resolve.outputs.tag }}
           SHA: ${{ steps.sha.outputs.sha }}
           REPO: ${{ github.repository }}
           TAGGER_NAME: ${{ steps.gpg.outputs.name }}
           TAGGER_EMAIL: ${{ steps.gpg.outputs.email }}
         run: |
           set -euo pipefail
+          # Already there from an earlier attempt of this run: "Re-run failed
+          # jobs" re-runs publish, not resolve, whose answer predates the tag.
+          # Keep it if it marks this commit, stop if it marks another.
+          peeled=$(git ls-remote origin "refs/tags/${TAG}^{}" | cut -f1)
+          plain=$(git ls-remote origin "refs/tags/${TAG}" | cut -f1)
+          existing="${peeled:-$plain}"
+          if [ -n "$existing" ]; then
+            if [ "$existing" = "$SHA" ]; then
+              echo "Tag ${TAG} already marks ${SHA}; keeping it."
+              exit 0
+            fi
+            echo "::error::Tag ${TAG} already exists on ${existing}, not on ${SHA}." >&2
+            exit 1
+          fi
           git config user.name "${TAGGER_NAME}"
           git config user.email "${TAGGER_EMAIL}"
           git tag -s "${TAG}" "${SHA}" -m "${TAG}"
@@ -200,13 +234,13 @@ jobs:
           echo "Tag ${TAG} created and verified."
 
       - name: Update F-Droid metadata commit hash
-        if: steps.resolve.outputs.tag_exists == 'false'
+        if: needs.resolve.outputs.tag_exists == 'false'
         env:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
           SHA: ${{ steps.sha.outputs.sha }}
           REPO: ${{ github.repository }}
           BRANCH: main
-          TAG: ${{ github.event.inputs.tag }}
+          TAG: ${{ needs.resolve.outputs.tag }}
           FILE_PATH: metadata/org.ntust.app.tigerduck.fdroid.yml
         run: |
           set -euo pipefail
@@ -214,10 +248,19 @@ jobs:
           # the web-flow key (verified) and the App token's bypass entry on
           # the ruleset lets the push through. Retries on SHA conflict in
           # case another commit landed on ${BRANCH} during the build.
+          code=$(grep -E '^[[:space:]]*versionCode[[:space:]]*=' app/build.gradle.kts | head -n1 | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/')
           for attempt in 1 2 3; do
             current=$(gh api "repos/${REPO}/contents/${FILE_PATH}?ref=${BRANCH}")
             file_sha=$(printf '%s' "$current" | jq -r .sha)
             content=$(printf '%s' "$current" | jq -r .content | base64 -d)
+            # A newer version bump may have reached ${BRANCH} during the
+            # build. Its metadata must not be pinned to this older commit;
+            # that version's own release pins it.
+            meta_code=$(printf '%s' "$content" | grep -E '^[[:space:]]*-?[[:space:]]*versionCode:' | head -n1 | sed -E 's/.*versionCode:[[:space:]]*([0-9]+).*/\1/')
+            if [ "$meta_code" != "$code" ]; then
+              echo "::warning::${FILE_PATH} on ${BRANCH} describes versionCode ${meta_code}, not this release's ${code}; leaving it for that version's release."
+              exit 0
+            fi
             new_content=$(printf '%s' "$content" | sed -E "s|^([[:space:]]*commit:).*|\1 ${SHA}|")
             if [ "$content" = "$new_content" ]; then
               echo "No change to ${FILE_PATH}; skipping."
@@ -240,21 +283,56 @@ jobs:
             sleep 2
           done
 
+      # From .github/release-notes-template.md, with the What's New titles
+      # filled in. Only for a release that does not exist yet: one that does
+      # keeps its notes, which may have been edited by hand.
+      - name: Write GitHub Release notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1; then
+            echo "GitHub Release ${TAG} already exists; keeping its notes."
+            exit 0
+          fi
+          # The script and template from the commit this run started on: an
+          # existing tag checked out above may predate both. The version and
+          # What's New still come from the checkout.
+          git show "${GITHUB_SHA}:tools/github/release_notes.py" > "$RUNNER_TEMP/release_notes.py"
+          git show "${GITHUB_SHA}:.github/release-notes-template.md" > "$RUNNER_TEMP/release-notes-template.md"
+          if ! python3 "$RUNNER_TEMP/release_notes.py" --root . \
+              --template "$RUNNER_TEMP/release-notes-template.md" \
+              --repo "$REPO" --output "$RUNNER_TEMP/release-notes.md"; then
+            echo "::warning::Could not write the notes for ${TAG}; the release is published without them. Add them by hand."
+            exit 0
+          fi
+          echo "path=$RUNNER_TEMP/release-notes.md" >> "$GITHUB_OUTPUT"
+
       - name: Create or update GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          tag_name: ${{ github.event.inputs.tag }}
+          tag_name: ${{ needs.resolve.outputs.tag }}
+          name: TigerDuck Android ${{ needs.resolve.outputs.tag }}
+          body_path: ${{ steps.notes.outputs.path }}
           files: |
-            app/build/outputs/apk/play/release/*.apk
-            app/build/outputs/apk/fdroid/release/*.apk
-            app/build/outputs/bundle/playRelease/*.aab
-            app/build/outputs/bundle/fdroidRelease/*.aab
-            wear/build/outputs/apk/release/*.apk
-            wear/build/outputs/bundle/release/*.aab
+            dist/*.apk
+            dist/*.aab
 
-      - name: Clean up secrets
-        if: always()
+      # Last, after the F-Droid pin, so dev gets that back too. The Releaser
+      # App's token opens it, so its CI runs; a refusal only warns, since the
+      # release is done by now. On every publish that gets here, not only one
+      # that tagged: a run that finishes a release an earlier run tagged still
+      # owes the pull request, and the script opens none that is not needed.
+      # It comes from the commit this run started on, which a checked-out tag
+      # may predate. See tools/github/back_merge.py.
+      - name: Open the pull request merging main back into dev
+        env:
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.resolve.outputs.tag }}
         run: |
-          rm -f app/keystore.jks
-          rm -f wear/keystore.jks
-          rm -f app/src/play/google-services.json
+          git show "${GITHUB_SHA}:tools/github/back_merge.py" > "$RUNNER_TEMP/back_merge.py"
+          python3 "$RUNNER_TEMP/back_merge.py" --repo "$REPO" --tag "$TAG"

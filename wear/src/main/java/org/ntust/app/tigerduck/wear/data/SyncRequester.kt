@@ -32,7 +32,7 @@ object SyncRequester {
                 Log.d(TAG, "sync request sent to $nodeId")
             }
         } catch (t: Throwable) {
-            Log.w(TAG, "sync request failed: ${t.message}")
+            Log.w(TAG, "sync request failed: ${t.javaClass.simpleName}")
         }
     }
 

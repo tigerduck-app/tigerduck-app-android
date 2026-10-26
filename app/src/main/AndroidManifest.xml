@@ -12,10 +12,47 @@
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- The class table import's QR scanner, which asks for it when its page opens and reads
+         each frame on the device. -->
+    <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- A phone without a camera, or without a back one or autofocus, can still import a share
+         code, from a picture or with whichever camera it has. -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.any"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
+    <!-- The browsers, so a Moodle page signed in with a one-time key is handed to the default
+         one by name rather than to whatever app claims the link (ui/screen/coursemoodle/MoodleLinks.kt).
+         And the Moodle app, which Settings offers the Open Moodle in setting for only while it is
+         installed (ui/screen/coursemoodle/MoodleApp.kt). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="moodlemobile" />
+        </intent>
+    </queries>
+
+    <!-- enableOnBackInvokedCallback: Android 16 turns predictive back on by
+         itself for targetSdk 36; this extends it to Android 13–15, so on 14
+         and 15 a back swipe drags the screen with the finger there too. -->
     <application
         android:name="org.ntust.app.tigerduck.TigerDuckApp"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:enableOnBackInvokedCallback="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:localeConfig="@xml/locales_config"
@@ -42,11 +79,65 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data
-                    android:host="announcement"
-                    android:scheme="tigerduck" />
+                <!-- What each link opens, and the checks a link must pass,
+                     are AppLink.parse's. -->
+                <data android:scheme="tigerduck" />
+                <data android:host="announcement" />
+                <data android:host="assignment" />
+                <data android:host="classtable" />
+                <data android:host="library" />
+            </intent-filter>
+            <!-- tigerduck://share/<type>/<code>, which the share page's "Open in TigerDuck" button
+                 opens through an intent: URL. Read by takeSharedClassTableCode, not AppLink.parse:
+                 the code goes to the class table import, which asks before anything is saved. -->
+            <intent-filter android:autoVerify="false">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="tigerduck" />
+                <data android:host="share" />
+            </intent-filter>
+            <!-- App Links: a share link is the URL HTTPS://SHARE.TIGERDUCK.APP/<TYPE>/<code>, so the
+                 camera, Google Lens, another QR app or a tapped link opens it here once the share
+                 host's assetlinks.json, which lists both flavors' packages, verifies this filter.
+                 The whole host is claimed (decided for both apps), so a type a newer app writes
+                 reaches the import, which asks for an update.
+
+                 Android matches a filter's scheme and host case-sensitively, and share codes are
+                 written in upper case: a scanner that starts the URL exactly as written may reach
+                 the browser instead. No upper-case filter is added for that: verification would
+                 not cover it, so it would not open the app directly either. The share page's
+                 "Open in TigerDuck" button (the filter above) opens the app for a scanner that
+                 opens the browser. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="share.tigerduck.app" />
             </intent-filter>
         </activity>
+
+        <!-- The TigerDuck browser (InAppBrowser.open). Not exported: only the app opens it. It keeps
+             its WebView through a rotation, a resize and a dark-mode switch, which the page follows
+             without a reload. -->
+        <activity
+            android:name="org.ntust.app.tigerduck.ui.screen.browser.InAppBrowserActivity"
+            android:configChanges="locale|layoutDirection|screenSize|screenLayout|smallestScreenSize|orientation|uiMode|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/Theme.TigerDuck"
+            android:windowSoftInputMode="adjustResize" />
+
+        <!-- The viewer for downloaded files; kept through rotation, so a video plays on. -->
+        <activity
+            android:name="org.ntust.app.tigerduck.ui.screen.files.FileViewerActivity"
+            android:configChanges="locale|layoutDirection|screenSize|screenLayout|smallestScreenSize|orientation|uiMode|keyboardHidden"
+            android:exported="false"
+            android:theme="@style/Theme.TigerDuck" />
 
 
         <receiver
@@ -99,6 +190,9 @@
                 android:resource="@xml/widget_week_light_info" />
         </receiver>
 
+        <!-- Each *Dark* receiver below draws what its light twin does and is hidden
+             from the widget picker (widgetFeatures="hide_from_picker"); it stays
+             declared so widgets placed from it before keep working. -->
         <receiver
             android:name="org.ntust.app.tigerduck.widget.receivers.WeekDarkWidgetReceiver"
             android:exported="true"
@@ -171,6 +265,19 @@
                 android:resource="@xml/widget_library_shortcut_info" />
         </receiver>
 
+        <!-- The Quick Settings tile that opens the library QR, beside the launcher shortcut
+             LibraryQrShortcut publishes. -->
+        <service
+            android:name="org.ntust.app.tigerduck.library.LibraryQrTileService"
+            android:exported="true"
+            android:icon="@drawable/widget_library_icon"
+            android:label="@string/library_virtual_pass_title"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
         <!-- App provides its own WorkManager configuration via Configuration.Provider
              so Hilt's worker factory is used. Disable the default initializer. -->
         <provider
@@ -184,7 +291,9 @@
                 tools:node="remove" />
         </provider>
 
-        <!-- Hands opened School Mail attachments to other apps, read-only, one grant per intent. -->
+        <!-- Hands files to other apps (opened School Mail attachments, exported class table
+             images), read-only, one grant per intent. The authority keeps its mail-era name so
+             URIs granted before an update still resolve; see util/FileProviderAuthority.kt. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.mailfiles"
@@ -192,7 +301,7 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/mail_file_paths" />
+                android:resource="@xml/file_provider_paths" />
         </provider>
 
     </application>

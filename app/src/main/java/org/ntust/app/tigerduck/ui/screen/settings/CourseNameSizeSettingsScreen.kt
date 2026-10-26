@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -49,6 +50,7 @@ import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 import org.ntust.app.tigerduck.ui.component.SectionHeader
+import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
@@ -58,7 +60,28 @@ fun CourseNameSizeSettingsScreen(
     onBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
-    val persistedScale = viewModel.appState.courseNameScale
+    val context = LocalContext.current
+    CourseNameSizeContent(
+        persistedScale = viewModel.appState.courseNameScale,
+        onCommit = { viewModel.appState.courseNameScale = it },
+        // The lead-time slider's tick, as the iPhone ticks every 0.05x step.
+        onStep = { Haptics.sliderStep(context) },
+        onBack = onBack,
+    )
+}
+
+/**
+ * [CourseNameSizeSettingsScreen] without its view model. [onCommit] stores a
+ * scale; [onStep] runs each time the slider moves onto another step.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun CourseNameSizeContent(
+    persistedScale: Float,
+    onCommit: (Float) -> Unit,
+    onStep: () -> Unit,
+    onBack: () -> Unit,
+) {
     // Drag-local mirror so onValueChange can drive the preview at 60fps
     // without firing a SharedPreferences write + widget rebuild on every
     // frame. The persisted value is only updated on onValueChangeFinished
@@ -66,6 +89,9 @@ fun CourseNameSizeSettingsScreen(
     // of truth changes from elsewhere (e.g. reset row, full-reset flow).
     var dragScale by remember(persistedScale) { mutableFloatStateOf(persistedScale) }
     val scale = dragScale
+    // The step the last tick was for. Slider reports every pointer move, many
+    // of them within one step, so only a move onto another step ticks.
+    var lastStep by remember(persistedScale) { mutableFloatStateOf(CourseNameScale.normalize(persistedScale)) }
     // Compose Slider's `steps` is the count of discrete values *between*
     // the two endpoints. For 0.8…1.6 at 0.05 we have 17 stops total →
     // 15 in between.
@@ -132,13 +158,20 @@ fun CourseNameSizeSettingsScreen(
                             Spacer(Modifier.width(8.dp))
                             Slider(
                                 value = scale,
-                                onValueChange = { dragScale = it },
+                                onValueChange = {
+                                    dragScale = it
+                                    val step = CourseNameScale.normalize(it)
+                                    if (step != lastStep) {
+                                        lastStep = step
+                                        onStep()
+                                    }
+                                },
                                 onValueChangeFinished = {
                                     // Commit once on release — avoids ~17
                                     // prefs writes + widget rebuilds per
                                     // slider sweep. The AppState setter
                                     // re-normalises and dedups internally.
-                                    viewModel.appState.courseNameScale = dragScale
+                                    onCommit(dragScale)
                                 },
                                 valueRange = CourseNameScale.MIN..CourseNameScale.MAX,
                                 steps = stepCount,
@@ -171,7 +204,7 @@ fun CourseNameSizeSettingsScreen(
                                     enabled = scale != CourseNameScale.DEFAULT,
                                 ) {
                                     dragScale = CourseNameScale.DEFAULT
-                                    viewModel.appState.courseNameScale = CourseNameScale.DEFAULT
+                                    onCommit(CourseNameScale.DEFAULT)
                                 },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center,

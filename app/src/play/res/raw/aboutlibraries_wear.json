@@ -265,10 +265,10 @@
         },
         {
             "uniqueId": "androidx.collection:collection",
-            "artifactVersion": "1.5.0",
+            "artifactVersion": "1.6.0",
             "name": "collections",
             "description": "Standalone efficient collections.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/collection#1.5.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/collection#1.6.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -290,10 +290,10 @@
         },
         {
             "uniqueId": "androidx.collection:collection-ktx",
-            "artifactVersion": "1.5.0",
+            "artifactVersion": "1.6.0",
             "name": "Collections Kotlin Extensions",
             "description": "Kotlin extensions for 'collection' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/collection#1.5.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/collection#1.6.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -315,10 +315,10 @@
         },
         {
             "uniqueId": "androidx.compose.animation:animation",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Animation",
             "description": "Compose animation library",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -340,10 +340,10 @@
         },
         {
             "uniqueId": "androidx.compose.animation:animation-core",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Animation Core",
             "description": "Animation engine and animation primitives that are the building blocks of the Compose animation library",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -365,10 +365,10 @@
         },
         {
             "uniqueId": "androidx.compose.animation:animation-graphics",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Animation Graphics",
             "description": "Compose Animation Graphics Library for using animated-vector resources in Compose",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-animation#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -390,10 +390,10 @@
         },
         {
             "uniqueId": "androidx.compose.foundation:foundation",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Foundation",
             "description": "Higher level abstractions of the Compose UI primitives. This library is design system agnostic, providing the high-level building blocks for both application and design-system developers",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-foundation#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-foundation#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -415,10 +415,10 @@
         },
         {
             "uniqueId": "androidx.compose.foundation:foundation-layout",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Layouts",
             "description": "Compose layout implementations",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-foundation#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-foundation#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -490,10 +490,10 @@
         },
         {
             "uniqueId": "androidx.compose.material:material-ripple",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Material Ripple",
             "description": "Material ripple used to build interactive components",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-material#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-material#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -515,10 +515,10 @@
         },
         {
             "uniqueId": "androidx.compose.runtime:runtime",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Runtime",
             "description": "Tree composition support for code generated by the Compose compiler plugin and corresponding public API",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -540,10 +540,10 @@
         },
         {
             "uniqueId": "androidx.compose.runtime:runtime-annotation",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Runtime Annotation",
             "description": "Provides Compose-specific annotations used by the compiler and tooling",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -565,10 +565,10 @@
         },
         {
             "uniqueId": "androidx.compose.runtime:runtime-retain",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Runtime Retain",
             "description": "Preserve state in composable methods across configuration changes and other transient content destruction scenarios",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -590,10 +590,10 @@
         },
         {
             "uniqueId": "androidx.compose.runtime:runtime-saveable",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Saveable",
             "description": "Compose components that allow saving and restoring the local ui state",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-runtime#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -615,10 +615,10 @@
         },
         {
             "uniqueId": "androidx.compose.ui:ui",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose UI",
             "description": "Compose UI primitives. This library contains the primitives that form the Compose UI Toolkit, such as drawing, measurement and layout.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -640,10 +640,10 @@
         },
         {
             "uniqueId": "androidx.compose.ui:ui-geometry",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Geometry",
             "description": "Compose classes related to dimensions without units",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -665,10 +665,10 @@
         },
         {
             "uniqueId": "androidx.compose.ui:ui-graphics",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Graphics",
             "description": "Compose graphics",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -690,10 +690,10 @@
         },
         {
             "uniqueId": "androidx.compose.ui:ui-text",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose UI Text",
             "description": "Compose Text primitives and utilities",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -715,10 +715,10 @@
         },
         {
             "uniqueId": "androidx.compose.ui:ui-tooling-preview",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose UI Preview Tooling",
             "description": "Compose tooling library API. This library provides the API required to declare @Preview composables in user apps.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -740,10 +740,10 @@
         },
         {
             "uniqueId": "androidx.compose.ui:ui-unit",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Unit",
             "description": "Compose classes for simple units",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -765,10 +765,10 @@
         },
         {
             "uniqueId": "androidx.compose.ui:ui-util",
-            "artifactVersion": "1.12.0",
+            "artifactVersion": "1.12.1",
             "name": "Compose Util",
             "description": "Internal Compose utilities used by other modules",
-            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/compose-ui#1.12.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1003,10 +1003,10 @@
         },
         {
             "uniqueId": "androidx.datastore:datastore",
-            "artifactVersion": "1.2.1",
+            "artifactVersion": "1.3.0",
             "name": "DataStore",
             "description": "Android DataStore - contains the underlying store used by each serialization method along with components that require an Android dependency",
-            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1028,10 +1028,10 @@
         },
         {
             "uniqueId": "androidx.datastore:datastore-core",
-            "artifactVersion": "1.2.1",
+            "artifactVersion": "1.3.0",
             "name": "DataStore Core",
             "description": "Android DataStore Core - contains the underlying store used by each serialization method",
-            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1053,10 +1053,10 @@
         },
         {
             "uniqueId": "androidx.datastore:datastore-core-okio",
-            "artifactVersion": "1.2.1",
+            "artifactVersion": "1.3.0",
             "name": "DataStore Core Okio",
             "description": "Android DataStore Core Okio- contains APIs to use datastore-core in multiplatform via okio",
-            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1078,10 +1078,10 @@
         },
         {
             "uniqueId": "androidx.datastore:datastore-preferences",
-            "artifactVersion": "1.2.1",
+            "artifactVersion": "1.3.0",
             "name": "Preferences DataStore",
             "description": "Android Preferences DataStore",
-            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1103,10 +1103,10 @@
         },
         {
             "uniqueId": "androidx.datastore:datastore-preferences-core",
-            "artifactVersion": "1.2.1",
+            "artifactVersion": "1.3.0",
             "name": "Preferences DataStore Core",
             "description": "Android Preferences DataStore without the Android Dependencies",
-            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1128,10 +1128,10 @@
         },
         {
             "uniqueId": "androidx.datastore:datastore-preferences-external-protobuf",
-            "artifactVersion": "1.2.1",
+            "artifactVersion": "1.3.0",
             "name": "Preferences External Protobuf",
             "description": "Repackaged proto-lite dependency for use by datastore preferences",
-            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1153,10 +1153,10 @@
         },
         {
             "uniqueId": "androidx.datastore:datastore-preferences-proto",
-            "artifactVersion": "1.2.1",
+            "artifactVersion": "1.3.0",
             "name": "Preferences DataStore Proto",
             "description": "Jarjar the generated proto for use by datastore-preferences.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.2.1",
+            "website": "https://developer.android.com/jetpack/androidx/releases/datastore#1.3.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1404,10 +1404,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-common",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle-Common",
             "description": "Android Lifecycle-Common",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1429,10 +1429,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle LiveData",
             "description": "Android Lifecycle LiveData",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1454,10 +1454,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata-core",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle LiveData Core",
             "description": "Android Lifecycle LiveData Core",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1479,10 +1479,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-livedata-core-ktx",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "LiveData Core Kotlin Extensions",
             "description": "Kotlin extensions for 'livedata-core' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1504,10 +1504,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-process",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle Process",
             "description": "Android Lifecycle Process",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1529,10 +1529,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle Runtime",
             "description": "Android Lifecycle Runtime",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1554,10 +1554,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime-compose",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle Runtime Compose",
             "description": "Compose integration with Lifecycle",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1579,10 +1579,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-runtime-ktx",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle Kotlin Extensions",
             "description": "Kotlin extensions for 'lifecycle' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1604,10 +1604,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-service",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle Service",
             "description": "Android Lifecycle Service",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1629,10 +1629,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle ViewModel",
             "description": "Android Lifecycle ViewModel",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1654,10 +1654,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-compose",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle ViewModel Compose",
             "description": "Compose integration with Lifecycle ViewModel",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1679,10 +1679,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-ktx",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle ViewModel Kotlin Extensions",
             "description": "Kotlin extensions for 'viewmodel' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -1704,10 +1704,10 @@
         },
         {
             "uniqueId": "androidx.lifecycle:lifecycle-viewmodel-savedstate",
-            "artifactVersion": "2.9.4",
+            "artifactVersion": "2.10.0",
             "name": "Lifecycle ViewModel with SavedState",
             "description": "Android Lifecycle ViewModel",
-            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.9.4",
+            "website": "https://developer.android.com/jetpack/androidx/releases/lifecycle#2.10.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2096,10 +2096,10 @@
         },
         {
             "uniqueId": "androidx.savedstate:savedstate",
-            "artifactVersion": "1.3.2",
+            "artifactVersion": "1.4.0",
             "name": "Saved State",
             "description": "Android Lifecycle Saved State",
-            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.3.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.4.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2121,10 +2121,10 @@
         },
         {
             "uniqueId": "androidx.savedstate:savedstate-compose",
-            "artifactVersion": "1.3.2",
+            "artifactVersion": "1.4.0",
             "name": "Saved State Compose",
             "description": "Compose integration with Saved State",
-            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.3.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.4.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2146,10 +2146,10 @@
         },
         {
             "uniqueId": "androidx.savedstate:savedstate-ktx",
-            "artifactVersion": "1.3.2",
+            "artifactVersion": "1.4.0",
             "name": "SavedState Kotlin Extensions",
             "description": "Kotlin extensions for 'savedstate' artifact",
-            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.3.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/savedstate#1.4.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2315,15 +2315,18 @@
         },
         {
             "uniqueId": "androidx.tracing:tracing",
-            "artifactVersion": "1.2.0",
-            "name": "Android Tracing",
+            "artifactVersion": "2.0.1",
+            "name": "Tracing",
             "description": "Android Tracing",
-            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#1.2.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#2.0.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
                 }
             ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
             "scm": {
                 "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
@@ -2337,15 +2340,18 @@
         },
         {
             "uniqueId": "androidx.tracing:tracing-ktx",
-            "artifactVersion": "1.2.0",
-            "name": "Android Tracing Runtime Kotlin Extensions",
+            "artifactVersion": "2.0.1",
+            "name": "Tracing Kotlin Extensions",
             "description": "Android Tracing",
-            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#1.2.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/tracing#2.0.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
                 }
             ],
+            "organization": {
+                "name": "The Android Open Source Project"
+            },
             "scm": {
                 "connection": "scm:git:https://android.googlesource.com/platform/frameworks/support",
                 "url": "https://cs.android.com/androidx/platform/frameworks/support"
@@ -2447,10 +2453,10 @@
         },
         {
             "uniqueId": "androidx.wear.compose:compose-foundation",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.1",
             "name": "Android Wear Compose Foundation",
             "description": "WearOS Compose Foundation Library. This library makes it easier for developersto write Jetpack Compose applications for Wearable devices by providing functionality to support wearable specific devices sizes, shapes and navigation gestures. It builds upon the Jetpack Compose libraries.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.7.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2472,10 +2478,10 @@
         },
         {
             "uniqueId": "androidx.wear.compose:compose-material",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.1",
             "name": "Android Wear Compose Material",
             "description": "WearOS Compose Material Library. This library makes it easier for developers to write Jetpack Compose applications for Wearable devices that implement Wear Material Design UX guidelines and specifications. It builds upon the Jetpack Compose libraries.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.7.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2497,10 +2503,10 @@
         },
         {
             "uniqueId": "androidx.wear.compose:compose-material-core",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.1",
             "name": "Android Wear Compose Material Core",
             "description": "WearOS Compose Material Core Library. This library contains themeless components that are shared between different WearOS Compose Material libraries. It builds upon the Jetpack Compose libraries.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.7.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2522,10 +2528,10 @@
         },
         {
             "uniqueId": "androidx.wear.compose:compose-material3",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.1",
             "name": "Android Wear Compose Material 3",
             "description": "WearOS Compose Material 3 Library. This library makes it easier for developers to write Jetpack Compose applications for Wearable devices that implement Wear Material 3 Design UX guidelines and specifications. It builds upon the Jetpack Compose libraries.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.7.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2547,10 +2553,10 @@
         },
         {
             "uniqueId": "androidx.wear.compose:compose-navigation",
-            "artifactVersion": "1.6.2",
+            "artifactVersion": "1.7.1",
             "name": "Android Wear Compose Navigation",
             "description": "WearOS Compose Navigation Library. This library makes it easier for developersto write Jetpack Compose applications for Wearable devices by providing functionality to support navigation. It builds upon the Jetpack Compose libraries.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.6.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/wear-compose#1.7.1",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -2922,10 +2928,10 @@
         },
         {
             "uniqueId": "androidx.wear:wear-core",
-            "artifactVersion": "1.0.0",
+            "artifactVersion": "1.1.0",
             "name": "Android Wear Core",
             "description": "Low-level utilities for building apps and libraries for Wear OS.",
-            "website": "https://developer.android.com/jetpack/androidx/releases/wear#1.0.0",
+            "website": "https://developer.android.com/jetpack/androidx/releases/wear#1.1.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -3022,10 +3028,10 @@
         },
         {
             "uniqueId": "androidx.work:work-runtime",
-            "artifactVersion": "2.11.2",
+            "artifactVersion": "2.12.0",
             "name": "WorkManager Runtime",
             "description": "Android WorkManager runtime library",
-            "website": "https://developer.android.com/jetpack/androidx/releases/work#2.11.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/work#2.12.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -3047,10 +3053,10 @@
         },
         {
             "uniqueId": "androidx.work:work-runtime-ktx",
-            "artifactVersion": "2.11.2",
+            "artifactVersion": "2.12.0",
             "name": "WorkManager Kotlin Extensions",
             "description": "Android WorkManager Kotlin Extensions",
-            "website": "https://developer.android.com/jetpack/androidx/releases/work#2.11.2",
+            "website": "https://developer.android.com/jetpack/androidx/releases/work#2.12.0",
             "developers": [
                 {
                     "name": "The Android Open Source Project"
@@ -3132,7 +3138,7 @@
         },
         {
             "uniqueId": "com.google.code.gson:gson",
-            "artifactVersion": "2.14.0",
+            "artifactVersion": "2.15.0",
             "name": "Gson",
             "description": "Gson JSON library",
             "website": "https://github.com/google/gson",
@@ -3178,7 +3184,7 @@
         },
         {
             "uniqueId": "com.google.errorprone:error_prone_annotations",
-            "artifactVersion": "2.48.0",
+            "artifactVersion": "2.50.0",
             "name": "error-prone annotations",
             "description": "Error Prone is a static analysis tool for Java that catches common programming mistakes at compile-time.",
             "website": "https://errorprone.info/error_prone_annotations",
@@ -3252,7 +3258,7 @@
         },
         {
             "uniqueId": "com.squareup.okhttp3:logging-interceptor",
-            "artifactVersion": "5.5.0",
+            "artifactVersion": "5.5.1",
             "name": "logging-interceptor",
             "description": "Square\u2019s meticulous HTTP client for Java and Kotlin.",
             "website": "https://lysine.dev/okhttp/",
@@ -3275,7 +3281,7 @@
         },
         {
             "uniqueId": "com.squareup.okhttp3:okhttp",
-            "artifactVersion": "5.5.0",
+            "artifactVersion": "5.5.1",
             "name": "okhttp",
             "description": "Square\u2019s meticulous HTTP client for Java and Kotlin.",
             "website": "https://lysine.dev/okhttp/",
@@ -3320,8 +3326,29 @@
             ]
         },
         {
+            "uniqueId": "org.bouncycastle:bcprov-jdk18on",
+            "artifactVersion": "1.86",
+            "name": "Bouncy Castle Provider",
+            "description": "The Bouncy Castle Crypto package is a Java implementation of cryptographic algorithms. This jar contains the  JCA/JCE provider and low-level API for the BC Java version 1.86 for Java 1.8 and later.",
+            "website": "https://www.bouncycastle.org/download/bouncy-castle-java/",
+            "developers": [
+                {
+                    "name": "The Legion of the Bouncy Castle Inc."
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/bcgit/bc-java"
+            },
+            "licenses": [
+                "73252b46f36df25ef51a7994de439aea"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib",
-            "artifactVersion": "2.4.10",
+            "artifactVersion": "2.4.21",
             "name": "Kotlin Stdlib",
             "description": "Kotlin Standard Library",
             "website": "https://kotlinlang.org/",
@@ -3345,7 +3372,7 @@
         },
         {
             "uniqueId": "org.jetbrains.kotlin:kotlin-stdlib-common",
-            "artifactVersion": "2.4.10",
+            "artifactVersion": "2.4.21",
             "name": "Kotlin Stdlib Common",
             "description": "Kotlin Common Standard Library (legacy, use kotlin-stdlib instead)",
             "website": "https://kotlinlang.org/",
@@ -3359,6 +3386,28 @@
                 "connection": "scm:git:https://github.com/JetBrains/kotlin.git",
                 "developerConnection": "scm:git:https://github.com/JetBrains/kotlin.git",
                 "url": "https://github.com/JetBrains/kotlin"
+            },
+            "licenses": [
+                "Apache-2.0"
+            ],
+            "funding": [
+                
+            ]
+        },
+        {
+            "uniqueId": "org.jetbrains.kotlinx:atomicfu",
+            "artifactVersion": "0.28.0",
+            "name": "atomicfu",
+            "description": "AtomicFU utilities",
+            "website": "https://github.com/Kotlin/kotlinx.atomicfu",
+            "developers": [
+                {
+                    "name": "JetBrains Team",
+                    "organisationUrl": "https://www.jetbrains.com"
+                }
+            ],
+            "scm": {
+                "url": "https://github.com/Kotlin/kotlinx.atomicfu"
             },
             "licenses": [
                 "Apache-2.0"
@@ -3456,28 +3505,6 @@
             ]
         },
         {
-            "uniqueId": "org.jetbrains.kotlinx:kotlinx-serialization-json",
-            "artifactVersion": "1.7.3",
-            "name": "kotlinx-serialization-json",
-            "description": "Kotlin multiplatform serialization runtime library",
-            "website": "https://github.com/Kotlin/kotlinx.serialization",
-            "developers": [
-                {
-                    "name": "JetBrains Team",
-                    "organisationUrl": "https://www.jetbrains.com"
-                }
-            ],
-            "scm": {
-                "url": "https://github.com/Kotlin/kotlinx.serialization"
-            },
-            "licenses": [
-                "Apache-2.0"
-            ],
-            "funding": [
-                
-            ]
-        },
-        {
             "uniqueId": "org.jetbrains:annotations",
             "artifactVersion": "23.0.0",
             "name": "JetBrains Java Annotations",
@@ -3526,6 +3553,20 @@
         }
     ],
     "licenses": {
+        "0BSD": {
+            "name": "BSD Zero Clause License",
+            "url": "https://spdx.org/licenses/0BSD.html",
+            "content": "Permission to use, copy, modify, and/or distribute this\nsoftware for any purpose with or without fee is hereby granted.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\" AND THE AUTHOR DISCLAIMS ALL\nWARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED\nWARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL\nTHE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR\nCONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM\nLOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT,\nNEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN\nCONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.\n",
+            "internalHash": "0BSD",
+            "spdxId": "0BSD",
+            "hash": "0BSD"
+        },
+        "73252b46f36df25ef51a7994de439aea": {
+            "name": "Bouncy Castle Licence",
+            "url": "https://www.bouncycastle.org/licence.html",
+            "content": "MIT License (https://opensource.org/licenses/MIT)\n\nCopyright (c) 2000-2026 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org).\nPermission is hereby granted, free of charge, to any person obtaining a copy of this software and\nassociated documentation files (the \"Software\"), to deal in the Software without restriction,\nincluding without limitation the rights to use, copy, modify, merge, publish, distribute,\nsub license, and/or sell copies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions: The above copyright notice and this\npermission notice shall be included in all copies or substantial portions of the Software.\n\nTHE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT\nNOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND\nNONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,\nDAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT\nOF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.\n",
+            "hash": "bb31df56a0ddc417f54ee6f61a363bac"
+        },
         "ASDKL": {
             "name": "Android Software Development Kit License",
             "url": "https://developer.android.com/studio/terms.html",

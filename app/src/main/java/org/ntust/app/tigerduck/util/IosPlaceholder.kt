@@ -14,3 +14,13 @@ package org.ntust.app.tigerduck.util
  */
 internal fun String.replaceIosArg(arg: Int, value: String): String =
     replace("%$arg\$@", value)
+
+/** [replaceIosArg] for a string's one unnumbered `%@`. */
+internal fun String.replaceIosArg(value: String): String = replace("%@", value)
+
+/**
+ * The integer form of [replaceIosArg]: iOS writes a count as `%1$lld` (or `%1$ld`, `%1$d`),
+ * and Java's formatter rejects the `ll` length modifier outright.
+ */
+internal fun String.replaceIosArg(arg: Int, value: Long): String =
+    replace(Regex("%$arg\\$(?:ll|l)?d"), value.toString())

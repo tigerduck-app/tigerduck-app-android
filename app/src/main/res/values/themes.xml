@@ -2,4 +2,14 @@
 <resources>
 
     <style name="Theme.TigerDuck" parent="Theme.AppCompat.DayNight.NoActionBar" />
+
+    <!-- The TigerDuck browser's WebView is made on a theme with one of these laid over it: the
+         WebView tells a page `prefers-color-scheme` from the theme's isLightTheme. -->
+    <style name="ThemeOverlay.TigerDuck.BrowserPage.Light" parent="">
+        <item name="android:isLightTheme">true</item>
+    </style>
+
+    <style name="ThemeOverlay.TigerDuck.BrowserPage.Dark" parent="">
+        <item name="android:isLightTheme">false</item>
+    </style>
 </resources>

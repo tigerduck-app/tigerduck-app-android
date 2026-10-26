@@ -59,7 +59,16 @@ data class LibraryApiError(
 
 sealed class LibraryServiceError : Exception() {
     class CredentialsNotFound : LibraryServiceError()
+    /**
+     * The library refused the sign-in: an error in its answer, or any 4xx, since
+     * which status a wrong password gets is unchecked.
+     */
     data class LoginFailed(val msg: String) : LibraryServiceError() {
+        override val message: String get() = msg
+    }
+
+    /** The library gave the sign-in no answer it could read, such as a server error. Not a refusal. */
+    data class LoginUnavailable(val msg: String) : LibraryServiceError() {
         override val message: String get() = msg
     }
 

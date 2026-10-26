@@ -6,17 +6,23 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HtmlSanitizerTest {
-    private val forbidden = listOf(
-        "<script", "javascript:", "vbscript:", "data:text", "data:image/svg", "onerror", "onload", "onclick",
-        "onmouseover", "<iframe", "<object", "<embed", "<svg", "<math", "<base", "<meta", "<form",
-        "<input", "<style", "<link", "<template", "<noscript", "expression(", "url(", "@import",
-        "behavior", "-moz-binding", "position", "z-index", "background=", "image-set",
-    )
+    companion object {
+        /** Also checked on both of MailReadableHtml's pages, which must write none of them back. */
+        val forbidden = listOf(
+            "<script", "javascript:", "vbscript:", "data:text", "data:image/svg", "onerror", "onload", "onclick",
+            "onmouseover", "<iframe", "<object", "<embed", "<svg", "<math", "<base", "<meta", "<form",
+            "<input", "<style", "<link", "<template", "<noscript", "expression(", "url(", "@import",
+            "behavior", "-moz-binding", "position", "z-index", "background=", "image-set",
+        )
+
+        val corpus: List<String> by lazy {
+            requireNotNull(HtmlSanitizerTest::class.java.getResourceAsStream("/mail/xss-corpus.txt")).bufferedReader().readLines()
+                .filter { it.isNotBlank() }
+        }
+    }
 
     @Test
     fun `nothing from the XSS corpus survives`() {
-        val corpus = requireNotNull(javaClass.getResourceAsStream("/mail/xss-corpus.txt")).bufferedReader().readLines()
-            .filter { it.isNotBlank() }
         assertTrue(corpus.size >= 30)
         for (vector in corpus) {
             val out = HtmlSanitizer.sanitize(vector, allowRemoteImages = false).html.lowercase()

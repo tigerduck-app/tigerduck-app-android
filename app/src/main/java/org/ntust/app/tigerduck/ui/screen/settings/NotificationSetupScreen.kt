@@ -1,9 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
-import android.Manifest
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -61,10 +57,7 @@ fun NotificationSetupContent(
 ) {
     var states by remember { mutableStateOf(systemPermissions.states()) }
 
-    val notificationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) systemPermissions.recordCurrentGrants()
+    val allowNotifications = rememberAllowNotificationsAction(systemPermissions) {
         states = systemPermissions.states()
     }
 
@@ -97,15 +90,7 @@ fun NotificationSetupContent(
                 state = s,
                 onClick = {
                     when (s.permission) {
-                        AppPermission.NOTIFICATIONS -> {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                                !s.granted
-                            ) {
-                                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            } else {
-                                systemPermissions.openSettings(s.permission)
-                            }
-                        }
+                        AppPermission.NOTIFICATIONS -> allowNotifications()
 
                         else -> {
                             systemPermissions.openSettings(s.permission)

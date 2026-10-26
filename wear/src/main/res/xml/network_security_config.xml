@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The watch calls one host, api.lib.ntust.edu.tw, with the library account the
+    phone hands it. Its pins aren't here: :shared's PinnedTrustManager applies
+    BuiltInPins' "library" set, and the TigerSync document the phone forwards, on
+    top of this config's system trust (TLS pins spec, A8 and A9).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">api.lib.ntust.edu.tw</domain>
+    </domain-config>
+</network-security-config>

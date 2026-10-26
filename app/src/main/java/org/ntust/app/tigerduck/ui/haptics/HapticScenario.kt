@@ -63,14 +63,6 @@ enum class HapticScenario(
         defaultDurationMs = 20,
         userTunable = true,
         labelRes = R.string.haptic_scenario_flip_to_library,
-    ),
-    LibraryWarning(
-        prefKey = "libraryWarning",
-        defaultStrengthPct = 100,
-        defaultDurationMs = 1000,
-        userTunable = false,
-        forceOneShot = true,
-        labelRes = R.string.haptic_scenario_library_warning,
     );
 
     companion object {

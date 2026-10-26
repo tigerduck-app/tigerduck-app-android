@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -56,7 +57,7 @@ class FcmBootstrap @Inject constructor(
                 ?.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) = retryRegistrationIfDue()
                 })
-        }.onFailure { e -> Log.w(TAG, "could not watch connectivity for registration retries", e) }
+        }.onFailure { e -> Log.w(TAG, "could not watch connectivity for registration retries: ${e.logSummary()}") }
     }
 
     /**

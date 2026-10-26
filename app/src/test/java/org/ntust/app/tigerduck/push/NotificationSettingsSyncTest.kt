@@ -811,6 +811,14 @@ class NotificationSettingsSyncTest {
         override var hasUnconfirmedEdit: Boolean = false
     }
 
+    /** In-memory [ClassReminderSyncStore], in the place AppPreferences has in production. */
+    private class FakeClassReminderSyncStore : ClassReminderSyncStore {
+        override var enabled: Boolean = true
+        override var leadMinutes: Int = 10
+        override var hasPickedLead: Boolean = false
+        override var hasUnconfirmedEdit: Boolean = false
+    }
+
     /** Records what the sync asks of the reminders armed on this device. */
     private class FakeAssignmentReminderAlarms : AssignmentReminderAlarms {
         var cancels = 0
@@ -837,6 +845,8 @@ class NotificationSettingsSyncTest {
         val prefs = LiveActivityPreferences(FakeLiveActivitySharedPreferences())
         val assignments = FakeAssignmentReminderSyncStore()
         val alarms = FakeAssignmentReminderAlarms()
+        val classReminders = FakeClassReminderSyncStore()
+        var cloudSync = true
         var syncLiveActivity = true
         var syncAssignmentReminders = true
         val syncLiveActivityChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -871,7 +881,8 @@ class NotificationSettingsSyncTest {
             liveActivityPreferences = prefs,
             assignmentStore = assignments,
             assignmentAlarms = alarms,
-            cloudSyncEnabled = { true },
+            classReminderStore = classReminders,
+            cloudSyncEnabled = { cloudSync },
             syncLiveActivity = { syncLiveActivity },
             syncAssignmentReminders = { syncAssignmentReminders },
             isLoggedIn = { signedInAs != null },
@@ -1056,13 +1067,48 @@ class NotificationSettingsSyncTest {
     }
 
     @Test
+    fun `a pull after a full sync reads no document again at the revision it found none at`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+
+        device.sync.pullNow(knownRevision = 7)
+        device.sync.pullNow(knownRevision = 7)
+        assertEquals(1, device.server("A").reads)
+
+        // Any device's write of the document moves the revision.
+        device.sync.pullNow(knownRevision = 8)
+        assertEquals(2, device.server("A").reads)
+        // A settings screen's pull always reads.
+        device.sync.pullNow()
+        assertEquals(3, device.server("A").reads)
+    }
+
+    @Test
+    fun `a document found is read at every pull, and a missing one again after a sign-out`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json("""{"live_activity": {"class_preparing_lead_seconds": 3600}}""")
+        device.sync.pullNow(knownRevision = 7)
+        device.sync.pullNow(knownRevision = 7)
+        assertEquals(2, device.server("A").reads)
+
+        device.signIn("B")
+        device.sync.pullNow(knownRevision = 7)
+        device.logOut()
+        device.signIn("B")
+        device.sync.pullNow(knownRevision = 7)
+
+        assertEquals(2, device.server("B").reads)
+    }
+
+    @Test
     fun `a relogin that fires inside a pull does not stop that pull from applying`() = runTest {
         val device = Device(backgroundScope)
         device.signIn("A")
         device.server("A").document = json("""{"live_activity": {"class_preparing_lead_seconds": 3600}}""")
-        // A lapsed refresh token sends AuthTokenManager.authHeader() into
-        // AuthService.attemptRelogin while the pull's own request is being
-        // built, and the relogin ends with the catch-up every sign-in makes.
+        // A lapsed refresh token sends AuthTokenManager.authHeader() into the
+        // automatic sign-in while the pull's own request is being built, and
+        // the sign-in ends with the catch-up every sign-in makes.
         device.server("A").beforeRead = { device.sync.pushIfUnconfirmed() }
 
         val pulled = device.sync.pullNow()
@@ -2353,6 +2399,267 @@ class NotificationSettingsSyncTest {
         )
 
         assertEquals(localAssignments, resolved)
+    }
+
+    // ── Courses section: class reminders ───────────────────────────────────
+    //
+    // `courses.enabled` and `courses.reminder_offsets_minutes`, which iOS's
+    // Class reminders screen writes and the backend reads
+    // (`server/push/course_reminders.py`, `_course_prefs`). Gated on cloud
+    // sync and the session only, as on iOS.
+
+    private val classReminder = ClassReminderSyncValues(enabled = false, leadMinutes = 30, hasPickedLead = true)
+
+    private fun coursesOf(document: JsonObject): JsonObject = document.getAsJsonObject("courses")
+
+    @Test
+    fun `class reminder values map onto the courses keys`() = runBlocking {
+        val transport = RecordingTransport(existing = null)
+
+        val written = pushClassReminderSettings(
+            local = classReminder,
+            transport = transport,
+            cloudSyncEnabled = true,
+            isLoggedIn = true,
+        )
+
+        assertTrue(written)
+        val document = transport.writtenDocuments.single()
+        assertEquals(setOf("courses"), document.keySet())
+        val section = coursesOf(document)
+        assertEquals(false, section.get("enabled").asBoolean)
+        assertEquals(listOf(30), section.getAsJsonArray("reminder_offsets_minutes").map { it.asInt })
+    }
+
+    @Test
+    fun `a courses push leaves every other section, and unknown keys inside courses, untouched`() = runBlocking {
+        val server = json(serverDocumentJson).apply {
+            getAsJsonObject("courses").addProperty("future_field", "kept")
+        }
+        val transport = RecordingTransport(existing = SettingsDocumentEnvelope(document = server, revision = 3L))
+
+        pushClassReminderSettings(classReminder, transport, cloudSyncEnabled = true, isLoggedIn = true)
+
+        val document = transport.writtenDocuments.single()
+        assertEquals(3L, transport.baseRevisions.single())
+        assertEquals(server.keySet(), document.keySet())
+        assertEquals(server.getAsJsonObject("assignments"), document.getAsJsonObject("assignments"))
+        assertEquals(server.getAsJsonObject("live_activity"), document.getAsJsonObject("live_activity"))
+        assertEquals(server.getAsJsonObject("some_future_section"), document.getAsJsonObject("some_future_section"))
+        assertEquals("kept", coursesOf(document).get("future_field").asString)
+    }
+
+    @Test
+    fun `a lead time not picked here leaves the server's list alone`() {
+        val existing = json("""{"courses": {"enabled": true, "reminder_offsets_minutes": [10, 45]}}""")
+
+        val section = coursesOf(classReminder.copy(hasPickedLead = false).documentUpdates(existing))
+
+        assertEquals(false, section.get("enabled").asBoolean)
+        assertFalse("the merge keeps the server's list", section.has("reminder_offsets_minutes"))
+    }
+
+    @Test
+    fun `with no list on the server, the lead time goes up even unpicked`() {
+        val section = coursesOf(classReminder.copy(hasPickedLead = false).documentUpdates(JsonObject()))
+
+        assertEquals(listOf(30), section.getAsJsonArray("reminder_offsets_minutes").map { it.asInt })
+    }
+
+    @Test
+    fun `a lead time carried over from the Live Update never goes up`() {
+        val carriedOver = ClassReminderSyncValues(enabled = true, leadMinutes = 20, hasPickedLead = false)
+
+        val section = coursesOf(carriedOver.documentUpdates(JsonObject()))
+
+        assertFalse(section.has("reminder_offsets_minutes"))
+        assertEquals(true, section.get("enabled").asBoolean)
+    }
+
+    @Test
+    fun `a courses push conflict adopts the server document and retries once`() = runBlocking {
+        val winner = json("""{"courses": {"enabled": true, "reminder_offsets_minutes": [5]}, "x": 1}""")
+        val transport = RecordingTransport(
+            existing = null,
+            outcomes = listOf(
+                SettingsWriteResult.Conflict(SettingsDocumentEnvelope(document = winner, revision = 9L)),
+                SettingsWriteResult.Written(10L),
+            ),
+        )
+
+        assertTrue(pushClassReminderSettings(classReminder, transport, cloudSyncEnabled = true, isLoggedIn = true))
+
+        assertEquals(listOf(null, 9L), transport.baseRevisions)
+        val rebased = transport.writtenDocuments.last()
+        assertEquals(1, rebased.get("x").asInt)
+        assertEquals(listOf(30), coursesOf(rebased).getAsJsonArray("reminder_offsets_minutes").map { it.asInt })
+    }
+
+    @Test
+    fun `cloud sync off or signed out sends no courses request at all`() = runBlocking {
+        val transport = RecordingTransport(existing = null)
+
+        assertFalse(pushClassReminderSettings(classReminder, transport, cloudSyncEnabled = false, isLoggedIn = true))
+        assertFalse(pushClassReminderSettings(classReminder, transport, cloudSyncEnabled = true, isLoggedIn = false))
+        assertNull(pullClassReminderSettings(classReminder, transport, cloudSyncEnabled = false, isLoggedIn = true))
+        assertNull(pullClassReminderSettings(classReminder, transport, cloudSyncEnabled = true, isLoggedIn = false))
+
+        assertEquals(0, transport.readCount)
+        assertTrue(transport.writtenDocuments.isEmpty())
+    }
+
+    @Test
+    fun `the document's smallest lead time is adopted when it is a choice, and the pick is cleared`() {
+        assertEquals(15 to false, resolveClassReminderLead(listOf(30, 15), currentMinutes = 10, currentPicked = true))
+    }
+
+    @Test
+    fun `a document lead time with no choice keeps the current one`() {
+        assertEquals(20 to false, resolveClassReminderLead(listOf(45), currentMinutes = 20, currentPicked = true))
+        assertEquals(10 to false, resolveClassReminderLead(emptyList(), currentMinutes = 10, currentPicked = true))
+    }
+
+    @Test
+    fun `no list in the document changes nothing`() {
+        assertEquals(10 to true, resolveClassReminderLead(null, currentMinutes = 10, currentPicked = true))
+    }
+
+    @Test
+    fun `pull adopts an iPhone's class reminder settings`() = runBlocking {
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(
+                document = json("""{"courses": {"enabled": false, "reminder_offsets_minutes": [60]}}"""),
+                revision = 1L,
+            ),
+        )
+
+        val pulled = pullClassReminderSettings(
+            ClassReminderSyncValues(enabled = true, leadMinutes = 10, hasPickedLead = true),
+            transport,
+            cloudSyncEnabled = true,
+            isLoggedIn = true,
+        )
+
+        assertEquals(ClassReminderSyncValues(enabled = false, leadMinutes = 60, hasPickedLead = false), pulled)
+    }
+
+    @Test
+    fun `pull keeps the switch when enabled is missing or not a boolean`() = runBlocking {
+        val current = ClassReminderSyncValues(enabled = true, leadMinutes = 10, hasPickedLead = false)
+        for (section in listOf("""{}""", """{"enabled": "false"}""", """{"enabled": 0}""", """{"enabled": null}""")) {
+            val transport = RecordingTransport(
+                existing = SettingsDocumentEnvelope(document = json("""{"courses": $section}"""), revision = 1L),
+            )
+
+            val pulled = pullClassReminderSettings(current, transport, cloudSyncEnabled = true, isLoggedIn = true)
+
+            assertEquals(section, true, pulled?.enabled)
+        }
+    }
+
+    @Test
+    fun `pull applies nothing when the document has no courses section`() = runBlocking {
+        val transport = RecordingTransport(
+            existing = SettingsDocumentEnvelope(document = json("""{"courses": null, "assignments": {}}"""), revision = 1L),
+        )
+
+        assertNull(pullClassReminderSettings(classReminder, transport, cloudSyncEnabled = true, isLoggedIn = true))
+    }
+
+    @Test
+    fun `an iPhone's class reminder choice reaches this phone on the next pull`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json("""{"courses": {"enabled": false, "reminder_offsets_minutes": [30]}}""")
+
+        device.sync.pullNow()
+
+        assertFalse(device.classReminders.enabled)
+        assertEquals(30, device.classReminders.leadMinutes)
+        runQueue()
+        assertTrue("a pull pushes nothing back", device.server("A").writes.isEmpty())
+    }
+
+    @Test
+    fun `a class reminder edit pushes through the queue and confirms`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.classReminders.enabled = false
+        device.classReminders.leadMinutes = 15
+        device.classReminders.hasPickedLead = true
+
+        device.sync.markClassReminderUnconfirmedAndPush()
+        runQueue()
+
+        val write = device.server("A").writes.single()
+        assertEquals("only the dirty section goes up", setOf("courses"), write.keySet())
+        assertEquals(false, coursesOf(write).get("enabled").asBoolean)
+        assertEquals(listOf(15), coursesOf(write).getAsJsonArray("reminder_offsets_minutes").map { it.asInt })
+        assertFalse(device.classReminders.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `a class reminder edit made with cloud sync off waits for it`() = runTest {
+        val device = Device(backgroundScope)
+        device.cloudSync = false
+        device.signIn("A")
+        device.classReminders.enabled = false
+
+        device.sync.markClassReminderUnconfirmedAndPush()
+        runQueue()
+
+        assertTrue(device.server("A").writes.isEmpty())
+        assertTrue(device.classReminders.hasUnconfirmedEdit)
+    }
+
+    @Test
+    fun `pull does not overwrite a class reminder edit not yet confirmed`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json("""{"courses": {"enabled": true, "reminder_offsets_minutes": [10]}}""")
+        device.server("A").beforeRead = {
+            device.server("A").beforeRead = {}
+            device.classReminders.enabled = false
+            device.sync.markClassReminderUnconfirmedAndPush()
+        }
+
+        device.sync.pullNow()
+
+        assertFalse("the tap survives the pull that was reading when it landed", device.classReminders.enabled)
+        runQueue()
+        assertEquals(false, coursesOf(device.server("A").writes.last()).get("enabled").asBoolean)
+    }
+
+    @Test
+    fun `an unconfirmed class reminder edit at logout is not pushed into the next account's document`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").offline = true
+        device.classReminders.enabled = false
+        device.sync.markClassReminderUnconfirmedAndPush()
+        runQueue()
+        assertTrue(device.classReminders.hasUnconfirmedEdit)
+
+        device.logOut()
+        device.signIn("B")
+        runQueue()
+
+        assertFalse(device.classReminders.hasUnconfirmedEdit)
+        assertTrue(device.server("B").writes.isEmpty())
+    }
+
+    @Test
+    fun `signing in delivers a class reminder edit made while signed out`() = runTest {
+        val device = Device(backgroundScope)
+        device.classReminders.enabled = false
+        device.sync.markClassReminderUnconfirmedAndPush()
+        runQueue()
+
+        device.signIn("A")
+        runQueue()
+
+        assertEquals(false, coursesOf(device.server("A").writes.single()).get("enabled").asBoolean)
+        assertFalse(device.classReminders.hasUnconfirmedEdit)
     }
 }
 

@@ -40,6 +40,21 @@ object Haptics {
         vibrate(context, strengthPct, durationMs, forceOneShot = true)
     }
 
+    /**
+     * A settings slider moving onto its next step. A fixed feel, the
+     * defaults of [HapticScenario.TimeSliderTick], not that scenario's
+     * user-tuned strength: the home-screen time slider and these sliders are
+     * unrelated, and one shared tunable would couple them. The system's
+     * touch-feedback switch still silences it.
+     */
+    fun sliderStep(context: Context) {
+        previewCustom(
+            context,
+            HapticScenario.TimeSliderTick.defaultStrengthPct,
+            HapticScenario.TimeSliderTick.defaultDurationMs,
+        )
+    }
+
     private fun vibrate(
         context: Context,
         strengthPct: Int,

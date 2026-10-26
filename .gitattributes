@@ -1,0 +1,3 @@
+# The file viewer samples are byte-exact test files (their sizes are in index.tsv, and big5.txt
+# must stay Big5): never convert their line endings.
+app/src/debug/assets/viewer-samples/** -text

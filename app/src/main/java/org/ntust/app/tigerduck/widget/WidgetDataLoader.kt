@@ -7,6 +7,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.computeOngoingCourses
@@ -15,6 +16,7 @@ import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
+import java.time.LocalDate
 import java.util.Calendar
 
 @EntryPoint
@@ -48,27 +50,20 @@ object WidgetDataLoader {
         // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
         // the timetable weeks ahead of the term, so having courses is not
         // evidence that classes have started. Either way the "now / next"
-        // derivations go quiet, which is what the Next-class widget renders.
-        // `courses` is deliberately left alone: the Today and Week grids show
-        // the timetable itself, which stays useful on a day off, and Today
-        // does its own term filtering off [WidgetState.isTermInSession].
-        val calendarStore = entry.academicCalendar()
-        val calendar = calendarStore.current()
-        val optedIn = calendarStore.optedInHolidayIds
+        // derivations go quiet, which is what the Next-class widget renders,
+        // and the Today list empties off [WidgetState.isQuietToday].
+        // `courses` is deliberately left alone: the Week grid shows the
+        // timetable itself, which stays useful on a day off.
+        val quietDays = entry.academicCalendar().quietDays()
         val today = AppClock.localDateTime().toLocalDate()
-        val tomorrow = today.plusDays(1)
-        val inSession = calendar.isInSession(today)
-        val quietToday = !inSession || calendar.suppressesClasses(today, optedIn)
-        val quietTomorrow =
-            !calendar.isInSession(tomorrow) || calendar.suppressesClasses(tomorrow, optedIn)
+        val quietToday = today in quietDays
 
-        val ongoingInfos =
-            if (quietToday) emptyList() else computeOngoingCourses(courses, weekday, minuteOfDay)
-        val ongoingNos = ongoingInfos.map { it.course.courseNo }
-        val nextCourseTodayNo = if (quietToday) null else computeNextCourseTodayNo(
-            courses, weekday, minuteOfDay, ongoingNos,
+        val ongoing =
+            if (quietToday) emptyList() else computeOngoingBlocks(courses, weekday, minuteOfDay)
+        val nextToday = if (quietToday) null else computeNextTodayBlock(
+            courses, weekday, minuteOfDay, ongoing.map { it.course.courseNo },
         )
-        val tomorrowFirst = if (quietTomorrow) null else computeTomorrowFirst(courses, weekday)
+        val tomorrowFirst = computeTomorrowFirst(courses, today, quietDays)
 
         val courseColors = buildCourseColorAssignments(courses)
         val customCount = courses.count { it.customColorHex != null }
@@ -84,9 +79,9 @@ object WidgetDataLoader {
             currentWeekday = weekday,
             currentMinuteOfDay = minuteOfDay,
             isLoggedIn = isLoggedIn,
-            isTermInSession = inSession,
-            ongoingCourseNos = ongoingNos,
-            nextCourseTodayNo = nextCourseTodayNo,
+            isQuietToday = quietToday,
+            ongoingBlocks = ongoing,
+            nextTodayBlock = nextToday,
             tomorrowFirstCourseNo = tomorrowFirst?.courseNo,
             tomorrowFirstCourseWeekday = tomorrowFirst?.weekday,
             tomorrowFirstCoursePeriodId = tomorrowFirst?.periodId,
@@ -95,7 +90,7 @@ object WidgetDataLoader {
         )
     }
 
-    private data class TomorrowFirst(
+    internal data class TomorrowFirst(
         val courseNo: String,
         val weekday: Int,
         val periodId: String,
@@ -121,38 +116,55 @@ object WidgetDataLoader {
         return AppConstants.Periods.chronologicalOrder.filter { it in ids }
     }
 
-    private fun computeNextCourseTodayNo(
+    /** The block each course is in at [minuteOfDay] on [weekday], for the courses going on. */
+    internal fun computeOngoingBlocks(
+        courses: List<Course>,
+        weekday: Int,
+        minuteOfDay: Int,
+    ): List<CourseBlock> =
+        computeOngoingCourses(courses, weekday, minuteOfDay)
+            .map { CourseBlock(it.course, weekday, it.periods) }
+
+    /**
+     * The block starting soonest after [minuteOfDay] today, from the courses
+     * not in [ongoingNos]. A block, not a course: after a course's morning
+     * block its afternoon one is next, starting at its own first period.
+     */
+    internal fun computeNextTodayBlock(
         courses: List<Course>,
         weekday: Int,
         minuteOfDay: Int,
         ongoingNos: List<String>,
-    ): String? {
-        return courses
-            .filter { it.schedule.containsKey(weekday) && it.courseNo !in ongoingNos }
-            .mapNotNull { course ->
-                val firstFutureMinute = course.schedule[weekday]!!
-                    .mapNotNull { pid -> parseHm(AppConstants.PeriodTimes.mapping[pid]?.first) }
-                    .filter { it > minuteOfDay }
-                    .minOrNull()
-                firstFutureMinute?.let { course to it }
+    ): CourseBlock? =
+        courses
+            .filter { it.courseNo !in ongoingNos }
+            .flatMap { CourseBlock.allOf(it, weekday) }
+            .mapNotNull { block ->
+                parseHm(block.startTime)?.takeIf { it > minuteOfDay }?.let { block to it }
             }
             .minByOrNull { it.second }
-            ?.first?.courseNo
-    }
+            ?.first
 
     /**
-     * Scans up to 7 future weekdays for the earliest scheduled class. Mirrors
+     * Scans up to 7 future days for the earliest scheduled class. Mirrors
      * iOS `WidgetTimelineDerivation.derive`'s `tomorrowFirst` branch — without
      * the 7-day lookahead, viewing the widget on Friday with no Sat/Sun classes
      * collapses to "no more classes" instead of surfacing Monday's first class.
+     *
+     * A day in [quietDays] is passed over wherever it falls in the scan: on a
+     * Friday evening before a holiday Monday the user has not opted back into,
+     * the class to show is Tuesday's.
      */
-    private fun computeTomorrowFirst(
+    internal fun computeTomorrowFirst(
         courses: List<Course>,
-        todayWeekday: Int,
+        today: LocalDate,
+        quietDays: QuietDays,
     ): TomorrowFirst? {
         val order = AppConstants.Periods.chronologicalOrder
-        for (offset in 1..7) {
-            val target = ((todayWeekday - 1 + offset) % 7) + 1
+        for (offset in 1L..7L) {
+            val day = today.plusDays(offset)
+            if (day in quietDays) continue
+            val target = day.dayOfWeek.value
             val candidates = courses.mapNotNull { course ->
                 val periods = course.schedule[target] ?: return@mapNotNull null
                 val firstPeriod =

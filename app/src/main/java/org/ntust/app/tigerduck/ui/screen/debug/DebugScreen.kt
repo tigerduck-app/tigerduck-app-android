@@ -33,13 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +90,7 @@ fun DebugScreen(
                             .format(
                                 DateTimeFormatter.ofPattern(
                                     "yyyy-MM-dd (E)",
-                                    Locale.getDefault()
+                                    LocalLocale.current.platformLocale
                                 )
                             ),
                     )
@@ -135,7 +135,7 @@ fun DebugScreen(
                 "%s: %s".format(
                     "Effective now",
                     state.effectiveNow.format(
-                        DateTimeFormatter.ofPattern("yyyy-MM-dd E HH:mm:ss", Locale.getDefault()),
+                        DateTimeFormatter.ofPattern("yyyy-MM-dd E HH:mm:ss", LocalLocale.current.platformLocale),
                     ),
                 ),
             )

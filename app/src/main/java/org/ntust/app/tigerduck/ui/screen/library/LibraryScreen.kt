@@ -25,12 +25,14 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -87,7 +89,9 @@ fun LibraryScreen(
     val isLoggingIn by viewModel.isLoggingIn.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val isWaitingToRetry by viewModel.isWaitingToRetry.collectAsStateWithLifecycle()
     val storedUsername by viewModel.storedUsername.collectAsStateWithLifecycle()
+    val syncedAtMs by viewModel.syncedAtMs.collectAsStateWithLifecycle()
 
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -149,6 +153,16 @@ fun LibraryScreen(
 
     LaunchedEffect(viewModel) { viewModel.load() }
 
+    // While this page shows, the flip-to-library offer waits: it would cover
+    // the code. It shows once the page is left. Counted from the back stack
+    // entry's lifecycle rather than from composition, which outlasts the
+    // page's time on top.
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val presence = viewModel.presenceObserver { activity?.isChangingConfigurations == true }
+        lifecycleOwner.lifecycle.addObserver(presence)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(presence) }
+    }
+
     // Key on `storedUsername` (a real StateFlow) instead of the plain
     // suggestedUsername getter — Compose can't observe a non-State property,
     // so keying on it doesn't re-init the field after a logout + sign-in
@@ -185,19 +199,38 @@ fun LibraryScreen(
                 text = if (isLoggedIn) stringResource(R.string.library_status_signed_in)
                 else stringResource(R.string.library_status_not_signed_in),
                 isLoading = isLoadingQR,
+                syncedAtMs = syncedAtMs,
             )
         }
 
+        // During the wait after a failed code request the banner also offers
+        // Retry, which asks at once instead of at the backoff's next try. The
+        // countdown row stays hidden meanwhile: the cycle holds it at 0.
         errorMessage?.let { msg ->
             Card(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
-                Text(
-                    text = msg,
-                    modifier = Modifier.padding(12.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = msg,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .padding(12.dp),
+                        color = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                    if (isWaitingToRetry) {
+                        TextButton(
+                            onClick = viewModel::retryNow,
+                            modifier = Modifier.padding(end = 4.dp),
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                        ) {
+                            Text(stringResource(R.string.action_retry))
+                        }
+                    }
+                }
             }
         }
 

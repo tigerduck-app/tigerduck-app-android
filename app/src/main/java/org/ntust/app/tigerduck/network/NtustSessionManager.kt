@@ -8,6 +8,8 @@ import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
+import org.ntust.app.tigerduck.shared.tls.PinnedTls
+import org.ntust.app.tigerduck.shared.tls.pinnedClientBuilder
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
@@ -18,6 +20,8 @@ import javax.inject.Singleton
 class NtustSessionManager @Inject constructor(
     private val prefs: AppPreferences,
     private val demoMode: DemoModeInterceptor,
+    /** The app's pinned trust; null only in tests, for the platform's. */
+    tls: PinnedTls? = null,
 ) {
     private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
 
@@ -62,10 +66,16 @@ class NtustSessionManager @Inject constructor(
         maxRequestsPerHost = 20
     }
 
-    val client: OkHttpClient = OkHttpClient.Builder()
+    private val accountGuard = AccountSessionGuard()
+
+    val client: OkHttpClient = pinnedClientBuilder(tls)
+        // Ahead of the pin-mismatch retry, so a call tried again keeps the account it started
+        // under, and one the student signed out of meanwhile is refused.
+        .apply { interceptors().add(0, accountGuard.markCall) }
         // Before the UA/Accept rewriting below: a demo session has no reason
         // to dress up a request it is about to refuse.
         .addInterceptor(demoMode)
+        .addNetworkInterceptor(accountGuard.guardExchange)
         .cookieJar(cookieJar)
         .dispatcher(sharedDispatcher)
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -142,6 +152,25 @@ class NtustSessionManager @Inject constructor(
 
     fun markLoginSuccess() {
         prefs.ssoLoginTimestamp = System.currentTimeMillis()
+    }
+
+    /**
+     * Sign-out: drops the session, and keeps every request still running for
+     * the departing account out of the next one's — see [AccountSessionGuard].
+     * [invalidateSession] alone is for a login starting over as the same
+     * account.
+     */
+    fun signOut() {
+        accountGuard.nextAccount()
+        invalidateSession()
+    }
+
+    /**
+     * Drops one service's cookies and keeps the SSO session, so the next request to [host] signs
+     * in to it again through the bridge without resubmitting the credentials.
+     */
+    fun dropCookies(host: String) {
+        cookieStore.remove(host)
     }
 
     fun invalidateSession() {

@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Kept only for the widgets already placed from it: it draws exactly what its
+     light twin does, in the theme the app follows, so it is hidden from the picker
+     rather than removed, which would break those widgets. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_next_class_light_desc"
     android:initialLayout="@layout/glance_default_loading_layout"
@@ -8,9 +11,10 @@
     android:minHeight="50dp"
     android:minResizeWidth="110dp"
     android:minResizeHeight="50dp"
-    android:previewImage="@drawable/widget_preview_next_class_dark"
+    android:previewImage="@drawable/widget_preview_next_class"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="3"
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="hide_from_picker" />

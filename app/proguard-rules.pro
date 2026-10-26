@@ -76,3 +76,26 @@
 -dontwarn org.graalvm.nativeimage.hosted.Feature$IsInConfigurationAccess
 -dontwarn org.graalvm.nativeimage.hosted.Feature
 -dontwarn org.graalvm.nativeimage.hosted.RuntimeReflection
+
+# The file viewer's archives: Commons Compress reads Zstandard through the
+# zstd-jni native library, which the app doesn't ship; Archives marks a
+# Zstandard entry as unsupported before anything reaches that class.
+# R8-generated via missing_rules.txt.
+-dontwarn com.github.luben.zstd.ZstdInputStream
+
+# Release builds drop Log.v, Log.d and Log.i. Logcat is open to adb and to
+# every bug report, and those lines print course numbers, ids and server
+# replies. Log.w and Log.e stay, so they name an exception by its class and
+# never print its message. Without "return 0", R8 keeps a call whose result
+# the compiled Kotlin still reads, such as the last line of an if-else branch.
+-assumenosideeffects class android.util.Log {
+    public static int v(...) return 0;
+    public static int d(...) return 0;
+    public static int i(...) return 0;
+}
+
+# Those warnings and errors name a failure by its exception's class
+# (logSummary()), and neither the release workflow nor F-Droid keeps the
+# mapping.txt that would decode an obfuscated one such as "v44". -keepnames
+# still lets R8 drop unused exceptions and rename their members.
+-keepnames class * extends java.lang.Throwable

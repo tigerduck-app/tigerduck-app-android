@@ -2,15 +2,11 @@ package org.ntust.app.tigerduck.data
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import android.util.Log
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.widget.WidgetUpdater
@@ -27,8 +23,7 @@ import kotlin.random.Random
 class CourseColorStore @Inject constructor(
     private val dataCache: DataCache,
     private val widgetUpdater: WidgetUpdater,
-    private val pushApiClient: PushApiClient,
-    private val prefs: AppPreferences,
+    private val pendingCourseOverrides: PendingCourseOverrides,
 ) {
     private val _changeEvent = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
@@ -43,6 +38,9 @@ class CourseColorStore @Inject constructor(
      * shared color map before broadcasting [changeEvent].
      */
     suspend fun resetAllColors() {
+        // Reserved before the colours are read: a pick made from here on is
+        // the newer, and the reset's own colour for that course gives way.
+        val version = pendingCourseOverrides.reserveVersion()
         val courses = dataCache.loadCourses()
         if (courses.isEmpty()) return
 
@@ -59,27 +57,24 @@ class CourseColorStore @Inject constructor(
             course.copy(customColorHex = formatHex(color))
         }
 
+        // Through the outbox, which honours the sync switches and keeps a
+        // colour that fails to land. Queued whole, at the version reserved
+        // above and before the colours are saved: a pick made while they are
+        // read or go up one by one is the newer, and is not replaced when the
+        // reset's own colour for that course reaches its turn.
+        pendingCourseOverrides.queue(
+            updated.mapNotNull { course ->
+                val hex = course.customColorHex ?: return@mapNotNull null
+                val moodleId = course.moodleIdNumber ?: return@mapNotNull null
+                PendingCourseOverrides.Change(moodleId, colorHex = hex)
+            },
+            version,
+        )
         dataCache.saveCourses(updated)
         TigerDuckTheme.clearCourseColorMap()
         widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)
-
-        // cloudSyncEnabled already reads false on fdroid at its source
-        // (AppPreferences.cloudSyncEnabled), so no separate flavor check
-        // is needed here.
-        if (prefs.cloudSyncEnabled) {
-            for (course in updated) {
-                val hex = course.customColorHex ?: continue
-                val moodleId = course.moodleIdNumber ?: continue
-                try {
-                    pushApiClient.patchCourseOverride(moodleId, colorHex = hex)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w("CourseColorStore", "color sync failed: ${course.courseNo}", e)
-                }
-            }
-        }
+        pendingCourseOverrides.retry()
     }
 
     private fun formatHex(color: Color): String =

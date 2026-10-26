@@ -26,6 +26,21 @@ class CourseDetailMetadataTest {
         assertNull(CourseDetailMetadata.durationLabel("X"))
     }
 
+    /**
+     * QueryCourse's RequireOption is "R" or "E". Anything else, such as the
+     * null of a row cached before the field existed, leaves the row out.
+     */
+    @Test
+    fun `RequireOption maps to required or elective, anything else to none`() {
+        assertEquals(R.string.course_detail_require_option_required, CourseDetailMetadata.requireOptionLabel("R"))
+        assertEquals(R.string.course_detail_require_option_required, CourseDetailMetadata.requireOptionLabel("r"))
+        assertEquals(R.string.course_detail_require_option_elective, CourseDetailMetadata.requireOptionLabel("E"))
+        assertEquals(R.string.course_detail_require_option_elective, CourseDetailMetadata.requireOptionLabel(" e "))
+        assertNull(CourseDetailMetadata.requireOptionLabel(""))
+        assertNull(CourseDetailMetadata.requireOptionLabel(null))
+        assertNull(CourseDetailMetadata.requireOptionLabel("X"))
+    }
+
     /** Only GE courses carry a dimension; the rest send an empty string. */
     @Test
     fun `an empty dimension is no dimension`() {

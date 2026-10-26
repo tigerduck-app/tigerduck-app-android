@@ -359,4 +359,62 @@ class HtmlParserTest {
         assertNotNull(form)
         assertEquals("/redirect?a=1&b=2", form!!.action)
     }
+
+    // -------------------------------------------------------------------------
+    // loginErrorMessage (hand-made pages)
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun `loginErrorMessage reads a message wrapped in nested markup`() {
+        val html = """
+            <span class="text-danger field-validation-error" data-valmsg-for="Password">
+              <span id="Password-error">Wrong <b>account</b> or <em>password</em></span>
+            </span>
+        """.trimIndent()
+        assertEquals("Wrong account or password", HtmlParser.loginErrorMessage(html))
+    }
+
+    @Test
+    fun `loginErrorMessage reads every item of a validation summary`() {
+        val html = """
+            <div class="validation-summary-errors" data-valmsg-summary="true">
+              <ul><li>Account locked</li><li>Try again in 15 minutes</li></ul>
+            </div>
+        """.trimIndent()
+        assertEquals("Account locked Try again in 15 minutes", HtmlParser.loginErrorMessage(html))
+    }
+
+    @Test
+    fun `loginErrorMessage takes nothing from a self-closing input that carries the class`() {
+        val html = """
+            <form id="loginForm">
+              <input class="form-control text-danger" name="Username" />
+              <label for="Password">Password</label>
+              <input type="password" name="Password" />
+            </form>
+        """.trimIndent()
+        assertNull(HtmlParser.loginErrorMessage(html))
+    }
+
+    @Test
+    fun `loginErrorMessage skips an empty error element for one that has words`() {
+        val html = """
+            <span class="field-validation-error"></span>
+            <div class="alert-danger">Captcha required &amp; account locked</div>
+        """.trimIndent()
+        assertEquals("Captcha required & account locked", HtmlParser.loginErrorMessage(html))
+    }
+
+    @Test
+    fun `loginErrorMessage keeps a runaway message to a line or two`() {
+        val html = """<div class="alert-danger">${"word ".repeat(200)}</div>"""
+        val message = HtmlParser.loginErrorMessage(html)!!
+        assertTrue(message.length <= 200)
+        assertTrue(message.startsWith("word word"))
+    }
+
+    @Test
+    fun `loginErrorMessage is null without any error element`() {
+        assertNull(HtmlParser.loginErrorMessage("""<form id="loginForm"><input name="Username"/></form>"""))
+    }
 }

@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.wear.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,11 +20,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.painter.BrushPainter
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
+import androidx.wear.compose.material3.Button
+import androidx.wear.compose.material3.ButtonDefaults
 import androidx.wear.compose.material3.FilledTonalButton
 import androidx.wear.compose.material3.Icon
 import androidx.wear.compose.material3.ListHeader
@@ -34,8 +39,11 @@ import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.BuildConfig
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
+import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentColor
+import org.ntust.app.tigerduck.wear.ui.theme.LocalAccentGradient
 import org.ntust.app.tigerduck.wear.ui.theme.LocalScreenPadding
 import java.util.concurrent.TimeUnit
+import org.ntust.app.tigerduck.wear.ui.theme.accentFill
 
 @Composable
 fun SettingsListScreen(
@@ -59,26 +67,18 @@ fun SettingsListScreen(
             item { SignedInRow(loggedIn = snapshot.loggedIn) }
             item { LastSyncRow(syncedAtMs = snapshot.syncedAtMs) }
             item {
-                FilledTonalButton(
+                AccentButton(
+                    text = stringResource(R.string.watch_screen_padding),
                     onClick = onPaddingClick,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = stringResource(R.string.watch_screen_padding),
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                }
+                )
             }
             item {
-                FilledTonalButton(
+                AccentButton(
+                    text = stringResource(R.string.watch_qr_padding),
                     onClick = onQrPaddingClick,
                     modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = stringResource(R.string.watch_qr_padding),
-                        modifier = Modifier.padding(vertical = 8.dp),
-                    )
-                }
+                )
             }
             item { VersionRow() }
         }
@@ -172,4 +172,36 @@ private fun VersionRow() {
         color = Color.Gray,
         modifier = Modifier.fillMaxWidth(),
     )
+}
+
+/**
+ * A Settings button in the phone's accent: the two that open the padding screens.
+ * A single color fills it as a tonal button; a gradient is laid across it as its
+ * container's painter.
+ */
+@Composable
+internal fun AccentButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val accent = LocalAccentColor.current
+    val gradient = LocalAccentGradient.current
+    val fill = remember(accent, gradient) { accentFill(accent, gradient) }
+    val label: @Composable RowScope.() -> Unit = {
+        Text(text = text, modifier = Modifier.padding(vertical = 8.dp))
+    }
+    val brush = fill.brush
+    if (brush is SolidColor) {
+        FilledTonalButton(
+            onClick = onClick,
+            modifier = modifier,
+            colors = ButtonDefaults.filledTonalButtonColors(containerColor = brush.value, contentColor = fill.text),
+            content = label,
+        )
+    } else {
+        Button(
+            onClick = onClick,
+            containerPainter = remember(brush) { BrushPainter(brush) },
+            modifier = modifier,
+            colors = ButtonDefaults.buttonWithContainerPainterColors(contentColor = fill.text),
+            content = label,
+        )
+    }
 }
