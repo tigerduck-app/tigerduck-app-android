@@ -147,6 +147,22 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
+    fun `switching folders preserves the query and searches the newly selected mailbox`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考 Inbox"))
+        repo.add(SENT, mailSummary(2, subject = "期中考 Sent"), mailSummary(3, subject = "other"))
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+
+        vm.selectFolder(FolderSelection.Real(SENT))
+
+        assertEquals("期中", vm.state.value.searchText)
+        assertEquals(listOf("INBOX", SENT), repo.searchesSent)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+    }
+
+    @Test
     fun `a search the server fails keeps the list and shows the loaded matches`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2, subject = "other"))
         vm.load()
@@ -667,9 +683,9 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `another folder picked while a search is out stops its spinner`() {
+    fun `another folder picked while a search is out reruns it and drops the old answer`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"))
-        repo.add(SENT, mailSummary(2))
+        repo.add(SENT, mailSummary(2, subject = "期中寄件"), mailSummary(3, subject = "other"))
         vm.load()
         vm.selectFolder(FolderSelection.Real("INBOX"))
         val gate = CompletableDeferred<Unit>()
@@ -677,12 +693,17 @@ class SchoolMailListViewModelTest {
         vm.setSearchText("期中")
         vm.submitSearch()
 
+        repo.onLoaded = { folder -> if (folder == SENT) repo.searchGate = null }
         vm.selectFolder(FolderSelection.Real(SENT))
-        assertFalse(vm.state.value.searchBusy)
+        repo.onLoaded = null
+        assertEquals("期中", vm.state.value.searchText)
+        assertEquals(listOf("INBOX", SENT), repo.searchesSent)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+        assertFalse("the new mailbox's search is done", vm.state.value.searchBusy)
 
-        repo.searchGate = null
         gate.complete(Unit)
         assertFalse(vm.state.value.searchBusy)
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
     }
 
     @Test
