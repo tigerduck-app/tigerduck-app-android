@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.NextClassResult
 import org.ntust.app.tigerduck.shared.TodayClassEntry
+import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import org.ntust.app.tigerduck.shared.WearProtocol
 import java.io.ByteArrayInputStream
 import java.time.LocalDate
@@ -68,6 +69,7 @@ class SchedulePersistence(private val context: Context) {
         disableScreenCaptureProtection: Boolean,
         quietDays: List<String>?,
         visualPreset: String?,
+        courseChanges: String?,
     ) {
         val coursesJson = decompress(coursesGzipped)
         // Under the lock with the start-up copy, so [syncLanguageTag] never writes between the two.
@@ -76,6 +78,7 @@ class SchedulePersistence(private val context: Context) {
                 writeSnapshot(
                     prefs, coursesJson, accentHex, accentEndHex, accentDirectionCode, syncedAtMs,
                     loggedIn, languageTag, disableScreenCaptureProtection, quietDays, visualPreset,
+                    courseChanges,
                 )
             }
             if (languageTag != null) commitLanguageTag(languageTag)
@@ -202,6 +205,7 @@ class SchedulePersistence(private val context: Context) {
             booleanPreferencesKey("disable_screen_capture_protection")
         private val KEY_QUIET_DAYS = stringSetPreferencesKey("quiet_days")
         private val KEY_VISUAL_PRESET = stringPreferencesKey("visual_preset")
+        private val KEY_COURSE_CHANGES = stringPreferencesKey("course_changes")
         private const val BOOTSTRAP_KEY_LANGUAGE = "language_tag"
 
         private val gson = Gson()
@@ -219,6 +223,7 @@ class SchedulePersistence(private val context: Context) {
             disableScreenCaptureProtection: Boolean,
             quietDays: List<String>?,
             visualPreset: String? = null,
+            courseChanges: String? = null,
         ) {
             prefs[KEY_COURSES_JSON] = coursesJson
             prefs[KEY_ACCENT_HEX] = accentHex
@@ -245,6 +250,11 @@ class SchedulePersistence(private val context: Context) {
             // Replaced on every write too: a phone that predates the interface style
             // sends none, and the watch then draws TigerDuck's cards.
             if (visualPreset != null) prefs[KEY_VISUAL_PRESET] = visualPreset else prefs.remove(KEY_VISUAL_PRESET)
+            // Replaced on every write too, as the phone sends the term's every change each time: a
+            // phone that predates them sends none, and every class then meets as the timetable has
+            // it. Kept as sent and read leniently in readSnapshot, so a malformed one costs only the
+            // changes.
+            if (courseChanges != null) prefs[KEY_COURSE_CHANGES] = courseChanges else prefs.remove(KEY_COURSE_CHANGES)
         }
 
         internal fun readSnapshot(prefs: Preferences): WatchSnapshot {
@@ -269,6 +279,8 @@ class SchedulePersistence(private val context: Context) {
                 },
                 // Absent from an older phone's or watch build's: TigerDuck's cards.
                 visualPreset = prefs[KEY_VISUAL_PRESET],
+                // Absent from an older phone's or watch build's, and dropped when malformed: no changes.
+                courseChanges = WearProtocol.Schedule.decodeCourseChanges(prefs[KEY_COURSE_CHANGES]),
             )
         }
 
@@ -316,16 +328,27 @@ data class WatchSnapshot(
      * reads it.
      */
     val visualPreset: String? = null,
+    /** The classes the school changed, by course and day; empty from an older phone or watch build. */
+    val courseChanges: WatchCourseChanges = WatchCourseChanges.EMPTY,
 ) {
-    /** Now and next at [minuteOfDay] on [today], leaving out the classes of quiet days. */
+    /**
+     * Now and next at [minuteOfDay] on [today], leaving out the classes of quiet days, and with
+     * each day's changed classes in place of their blocks, the cancelled ones left out.
+     */
     fun nextClass(today: LocalDate, minuteOfDay: Int): NextClassResult =
-        NextClassResolver.resolve(courses, today.dayOfWeek.value, minuteOfDay) { daysAhead ->
+        NextClassResolver.resolve(
+            courses,
+            today.dayOfWeek.value,
+            minuteOfDay,
+            changedClasses = { courseNo, daysAhead -> courseChanges.on(courseNo, today.plusDays(daysAhead.toLong())) },
+        ) { daysAhead ->
             today.plusDays(daysAhead.toLong()) in quietDays
         }
 
-    /** Today's classes, none when [today] is a quiet day. */
+    /** Today's classes as the school changed them, none when [today] is a quiet day. */
     fun todaysClasses(today: LocalDate, minuteOfDay: Int): List<TodayClassEntry> =
         NextClassResolver.todaysClasses(
             courses, today.dayOfWeek.value, minuteOfDay, quietToday = today in quietDays,
+            changedClasses = { courseChanges.on(it, today) },
         )
 }

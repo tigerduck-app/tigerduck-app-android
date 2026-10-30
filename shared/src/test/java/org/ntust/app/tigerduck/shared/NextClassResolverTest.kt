@@ -178,4 +178,81 @@ class NextClassResolverTest {
         assertEquals(8 * 60 + 10, r.startMinute)   // block start = 08:10 = 490
         assertEquals(10 * 60, r.endMinute)          // block end   = 10:00 = 600
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // The school's changes: a day's changed classes stand in for the block they
+    // start in, as iOS `WatchCourse.on(dayKey)` has them.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `a changed class runs at its changed times in its changed room`() {
+        // CN's 1-2 (08:10-10:00) starts at 08:40 in TR-411 today only.
+        val change = WatchClassChange(listOf("1", "2"), room = "TR-411", start = "08:40")
+        val changed = { courseNo: String, daysAhead: Int ->
+            if (courseNo == "CN" && daysAhead == 0) listOf(change) else emptyList()
+        }
+        val before = NextClassResolver.resolve(listOf(mondayMorningCourse), 1, 8 * 60 + 20, changed)
+        before as NextClassResult.NextToday
+        assertEquals(8 * 60 + 40, before.startMinute)
+        assertEquals("TR-411", before.classroom)
+        assertEquals(change, before.change)
+
+        val during = NextClassResolver.resolve(listOf(mondayMorningCourse), 1, 9 * 60, changed)
+        during as NextClassResult.Ongoing
+        assertEquals(8 * 60 + 40, during.startMinute)
+        assertEquals(10 * 60, during.endMinute)
+        assertEquals("TR-411", during.classroom)
+        assertEquals(change, during.change)
+    }
+
+    @Test
+    fun `a later day's cancelled class is passed over for the next class`() {
+        val changed = { courseNo: String, daysAhead: Int ->
+            if (courseNo == "DB" && daysAhead == 1) {
+                listOf(WatchClassChange(listOf("3", "4"), cancelled = true))
+            } else {
+                emptyList()
+            }
+        }
+        val r = NextClassResolver.resolve(listOf(tuesdayCourse, wednesdayCourse), 1, 22 * 60, changed)
+        r as NextClassResult.NextFuture
+        assertEquals("OS", r.course.courseNo)
+        assertEquals(2, r.daysAhead)
+        assertEquals(null, r.change)
+    }
+
+    @Test
+    fun `a later day's moved class is next at its changed start`() {
+        val change = WatchClassChange(listOf("3", "4"), start = "10:50")
+        val r = NextClassResolver.resolve(listOf(tuesdayCourse), 1, 22 * 60, { _, daysAhead ->
+            if (daysAhead == 1) listOf(change) else emptyList()
+        })
+        r as NextClassResult.NextFuture
+        assertEquals(10 * 60 + 50, r.startMinute)
+        assertEquals(listOf("3", "4"), r.periods)
+        assertEquals(change, r.change)
+    }
+
+    @Test
+    fun `today's classes show a changed class in place of its block and leave a cancelled one out`() {
+        val today = NextClassResolver.todaysClasses(
+            listOf(mondayMorningCourse, mondayAfternoonCourse),
+            weekday = 1,
+            minuteOfDay = 11 * 60,
+            changedClasses = { courseNo ->
+                when (courseNo) {
+                    "CN" -> listOf(WatchClassChange(listOf("1", "2"), cancelled = true))
+                    "AI" -> listOf(
+                        WatchClassChange(listOf("7"), room = "TR-411"),
+                        WatchClassChange(listOf("8"), end = "16:00"),
+                    )
+                    else -> emptyList()
+                }
+            },
+        )
+        assertEquals(listOf(listOf("7"), listOf("8")), today.map { it.periods })
+        assertEquals(listOf("TR-411", ""), today.map { it.classroom })
+        assertEquals(listOf(14 * 60 + 20, 15 * 60 + 30), today.map { it.startMinute })
+        assertEquals(listOf(15 * 60 + 10, 16 * 60), today.map { it.endMinute })
+    }
 }

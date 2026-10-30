@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.wear.MainActivity
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.SchedulePersistenceHolder
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
+import org.ntust.app.tigerduck.wear.ui.roomText
 import org.ntust.app.tigerduck.wear.ui.weekdayCaptionRes
 
 class NextClassComplicationService : SuspendingComplicationDataSourceService() {
@@ -66,7 +67,7 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
                 ).setTitle(PlainComplicationText.Builder("NOW").build()).setTapAction(tap).build()
 
                 ComplicationType.LONG_TEXT -> LongTextComplicationData.Builder(
-                    text = PlainComplicationText.Builder(r.classroom).build(),
+                    text = PlainComplicationText.Builder(roomText(r.classroom, moved = r.change?.room != null)).build(),
                     contentDescription = PlainComplicationText.Builder(r.course.displayName)
                         .build(),
                 ).setTitle(
@@ -85,14 +86,14 @@ class NextClassComplicationService : SuspendingComplicationDataSourceService() {
             }
 
             is NextClassResult.NextToday -> shortOrLong(
-                type, r.course.displayName, r.classroom,
+                type, r.course.displayName, roomText(r.classroom, moved = r.change?.room != null),
                 titleShort = formatHm(r.startMinute),
                 titleLong = "${formatHm(r.startMinute)} · ${truncate(r.course.displayName, 7)}",
                 tap = tap,
             )
 
             is NextClassResult.NextFuture -> shortOrLong(
-                type, r.course.displayName, r.classroom,
+                type, r.course.displayName, roomText(r.classroom, moved = r.change?.room != null),
                 titleShort = formatHm(r.startMinute),
                 titleLong = laterDayTitle(this, r.daysAhead, r.weekday, formatHm(r.startMinute)),
                 tap = tap,

@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.coursechanges
 
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -177,6 +179,33 @@ class CourseChangeStoreTest {
         onboarded = false
         assertFalse(store().refresh())
         assertTrue(requests.isEmpty())
+    }
+
+    /** What publishes to the watch again on a new feed (TigerDuckApp); the launch publish sends the held one. */
+    @Test
+    fun `a new feed publishes to the watch again, the held copy, a 304 and the same feed do not`() = runTest {
+        val store = store()
+        var publishes = 0
+        backgroundScope.launch { store.onEachNewFeed { publishes++ } }
+        runCurrent()
+        assertEquals("the copy held at launch", 0, publishes)
+
+        store.refresh()
+        runCurrent()
+        assertEquals(1, publishes)
+
+        answer = Triple(304, "", null)
+        store.refresh()
+        runCurrent()
+        answer = Triple(200, FEED, "W/\"3\"")
+        store.refresh()
+        runCurrent()
+        assertEquals("a 304, and the same feed under another ETag", 1, publishes)
+
+        answer = Triple(200, OTHER_FEED, "W/\"2\"")
+        store.refresh()
+        runCurrent()
+        assertEquals(2, publishes)
     }
 
     private companion object {
