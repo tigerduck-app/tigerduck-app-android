@@ -616,8 +616,8 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                 )
             }
-            page(Screen.AnnouncementSubscriptions.route) {
-                SubscriptionSettingsScreen(signedIn = signedIn, onBack = { navController.popBackStack() })
+            page(Screen.AnnouncementSubscriptions.route) { entry ->
+                SubscriptionSettingsScreen(signedIn = signedIn, onBack = { navController.popIfTop(entry) })
             }
             page(Screen.Library.route) { LibraryScreen() }
             page(Screen.SchoolMail.route) {

@@ -4,9 +4,17 @@ import android.app.Application
 import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.lifecycle.SavedStateHandle
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -26,6 +34,7 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.ui.navigation.popIfTop
 import org.ntust.app.tigerduck.util.AppReturns
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -112,5 +121,39 @@ class BulletinSettingsSignedInTest {
     @Test
     fun `the push settings stay open while signed in`() {
         assertEquals(0, settingsPage(signedIn = true))
+    }
+
+    /**
+     * Signed out while another page was over the settings, as on another tab: nothing closes
+     * under that page, and the settings close once they are back on top. As the app wires it,
+     * the settings pop only themselves ([popIfTop]).
+     */
+    @Test
+    fun `signed out under another page, the push settings close once back on top`() {
+        var signedIn by mutableStateOf(true)
+        lateinit var nav: NavHostController
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        composeRule.setContent {
+            nav = rememberNavController()
+            MaterialTheme {
+                NavHost(nav, startDestination = "bulletins") {
+                    composable("bulletins") { Text("bulletins") }
+                    composable("settings") { entry ->
+                        SubscriptionSettingsScreen(signedIn = signedIn, onBack = { nav.popIfTop(entry) }, viewModel = vm)
+                    }
+                    composable("other") { Text("other") }
+                }
+            }
+        }
+        composeRule.runOnIdle { nav.navigate("settings") }
+        composeRule.runOnIdle { nav.navigate("other") }
+
+        composeRule.runOnIdle { signedIn = false }
+        composeRule.waitForIdle()
+        assertEquals("other", nav.currentDestination?.route)
+
+        composeRule.runOnIdle { nav.popBackStack() }
+        composeRule.waitForIdle()
+        assertEquals("bulletins", nav.currentDestination?.route)
     }
 }
