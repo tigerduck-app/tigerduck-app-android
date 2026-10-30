@@ -506,7 +506,10 @@ class AnnouncementsViewModel @Inject constructor(
      * Refused, the list starts over as there.
      */
     private suspend fun saveUnlessLetGo(items: List<BulletinSummary>, fetchedAt: Long?, owner: ListOwner): Boolean {
-        if (cache.saveIf(items, fetchedAt) { keeps(owner) }) return true
+        // Asked again once the save is back: a list let go of while it was written is cleared
+        // after it, and what follows the save -- the list session, the pruning, the walk through
+        // older pages -- would act on the old list.
+        if (cache.saveIf(items, fetchedAt) { keeps(owner) } && keeps(owner)) return true
         startOver()
         return false
     }

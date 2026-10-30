@@ -4,6 +4,8 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.asCoroutineDispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -26,6 +28,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -44,7 +47,7 @@ class AnnouncementDetailEndpointMoveTest {
     private val cache = BulletinCache(context)
     private val repository = BulletinRepository()
 
-    private val gate = CountDownLatch(1)
+    @Volatile private var gate = CountDownLatch(1)
     private val detailRequests = AtomicInteger()
 
     private val client = OkHttpClient.Builder()
@@ -93,6 +96,34 @@ class AnnouncementDetailEndpointMoveTest {
         assertNull(repository.detail(1))
         assertNull(runBlocking { cache.loadDetail(1) })
         assertFalse(vm.state.value is AnnouncementDetailViewModel.State.Loaded)
+    }
+
+    /** The move comes while the detail's save waits: the page shows nothing of the old backend. */
+    @Test
+    fun `a detail whose save the endpoint move overtakes is not shown`() {
+        val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-test", Context.MODE_PRIVATE))
+        val api = BulletinApiClient(client, prefs, AuthTokenManager(tokens, client, prefs, "device-1"))
+        // A clear started and held, as an earlier move's on a busy application scope: the save waits for it.
+        val clearHeld = CountDownLatch(1)
+        val clearThread = Executors.newSingleThreadExecutor().apply { execute { clearHeld.await(5, TimeUnit.SECONDS) } }
+        cache.clearIn(CoroutineScope(clearThread.asCoroutineDispatcher()))
+        gate.countDown()
+        val vm = AnnouncementDetailViewModel(
+            SavedStateHandle(mapOf("id" to 1)), api, cache, repository, BulletinReadStateStore(context),
+        )
+        eventually("the detail is asked for") { detailRequests.get() == 1 }
+        Thread.sleep(300)
+        main.dispatcher.scheduler.advanceUntilIdle()
+
+        repository.forget()
+        clearHeld.countDown()
+        Thread.sleep(300)
+        main.dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(repository.detail(1))
+        assertNull(runBlocking { cache.loadDetail(1) })
+        assertFalse(vm.state.value is AnnouncementDetailViewModel.State.Loaded)
+        clearThread.shutdown()
     }
 
     private companion object {

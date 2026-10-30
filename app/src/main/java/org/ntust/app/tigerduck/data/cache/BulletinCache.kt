@@ -34,10 +34,22 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
 
-    // The clear an API endpoint move started ([clearIn]), which every read and write waits for:
-    // started, the old backend's files are no longer this cache's, even before they are gone.
+    // The last clear [clearIn] started, after any before it, which every read and write waits
+    // for: started, the files it clears are no longer this cache's, even before they are gone.
     @Volatile
     private var clearing: Deferred<Unit>? = null
+
+    // Written as [clearIn] starts a clear and removed once the list is gone: a process ended in
+    // between clears at the next start, before anything reads the files.
+    private val clearOwed = File(dir, "clear_owed")
+
+    init {
+        if (clearOwed.exists()) {
+            deleteList()
+            detailDir.listFiles()?.forEach { runCatching { it.delete() } }
+            settleOwedClear()
+        }
+    }
 
     // Refcounted per-id locks: entries are removed only when no coroutine is
     // holding or waiting on them, so two callers for the same id always share
@@ -195,11 +207,8 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
      *  waiting on `mutex`. */
     suspend fun clear() = withContext(Dispatchers.IO) {
         mutex.withLock {
-            runCatching { file.delete() }
-            runCatching { fetchedAtFile.delete() }
-            // A write a process death cut short leaves its temporary file beside them.
-            runCatching { temporary(file).delete() }
-            runCatching { temporary(fetchedAtFile).delete() }
+            deleteList()
+            settleOwedClear()
         }
         // Detail file deletion is intentionally outside the mutex lock.
         val files = detailDir.listFiles() ?: return@withContext
@@ -215,16 +224,35 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     }
 
     /**
-     * Starts [clear] in [scope], for an API endpoint move: every read and write from now on
-     * waits for it, so none reads or writes the old backend's files in the meantime.
+     * Starts [clear] in [scope], for a sign-out or an API endpoint move: every read and write from
+     * now on waits for it, so none reads or writes the files it clears in the meantime.
      */
     fun clearIn(scope: CoroutineScope) {
-        val started = scope.async {
-            runCatching { clear() }
-                .onFailure { Log.w(TAG, "clear failed: ${it.logSummary()}") }
-            Unit
+        runCatching { clearOwed.createNewFile() }
+        synchronized(this) {
+            // After the one before, so it never removes what is written after this one.
+            val before = clearing
+            clearing = scope.async {
+                before?.await()
+                runCatching { clear() }
+                    .onFailure { Log.w(TAG, "clear failed: ${it.logSummary()}") }
+                Unit
+            }
         }
-        clearing = started
+    }
+
+    // The list and its date; under [mutex] but at construction.
+    private fun deleteList() {
+        runCatching { file.delete() }
+        runCatching { fetchedAtFile.delete() }
+        // A write a process death cut short leaves its temporary file beside them.
+        runCatching { temporary(file).delete() }
+        runCatching { temporary(fetchedAtFile).delete() }
+    }
+
+    // A clear owed is paid once the list is gone; a delete that failed leaves it owed.
+    private fun settleOwedClear() {
+        if (!file.exists() && !fetchedAtFile.exists()) runCatching { clearOwed.delete() }
     }
 
     // Waits for the clear an endpoint move started, if one is still running.

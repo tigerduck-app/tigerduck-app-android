@@ -144,6 +144,8 @@ class AnnouncementDetailViewModel @Inject constructor(
                 if (!isCurrent()) return@launch
                 repository.putDetail(detail)
                 cache.saveDetail(detail, ::isCurrent)
+                // Asked again: the move may have come while the save waited.
+                if (!isCurrent()) return@launch
                 _state.update { State.Loaded(detail, repository.taxonomy()) }
             } catch (e: CancellationException) {
                 throw e
