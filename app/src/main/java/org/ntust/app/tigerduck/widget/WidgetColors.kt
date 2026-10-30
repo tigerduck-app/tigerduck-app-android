@@ -6,6 +6,8 @@ import androidx.compose.ui.graphics.Color
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.ui.component.CourseChangeInkDark
+import org.ntust.app.tigerduck.ui.component.CourseChangeInkLight
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.ui.theme.courseColorPaletteDark
 
@@ -97,3 +99,10 @@ fun resolveWidgetAccentColor(prefs: AppPreferences, isDark: Boolean): Color =
 /** Text and icons on [resolveWidgetAccentColor]'s accent. */
 fun resolveWidgetOnAccentColor(prefs: AppPreferences, isDark: Boolean): Color =
     AccentPolicy.onAccent(prefs.accentColorHex, isDark) ?: Color.White
+
+/**
+ * The ink a school's course change is marked in on a widget of [isDark]'s
+ * theme: Glance takes plain colors, not the app's theme, so the light or dark
+ * one of [CourseChangeInkLight] and [CourseChangeInkDark] is picked here.
+ */
+fun widgetChangeInk(isDark: Boolean): Color = if (isDark) CourseChangeInkDark else CourseChangeInkLight

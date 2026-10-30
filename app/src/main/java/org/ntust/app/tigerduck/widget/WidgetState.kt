@@ -2,7 +2,9 @@ package org.ntust.app.tigerduck.widget
 
 import androidx.compose.ui.graphics.Color
 import androidx.datastore.preferences.core.longPreferencesKey
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
+import java.time.LocalDate
 
 data class WidgetState(
     val courses: List<Course>,
@@ -28,17 +30,20 @@ data class WidgetState(
     /**
      * The blocks going on now, one per course: the block, not the course, so
      * a course meeting twice today shows the times, periods and room of the
-     * block it is in, and only that block is highlighted.
+     * block it is in, and only that block is highlighted. A class the school
+     * cancelled is not among them; one it moved runs at its new times.
      */
     val ongoingBlocks: List<CourseBlock>,
-    /** The next block to start today, from a course not going on now. */
+    /** The next block to start today, from a course not going on now, by its changed start; never a cancelled one. */
     val nextTodayBlock: CourseBlock?,
     /**
      * `(courseNo, weekday, firstPeriodId)` for the next class beyond today —
      * scans up to 7 future days so the Next Class widget shows Monday's
      * first class when a Fri/Sat/Sun stretch has nothing scheduled (mirrors
      * iOS `WidgetTimelineDerivation.derive`'s `tomorrowFirst` branch), passing
-     * over quiet days. Null when no class meets in the next 7 days.
+     * over quiet days and classes the school cancelled. `firstPeriodId` is the
+     * first period of the class as the school's changes split it. Null when no
+     * class meets in the next 7 days.
      */
     val tomorrowFirstCourseNo: String?,
     val tomorrowFirstCourseWeekday: Int?,
@@ -58,6 +63,18 @@ data class WidgetState(
      * whenever the slider moves.
      */
     val courseNameScale: Float,
+    /**
+     * The day the state is for, Taipei time: the date of the Today list's
+     * classes, and the first of the week from today the Week grid's columns
+     * stand for. Null, as a test may leave it, draws the timetable alone.
+     */
+    val today: LocalDate? = null,
+    /**
+     * The school's course changes, which the Today list and the Week grid draw
+     * on [today]'s dates; the Next Class fields above already follow them.
+     * [CourseChanges.EMPTY] draws every widget as before the feed.
+     */
+    val courseChanges: CourseChanges = CourseChanges.EMPTY,
 ) {
     companion object {
         /**
