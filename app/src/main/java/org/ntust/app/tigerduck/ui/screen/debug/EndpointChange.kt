@@ -1,6 +1,5 @@
 package org.ntust.app.tigerduck.ui.screen.debug
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
@@ -18,7 +17,6 @@ import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLossCheck
-import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 
@@ -90,15 +88,12 @@ class EndpointChange internal constructor(
         signOutMail = mailAccount::signOut,
         registerAgain = { scope.launch { pushRegistration.syncNow() } },
         // The list, its date and its details, and what this process holds of them; the read
-        // marks too, which are by the old backend's ids. On the application scope, as the
-        // sign-out's clear.
+        // marks too, which are by the old backend's ids. The files go on the application scope,
+        // as the sign-out's, and every read and write of them waits for that.
         forgetBackendData = {
             bulletinRepository.forget()
             bulletinReadState.clear()
-            scope.launch {
-                runCatching { bulletinCache.clear() }
-                    .onFailure { Log.w("EndpointChange", "bulletinCache.clear failed: ${it.logSummary()}") }
-            }
+            bulletinCache.clearIn(scope)
         },
     )
 

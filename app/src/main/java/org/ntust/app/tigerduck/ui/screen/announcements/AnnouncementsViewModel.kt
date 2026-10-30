@@ -192,13 +192,19 @@ class AnnouncementsViewModel @Inject constructor(
     fun load() {
         // A list held since a sign-out or an endpoint move is let go of here too: this view model
         // outlives a tab switch when its tab is the first, which never leaves the back stack.
-        if (loadedFor?.let(::keeps) == false) startOver()
+        loadedFor?.let { held ->
+            if (held.generation != repository.generation) forgetTaxonomy()
+            if (!keeps(held)) startOver()
+        }
         if (hasLoaded) return
         hasLoaded = true
-        loadedFor = listOwner()
+        val owner = listOwner()
+        loadedFor = owner
         viewModelScope.launch {
             val cached = cache.load()
             val fetchedAt = cache.loadFetchedAt()
+            // Read for a list let go of meanwhile: the old account's or backend's.
+            if (droppedAfterLetGo(owner)) return@launch
             _state.update { it.copy(syncedAtMs = fetchedAt) }
             if (cached.isNotEmpty()) {
                 repository.putSummaries(cached)
@@ -336,7 +342,7 @@ class AnnouncementsViewModel @Inject constructor(
                     readState.prune(ids)
                     cache.pruneDetails(ids.toSet())
                 } else {
-                    startBackgroundPrefetch(includeDeleted)
+                    startBackgroundPrefetch(includeDeleted, owner)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -359,7 +365,7 @@ class AnnouncementsViewModel @Inject constructor(
     // ensureActive() before each write is what actually keeps the older job
     // from clobbering newer state — don't remove it on the assumption that
     // Main scheduling alone is enough.
-    private fun startBackgroundPrefetch(includeDeleted: Boolean) {
+    private fun startBackgroundPrefetch(includeDeleted: Boolean, owner: ListOwner) {
         prefetch?.cancel()
         prefetch = viewModelScope.launch {
             // Walk the cursor chain in the background so the user doesn't see
@@ -367,7 +373,6 @@ class AnnouncementsViewModel @Inject constructor(
             // legitimately a "load more" tap.
             var pages = 0
             var latest: List<BulletinSummary>? = null
-            val owner = listOwner()
             while (pages < 5 && nextCursor != null) {
                 pages++
                 delay(150)
@@ -453,18 +458,30 @@ class AnnouncementsViewModel @Inject constructor(
 
     /**
      * Whose list a fetch is for: the school account, read from
-     * [CredentialManager.schoolAccountGeneration], and the backend it goes to. A school sign-out
-     * and a move of the API endpoint to another backend each let go of the cached list and its
-     * date ([org.ntust.app.tigerduck.auth.AuthService.logout],
+     * [CredentialManager.schoolAccountGeneration], and the backend, by [BulletinRepository.generation],
+     * which each move of the API endpoint to another backend moves -- there and back again too.
+     * A school sign-out and an endpoint move each let go of the cached list and its date
+     * ([org.ntust.app.tigerduck.auth.AuthService.logout],
      * [org.ntust.app.tigerduck.ui.screen.debug.EndpointChange]).
      */
-    private data class ListOwner(val account: Int, val backend: String)
+    private data class ListOwner(val account: Int, val generation: Int)
 
-    private fun listOwner() = ListOwner(credentials.schoolAccountGeneration, api.backend)
+    private fun listOwner() = ListOwner(credentials.schoolAccountGeneration, repository.generation)
 
     /** Whether the list [owner] read is still the one kept: no sign-out and no endpoint move since. */
     private fun keeps(owner: ListOwner): Boolean =
-        credentials.isSchoolAccount(owner.account) && api.backend == owner.backend
+        credentials.isSchoolAccount(owner.account) && repository.generation == owner.generation
+
+    /**
+     * After an endpoint move: the departments and categories, and the ones this entry selected,
+     * were the old backend's, whose ids the new one need not share. A selection left on would
+     * hide every bulletin of the new backend.
+     */
+    private fun forgetTaxonomy() {
+        savedState.remove<Array<String>>(KEY_SELECTED_ORGS)
+        savedState.remove<Array<String>>(KEY_SELECTED_TAGS)
+        _state.update { applyFilters(it.copy(taxonomy = null, selectedOrgs = emptySet(), selectedTags = emptySet())) }
+    }
 
     /**
      * Whether the list [owner] read has been let go of since, before a fetch: by a school

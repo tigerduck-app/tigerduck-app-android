@@ -31,6 +31,13 @@ class AnnouncementDetailViewModel @Inject constructor(
 
     val bulletinId: Int = checkNotNull(savedState["id"])
 
+    // The backend this page's bulletin is from, by [BulletinRepository.generation]: after an API
+    // endpoint move the id names another backend's bulletin, so what this page fetched or read
+    // for the old one is kept nowhere and shown no more.
+    private val generation = repository.generation
+
+    private fun isCurrent() = repository.generation == generation
+
     /**
      * The list row's summary, read before this page's fetch puts the detail's own in its place:
      * the body's last fallback, after the detail's summary. See [BulletinBodyRenderer.bodyMarkdown].
@@ -79,7 +86,7 @@ class AnnouncementDetailViewModel @Inject constructor(
         if (cachedDetail == null) {
             viewModelScope.launch {
                 val disk = cache.loadDetail(bulletinId) ?: return@launch
-                if (repository.detail(bulletinId) != null) return@launch
+                if (!isCurrent() || repository.detail(bulletinId) != null) return@launch
                 repository.putDetail(disk)
                 // Race note: this runs concurrently with refresh() below. The
                 // `current is State.Loaded` guard yields to the network result
@@ -134,8 +141,9 @@ class AnnouncementDetailViewModel @Inject constructor(
         refreshJob = viewModelScope.launch {
             try {
                 val detail = api.fetchDetail(bulletinId)
+                if (!isCurrent()) return@launch
                 repository.putDetail(detail)
-                cache.saveDetail(detail)
+                cache.saveDetail(detail, ::isCurrent)
                 _state.update { State.Loaded(detail, repository.taxonomy()) }
             } catch (e: CancellationException) {
                 throw e

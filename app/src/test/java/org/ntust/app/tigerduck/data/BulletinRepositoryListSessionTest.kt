@@ -106,4 +106,21 @@ class BulletinRepositoryListSessionTest {
         assertNull(repo.listSession(includeDeleted = false))
         assertNull(repo.taxonomy())
     }
+
+    /** A taxonomy fetch still out at an endpoint move is the old backend's: neither kept nor handed back. */
+    @Test
+    fun `a taxonomy that lands after forget is neither kept nor returned`() {
+        val repo = BulletinRepository()
+        val old = org.ntust.app.tigerduck.network.model.TaxonomyResponse(emptyList(), emptyList(), listOf("old"))
+
+        val got = kotlinx.coroutines.runBlocking {
+            repo.getOrFetchTaxonomy {
+                repo.forget()
+                old
+            }
+        }
+
+        assertNull(got)
+        assertNull(repo.taxonomy())
+    }
 }

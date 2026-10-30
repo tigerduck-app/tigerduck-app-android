@@ -5,7 +5,10 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -30,6 +33,11 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     private val fetchedAtFile = File(dir, "fetched_at")
     private val detailDir: File = File(dir, "details").also { it.mkdirs() }
     private val mutex = Mutex()
+
+    // The clear an API endpoint move started ([clearIn]), which every read and write waits for:
+    // started, the old backend's files are no longer this cache's, even before they are gone.
+    @Volatile
+    private var clearing: Deferred<Unit>? = null
 
     // Refcounted per-id locks: entries are removed only when no coroutine is
     // holding or waiting on them, so two callers for the same id always share
@@ -59,20 +67,26 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    suspend fun load(): List<BulletinSummary> = mutex.withLock {
-        withContext(Dispatchers.IO) {
-            try {
-                if (!file.exists()) emptyList()
-                else gson.fromJson<List<BulletinSummary>>(file.readText(), listType) ?: emptyList()
-            } catch (_: Exception) {
-                emptyList()
+    suspend fun load(): List<BulletinSummary> {
+        settled()
+        return mutex.withLock {
+            withContext(Dispatchers.IO) {
+                try {
+                    if (!file.exists()) emptyList()
+                    else gson.fromJson<List<BulletinSummary>>(file.readText(), listType) ?: emptyList()
+                } catch (_: Exception) {
+                    emptyList()
+                }
             }
         }
     }
 
-    suspend fun save(items: List<BulletinSummary>) = mutex.withLock {
-        withContext(Dispatchers.IO) {
-            writeAtomically(file, gson.toJson(items))
+    suspend fun save(items: List<BulletinSummary>) {
+        settled()
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                writeAtomically(file, gson.toJson(items))
+            }
         }
     }
 
@@ -82,43 +96,53 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
      * visit opens on. The page's "Last synced" row, and it goes with the
      * list in [clear].
      */
-    suspend fun loadFetchedAt(): Long = mutex.withLock {
-        withContext(Dispatchers.IO) {
-            try {
-                if (!fetchedAtFile.exists()) 0L else fetchedAtFile.readText().trim().toLong()
-            } catch (_: Exception) {
-                0L
+    suspend fun loadFetchedAt(): Long {
+        settled()
+        return mutex.withLock {
+            withContext(Dispatchers.IO) {
+                try {
+                    if (!fetchedAtFile.exists()) 0L else fetchedAtFile.readText().trim().toLong()
+                } catch (_: Exception) {
+                    0L
+                }
             }
         }
     }
 
-    suspend fun saveFetchedAt(atMs: Long) = mutex.withLock {
-        withContext(Dispatchers.IO) {
-            writeAtomically(fetchedAtFile, atMs.toString())
+    suspend fun saveFetchedAt(atMs: Long) {
+        settled()
+        mutex.withLock {
+            withContext(Dispatchers.IO) {
+                writeAtomically(fetchedAtFile, atMs.toString())
+            }
         }
     }
 
     /**
      * Saves [items], and the list's date when [fetchedAt] is given, unless [stillCurrent] says
-     * the account they were fetched for has signed out meanwhile. Asked under the cache's lock,
-     * which the sign-out's [clear] takes too -- and the sign-out moves what [stillCurrent] reads
-     * before it starts the clear -- so the answer cannot be overtaken between the asking and the
-     * write: either this write lands first and the clear removes it, or the clear has run and
-     * nothing is written. The same shape as
+     * the account or backend they were fetched for is gone: a sign-out, or an API endpoint move.
+     * Asked under the cache's lock, which [clear] takes too -- and each of them moves what
+     * [stillCurrent] reads before it starts the clear -- so the answer cannot be overtaken between
+     * the asking and the write: either this write lands first and the clear removes it, or the
+     * clear has run and nothing is written. The same shape as
      * [org.ntust.app.tigerduck.mail.store.MailCache.saveBodyIf]. Returns whether it wrote.
      */
-    suspend fun saveIf(items: List<BulletinSummary>, fetchedAt: Long?, stillCurrent: () -> Boolean): Boolean = mutex.withLock {
-        if (!stillCurrent()) return@withLock false
-        withContext(Dispatchers.IO) {
-            writeAtomically(file, gson.toJson(items))
-            if (fetchedAt != null) writeAtomically(fetchedAtFile, fetchedAt.toString())
+    suspend fun saveIf(items: List<BulletinSummary>, fetchedAt: Long?, stillCurrent: () -> Boolean): Boolean {
+        settled()
+        return mutex.withLock {
+            if (!stillCurrent()) return@withLock false
+            withContext(Dispatchers.IO) {
+                writeAtomically(file, gson.toJson(items))
+                if (fetchedAt != null) writeAtomically(fetchedAtFile, fetchedAt.toString())
+            }
+            true
         }
-        true
     }
 
     /** One JSON file per id mirrors iOS DataCache.bulletinDetailDir(); keeps
      *  writes small and avoids rewriting an aggregated file on every open. */
     suspend fun loadDetail(id: Int): BulletinDetail? = withContext(Dispatchers.IO) {
+        settled()
         withDetailLock(id) {
             val f = File(detailDir, "$id.json")
             try {
@@ -129,8 +153,15 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    suspend fun saveDetail(detail: BulletinDetail) = withContext(Dispatchers.IO) {
+    /**
+     * Saves [detail] unless [stillCurrent] says the backend it came from is gone, asked under the
+     * id's lock, which [clear] takes for the id too after the move that [stillCurrent] reads:
+     * either this write lands first and the clear removes it, or nothing is written.
+     */
+    suspend fun saveDetail(detail: BulletinDetail, stillCurrent: () -> Boolean = { true }) = withContext(Dispatchers.IO) {
+        settled()
         withDetailLock(detail.id) {
+            if (!stillCurrent()) return@withDetailLock
             writeAtomically(File(detailDir, "${detail.id}.json"), gson.toJson(detail))
         }
     }
@@ -181,6 +212,24 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
             }
             withDetailLock(id) { if (f.exists()) f.delete() }
         }
+    }
+
+    /**
+     * Starts [clear] in [scope], for an API endpoint move: every read and write from now on
+     * waits for it, so none reads or writes the old backend's files in the meantime.
+     */
+    fun clearIn(scope: CoroutineScope) {
+        val started = scope.async {
+            runCatching { clear() }
+                .onFailure { Log.w(TAG, "clear failed: ${it.logSummary()}") }
+            Unit
+        }
+        clearing = started
+    }
+
+    // Waits for the clear an endpoint move started, if one is still running.
+    private suspend fun settled() {
+        clearing?.await()
     }
 
     /** Where [writeAtomically] writes [target] before it renames it into place. */
