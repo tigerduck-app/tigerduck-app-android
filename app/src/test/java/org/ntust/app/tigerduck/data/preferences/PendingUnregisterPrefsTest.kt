@@ -114,7 +114,7 @@ class PendingUnregisterPrefsTest {
         val deletes = mutableListOf<String>()
         fun unregister() = DepartingDeviceUnregister(
             owed = OwedUnregister(PendingUnregisterPrefs(prefs)),
-            deleteDevice = { _, device, token -> deletes += "$device $token"; 204 },
+            deleteDevice = { _, device, token, _ -> deletes += "$device $token"; 204 },
             refresh = { _, _, _ -> DepartingRefresh.Refused },
             sessionAt = { _ -> tokens.refreshToken != null },
             now = { 0L },

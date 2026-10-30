@@ -80,13 +80,19 @@ class DepartingDeviceUnregisterTest {
     /** Runs as each refresh is sent, before its reply. */
     private var onRefresh: () -> Unit = {}
 
+    /** Runs as each DELETE reaches the I/O thread, before it asks whether it may go. */
+    private var beforeDelete: () -> Unit = {}
+
     /** What the last refresh was told to ask right before its token goes out. */
     private var lastMayDepart: (() -> Boolean)? = null
 
     private fun unregister() = DepartingDeviceUnregister(
         owed = owed,
-        deleteDevice = { base, device, token ->
+        deleteDevice = { base, device, token, mayDepart ->
             assertEquals("the DELETE goes to the backend that issued the token", backend, base)
+            // As PushApiClient.deleteDevice: asked once on the I/O thread, right before it goes.
+            beforeDelete()
+            if (!mayDepart()) throw UnregisterHeldBack()
             deletes += "$device $token"
             heldDelete?.let { held -> heldDelete = null; return@DepartingDeviceUnregister held.await() }
             when (val reply = deleteReplies.removeFirstOrNull() ?: 204) {
@@ -547,6 +553,20 @@ class DepartingDeviceUnregisterTest {
 
         endpoint = BACKEND
         assertFalse(lastMayDepart!!())
+    }
+
+    /** The setting moves while the DELETE waits for its thread: it does not go. */
+    @Test
+    fun `a DELETE the setting moves off the http backend before it goes is not sent`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe()
+        beforeDelete = { endpoint = BACKEND }
+
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        assertEquals(emptyList<String>(), deletes)
+        assertEquals("refresh-1", store.pending?.session?.refreshToken)
     }
 
     /** A refresh whose reply was lost is sent once more at most -- and not after the setting moved. */

@@ -115,13 +115,16 @@ class PushApiClient @Inject constructor(
      * session it left, at [base], the backend that issued it, and gives the HTTP status. The
      * sign-out's unregister runs after the tokens are wiped, and a session looked up now could be
      * the next account's, or its sign-in, whose row the DELETE would remove; and the endpoint
-     * setting may name another host by now. Throws [java.io.IOException] when no reply came back.
+     * setting may name another host by now. Throws [java.io.IOException] when no reply came back,
+     * and [UnregisterHeldBack] when [mayDepart], asked right before the request goes, says no.
      */
     suspend fun deleteDevice(
         base: String,
         deviceId: String,
         accessToken: String,
+        mayDepart: () -> Boolean = { true },
     ): Int = withContext(Dispatchers.IO) {
+        if (!mayDepart()) throw UnregisterHeldBack()
         // v3: DELETE /devices/{client_device_id}, scoped to the authed user
         // (matches iOS + the server). `deviceId` is PushIdentity.uuid().
         deletes.at(base).removeDevice("Bearer $accessToken", deviceId, EmptyBody).execute().use { response -> response.code }
@@ -552,3 +555,6 @@ internal fun preferencesPatchBlockedOnFdroid(
 }
 
 private const val DELETE_TIMEOUT_SECONDS = 20L
+
+/** A sign-out's device unregister not sent, as its caller said right before it would go. */
+class UnregisterHeldBack : java.io.IOException("unregister held back")

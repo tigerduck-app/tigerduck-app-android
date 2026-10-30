@@ -65,8 +65,11 @@ interface PendingUnregisterStore {
 @Singleton
 class DepartingDeviceUnregister internal constructor(
     private val owed: OwedUnregister,
-    /** The HTTP status; throws [IOException] when no reply came back. */
-    private val deleteDevice: suspend (base: String, deviceId: String, accessToken: String) -> Int,
+    /**
+     * [PushApiClient.deleteDevice]: the HTTP status; throws [IOException] when no reply came
+     * back, or when its last argument, asked right before the request goes, says no.
+     */
+    private val deleteDevice: suspend (base: String, deviceId: String, accessToken: String, mayDepart: () -> Boolean) -> Int,
     /** [AuthTokenManager.refreshDeparting]: sends nothing once its last argument says no. */
     private val refresh: suspend (DepartingSession, sendsWithoutReply: Int, mayDepart: () -> Boolean) -> DepartingRefresh,
     /** Whether this phone has a session from the backend it is given. */
@@ -135,6 +138,9 @@ class DepartingDeviceUnregister internal constructor(
             sendAs(pending)
         } catch (e: CancellationException) {
             throw e
+        } catch (_: UnregisterHeldBack) {
+            // An http backend the setting moved off while the DELETE waited to go: see heldBack.
+            Outcome.RETRY
         } catch (e: IOException) {
             Log.w(TAG, "unregister got no reply: ${e.logSummary()}")
             Outcome.RETRY
@@ -180,13 +186,14 @@ class DepartingDeviceUnregister internal constructor(
         currentCoroutineContext().ensureActive()
         // Asked again before each send: the setting can move while a refresh or a DELETE is out.
         if (heldBack(current.session.baseUrl)) return Outcome.RETRY
-        var status = deleteDevice(current.session.baseUrl, current.deviceId, current.session.accessToken)
+        val base = current.session.baseUrl
+        var status = deleteDevice(base, current.deviceId, current.session.accessToken) { !heldBack(base) }
         if (status == 401 && !refreshed) {
             // Turned down before its time, a revoked token, say: a refreshed one may still go out.
             current = renew(current) ?: return afterFailedRefresh()
             if (sessionAt(current.session.baseUrl)) return Outcome.DONE
             if (heldBack(current.session.baseUrl)) return Outcome.RETRY
-            status = deleteDevice(current.session.baseUrl, current.deviceId, current.session.accessToken)
+            status = deleteDevice(base, current.deviceId, current.session.accessToken) { !heldBack(base) }
         }
         return when {
             // 404: the device is not registered to the account any more.

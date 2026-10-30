@@ -34,7 +34,7 @@ class DepartingUnregisterWorkerTest {
     // Never reaches the server: every DELETE gets no reply.
     private val unregister = DepartingDeviceUnregister(
         owed = OwedUnregister(store),
-        deleteDevice = { _, _, _ -> throw IOException("offline") },
+        deleteDevice = { _, _, _, _ -> throw IOException("offline") },
         refresh = { _, _, _ -> DepartingRefresh.Unavailable },
         sessionAt = { _ -> false },
         now = { 0L },
