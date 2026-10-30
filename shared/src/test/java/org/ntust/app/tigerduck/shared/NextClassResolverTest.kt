@@ -206,6 +206,21 @@ class NextClassResolverTest {
     }
 
     @Test
+    fun `the rest of a meeting split by a change is next while its first class runs`() {
+        // CN's 1-2 split by a room move: 1 in its room, then 2 in TR-415.
+        val moved = WatchClassChange(listOf("2"), room = "TR-415")
+        val changed = { courseNo: String, daysAhead: Int ->
+            if (courseNo == "CN" && daysAhead == 0) listOf(WatchClassChange(listOf("1")), moved) else emptyList()
+        }
+        val during = NextClassResolver.resolve(listOf(mondayMorningCourse), 1, 8 * 60 + 30, changed)
+        during as NextClassResult.Ongoing
+        assertEquals(listOf("1"), during.periods)
+        val next = during.nextToday!!
+        assertEquals(listOf("2"), next.periods)
+        assertEquals("TR-415", next.classroom)
+    }
+
+    @Test
     fun `a later day's cancelled class is passed over for the next class`() {
         val changed = { courseNo: String, daysAhead: Int ->
             if (courseNo == "DB" && daysAhead == 1) {

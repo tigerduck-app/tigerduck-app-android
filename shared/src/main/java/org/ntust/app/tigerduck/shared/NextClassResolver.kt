@@ -98,7 +98,12 @@ object NextClassResolver {
             today(course).firstOrNull { minuteOfDay in it.startMinute..it.endMinute }?.let { Pick(course, it.startMinute, it) }
         }
         if (ongoing != null) {
-            val nextToday = earliestStart(todaysCourses, after = minuteOfDay, excluding = ongoing.course.courseNo, today)
+            // The course going on is left out of what comes next, as before changes; but a meeting
+            // the school split runs as its classes, so only the one going on is left out of it.
+            val split = changedClasses(ongoing.course.courseNo, 0).isNotEmpty()
+            val nextToday = earliestStart(todaysCourses, after = minuteOfDay, today) { course, dayClass ->
+                course.courseNo == ongoing.course.courseNo && (!split || dayClass.periods == ongoing.dayClass.periods)
+            }
             return NextClassResult.Ongoing(
                 course = ongoing.course,
                 startMinute = ongoing.startMinute,
@@ -111,7 +116,7 @@ object NextClassResolver {
                 change = ongoing.dayClass.change,
             )
         }
-        val next = earliestStart(todaysCourses, after = minuteOfDay, excluding = null, today)
+        val next = earliestStart(todaysCourses, after = minuteOfDay, today)
         if (next != null) {
             return NextClassResult.NextToday(next.course, next.startMinute, weekday, next.dayClass.periods, next.dayClass.change)
         }
@@ -119,9 +124,9 @@ object NextClassResolver {
         for (offset in 1..7) {
             if (isQuietDay(offset)) continue
             val futureWeekday = ((weekday - 1 + offset) % 7) + 1
-            val first = earliestStart(courses, after = null, excluding = null) {
+            val first = earliestStart(courses, after = null, classes = {
                 classesOf(it, futureWeekday, changedClasses(it.courseNo, offset))
-            } ?: continue
+            }) ?: continue
             return NextClassResult.NextFuture(
                 first.course, offset, first.startMinute, futureWeekday, first.dayClass.periods, first.dayClass.change,
             )
@@ -199,16 +204,16 @@ object NextClassResolver {
         return DayClass(periods, start, end, change)
     }
 
-    /** The class that starts first, after [after] when given, of the courses but [excluding]. */
+    /** The class that starts first, after [after] when given, of the classes [excluding] leaves. */
     private fun earliestStart(
         courses: List<Course>,
         after: Int?,
-        excluding: String?,
         classes: (Course) -> List<DayClass>,
+        excluding: (Course, DayClass) -> Boolean = { _, _ -> false },
     ): Pick? = courses
-        .filter { it.courseNo != excluding }
         .mapNotNull { course ->
             classes(course)
+                .filter { dayClass -> !excluding(course, dayClass) }
                 .flatMap { dayClass -> dayClass.starts.map { Pick(course, it, dayClass) } }
                 .filter { after == null || it.startMinute > after }
                 .minByOrNull { it.startMinute }
