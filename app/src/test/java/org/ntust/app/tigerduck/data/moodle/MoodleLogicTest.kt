@@ -213,6 +213,25 @@ class MoodleLogicTest {
     }
 
     @Test
+    fun `a full name in either spelling gives the name and the student ID`() {
+        // As the iPhone's MoodlePersonNameTests: "ID @ name", or "name ID@" in some users' order.
+        val cases = listOf(
+            Triple("B00015999 @ Tiger Duck", "Tiger Duck", "B00015999"),
+            Triple("B00015999@塔克", "塔克", "B00015999"),
+            Triple("Tiger Duck B00015999@", "Tiger Duck", "B00015999"),
+            Triple(" 塔克  B00015999@ ", "塔克", "B00015999"),
+            Triple("B00015999@", "B00015999@", "B00015999"),
+            Triple("Tiger Duck@", "Tiger Duck@", "Tiger Duck"),
+            Triple("@ Tiger Duck", "Tiger Duck", null),
+            Triple("Tiger Duck", "Tiger Duck", null),
+        )
+        for ((fullName, name, studentId) in cases) {
+            assertEquals(fullName, name, MoodlePersonName.displayName(fullName))
+            assertEquals(fullName, studentId, MoodlePersonName.studentId(fullName))
+        }
+    }
+
+    @Test
     fun `a number grade reads without the zeros ending its decimals, anything else stays whole`() {
         assertEquals("85", MoodleGrades.shownGrade(grade(1, grade = "85.00")))
         assertEquals("85.5", MoodleGrades.shownGrade(grade(1, grade = "85.50")))
