@@ -186,6 +186,22 @@ class SchoolMailListViewModelTest {
         assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
     }
 
+    /** A search that found nothing yet runs again as mail comes, and shows what it then finds. */
+    @Test
+    fun `a search with no matches yet grows as mail for it downloads`() {
+        repo.add("INBOX", mailSummary(1, subject = "other"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(emptyList<Long>(), vm.state.value.displayed.map { it.uid })
+
+        repo.add("INBOX", mailSummary(2, subject = "期中考"))
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+    }
+
     /** A query being edited is not run before it is submitted: the search on screen is the one submitted. */
     @Test
     fun `a query being edited is not run as mail downloads`() {

@@ -1341,8 +1341,9 @@ class SchoolMailListViewModel @Inject constructor(
             // password rejected, and a page of them now would open the connection again -- for a
             // rejected password, the LOGIN that was just decided against (spec §7.4).
             if (!keepShown && !serverUnreachable && _state.value.displayed.isEmpty()) {
-                // Pages it fetched by itself are rows a silent run again would take away.
-                searchPaged = true
+                // Pages it fetches by itself are rows a silent run again would take away; with
+                // none left to fetch, it stays empty and runs again as mail comes.
+                if (unfetchedMatches.values.any { it.uids.isNotEmpty() }) searchPaged = true
                 loadMoreSearchResults()
             }
         } finally {
