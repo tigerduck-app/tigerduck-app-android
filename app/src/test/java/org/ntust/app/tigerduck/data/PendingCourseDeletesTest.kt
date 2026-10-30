@@ -115,6 +115,18 @@ class PendingCourseDeletesTest {
     }
 
     /**
+     * The moments the class table gives adds come from [PendingCourseDeletes.stamp] too: after a
+     * restart with the clock set back, a hide asked now still comes after an add kept from before.
+     */
+    @Test
+    fun `a stamp after a restart comes after every add's moment kept`() = runTest {
+        cache.savePendingCourseAddTimes(mapOf(term to mapOf(typed to 9_000L)))
+        val restarted = PendingCourseDeletes(cache, adds, { _, _, _ -> }, signInGeneration = { signIn }, clock = { 1L })
+
+        assertTrue(restarted.stamp() > 9_000L)
+    }
+
+    /**
      * A delete goes with the moment it was asked (#591), again on a retry: the backend applies
      * it only when later than the course's last add, hide and reset, so a hide kept offline
      * loses to an add made since on another device, and a retry after a lost reply changes

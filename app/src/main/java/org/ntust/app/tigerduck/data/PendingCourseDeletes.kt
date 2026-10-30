@@ -110,6 +110,9 @@ class PendingCourseDeletes internal constructor(
     suspend fun stamp(): Long = mutex.withLock {
         if (!seeded) {
             noteStamps(waiting())
+            // The adds' moments too, which the class table takes from here: after a restart with
+            // the clock set back, a hide must still come after an add queued before it (#591).
+            noteStamps(dataCache.loadPendingCourseAddTimes())
             seeded = true
         }
         lastStamp.updateAndGet { last -> maxOf(last + 1, clock()) }

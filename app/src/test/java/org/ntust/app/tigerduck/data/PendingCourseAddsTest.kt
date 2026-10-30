@@ -105,6 +105,50 @@ class PendingCourseAddsTest {
         assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
     }
 
+    /**
+     * The course added again while its first add's request is out: that request's answer is to
+     * the older add, and leaves the newer one, with its later moment, to go after it.
+     */
+    @Test
+    fun `an answer to an older add leaves a newer re-add of it waiting`() = runTest {
+        cache.saveCourses(listOf(typed), term)
+        val firstOut = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        beforeHeader = {
+            beforeHeader = {}
+            firstOut.complete(Unit)
+            releaseFirst.await()
+        }
+        answer = { listOf("MA1010002") }
+
+        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L) }
+        firstOut.await()
+        val second = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 6_000L) }
+        runCurrent()
+        releaseFirst.complete(Unit)
+        first.join()
+        second.join()
+
+        assertEquals(listOf(mapOf("MA1010002" to 5_000L), mapOf("MA1010002" to 6_000L)), uploads.map { it.addedAt })
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+        assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
+    }
+
+    /**
+     * A course this phone typed, whose timed add the backend answered (here, not applied: a hide
+     * elsewhere was newer), is one the server has settled: a snapshot's tombstone may hide it,
+     * as the reconcile never does a course the server has not seen.
+     */
+    @Test
+    fun `a timed add the backend answered counts as one the server knows`() = runTest {
+        cache.saveCourses(listOf(typed), term)
+        answer = { listOf("MA1010002") }
+
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L)
+
+        assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
+    }
+
     /** One an older install kept has no moment: it goes as it did, unstamped. */
     @Test
     fun `an add kept with no moment goes unstamped, as before`() = runTest {

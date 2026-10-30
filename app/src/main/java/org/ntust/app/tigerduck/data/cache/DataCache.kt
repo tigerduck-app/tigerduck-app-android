@@ -509,6 +509,10 @@ class DataCache @Inject constructor(
     suspend fun saveServerKnownNos(known: Map<String, List<String>>) =
         saveToUserData(known, "server_known_courses.json")
 
+    /** [saveServerKnownNos] unless the data was wiped since [generation]; says whether it wrote. */
+    suspend fun saveServerKnownNos(known: Map<String, List<String>>, generation: Int): Boolean =
+        saveToUserDataIf(known, "server_known_courses.json", generation)
+
     suspend fun loadServerKnownNos(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String, List<String>>>() {}.type
         return loadFromUserData(type, "server_known_courses.json") ?: emptyMap()

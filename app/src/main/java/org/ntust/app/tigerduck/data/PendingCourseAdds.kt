@@ -79,8 +79,12 @@ class PendingCourseAdds internal constructor(
     suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: Long? = null) {
         val generation = dataCache.writeGeneration()
         val signIn = signInGeneration()
-        if (!edit(generation) { it.with(semester, listOf(courseNo)) }) return
-        if (addedAt != null) editTimes(generation) { it.withTime(semester, courseNo, addedAt) }
+        val kept = edit(
+            generation,
+            change = { it.with(semester, listOf(courseNo)) },
+            changeTimes = { times -> if (addedAt != null) times.withTime(semester, courseNo, addedAt) else times.withoutTimes(semester, listOf(courseNo)) },
+        )
+        if (!kept) return
         trySend(semester, listOf(courseNo), generation, signIn, courses)
     }
 
@@ -125,12 +129,11 @@ class PendingCourseAdds internal constructor(
         if (waiting.isEmpty()) return
         val listed = serverCourses.groupBy({ it.semester }, { it.courseNo })
         if (waiting.none { (semester, nos) -> listed[semester].orEmpty().any { it in nos } }) return
-        edit(generation) { pending ->
-            listed.entries.fold(pending) { acc, (semester, nos) -> acc.without(semester, nos) }
-        }
-        editTimes(generation) { times ->
-            listed.entries.fold(times) { acc, (semester, nos) -> acc.withoutTimes(semester, nos) }
-        }
+        edit(
+            generation,
+            change = { pending -> listed.entries.fold(pending) { acc, (semester, nos) -> acc.without(semester, nos) } },
+            changeTimes = { times -> listed.entries.fold(times) { acc, (semester, nos) -> acc.withoutTimes(semester, nos) } },
+        )
     }
 
     /**
@@ -171,10 +174,21 @@ class PendingCourseAdds internal constructor(
         }) + (if (untimed.isEmpty()) emptyList() else {
             upload(courses ?: cached.filter { it.courseNo in untimed }, semester, untimed, signIn, emptyMap())
         })
+        // The backend answered a timed add, applied or not: it has settled the course, which a
+        // snapshot's tombstone may then hide, as a course this phone typed alone it never would.
+        val settled = accepted.filter { it in timed }
+        if (settled.isNotEmpty()) {
+            val known = dataCache.loadServerKnownNos()
+            dataCache.saveServerKnownNos(known + (semester to (known[semester].orEmpty() + settled).distinct().sorted()), generation)
+        }
         val done = requested - held.toSet() + accepted
         if (done.isNotEmpty()) {
-            edit(generation) { it.without(semester, done) }
-            editTimes(generation) { it.withoutTimes(semester, done) }
+            // Only an add still as it was sent: one added again meanwhile has a newer moment,
+            // which this answer, to the older add, does not settle.
+            edit(generation) { pending, current ->
+                val same = done.filter { current[semester]?.get(it) == times[it] }
+                pending.without(semester, same) to current.withoutTimes(semester, same)
+            }
         }
         true
     }
@@ -207,9 +221,7 @@ class PendingCourseAdds internal constructor(
      * add kept past it would put its course back on every device.
      */
     suspend fun forgetAll() {
-        val generation = dataCache.writeGeneration()
-        edit(generation) { emptyMap() }
-        editTimes(generation) { emptyMap() }
+        edit(dataCache.writeGeneration(), change = { emptyMap() }, changeTimes = { emptyMap() })
     }
 
     /** The course numbers whose add in [semester] is still waiting, for the reconcile to keep. */
@@ -220,16 +232,6 @@ class PendingCourseAdds internal constructor(
     // When each waiting add was asked; an add without one goes unstamped.
     private suspend fun waitingTimes(): Map<String, Map<String, Long>> = dataCache.loadPendingCourseAddTimes()
 
-    // As [edit], for the times. Under the same lock: a time is read and written with its add.
-    private suspend fun editTimes(
-        generation: Int,
-        change: (Map<String, Map<String, Long>>) -> Map<String, Map<String, Long>>,
-    ): Boolean = mutex.withLock {
-        val before = waitingTimes()
-        val after = change(before)
-        after == before || dataCache.savePendingCourseAddTimes(after, generation)
-    }
-
     // An add asked again keeps the later moment: it is the newer add.
     private fun Map<String, Map<String, Long>>.withTime(semester: String, courseNo: String, addedAt: Long) =
         this + (semester to this[semester].orEmpty().let { it + (courseNo to maxOf(it[courseNo] ?: 0L, addedAt)) })
@@ -239,14 +241,28 @@ class PendingCourseAdds internal constructor(
         return if (kept.isEmpty()) this - semester else this + (semester to kept)
     }
 
-    // False, and nothing written, once the data was wiped since [generation].
+    // [edit] with each file changed on its own.
     private suspend fun edit(
         generation: Int,
         change: (Map<String, List<String>>) -> Map<String, List<String>>,
+        changeTimes: (Map<String, Map<String, Long>>) -> Map<String, Map<String, Long>> = { it },
+    ): Boolean = edit(generation) { pending, times -> change(pending) to changeTimes(times) }
+
+    // The adds and their moments, changed together under one lock. False, and nothing written,
+    // once the data was wiped since [generation]. A moment is written before its add and goes
+    // after it, so an add with a moment is never read without it: sent unstamped, it would
+    // count from when it arrives and win over a hide made after it elsewhere.
+    private suspend fun edit(
+        generation: Int,
+        change: (Map<String, List<String>>, Map<String, Map<String, Long>>) -> Pair<Map<String, List<String>>, Map<String, Map<String, Long>>>,
     ): Boolean = mutex.withLock {
         val before = waiting()
-        val after = change(before)
-        after == before || dataCache.savePendingCourseAdds(after, generation)
+        val timesBefore = waitingTimes()
+        val (after, timesAfter) = change(before, timesBefore)
+        val added = after.any { (semester, nos) -> nos.any { it !in before[semester].orEmpty() } }
+        suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, generation)
+        suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, generation)
+        if (added) saveTimes() && saveAdds() else saveAdds() && saveTimes()
     }
 
     private fun Map<String, List<String>>.with(semester: String, courseNos: List<String>) =
