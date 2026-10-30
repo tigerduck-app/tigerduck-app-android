@@ -53,9 +53,15 @@ class CourseChangeStore internal constructor(
     private val api = BackendServices(CourseChangeApi::class.java, client.newBuilder().cache(null).build())
     private val refreshMutex = Mutex()
 
+    // Guards the stored copy against a move: a request is registered, a move drops the copy, and
+    // an answer is kept, each whole under it, so none lands between another's steps.
+    private val lock = Any()
+
     /** The request out now, for [endpointMoved] to cancel. */
-    @Volatile
     private var inFlight: okhttp3.Call? = null
+
+    /** Moves so far; an answer to a request made before the last is not kept. */
+    private var generation = 0
 
     // Lazy, so injecting the store on the app's start costs no disk read.
     private val _changes: MutableStateFlow<CourseChanges> by lazy { MutableStateFlow(loadFromDisk()) }
@@ -73,15 +79,18 @@ class CourseChangeStore internal constructor(
     suspend fun refresh(): Boolean = refreshMutex.withLock {
         if (!onboarded()) return@withLock false
         withContext(Dispatchers.IO) {
-            val base = endpoint()
-            if (prefs.getString(KEY_ENDPOINT, null) != base) forget()
-            // Read first, so a stored feed this build cannot read is dropped with its ETag rather
-            // than kept behind a 304.
-            _changes.value
-            val etag = prefs.getString(KEY_ETAG, null)
-                ?.takeIf { it.isNotEmpty() && prefs.getString(KEY_PAYLOAD, null) != null }
-            val call = api.at(base).courseChanges("application/json", etag)
-            inFlight = call
+            val (base, asked, call) = synchronized(lock) {
+                val base = endpoint()
+                if (prefs.getString(KEY_ENDPOINT, null) != base) forget()
+                // Read first, so a stored feed this build cannot read is dropped with its ETag
+                // rather than kept behind a 304.
+                _changes.value
+                val etag = prefs.getString(KEY_ETAG, null)
+                    ?.takeIf { it.isNotEmpty() && prefs.getString(KEY_PAYLOAD, null) != null }
+                val call = api.at(base).courseChanges("application/json", etag)
+                inFlight = call
+                Triple(base, generation, call)
+            }
             runCatching {
                 call.execute().use { response ->
                     when {
@@ -89,13 +98,15 @@ class CourseChangeStore internal constructor(
                         response.isSuccessful -> {
                             val body = response.body.string()
                             val parsed = CourseChanges.decode(body)
-                            if (endpoint() != base) return@use false
-                            prefs.edit()
-                                .putString(KEY_PAYLOAD, body)
-                                .putString(KEY_ETAG, response.header("ETag").orEmpty())
-                                .putString(KEY_ENDPOINT, base)
-                                .apply()
-                            _changes.value = parsed
+                            synchronized(lock) {
+                                if (generation != asked || endpoint() != base) return@use false
+                                prefs.edit()
+                                    .putString(KEY_PAYLOAD, body)
+                                    .putString(KEY_ETAG, response.header("ETag").orEmpty())
+                                    .putString(KEY_ENDPOINT, base)
+                                    .apply()
+                                _changes.value = parsed
+                            }
                             true
                         }
                         else -> false
@@ -105,7 +116,7 @@ class CourseChangeStore internal constructor(
                 if (e is CancellationException) throw e
                 Log.w(TAG, "course changes refresh failed: ${e.logSummary()}")
                 false
-            }.also { inFlight = null }
+            }.also { synchronized(lock) { if (inFlight === call) inFlight = null } }
         }
     }
 
@@ -114,7 +125,8 @@ class CourseChangeStore internal constructor(
      * out at the old one, which would keep the next refresh waiting behind it. The caller fetches
      * the new backend's next.
      */
-    fun endpointMoved() {
+    fun endpointMoved() = synchronized(lock) {
+        generation++
         inFlight?.cancel()
         forget()
     }
