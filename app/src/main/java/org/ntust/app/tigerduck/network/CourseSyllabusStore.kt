@@ -27,16 +27,23 @@ class CourseSyllabusStore(
         val key = Key(semester, courseNo, language)
         // On the store's scope, so one caller leaving does not cancel the fetch another waits on.
         val load = synchronized(kept) {
-            kept.getOrPut(key) {
-                scope.async(start = CoroutineStart.LAZY) {
+            kept[key] ?: run {
+                var self: Deferred<Result<CourseSyllabus?>>? = null
+                val started = scope.async(start = CoroutineStart.LAZY) {
                     try {
                         Result.success(CourseSyllabus.decode(fetch(key.semester, key.courseNo, key.language)))
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        // Let go of here, whether or not anyone still waits: a caller that left
+                        // must not leave the failure for the next to find.
+                        synchronized(kept) { if (kept[key] === self) kept.remove(key) }
                         Result.failure(e)
                     }
                 }
+                self = started
+                kept[key] = started
+                started
             }
         }
         val answer = try {

@@ -97,8 +97,8 @@ class CourseService @Inject constructor(
      * [courseNo]'s syllabus in [semester], in the app's language for the course service; null when
      * the school has none. Throws when it cannot be fetched. Public: no account is asked for.
      */
-    suspend fun syllabus(semester: String, courseNo: String): CourseSyllabus? =
-        syllabi.syllabus(semester, courseNo, preferredCourseApiLanguage())
+    suspend fun syllabus(semester: String, courseNo: String, language: String = preferredCourseApiLanguage()): CourseSyllabus? =
+        syllabi.syllabus(semester, courseNo, language)
 
     /** See [MoodleService.expireSharedResults]. */
     fun expireSharedResults() = sharedCourseNos.expire()

@@ -123,9 +123,12 @@ object CourseSyllabusBreakdown {
     // Numbered lists ("1.", "(2)", "-") lead many syllabi's lines.
     private val listMark = Regex("^(?:[0-9]{1,2}[.)、]|[(（][0-9]{1,2}[)）]|[-•‧・*])\\s*")
 
-    // A range such as 40-60% stays text: a bar would show one share the teacher did not give.
-    private val range = Regex("[0-9][%％]?\\s*[-－~～〜至到]\\s*[0-9]{1,3}(?:\\.[0-9]+)?\\s*[%％][)）]?$")
-    private val trailing = Regex("(.*?)[\\s:：=－\\-]*[(（]?([0-9]{1,3}(?:\\.[0-9]+)?)\\s*[%％][)）]?")
+    // A range such as 40-60% or 40–(60%) stays text: a bar would show one share the teacher did
+    // not give.
+    private val range = Regex("[0-9][%％]?\\s*[-－–—~～〜至到]\\s*[(（]?[0-9]{1,3}(?:\\.[0-9]+)?\\s*[%％][)）]?$")
+
+    // The number is whole: not the tail of another, as the 5 of "Quiz .5%", which stays text.
+    private val trailing = Regex("(.*?)[\\s:：=－–—\\-]*[(（]?(?<![0-9.])([0-9]{1,3}(?:\\.[0-9]+)?)\\s*[%％][)）]?")
 
     /** Null when one part is not a short label followed by a percentage, to show the text as written. */
     fun grading(text: String): List<Part>? {

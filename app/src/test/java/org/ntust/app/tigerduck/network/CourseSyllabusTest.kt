@@ -122,6 +122,17 @@ class CourseSyllabusTest {
         assertNull(CourseSyllabusBreakdown.grading("${twenty}子 100%"))
     }
 
+    @Test
+    fun `a decimal with no leading digit, or a range with a dash or a bracket, leaves the text as written`() {
+        assertNull(CourseSyllabusBreakdown.grading("Quiz .5%\nFinal 99.5%"))
+        assertNull(CourseSyllabusBreakdown.grading("期中考 30%\nFinal 40–60%"))
+        assertNull(CourseSyllabusBreakdown.grading("期中考 30%\nFinal 40 - (60%)"))
+        assertEquals(
+            listOf(Part("Others", null, detail = "Pond visit 10–20%")),
+            CourseSyllabusBreakdown.teaching(teaching(lecture = "0", other = "Pond visit 10–20%"), labels),
+        )
+    }
+
     // Teaching
 
     @Test
@@ -213,6 +224,29 @@ class CourseSyllabusTest {
 
         fail = false
         assertEquals("講授與實作", store.syllabus("1151", "ZZ1001301", "zh")?.content)
+    }
+
+    /** A failed fetch whose callers have all left is let go of all the same, for the next to fetch again. */
+    @Test
+    fun `a fetch that fails after its callers left is not kept`() = runTest {
+        var calls = 0
+        val answer = CompletableDeferred<String>()
+        val store = CourseSyllabusStore(backgroundScope) { _, _, _ ->
+            calls++
+            if (calls == 1) {
+                answer.await()
+                throw IOException("offline")
+            }
+            GRADED
+        }
+        val leaving = async { store.syllabus("1151", "ZZ1001301", "zh") }
+        runCurrent()
+        leaving.cancel()
+        answer.complete("")
+        runCurrent()
+
+        assertEquals("講授與實作", store.syllabus("1151", "ZZ1001301", "zh")?.content)
+        assertEquals(2, calls)
     }
 
     private companion object {

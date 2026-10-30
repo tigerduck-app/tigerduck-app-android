@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -149,8 +150,11 @@ internal fun CourseDetailSheetPage(
     // else's course has one too.
     val term = viewModel.selectedCourseTerm
     val teachingLabels = syllabusTeachingLabels()
-    var syllabusShown by remember(term, course.courseNo) { mutableStateOf(false) }
-    LaunchedEffect(term, course.courseNo) {
+    // The language too: the course service answers in the app's, and a blank syllabus in one may
+    // have content in the other.
+    val locales = LocalConfiguration.current.locales
+    var syllabusShown by remember(term, course.courseNo, locales) { mutableStateOf(false) }
+    LaunchedEffect(term, course.courseNo, locales) {
         syllabusShown = runCatching { viewModel.syllabusFor(course, term) }
             .getOrNull()?.hasContent(teachingLabels) == true
     }

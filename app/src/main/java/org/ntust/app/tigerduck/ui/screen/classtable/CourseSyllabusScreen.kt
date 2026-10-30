@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -56,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -112,21 +115,34 @@ class CourseSyllabusViewModel @javax.inject.Inject constructor(
     private val _state = MutableStateFlow<State>(State.Loading)
     val state: StateFlow<State> = _state.asStateFlow()
 
+    // The course service's language the syllabus on screen is in, and its load; main-thread-only.
+    private var language: String? = null
+    private var loading: Job? = null
+
     init {
         load()
     }
 
     fun load() {
+        val asked = courseService.preferredCourseApiLanguage()
+        language = asked
         _state.value = State.Loading
-        viewModelScope.launch {
+        // A load for the language before replaces nothing after it.
+        loading?.cancel()
+        loading = viewModelScope.launch {
             _state.value = try {
-                State.Loaded(courseService.syllabus(semester, courseNo))
+                State.Loaded(courseService.syllabus(semester, courseNo, asked))
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
                 State.Failed
             }
         }
+    }
+
+    /** Loads again when the app's language for the course service has changed since; see [load]. */
+    fun followLanguage() {
+        if (courseService.preferredCourseApiLanguage() != language) load()
     }
 }
 
@@ -142,6 +158,10 @@ fun CourseSyllabusScreen(
     viewModel: CourseSyllabusViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    // The headings follow a change of the app's language; the syllabus, in the school's words,
+    // loads again in the new one.
+    val locales = LocalConfiguration.current.locales
+    LaunchedEffect(locales) { viewModel.followLanguage() }
     Scaffold(
         topBar = { MoodleTopBar(title = stringResource(R.string.course_detail_syllabus), onBack = onBack, moodlePath = null) },
         containerColor = MaterialTheme.colorScheme.background,
