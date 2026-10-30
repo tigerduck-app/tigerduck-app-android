@@ -138,6 +138,7 @@ object MoodleJson {
             id = o.int("id") ?: return null,
             name = MoodleHtmlText.plainText(o.str("name").orEmpty()),
             materials = materials,
+            number = o.int("section"),
         )
     }
 
@@ -283,6 +284,8 @@ object MoodleJson {
                 .mapNotNull { course.str(it) }
                 .map(MoodleHtmlText::plainText)
                 .filter { it.isNotEmpty() },
+            format = course.str("format"),
+            startDate = course.long("startdate"),
         )
     }
 

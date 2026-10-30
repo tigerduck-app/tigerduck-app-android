@@ -1569,7 +1569,7 @@ class DataCache @Inject constructor(
         private const val MOODLE_SALT_KEY = "folder_salt"
 
         /** See saveMoodleData: bump with any change to the classes in network/model/moodle. */
-        internal const val MOODLE_CACHE_SCHEMA = 4
+        internal const val MOODLE_CACHE_SCHEMA = 5
 
         // Sentinel literal present in any course JSON written by a build
         // with un-obfuscated field names. Used by loadCourses to reject
