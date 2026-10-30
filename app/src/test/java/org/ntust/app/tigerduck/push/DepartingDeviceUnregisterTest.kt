@@ -12,6 +12,7 @@ import org.json.JSONException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.DepartingRefresh
 import org.ntust.app.tigerduck.auth.DepartingSession
@@ -79,6 +80,9 @@ class DepartingDeviceUnregisterTest {
     /** Runs as each refresh is sent, before its reply. */
     private var onRefresh: () -> Unit = {}
 
+    /** What the last refresh was told to ask right before its token goes out. */
+    private var lastMayDepart: (() -> Boolean)? = null
+
     private fun unregister() = DepartingDeviceUnregister(
         owed = owed,
         deleteDevice = { base, device, token ->
@@ -90,10 +94,11 @@ class DepartingDeviceUnregisterTest {
                 else -> reply as Int
             }
         },
-        refresh = { session, sendsWithoutReply ->
+        refresh = { session, sendsWithoutReply, mayDepart ->
             assertEquals("the refresh goes to the backend that issued the token", backend, session.baseUrl)
             // As AuthTokenManager.refreshDeparting: a token gone twice without a reply is not sent.
             if (sendsWithoutReply >= 2) return@DepartingDeviceUnregister DepartingRefresh.Refused
+            lastMayDepart = mayDepart
             refreshes += session.refreshToken
             onRefresh()
             refreshGate?.await()
@@ -524,6 +529,24 @@ class DepartingDeviceUnregisterTest {
         assertEquals(listOf("refresh-1"), refreshes)
         assertEquals(emptyList<String>(), deletes)
         assertEquals("refresh-2", store.pending?.session?.refreshToken)
+    }
+
+    /**
+     * The refresh may first wait for the session's own, and the setting may move meanwhile: it is
+     * told to ask again right before the token goes out (AuthTokenManager.refreshDeparting).
+     */
+    @Test
+    fun `the refresh asks right before it sends whether the http backend is still in use`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe(expiresAt = now - 1)
+        refreshReplies += refreshed("access-2", "refresh-2")
+
+        unregister().send()
+        assertTrue(lastMayDepart!!())
+
+        endpoint = BACKEND
+        assertFalse(lastMayDepart!!())
     }
 
     /** A refresh whose reply was lost is sent once more at most -- and not after the setting moved. */

@@ -67,7 +67,8 @@ class DepartingDeviceUnregister internal constructor(
     private val owed: OwedUnregister,
     /** The HTTP status; throws [IOException] when no reply came back. */
     private val deleteDevice: suspend (base: String, deviceId: String, accessToken: String) -> Int,
-    private val refresh: suspend (DepartingSession, sendsWithoutReply: Int) -> DepartingRefresh,
+    /** [AuthTokenManager.refreshDeparting]: sends nothing once its last argument says no. */
+    private val refresh: suspend (DepartingSession, sendsWithoutReply: Int, mayDepart: () -> Boolean) -> DepartingRefresh,
     /** Whether this phone has a session from the backend it is given. */
     private val sessionAt: (base: String) -> Boolean,
     private val now: () -> Long,
@@ -232,7 +233,10 @@ class DepartingDeviceUnregister internal constructor(
                 refreshUnavailable = true
                 return@withContext null
             }
-            reply = refresh(current.session, current.unansweredRefreshes)
+            // Asked again right before the token goes out: the refresh may first wait for the
+            // session's own, and the setting may move meanwhile.
+            val base = current.session.baseUrl
+            reply = refresh(current.session, current.unansweredRefreshes) { !heldBack(base) }
             // Sent once more at most: the next call refuses at two.
             if (reply == DepartingRefresh.NoReply) current = sending
         } while (reply == DepartingRefresh.NoReply)

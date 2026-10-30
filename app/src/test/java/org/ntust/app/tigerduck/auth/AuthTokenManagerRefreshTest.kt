@@ -786,6 +786,15 @@ class AuthTokenManagerRefreshTest {
         assertEquals(DepartingRefresh.Unused, manager(Reply.Unsent).refreshDeparting(departing(), sendsWithoutReply = 0))
     }
 
+    /** Told no right before the send, as a debt to an http backend the setting moved off is: nothing goes. */
+    @Test
+    fun `a departing refresh told not to depart sends nothing and says the token is unused`() = runTest {
+        val manager = manager(Reply.Pair("access-2", "refresh-2"))
+
+        assertEquals(DepartingRefresh.Unused, manager.refreshDeparting(departing(), sendsWithoutReply = 0) { false })
+        assertEquals(emptyList<String>(), sentRefreshTokens)
+    }
+
     @Test
     fun `the departing session carries every send of the token that may have been used, the one on its way too`() = runTest {
         val manager = manager(Reply.Lost, Reply.Lost)

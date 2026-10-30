@@ -342,8 +342,16 @@ class AuthTokenManager(
      * reuse. A send the backend did not use is [DepartingRefresh.Unused], for
      * the caller to leave uncounted; a 5xx is [DepartingRefresh.Unavailable],
      * which stays counted.
+     *
+     * [mayDepart] is asked right before the token would go out, after any wait
+     * for a refresh on its way: false, nothing is sent, and the refresh is
+     * [DepartingRefresh.Unused]. A pair already back is still handed over.
      */
-    suspend fun refreshDeparting(departing: DepartingSession, sendsWithoutReply: Int): DepartingRefresh {
+    suspend fun refreshDeparting(
+        departing: DepartingSession,
+        sendsWithoutReply: Int,
+        mayDepart: () -> Boolean = { true },
+    ): DepartingRefresh {
         val token = departing.refreshToken
         // The session's own refresh of this token may still be on its way, sent
         // before the sign-out: its pair is waited for and taken rather than the
@@ -362,6 +370,8 @@ class AuthTokenManager(
             val outcome = takeUnstoredPair(token)
                 ?: if (sends >= MAX_REFRESH_TOKEN_SENDS) {
                     RefreshOutcome.Refused
+                } else if (!mayDepart()) {
+                    RefreshOutcome.Unused
                 } else {
                     // Counted by the caller, not on disk: the pair is no longer the stored one.
                     send(token, sends, DEPARTING, base)

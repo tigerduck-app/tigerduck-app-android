@@ -35,7 +35,7 @@ class DepartingUnregisterWorkerTest {
     private val unregister = DepartingDeviceUnregister(
         owed = OwedUnregister(store),
         deleteDevice = { _, _, _ -> throw IOException("offline") },
-        refresh = { _, _ -> DepartingRefresh.Unavailable },
+        refresh = { _, _, _ -> DepartingRefresh.Unavailable },
         sessionAt = { _ -> false },
         now = { 0L },
         endpoint = { "https://backend.example/v3" },
