@@ -305,6 +305,10 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private var searchGeneration = 0
 
+    // Whether the user has scrolled the search on screen past its first pages; a silent run of
+    // it again would take those rows away. Main-thread-only, as searchGeneration.
+    private var searchPaged = false
+
     /**
      * The question [delete] or [requestMove] is still finding out from the server: which of the
      * two delete questions to ask, or which folders a mail can go to. One question at a time
@@ -351,7 +355,11 @@ class SchoolMailListViewModel @Inject constructor(
                 .conflate()
                 .collect {
                     val s = _state.value
-                    if (s.searchResults != null && !s.isSearching && !s.isPagingSearch) runSearch(keepShown = true)
+                    // Nor over pages of it the user has scrolled to: run again, it would show only
+                    // the first of each folder, taking away the rows being read.
+                    if (s.searchResults != null && !s.isSearching && !s.isPagingSearch && !searchPaged) {
+                        runSearch(keepShown = true)
+                    }
                     delay(SEARCH_REGROW_MS)
                 }
         }
@@ -547,6 +555,11 @@ class SchoolMailListViewModel @Inject constructor(
     }
 
     fun refresh() {
+        // Mail for search too, at once: a pull is the user asking for the mail as it is now, and
+        // the download would otherwise wait out the quarter hour after the last one, or the
+        // background run's retry; as the iPhone's (tigerduck-app#894). A pull after the folder
+        // list failed too.
+        repository.downloadNow()
         // A load that failed at the folder list resolved nothing: there is no page to fetch yet,
         // so Retry and a pull start over from the folder list.
         if (_state.value.chips.isEmpty()) {
@@ -564,10 +577,6 @@ class SchoolMailListViewModel @Inject constructor(
         // is first in the queue behind that one page.
         prefetchJob?.cancel()
         prefetchJob = null
-        // Mail for search too, at once: a pull is the user asking for the mail as it is now, and
-        // the download would otherwise wait out the quarter hour after the last one, or the
-        // background run's retry; as the iPhone's (tigerduck-app#894).
-        repository.downloadNow()
         viewModelScope.launch {
             if (_state.value.searchResults != null) runSearch() else fetchFirstPage()
             // Restarted once the user's own request has landed, exactly as [selectFolder] does --
@@ -634,7 +643,10 @@ class SchoolMailListViewModel @Inject constructor(
         val s = _state.value
         if (s.isPaginating || s.displayed.lastOrNull()?.key != last.key) return
         if (s.searchResults != null) {
-            if (unfetchedMatches.values.any { it.uids.isNotEmpty() }) viewModelScope.launch { loadMoreSearchResults() }
+            if (unfetchedMatches.values.any { it.uids.isNotEmpty() }) {
+                searchPaged = true
+                viewModelScope.launch { loadMoreSearchResults() }
+            }
             return
         }
         if (s.cursors.isEmpty()) return
@@ -1175,6 +1187,7 @@ class SchoolMailListViewModel @Inject constructor(
         val query = _state.value.searchText.trim()
         forgetSearch()
         val search = searchGeneration
+        if (!keepShown) searchPaged = false
         if (query.isEmpty()) {
             _state.update { it.copy(searchResults = null, searchLocalOnly = false, searchIndexPartial = false) }
             return
@@ -1260,11 +1273,19 @@ class SchoolMailListViewModel @Inject constructor(
                 (outcome as? SearchOutcome.Server)?.takeIf { it.remaining.isNotEmpty() }
                     ?.let { folder to UnfetchedMatches(it.uidValidity, it.remaining) }
             }.toMap()
+            val found = _state.value.copy(
+                searchResults = ordered(selection, rows),
+                searchLocalOnly = outcomes.any { (_, outcome) -> outcome is SearchOutcome.LoadedOnly },
+                searchIndexPartial = outcomes.any { (_, outcome) -> (outcome as? SearchOutcome.Server)?.complete == false },
+            )
+            // Run again silently, it fetches no pages of its own: one whose first pages show
+            // nothing here, as under unread only, leaves the results on screen as they were.
+            if (keepShown && found.displayed.isEmpty() && _state.value.displayed.isNotEmpty()) return
             _state.update {
                 it.copy(
-                    searchResults = ordered(selection, rows),
-                    searchLocalOnly = outcomes.any { (_, outcome) -> outcome is SearchOutcome.LoadedOnly },
-                    searchIndexPartial = outcomes.any { (_, outcome) -> (outcome as? SearchOutcome.Server)?.complete == false },
+                    searchResults = found.searchResults,
+                    searchLocalOnly = found.searchLocalOnly,
+                    searchIndexPartial = found.searchIndexPartial,
                 )
             }
             // A folder the search read under another UIDVALIDITY than the list's rows of it: it was
@@ -1296,7 +1317,7 @@ class SchoolMailListViewModel @Inject constructor(
             // answered, with matches left to fetch, before Sent found the connection gone or the
             // password rejected, and a page of them now would open the connection again -- for a
             // rejected password, the LOGIN that was just decided against (spec §7.4).
-            if (!serverUnreachable && _state.value.displayed.isEmpty()) loadMoreSearchResults()
+            if (!keepShown && !serverUnreachable && _state.value.displayed.isEmpty()) loadMoreSearchResults()
         } finally {
             // Only the latest search's end stops the spinner: one it overtook may end while it runs.
             if (search == searchGeneration) _state.update { it.copy(isSearching = false) }

@@ -158,6 +158,34 @@ class SchoolMailListViewModelTest {
         assertEquals(1, repo.downloadsAsked)
     }
 
+    /** A pull after the folder list failed starts over from it, and still asks for mail for search. */
+    @Test
+    fun `a pull with no folders yet still asks for mail to be downloaded for search`() {
+        vm.refresh()
+
+        assertEquals(1, repo.downloadsAsked)
+    }
+
+    /** Pages of the search the user scrolled to stay: run again, it would show only the first. */
+    @Test
+    fun `a search scrolled past its first page is not run again as mail downloads`() {
+        repo.pageSize = 2
+        repo.add("INBOX", *(1L..5L).map { mailSummary(it, subject = "期中考 $it") }.toTypedArray())
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        val shown = vm.state.value.displayed.map { it.uid }
+        val searched = repo.searchCalls
+
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(searched, repo.searchCalls)
+        assertEquals(shown, vm.state.value.displayed.map { it.uid })
+    }
+
     /**
      * While mail downloads for search, a search on screen runs again as it comes in, at most every
      * [SchoolMailListViewModel.SEARCH_REGROW_MS], its results staying on screen meanwhile, so they

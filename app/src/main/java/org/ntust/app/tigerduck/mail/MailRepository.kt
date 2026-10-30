@@ -47,6 +47,7 @@ import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -808,6 +809,9 @@ class MailRepository @Inject constructor(
      * list by its own poll, and a search catches up on it first.
      */
     private fun indexDue(): Boolean {
+        // A pull asked for one: whichever download takes the lock first, in the app or the
+        // background run, makes it.
+        if (downloadAsked.get()) return true
         val last = lastWhole ?: return true
         return !stillIndexOwner(last.owner) || last.gaps != gapsFound.get() || clock() - last.at >= INDEX_RESYNC_MS
     }
@@ -834,6 +838,8 @@ class MailRepository @Inject constructor(
     private suspend fun downloadIndex(asked: Int, stillWanted: () -> Boolean = { true }) {
         if (account.isDemo || state.authFailed) return
         val owner = withContext(Dispatchers.IO) { indexOwnerNow() }?.takeIf { it.epoch == asked } ?: return
+        // This one is the download a pull asked for, begun after it.
+        downloadAsked.set(false)
         try {
             // The folder list a first run resolves is the account's request too.
             val current = { stillWanted() && stillIndexOwner(owner) }
@@ -1119,18 +1125,24 @@ class MailRepository @Inject constructor(
     override fun acquire() {
         if (account.isDemo) return
         holder.hold()
-        startDownload(force = false)
+        startDownload()
     }
 
     override fun downloadNow() {
         if (account.isDemo) return
-        startDownload(force = true)
+        // Kept until a download begins, in the app or the background run, whichever takes the
+        // lock first: one under way already does not stand for it, as it planned before the pull.
+        downloadAsked.set(true)
+        startDownload()
     }
 
-    /** The download in the app, when [indexDue] says it is due or [force] asks for it anyway. */
-    private fun startDownload(force: Boolean) {
+    // A pull's request for a download past the wait after a whole one; see [downloadNow].
+    private val downloadAsked = AtomicBoolean(false)
+
+    /** The download in the app, when [indexDue] says it is due. */
+    private fun startDownload() {
         // A rejected password downloads nothing until the student signs in again (spec §7.4).
-        if (!(force || indexDue()) || state.authFailed) return
+        if (!indexDue() || state.authFailed) return
         // The mail screen is in use: whatever mail the phone lacks comes in now, here, rather than
         // when the system next runs the background download, which some phones hold back for
         // minutes. That one still finishes what this leaves, should the app go.
@@ -1144,7 +1156,7 @@ class MailRepository @Inject constructor(
             inAppIndexing = coroutineContext[Job]
             try {
                 // Asked again: another download can have got through while this one waited.
-                if (force || indexDue()) downloadIndex(asked)
+                if (indexDue()) downloadIndex(asked)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: MailError) {
