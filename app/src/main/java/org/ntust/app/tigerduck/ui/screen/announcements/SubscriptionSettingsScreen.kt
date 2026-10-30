@@ -39,6 +39,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,9 +80,16 @@ private val isFdroidFlavor: Boolean
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionSettingsScreen(
+    signedIn: Boolean,
     onBack: () -> Unit,
     viewModel: SubscriptionSettingsViewModel = hiltViewModel(),
 ) {
+    // Signed out, here or on another tab while this page waited on the back stack: the rules
+    // were the account's, and the backend keeps none without one.
+    if (!signedIn) {
+        LaunchedEffect(Unit) { onBack() }
+        return
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<EditingTarget?>(null) }
 
