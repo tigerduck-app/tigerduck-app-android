@@ -111,6 +111,17 @@ class MailAccount @Inject constructor(
      */
     val accountGeneration: Int get() = generation.get()
 
+    // By address, the generation each student last left at, noted as [signOuts] or
+    // [studentChanges] tells of it: a collector runs some time after, and by then the same
+    // student may have signed in again.
+    private val departures = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /**
+     * The generation [address] last left at: its sign-ins up to it are gone. Null for a student
+     * who has not left in this process.
+     */
+    fun departedAt(address: String): Int? = departures[address.lowercase()]
+
     /**
      * The signed-in account and its [accountGeneration], read together; null while signed out.
      * [clears] is the state's [MailStateStore.clears] read with them: a sign-in resets the state in
@@ -189,6 +200,7 @@ class MailAccount @Inject constructor(
      * student's mail with this one's UIDs.
      */
     private fun leaveStudent() {
+        ownAddress?.let { departures[it.lowercase()] = generation.get() }
         _studentChanges.tryEmit(ownAddress)
         notifier.cancelAll()
     }
@@ -235,6 +247,7 @@ class MailAccount @Inject constructor(
         state.clear()
         _signedIn.value = false
         _authFailed.value = false
+        departing?.let { departures[it.lowercase()] = leftAt }
         _signOuts.tryEmit(departing)
         scope.launch(Dispatchers.IO) {
             // Only the mail of the sign-in that left: by now the same student may have signed in

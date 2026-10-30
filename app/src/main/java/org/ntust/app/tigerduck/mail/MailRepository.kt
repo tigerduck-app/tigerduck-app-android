@@ -803,7 +803,9 @@ class MailRepository @Inject constructor(
     // A sign-out with no one signed in ([departing] null) has no mailbox to clear.
     private fun clearProgressOf(departing: String?) {
         if (departing == null) return
-        synchronized(progressLock) { departed = departing.lowercase() to account.accountGeneration }
+        // As it left, not as it is now: the same student may have signed in again since.
+        val leftAt = account.departedAt(departing) ?: account.accountGeneration
+        synchronized(progressLock) { departed = departing.lowercase() to leftAt }
         clearProgressWhere { it.first == departing.lowercase() }
     }
 
