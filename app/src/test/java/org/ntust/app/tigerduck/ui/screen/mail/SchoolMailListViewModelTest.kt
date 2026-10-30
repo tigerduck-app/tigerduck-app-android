@@ -202,6 +202,25 @@ class SchoolMailListViewModelTest {
         assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
     }
 
+    /** A download whose batches were never seen, only its start and its end, still ends in a run. */
+    @Test
+    fun `a search on screen runs once more when a download it saw only begin ends`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        repo.searchIndexProgress.value = MailIndexProgress.COUNTING
+        main.dispatcher.scheduler.runCurrent()
+        val searched = repo.searchCalls
+
+        repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+        repo.searchIndexProgress.value = null
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.searchCalls > searched)
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
     /** A query being edited is not run before it is submitted: the search on screen is the one submitted. */
     @Test
     fun `a query being edited is not run as mail downloads`() {

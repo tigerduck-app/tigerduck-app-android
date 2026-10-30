@@ -353,15 +353,16 @@ class SchoolMailListViewModel @Inject constructor(
         // every [SEARCH_REGROW_MS], so its results grow rather than wait for a new search; as the
         // iPhone's (tigerduck-app#894). Not over the user's own search or a page of it still out.
         viewModelScope.launch {
-            // Each batch downloaded, and the end of a download that downloaded any, for one last
-            // run over the last batch.
+            // Each batch downloaded, and the end of every download, for one last run over the last
+            // batch: a StateFlow may hand over only its last value, so a download whose batches
+            // were never seen here still ends in a run.
             var seen: MailIndexProgress? = null
             repository.searchIndexProgress
                 .transform { progress ->
                     val before = seen
                     seen = progress
                     val grew = progress != null && progress.total != null && progress.done > 0
-                    val ended = progress == null && (before?.done ?: 0) > 0
+                    val ended = progress == null && before != null
                     if (grew || ended) emit(Unit)
                 }
                 .conflate()
