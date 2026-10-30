@@ -5,6 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +40,9 @@ import java.net.NoRouteToHostException
 import java.net.Proxy
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 
 /** A request that needs a session got no access token, so it was not sent. */
@@ -213,28 +217,40 @@ class AuthTokenManager(
      * request would end the last one's. Then the caller retries with the stored pair instead.
      */
     suspend fun signInAgain(): Boolean {
-        val storedUnrefused = synchronized(signInLock) {
-            tokens.refreshToken != null && tokens.accessToken?.let { it !in refused } == true
+        val replacing = synchronized(signInLock) {
+            val refresh = tokens.refreshToken
+            // Stored and not refused: the caller retries with it.
+            if (refresh != null && tokens.accessToken.let { it != null && it != refusedAccess }) return true
+            refresh
         }
-        return storedUnrefused || signInAutomatically()
+        return signInAutomatically(replacing = replacing)
     }
 
     /**
-     * Notes that the backend answered [accessToken] 401, for [signInAgain]. From the backend
-     * clients' guard ([SessionHostGuard]), which every request with the session's header passes.
+     * Notes that the backend answered [accessToken] 401, for [signInAgain]: only while it is the
+     * one stored, as a refusal of a pair replaced since says nothing of the stored one. From the
+     * backend clients' guard ([SessionHostGuard]), which every request with the session's header
+     * passes.
      */
     fun noteRefused(accessToken: String) {
-        synchronized(signInLock) { refused += accessToken }
+        synchronized(signInLock) { if (tokens.accessToken == accessToken) refusedAccess = accessToken }
     }
 
-    // Under signInLock. The access tokens the backend last refused; a few, as only the last pairs
-    // can still be on their way.
-    private val refused = object : LinkedHashSet<String>() {
-        override fun add(element: String): Boolean {
-            remove(element)
-            return super.add(element).also { while (size > KNOWN_ISSUERS) remove(first()) }
-        }
+    // Under signInLock. The stored access token the backend refused, if it still is the stored one.
+    private var refusedAccess: String? = null
+
+    /**
+     * The pair, by its refresh token, that an automatic sign-in after a refusal is to replace: a
+     * login that finds another stored at its turn, which a refresh or a sign-in has stored since,
+     * sends nothing ([login]), and the sign-in counts as done ([runSignIn]). In the coroutine
+     * context, which carries it through AuthService's sign-in to [login].
+     */
+    private class Replacing(val refreshToken: String) : AbstractCoroutineContextElement(Replacing) {
+        companion object Key : CoroutineContext.Key<Replacing>
     }
+
+    /** The login a pair stored since its sign-in began made moot; see [Replacing]. */
+    class SessionReplacedException : AuthException("a pair was stored since; no login sent")
 
     /**
      * As [signInIfSignedOut], without waiting out the pause after a failed sign-in: for the try of
@@ -260,7 +276,7 @@ class AuthTokenManager(
             _lastSignInFailed.value = false
             generation
         }
-        return runSignIn(attempt, current, signIn)
+        return runSignIn(attempt, current, signInWith = signIn)
     }
 
     /**
@@ -270,7 +286,7 @@ class AuthTokenManager(
      * student and per IP, and a campus network puts many students behind one
      * IP.
      */
-    private suspend fun signInAutomatically(waitOutPause: Boolean = true): Boolean {
+    private suspend fun signInAutomatically(waitOutPause: Boolean = true, replacing: String? = null): Boolean {
         val signInWith = signInWithStoredAccount ?: return false
         val attempt = CompletableDeferred<Boolean>()
         val signIn: Int
@@ -287,8 +303,8 @@ class AuthTokenManager(
         }
         if (running != null) return running.await()
         // Finishes for the callers waiting on it when this one is cancelled.
-        return withContext(NonCancellable) {
-            runSignIn(attempt, signIn) { generation ->
+        return withContext(NonCancellable + (replacing?.let(::Replacing) ?: EmptyCoroutineContext)) {
+            runSignIn(attempt, signIn, replacing) { generation ->
                 // A failure of the sign-in itself is the caller's no session,
                 // never an exception out of its token lookup.
                 try {
@@ -303,15 +319,21 @@ class AuthTokenManager(
         }
     }
 
-    /** Runs [signInWith] as the sign-in under way, which [attempt] tells its waiting callers about. */
+    /**
+     * Runs [signInWith] as the sign-in under way, which [attempt] tells its waiting callers about.
+     * One meant to replace the pair [replacing] whose login a pair stored since made moot counts
+     * as signed in, with that pair, and starts no pause.
+     */
     private suspend fun runSignIn(
         attempt: CompletableDeferred<Boolean>,
         signIn: Int,
+        replacing: String? = null,
         signInWith: suspend (Int) -> SignInAttempt,
     ): Boolean {
         var signedIn = false
         try {
-            signedIn = settleSignIn(signIn, signInWith(signIn))
+            val answer = signInWith(signIn)
+            signedIn = settleSignIn(signIn, if (replacing != null && replacedSince(replacing)) SignInAttempt.SIGNED_IN else answer)
         } finally {
             synchronized(signInLock) { if (signInUnderWay === attempt) signInUnderWay = null }
             attempt.complete(signedIn)
@@ -452,6 +474,7 @@ class AuthTokenManager(
         // session of the login it took last, which is then the pair stored last. One that a
         // sign-out overtook while it waited sends nothing.
         if (signInGeneration != this.signInGeneration) throw AuthException("signed out before login")
+        currentCoroutineContext()[Replacing]?.let { if (replacedSince(it.refreshToken)) throw SessionReplacedException() }
         // Read once: the debt the login may end and the pair it stores are this backend's.
         val issuer = baseUrl
         signingIn(studentId, issuer) { postLogin(issuer, studentId, moodleToken, moodlePrivateToken, platform, signInGeneration) }
@@ -671,13 +694,13 @@ class AuthTokenManager(
                 // The token cannot go out uncounted, and a sign-in sends none: on a full disk the
                 // refresh would otherwise fail every time and leave no session once the access
                 // token ran out. Kept for a later refresh when the sign-in fails too.
-                if (signInAutomatically()) return accessTokenIfSignedIn(signIn)
+                if (signInAutomatically(replacing = onItsWay.first)) return accessTokenIfSignedIn(signIn)
                 refreshPausedAt = now()
                 return null
             }
             RefreshOutcome.NoReply, RefreshOutcome.Refused -> Unit
         }
-        if (signInAutomatically()) return accessTokenIfSignedIn(signIn)
+        if (signInAutomatically(replacing = onItsWay.first)) return accessTokenIfSignedIn(signIn)
         withContext(Dispatchers.IO) { clearIfSignedIn(signIn, onItsWay.first) }
         return null
     }
@@ -686,6 +709,11 @@ class AuthTokenManager(
     private fun replacedSince(sent: String, outcome: RefreshOutcome): Boolean = synchronized(signInLock) {
         val stored = tokens.refreshToken ?: return@synchronized false
         stored != sent && stored != (outcome as? RefreshOutcome.Refreshed)?.refreshToken
+    }
+
+    // Whether a pair other than the one [sent] came from is stored now.
+    private fun replacedSince(sent: String): Boolean = synchronized(signInLock) {
+        tokens.refreshToken.let { it != null && it != sent }
     }
 
     // After a sign-out during the relogin, the stored token belongs to whoever
@@ -890,7 +918,7 @@ class AuthTokenManager(
 
     data class LoginResult(val accessToken: String, val deviceId: String)
     /** [status] is the backend's HTTP status, when it answered. */
-    class AuthException(message: String, val status: Int? = null) : Exception(message)
+    open class AuthException(message: String, val status: Int? = null) : Exception(message)
 
     private companion object {
         const val TAG = "AuthTokenManager"

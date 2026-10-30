@@ -625,6 +625,46 @@ class AuthTokenManagerRefreshTest {
         assertEquals(1, relogins)
     }
 
+    /**
+     * A relogin after a refusal whose pair a refresh replaced while it renewed the Moodle token:
+     * at its turn the login is moot, and sending it would end the refresh's session. It sends
+     * nothing, counts as signed in with the stored pair, and starts no pause.
+     */
+    @Test
+    fun `a relogin whose pair was replaced before its login sends nothing`() = runBlocking {
+        storePair(expiresAt = clock + 900_000)
+        val manager = manager(Reply.Pair("access-x", "refresh-x"))
+        val logins = AtomicInteger()
+        onLoginSent = { logins.incrementAndGet() }
+        manager.signInWithStoredAccount = { generation ->
+            // A refresh lands while the Moodle token is renewed.
+            tokens.save("access-2", "refresh-2", clock + 900_000)
+            runCatching {
+                manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signInGeneration = generation)
+            }.fold({ SignInAttempt.SIGNED_IN }, { SignInAttempt.FAILED })
+        }
+        manager.noteRefused("access-1")
+
+        assertTrue(manager.signInAgain())
+
+        assertEquals(0, logins.get())
+        assertEquals("refresh-2", tokens.refreshToken)
+        assertEquals(false, manager.lastSignInFailed.value)
+    }
+
+    /** Refusals of older pairs, however many, do not hide that the stored one was refused. */
+    @Test
+    fun `refusals of older tokens do not hide the stored one's`() = runBlocking {
+        storePair(expiresAt = clock + 900_000)
+        val manager = manager()
+        manager.noteRefused("access-1")
+        repeat(10) { manager.noteRefused("access-old-$it") }
+
+        manager.signInAgain()
+
+        assertEquals(1, relogins)
+    }
+
     /** The backend clients' guard notes every access token a backend answers 401, for signInAgain. */
     @Test
     fun `the session guard notes an access token the backend refused`() = runBlocking {
