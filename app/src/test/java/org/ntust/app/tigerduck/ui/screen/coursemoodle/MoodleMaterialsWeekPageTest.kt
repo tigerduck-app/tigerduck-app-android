@@ -94,9 +94,11 @@ class MoodleMaterialsWeekPageTest {
         private val materialsGate: CompletableDeferred<Unit>? = null,
         var summaryGate: CompletableDeferred<Unit>? = null,
         private val materialsFail: Boolean = false,
-        /** How many summary fetches fail before one answers. */
+        /** How many summary fetches fail before one answers, each with the same error. */
         private var summaryFailures: Int = 0,
     ) : MoodleCourseApi {
+        private val summaryError = MoodleWebserviceError.SiteMaintenance()
+
         override suspend fun functions() = setOf(MoodleCourseApi.CONTENTS_FUNCTION, MoodleCourseApi.COURSES_FUNCTION)
         override suspend fun forums(courseIds: List<Int>) = emptyList<MoodleForum>()
         override suspend fun discussions(forumId: Int, page: Int) = emptyList<MoodleDiscussion>()
@@ -114,7 +116,8 @@ class MoodleMaterialsWeekPageTest {
             summaryGate?.await()
             if (summaryFailures > 0) {
                 summaryFailures--
-                throw MoodleWebserviceError.SiteMaintenance()
+                // One object for every failure, as Moodle's token renewal throws again in its pause.
+                throw summaryError
             }
             return weeklyCourse
         }
@@ -279,6 +282,23 @@ class MoodleMaterialsWeekPageTest {
         gate.complete(Unit)
 
         waitForTopHeader(sectionName(8, datedAsWeek = 3))
+    }
+
+    @Test
+    fun `a fetch here that fails as the one before did still ends the wait`() {
+        val materials = materials(datedAsWeek = 3)
+        val api = Api(materials, summaryFailures = 2)
+        val store = store(api, cache(materials, null))
+        scope.launch { store.refreshSummary() }
+        composeRule.waitUntil(5_000) { store.summary.state.value.failure != null }
+        val gate = CompletableDeferred<Unit>()
+        api.summaryGate = gate
+        show(store)
+        composeRule.waitUntil(5_000) { store.summary.state.value.isRefreshing }
+
+        gate.complete(Unit)
+
+        waitForTopHeader(sectionName(3, datedAsWeek = 3))
     }
 
     @Test

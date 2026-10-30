@@ -171,8 +171,7 @@ private fun ScrollToWeekOnce(
 ) {
     val summary by store.summary.state.collectAsStateWithLifecycle()
     var done by rememberSaveable { mutableStateOf(false) }
-    // A fetch of the summary that failed since the page opened sets a failure other than this.
-    val failureAtOpen = remember(store) { store.summary.state.value.failure }
+    val fetchesAtOpen = remember(store) { store.summary.state.value.fetchesEnded }
     val shownMaterials by rememberUpdatedState(materialsShown)
     // The reader has moved the list once its top is anything but the very top, or the item at
     // the top when the materials first showed: a section or a failure note that comes in above
@@ -189,7 +188,7 @@ private fun ScrollToWeekOnce(
         }.first { !it }
         done = true
     }
-    val summaryTried = summary.value != null || (summary.failure != null && summary.failure !== failureAtOpen)
+    val summaryTried = summary.value != null || summary.fetchesEnded > fetchesAtOpen
     val ready = materialsShown && summary.cacheLoaded && summaryTried
     val weekIndex by rememberUpdatedState(currentWeekIndex)
     LaunchedEffect(ready) {
