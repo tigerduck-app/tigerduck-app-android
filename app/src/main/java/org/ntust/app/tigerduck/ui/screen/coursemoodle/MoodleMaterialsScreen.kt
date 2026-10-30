@@ -137,7 +137,7 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
         ) {
             val materials = state.value
             if (materials == null) {
-                item {
+                item(key = FIRST_LOAD_KEY) {
                     MoodleFirstLoad(
                         failure = if (state.isRefreshing) null else state.failure,
                         onRetry = { scope.launch { store.refreshMaterials() } },
@@ -199,6 +199,9 @@ private fun ScrollToWeekOnce(
 }
 
 private const val FAILURE_KEY = "failure"
+
+// Not left to the list's default, so the first load never passes for a section, whose key is its id.
+private const val FIRST_LOAD_KEY = "first-load"
 
 /**
  * This week's section; null for none. The course's format and start date come from its summary,
