@@ -11,6 +11,10 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.SemesterTerm
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
@@ -22,7 +26,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZonedDateTime
 
-/** What each "class starting soon" reminder is armed to say. */
+/** What each "class starting soon" reminder is armed to say, and when. */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
 class ClassPreparingNotificationSchedulerTest {
@@ -168,5 +172,97 @@ class ClassPreparingNotificationSchedulerTest {
             setOf("1142", "1151"),
             ClassPreparingNotificationScheduler.termsAhead(twoTerms, wednesday),
         )
+    }
+
+    // The school's course changes, over the iPhone suite's course: CC900 meets on Thursday
+    // 2026-11-05, periods 2 to 4 (09:10–12:10) and 7 to 8 (14:20–16:20), in T4-501.
+
+    private val morning = listOf("2", "3", "4")
+
+    /** Arms from Thursday 2026-11-05, 07:00, under [changes], [leadMinutes] ahead of each class. */
+    private fun armThursday(changes: CourseChanges, leadMinutes: Long = 15) {
+        // Running, not frozen, so an alarm's real time maps back to the app's.
+        AppClock.setOverride(
+            ClockOverride(
+                CourseChangeFixture.at("07:00").toEpochMilli(),
+                frozen = false,
+                savedAtRealMillis = System.currentTimeMillis(),
+            )
+        )
+        ClassPreparingNotificationScheduler(context) { changes }.scheduleAll(
+            coursesByTerm = mapOf(noCalendarTerm to listOf(CourseChangeFixture.course())),
+            skippedDates = emptyMap(),
+            leadTimeSec = leadMinutes * 60,
+            calendar = AcademicCalendar.EMPTY,
+            optedInHolidayIds = emptySet(),
+        )
+    }
+
+    /** The reminders armed for Thursday's classes, as when each fires and the class it announces. */
+    // Robolectric 4.17 deprecates the operation field but has no getter for it.
+    @Suppress("DEPRECATION")
+    private fun armedOnThursday(): List<Pair<Long, Intent>> =
+        shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms
+            .map { (it.triggerAtMs - AppClock.realTimeFor(0L)) to shadowOf(it.operation).savedIntent }
+            .filter { (_, intent) ->
+                val start = intent.getLongExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, 0L)
+                Instant.ofEpochMilli(start).atZone(AppConstants.TAIPEI_ZONE).toLocalDate() == CourseChangeFixture.thursday
+            }
+            .sortedBy { it.first }
+
+    private fun Intent.startMs() = getLongExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, 0L)
+
+    private fun Intent.room() = getStringExtra(ClassPreparingNotificationReceiver.EXTRA_CLASSROOM)
+
+    @Test
+    fun `the reminders skip a cancelled class and fire ahead of the changed start`() {
+        armThursday(
+            changes(
+                row(1, "cancelled", periods = listOf("7", "8")),
+                row(2, "start", periods = morning, values = mapOf("start" to "10:00")),
+                row(3, "room", periods = morning, values = mapOf("room" to "TR-313")),
+            ),
+        )
+
+        val armed = armedOnThursday()
+        assertEquals(listOf(CourseChangeFixture.at("09:45").toEpochMilli()), armed.map { it.first })
+        assertEquals(listOf(CourseChangeFixture.at("10:00").toEpochMilli()), armed.map { it.second.startMs() })
+        assertEquals(listOf("TR-313"), armed.map { it.second.room() })
+    }
+
+    @Test
+    fun `with no course changes, each meeting is announced as the timetable has it`() {
+        armThursday(CourseChanges.EMPTY)
+
+        val armed = armedOnThursday()
+        assertEquals(
+            listOf("08:55", "14:05").map { CourseChangeFixture.at(it).toEpochMilli() },
+            armed.map { it.first },
+        )
+        assertEquals(listOf("T4-501", "T4-501"), armed.map { it.second.room() })
+    }
+
+    @Test
+    fun `a reminder carries the changed room`() {
+        armThursday(changes(row(1, "room", periods = listOf("7", "8"), values = mapOf("room" to "TR-313"))))
+
+        assertEquals(listOf("T4-501", "TR-313"), armedOnThursday().map { it.second.room() })
+    }
+
+    @Test
+    fun `a reminder for a class cancelled after it was armed is not posted`() {
+        armThursday(CourseChanges.EMPTY)
+        val later = changes(row(1, "cancelled", periods = listOf("7", "8")))
+
+        assertEquals(
+            listOf(false, true),
+            armedOnThursday().map { (_, intent) ->
+                ClassPreparingNotificationReceiver.cancelledSince(
+                    later,
+                    intent.getStringExtra(ClassPreparingNotificationReceiver.EXTRA_CLASS_ID),
+                )
+            },
+        )
+        assertEquals(false, ClassPreparingNotificationReceiver.cancelledSince(later, classId = null))
     }
 }

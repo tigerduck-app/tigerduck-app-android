@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import okhttp3.OkHttpClient
@@ -23,8 +24,14 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
+import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
 import org.ntust.app.tigerduck.notification.ClassReminderAlarms
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.Course
@@ -34,11 +41,13 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.time.Instant
 import java.time.ZonedDateTime
 
 /**
  * What a refresh of the real manager arms for class reminders: their own
- * switch and lead time decide, never the Live Update's.
+ * switch and lead time decide, never the Live Update's. And that a new
+ * course changes feed brings a refresh of its own.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -106,6 +115,7 @@ class LiveActivityManagerTest {
     @After
     fun tearDown() {
         scope.cancel()
+        liveScope.cancel()
         AppClock.setOverride(null)
     }
 
@@ -246,5 +256,103 @@ class LiveActivityManagerTest {
         val at = ZonedDateTime.of(2026, 10, 12, 20, 0, 0, 0, AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
         val wake = refreshWakes().single()
         assertTrue("woke at ${wake - at} ms", wake in at + 30 * 60_000L..at + 31 * 60_000L)
+    }
+
+    // The school's course changes, over the iPhone suite's course: CC900 meets on Thursday
+    // 2026-11-05, periods 2 to 4 (09:10–12:10) and 7 to 8 (14:20–16:20), in T4-501.
+
+    private val feed = MutableStateFlow(CourseChanges.EMPTY)
+
+    // Runs the refreshes a new feed brings on its own, as the app's scope does, but on this
+    // thread, when awaitUntil lets it.
+    private val liveDispatcher = StandardTestDispatcher()
+    private val liveScope = CoroutineScope(SupervisorJob() + liveDispatcher)
+
+    /**
+     * The real manager and class reminder alarms over [feed], at 07:00 on Thursday 2026-11-05,
+     * with the Live Update and the class reminders on, each 15 minutes ahead of a class.
+     */
+    private fun overThursdayFeed(): LiveActivityManager {
+        AppClock.setOverride(
+            ClockOverride(
+                CourseChangeFixture.at("07:00").toEpochMilli(),
+                frozen = false,
+                savedAtRealMillis = System.currentTimeMillis(),
+            )
+        )
+        liveUpdate.isEnabled = true
+        liveUpdate.classPreparingLeadTimeSec = 15 * 60
+        appPrefs.classReminderEnabled = true
+        appPrefs.classReminderLeadMinutes = 15
+        runBlocking { dataCache.saveCourses(listOf(CourseChangeFixture.course())) }
+        return LiveActivityManager(
+            preferences = liveUpdate,
+            notifier = LiveActivityNotifier(context, liveUpdate, appPrefs, NotificationChannelRegistrar(context, appPrefs)),
+            dataCache = dataCache,
+            isSignedIn = { signedIn },
+            appPrefs = appPrefs,
+            classPreparingScheduler = ClassPreparingNotificationScheduler(context) { feed.value },
+            academicCalendar = calendar,
+            boundaryScheduler = LiveActivityBoundaryScheduler(context),
+            appScope = liveScope,
+            courseChanges = { feed.value },
+            courseChangesUpdated = feed,
+        ).also {
+            runBlocking { it.refreshAndWait() }
+            // Past the feed it starts with, so the next one is a change.
+            awaitUntil { feed.subscriptionCount.value > 0 }
+        }
+    }
+
+    /** Runs [liveScope] until [condition] holds; a refresh's reads on the IO dispatcher come back to it. */
+    private fun awaitUntil(condition: () -> Boolean) {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (true) {
+            liveDispatcher.scheduler.advanceUntilIdle()
+            if (condition() || System.currentTimeMillis() >= deadline) return
+            Thread.sleep(20)
+        }
+    }
+
+    /** The starts of Thursday's classes a reminder is armed for. */
+    private fun remindersOnThursday(): List<Long> =
+        shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms
+            .mapNotNull {
+                // Robolectric 4.17 deprecates the alarm's operation field without a getter to use instead.
+                @Suppress("DEPRECATION")
+                val operation = it.operation
+                shadowOf(operation).savedIntent.getLongExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, 0L)
+                    .takeIf { start -> start > 0L }
+            }
+            .filter { Instant.ofEpochMilli(it).atZone(AppConstants.TAIPEI_ZONE).toLocalDate() == CourseChangeFixture.thursday }
+            .sorted()
+
+    private val movedToTen = changes(
+        row(1, "start", periods = listOf("2", "3", "4"), values = mapOf("start" to "10:00")),
+        row(2, "cancelled", periods = listOf("7", "8")),
+    )
+
+    @Test
+    fun `a new course changes feed brings the Live Update's next wake to the changed class`() {
+        overThursdayFeed()
+        assertEquals(listOf(CourseChangeFixture.at("08:55").toEpochMilli() + 1_000L), refreshWakes())
+
+        feed.value = movedToTen
+        val wake = CourseChangeFixture.at("09:45").toEpochMilli() + 1_000L
+        awaitUntil { refreshWakes() == listOf(wake) }
+
+        assertEquals(listOf(wake), refreshWakes())
+    }
+
+    @Test
+    fun `a new course changes feed arms the class reminders again`() {
+        overThursdayFeed()
+        assertEquals(listOf("09:10", "14:20").map { CourseChangeFixture.at(it).toEpochMilli() }, remindersOnThursday())
+
+        feed.value = movedToTen
+        val moved = listOf(CourseChangeFixture.at("10:00").toEpochMilli())
+        awaitUntil { remindersOnThursday() == moved }
+
+        assertEquals(moved, remindersOnThursday())
     }
 }

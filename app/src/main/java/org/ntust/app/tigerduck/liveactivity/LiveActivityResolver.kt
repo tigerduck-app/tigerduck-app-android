@@ -2,13 +2,11 @@ package org.ntust.app.tigerduck.liveactivity
 
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.AppLink
-import org.ntust.app.tigerduck.shared.blockClassroom
-import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
+import org.ntust.app.tigerduck.coursechanges.ClassSlot
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
-import java.time.LocalTime
-import java.time.ZonedDateTime
-import java.util.Calendar
 import java.util.Date
 
 /**
@@ -23,6 +21,12 @@ import java.util.Date
  *    leave out; see [org.ntust.app.tigerduck.data.OutstandingAssignments].
  * 2. inClass         — current course for today
  * 3. classPreparing  — next course within `classPreparingLeadTime`
+ *
+ * Today's classes are the timetable's as the school's course changes leave
+ * them ([CourseMeetings.meetingSlots]), as iOS's `CourseTimelineResolver`
+ * builds its timeline from them: a cancelled class is passed over like a
+ * skipped one, and the rest run at their changed times in their changed
+ * rooms.
  */
 class LiveActivityResolver {
 
@@ -33,11 +37,11 @@ class LiveActivityResolver {
         preferences: LiveActivityPreferences,
         accentHex: Int,
         now: Date = Date(),
+        changes: CourseChanges = CourseChanges.EMPTY,
     ): LiveActivitySnapshot? {
         if (!preferences.isEnabled) return null
 
-        val todaySlots = buildTodaySlots(courses, now)
-            .filter { !it.isSkipped(skippedDates) }
+        val todaySlots = classesToday(courses, now, skippedDates, changes)
         // Whether or not the in-class scenario is on: a deadline shown now
         // says whether a class is going on under it.
         val current = todaySlots.firstOrNull { now in it.start..it.end }
@@ -74,72 +78,57 @@ class LiveActivityResolver {
      * Today's class slots whose end is still after [now], sorted by start.
      * Used by the boundary scheduler so it can wake the manager at the
      * preparing-window crossing / class-start / class-end of the next slot.
-     * Skipped slots are excluded (mirroring [resolve]) so no alarm is armed
-     * for a class the user marked as skipped — the wakeup would resolve to
-     * nothing and just burn battery.
+     * Skipped and cancelled slots are excluded (mirroring [resolve]) so no
+     * alarm is armed for a class that does not meet — the wakeup would
+     * resolve to nothing and just burn battery.
      */
     fun todaySlotsAfter(
         courses: List<Course>,
         now: Date,
         skippedDates: Map<String, List<String>> = emptyMap(),
+        changes: CourseChanges = CourseChanges.EMPTY,
     ): List<Slot> =
-        buildTodaySlots(courses, now)
-            .filter { !it.isSkipped(skippedDates) }
+        classesToday(courses, now, skippedDates, changes)
             .filter { it.end.after(now) }
 
-    data class Slot(
-        val course: Course,
-        /** This block's periods, not every period of the course that day. */
-        val periods: List<String>,
-        val start: Date,
-        val end: Date,
-        val weekday: Int,
-    ) {
-        fun isSkipped(skippedDates: Map<String, List<String>>): Boolean {
-            val key = start.toInstant()
-                .atZone(AppConstants.TAIPEI_ZONE)
-                .toLocalDate()
-                .toString()
-            return skippedDates[course.courseNo]?.contains(key) == true
-        }
+    /** One class today: a timetable block, or the piece of one a course change split off. */
+    class Slot internal constructor(private val slot: ClassSlot) {
+        val course: Course get() = slot.course
 
-        /** This block's room: a course meeting twice a day can switch rooms in between. */
-        val classroom: String get() = course.blockClassroom(weekday, periods)
+        /** This class's periods, not every period of the course that day. */
+        val periods: List<String> get() = slot.periods
+
+        /** Its changed start and end, when the school moved them. */
+        val start: Date get() = Date.from(slot.startsAt)
+        val end: Date get() = Date.from(slot.endsAt)
+
+        /**
+         * Its room, the changed one included: a course meeting twice a day
+         * can switch rooms in between.
+         */
+        val classroom: String get() = slot.room
     }
 
-    private fun buildTodaySlots(courses: List<Course>, now: Date): List<Slot> {
-        val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ).apply { time = now }
-        val weekdayIdx = when (cal.get(Calendar.DAY_OF_WEEK)) {
-            Calendar.MONDAY -> 1
-            Calendar.TUESDAY -> 2
-            Calendar.WEDNESDAY -> 3
-            Calendar.THURSDAY -> 4
-            Calendar.FRIDAY -> 5
-            Calendar.SATURDAY -> 6
-            Calendar.SUNDAY -> 7
-            else -> 1
-        }
+    /**
+     * Today's classes that meet, by start: none the user skipped or the
+     * school cancelled. Each piece of a meeting ends at its own end, as iOS
+     * ends a class's activity ([CourseMeetings.hasEnded], #905); one a change
+     * dropped is not built at all, so the meeting's other pieces carry on
+     * (#904).
+     */
+    private fun classesToday(
+        courses: List<Course>,
+        now: Date,
+        skippedDates: Map<String, List<String>>,
+        changes: CourseChanges,
+    ): List<Slot> {
         val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
-
-        val results = mutableListOf<Slot>()
-        for (course in courses) {
-            val periods = course.schedule[weekdayIdx] ?: continue
-            if (periods.isEmpty()) continue
-            for (block in contiguousPeriodRuns(periods)) {
-                val startTime = periodStart(block.first()) ?: continue
-                val endTime = periodEnd(block.last()) ?: continue
-                val startZdt = ZonedDateTime.of(today, startTime, AppConstants.TAIPEI_ZONE)
-                val endZdt = ZonedDateTime.of(today, endTime, AppConstants.TAIPEI_ZONE)
-                results += Slot(
-                    course = course,
-                    periods = block,
-                    start = Date.from(startZdt.toInstant()),
-                    end = Date.from(endZdt.toInstant()),
-                    weekday = weekdayIdx,
-                )
-            }
-        }
-        return results.sortedBy { it.start }
+        return CourseMeetings.meetingSlots(
+            courses, today, changes,
+            // LiveActivityManager hands over no courses on a day classes do not meet.
+            isClassDay = { true },
+            skipped = { course, day -> skippedDates[course.courseNo]?.contains(day.toString()) == true },
+        ).map(::Slot)
     }
 
     private fun inClassSnapshot(slot: Slot, now: Date, accentHex: Int): LiveActivitySnapshot {
@@ -196,19 +185,5 @@ class LiveActivityResolver {
         return "%02d:%02d–%02d:%02d".format(
             startTime.hour, startTime.minute, endTime.hour, endTime.minute,
         )
-    }
-
-    companion object {
-        private fun parseTime(text: String): LocalTime? = runCatching {
-            val (h, m) = text.split(":").map { it.toInt() }
-            LocalTime.of(h, m)
-        }.getOrNull()
-
-        private fun periodStart(id: String): LocalTime? =
-            AppConstants.PeriodTimes.mapping[id]?.first?.let(::parseTime)
-
-        private fun periodEnd(id: String): LocalTime? =
-            AppConstants.PeriodTimes.mapping[id]?.second?.let(::parseTime)
-
     }
 }

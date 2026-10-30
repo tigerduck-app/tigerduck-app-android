@@ -18,6 +18,9 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -34,6 +37,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
     internal interface Deps {
         fun academicCalendar(): AcademicCalendarStore
         fun appPreferences(): AppPreferences
+        fun courseChanges(): CourseChangeStore
         fun notificationChannels(): NotificationChannelRegistrar
     }
 
@@ -65,6 +69,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val deps = EntryPointAccessors
             .fromApplication(rawContext.applicationContext, Deps::class.java)
         if (!stillDue(deps.academicCalendar().current(), startDate, intent.getStringExtra(EXTRA_TERM))) return
+        if (cancelledSince(deps.courseChanges().current(), intent.getStringExtra(EXTRA_CLASS_ID))) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual
@@ -94,6 +99,19 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
         /** The term whose timetable the reminder was armed from; absent on alarms armed before it was added. */
         const val EXTRA_TERM = "term"
+
+        /** The class's `courseNo_yyyyMMdd_period` id; absent on alarms armed before it was added. */
+        const val EXTRA_CLASS_ID = "class_id"
+
+        /**
+         * Whether the school has cancelled the class [classId] names since its
+         * reminder was armed. A new course changes feed arms the reminders
+         * again, but an alarm can still go off in between. Only the class's
+         * first period is checked, as [CourseMeetings.isSkipped] does; an
+         * alarm with no id goes out.
+         */
+        internal fun cancelledSince(changes: CourseChanges, classId: String?): Boolean =
+            classId != null && CourseMeetings.isSkipped(classId, emptyList(), changes)
 
         /**
          * Whether a reminder for a class on [startDate], armed from

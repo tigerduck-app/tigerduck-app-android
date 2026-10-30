@@ -1,22 +1,27 @@
 package org.ntust.app.tigerduck.liveactivity
 
-import java.time.ZonedDateTime
-import java.util.Date
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.AppLink
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import java.time.ZonedDateTime
+import java.util.Date
 
 /**
  * The "assignment due soon" Live Update over what LiveActivityManager hands
  * the resolver: the outstanding assignments, not every cached one; which
- * scenario wins when several apply; and what a tap on each opens.
+ * scenario wins when several apply; what a tap on each opens; and the
+ * classes as the school's course changes leave them.
  */
 class LiveActivityResolverTest {
 
@@ -215,5 +220,89 @@ class LiveActivityResolverTest {
 
         assertEquals("assignment-extended", snapshot?.sourceId)
         assertEquals(extended.extensionDueDate, snapshot?.countdownTarget)
+    }
+
+    // The school's course changes, over the iPhone suite's course: CC900 meets on Thursday
+    // 2026-11-05, periods 2 to 4 (09:10–12:10) and 7 to 8 (14:20–16:20), in T4-501.
+
+    private val morning = listOf("2", "3", "4")
+
+    private fun thursdayAt(time: String): Date = Date.from(CourseChangeFixture.at(time))
+
+    private fun resolveThursday(time: String, changes: CourseChanges) = LiveActivityResolver().resolve(
+        courses = listOf(CourseChangeFixture.course()),
+        assignments = emptyList(),
+        skippedDates = emptyMap(),
+        preferences = preferences,
+        accentHex = 0,
+        now = thursdayAt(time),
+        changes = changes,
+    )
+
+    @Test
+    fun `the Live Update passes over a cancelled class and shows the changed room and start`() {
+        val changes = changes(
+            row(1, "cancelled", periods = morning),
+            row(2, "room", periods = listOf("7", "8"), values = mapOf("room" to "TR-313")),
+            row(3, "start", periods = listOf("7", "8"), values = mapOf("start" to "14:00")),
+        )
+
+        assertEquals(LiveActivityScenario.IN_CLASS, resolveThursday("10:00", CourseChanges.EMPTY)?.scenario)
+        assertNull("not preparing for the cancelled class", resolveThursday("09:00", changes))
+        assertNull("not in the cancelled class", resolveThursday("10:00", changes))
+        val preparing = resolveThursday("13:50", changes)!!
+        assertEquals(LiveActivityScenario.CLASS_PREPARING, preparing.scenario)
+        assertEquals("prep-CC900-7", preparing.sourceId)
+        assertEquals("TR-313", preparing.locationText)
+        assertEquals("14:00–16:20", preparing.subtitle)
+        assertEquals(thursdayAt("14:00"), preparing.countdownTarget)
+        assertEquals(LiveActivityScenario.IN_CLASS, resolveThursday("14:05", changes)?.scenario)
+        assertEquals(LiveActivityScenario.CLASS_PREPARING, resolveThursday("14:05", CourseChanges.EMPTY)?.scenario)
+    }
+
+    @Test
+    fun `the next class boundaries are the changed class's`() {
+        val changes = changes(
+            row(1, "cancelled", periods = morning),
+            row(2, "start", periods = listOf("7", "8"), values = mapOf("start" to "14:00")),
+        )
+
+        val slots = LiveActivityResolver().todaySlotsAfter(
+            listOf(CourseChangeFixture.course()), thursdayAt("07:00"), changes = changes,
+        )
+
+        assertEquals(listOf(thursdayAt("14:00") to thursdayAt("16:20")), slots.map { it.start to it.end })
+    }
+
+    @Test
+    fun `a class is over once the cancelled later piece of its meeting begins`() {
+        val changes = changes(row(1, "cancelled", periods = listOf("4")))
+
+        val during = resolveThursday("10:30", changes)!!
+        assertEquals("class-CC900-2", during.sourceId)
+        assertEquals("its own piece ends at 11:10 (#905)", thursdayAt("11:10"), during.countdownTarget)
+        assertNull(resolveThursday("11:30", changes))
+        assertEquals("class-CC900-2", resolveThursday("11:30", CourseChanges.EMPTY)?.sourceId)
+        val split = changes(row(2, "room", periods = listOf("4"), values = mapOf("room" to "TR-313")))
+        val moved = resolveThursday("11:30", split)!!
+        assertEquals("class-CC900-4", moved.sourceId)
+        assertEquals("TR-313", moved.locationText)
+        assertEquals(thursdayAt("11:10"), resolveThursday("10:30", split)?.countdownTarget)
+    }
+
+    @Test
+    fun `a class whose first piece a change dropped ends with the rest of its meeting`() {
+        val changes = changes(
+            row(1, "start", periods = morning, values = mapOf("start" to "10:30")),
+            row(2, "end", periods = morning, values = mapOf("end" to "11:00")),
+            row(3, "room", periods = listOf("2"), values = mapOf("room" to "TR-313")),
+        )
+
+        val during = resolveThursday("10:45", changes)!!
+        assertEquals(LiveActivityScenario.IN_CLASS, during.scenario)
+        assertEquals("10:30–11:00", during.subtitle)
+        assertEquals("T4-501", during.locationText)
+        assertEquals(thursdayAt("11:00"), during.countdownTarget)
+        assertNull("#904", resolveThursday("11:30", changes))
     }
 }

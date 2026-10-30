@@ -6,16 +6,14 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
-import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.shared.blockClassroom
-import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZonedDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,11 +22,22 @@ import javax.inject.Singleton
  * [AssignmentNotificationScheduler], but for class sessions. Fires an exact
  * alarm at `(classStart - classPreparingLeadTimeSec)` so the notification
  * arrives even while the app is fully closed.
+ *
+ * The classes are the timetable's as the school's [courseChanges] leave them,
+ * as iOS's `ScheduleSyncService` sends them to the server: none for a
+ * cancelled class, and the rest at their changed start in their changed room.
+ * LiveActivityManager arms them again when the feed changes.
  */
 @Singleton
-class ClassPreparingNotificationScheduler @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class ClassPreparingNotificationScheduler internal constructor(
+    private val context: Context,
+    private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
 ) : ClassReminderAlarms {
+    @Inject constructor(
+        @ApplicationContext context: Context,
+        courseChangeStore: CourseChangeStore,
+    ) : this(context, courseChangeStore::current)
+
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val trackerPrefs = context.getSharedPreferences(TRACKER_PREFS, Context.MODE_PRIVATE)
 
@@ -71,6 +80,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         for (slot in upcomingSlots(
             coursesByTerm, skippedDates, daysAhead = DAYS_AHEAD,
             calendar = calendar, optedInHolidayIds = optedInHolidayIds,
+            changes = courseChanges(),
         )) {
             // Before the trigger check: a class whose reminder has gone off
             // still has its banner up until it begins.
@@ -94,6 +104,7 @@ class ClassPreparingNotificationScheduler @Inject constructor(
                     slot.course.instructor
                 )
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_TERM, slot.term)
+                putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASS_ID, slot.classId)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, slot.startMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_END_MS, slot.endMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_NOTIFICATION_ID, requestCode)
@@ -197,13 +208,14 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         val startMs: Long,
         val endMs: Long,
         val id: String,
-        val weekday: Int,
-        /** This block's periods, not every period of the course that day. */
-        val periods: List<String>,
-    ) {
-        /** This block's room: a course meeting twice a day can switch rooms in between. */
-        val classroom: String get() = course.blockClassroom(weekday, periods)
-    }
+        /** [CourseMeetings]' id for the class, which the receiver checks against the feed again. */
+        val classId: String,
+        /**
+         * This class's room, the changed one included: a course meeting twice
+         * a day can switch rooms in between.
+         */
+        val classroom: String,
+    )
 
     private fun upcomingSlots(
         coursesByTerm: Map<String, List<Course>>,
@@ -211,15 +223,12 @@ class ClassPreparingNotificationScheduler @Inject constructor(
         daysAhead: Int,
         calendar: AcademicCalendar,
         optedInHolidayIds: Set<Int>,
+        changes: CourseChanges,
     ): List<UpcomingSlot> {
         val today = AppClock.localDateTime().toLocalDate()
         val results = mutableListOf<UpcomingSlot>()
         for (dayOffset in 0 until daysAhead) {
             val date = today.plusDays(dayOffset.toLong())
-            val weekdayIdx = when (date.dayOfWeek.value) {
-                in 1..7 -> date.dayOfWeek.value // Monday=1 .. Sunday=7
-                else -> continue
-            }
             // No 即將上課 alarms outside the term. The timetable is populated
             // weeks before 開學 (選課 opens ahead of the term), so an install in
             // late August would otherwise arm reminders for classes that have
@@ -237,29 +246,24 @@ class ClassPreparingNotificationScheduler @Inject constructor(
             val term = termOn(calendar, date)
             val courses = coursesByTerm[term] ?: continue
             val isoDate = date.toString()
-            for (course in courses) {
-                val periods = course.schedule[weekdayIdx] ?: continue
-                if (periods.isEmpty()) continue
-                if (skippedDates[course.courseNo]?.contains(isoDate) == true) continue
-                for (block in contiguousPeriodRuns(periods)) {
-                    val first = block.first()
-                    val last = block.last()
-                    val start = periodStart(first) ?: continue
-                    val end = periodEnd(last) ?: continue
-                    val startZdt = ZonedDateTime.of(date, start, AppConstants.TAIPEI_ZONE)
-                    val endZdt = ZonedDateTime.of(date, end, AppConstants.TAIPEI_ZONE)
-                    val startMs = startZdt.toInstant().toEpochMilli()
-                    val endMs = endZdt.toInstant().toEpochMilli()
-                    results += UpcomingSlot(
-                        course = course,
-                        term = term,
-                        startMs = startMs,
-                        endMs = endMs,
-                        id = "${course.courseNo}@${isoDate}#${first}-${last}",
-                        weekday = weekdayIdx,
-                        periods = block,
-                    )
-                }
+            // A meeting the school split arms each class of it that still
+            // meets, from its own start.
+            val classes = CourseMeetings.meetingSlots(
+                courses, date, changes,
+                // Checked against the calendar above.
+                isClassDay = { true },
+                skipped = { course, day -> skippedDates[course.courseNo]?.contains(day.toString()) == true },
+            )
+            for (slot in classes) {
+                results += UpcomingSlot(
+                    course = slot.course,
+                    term = term,
+                    startMs = slot.startsAt.toEpochMilli(),
+                    endMs = slot.endsAt.toEpochMilli(),
+                    id = "${slot.course.courseNo}@${isoDate}#${slot.periods.first()}-${slot.periods.last()}",
+                    classId = slot.id,
+                    classroom = slot.room,
+                )
             }
         }
         return results
@@ -286,17 +290,5 @@ class ClassPreparingNotificationScheduler @Inject constructor(
          */
         internal fun termsAhead(calendar: AcademicCalendar, today: LocalDate): Set<String> =
             (0 until DAYS_AHEAD).mapTo(linkedSetOf()) { termOn(calendar, today.plusDays(it.toLong())) }
-
-        private fun parseTime(text: String): LocalTime? = runCatching {
-            val (h, m) = text.split(":").map { it.toInt() }
-            LocalTime.of(h, m)
-        }.getOrNull()
-
-        private fun periodStart(id: String): LocalTime? =
-            AppConstants.PeriodTimes.mapping[id]?.first?.let(::parseTime)
-
-        private fun periodEnd(id: String): LocalTime? =
-            AppConstants.PeriodTimes.mapping[id]?.second?.let(::parseTime)
-
     }
 }
