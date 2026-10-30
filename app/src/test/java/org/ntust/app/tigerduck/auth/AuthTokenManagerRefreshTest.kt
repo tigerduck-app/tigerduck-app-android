@@ -510,6 +510,138 @@ class AuthTokenManagerRefreshTest {
         assertEquals(0, relogins)
     }
 
+    // A sign-in ends the device's other sessions (tigerduck-backend#213, #594)
+
+    /**
+     * The backend's login ends the account's other sessions on this device, so a refresh of the
+     * pair a sign-in has just replaced answers for a session that is gone or going: its late pair
+     * must not be stored over the sign-in's.
+     */
+    @Test
+    fun `a refresh still out when a sign-in stores a pair does not store its late pair over it`() = runBlocking {
+        val manager = manager(Reply.Pair("access-login", "refresh-login"), Reply.Pair("access-2", "refresh-2"))
+        onRefreshSent = {
+            onRefreshSent = {}
+            runBlocking { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+        }
+
+        val header = manager.authHeader()
+
+        assertEquals("refresh-login", tokens.refreshToken)
+        assertEquals("Bearer access-login", header)
+        assertEquals(0, relogins)
+    }
+
+    /** Its late 401 is the replaced session's: no relogin, which would end the sign-in's, and no clear. */
+    @Test
+    fun `a refresh turned down after a sign-in stored a pair leaves that pair alone`() = runBlocking {
+        val manager = manager(Reply.Pair("access-login", "refresh-login"), Reply.Status(401))
+        onRefreshSent = {
+            onRefreshSent = {}
+            runBlocking { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+        }
+
+        val header = manager.authHeader()
+
+        assertEquals("refresh-login", tokens.refreshToken)
+        assertEquals("Bearer access-login", header)
+        assertEquals(0, relogins)
+    }
+
+    /** One login at a time, so the pair stored last is the one the backend issued last. */
+    @Test
+    fun `a second sign-in waits for the first to land before it sends`() = runBlocking {
+        val manager = manager(Reply.Pair("access-a", "refresh-a"), Reply.Pair("access-b", "refresh-b"))
+        val logins = AtomicInteger()
+        val firstSent = CountDownLatch(1)
+        val firstAnswer = CountDownLatch(1)
+        onLoginSent = {
+            if (logins.incrementAndGet() == 1) {
+                firstSent.countDown()
+                firstAnswer.await(5, TimeUnit.SECONDS)
+            }
+        }
+
+        val first = async(Dispatchers.IO) { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+        assertTrue(firstSent.await(5, TimeUnit.SECONDS))
+        val second = async(Dispatchers.IO) { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+        Thread.sleep(300)
+        assertEquals("the second login waits", 1, logins.get())
+
+        firstAnswer.countDown()
+        first.await()
+        second.await()
+        assertEquals(2, logins.get())
+        assertEquals("refresh-b", tokens.refreshToken)
+    }
+
+    /** A sign-in waiting its turn when the account signs out sends nothing. */
+    @Test
+    fun `a sign-in a sign-out overtook in the queue sends nothing`() = runBlocking {
+        val manager = manager(Reply.Pair("access-a", "refresh-a"), Reply.Pair("access-b", "refresh-b"))
+        val logins = AtomicInteger()
+        val firstSent = CountDownLatch(1)
+        val firstAnswer = CountDownLatch(1)
+        onLoginSent = {
+            if (logins.incrementAndGet() == 1) {
+                firstSent.countDown()
+                firstAnswer.await(5, TimeUnit.SECONDS)
+            }
+        }
+        val signIn = manager.signInGeneration
+
+        val first = async(Dispatchers.IO) {
+            runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signInGeneration = signIn) }
+        }
+        assertTrue(firstSent.await(5, TimeUnit.SECONDS))
+        val second = async(Dispatchers.IO) {
+            runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signInGeneration = signIn) }
+        }
+        Thread.sleep(300)
+        manager.logout()
+        firstAnswer.countDown()
+
+        first.await()
+        assertTrue(second.await().exceptionOrNull() is AuthTokenManager.AuthException)
+        assertEquals(1, logins.get())
+        assertNull(tokens.refreshToken)
+    }
+
+    /**
+     * A request refused with the pair a relogin has since replaced: signing in again would end
+     * the relogin's session, and with steady traffic every refused request would end the last
+     * one's. The caller retries with the stored pair instead.
+     */
+    @Test
+    fun `signing in again goes only when the stored access token is the one refused`() = runBlocking {
+        storePair(expiresAt = clock + 900_000)
+        val manager = manager()
+
+        assertTrue(manager.signInAgain())
+        assertEquals(0, relogins)
+
+        manager.noteRefused("access-1")
+        manager.signInAgain()
+        assertEquals(1, relogins)
+    }
+
+    /** The backend clients' guard notes every access token a backend answers 401, for signInAgain. */
+    @Test
+    fun `the session guard notes an access token the backend refused`() = runBlocking {
+        storePair(expiresAt = clock + 900_000)
+        val manager = manager()
+        val client = OkHttpClient.Builder()
+            .guardedBy(manager)
+            .addInterceptor { chain -> answer(chain.request(), 401, """{"detail":"session_revoked"}""") }
+            .build()
+        val url = resolveAnnouncementEndpoint(AppPreferences(context)).url + "/sync/revision"
+        client.newCall(Request.Builder().url(url).header("Authorization", "Bearer access-1").build()).execute().close()
+
+        manager.signInAgain()
+
+        assertEquals(1, relogins)
+    }
+
     @Test
     fun `a sign-in reply that comes back after a sign-out stores nothing`() = runTest {
         val manager = manager(Reply.Pair("access-2", "refresh-2"))
