@@ -307,7 +307,7 @@ private fun SyllabusWebsite(url: String, browserPreference: String) {
 // Distinct hues of the class table's palette, as the iPhone's tint palette for the bar.
 private val breakdownColors: List<Color> = listOf(7, 3, 5, 9, 10, 0, 8, 2).map { courseColorPalette[it] }
 
-/** Shares as one stacked bar, then a row per part with its colour, label and percentage. */
+/** Shares as one stacked bar, then a row per part with its color, label and percentage. */
 @Composable
 private fun SyllabusBreakdown(parts: List<CourseSyllabusBreakdown.Part>) {
     var next = 0
