@@ -226,7 +226,28 @@ class MoodleMaterialsWeekPageTest {
     }
 
     @Test
-    fun `a list the reader has already scrolled is left where it is`() {
+    fun `a summary the course page could not fetch is fetched here`() {
+        val materials = materials()
+        show(store(Api(materials), cache(materials, null)))
+
+        waitForTopHeader("Week 8")
+    }
+
+    @Test
+    fun `a cached summary does not hold the scroll while it refreshes`() {
+        val gate = CompletableDeferred<Unit>()
+        val materials = materials()
+        val store = store(Api(materials, summaryGate = gate), cache(materials, weeklyCourse))
+        scope.launch { store.refreshSummary() }
+        composeRule.waitUntil(5_000) { store.summary.state.value.isRefreshing }
+        show(store)
+
+        waitForTopHeader("Week 8")
+        gate.complete(Unit)
+    }
+
+    /** Shows the course, its summary on its way until [scroll] is done, then lets it in. */
+    private fun scrollBeforeTheSummary(scroll: () -> Unit) {
         val gate = CompletableDeferred<Unit>()
         val materials = materials()
         val store = store(Api(materials, summaryGate = gate), cache(materials, null))
@@ -234,15 +255,46 @@ class MoodleMaterialsWeekPageTest {
         composeRule.waitUntil(5_000) { store.summary.state.value.isRefreshing }
         show(store)
         composeRule.waitUntil(5_000) { shows("General") }
-        composeRule.onNode(hasScrollToIndexAction()).performScrollToIndex(2)
-        waitForTopHeader("Week 2")
-
+        scroll()
         gate.complete(Unit)
         composeRule.waitUntil(5_000) { !store.summary.state.value.isRefreshing }
         composeRule.waitForIdle()
+    }
 
+    private fun assertTopHeader(label: String) {
         val height = composeRule.onRoot().fetchSemanticsNode().boundsInRoot.height
-        val week2 = composeRule.onNodeWithText("Week 2").fetchSemanticsNode().boundsInRoot.top
-        assertTrue("Week 2 stays at the top", week2 < height / 3)
+        val top = composeRule.onNodeWithText(label).fetchSemanticsNode().boundsInRoot.top
+        assertTrue("$label stays at the top", top < height / 3)
+    }
+
+    private val list get() = composeRule.onNode(hasScrollToIndexAction())
+
+    @Test
+    fun `a list the reader has already scrolled is left where it is`() {
+        scrollBeforeTheSummary {
+            list.performScrollToIndex(2)
+            waitForTopHeader("Week 2")
+        }
+        assertTopHeader("Week 2")
+    }
+
+    @Test
+    fun `a reader one section down is left there`() {
+        scrollBeforeTheSummary {
+            list.performScrollToIndex(1)
+            waitForTopHeader("Week 1")
+        }
+        assertTopHeader("Week 1")
+    }
+
+    @Test
+    fun `a reader who scrolled and came back to the top is left there`() {
+        scrollBeforeTheSummary {
+            list.performScrollToIndex(4)
+            waitForTopHeader("Week 4")
+            list.performScrollToIndex(0)
+            waitForTopHeader("General")
+        }
+        assertTopHeader("General")
     }
 }

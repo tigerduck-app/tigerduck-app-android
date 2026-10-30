@@ -23,8 +23,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -36,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
@@ -104,6 +107,11 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
     MoodleAutoRefresh(store, store.materials.ttlMs, store::awaitCache, { store.materials.state.value.fetchedAtMs }) {
         store.refreshMaterials()
     }
+    // The course page fetches the summary too, but a fetch it failed would leave this page
+    // without the format and start date the week comes from.
+    MoodleAutoRefresh(store, store.summary.ttlMs, store::awaitCache, { store.summary.state.value.fetchedAtMs }) {
+        store.refreshSummary()
+    }
     var pulling by remember { mutableStateOf(false) }
     val refresher = rememberRefresher { store.refreshMaterials() }
     val scope = rememberCoroutineScope()
@@ -113,21 +121,29 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
     val currentWeekIndex = state.value?.sections?.indexOfFirst { it.id == currentWeek }
         ?.takeIf { it >= 0 }
         ?.let { it + if (state.failureBesideCopy != null) 1 else 0 }
-    val firstSectionId = state.value?.sections?.firstOrNull()?.id
-    var scrolledToWeek by rememberSaveable { mutableStateOf(false) }
-    // A summary still being read or fetched can change the week, as its format decides how the
-    // week is found, so the scroll waits for it; and it comes once, never under a reader who has
-    // scrolled the list already.
-    val summarySettled = summary.cacheLoaded && !summary.isRefreshing
+    val firstSectionId by rememberUpdatedState(state.value?.sections?.firstOrNull()?.id)
+    // At the top, or with the first section at the top under a failure note that came in above
+    // it: the list holds its first item by key, which no reader did.
+    val atTop = {
+        val index = listState.firstVisibleItemIndex
+        listState.firstVisibleItemScrollOffset == 0 &&
+            (index == 0 || listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.key == firstSectionId)
+    }
+    // Set once the list has moved, to this week or by the reader before that, by touch, keys or
+    // TalkBack alike; the list is not moved for them after.
+    var listMoved by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        if (listMoved) return@LaunchedEffect
+        snapshotFlow { atTop() }.first { !it }
+        listMoved = true
+    }
+    // Without a copy of the summary, one still being read or fetched can change the week, as its
+    // format decides how the week is found, so the scroll waits for it.
+    val summarySettled = summary.cacheLoaded && (summary.value != null || !summary.isRefreshing)
     LaunchedEffect(currentWeekIndex, summarySettled) {
-        if (scrolledToWeek || !summarySettled || currentWeekIndex == null) return@LaunchedEffect
-        scrolledToWeek = true
-        // Still at the top: a failure note that came in above keeps the first section in place,
-        // as the list holds its first item by key, which no reader did.
-        val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.key
-        val atTop = listState.firstVisibleItemScrollOffset == 0 &&
-            (first == null || first == FAILURE_KEY || first == firstSectionId)
-        if (atTop) listState.scrollToItem(currentWeekIndex)
+        if (listMoved || !summarySettled || currentWeekIndex == null) return@LaunchedEffect
+        listMoved = true
+        if (atTop()) listState.scrollToItem(currentWeekIndex)
     }
     PullToRefreshBox(
         isRefreshing = pulling,
@@ -150,7 +166,7 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
                 }
             } else {
                 state.failureBesideCopy?.let { failure ->
-                    item(key = FAILURE_KEY) { MoodleRefreshFailure(failure, onRetry = { scope.launch { store.refreshMaterials() } }) }
+                    item(key = "failure") { MoodleRefreshFailure(failure, onRetry = { scope.launch { store.refreshMaterials() } }) }
                 }
                 items(materials.sections, key = { it.id }) { section ->
                     MaterialSection(store, section, section.id == currentWeek, snapshot, files, browserPreference)
@@ -159,8 +175,6 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
         }
     }
 }
-
-private const val FAILURE_KEY = "failure"
 
 /**
  * This week's section; null for none. The course's format and start date come from its summary,
