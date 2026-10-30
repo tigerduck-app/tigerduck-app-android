@@ -39,15 +39,14 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
     @Volatile
     private var clearing: Deferred<Unit>? = null
 
-    // Written as [clearIn] starts a clear and removed once the list is gone: a process ended in
-    // between clears at the next start, before anything reads the files.
+    // Written as [clearIn] starts a clear and removed once everything it clears is gone: a
+    // process ended in between clears at the next start, and while a delete fails nothing is
+    // read from the files.
     private val clearOwed = File(dir, "clear_owed")
 
     init {
-        if (clearOwed.exists()) {
-            deleteList()
-            detailDir.listFiles()?.forEach { runCatching { it.delete() } }
-            settleOwedClear()
+        if (clearOwed.exists() && deleteList() && deleteDetails { _, delete -> delete() }) {
+            runCatching { clearOwed.delete() }
         }
     }
 
@@ -84,7 +83,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         return mutex.withLock {
             withContext(Dispatchers.IO) {
                 try {
-                    if (!file.exists()) emptyList()
+                    if (!file.exists() || clearOwed.exists()) emptyList()
                     else gson.fromJson<List<BulletinSummary>>(file.readText(), listType) ?: emptyList()
                 } catch (_: Exception) {
                     emptyList()
@@ -113,7 +112,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         return mutex.withLock {
             withContext(Dispatchers.IO) {
                 try {
-                    if (!fetchedAtFile.exists()) 0L else fetchedAtFile.readText().trim().toLong()
+                    if (!fetchedAtFile.exists() || clearOwed.exists()) 0L else fetchedAtFile.readText().trim().toLong()
                 } catch (_: Exception) {
                     0L
                 }
@@ -158,7 +157,7 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         withDetailLock(id) {
             val f = File(detailDir, "$id.json")
             try {
-                if (f.exists()) gson.fromJson(f.readText(), BulletinDetail::class.java) else null
+                if (f.exists() && !clearOwed.exists()) gson.fromJson(f.readText(), BulletinDetail::class.java) else null
             } catch (_: Exception) {
                 null
             }
@@ -206,21 +205,29 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
      *  loop could deadlock if another coroutine holds a detail lock while
      *  waiting on `mutex`. */
     suspend fun clear() = withContext(Dispatchers.IO) {
-        mutex.withLock {
-            deleteList()
-            settleOwedClear()
-        }
+        val listGone = mutex.withLock { deleteList() }
         // Detail file deletion is intentionally outside the mutex lock.
-        val files = detailDir.listFiles() ?: return@withContext
+        val detailsGone = deleteDetails { id, delete -> withDetailLock(id) { delete() } }
+        // Last, once everything is gone: a process ended before this clears again at its next start.
+        if (listGone && detailsGone) runCatching { clearOwed.delete() }
+    }
+
+    /**
+     * Deletes every detail file, each through [locked] with its id, and says whether none is left.
+     * A stray non-detail file (an orphaned .tmp, say) goes without a lock, best effort.
+     */
+    private inline fun deleteDetails(locked: (Int, () -> Boolean) -> Boolean): Boolean {
+        val files = detailDir.listFiles() ?: return true
+        var gone = true
         for (f in files) {
             val id = f.nameWithoutExtension.toIntOrNull()
             if (id == null) {
-                // Stray non-detail file (e.g. an orphaned .tmp) — best effort.
                 runCatching { f.delete() }
                 continue
             }
-            withDetailLock(id) { if (f.exists()) f.delete() }
+            if (!locked(id) { !f.exists() || runCatching { f.delete() }.getOrDefault(false) }) gone = false
         }
+        return gone
     }
 
     /**
@@ -241,18 +248,12 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
-    // The list and its date; under [mutex] but at construction.
-    private fun deleteList() {
-        runCatching { file.delete() }
-        runCatching { fetchedAtFile.delete() }
+    // The list and its date, and whether they are gone; under [mutex] but at construction.
+    private fun deleteList(): Boolean {
+        val targets = listOf(file, fetchedAtFile, temporary(file), temporary(fetchedAtFile))
         // A write a process death cut short leaves its temporary file beside them.
-        runCatching { temporary(file).delete() }
-        runCatching { temporary(fetchedAtFile).delete() }
-    }
-
-    // A clear owed is paid once the list is gone; a delete that failed leaves it owed.
-    private fun settleOwedClear() {
-        if (!file.exists() && !fetchedAtFile.exists()) runCatching { clearOwed.delete() }
+        targets.forEach { runCatching { it.delete() } }
+        return targets.none { it.exists() }
     }
 
     // Waits for the clear an endpoint move started, if one is still running.

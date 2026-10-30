@@ -77,4 +77,30 @@ class BulletinCacheTest {
         assertEquals(listOf(1), kotlinx.coroutines.runBlocking { cache.load() }.map { it.id })
         firstThread.shutdown()
     }
+
+    /** A clear whose delete failed leaves the old files, which nothing then reads, until one succeeds. */
+    @Test
+    fun `while a clear's delete has failed nothing is read from the old files`() {
+        val cache = BulletinCache(context)
+        val detail = org.ntust.app.tigerduck.network.model.BulletinDetail(
+            id = 1, externalId = "e1", title = "Old", titleClean = null, canonicalOrg = null,
+            importance = null, summary = null, sourceUrl = null, postedAt = null,
+            bodyClean = "old backend", bodyMd = null, rawPublisher = null,
+        )
+        kotlinx.coroutines.runBlocking { cache.saveDetail(detail) }
+        val details = File(context.filesDir, "bulletins/details")
+        try {
+            details.setWritable(false)
+            cache.clearIn(kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO))
+
+            org.junit.Assert.assertTrue("the file is still there", File(details, "1.json").exists())
+            org.junit.Assert.assertNull(kotlinx.coroutines.runBlocking { cache.loadDetail(1) })
+        } finally {
+            details.setWritable(true)
+        }
+
+        // Paid at the next start, once the delete goes through.
+        org.junit.Assert.assertNull(kotlinx.coroutines.runBlocking { BulletinCache(context).loadDetail(1) })
+        org.junit.Assert.assertFalse(File(details, "1.json").exists())
+    }
 }
