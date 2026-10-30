@@ -103,4 +103,39 @@ class BulletinCacheTest {
         org.junit.Assert.assertNull(kotlinx.coroutines.runBlocking { BulletinCache(context).loadDetail(1) })
         org.junit.Assert.assertFalse(File(details, "1.json").exists())
     }
+
+    /**
+     * A detail's save that asked whether to write before the move and writes after the clear
+     * began: the clear waits for it and removes what it wrote, though the file did not exist yet
+     * when the clear looked.
+     */
+    @Test
+    fun `a clear waits for a detail save already under way, and removes it`() {
+        val cache = BulletinCache(context)
+        val detail = org.ntust.app.tigerduck.network.model.BulletinDetail(
+            id = 1, externalId = "e1", title = "Old", titleClean = null, canonicalOrg = null,
+            importance = null, summary = null, sourceUrl = null, postedAt = null,
+            bodyClean = "old backend", bodyMd = null, rawPublisher = null,
+        )
+        val asking = java.util.concurrent.CountDownLatch(1)
+        val answer = java.util.concurrent.CountDownLatch(1)
+        val saving = kotlin.concurrent.thread {
+            kotlinx.coroutines.runBlocking {
+                cache.saveDetail(detail) {
+                    asking.countDown()
+                    answer.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                    true
+                }
+            }
+        }
+        org.junit.Assert.assertTrue(asking.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        cache.clearIn(kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO))
+        // Time for a clear that does not wait for the save to finish first.
+        Thread.sleep(300)
+        answer.countDown()
+        saving.join(5_000)
+
+        org.junit.Assert.assertNull(kotlinx.coroutines.runBlocking { cache.loadDetail(1) })
+        org.junit.Assert.assertFalse(File(context.filesDir, "bulletins/details/1.json").exists())
+    }
 }

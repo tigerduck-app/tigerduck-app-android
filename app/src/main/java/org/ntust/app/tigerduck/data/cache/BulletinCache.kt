@@ -206,25 +206,36 @@ class BulletinCache @Inject constructor(@ApplicationContext context: Context) {
      *  waiting on `mutex`. */
     suspend fun clear() = withContext(Dispatchers.IO) {
         val listGone = mutex.withLock { deleteList() }
+        // The ids with a save or a read under way, whose file may not exist yet: a save that
+        // asked whether to write before the move writes after this looks, so each is waited for.
+        val underWay = synchronized(detailLocks) { detailLocks.keys.toList() }
         // Detail file deletion is intentionally outside the mutex lock.
-        val detailsGone = deleteDetails { id, delete -> withDetailLock(id) { delete() } }
+        val detailsGone = deleteDetails(underWay) { id, delete -> withDetailLock(id) { delete() } }
         // Last, once everything is gone: a process ended before this clears again at its next start.
         if (listGone && detailsGone) runCatching { clearOwed.delete() }
     }
 
     /**
-     * Deletes every detail file, each through [locked] with its id, and says whether none is left.
-     * A stray non-detail file (an orphaned .tmp, say) goes without a lock, best effort.
+     * Deletes every detail file, and the file of each id in [underWay], each through [locked] with
+     * its id, and says whether none is left. A stray non-detail file (an orphaned .tmp, say) goes
+     * without a lock, best effort.
      */
-    private inline fun deleteDetails(locked: (Int, () -> Boolean) -> Boolean): Boolean {
-        val files = detailDir.listFiles() ?: return true
+    private inline fun deleteDetails(underWay: List<Int> = emptyList(), locked: (Int, () -> Boolean) -> Boolean): Boolean {
+        val files = detailDir.listFiles().orEmpty().toList()
         var gone = true
+        val listed = mutableSetOf<Int>()
         for (f in files) {
             val id = f.nameWithoutExtension.toIntOrNull()
             if (id == null) {
                 runCatching { f.delete() }
                 continue
             }
+            listed += id
+            if (!locked(id) { !f.exists() || runCatching { f.delete() }.getOrDefault(false) }) gone = false
+        }
+        for (id in underWay) {
+            if (id in listed) continue
+            val f = File(detailDir, "$id.json")
             if (!locked(id) { !f.exists() || runCatching { f.delete() }.getOrDefault(false) }) gone = false
         }
         return gone
