@@ -320,6 +320,7 @@ class MailRepository @Inject constructor(
             account.signOuts.collect { departing ->
                 numberings.clear()
                 lastWhole = null
+                _searchIndexProgress.value = null
                 withContext(Dispatchers.IO) {
                     // With a search's request, which may be waiting for WorkManager's answer.
                     scheduled { indexScheduler.cancel() }
@@ -336,6 +337,7 @@ class MailRepository @Inject constructor(
             account.studentChanges.collect { departing ->
                 numberings.clear()
                 lastWhole = null
+                _searchIndexProgress.value = null
                 withContext(Dispatchers.IO) { clearIndexOf(departing) }
             }
         }
@@ -851,6 +853,7 @@ class MailRepository @Inject constructor(
         // Under way from the first folder listed: counting what every folder lacks takes seconds
         // on a large mailbox, and the sync dot used to say "OK" through all of it.
         _searchIndexProgress.value = MailIndexProgress.COUNTING
+        var through = false
         try {
             val folders = folders(stillWanted)
             val first = listOfNotNull(folders.nameOf(SpecialFolder.INBOX), folders.nameOf(SpecialFolder.SENT))
@@ -867,6 +870,7 @@ class MailRepository @Inject constructor(
             val total = plans.sumOf { it.missing.size }
             if (total == 0) {
                 if (whole) lastWhole = WholeDownload(owner, clock(), gaps)
+                through = whole
                 return
             }
             var done = 0
@@ -879,8 +883,13 @@ class MailRepository @Inject constructor(
                 whole = whole && through
             }
             if (whole) lastWhole = WholeDownload(owner, clock(), gaps)
+            through = whole
         } finally {
-            _searchIndexProgress.value = null
+            // One cut short -- the network, a folder recreated meanwhile -- left mail out of
+            // search: the row says how far it came, stopped, rather than OK, until one gets
+            // through (#587). Gone with the account or the downloaded mail, whose it was.
+            _searchIndexProgress.value = if (through || !stillIndexOwner(owner)) null
+                else _searchIndexProgress.value?.copy(running = false)
         }
     }
 
@@ -1105,6 +1114,7 @@ class MailRepository @Inject constructor(
         }
         inAppIndexing?.cancel()
         lastWhole = null
+        _searchIndexProgress.value = null
         numberings.clear()
         withContext(Dispatchers.IO) { searchIndex.clear() }
     }
