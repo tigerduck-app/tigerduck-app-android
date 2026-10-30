@@ -122,8 +122,9 @@ jobs:
     # every Gradle build; its tests call into the app-translation submodule.
     # Both run on whatever Python 3 the build finds, so the oldest one a
     # contributor likely has (macOS's own 3.9) is tested as well as the newest.
+    # On Ubuntu 24.04: ubuntu-latest moved to 26.04, where setup-python has no 3.9.
     name: localization (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
