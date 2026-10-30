@@ -69,7 +69,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val deps = EntryPointAccessors
             .fromApplication(rawContext.applicationContext, Deps::class.java)
         if (!stillDue(deps.academicCalendar().current(), startDate, intent.getStringExtra(EXTRA_TERM))) return
-        if (cancelledSince(deps.courseChanges().current(), intent.getStringExtra(EXTRA_CLASS_ID))) return
+        // The feed is read only for an alarm that names its class: older alarms carry no id to check.
+        val classId = intent.getStringExtra(EXTRA_CLASS_ID)
+        if (classId != null && cancelledSince(deps.courseChanges().current(), classId)) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual
