@@ -93,7 +93,8 @@ class MoodleMaterialsWeekPageTest {
         private val materials: MoodleCourseMaterials,
         private val materialsGate: CompletableDeferred<Unit>? = null,
         var summaryGate: CompletableDeferred<Unit>? = null,
-        private val materialsFail: Boolean = false,
+        /** How many materials fetches fail before one answers. */
+        private var materialsFailures: Int = 0,
         /** How many summary fetches fail before one answers, each with the same error. */
         private var summaryFailures: Int = 0,
     ) : MoodleCourseApi {
@@ -109,7 +110,10 @@ class MoodleMaterialsWeekPageTest {
         override suspend fun download(file: MoodleFile, target: File, maxBytes: Long, progress: (Float) -> Unit) = Unit
         override suspend fun materials(courseId: Int): MoodleCourseMaterials {
             materialsGate?.await()
-            if (materialsFail) throw MoodleWebserviceError.SiteMaintenance()
+            if (materialsFailures > 0) {
+                materialsFailures--
+                throw MoodleWebserviceError.SiteMaintenance()
+            }
             return materials
         }
         override suspend fun summary(courseId: Int): MoodleCourseSummary {
@@ -221,7 +225,7 @@ class MoodleMaterialsWeekPageTest {
         val gate = CompletableDeferred<Unit>()
         val materials = materials()
         val store = store(
-            Api(materials, summaryGate = gate, materialsFail = true),
+            Api(materials, summaryGate = gate, materialsFailures = 1),
             cache(materials, null, materialsFetchedAtMs = 0L),
         )
         scope.launch { store.refreshSummary() }
@@ -312,6 +316,44 @@ class MoodleMaterialsWeekPageTest {
         composeRule.waitUntil(5_000) { store.materials.state.value.value?.sections?.firstOrNull()?.name == "General" }
         composeRule.waitForIdle()
 
+        gate.complete(Unit)
+
+        waitForTopHeader("Week 8")
+    }
+
+    @Test
+    fun `a reader who scrolls up to a section a refresh added above is left there`() {
+        val gate = CompletableDeferred<Unit>()
+        val store = store(
+            Api(materials(), summaryGate = gate),
+            cache(materials(from = 1), null, materialsFetchedAtMs = 0L),
+        )
+        show(store)
+        composeRule.waitUntil(5_000) { store.materials.state.value.value?.sections?.firstOrNull()?.name == "General" }
+        composeRule.waitForIdle()
+        list.performScrollToIndex(0)
+        waitForTopHeader("General")
+
+        gate.complete(Unit)
+        composeRule.waitUntil(5_000) { !store.summary.state.value.isRefreshing }
+        composeRule.waitForIdle()
+
+        assertTopHeader("General")
+    }
+
+    @Test
+    fun `a failure note at the top that a retry takes away does not count as the reader scrolling`() {
+        val gate = CompletableDeferred<Unit>()
+        val materials = materials()
+        val store = store(Api(materials, summaryGate = gate, materialsFailures = 1), cache(materials, null))
+        scope.launch { store.refreshMaterials() }
+        composeRule.waitUntil(5_000) { store.materials.state.value.failure != null }
+        show(store)
+        composeRule.waitUntil(5_000) { shows(composeRule.activity.getString(R.string.error_moodle_site_maintenance)) }
+
+        scope.launch { store.refreshMaterials() }
+        composeRule.waitUntil(5_000) { !shows(composeRule.activity.getString(R.string.error_moodle_site_maintenance)) }
+        composeRule.waitForIdle()
         gate.complete(Unit)
 
         waitForTopHeader("Week 8")

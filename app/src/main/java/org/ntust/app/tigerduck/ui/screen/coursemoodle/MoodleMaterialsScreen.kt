@@ -123,7 +123,11 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
     val currentWeekIndex = state.value?.sections?.indexOfFirst { it.id == currentWeek }
         ?.takeIf { it >= 0 }
         ?.let { it + if (state.failureBesideCopy != null) 1 else 0 }
-    ScrollToWeekOnce(store, listState, materialsShown = state.value != null, currentWeekIndex)
+    // The keys of the list's items, as the list below gives them.
+    val itemKeys = state.value?.let { materials ->
+        listOfNotNull(FAILURE_KEY.takeIf { state.failureBesideCopy != null }) + materials.sections.map { it.id }
+    }
+    ScrollToWeekOnce(store, listState, itemKeys, currentWeekIndex)
     PullToRefreshBox(
         isRefreshing = pulling,
         onRefresh = { pulling = true; refresher { pulling = false } },
@@ -166,30 +170,40 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
 private fun ScrollToWeekOnce(
     store: MoodleCourseStore,
     listState: LazyListState,
-    materialsShown: Boolean,
+    /** The keys of the list's items; null before the materials show. */
+    itemKeys: List<Any>?,
     currentWeekIndex: Int?,
 ) {
     val summary by store.summary.state.collectAsStateWithLifecycle()
     var done by rememberSaveable { mutableStateOf(false) }
     val fetchesAtOpen = remember(store) { store.summary.state.value.fetchesEnded }
-    val shownMaterials by rememberUpdatedState(materialsShown)
-    // The reader has moved the list once its top is anything but the very top, or the item at
-    // the top when the materials first showed: a section or a failure note that comes in above
-    // that item leaves it at the top, as the list holds its first item by key, which no reader did.
+    val keys by rememberUpdatedState(itemKeys)
+    // The reader has moved the list once its top is anything but the item at the top when the
+    // materials first showed, from its start. A section or a failure note that comes in above that
+    // item leaves it at the top, as the list holds its first item by key, which no reader did; only
+    // when a refresh takes that item away does the item now at the top take its place.
     LaunchedEffect(listState) {
         if (done) return@LaunchedEffect
-        fun firstKey(): Any? = listState.layoutInfo.visibleItemsInfo
+        fun topKey(): Any? = listState.layoutInfo.visibleItemsInfo
             .firstOrNull { it.index == listState.firstVisibleItemIndex }?.key
-        val anchor = snapshotFlow { firstKey().takeIf { shownMaterials && (it is Int || it == FAILURE_KEY) } }
+        var anchor = snapshotFlow { topKey().takeIf { keys != null && (it is Int || it == FAILURE_KEY) } }
             .filterNotNull().first()
-        snapshotFlow {
-            listState.firstVisibleItemScrollOffset == 0 &&
-                (listState.firstVisibleItemIndex == 0 || firstKey() == anchor)
-        }.first { !it }
+        snapshotFlow { Triple(listState.firstVisibleItemScrollOffset, topKey(), keys.orEmpty()) }
+            .first { (offset, top, shown) ->
+                when {
+                    offset != 0 -> true
+                    top == null || top == anchor -> false
+                    anchor in shown -> true
+                    else -> {
+                        anchor = top
+                        false
+                    }
+                }
+            }
         done = true
     }
     val summaryTried = summary.value != null || summary.fetchesEnded > fetchesAtOpen
-    val ready = materialsShown && summary.cacheLoaded && summaryTried
+    val ready = itemKeys != null && summary.cacheLoaded && summaryTried
     val weekIndex by rememberUpdatedState(currentWeekIndex)
     LaunchedEffect(ready) {
         if (!ready || done) return@LaunchedEffect
