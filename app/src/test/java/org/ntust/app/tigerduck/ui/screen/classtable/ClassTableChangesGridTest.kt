@@ -63,6 +63,7 @@ class ClassTableChangesGridTest {
     fun `a changed meeting tells its new room, time and notes`() {
         show(week())
         val morning = labels().single { "TR-214" in it }
+        assertTrue("the old room is not read as well: $morning", "T4-501" !in morning)
         assertTrue(morning, "09:40 - 12:10" in morning)
         assertTrue(morning, "Midterm" in morning)
     }

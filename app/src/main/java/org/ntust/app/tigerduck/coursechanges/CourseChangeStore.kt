@@ -71,7 +71,11 @@ class CourseChangeStore internal constructor(
         withContext(Dispatchers.IO) {
             val base = endpoint()
             if (prefs.getString(KEY_ENDPOINT, null) != base) forget()
-            val etag = prefs.getString(KEY_ETAG, null)?.takeIf { it.isNotEmpty() }
+            // Read first, so a stored feed this build cannot read is dropped with its ETag rather
+            // than kept behind a 304.
+            _changes.value
+            val etag = prefs.getString(KEY_ETAG, null)
+                ?.takeIf { it.isNotEmpty() && prefs.getString(KEY_PAYLOAD, null) != null }
             runCatching {
                 api.at(base).courseChanges("application/json", etag).execute().use { response ->
                     when {

@@ -208,6 +208,8 @@ internal fun ClassTablePeriodTiles(
     outline: Color? = null,
     /** A line through the name, as for a cancelled class. */
     nameDecoration: TextDecoration? = null,
+    /** What the first tile's name leaves above it, for a changed time's line. */
+    firstTileTopSpace: Dp = 0.dp,
 ) {
     val tileShape = RoundedCornerShape(PERIOD_TILE_CORNER)
     Column(verticalArrangement = Arrangement.spacedBy(PERIOD_TILE_GAP)) {
@@ -227,7 +229,10 @@ internal fun ClassTablePeriodTiles(
                     maxLines = 3,
                     modifier = Modifier
                         .padding(2.dp)
-                        .padding(bottom = if (index == spanCount - 1) lastTileBottomSpace else 0.dp)
+                        .padding(
+                            top = if (index == 0) firstTileTopSpace else 0.dp,
+                            bottom = if (index == spanCount - 1) lastTileBottomSpace else 0.dp,
+                        )
                         .align(Alignment.Center),
                 )
             }

@@ -95,6 +95,16 @@ class CourseChangeStoreTest {
     }
 
     @Test
+    fun `an unreadable stored feed sends no ETag, even when the refresh is the store's first read`() = runTest {
+        store().refresh()
+        prefs.edit().putString("payload", "{not json").commit()
+        val store = store()
+        answer = Triple(304, "", null)
+        store.refresh()
+        assertNull(requests.last().header("If-None-Match"))
+    }
+
+    @Test
     fun `another endpoint's feed is not shown, and is fetched again whole`() = runTest {
         store().refresh()
         base = "https://other.example.test/v3"

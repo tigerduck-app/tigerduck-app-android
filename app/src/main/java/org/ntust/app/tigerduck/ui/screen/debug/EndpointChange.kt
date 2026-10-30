@@ -41,6 +41,8 @@ class EndpointChange internal constructor(
     private val signOutMail: () -> Unit,
     /** Registers the device at the backend stored, without waiting for it. */
     private val registerAgain: () -> Unit,
+    /** Told after a move to another backend, for the data fetched from it to come from the new one. */
+    private val movedBackend: () -> Unit = {},
 ) {
     @Inject
     constructor(
@@ -54,6 +56,7 @@ class EndpointChange internal constructor(
         wearBridge: WearScheduleBridge,
         mailAccount: MailAccount,
         pushRegistration: PushRegistrationService,
+        courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
         @ApplicationScope scope: CoroutineScope,
     ) : this(
         stored = { prefs.announcementApiBaseUrlOverride },
@@ -78,6 +81,8 @@ class EndpointChange internal constructor(
         holdsMailAccount = { mailAccount.signedIn.value },
         signOutMail = mailAccount::signOut,
         registerAgain = { scope.launch { pushRegistration.syncNow() } },
+        // Drops the old backend's course changes and fetches the new one's.
+        movedBackend = { scope.launch { courseChangeStore.refresh() } },
     )
 
     /** Whether storing [target] (null: the default) moves the app to another backend, and so asks first. */
@@ -92,7 +97,8 @@ class EndpointChange internal constructor(
      * backend signs out of every account held before it is stored.
      */
     fun apply(target: String?) {
-        if (asks(target)) {
+        val moves = asks(target)
+        if (moves) {
             if (holdsSchoolAccount()) signOutSchool()
             // After the school's, which may have taken them with it.
             if (holdsLibraryAccount()) signOutLibrary()
@@ -100,5 +106,6 @@ class EndpointChange internal constructor(
         }
         store(target)
         registerAgain()
+        if (moves) movedBackend()
     }
 }

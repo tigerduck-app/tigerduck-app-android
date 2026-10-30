@@ -35,12 +35,14 @@ internal class ClassTableCellLabels(
         hasAssignment: Boolean,
         assignmentsIgnored: Boolean,
         conflict: Boolean = false,
+        /** The room the school moved the class to, read instead of the timetable's. */
+        room: String? = null,
     ): String {
         val spoken = buildString {
             append(course.displayName)
             // The room of this slot, as tapping it shows, not every room the
             // course meets in that day.
-            val room = if (periodId != null) course.classroom(weekday, periodId) else course.classroom(weekday)
+            val room = room ?: if (periodId != null) course.classroom(weekday, periodId) else course.classroom(weekday)
             if (room.isNotBlank()) append(", ").append(room)
             if (hasAssignment) append(". ").append(assignment)
             if (assignmentsIgnored) append(". ").append(ignored)

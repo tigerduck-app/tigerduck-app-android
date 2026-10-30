@@ -225,6 +225,7 @@ internal fun TimetableGrid(
                                     onDelete = onDelete,
                                     onPickConflict = onPickConflict,
                                     change = slot.change,
+                                    showsRooms = showRoomHints,
                                 )
                             }
                         }
@@ -357,6 +358,7 @@ private fun CourseSlot(
     onDelete: (Course) -> Unit,
     onPickConflict: (Course, Course, Int, String) -> Unit,
     change: ClassSlot?,
+    showsRooms: Boolean,
 ) {
     when (role) {
         is CellRole.SoloStart -> SoloCourseCell(
@@ -379,6 +381,7 @@ private fun CourseSlot(
             onToggleIgnoreAssignments = onToggleIgnoreAssignments,
             onDelete = onDelete,
             change = change,
+            showsRooms = showsRooms,
         )
 
         is CellRole.ConflictStart -> ConflictCourseCell(

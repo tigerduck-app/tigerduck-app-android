@@ -93,6 +93,8 @@ internal fun SoloCourseCell(
     onDelete: (Course) -> Unit,
     /** The block as the school changed it on its column's date; null for the timetable's. */
     change: ClassSlot? = null,
+    /** Whether the table shows rooms, for a moved room to show though [roomHint] is null. */
+    showsRooms: Boolean = roomHint != null,
 ) {
     val style = LocalVisualStylePolicy.current
     val tiles = style.drawsPeriodTiles
@@ -109,14 +111,12 @@ internal fun SoloCourseCell(
     val cancelledLabel = stringResource(R.string.course_card_cancelled)
     val locale = LocalConfiguration.current.locales[0]
     val cellLabel = classTableCellLabels()
-        .label(course, weekday, periodId, hasAssignment, assignmentsIgnored)
+        .label(
+            course, weekday, periodId, hasAssignment, assignmentsIgnored,
+            room = change?.takeIf { it.hasChangedRoom }?.room,
+        )
         .let { label -> change?.let { label + spokenChanges(it, cancelledLabel, locale) } ?: label }
-    // The bottom line: the cancellation whether or not rooms show, else a moved room where they do.
-    val bottomLine: String? = when {
-        cancelled -> cancelledLabel
-        change?.hasChangedRoom == true && roomHint != null -> change.room
-        else -> roomHint
-    }
+    val bottomLine = blockBottomLine(change, roomHint, showsRooms, cancelledLabel)
     val timeLine = change?.takeIf { !cancelled }?.let(::changedTimeText)
     // A notch under the course name, so the name keeps the visual weight:
     // the room is a reminder, not a second title.
@@ -164,6 +164,7 @@ internal fun SoloCourseCell(
                 fill = cellBg,
                 textColor = cellTextColor,
                 nameDecoration = nameDecoration,
+                firstTileTopSpace = topSpace,
                 // A tile's third line reaches the bottom corners, so the last
                 // tile also leaves its line to the mark, not only to the hint.
                 lastTileBottomSpace = if (hasAssignment || assignmentsIgnored) {
@@ -189,7 +190,7 @@ internal fun SoloCourseCell(
             )
         }
         if (bottomLine != null) {
-            val moved = !cancelled && bottomLine != roomHint
+            val moved = bottomLine.moved
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -210,10 +211,10 @@ internal fun SoloCourseCell(
                     )
                 }
                 Text(
-                    text = bottomLine,
+                    text = bottomLine.text,
                     style = MaterialTheme.typography.labelSmall,
                     color = if (moved) ink else cellSecondaryColor,
-                    fontWeight = if (cancelled || moved) FontWeight.SemiBold else null,
+                    fontWeight = if (bottomLine.cancelled || moved) FontWeight.SemiBold else null,
                     fontSize = hintFontSize,
                     lineHeight = hintLineHeight,
                     maxLines = 1,
@@ -286,6 +287,20 @@ internal fun SoloCourseCell(
     }
 }
 
+/** A block's bottom line: its room, or the school's change to it. */
+internal data class BlockLine(val text: String, val moved: Boolean, val cancelled: Boolean)
+
+/**
+ * The cancellation whether or not rooms show, else a moved room where they do, though the
+ * timetable named none; else the room hint.
+ */
+internal fun blockBottomLine(change: ClassSlot?, roomHint: String?, showsRooms: Boolean, cancelled: String): BlockLine? =
+    when {
+        change?.isCancelled == true -> BlockLine(cancelled, moved = false, cancelled = true)
+        change?.hasChangedRoom == true && showsRooms -> BlockLine(change.room, moved = true, cancelled = false)
+        else -> roomHint?.let { BlockLine(it, moved = false, cancelled = false) }
+    }
+
 /** A changed block's time as the block shows it: both ends, the start alone, or the end alone. */
 internal fun changedTimeText(meeting: ClassSlot): String? = when {
     meeting.originalStart != null && meeting.originalEnd != null -> "${hm(meeting.start)}–${hm(meeting.end)}"
@@ -294,15 +309,15 @@ internal fun changedTimeText(meeting: ClassSlot): String? = when {
     else -> null
 }
 
-/** What TalkBack adds for a changed block: the cancellation or the new room and time, then the notes. */
+/**
+ * What TalkBack adds for a changed block, after the label that already names a moved room: the
+ * cancellation or the new time, then the notes.
+ */
 internal fun spokenChanges(meeting: ClassSlot, cancelled: String, locale: java.util.Locale): String {
     val parts = if (meeting.isCancelled) {
         listOf(cancelled)
     } else {
-        listOfNotNull(
-            meeting.room.takeIf { meeting.hasChangedRoom },
-            "${hm(meeting.start)} - ${hm(meeting.end)}".takeIf { meeting.hasChangedTime },
-        )
+        listOfNotNull("${hm(meeting.start)} - ${hm(meeting.end)}".takeIf { meeting.hasChangedTime })
     }
     return (parts + meeting.notes.mapNotNull { it.note(locale) }).joinToString("") { ". $it" }
 }
