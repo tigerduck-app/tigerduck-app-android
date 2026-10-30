@@ -6,6 +6,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
@@ -24,7 +25,7 @@ internal fun interface CourseUploader {
         forceKeys: List<String>,
         signIn: Int,
         addedAt: Map<String, Long>,
-    ): List<String>?
+    ): CourseUploadAnswer?
 }
 
 /**
@@ -55,7 +56,7 @@ class PendingCourseAdds internal constructor(
     @Inject constructor(dataCache: DataCache, pushApiClient: PushApiClient, authTokenManager: AuthTokenManager) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
-            pushApiClient.uploadCourses(courses, semester, forceKeys, signIn, addedAt = addedAt)
+            pushApiClient.uploadCoursesAnswered(courses, semester, forceKeys, signIn, addedAt = addedAt)
         },
         signInGeneration = { authTokenManager.signInGeneration },
     )
@@ -155,8 +156,11 @@ class PendingCourseAdds internal constructor(
     ): Boolean = sendMutex.withLock {
         if (generation != dataCache.userDataGeneration || signIn != signInGeneration()) return@withLock false
         // Only adds still waiting: one an upload ahead of this one retired meanwhile must not go
-        // again, its force key lifting a delete made since.
-        val stillWaiting = waiting()[semester].orEmpty()
+        // again, its force key lifting a delete made since. Read with their moments in one
+        // step, under the lock they change under: a timed add read without its moment would go
+        // unstamped.
+        val (waitingNow, timesNow) = mutex.withLock { waiting() to waitingTimes() }
+        val stillWaiting = waitingNow[semester].orEmpty()
         val requested = courseNos.filter { it in stillWaiting }
         val cached = dataCache.loadCourses(semester)
         val deleted = dataCache.loadDeletedCourseNos()
@@ -166,22 +170,25 @@ class PendingCourseAdds internal constructor(
         // An add with its time goes under protocol 2, alone with the others timed: there every
         // other course of the upload counts as the school's roster. One an older install kept
         // has no time and goes as before.
-        val times = waitingTimes()[semester].orEmpty()
+        val times = timesNow[semester].orEmpty()
         val (timed, untimed) = held.partition { it in times }
         val source = courses ?: cached
-        val accepted = (if (timed.isEmpty()) emptyList() else {
+        val stamped = if (timed.isEmpty()) Taken() else {
             upload(source.filter { it.courseNo in timed }, semester, timed, signIn, times.filterKeys { it in timed })
-        }) + (if (untimed.isEmpty()) emptyList() else {
-            upload(courses ?: cached.filter { it.courseNo in untimed }, semester, untimed, signIn, emptyMap())
-        })
-        // The backend answered a timed add, applied or not: it has settled the course, which a
-        // snapshot's tombstone may then hide, as a course this phone typed alone it never would.
-        val settled = accepted.filter { it in timed }
-        if (settled.isNotEmpty()) {
-            val known = dataCache.loadServerKnownNos()
-            dataCache.saveServerKnownNos(known + (semester to (known[semester].orEmpty() + settled).distinct().sorted()), generation)
         }
-        val done = requested - held.toSet() + accepted
+        val unstamped = if (untimed.isEmpty()) Taken() else {
+            upload(courses ?: cached.filter { it.courseNo in untimed }, semester, untimed, signIn, emptyMap())
+        }
+        // A timed add the backend refused, a hide or reset elsewhere being newer: the server has
+        // ruled on the course, so a snapshot's tombstone may hide it, as it never does a course
+        // this phone typed and the server has not seen. Not one it applied: a snapshot taken
+        // before the add landed would then read its absence as a delete.
+        if (stamped.refused.isNotEmpty()) {
+            dataCache.updateServerKnownNos(generation) { known ->
+                known + (semester to (known[semester].orEmpty() + stamped.refused).distinct().sorted())
+            }
+        }
+        val done = requested - held.toSet() + stamped.settled + unstamped.settled
         if (done.isNotEmpty()) {
             // Only an add still as it was sent: one added again meanwhile has a newer moment,
             // which this answer, to the older add, does not settle.
@@ -193,26 +200,36 @@ class PendingCourseAdds internal constructor(
         true
     }
 
+    // What an upload settled of [courseNos]: those the backend took, and the timed adds it refused.
+    private class Taken(val accepted: List<String> = emptyList(), val refused: List<String> = emptyList()) {
+        val settled: List<String> get() = accepted + refused
+    }
+
     // The course numbers the backend took: those its answer accepts (a 200
     // alone is not acceptance, see PushApiClient.uploadCourses), or all of
-    // them when nothing was sent because course sync is off. None on a failure.
+    // them when nothing was sent because course sync is off; and the timed
+    // adds it answered without applying. None on a failure.
     private suspend fun upload(
         courses: List<Course>,
         semester: String,
         courseNos: List<String>,
         signIn: Int,
         addedAt: Map<String, Long>,
-    ): List<String> =
+    ): Taken =
         try {
-            val accepted = uploader.upload(courses, semester, courseNos.map { forceKey(semester, it) }, signIn, addedAt)
-            val taken = if (accepted == null) courseNos else courseNos.filter { it in accepted }
-            if (taken.size < courseNos.size) Log.w(TAG, "course add not accepted, kept for the next sync")
+            val answer = uploader.upload(courses, semester, courseNos.map { forceKey(semester, it) }, signIn, addedAt)
+            val taken = if (answer == null) {
+                Taken(accepted = courseNos)
+            } else {
+                Taken(courseNos.filter { it in answer.accepted }, courseNos.filter { it in answer.refusedAdds })
+            }
+            if (taken.settled.size < courseNos.size) Log.w(TAG, "course add not accepted, kept for the next sync")
             taken
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "course add upload failed, kept for the next sync: ${e.logSummary()}")
-            emptyList()
+            Taken()
         }
 
     /**

@@ -12,6 +12,7 @@ import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -44,6 +45,9 @@ class PendingCourseAddsTest {
     private val uploads = mutableListOf<Upload>()
     private var answer: suspend () -> List<String>? = { emptyList() }
 
+    // Of what [answer] settles, the timed adds the backend refused, a hide elsewhere being newer.
+    private var refused: List<String> = emptyList()
+
     // AuthTokenManager.signInGeneration, and what happens before the request's header is made.
     private var signIn = 1
     private var beforeHeader: suspend () -> Unit = {}
@@ -61,7 +65,7 @@ class PendingCourseAddsTest {
             beforeHeader()
             if (pinned != signIn) throw NotSignedInException()
             uploads += Upload(courses.map { it.courseNo }, semester, forceKeys, account = signIn, addedAt = addedAt)
-            answer()
+            answer()?.let { accepted -> CourseUploadAnswer(accepted - refused, refused.filter { it in accepted }) }
         }, signInGeneration = { signIn })
     }
 
@@ -140,11 +144,20 @@ class PendingCourseAddsTest {
      * as the reconcile never does a course the server has not seen.
      */
     @Test
-    fun `a timed add the backend answered counts as one the server knows`() = runTest {
-        cache.saveCourses(listOf(typed), term)
+    fun `a timed add the backend refused counts as one the server knows, one it applied does not`() = runTest {
+        cache.saveCourses(listOf(typed, portal), term)
         answer = { listOf("MA1010002") }
+        refused = listOf("MA1010002")
 
         adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L)
+
+        assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+
+        // Applied: a snapshot taken before it landed would read its absence as a delete.
+        answer = { listOf("CS1010001") }
+        refused = emptyList()
+        adds.send(listOf(portal), term, portal.courseNo, addedAt = 6_000L)
 
         assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
     }

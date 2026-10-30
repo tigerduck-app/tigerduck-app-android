@@ -108,9 +108,11 @@ class CourseMembershipStampTest {
     fun `an add the backend answered but did not apply counts as settled`() = runTest {
         backend.answer(UPLOAD, 200, """{"accepted_keys":[],"adds":[{"course_key":"$KEY","applied":false,"hlc":1}]}""")
 
-        val accepted = api.uploadCourses(listOf(course()), TERM, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
+        val answer = api.uploadCoursesAnswered(listOf(course()), TERM, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
 
-        assertEquals(listOf(NO), accepted)
+        assertEquals(emptyList<String>(), answer!!.accepted)
+        assertEquals(listOf(NO), answer.refusedAdds)
+        assertEquals(listOf(NO), answer.settled)
     }
 
     @Test

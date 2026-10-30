@@ -443,7 +443,17 @@ class PushApiClient @Inject constructor(
         signIn: Int? = null,
         resend: Boolean = false,
         addedAt: Map<String, Long> = emptyMap(),
-    ): List<String>? = withContext(Dispatchers.IO) {
+    ): List<String>? = uploadCoursesAnswered(courses, semester, forceKeys, signIn, resend, addedAt)?.settled
+
+    /** [uploadCourses], with the timed adds the backend refused told apart; see [CourseUploadAnswer]. */
+    suspend fun uploadCoursesAnswered(
+        courses: List<Course>,
+        semester: String,
+        forceKeys: List<String> = emptyList(),
+        signIn: Int? = null,
+        resend: Boolean = false,
+        addedAt: Map<String, Long> = emptyMap(),
+    ): CourseUploadAnswer? = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext null
         val payload = CourseUploadPayload.build(courses, semester, forceKeys)
         val body = gson.toJson(payload).toRequestBody(jsonType)
@@ -461,7 +471,7 @@ class PushApiClient @Inject constructor(
         // upload's is; the request's own header is pinned only when the
         // caller pinned it ([signIn]), as before.
         val startedIn = signIn ?: authTokenManager.signInGeneration
-        var accepted: List<String> = emptyList()
+        var accepted = CourseUploadAnswer(emptyList(), emptyList())
         courseUploads(semester).sendIfDue(
             fingerprint = courseUploadFingerprint(base, courses, semester),
             // Recorded under the sign-in lock, so a sign-out's clear cannot
@@ -473,7 +483,7 @@ class PushApiClient @Inject constructor(
             // Through uploadCall, with its deadline for the whole call.
             val service = uploads.at(base)
             val header = authHeader(signIn)
-            fun send(stamped: Boolean): List<String>? {
+            fun send(stamped: Boolean): CourseUploadAnswer? {
                 val call = if (stamped) service.coursesUpload(header, stampedBody!!, PROTOCOL_STAMPED)
                     else service.coursesUpload(header, body, null)
                 return call.execute().use { response ->
@@ -485,11 +495,16 @@ class PushApiClient @Inject constructor(
                     // still an upload that landed; it just cannot say what was accepted.
                     val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
                     val keys = json?.optJSONArray("accepted_keys")
-                    val answered = json?.optJSONArray("adds")
+                    val answers = json?.optJSONArray("adds")?.let { (0 until it.length()).mapNotNull(it::optJSONObject) }.orEmpty()
                     // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
+                    fun no(key: String) = key.substringAfterLast(':')
                     val listed = keys?.let { (0 until it.length()).map { i -> it.getString(i) } }.orEmpty() +
-                        answered?.let { (0 until it.length()).mapNotNull { i -> it.optJSONObject(i)?.optString("course_key") } }.orEmpty()
-                    listed.filter { it.isNotEmpty() }.map { it.substringAfterLast(':') }.distinct()
+                        answers.filter { it.optBoolean("applied") }.map { it.optString("course_key") }
+                    CourseUploadAnswer(
+                        accepted = listed.filter { it.isNotEmpty() }.map(::no).distinct(),
+                        refusedAdds = answers.filter { !it.optBoolean("applied", true) }
+                            .map { it.optString("course_key") }.filter { it.isNotEmpty() }.map(::no).distinct(),
+                    )
                 }
             }
             accepted = (if (stampedBody != null) send(stamped = true) else null) ?: send(stamped = false)!!
@@ -604,3 +619,12 @@ internal fun preferencesPatchBlockedOnFdroid(
 }
 
 private const val DELETE_TIMEOUT_SECONDS = 20L
+
+/**
+ * What a course upload's answer says: the course numbers the backend took ([accepted]), and the
+ * timed adds it answered but did not apply ([refusedAdds]), as a hide or reset made after them
+ * elsewhere is newer. Both are settled: the backend has the final word on each.
+ */
+data class CourseUploadAnswer(val accepted: List<String>, val refusedAdds: List<String>) {
+    val settled: List<String> get() = (accepted + refusedAdds).distinct()
+}

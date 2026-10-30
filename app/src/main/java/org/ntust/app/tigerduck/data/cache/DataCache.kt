@@ -509,9 +509,30 @@ class DataCache @Inject constructor(
     suspend fun saveServerKnownNos(known: Map<String, List<String>>) =
         saveToUserData(known, "server_known_courses.json")
 
-    /** [saveServerKnownNos] unless the data was wiped since [generation]; says whether it wrote. */
-    suspend fun saveServerKnownNos(known: Map<String, List<String>>, generation: Int): Boolean =
-        saveToUserDataIf(known, "server_known_courses.json", generation)
+    // Held from the read to the write of every update below.
+    private val serverKnownLock = Mutex()
+
+    /**
+     * The server-known numbers changed by [change], read and written under one lock, so writers
+     * that each add to them -- a sync's snapshot, an add the backend answered -- never undo one
+     * another's. With [generation], nothing is written once the data was wiped since; says
+     * whether it wrote, or had nothing to write.
+     */
+    suspend fun updateServerKnownNos(
+        generation: Int? = null,
+        change: (Map<String, List<String>>) -> Map<String, List<String>>,
+    ): Boolean = serverKnownLock.withLock {
+        val before = loadServerKnownNos()
+        val after = change(before)
+        when {
+            after == before -> true
+            generation != null -> saveToUserDataIf(after, "server_known_courses.json", generation)
+            else -> {
+                saveServerKnownNos(after)
+                true
+            }
+        }
+    }
 
     suspend fun loadServerKnownNos(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String, List<String>>>() {}.type

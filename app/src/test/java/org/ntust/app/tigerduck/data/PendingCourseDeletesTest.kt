@@ -20,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -79,7 +80,7 @@ class PendingCourseDeletesTest {
             if (pinned != signIn) throw NotSignedInException()
             uploads += courses.map { it.courseNo }
             events += "upload"
-            courses.map { it.courseNo }
+            CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         }, signInGeneration = { signIn })
         // As PushApiClient.deleteCourse: pinned to a sign-in, the header is that account's or none.
         deletes = PendingCourseDeletes(cache, adds, { courseKey, pinned, hiddenAt ->
