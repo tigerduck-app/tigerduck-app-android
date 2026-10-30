@@ -156,4 +156,40 @@ class BulletinSettingsSignedInTest {
         composeRule.waitForIdle()
         assertEquals("bulletins", nav.currentDestination?.route)
     }
+
+    /** Signed out while the settings are open on top, as from a sign-in expiring: they close, once. */
+    @Test
+    fun `signed out while open on top, the push settings close once`() {
+        var signedIn by mutableStateOf(true)
+        var closes = 0
+        lateinit var nav: NavHostController
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        composeRule.setContent {
+            nav = rememberNavController()
+            MaterialTheme {
+                NavHost(nav, startDestination = "bulletins") {
+                    composable("bulletins") { Text("bulletins") }
+                    composable("settings") { entry ->
+                        SubscriptionSettingsScreen(
+                            signedIn = signedIn,
+                            onBack = {
+                                closes++
+                                nav.popIfTop(entry)
+                            },
+                            viewModel = vm,
+                        )
+                    }
+                }
+            }
+        }
+        composeRule.runOnIdle { nav.navigate("settings") }
+        composeRule.waitForIdle()
+        assertEquals("settings", nav.currentDestination?.route)
+
+        composeRule.runOnIdle { signedIn = false }
+        composeRule.waitForIdle()
+
+        assertEquals("bulletins", nav.currentDestination?.route)
+        assertEquals(1, closes)
+    }
 }
