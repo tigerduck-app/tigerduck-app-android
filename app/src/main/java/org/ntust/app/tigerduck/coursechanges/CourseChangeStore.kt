@@ -53,6 +53,10 @@ class CourseChangeStore internal constructor(
     private val api = BackendServices(CourseChangeApi::class.java, client.newBuilder().cache(null).build())
     private val refreshMutex = Mutex()
 
+    /** The request out now, for [endpointMoved] to cancel. */
+    @Volatile
+    private var inFlight: okhttp3.Call? = null
+
     // Lazy, so injecting the store on the app's start costs no disk read.
     private val _changes: MutableStateFlow<CourseChanges> by lazy { MutableStateFlow(loadFromDisk()) }
 
@@ -76,8 +80,10 @@ class CourseChangeStore internal constructor(
             _changes.value
             val etag = prefs.getString(KEY_ETAG, null)
                 ?.takeIf { it.isNotEmpty() && prefs.getString(KEY_PAYLOAD, null) != null }
+            val call = api.at(base).courseChanges("application/json", etag)
+            inFlight = call
             runCatching {
-                api.at(base).courseChanges("application/json", etag).execute().use { response ->
+                call.execute().use { response ->
                     when {
                         response.code == HTTP_NOT_MODIFIED -> true
                         response.isSuccessful -> {
@@ -99,8 +105,18 @@ class CourseChangeStore internal constructor(
                 if (e is CancellationException) throw e
                 Log.w(TAG, "course changes refresh failed: ${e.logSummary()}")
                 false
-            }
+            }.also { inFlight = null }
         }
+    }
+
+    /**
+     * For a move to another backend: drops the stored feed at once and cancels a request still
+     * out at the old one, which would keep the next refresh waiting behind it. The caller fetches
+     * the new backend's next.
+     */
+    fun endpointMoved() {
+        inFlight?.cancel()
+        forget()
     }
 
     /** Drops the stored feed, as for another endpoint's. */

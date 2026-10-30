@@ -81,8 +81,11 @@ class EndpointChange internal constructor(
         holdsMailAccount = { mailAccount.signedIn.value },
         signOutMail = mailAccount::signOut,
         registerAgain = { scope.launch { pushRegistration.syncNow() } },
-        // Drops the old backend's course changes and fetches the new one's.
-        movedBackend = { scope.launch { courseChangeStore.refresh() } },
+        // Drops the old backend's course changes at once and fetches the new one's.
+        movedBackend = {
+            courseChangeStore.endpointMoved()
+            scope.launch { courseChangeStore.refresh() }
+        },
     )
 
     /** Whether storing [target] (null: the default) moves the app to another backend, and so asks first. */

@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.coursechanges
 
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -28,8 +29,12 @@ class CourseChangeStoreTest {
     /** Run as the server answers, as an endpoint change that comes while a request is out. */
     private var whileAnswering: () -> Unit = {}
 
+    /** The call the server answered last, for a test to see whether it was cancelled. */
+    @Volatile private var lastCall: okhttp3.Call? = null
+
     private val client = OkHttpClient.Builder()
         .addInterceptor { chain ->
+            lastCall = chain.call()
             requests += chain.request()
             whileAnswering()
             val (code, body, etag) = answer
@@ -125,6 +130,35 @@ class CourseChangeStoreTest {
         answer = Triple(500, "", null)
         store.refresh()
         assertEquals(CourseChanges.EMPTY, store.current())
+    }
+
+    @Test
+    fun `a move drops the feed at once and cancels the request still out at the old backend`() = runTest {
+        val store = store()
+        store.refresh()
+        val stalled = java.util.concurrent.CountDownLatch(1)
+        val reached = java.util.concurrent.CountDownLatch(1)
+        var call: okhttp3.Call? = null
+        whileAnswering = {
+            reached.countDown()
+            stalled.await(5, java.util.concurrent.TimeUnit.SECONDS)
+        }
+        val out = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async { store.refresh() }
+        assertTrue(reached.await(5, java.util.concurrent.TimeUnit.SECONDS))
+        call = lastCall
+
+        base = "https://other.example.test/v3"
+        store.endpointMoved()
+        assertEquals("dropped before the old request ends", CourseChanges.EMPTY, store.current())
+        assertTrue("the old request is cancelled", call!!.isCanceled())
+
+        stalled.countDown()
+        out.await()
+        assertEquals(CourseChanges.EMPTY, store.current())
+        whileAnswering = {}
+        answer = Triple(200, OTHER_FEED, "W/\"9\"")
+        store.refresh()
+        assertEquals(CourseChanges.decode(OTHER_FEED), store.current())
     }
 
     @Test
