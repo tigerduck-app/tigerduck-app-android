@@ -30,9 +30,10 @@ internal object CourseChangeFixture {
         periods: List<String>? = null,
         days: List<String> = listOf("2026-11-05"),
         values: Map<String, String> = emptyMap(),
+        courseNo: String = "CC900",
     ): JSONObject = JSONObject().apply {
         put("id", id)
-        put("course_no", "CC900")
+        put("course_no", courseNo)
         put("kind", kind)
         put("mode", "day")
         put("day", days.first())

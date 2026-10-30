@@ -195,7 +195,9 @@ fun ClassTableScreen(
     val todayCourses = remember(courses, liveSemesterCourses, currentMinute) {
         viewModel.todayCourses
     }
-    val ongoingCourses = remember(courses, liveSemesterCourses, currentMinute) {
+    // Keyed too, so a new feed redraws the strip without waiting for the minute.
+    val courseChanges by viewModel.courseChanges.collectAsStateWithLifecycle()
+    val ongoingCourses = remember(courses, liveSemesterCourses, currentMinute, courseChanges) {
         viewModel.ongoingCourses
     }
     // Keyed on the preference too: it is read inside the getter, so a flip
@@ -499,20 +501,22 @@ fun ClassTableScreen(
                             if (ongoing != null) {
                                 CurrentClassCard(
                                     course = ongoing.course,
-                                    blockStartMinute = ongoing.startMinute,
-                                    blockEndMinute = ongoing.endMinute,
+                                    blockStartMinute = ongoing.start.hour * 60 + ongoing.start.minute,
+                                    blockEndMinute = ongoing.end.hour * 60 + ongoing.end.minute,
                                     currentMinute = currentMinute,
                                     hasAssignment = course.courseNo in courseNosWithAssignments,
                                     weekday = ongoing.weekday,
                                     periods = ongoing.periods,
+                                    change = ongoing.takeIf { it.changes.isNotEmpty() },
                                     onClick = {
                                         viewModel.selectCourse(
                                             ongoing.course,
                                             ongoing.weekday,
-                                            ongoing.firstPeriodId,
+                                            ongoing.periods.first(),
                                             fromLiveTerm = true,
                                             periods = ongoing.periods,
                                             date = AppClock.localDateTime().toLocalDate(),
+                                            slot = ongoing,
                                         )
                                     },
                                     modifier = Modifier.fillMaxHeight()
@@ -522,11 +526,17 @@ fun ClassTableScreen(
                                 // or the last once the day's are over, so a
                                 // course meeting twice shows its afternoon
                                 // times and room after the morning block.
-                                val block = remember(course, dayIndex, currentMinute) {
-                                    ClassTableSelection.carouselBlock(course, dayIndex, currentMinute)
+                                val card = remember(course, dayIndex, currentMinute, courseChanges) {
+                                    viewModel.todayCard(course)
                                 }
-                                val timeRange = remember(block) {
-                                    if (!block.isNullOrEmpty()) {
+                                val block = card.periods
+                                val timeRange = remember(card) {
+                                    val meeting = card.meeting
+                                    if (meeting != null) {
+                                        "%02d:%02d-%02d:%02d".format(
+                                            meeting.start.hour, meeting.start.minute, meeting.end.hour, meeting.end.minute,
+                                        )
+                                    } else if (!block.isNullOrEmpty()) {
                                         val first = AppConstants.PeriodTimes.mapping[block.first()]
                                         val last = AppConstants.PeriodTimes.mapping[block.last()]
                                         if (first != null && last != null) "${first.first}-${last.second}" else null
@@ -536,9 +546,10 @@ fun ClassTableScreen(
                                     course = course,
                                     timeRange = timeRange,
                                     hasAssignment = course.courseNo in courseNosWithAssignments,
-                                    isFinished = viewModel.isCourseFinishedToday(course),
+                                    isFinished = card.isFinished,
                                     weekday = dayIndex,
                                     periods = block,
+                                    change = card.meeting,
                                     onClick = {
                                         viewModel.selectCourse(
                                             course,

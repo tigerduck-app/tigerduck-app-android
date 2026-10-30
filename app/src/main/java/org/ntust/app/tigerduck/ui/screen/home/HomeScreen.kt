@@ -113,6 +113,7 @@ fun HomeScreen(
     var quietDays by remember { mutableStateOf(viewModel.quietDays()) }
     LaunchedEffect(termClockVersion) { quietDays = viewModel.quietDays() }
     val allCourses by viewModel.allCourses.collectAsStateWithLifecycle()
+    val courseChanges by viewModel.courseChanges.collectAsStateWithLifecycle()
     val upcomingAssignments by viewModel.upcomingAssignments.collectAsStateWithLifecycle()
     val assignmentFilter by viewModel.assignmentFilter.collectAsStateWithLifecycle()
     val ignoredAssignmentIds by viewModel.ignoredAssignmentIds.collectAsStateWithLifecycle()
@@ -244,6 +245,7 @@ fun HomeScreen(
                 allCourses = allCourses,
                 timeSlider = timeSlider,
                 quietDays = quietDays,
+                courseChanges = courseChanges,
                 upcomingAssignments = upcomingAssignments,
                 assignmentFilter = assignmentFilter,
                 showIgnoredTab = hasIgnoredAssignments || ignoredTabPinned,

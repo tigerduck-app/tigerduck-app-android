@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.academic.Holiday
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.emptyclassroom.CampusUsage
 import org.ntust.app.tigerduck.emptyclassroom.ClassStop
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageError
@@ -132,6 +133,7 @@ class EmptyClassroomViewModel internal constructor(
         // appear() reads the courses anyway.
         viewModelScope.launch { env.coursesChanged.drop(1).collect { if (isStarted) reloadCourses() } }
         viewModelScope.launch { env.calendarChanged.collect { calendarChanged() } }
+        viewModelScope.launch { env.courseChangesChanged.collect { refreshClasses() } }
     }
 
     /**
@@ -263,7 +265,9 @@ class EmptyClassroomViewModel internal constructor(
 
     private fun refreshClasses() {
         val state = _state.value
-        val classes = ClassStop.stops(courses, state.selectedDay.dayOfWeek.value)
+        // Every day counts as a class day: the rooms, which the stops are for, show only on one.
+        val slots = CourseMeetings.meetingSlots(courses, state.selectedDay, env.courseChanges(), isClassDay = { true })
+        val classes = ClassStop.stops(slots)
         val remaining = java.time.temporal.ChronoUnit.DAYS.between(state.selectedDay, state.days.last()).toInt()
         edit {
             it.copy(

@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -316,6 +317,8 @@ internal fun HomeSectionContent(
     /** The time slider's state, held above the section so editing does not reset it. */
     timeSlider: TimeSliderViewModel,
     quietDays: QuietDays,
+    /** The school's course changes, which the time slider's classes follow. */
+    courseChanges: CourseChanges = CourseChanges.EMPTY,
     upcomingAssignments: List<Assignment>,
     assignmentFilter: AssignmentFilter,
     showIgnoredTab: Boolean,
@@ -346,6 +349,7 @@ internal fun HomeSectionContent(
                     viewModel = timeSlider,
                     courses = allCourses,
                     quietDays = quietDays,
+                    courseChanges = courseChanges,
                     invertDirection = invertDirection,
                     isLoggedIn = isLoggedIn,
                     initialLoadComplete = initialLoadComplete,
