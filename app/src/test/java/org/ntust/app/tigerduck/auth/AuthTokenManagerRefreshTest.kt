@@ -910,6 +910,39 @@ class AuthTokenManagerRefreshTest {
         assertEquals(listOf("refresh-1"), sentRefreshTokens)
     }
 
+    /**
+     * Its check is asked after that wait, right before the send (#593): the setting may move
+     * while the session's refresh is out, and a send after it would go to the old http backend.
+     */
+    @Test
+    fun `a departing refresh told not to depart during its wait sends nothing after it`() = runBlocking {
+        val manager = manager(Reply.Status(503), Reply.Pair("access-3", "refresh-3"))
+        val sent = CountDownLatch(1)
+        val answer = CountDownLatch(1)
+        var departing: DepartingSession? = null
+        onRefreshSent = {
+            departing = manager.departingSession()
+            manager.logout()
+            onRefreshSent = {}
+            sent.countDown()
+            answer.await(5, TimeUnit.SECONDS)
+        }
+        val sessionRefresh = async(Dispatchers.IO) { manager.authHeader() }
+        assertTrue(sent.await(5, TimeUnit.SECONDS))
+
+        val mayDepart = java.util.concurrent.atomic.AtomicBoolean(true)
+        val unregisterRefresh = async(Dispatchers.IO) {
+            manager.refreshDeparting(departing!!, sendsWithoutReply = 0) { mayDepart.get() }
+        }
+        Thread.sleep(300)
+        mayDepart.set(false)
+        answer.countDown()
+
+        assertNull(sessionRefresh.await())
+        assertEquals(DepartingRefresh.Unused, unregisterRefresh.await())
+        assertEquals(listOf("refresh-1"), sentRefreshTokens)
+    }
+
     @Test
     fun `a departing refresh waits for the session refresh on its way only so long`() = runBlocking {
         val manager = manager(Reply.Pair("access-2", "refresh-2"), departingWaitMs = 200)
