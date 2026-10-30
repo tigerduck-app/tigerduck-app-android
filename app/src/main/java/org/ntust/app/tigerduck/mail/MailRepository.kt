@@ -787,12 +787,30 @@ class MailRepository @Inject constructor(
         _searchIndexProgress.value = _searchIndexProgress.value?.copy(running = false)
     }
 
-    // No progress: [owner]'s download got through, its mailbox left ([departing], all for null),
-    // or the downloaded mail went. Only that mailbox's: another's signed in since stays.
-    private fun clearProgress(owner: MailIndexer.Owner) = clearProgressWhere { it == owner.mailbox() }
+    // No progress: [owner]'s download got through with no gap found since its last pass planned
+    // ([gaps]), asked under the lock a gap is published under; its mailbox left ([departing]); or
+    // the downloaded mail went (null, every mailbox). Only that mailbox's: another's signed in
+    // since stays.
+    private fun clearProgress(owner: MailIndexer.Owner, gaps: Int) =
+        clearProgressWhere { it == owner.mailbox() && gapsFound.get() == gaps }
 
-    private fun clearProgressOf(departing: String?) =
-        clearProgressWhere { departing == null || it.first == departing.lowercase() }
+    // A sign-out with no one signed in ([departing] null) has no mailbox to clear.
+    private fun clearProgressOf(departing: String?) {
+        if (departing != null) clearProgressWhere { it.first == departing.lowercase() }
+    }
+
+    private fun clearAllProgress() = clearProgressWhere { true }
+
+    // A search found mail missing: the row says so, stopped, until a download gets through,
+    // where it said OK; a download under way keeps its own. Under the lock the last pass's clear
+    // asks [gapsFound] under, so it cannot clear past this gap.
+    private fun noteGap() = synchronized(progressLock) {
+        gapsFound.incrementAndGet()
+        if (_searchIndexProgress.value != null) return
+        val owner = indexOwnerNow() ?: return
+        progressMailbox = owner.mailbox()
+        _searchIndexProgress.value = MailIndexProgress.COUNTING.copy(running = false)
+    }
 
     private fun clearProgressWhere(mailbox: (Pair<String, Int>) -> Boolean) = synchronized(progressLock) {
         val shown = progressMailbox ?: return
@@ -879,7 +897,7 @@ class MailRepository @Inject constructor(
             } while (gapsFound.get() != gaps && current())
             // Done only when the last pass got through and no search found a gap since: a pass
             // let go of before it ran again leaves mail missing, which the row keeps saying.
-            if (through && gapsFound.get() == gaps) clearProgress(owner)
+            if (through) clearProgress(owner, gaps)
         } catch (e: MailError.AuthFailed) {
             // Unless the account that was refused has left since: its rejection must not stop the
             // next one, whose password the server has not seen.
@@ -1135,7 +1153,7 @@ class MailRepository @Inject constructor(
         if (whole) {
             indexScheduler.request()
         } else {
-            gapsFound.incrementAndGet()
+            noteGap()
             // A run that plans after now, if the one under way may be past its last look at
             // [gapsFound], or done and yet to be filed so, when a request would only join it.
             indexScheduler.requestAgain()
@@ -1157,7 +1175,7 @@ class MailRepository @Inject constructor(
         }
         inAppIndexing?.cancel()
         lastWhole = null
-        clearProgressOf(null)
+        clearAllProgress()
         numberings.clear()
         withContext(Dispatchers.IO) { searchIndex.clear() }
     }
