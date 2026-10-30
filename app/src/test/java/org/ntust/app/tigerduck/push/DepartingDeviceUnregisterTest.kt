@@ -510,6 +510,56 @@ class DepartingDeviceUnregisterTest {
         assertNull(store.pending)
     }
 
+    /** The setting moves while the refresh is out: the refreshed pair is kept, and nothing more goes. */
+    @Test
+    fun `a debt to an http backend the setting moves off during the refresh sends no DELETE`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe(expiresAt = now - 1)
+        refreshReplies += refreshed("access-2", "refresh-2")
+        onRefresh = { endpoint = BACKEND }
+
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        assertEquals(listOf("refresh-1"), refreshes)
+        assertEquals(emptyList<String>(), deletes)
+        assertEquals("refresh-2", store.pending?.session?.refreshToken)
+    }
+
+    /** A refresh whose reply was lost is sent once more at most -- and not after the setting moved. */
+    @Test
+    fun `a lost refresh reply is not sent again once the setting moved off the http backend`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe(expiresAt = now - 1)
+        refreshReplies += DepartingRefresh.NoReply
+        onRefresh = { endpoint = BACKEND }
+
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        assertEquals(listOf("refresh-1"), refreshes)
+        assertEquals(emptyList<String>(), deletes)
+        assertEquals("refresh-1", store.pending?.session?.refreshToken)
+    }
+
+    /** A 401 that comes back after the setting moved is not answered with a refresh and a resend. */
+    @Test
+    fun `a 401 that lands after the setting moved off the http backend sends nothing more`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe()
+        val held = CompletableDeferred<Int>().also { heldDelete = it }
+
+        val sending = async { unregister().send() }
+        runCurrent()
+        endpoint = BACKEND
+        held.complete(401)
+
+        assertEquals(Outcome.RETRY, sending.await())
+        assertEquals(listOf("device-1 access-1"), deletes)
+        assertEquals(emptyList<String>(), refreshes)
+    }
+
     /** TLS keeps the token to the host that issued it, wherever the phone is. */
     @Test
     fun `a debt to an https backend no longer in use still goes out to it`() = runTest {

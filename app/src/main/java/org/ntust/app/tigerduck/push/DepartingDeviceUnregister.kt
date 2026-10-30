@@ -177,11 +177,14 @@ class DepartingDeviceUnregister internal constructor(
         if (sessionAt(current.session.baseUrl)) return Outcome.DONE
         // A stop that came during the refresh ends here, with the rotated pair kept.
         currentCoroutineContext().ensureActive()
+        // Asked again before each send: the setting can move while a refresh or a DELETE is out.
+        if (heldBack(current.session.baseUrl)) return Outcome.RETRY
         var status = deleteDevice(current.session.baseUrl, current.deviceId, current.session.accessToken)
         if (status == 401 && !refreshed) {
             // Turned down before its time, a revoked token, say: a refreshed one may still go out.
             current = renew(current) ?: return afterFailedRefresh()
             if (sessionAt(current.session.baseUrl)) return Outcome.DONE
+            if (heldBack(current.session.baseUrl)) return Outcome.RETRY
             status = deleteDevice(current.session.baseUrl, current.deviceId, current.session.accessToken)
         }
         return when {
@@ -209,6 +212,12 @@ class DepartingDeviceUnregister internal constructor(
         var current = pending
         var reply: DepartingRefresh
         do {
+            // Held back since the last send, an http backend the setting moved off: left for a
+            // later try, with the count and any pair already kept.
+            if (heldBack(current.session.baseUrl)) {
+                refreshUnavailable = true
+                return@withContext null
+            }
             // Counted on disk before it goes out: a process ended during the send has it counted.
             // A reply that cannot be read throws, and stays counted, as one that never came.
             val sending = current.with(unansweredRefreshes = current.unansweredRefreshes + 1)
