@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
@@ -121,30 +123,7 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
     val currentWeekIndex = state.value?.sections?.indexOfFirst { it.id == currentWeek }
         ?.takeIf { it >= 0 }
         ?.let { it + if (state.failureBesideCopy != null) 1 else 0 }
-    val firstSectionId by rememberUpdatedState(state.value?.sections?.firstOrNull()?.id)
-    // At the top, or with the first section at the top under a failure note that came in above
-    // it: the list holds its first item by key, which no reader did.
-    val atTop = {
-        val index = listState.firstVisibleItemIndex
-        listState.firstVisibleItemScrollOffset == 0 &&
-            (index == 0 || listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.key == firstSectionId)
-    }
-    // Set once the list has moved, to this week or by the reader before that, by touch, keys or
-    // TalkBack alike; the list is not moved for them after.
-    var listMoved by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(listState) {
-        if (listMoved) return@LaunchedEffect
-        snapshotFlow { atTop() }.first { !it }
-        listMoved = true
-    }
-    // Without a copy of the summary, one still being read or fetched can change the week, as its
-    // format decides how the week is found, so the scroll waits for it.
-    val summarySettled = summary.cacheLoaded && (summary.value != null || !summary.isRefreshing)
-    LaunchedEffect(currentWeekIndex, summarySettled) {
-        if (listMoved || !summarySettled || currentWeekIndex == null) return@LaunchedEffect
-        listMoved = true
-        if (atTop()) listState.scrollToItem(currentWeekIndex)
-    }
+    ScrollToWeekOnce(store, listState, materialsShown = state.value != null, currentWeekIndex)
     PullToRefreshBox(
         isRefreshing = pulling,
         onRefresh = { pulling = true; refresher { pulling = false } },
@@ -166,7 +145,7 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
                 }
             } else {
                 state.failureBesideCopy?.let { failure ->
-                    item(key = "failure") { MoodleRefreshFailure(failure, onRetry = { scope.launch { store.refreshMaterials() } }) }
+                    item(key = FAILURE_KEY) { MoodleRefreshFailure(failure, onRetry = { scope.launch { store.refreshMaterials() } }) }
                 }
                 items(materials.sections, key = { it.id }) { section ->
                     MaterialSection(store, section, section.id == currentWeek, snapshot, files, browserPreference)
@@ -177,6 +156,52 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
 }
 
 /**
+ * Scrolls [listState] to this week's section once, when the page opens. Without a copy of the
+ * summary, the summary's format decides how the week is found, so the scroll waits for a fetch
+ * of it to end, answered or failed. It is the page's one chance: a week found later, as by a
+ * summary that comes after a failed fetch, does not move the list; nor does a week found after
+ * the reader has moved it, by touch, keys or TalkBack alike.
+ */
+@Composable
+private fun ScrollToWeekOnce(
+    store: MoodleCourseStore,
+    listState: LazyListState,
+    materialsShown: Boolean,
+    currentWeekIndex: Int?,
+) {
+    val summary by store.summary.state.collectAsStateWithLifecycle()
+    var done by rememberSaveable { mutableStateOf(false) }
+    // A fetch of the summary that failed since the page opened sets a failure other than this.
+    val failureAtOpen = remember(store) { store.summary.state.value.failure }
+    val shownMaterials by rememberUpdatedState(materialsShown)
+    // The reader has moved the list once its top is anything but the very top, or the item at
+    // the top when the materials first showed: a section or a failure note that comes in above
+    // that item leaves it at the top, as the list holds its first item by key, which no reader did.
+    LaunchedEffect(listState) {
+        if (done) return@LaunchedEffect
+        fun firstKey(): Any? = listState.layoutInfo.visibleItemsInfo
+            .firstOrNull { it.index == listState.firstVisibleItemIndex }?.key
+        val anchor = snapshotFlow { firstKey().takeIf { shownMaterials && (it is Int || it == FAILURE_KEY) } }
+            .filterNotNull().first()
+        snapshotFlow {
+            listState.firstVisibleItemScrollOffset == 0 &&
+                (listState.firstVisibleItemIndex == 0 || firstKey() == anchor)
+        }.first { !it }
+        done = true
+    }
+    val summaryTried = summary.value != null || (summary.failure != null && summary.failure !== failureAtOpen)
+    val ready = materialsShown && summary.cacheLoaded && summaryTried
+    val weekIndex by rememberUpdatedState(currentWeekIndex)
+    LaunchedEffect(ready) {
+        if (!ready || done) return@LaunchedEffect
+        done = true
+        weekIndex?.let { listState.scrollToItem(it) }
+    }
+}
+
+private const val FAILURE_KEY = "failure"
+
+/**
  * This week's section; null for none. The course's format and start date come from its summary,
  * which the course page keeps fresh.
  */
@@ -185,7 +210,9 @@ private fun rememberCurrentWeek(materials: MoodleCourseMaterials?, summary: Mood
     val clockVersion by rememberAppClockVersion()
     return remember(materials, summary, clockVersion) {
         materials?.let {
-            MoodleCurrentWeek.sectionId(it.sections, summary?.format, summary?.startDate, AppClock.instant(), AppConstants.TAIPEI_ZONE)
+            MoodleCurrentWeek.sectionId(
+                it.sections, summary?.format, summary?.startDate, AppClock.instant(), AppConstants.TAIPEI_ZONE,
+            )
         }
     }
 }

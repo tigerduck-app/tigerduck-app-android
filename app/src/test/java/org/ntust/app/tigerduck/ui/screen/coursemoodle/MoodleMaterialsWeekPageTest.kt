@@ -79,8 +79,8 @@ class MoodleMaterialsWeekPageTest {
         return "Week $week ${day.monthValue}/${day.dayOfMonth}"
     }
 
-    private fun materials(datedAsWeek: Int? = null) = MoodleCourseMaterials(
-        (0..16).map { week ->
+    private fun materials(datedAsWeek: Int? = null, from: Int = 0) = MoodleCourseMaterials(
+        (from..16).map { week ->
             MoodleMaterialSection(
                 100 + week, sectionName(week, datedAsWeek),
                 listOf(MoodleMaterial(9000 + week, 300 + week, MoodleMaterial.URL, "Slides $week", emptyList(), "https://www.example.com/w$week")),
@@ -92,8 +92,10 @@ class MoodleMaterialsWeekPageTest {
     private inner class Api(
         private val materials: MoodleCourseMaterials,
         private val materialsGate: CompletableDeferred<Unit>? = null,
-        private val summaryGate: CompletableDeferred<Unit>? = null,
+        var summaryGate: CompletableDeferred<Unit>? = null,
         private val materialsFail: Boolean = false,
+        /** How many summary fetches fail before one answers. */
+        private var summaryFailures: Int = 0,
     ) : MoodleCourseApi {
         override suspend fun functions() = setOf(MoodleCourseApi.CONTENTS_FUNCTION, MoodleCourseApi.COURSES_FUNCTION)
         override suspend fun forums(courseIds: List<Int>) = emptyList<MoodleForum>()
@@ -110,6 +112,10 @@ class MoodleMaterialsWeekPageTest {
         }
         override suspend fun summary(courseId: Int): MoodleCourseSummary {
             summaryGate?.await()
+            if (summaryFailures > 0) {
+                summaryFailures--
+                throw MoodleWebserviceError.SiteMaintenance()
+            }
             return weeklyCourse
         }
     }
@@ -244,6 +250,66 @@ class MoodleMaterialsWeekPageTest {
 
         waitForTopHeader("Week 8")
         gate.complete(Unit)
+    }
+
+    @Test
+    fun `the page waits for its own first fetch of a summary it has no copy of`() {
+        val gate = CompletableDeferred<Unit>()
+        val materials = materials(datedAsWeek = 3)
+        show(store(Api(materials, summaryGate = gate), cache(materials, null)))
+        composeRule.waitUntil(5_000) { shows("General") }
+
+        gate.complete(Unit)
+
+        waitForTopHeader(sectionName(8, datedAsWeek = 3))
+    }
+
+    @Test
+    fun `a failure the course page left does not stand for this page's own fetch`() {
+        val materials = materials(datedAsWeek = 3)
+        val api = Api(materials, summaryFailures = 1)
+        val store = store(api, cache(materials, null))
+        scope.launch { store.refreshSummary() }
+        composeRule.waitUntil(5_000) { store.summary.state.value.failure != null }
+        val gate = CompletableDeferred<Unit>()
+        api.summaryGate = gate
+        show(store)
+        composeRule.waitUntil(5_000) { shows("General") }
+
+        gate.complete(Unit)
+
+        waitForTopHeader(sectionName(8, datedAsWeek = 3))
+    }
+
+    @Test
+    fun `a section a refresh adds above the top one does not count as the reader scrolling`() {
+        val gate = CompletableDeferred<Unit>()
+        val store = store(
+            Api(materials(), summaryGate = gate),
+            cache(materials(from = 1), null, materialsFetchedAtMs = 0L),
+        )
+        show(store)
+        composeRule.waitUntil(5_000) { store.materials.state.value.value?.sections?.firstOrNull()?.name == "General" }
+        composeRule.waitForIdle()
+
+        gate.complete(Unit)
+
+        waitForTopHeader("Week 8")
+    }
+
+    @Test
+    fun `a page that found no week stays put when the summary comes later`() {
+        val materials = materials()
+        val store = store(Api(materials, summaryFailures = 1), cache(materials, null))
+        show(store)
+        composeRule.waitUntil(5_000) { store.summary.state.value.failure != null }
+        composeRule.waitForIdle()
+
+        scope.launch { store.refreshSummary() }
+        composeRule.waitUntil(5_000) { store.summary.state.value.value != null }
+        composeRule.waitForIdle()
+
+        assertTopHeader("General")
     }
 
     /** Shows the course, its summary on its way until [scroll] is done, then lets it in. */
