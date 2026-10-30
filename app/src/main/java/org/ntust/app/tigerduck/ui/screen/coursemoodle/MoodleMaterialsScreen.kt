@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -17,15 +18,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -33,13 +37,19 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
+import org.ntust.app.tigerduck.data.moodle.MoodleCurrentWeek
 import org.ntust.app.tigerduck.data.moodle.MoodleDownloadState
 import org.ntust.app.tigerduck.data.moodle.MoodleFileDownloads
 import org.ntust.app.tigerduck.data.moodle.MoodleMaterialRow
 import org.ntust.app.tigerduck.data.moodle.MoodleMaterials
+import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
+import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterialSection
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
@@ -87,8 +97,9 @@ fun MoodleMaterialsScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, browserPreference: String) {
+internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, browserPreference: String) {
     val state by store.materials.state.collectAsStateWithLifecycle()
+    val summary by store.summary.state.collectAsStateWithLifecycle()
     val snapshot = store.downloads?.snapshot?.collectAsStateWithLifecycle()?.value
     MoodleAutoRefresh(store, store.materials.ttlMs, store::awaitCache, { store.materials.state.value.fetchedAtMs }) {
         store.refreshMaterials()
@@ -96,6 +107,24 @@ private fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, bro
     var pulling by remember { mutableStateOf(false) }
     val refresher = rememberRefresher { store.refreshMaterials() }
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    val currentWeek = rememberCurrentWeek(state.value, summary.value)
+    // The list's index of this week's section, after the failure note when one shows.
+    val currentWeekIndex = state.value?.sections?.indexOfFirst { it.id == currentWeek }
+        ?.takeIf { it >= 0 }
+        ?.let { it + if (state.failureBesideCopy != null) 1 else 0 }
+    var scrolledToWeek by rememberSaveable { mutableStateOf(false) }
+    // A summary still being read or fetched can change the week, as its format decides how the
+    // week is found, so the scroll waits for it; and it comes once, never under a reader who has
+    // scrolled the list already.
+    val summarySettled = summary.cacheLoaded && !summary.isRefreshing
+    LaunchedEffect(currentWeekIndex, summarySettled) {
+        if (scrolledToWeek || !summarySettled || currentWeekIndex == null) return@LaunchedEffect
+        scrolledToWeek = true
+        if (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
+            listState.scrollToItem(currentWeekIndex)
+        }
+    }
     PullToRefreshBox(
         isRefreshing = pulling,
         onRefresh = { pulling = true; refresher { pulling = false } },
@@ -103,6 +132,7 @@ private fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, bro
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
+            state = listState,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -119,9 +149,23 @@ private fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, bro
                     item(key = "failure") { MoodleRefreshFailure(failure, onRetry = { scope.launch { store.refreshMaterials() } }) }
                 }
                 items(materials.sections, key = { it.id }) { section ->
-                    MaterialSection(store, section, snapshot, files, browserPreference)
+                    MaterialSection(store, section, section.id == currentWeek, snapshot, files, browserPreference)
                 }
             }
+        }
+    }
+}
+
+/**
+ * This week's section; null for none. The course's format and start date come from its summary,
+ * which the course page keeps fresh.
+ */
+@Composable
+private fun rememberCurrentWeek(materials: MoodleCourseMaterials?, summary: MoodleCourseSummary?): Int? {
+    val clockVersion by rememberAppClockVersion()
+    return remember(materials, summary, clockVersion) {
+        materials?.let {
+            MoodleCurrentWeek.sectionId(it.sections, summary?.format, summary?.startDate, AppClock.instant(), AppConstants.TAIPEI_ZONE)
         }
     }
 }
@@ -130,6 +174,7 @@ private fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, bro
 private fun MaterialSection(
     store: MoodleCourseStore,
     section: MoodleMaterialSection,
+    isCurrentWeek: Boolean,
     snapshot: MoodleFileDownloads.Snapshot?,
     files: MoodleFileOpener,
     browserPreference: String,
@@ -142,12 +187,19 @@ private fun MaterialSection(
                 text = section.name,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY),
+                color = if (isCurrentWeek) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = ContentAlpha.SECONDARY)
+                },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
-                    .semantics { heading() },
+                    .semantics {
+                        heading()
+                        if (isCurrentWeek) selected = true
+                    },
             )
         }
         Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surface) {
