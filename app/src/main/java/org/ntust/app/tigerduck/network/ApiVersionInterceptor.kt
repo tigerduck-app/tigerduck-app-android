@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.network
 
 import okhttp3.Interceptor
 import okhttp3.Response
+import org.json.JSONObject
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 
 /**
@@ -21,22 +22,40 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
  * debug build can repoint the endpoint at runtime and the comparison has to
  * follow it.
  */
-class ApiVersionInterceptor(
-    private val prefs: AppPreferences,
+class ApiVersionInterceptor internal constructor(
+    // Our backend's base URL as the endpoint setting names it now; null when it cannot be read.
+    private val backend: () -> String?,
 ) : Interceptor {
+
+    constructor(prefs: AppPreferences) : this({
+        runCatching { resolveAnnouncementEndpoint(prefs).url.trimEnd('/') }.getOrNull()
+    })
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val response = chain.proceed(chain.request())
-        if (response.code == 410 && isOurBackend(chain.request().url.toString())) {
+        if (response.code == 410 && isOurBackend(chain.request().url.toString()) && !asksForFullSync(response)) {
             ApiVersionGate.note(response.code)
         }
         return response
     }
 
+    // The change feed answers 410 too when the changes after the revision it was asked for are
+    // pruned, and the app then makes a full sync (SyncApiClient.fetchChanges). That one says
+    // nothing about the app's version. Any other 410, whatever its body, still retires the API.
+    // Peeked, so the caller still reads the whole body.
+    private fun asksForFullSync(response: Response): Boolean = runCatching {
+        JSONObject(response.peekBody(PEEKED_BYTES).string()).optString("error") == SYNC_REVISION_EXPIRED
+    }.getOrDefault(false)
+
     private fun isOurBackend(requestUrl: String): Boolean {
-        val base = runCatching {
-            resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
-        }.getOrNull() ?: return false
+        val base = backend() ?: return false
         return base.isNotEmpty() && requestUrl.startsWith(base)
+    }
+
+    private companion object {
+        const val SYNC_REVISION_EXPIRED = "sync_revision_expired"
+
+        // The feed's 410 body is a few short fields; a longer one is no such answer.
+        const val PEEKED_BYTES = 4_096L
     }
 }
