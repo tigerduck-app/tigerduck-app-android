@@ -81,12 +81,7 @@ class CourseService @Inject constructor(
     // Courses' syllabi from QueryCourse's `coursedetials`, kept for the app's run; see [syllabus].
     private val syllabi = CourseSyllabusStore(appScope) { semester, courseNo, language ->
         withContext(Dispatchers.IO) {
-            val url = courseSyllabusApiUrl.toHttpUrl().newBuilder()
-                .addQueryParameter("semester", semester)
-                .addQueryParameter("course_no", courseNo)
-                .addQueryParameter("language", language)
-                .build()
-            client.newCall(Request.Builder().url(url).get().build()).execute().use { response ->
+            client.newCall(courseSyllabusRequest(semester, courseNo, language)).execute().use { response ->
                 if (!response.isSuccessful) throw java.io.IOException("syllabus HTTP ${response.code}")
                 response.body.string()
             }
@@ -109,7 +104,7 @@ class CourseService @Inject constructor(
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
     private val courseSearchApiBaseUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
-    private val courseSyllabusApiUrl = "https://querycourse.ntust.edu.tw/querycourse/api/coursedetials"
+
 
     // Per-course metadata cache — see DataCache.CourseLookupEntry. Entries
     // are loaded from disk once on first use and written through on every
@@ -674,3 +669,23 @@ class CourseService @Inject constructor(
         @SerializedName("translated") val translated: String? = null,
     )
 }
+
+private const val COURSE_SYLLABUS_API_URL = "https://querycourse.ntust.edu.tw/querycourse/api/coursedetials"
+
+/**
+ * QueryCourse's `coursedetials` for [courseNo] in [semester], answered in [language]. Asking for
+ * JSON, as every QueryCourse request does: the session's default header prefers HTML, which the
+ * service answers with a 500 in XML.
+ */
+internal fun courseSyllabusRequest(semester: String, courseNo: String, language: String): Request =
+    Request.Builder()
+        .url(
+            COURSE_SYLLABUS_API_URL.toHttpUrl().newBuilder()
+                .addQueryParameter("semester", semester)
+                .addQueryParameter("course_no", courseNo)
+                .addQueryParameter("language", language)
+                .build(),
+        )
+        .header("Accept", "application/json")
+        .get()
+        .build()

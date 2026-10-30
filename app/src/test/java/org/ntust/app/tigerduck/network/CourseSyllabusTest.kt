@@ -185,6 +185,19 @@ class CourseSyllabusTest {
         instruction1 = lecture, instruction2 = "", instruction3 = null, instruction4 = "0", instructionOther = other,
     )
 
+    /** QueryCourse answers a request that prefers HTML with a 500 in XML: the syllabus asks for JSON. */
+    @Test
+    fun `the syllabus request names the term, course and language and asks for JSON`() {
+        val request = courseSyllabusRequest("1151", "ZZ1001301", "en")
+
+        assertEquals("application/json", request.header("Accept"))
+        assertEquals("GET", request.method)
+        assertEquals("1151", request.url.queryParameter("semester"))
+        assertEquals("ZZ1001301", request.url.queryParameter("course_no"))
+        assertEquals("en", request.url.queryParameter("language"))
+        assertEquals("/querycourse/api/coursedetials", request.url.encodedPath)
+    }
+
     // The kept fetch
 
     @Test
