@@ -474,10 +474,17 @@ class AuthTokenManager(
         // session of the login it took last, which is then the pair stored last. One that a
         // sign-out overtook while it waited sends nothing.
         if (signInGeneration != this.signInGeneration) throw AuthException("signed out before login")
-        currentCoroutineContext()[Replacing]?.let { if (replacedSince(it.refreshToken)) throw SessionReplacedException() }
+        val replacing = currentCoroutineContext()[Replacing]
         // Read once: the debt the login may end and the pair it stores are this backend's.
         val issuer = baseUrl
-        signingIn(studentId, issuer) { postLogin(issuer, studentId, moodleToken, moodlePrivateToken, platform, signInGeneration) }
+        signingIn(studentId, issuer) {
+            // Asked last, past the thread hop and the owed unregister's lock: a refresh that stored
+            // a pair while those waited would otherwise see its session ended. One storing in the
+            // moment after is answered by its requests' 401s, whose relogin then finds this
+            // login's pair unrefused and retries with it (signInAgain).
+            if (replacing != null && replacedSince(replacing.refreshToken)) throw SessionReplacedException()
+            postLogin(issuer, studentId, moodleToken, moodlePrivateToken, platform, signInGeneration)
+        }
     }
 
     private fun postLogin(
