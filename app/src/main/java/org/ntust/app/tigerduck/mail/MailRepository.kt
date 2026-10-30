@@ -773,9 +773,15 @@ class MailRepository @Inject constructor(
 
     private fun MailIndexer.Owner.mailbox() = address to epoch
 
-    // [progress] of [owner]'s download, while the index is still its own.
+    // Under progressLock: the mailbox that left last and the account generation as it left. A sign-in
+    // tells of the student leaving before it moves the generation, and a download of theirs
+    // still running must not show progress in between.
+    private var departed: Pair<String, Int>? = null
+
+    // [progress] of [owner]'s download, while the index is still its own and its student has not left.
     private fun showProgress(owner: MailIndexer.Owner, progress: MailIndexProgress) = synchronized(progressLock) {
         if (!stillIndexOwner(owner)) return
+        departed?.let { (address, generation) -> if (owner.address == address && owner.generation <= generation) return }
         progressMailbox = owner.mailbox()
         _searchIndexProgress.value = progress
     }
@@ -796,7 +802,9 @@ class MailRepository @Inject constructor(
 
     // A sign-out with no one signed in ([departing] null) has no mailbox to clear.
     private fun clearProgressOf(departing: String?) {
-        if (departing != null) clearProgressWhere { it.first == departing.lowercase() }
+        if (departing == null) return
+        synchronized(progressLock) { departed = departing.lowercase() to account.accountGeneration }
+        clearProgressWhere { it.first == departing.lowercase() }
     }
 
     private fun clearAllProgress() = clearProgressWhere { true }
