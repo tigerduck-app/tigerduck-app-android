@@ -193,6 +193,15 @@ class WidgetCourseChangesTest {
     }
 
     @Test
+    fun `a Week tile over two meetings shows the change of the meeting it starts with`() {
+        // Periods 4 and 6 with 5 hidden draw one tile; only the first meeting ends early.
+        val compilers = thursdayCourse("CC900", "Compilers", listOf("4", "6"), room = "T4-501")
+        val early = changes(row(1, "end", periods = listOf("4"), values = mapOf("end" to "11:45")))
+        val tile = weekBlockChange(state(listOf(compilers), early, "07:00", thursday.minusDays(1)), compilers, 4, listOf("4", "6"))
+        assertTrue(tile?.timeChanged == true)
+    }
+
+    @Test
     fun `the day's widget refresh comes at a class's changed start and end`() {
         val moved = thursdayCourse("CC901", "Moved", listOf("2"))
         val changes = changes(

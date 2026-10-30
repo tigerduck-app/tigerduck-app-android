@@ -828,15 +828,18 @@ internal fun weekChangeInk(highlighted: Boolean, colors: WidgetColors, style: Vi
 
 /**
  * The block of [course] over [periods] in the [weekday] column as the school
- * changed it, whole as the class table shows it: the meetings it covers on the
- * column's date, the week running from today, cancelled only when every period
- * is. Null where nothing a block shows changed, notes alone included, and for
- * a state with no [WidgetState.today]. As iOS `WeekGridView`'s look-up of the
- * snapshot's `meetingChanges`.
+ * changed it: the changed meeting that starts at the block's first period on
+ * the column's date, the week running from today, whole and cancelled only
+ * when every period is. A tile that spans a hidden period draws two meetings
+ * as one, and merging them would lose the first one's changed end. Null where
+ * nothing a block shows changed, notes alone included, and for a state with no
+ * [WidgetState.today]. As iOS `WeekGridView`'s look-up of the snapshot's
+ * `meetingChanges`.
  */
 internal fun weekBlockChange(state: WidgetState, course: Course, weekday: Int, periods: List<String>): CourseBlock? {
     val today = state.today ?: return null
     val date = ClassTableThisWeek.columnDate(weekday, today)
-    val meeting = CourseMeetings.meeting(course, periods, date, state.courseChanges) ?: return null
+    val meeting = CourseMeetings.changedMeetings(course, date, state.courseChanges)
+        .firstOrNull { it.periods.firstOrNull() == periods.firstOrNull() } ?: return null
     return CourseBlock.of(meeting).takeIf { it.isCancelled || it.roomChanged || it.timeChanged }
 }
