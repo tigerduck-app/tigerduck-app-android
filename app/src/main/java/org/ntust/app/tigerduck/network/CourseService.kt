@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -77,6 +78,28 @@ class CourseService @Inject constructor(
         appScope, windowMs = 0, SystemClock::elapsedRealtime,
     )
 
+    // Courses' syllabi from QueryCourse's `coursedetials`, kept for the app's run; see [syllabus].
+    private val syllabi = CourseSyllabusStore(appScope) { semester, courseNo, language ->
+        withContext(Dispatchers.IO) {
+            val url = courseSyllabusApiUrl.toHttpUrl().newBuilder()
+                .addQueryParameter("semester", semester)
+                .addQueryParameter("course_no", courseNo)
+                .addQueryParameter("language", language)
+                .build()
+            client.newCall(Request.Builder().url(url).get().build()).execute().use { response ->
+                if (!response.isSuccessful) throw java.io.IOException("syllabus HTTP ${response.code}")
+                response.body.string()
+            }
+        }
+    }
+
+    /**
+     * [courseNo]'s syllabus in [semester], in the app's language for the course service; null when
+     * the school has none. Throws when it cannot be fetched. Public: no account is asked for.
+     */
+    suspend fun syllabus(semester: String, courseNo: String): CourseSyllabus? =
+        syllabi.syllabus(semester, courseNo, preferredCourseApiLanguage())
+
     /** See [MoodleService.expireSharedResults]. */
     fun expireSharedResults() = sharedCourseNos.expire()
 
@@ -86,6 +109,7 @@ class CourseService @Inject constructor(
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
     private val courseSearchApiBaseUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
+    private val courseSyllabusApiUrl = "https://querycourse.ntust.edu.tw/querycourse/api/coursedetials"
 
     // Per-course metadata cache — see DataCache.CourseLookupEntry. Entries
     // are loaded from disk once on first use and written through on every
