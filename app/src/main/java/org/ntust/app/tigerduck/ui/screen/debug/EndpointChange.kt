@@ -1,9 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.debug
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.BulletinReadStateStore
+import org.ntust.app.tigerduck.data.BulletinRepository
+import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.demo.DemoAccount
@@ -14,6 +18,7 @@ import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLossCheck
+import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 
@@ -21,8 +26,9 @@ import javax.inject.Inject
  * A change of the API endpoint setting, the only place it is stored. A change to another backend
  * asks first, then signs out of every account held, and only then stores the endpoint, as the
  * iPhone's does (tigerduck-app#745): that backend never issued the session this phone holds, and
- * at the next sign-in it receives the student ID and the Moodle tokens. Saving the endpoint
- * already in use asks nothing and signs nothing out.
+ * at the next sign-in it receives the student ID and the Moodle tokens. It then lets go of the
+ * bulletins, which no account owns (tigerduck-app#908). Saving the endpoint already in use asks
+ * nothing and signs nothing out.
  *
  * Nothing waits for the sign-out's unregister to go out first: it goes to the backend that issued
  * its tokens whatever the setting names, until that backend has it (DepartingDeviceUnregister).
@@ -41,6 +47,8 @@ class EndpointChange internal constructor(
     private val signOutMail: () -> Unit,
     /** Registers the device at the backend stored, without waiting for it. */
     private val registerAgain: () -> Unit,
+    /** Lets go of what the backend left stored, which no account owns: the bulletins. */
+    private val forgetBackendData: () -> Unit,
 ) {
     @Inject
     constructor(
@@ -54,6 +62,9 @@ class EndpointChange internal constructor(
         wearBridge: WearScheduleBridge,
         mailAccount: MailAccount,
         pushRegistration: PushRegistrationService,
+        bulletinCache: BulletinCache,
+        bulletinRepository: BulletinRepository,
+        bulletinReadState: BulletinReadStateStore,
         @ApplicationScope scope: CoroutineScope,
     ) : this(
         stored = { prefs.announcementApiBaseUrlOverride },
@@ -78,6 +89,17 @@ class EndpointChange internal constructor(
         holdsMailAccount = { mailAccount.signedIn.value },
         signOutMail = mailAccount::signOut,
         registerAgain = { scope.launch { pushRegistration.syncNow() } },
+        // The list, its date and its details, and what this process holds of them; the read
+        // marks too, which are by the old backend's ids. On the application scope, as the
+        // sign-out's clear.
+        forgetBackendData = {
+            bulletinRepository.forget()
+            bulletinReadState.clear()
+            scope.launch {
+                runCatching { bulletinCache.clear() }
+                    .onFailure { Log.w("EndpointChange", "bulletinCache.clear failed: ${it.logSummary()}") }
+            }
+        },
     )
 
     /** Whether storing [target] (null: the default) moves the app to another backend, and so asks first. */
@@ -92,13 +114,18 @@ class EndpointChange internal constructor(
      * backend signs out of every account held before it is stored.
      */
     fun apply(target: String?) {
-        if (asks(target)) {
+        val moves = asks(target)
+        if (moves) {
             if (holdsSchoolAccount()) signOutSchool()
             // After the school's, which may have taken them with it.
             if (holdsLibraryAccount()) signOutLibrary()
             if (holdsMailAccount()) signOutMail()
         }
         store(target)
+        // Signed in or not: the old backend's pages would merge into the new one's rows by id.
+        // After the store, so a page fetched from the old backend that lands from now on is
+        // dropped (AnnouncementsViewModel).
+        if (moves) forgetBackendData()
         registerAgain()
     }
 }

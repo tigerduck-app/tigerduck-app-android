@@ -79,4 +79,31 @@ class BulletinRepositoryListSessionTest {
 
         assertEquals(42, repo.listSession(includeDeleted = false)?.nextCursor)
     }
+
+    /** An endpoint move lets go of everything the old backend's answers left here (#592). */
+    @Test
+    fun `forget lets go of the summaries, details, list session and taxonomy`() {
+        val repo = BulletinRepository()
+        repo.putSummaries(listOf(org.ntust.app.tigerduck.network.model.BulletinSummary(
+            id = 7, externalId = "e7", title = "T", titleClean = null, canonicalOrg = null,
+            importance = null, summary = "列表摘要", sourceUrl = null, postedAt = null,
+        )))
+        repo.putDetail(org.ntust.app.tigerduck.network.model.BulletinDetail(
+            id = 8, externalId = "e8", title = "T", titleClean = null, canonicalOrg = null,
+            importance = null, summary = null, sourceUrl = null, postedAt = null,
+            bodyClean = null, bodyMd = null, rawPublisher = null,
+        ))
+        repo.listRefreshed(nowMs = 1_000L, includeDeleted = false, nextCursor = 3)
+        kotlinx.coroutines.runBlocking {
+            repo.getOrFetchTaxonomy { org.ntust.app.tigerduck.network.model.TaxonomyResponse(emptyList(), emptyList(), emptyList()) }
+        }
+
+        repo.forget()
+
+        assertNull(repo.summary(7))
+        assertNull(repo.summary(8))
+        assertNull(repo.detail(8))
+        assertNull(repo.listSession(includeDeleted = false))
+        assertNull(repo.taxonomy())
+    }
 }

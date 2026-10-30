@@ -194,6 +194,53 @@ class AnnouncementsSyncedAtTest {
         assertEquals(listOf(1), runBlocking { cache.load() }.map { it.id })
     }
 
+    /**
+     * A refresh still out when the API endpoint moves to another backend: the move lets go of the
+     * cached list, signed in or not, and the old backend's page that then arrives must not write
+     * it back, nor merge by id into the new backend's rows (#592).
+     */
+    @Test
+    fun `a refresh that returns after the endpoint moved writes neither the list nor the date`() {
+        val gate = CountDownLatch(1).also { listGates[FIRST] = it }
+        val vm = viewModel()
+        vm.load()
+        eventually("the list is asked for") { listRequests.get() == 1 }
+
+        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:10/v3"
+        runBlocking { cache.clear() }
+        gate.countDown()
+
+        eventually("the page is dropped") { vm.state.value.loadState == LoadState.Idle }
+        assertTrue(vm.state.value.items.isEmpty())
+        assertTrue(runBlocking { cache.load() }.isEmpty())
+        assertEquals(0L, runBlocking { cache.loadFetchedAt() })
+
+        // The next visit lists the new backend's.
+        listGates.clear()
+        vm.load()
+        eventually("the next visit's refresh lands") { vm.state.value.loadState == LoadState.Loaded }
+        assertEquals(listOf(1), runBlocking { cache.load() }.map { it.id })
+    }
+
+    /**
+     * The page kept in memory, as when its tab is the first and so never leaves the back stack:
+     * a return after an endpoint move lists the new backend's, not the old one's still in memory.
+     */
+    @Test
+    fun `a return after the endpoint moved fetches the new backend's list`() {
+        val vm = viewModel()
+        vm.load()
+        eventually("the first refresh lands") { vm.state.value.loadState == LoadState.Loaded }
+        assertEquals(1, listRequests.get())
+
+        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:10/v3"
+        runBlocking { cache.clear() }
+        vm.load()
+
+        eventually("the new backend is asked") { listRequests.get() == 2 }
+        eventually("its list lands") { vm.state.value.loadState == LoadState.Loaded }
+    }
+
     /** The walk through older pages behind a refresh writes the list too, and is dropped the same way. */
     @Test
     fun `an older page that returns after the sign-out writes nothing either`() {

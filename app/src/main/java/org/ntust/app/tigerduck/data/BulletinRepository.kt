@@ -110,4 +110,17 @@ class BulletinRepository @Inject constructor() {
             taxonomyValue ?: fetcher()?.also { taxonomyValue = it }
         }
     }
+
+    /**
+     * Lets go of everything here, for an API endpoint move: the bulletins, their list session and
+     * the departments and categories all came from the backend the app no longer talks to.
+     */
+    @Synchronized
+    fun forget() {
+        summaries.clear()
+        listSummaries.clear()
+        details.clear()
+        listSession = null
+        taxonomyValue = null
+    }
 }

@@ -37,6 +37,9 @@ class BulletinApiClient @Inject constructor(
     // endpoints below.
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url
+
+    /** The backend the next request goes to, for a caller to tell whether it moved meanwhile. */
+    val backend: String get() = baseUrl
     private val gson = Gson()
 
     private val acceptInterceptor = okhttp3.Interceptor { chain ->
