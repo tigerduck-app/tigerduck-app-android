@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -309,6 +309,9 @@ class SchoolMailListViewModel @Inject constructor(
     // it again would take those rows away. Main-thread-only, as searchGeneration.
     private var searchPaged = false
 
+    // The query of the search on screen, as the user submitted it; main-thread-only.
+    private var submittedQuery: String? = null
+
     /**
      * The question [delete] or [requestMove] is still finding out from the server: which of the
      * two delete questions to ask, or which folders a mail can go to. One question at a time
@@ -350,14 +353,27 @@ class SchoolMailListViewModel @Inject constructor(
         // every [SEARCH_REGROW_MS], so its results grow rather than wait for a new search; as the
         // iPhone's (tigerduck-app#894). Not over the user's own search or a page of it still out.
         viewModelScope.launch {
+            // Each batch downloaded, and the end of a download that downloaded any, for one last
+            // run over the last batch.
+            var seen: MailIndexProgress? = null
             repository.searchIndexProgress
-                .filter { it != null && it.total != null && it.done > 0 }
+                .transform { progress ->
+                    val before = seen
+                    seen = progress
+                    val grew = progress != null && progress.total != null && progress.done > 0
+                    val ended = progress == null && (before?.done ?: 0) > 0
+                    if (grew || ended) emit(Unit)
+                }
                 .conflate()
                 .collect {
                     val s = _state.value
-                    // Nor over pages of it the user has scrolled to: run again, it would show only
-                    // the first of each folder, taking away the rows being read.
-                    if (s.searchResults != null && !s.isSearching && !s.isPagingSearch && !searchPaged) {
+                    // Nor over pages of it the user has scrolled to, or the search paged by
+                    // itself: run again, it would show only the first of each folder, taking away
+                    // the rows being read. Nor while the user edits the query: the search on
+                    // screen is the one they submitted.
+                    if (s.searchResults != null && !s.isSearching && !s.isPagingSearch && !searchPaged &&
+                        s.searchText.trim() == submittedQuery
+                    ) {
                         runSearch(keepShown = true)
                     }
                     delay(SEARCH_REGROW_MS)
@@ -1187,7 +1203,10 @@ class SchoolMailListViewModel @Inject constructor(
         val query = _state.value.searchText.trim()
         forgetSearch()
         val search = searchGeneration
-        if (!keepShown) searchPaged = false
+        if (!keepShown) {
+            searchPaged = false
+            submittedQuery = query
+        }
         if (query.isEmpty()) {
             _state.update { it.copy(searchResults = null, searchLocalOnly = false, searchIndexPartial = false) }
             return
@@ -1279,8 +1298,12 @@ class SchoolMailListViewModel @Inject constructor(
                 searchIndexPartial = outcomes.any { (_, outcome) -> (outcome as? SearchOutcome.Server)?.complete == false },
             )
             // Run again silently, it fetches no pages of its own: one whose first pages show
-            // nothing here, as under unread only, leaves the results on screen as they were.
-            if (keepShown && found.displayed.isEmpty() && _state.value.displayed.isNotEmpty()) return
+            // nothing here, as under unread only, leaves the results on screen as they were. A
+            // failure that must stick is still shown.
+            if (keepShown && found.displayed.isEmpty() && _state.value.displayed.isNotEmpty()) {
+                failure?.takeIf { it is MailError.Certificate || it is MailError.AuthFailed }?.let { searchFail(it, generation) }
+                return
+            }
             _state.update {
                 it.copy(
                     searchResults = found.searchResults,
@@ -1317,7 +1340,11 @@ class SchoolMailListViewModel @Inject constructor(
             // answered, with matches left to fetch, before Sent found the connection gone or the
             // password rejected, and a page of them now would open the connection again -- for a
             // rejected password, the LOGIN that was just decided against (spec §7.4).
-            if (!keepShown && !serverUnreachable && _state.value.displayed.isEmpty()) loadMoreSearchResults()
+            if (!keepShown && !serverUnreachable && _state.value.displayed.isEmpty()) {
+                // Pages it fetched by itself are rows a silent run again would take away.
+                searchPaged = true
+                loadMoreSearchResults()
+            }
         } finally {
             // Only the latest search's end stops the spinner: one it overtook may end while it runs.
             if (search == searchGeneration) _state.update { it.copy(isSearching = false) }

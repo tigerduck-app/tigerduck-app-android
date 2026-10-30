@@ -838,8 +838,6 @@ class MailRepository @Inject constructor(
     private suspend fun downloadIndex(asked: Int, stillWanted: () -> Boolean = { true }) {
         if (account.isDemo || state.authFailed) return
         val owner = withContext(Dispatchers.IO) { indexOwnerNow() }?.takeIf { it.epoch == asked } ?: return
-        // This one is the download a pull asked for, begun after it.
-        downloadAsked.set(false)
         try {
             // The folder list a first run resolves is the account's request too.
             val current = { stillWanted() && stillIndexOwner(owner) }
@@ -847,10 +845,13 @@ class MailRepository @Inject constructor(
             // came, and the run the search asked for was this one -- the background run's request
             // keeps the one already under way, and the download in the app runs one at a time.
             // Only for a gap found since the pass began, which only a search makes, so it ends.
+            // Again, too, for a pull made while a pass ran: that pass planned before the mail the
+            // pull asked for. Each pass begun is the one a pull before it asked for.
             do {
                 val gaps = gapsFound.get()
+                downloadAsked.set(false)
                 downloadEveryFolder(owner, gaps, current)
-            } while (gapsFound.get() != gaps && current())
+            } while ((gapsFound.get() != gaps || downloadAsked.get()) && current())
         } catch (e: MailError.AuthFailed) {
             // Unless the account that was refused has left since: its rejection must not stop the
             // next one, whose password the server has not seen.

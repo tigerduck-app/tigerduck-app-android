@@ -166,6 +166,43 @@ class SchoolMailListViewModelTest {
         assertEquals(1, repo.downloadsAsked)
     }
 
+    /** The download's end runs the search once more, over the last batch it brought. */
+    @Test
+    fun `a search on screen runs once more when the download ends`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        repo.searchIndexProgress.value = MailIndexProgress(1, 2)
+        main.dispatcher.scheduler.runCurrent()
+        val searched = repo.searchCalls
+
+        repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+        repo.searchIndexProgress.value = null
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.SEARCH_REGROW_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.searchCalls > searched)
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /** A query being edited is not run before it is submitted: the search on screen is the one submitted. */
+    @Test
+    fun `a query being edited is not run as mail downloads`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        val searched = repo.searchCalls
+
+        vm.setSearchText("期末")
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(searched, repo.searchCalls)
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
     /** Pages of the search the user scrolled to stay: run again, it would show only the first. */
     @Test
     fun `a search scrolled past its first page is not run again as mail downloads`() {
