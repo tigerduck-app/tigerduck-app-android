@@ -1022,7 +1022,7 @@ class ClassTableViewModel @Inject constructor(
         // The day whose course changes the detail shows: the column's in a week from today, a
         // card's own; null shows none.
         date: java.time.LocalDate? = null,
-        // The running piece the Current class card stands for, whose own changes the detail shows.
+        // The piece the Current class card or a Home card stands for, whose own changes the detail shows.
         slot: org.ntust.app.tigerduck.coursechanges.ClassSlot? = null,
     ) {
         _selectedDate.value = date

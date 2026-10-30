@@ -114,4 +114,18 @@ class TimeSliderCourseChangesTest {
 
         assertTrue(slider.on(thursday).all { it.isCancelled })
     }
+
+    @Test
+    fun `a Home card opens the detail on its own piece of the meeting`() {
+        val changes = org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes(
+            org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row(1, "cancelled", periods = listOf("2")),
+        )
+        val day = java.util.Date.from(org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.at("08:00"))
+        val slots = CourseTimeSlot.buildSlots(
+            listOf(org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.course()), 4, on = day, changes = changes,
+        )
+        val cancelled = slots.first { it.isCancelled }.detailSelection
+        assertEquals(listOf("2"), cancelled.slot?.periods)
+        assertEquals(true, cancelled.slot?.isCancelled)
+    }
 }

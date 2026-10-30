@@ -142,4 +142,16 @@ class ClassTableTodayChangesTest {
             assertNull(at, card.meeting)
         }
     }
+
+    @Test
+    fun `a today card follows the meetings by their changed starts`() {
+        // The morning meeting moved to the evening; the afternoon one stays.
+        val moved = changes(
+            row(1, "start", periods = listOf("2"), values = mapOf("start" to "18:30")),
+            row(2, "end", periods = listOf("4"), values = mapOf("end" to "20:00")),
+        )
+        val c = course()
+        assertEquals(listOf("7", "8"), ClassTableSelection.todayCard(c, thursday, 13 * 60, moved).periods)
+        assertEquals(listOf("2", "3", "4"), ClassTableSelection.todayCard(c, thursday, 20 * 60 + 30, moved).periods)
+    }
 }

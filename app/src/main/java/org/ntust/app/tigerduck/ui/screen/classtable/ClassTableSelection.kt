@@ -204,8 +204,10 @@ object ClassTableSelection {
                 isFinishedAt(course, DayTime(weekday, minuteOfDay)),
             )
         }
+        // By their changed starts: a meeting moved to the evening comes after the afternoon's.
         val meetings = contiguousPeriodRuns(course.schedule[weekday].orEmpty())
             .mapNotNull { CourseMeetings.meeting(course, it, today, changes) }
+            .sortedBy { it.start }
         val meeting = meetings.firstOrNull { minuteOfDay <= minuteOf(it.end) } ?: meetings.lastOrNull()
         return TodayCard(
             meeting?.periods,
