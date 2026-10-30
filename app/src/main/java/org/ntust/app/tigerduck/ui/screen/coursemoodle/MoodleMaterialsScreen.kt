@@ -113,6 +113,7 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
     val currentWeekIndex = state.value?.sections?.indexOfFirst { it.id == currentWeek }
         ?.takeIf { it >= 0 }
         ?.let { it + if (state.failureBesideCopy != null) 1 else 0 }
+    val firstSectionId = state.value?.sections?.firstOrNull()?.id
     var scrolledToWeek by rememberSaveable { mutableStateOf(false) }
     // A summary still being read or fetched can change the week, as its format decides how the
     // week is found, so the scroll waits for it; and it comes once, never under a reader who has
@@ -121,9 +122,12 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
     LaunchedEffect(currentWeekIndex, summarySettled) {
         if (scrolledToWeek || !summarySettled || currentWeekIndex == null) return@LaunchedEffect
         scrolledToWeek = true
-        if (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
-            listState.scrollToItem(currentWeekIndex)
-        }
+        // Still at the top: a failure note that came in above keeps the first section in place,
+        // as the list holds its first item by key, which no reader did.
+        val first = listState.layoutInfo.visibleItemsInfo.firstOrNull()?.key
+        val atTop = listState.firstVisibleItemScrollOffset == 0 &&
+            (first == null || first == FAILURE_KEY || first == firstSectionId)
+        if (atTop) listState.scrollToItem(currentWeekIndex)
     }
     PullToRefreshBox(
         isRefreshing = pulling,
@@ -146,7 +150,7 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
                 }
             } else {
                 state.failureBesideCopy?.let { failure ->
-                    item(key = "failure") { MoodleRefreshFailure(failure, onRetry = { scope.launch { store.refreshMaterials() } }) }
+                    item(key = FAILURE_KEY) { MoodleRefreshFailure(failure, onRetry = { scope.launch { store.refreshMaterials() } }) }
                 }
                 items(materials.sections, key = { it.id }) { section ->
                     MaterialSection(store, section, section.id == currentWeek, snapshot, files, browserPreference)
@@ -155,6 +159,8 @@ internal fun MaterialsList(store: MoodleCourseStore, files: MoodleFileOpener, br
         }
     }
 }
+
+private const val FAILURE_KEY = "failure"
 
 /**
  * This week's section; null for none. The course's format and start date come from its summary,

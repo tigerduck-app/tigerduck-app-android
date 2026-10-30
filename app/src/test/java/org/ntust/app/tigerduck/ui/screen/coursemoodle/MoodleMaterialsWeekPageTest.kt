@@ -23,9 +23,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCacheContext
 import org.ntust.app.tigerduck.data.moodle.MoodleCachePort
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
+import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
@@ -91,6 +93,7 @@ class MoodleMaterialsWeekPageTest {
         private val materials: MoodleCourseMaterials,
         private val materialsGate: CompletableDeferred<Unit>? = null,
         private val summaryGate: CompletableDeferred<Unit>? = null,
+        private val materialsFail: Boolean = false,
     ) : MoodleCourseApi {
         override suspend fun functions() = setOf(MoodleCourseApi.CONTENTS_FUNCTION, MoodleCourseApi.COURSES_FUNCTION)
         override suspend fun forums(courseIds: List<Int>) = emptyList<MoodleForum>()
@@ -102,6 +105,7 @@ class MoodleMaterialsWeekPageTest {
         override suspend fun download(file: MoodleFile, target: File, maxBytes: Long, progress: (Float) -> Unit) = Unit
         override suspend fun materials(courseId: Int): MoodleCourseMaterials {
             materialsGate?.await()
+            if (materialsFail) throw MoodleWebserviceError.SiteMaintenance()
             return materials
         }
         override suspend fun summary(courseId: Int): MoodleCourseSummary {
@@ -110,15 +114,19 @@ class MoodleMaterialsWeekPageTest {
         }
     }
 
-    /** Fresh copies of the course's [materials] and [summary], if any; a summary read waits for [summaryRead]. */
+    /**
+     * Copies of the course's [materials], fetched at [materialsFetchedAtMs], and [summary], if any;
+     * a summary read waits for [summaryRead].
+     */
     private fun cache(
         materials: MoodleCourseMaterials?,
         summary: MoodleCourseSummary?,
         summaryRead: CompletableDeferred<Unit>? = null,
+        materialsFetchedAtMs: Long = System.currentTimeMillis(),
     ) = object : MoodleCachePort {
         @Suppress("UNCHECKED_CAST")
         override suspend fun <T> load(type: Type, name: String): Pair<T, Long>? = when (name) {
-            "courses/5/materials" -> materials?.let { it to System.currentTimeMillis() }
+            "courses/5/materials" -> materials?.let { it to materialsFetchedAtMs }
             "courses/5/summary" -> {
                 summaryRead?.await()
                 summary?.let { it to System.currentTimeMillis() }
@@ -197,6 +205,24 @@ class MoodleMaterialsWeekPageTest {
         read.complete(Unit)
 
         waitForTopHeader(sectionName(8, datedAsWeek = 3))
+    }
+
+    @Test
+    fun `a failure note that comes in above the sections does not count as the reader scrolling`() {
+        val gate = CompletableDeferred<Unit>()
+        val materials = materials()
+        val store = store(
+            Api(materials, summaryGate = gate, materialsFail = true),
+            cache(materials, null, materialsFetchedAtMs = 0L),
+        )
+        scope.launch { store.refreshSummary() }
+        composeRule.waitUntil(5_000) { store.summary.state.value.isRefreshing }
+        show(store)
+        composeRule.waitUntil(5_000) { shows(composeRule.activity.getString(R.string.error_moodle_site_maintenance)) }
+
+        gate.complete(Unit)
+
+        waitForTopHeader("Week 8")
     }
 
     @Test
