@@ -38,6 +38,7 @@ class DepartingUnregisterWorkerTest {
         refresh = { _, _ -> DepartingRefresh.Unavailable },
         sessionAt = { _ -> false },
         now = { 0L },
+        endpoint = { "https://backend.example/v3" },
     )
 
     private fun worker(attempt: Int) = TestListenableWorkerBuilder<DepartingUnregisterWorker>(context)

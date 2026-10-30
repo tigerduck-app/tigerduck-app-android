@@ -10,6 +10,9 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.DepartingRefresh
 import org.ntust.app.tigerduck.auth.DepartingSession
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.canonicalBackend
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.IOException
 import javax.inject.Inject
@@ -68,18 +71,22 @@ class DepartingDeviceUnregister internal constructor(
     /** Whether this phone has a session from the backend it is given. */
     private val sessionAt: (base: String) -> Boolean,
     private val now: () -> Long,
+    /** The backend the API endpoint setting names now. */
+    private val endpoint: () -> String,
 ) {
     @Inject
     constructor(
         owed: OwedUnregister,
         api: PushApiClient,
         authTokenManager: AuthTokenManager,
+        prefs: AppPreferences,
     ) : this(
         owed = owed,
         deleteDevice = api::deleteDevice,
         refresh = authTokenManager::refreshDeparting,
         sessionAt = authTokenManager::hasSessionAt,
         now = System::currentTimeMillis,
+        endpoint = { resolveAnnouncementEndpoint(prefs).url },
     )
 
     enum class Outcome {
@@ -122,6 +129,7 @@ class DepartingDeviceUnregister internal constructor(
             drop()
             return@withLock Outcome.DONE
         }
+        if (heldBack(pending.session.baseUrl)) return@withLock Outcome.RETRY
         val outcome = try {
             sendAs(pending)
         } catch (e: CancellationException) {
@@ -138,6 +146,17 @@ class DepartingDeviceUnregister internal constructor(
         if (outcome == Outcome.DONE) drop()
         outcome
     }
+
+    /**
+     * Whether the debt waits rather than go to [base]: a plain http backend, which the endpoint
+     * setting takes on a private address, that the setting no longer names. On the network the
+     * phone is on now, that address may be another host, and the refresh token would reach it in
+     * cleartext (#593). The debt is kept, not dropped: it goes out once the setting names that
+     * backend again, the only way the backend learns the device left, or is dropped at the end of
+     * its lifetime. As the iPhone's retriesKeptSession (tigerduck-app#908).
+     */
+    private fun heldBack(base: String): Boolean =
+        base.startsWith("http://", ignoreCase = true) && canonicalBackend(base) != canonicalBackend(endpoint())
 
     // Under the mutex.
     private fun drop() {

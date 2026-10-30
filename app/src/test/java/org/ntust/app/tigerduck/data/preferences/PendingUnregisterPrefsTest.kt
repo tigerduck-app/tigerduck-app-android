@@ -118,6 +118,7 @@ class PendingUnregisterPrefsTest {
             refresh = { _, _ -> DepartingRefresh.Refused },
             sessionAt = { _ -> tokens.refreshToken != null },
             now = { 0L },
+            endpoint = { "https://backend.example/v3" },
         )
 
         // A backend sign-in after the reset moved the device to its account.
