@@ -47,9 +47,17 @@ data class ClassSlot(
 
     val hasChangedTime: Boolean get() = originalStart != null || originalEnd != null
 
-    /** The changed room, else the timetable's room for these periods. */
+    /**
+     * The changed room, else the timetable's room for these periods. A merged meeting moved to
+     * other rooms over different periods names each, in period order, where iOS names only the
+     * first.
+     */
     val room: String
-        get() = changes.firstOrNull { it.kind == Kind.ROOM }?.room ?: course.blockClassroom(weekday, periods)
+        get() = periods
+            .mapNotNull { period -> changes.firstOrNull { it.kind == Kind.ROOM && it.covers(period) }?.room }
+            .distinct()
+            .joinToString(", ")
+            .ifEmpty { course.blockClassroom(weekday, periods) }
 }
 
 /** A day with changes and its changed meetings. Ported from iOS `CourseTimeSlot.upcomingChanges`. */

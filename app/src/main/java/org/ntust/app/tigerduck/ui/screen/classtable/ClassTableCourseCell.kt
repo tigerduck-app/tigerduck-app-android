@@ -228,7 +228,8 @@ internal fun SoloCourseCell(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 3.dp, top = 2.dp, end = 3.dp),
+                    // Clear of the note mark in the opposite corner.
+                    .padding(start = 3.dp, top = 2.dp, end = if (change?.notes?.isNotEmpty() == true) 14.dp else 3.dp),
             ) {
                 Icon(
                     Icons.Filled.Schedule,

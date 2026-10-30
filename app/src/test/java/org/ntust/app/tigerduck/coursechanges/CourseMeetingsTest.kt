@@ -441,4 +441,16 @@ class CourseMeetingsTest {
 
         assertTrue(CourseMeetings.isSkipped(slot.id, listOf(course), CourseChanges.EMPTY, skips("CC901" to listOf("2026-09-22"))))
     }
+
+    @Test
+    fun `a meeting moved to two rooms over its periods names both, in period order`() {
+        val changes = CourseChangeFixture.changes(
+            CourseChangeFixture.row(1, "room", periods = listOf("4"), values = mapOf("room" to "TR-315")),
+            CourseChangeFixture.row(2, "room", periods = listOf("2"), values = mapOf("room" to "TR-214")),
+        )
+        val merged = CourseMeetings.meeting(CourseChangeFixture.course(), listOf("2", "3", "4"), CourseChangeFixture.thursday, changes)!!
+        assertEquals("TR-214, TR-315", merged.room)
+        val fragments = CourseChangeFixture.slots(changes).filter { "7" !in it.periods }
+        assertEquals(listOf("TR-214", "T4-501", "TR-315"), fragments.map { it.room })
+    }
 }
