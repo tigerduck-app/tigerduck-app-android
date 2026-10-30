@@ -1,6 +1,10 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.coursechanges.ClassSlot
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.Course
 import java.time.Instant
 import java.time.LocalDate
 
@@ -45,4 +49,22 @@ object ClassTableThisWeek {
         }
         return null
     }
+}
+
+/** The tag of the class table's current-time line. */
+internal const val NOW_LINE_TAG = "class-table-now-line"
+
+/**
+ * The week from [today] the class table shows, with the school's [changes] its blocks show.
+ * As the iPhone's `showsThisWeek` mode.
+ */
+data class ClassTableWeek(val today: LocalDate, val changes: CourseChanges) {
+    val todayWeekday: Int get() = today.dayOfWeek.value
+
+    /** The date the [weekday] column stands for. */
+    fun date(weekday: Int): LocalDate = ClassTableThisWeek.columnDate(weekday, today)
+
+    /** The block of [course]'s [periods] on [weekday]'s date as the school changed it; null when it changed nothing. */
+    fun meeting(course: Course, weekday: Int, periods: List<String>): ClassSlot? =
+        CourseMeetings.meeting(course, periods, date(weekday), changes)?.takeIf { it.changes.isNotEmpty() }
 }

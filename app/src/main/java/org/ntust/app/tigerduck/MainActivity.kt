@@ -104,6 +104,9 @@ class MainActivity : AppCompatActivity() {
     lateinit var academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore
 
     @Inject
+    lateinit var courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+
+    @Inject
     lateinit var authService: AuthService
 
     @Inject
@@ -400,6 +403,8 @@ class MainActivity : AppCompatActivity() {
         // credentials once the day-long token has run out.
         lifecycleScope.launch { libraryReturnSignIn.onAppResumed() }
         refreshAcademicCalendar()
+        // The school's course changes, public as the calendar is; one conditional GET.
+        lifecycleScope.launch { courseChangeStore.refresh() }
         liveActivityManager.refresh()
         updateChecker.resume(this)
         applyRotationPreference()

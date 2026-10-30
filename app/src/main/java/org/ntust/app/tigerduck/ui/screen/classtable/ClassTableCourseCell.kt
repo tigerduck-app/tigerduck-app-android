@@ -8,6 +8,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -15,9 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.DropdownMenu
@@ -35,19 +39,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.coursechanges.ClassSlot
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.component.courseChangeInk
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage
 import org.ntust.app.tigerduck.ui.component.middleEllipsize
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
@@ -82,26 +91,40 @@ internal fun SoloCourseCell(
     /** Null where the menu does not offer it; see [ClassTableViewModel.canIgnoreAssignments]. */
     onToggleIgnoreAssignments: ((Course) -> Unit)?,
     onDelete: (Course) -> Unit,
+    /** The block as the school changed it on its column's date; null for the timetable's. */
+    change: ClassSlot? = null,
 ) {
     val style = LocalVisualStylePolicy.current
     val tiles = style.drawsPeriodTiles
-    val cellBg = style.courseFill(course.courseNo)
-    val cellTextColor = style.courseTextColor
+    val cancelled = change?.isCancelled == true
+    // A cancelled class stays in place, faded and struck through, as on iOS.
+    val cellBg = style.courseFill(course.courseNo).let { if (cancelled) it.copy(alpha = it.alpha * 0.4f) else it }
+    val cellTextColor = style.courseTextColor.let { if (cancelled) it.copy(alpha = 0.45f) else it }
+    val nameDecoration = if (cancelled) TextDecoration.LineThrough else null
     val cellSecondaryColor = style.courseSecondaryTextColor
+    val ink = courseChangeInk()
     val outline = if (outlineRequired && course.isRequired) style.courseOutline(course.courseNo) else null
     val blockShape = RoundedCornerShape(if (tiles) PERIOD_TILE_CORNER else 6.dp)
     var showMenu by remember { mutableStateOf(false) }
+    val cancelledLabel = stringResource(R.string.course_card_cancelled)
+    val locale = LocalConfiguration.current.locales[0]
     val cellLabel = classTableCellLabels()
         .label(course, weekday, periodId, hasAssignment, assignmentsIgnored)
+        .let { label -> change?.let { label + spokenChanges(it, cancelledLabel, locale) } ?: label }
+    // The bottom line: the cancellation whether or not rooms show, else a moved room where they do.
+    val bottomLine: String? = when {
+        cancelled -> cancelledLabel
+        change?.hasChangedRoom == true && roomHint != null -> change.room
+        else -> roomHint
+    }
+    val timeLine = change?.takeIf { !cancelled }?.let(::changedTimeText)
     // A notch under the course name, so the name keeps the visual weight:
     // the room is a reminder, not a second title.
     val hintFontSize = 10.sp * TigerDuckTheme.courseNameScale * 0.85f
     val hintLineHeight = hintFontSize * 1.2f
-    val hintSpace = if (roomHint == null) {
-        0.dp
-    } else {
-        with(LocalDensity.current) { hintLineHeight.toDp() } + 2.dp
-    }
+    val lineSpace = with(LocalDensity.current) { hintLineHeight.toDp() } + 2.dp
+    val hintSpace = if (bottomLine == null) 0.dp else lineSpace
+    val topSpace = if (timeLine == null) 0.dp else lineSpace
     Box(
         modifier = Modifier
             .width(dayColWidth)
@@ -140,6 +163,7 @@ internal fun SoloCourseCell(
                 cellHeight = cellHeight,
                 fill = cellBg,
                 textColor = cellTextColor,
+                nameDecoration = nameDecoration,
                 // A tile's third line reaches the bottom corners, so the last
                 // tile also leaves its line to the mark, not only to the hint.
                 lastTileBottomSpace = if (hasAssignment || assignmentsIgnored) {
@@ -153,26 +177,21 @@ internal fun SoloCourseCell(
             ClassTableCourseNameText(
                 text = course.displayName,
                 color = cellTextColor,
+                textDecoration = nameDecoration,
                 maxLines = if (spanCount >= 2) 3 else 2,
                 modifier = Modifier
                     .padding(2.dp)
                     // Hand the hint's line back to it. Without this the centred
                     // name keeps the whole cell, and a two-line name in a
                     // one-period cell prints straight through the room.
-                    .padding(bottom = hintSpace)
+                    .padding(bottom = hintSpace, top = topSpace)
                     .align(Alignment.Center),
             )
         }
-        if (roomHint != null) {
-            Text(
-                text = roomHint,
-                style = MaterialTheme.typography.labelSmall,
-                color = cellSecondaryColor,
-                fontSize = hintFontSize,
-                lineHeight = hintLineHeight,
-                maxLines = 1,
-                softWrap = false,
-                overflow = TextOverflow.Ellipsis,
+        if (bottomLine != null) {
+            val moved = !cancelled && bottomLine != roomHint
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     // Clear of the assignment badge in the opposite corner.
@@ -181,6 +200,63 @@ internal fun SoloCourseCell(
                         bottom = 2.dp,
                         end = if (hasAssignment || assignmentsIgnored) 18.dp else 3.dp,
                     ),
+            ) {
+                if (moved) {
+                    Icon(
+                        Icons.Filled.SwapHoriz,
+                        contentDescription = null,
+                        tint = ink,
+                        modifier = Modifier.size(with(LocalDensity.current) { hintLineHeight.toDp() }),
+                    )
+                }
+                Text(
+                    text = bottomLine,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (moved) ink else cellSecondaryColor,
+                    fontWeight = if (cancelled || moved) FontWeight.SemiBold else null,
+                    fontSize = hintFontSize,
+                    lineHeight = hintLineHeight,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (timeLine != null) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 3.dp, top = 2.dp, end = 3.dp),
+            ) {
+                Icon(
+                    Icons.Filled.Schedule,
+                    contentDescription = null,
+                    tint = ink,
+                    modifier = Modifier.size(with(LocalDensity.current) { hintLineHeight.toDp() }),
+                )
+                Text(
+                    text = timeLine,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = ink,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = hintFontSize,
+                    lineHeight = hintLineHeight,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (change?.notes?.isNotEmpty() == true) {
+            Icon(
+                Icons.AutoMirrored.Filled.Chat,
+                contentDescription = null,
+                tint = ink,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(3.dp)
+                    .size(9.dp),
             )
         }
         CourseCellBadge(
@@ -209,6 +285,29 @@ internal fun SoloCourseCell(
         }
     }
 }
+
+/** A changed block's time as the block shows it: both ends, the start alone, or the end alone. */
+internal fun changedTimeText(meeting: ClassSlot): String? = when {
+    meeting.originalStart != null && meeting.originalEnd != null -> "${hm(meeting.start)}–${hm(meeting.end)}"
+    meeting.originalStart != null -> hm(meeting.start)
+    meeting.originalEnd != null -> "–${hm(meeting.end)}"
+    else -> null
+}
+
+/** What TalkBack adds for a changed block: the cancellation or the new room and time, then the notes. */
+internal fun spokenChanges(meeting: ClassSlot, cancelled: String, locale: java.util.Locale): String {
+    val parts = if (meeting.isCancelled) {
+        listOf(cancelled)
+    } else {
+        listOfNotNull(
+            meeting.room.takeIf { meeting.hasChangedRoom },
+            "${hm(meeting.start)} - ${hm(meeting.end)}".takeIf { meeting.hasChangedTime },
+        )
+    }
+    return (parts + meeting.notes.mapNotNull { it.note(locale) }).joinToString("") { ". $it" }
+}
+
+private fun hm(time: java.time.LocalTime): String = "%02d:%02d".format(time.hour, time.minute)
 
 /**
  * What a period tile's name leaves below it for the corner mark: the mark's
@@ -297,6 +396,8 @@ internal fun ClassTableCourseNameText(
     color: Color,
     maxLines: Int,
     modifier: Modifier = Modifier,
+    /** A line through the name, as for a cancelled class. */
+    textDecoration: TextDecoration? = null,
 ) {
     val useMiddle = isEnglishUiLanguage()
     var displayText by remember(text, useMiddle) { mutableStateOf(text) }
@@ -305,6 +406,7 @@ internal fun ClassTableCourseNameText(
         style = MaterialTheme.typography.labelSmall,
         color = color,
         textAlign = TextAlign.Center,
+        textDecoration = textDecoration,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier,

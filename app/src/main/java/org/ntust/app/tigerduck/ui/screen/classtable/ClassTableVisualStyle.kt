@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -205,6 +206,8 @@ internal fun ClassTablePeriodTiles(
     lastTileBottomSpace: Dp,
     /** A required course's outline, on each tile of the run; see [requiredCourseOutline]. */
     outline: Color? = null,
+    /** A line through the name, as for a cancelled class. */
+    nameDecoration: TextDecoration? = null,
 ) {
     val tileShape = RoundedCornerShape(PERIOD_TILE_CORNER)
     Column(verticalArrangement = Arrangement.spacedBy(PERIOD_TILE_GAP)) {
@@ -220,6 +223,7 @@ internal fun ClassTablePeriodTiles(
                 ClassTableCourseNameText(
                     text = name,
                     color = textColor,
+                    textDecoration = nameDecoration,
                     maxLines = 3,
                     modifier = Modifier
                         .padding(2.dp)
