@@ -26,7 +26,7 @@ class PendingCourseAddsUploadingTest {
     fun `an upload under way lands before a DELETE, and one begun after the DELETE waits for it`() = runTest {
         val context = JvmContext()
         val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
-        val adds = PendingCourseAdds(cache, { _, _, _, _ -> emptyList() }, signInGeneration = { 1 })
+        val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> emptyList() }, signInGeneration = { 1 })
         val order = mutableListOf<String>()
         val uploadGate = CompletableDeferred<Unit>()
         val deleteGate = CompletableDeferred<Unit>()

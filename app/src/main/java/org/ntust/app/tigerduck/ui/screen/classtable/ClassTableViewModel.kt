@@ -1021,7 +1021,7 @@ class ClassTableViewModel @Inject constructor(
                 pendingCourseDeletes.forget(semester, course.courseNo, reAddedAt)
                 // Kept until it lands: in a term the server already has, no
                 // sync would send it again otherwise.
-                pendingCourseAdds.send(updated, semester, course.courseNo)
+                pendingCourseAdds.send(updated, semester, course.courseNo, addedAt = reAddedAt)
             } finally {
                 dataCache.courseAddSent(course.courseNo, semester)
             }

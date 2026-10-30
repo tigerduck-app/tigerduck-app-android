@@ -397,6 +397,12 @@ class PushApiClient @Inject constructor(
     companion object {
         /** See [uploadCall]: longer than any upload of a term's courses takes. */
         const val UPLOAD_CALL_TIMEOUT_SECONDS = 60L
+
+        // The header value of an upload whose adds carry their time.
+        private const val PROTOCOL_STAMPED = "2"
+
+        // [deleteCourse]'s mark for a stamped delete the backend refused as ahead of its clock.
+        private const val CLOCK_AHEAD = -1
     }
 
     /**
@@ -420,6 +426,15 @@ class PushApiClient @Inject constructor(
      *
      * [signIn], when given, pins the request to that sign-in, as
      * [patchAssignmentOverride]'s is.
+     *
+     * [addedAt], by course number, the time of each add [courses] carries (a
+     * [PendingCourseDeletes.stamp]): sent under protocol 2 as `adds`, which the
+     * backend applies only when later than the course's last add, hide and
+     * reset (tigerduck-app#910). Under protocol 2 every other course of the
+     * upload is taken for the school's roster, so such an upload holds the
+     * added courses alone. A course whose add the backend answered, applied or
+     * not, counts as accepted: the backend has settled it. One it refuses as
+     * ahead of its clock goes again unstamped, counting from when it arrives.
      */
     suspend fun uploadCourses(
         courses: List<Course>,
@@ -427,10 +442,18 @@ class PushApiClient @Inject constructor(
         forceKeys: List<String> = emptyList(),
         signIn: Int? = null,
         resend: Boolean = false,
+        addedAt: Map<String, Long> = emptyMap(),
     ): List<String>? = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext null
         val payload = CourseUploadPayload.build(courses, semester, forceKeys)
         val body = gson.toJson(payload).toRequestBody(jsonType)
+        val stampedBody = addedAt.takeIf { it.isNotEmpty() }?.let { stamps ->
+            val adds = stamps.map { (courseNo, at) ->
+                // The key an add forces past a tombstone (PendingCourseAdds.forceKey).
+                mapOf("course_key" to "client:$semester:$courseNo", "hlc" to clockOf(at))
+            }
+            gson.toJson(payload + ("adds" to adds)).toRequestBody(jsonType)
+        }
         // Resolved once, for the fingerprint and the request alike, so the
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl
@@ -449,17 +472,27 @@ class PushApiClient @Inject constructor(
         ) {
             // Through uploadCall, with its deadline for the whole call.
             val service = uploads.at(base)
-            accepted = service.coursesUpload(authHeader(signIn), body).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw PushApiException("uploadCourses failed: HTTP ${response.code}", response.code)
+            val header = authHeader(signIn)
+            fun send(stamped: Boolean): List<String>? {
+                val call = if (stamped) service.coursesUpload(header, stampedBody!!, PROTOCOL_STAMPED)
+                    else service.coursesUpload(header, body, null)
+                return call.execute().use { response ->
+                    if (stamped && isClockAhead(response)) return@use null
+                    if (!response.isSuccessful) {
+                        throw PushApiException("uploadCourses failed: HTTP ${response.code}", response.code)
+                    }
+                    // A 2xx with an unreadable body (a captive portal, a proxy) is
+                    // still an upload that landed; it just cannot say what was accepted.
+                    val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
+                    val keys = json?.optJSONArray("accepted_keys")
+                    val answered = json?.optJSONArray("adds")
+                    // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
+                    val listed = keys?.let { (0 until it.length()).map { i -> it.getString(i) } }.orEmpty() +
+                        answered?.let { (0 until it.length()).mapNotNull { i -> it.optJSONObject(i)?.optString("course_key") } }.orEmpty()
+                    listed.filter { it.isNotEmpty() }.map { it.substringAfterLast(':') }.distinct()
                 }
-                // A 2xx with an unreadable body (a captive portal, a proxy) is
-                // still an upload that landed; it just cannot say what was accepted.
-                val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
-                val keys = json?.optJSONArray("accepted_keys") ?: return@use emptyList()
-                // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
-                (0 until keys.length()).map { keys.getString(it).substringAfterLast(':') }
             }
+            accepted = (if (stampedBody != null) send(stamped = true) else null) ?: send(stamped = false)!!
         }
         accepted
     }
@@ -471,15 +504,34 @@ class PushApiClient @Inject constructor(
      * another sign-in goes without a token, not with the next account's,
      * which could take that account's own course off.
      */
-    suspend fun deleteCourse(courseKey: String, signIn: Int? = null) = withContext(Dispatchers.IO) {
+    suspend fun deleteCourse(courseKey: String, signIn: Int? = null, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val service = api.at(baseUrl)
-        service.removeCourse(authHeader(signIn), courseKey, EmptyBody).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw PushApiException("deleteCourse failed: HTTP ${response.code}")
+        val header = authHeader(signIn)
+        // With the hide's time, which the backend applies only when later than the course's last
+        // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
+        // since on another device, and a retry after a lost reply changes nothing. One refused as
+        // ahead of the backend's clock goes again without it, counting from when it arrives.
+        fun send(hlc: Long?): Int? = service.removeCourse(header, courseKey, EmptyBody, hlc).execute().use { response ->
+            when {
+                response.isSuccessful -> null
+                hlc != null && isClockAhead(response) -> CLOCK_AHEAD
+                else -> response.code
             }
         }
+        var failed = send(hiddenAt?.let(::clockOf))
+        if (failed == CLOCK_AHEAD) failed = send(null)
+        if (failed != null) throw PushApiException("deleteCourse failed: HTTP $failed", failed)
     }
+
+    // The backend's TigerSync clock for a time in epoch ms: whole microseconds since the epoch.
+    private fun clockOf(epochMs: Long): Long = epochMs * 1_000
+
+    // 409 `clock_ahead`: a time more than 5 s ahead of the backend's clock. Peeked, so a caller
+    // that goes on to read the body still can.
+    private fun isClockAhead(response: okhttp3.Response): Boolean = response.code == 409 &&
+        runCatching { JSONObject(response.peekBody(4_096).string()).optString("detail") == "clock_ahead" }
+            .getOrDefault(false)
 
     /**
      * Reset the user's courses on the backend.

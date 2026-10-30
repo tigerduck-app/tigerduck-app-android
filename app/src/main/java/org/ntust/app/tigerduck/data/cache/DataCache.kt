@@ -1079,6 +1079,29 @@ class DataCache @Inject constructor(
             .toMap()
     }
 
+    // --- When each pending course add was asked (semester → course number → stamp) ---
+    // Beside pending_course_adds.json rather than in it, so that file keeps
+    // the shape older installs wrote; an add with no time here, one an older
+    // install queued, goes unstamped. See PendingCourseAdds, the only writer.
+
+    /** False, and nothing written, when the data was wiped since [generation]. */
+    suspend fun savePendingCourseAddTimes(times: Map<String, Map<String, Long>>, generation: Int? = null): Boolean =
+        saveToUserDataIf(times, "pending_course_add_times.json", generation ?: writeGeneration())
+
+    /** Null and blank entries are left out, and so is a term left with none. */
+    suspend fun loadPendingCourseAddTimes(): Map<String, Map<String, Long>> {
+        val type = object : TypeToken<Map<String?, Map<String?, Long?>?>>() {}.type
+        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, "pending_course_add_times.json")
+            .orEmpty()
+            .mapNotNull { (semester, entries) ->
+                val kept = entries.orEmpty().mapNotNull { (courseNo, addedAt) ->
+                    if (courseNo.isNullOrBlank() || addedAt == null) null else courseNo to addedAt
+                }.toMap()
+                if (semester.isNullOrBlank() || kept.isEmpty()) null else semester to kept
+            }
+            .toMap()
+    }
+
     // --- Pending course deletes (semester → course number → when it was asked) ---
     // Courses deleted on the class table whose backend DELETE has not
     // landed, each with the moment it was asked (PendingCourseDeletes.stamp);
@@ -1418,6 +1441,7 @@ class DataCache @Inject constructor(
                     "marked_completed_assignments.json",
                     "unsent_marks.json",
                     "pending_course_adds.json",
+                    "pending_course_add_times.json",
                     "pending_course_deletes.json",
                     "pending_course_overrides.json",
                     "deleted_courses.json",
