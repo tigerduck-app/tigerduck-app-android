@@ -2,6 +2,7 @@
 
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import org.ntust.app.tigerduck.mail.index.MailIndexProgress
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -144,6 +145,54 @@ class SchoolMailListViewModelTest {
         assertTrue(vm.state.value.searchLocalOnly)
         vm.setSearchText("")
         assertEquals(2, vm.state.value.displayed.size)
+    }
+
+    /** A pull is the user asking for the mail as it is now: mail for search downloads at once (#586). */
+    @Test
+    fun `a pull to refresh asks for mail to be downloaded for search at once`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+
+        vm.refresh()
+
+        assertEquals(1, repo.downloadsAsked)
+    }
+
+    /**
+     * While mail downloads for search, a search on screen runs again as it comes in, at most every
+     * [SchoolMailListViewModel.SEARCH_REGROW_MS], its results staying on screen meanwhile, so they
+     * grow rather than wait for a new search (#586).
+     */
+    @Test
+    fun `a search on screen grows as mail for it downloads, at most every few seconds`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+        val searched = repo.searchCalls
+
+        // Downloaded meanwhile, and now found by the search.
+        repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+        val held = CompletableDeferred<Unit>().also { repo.searchGate = it }
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue("it ran again", repo.searchCalls > searched)
+        assertEquals("the results stay while it runs", listOf(1L), vm.state.value.displayed.map { it.uid })
+        assertFalse(vm.state.value.isSearching)
+        repo.searchGate = null
+        held.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+
+        // More mail within the few seconds: not yet.
+        val again = repo.searchCalls
+        repo.searchIndexProgress.value = MailIndexProgress(2, 10)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(again, repo.searchCalls)
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.SEARCH_REGROW_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(repo.searchCalls > again)
     }
 
     @Test

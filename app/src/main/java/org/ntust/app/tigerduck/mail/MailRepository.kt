@@ -255,6 +255,13 @@ interface SchoolMailRepository {
     fun acquire()
 
     /**
+     * Downloads mail for search now, as a pull to refresh asks: past the wait after a whole
+     * download that [acquire] keeps to, and without waiting for the background run's retry. No
+     * second one while one is under way, nor in demo mode or after a rejected password.
+     */
+    fun downloadNow()
+
+    /**
      * Every write made through the repository, as it lands: what the message and compose screens
      * do to a mail reaches the list that stays behind them, the way the iPhone's list is told
      * (`markSeenLocally` / `removeLocally` there). Only for a write that succeeded, and only to
@@ -1112,8 +1119,18 @@ class MailRepository @Inject constructor(
     override fun acquire() {
         if (account.isDemo) return
         holder.hold()
+        startDownload(force = false)
+    }
+
+    override fun downloadNow() {
+        if (account.isDemo) return
+        startDownload(force = true)
+    }
+
+    /** The download in the app, when [indexDue] says it is due or [force] asks for it anyway. */
+    private fun startDownload(force: Boolean) {
         // A rejected password downloads nothing until the student signs in again (spec §7.4).
-        if (!indexDue() || state.authFailed) return
+        if (!(force || indexDue()) || state.authFailed) return
         // The mail screen is in use: whatever mail the phone lacks comes in now, here, rather than
         // when the system next runs the background download, which some phones hold back for
         // minutes. That one still finishes what this leaves, should the app go.
@@ -1127,7 +1144,7 @@ class MailRepository @Inject constructor(
             inAppIndexing = coroutineContext[Job]
             try {
                 // Asked again: another download can have got through while this one waited.
-                if (indexDue()) downloadIndex(asked)
+                if (force || indexDue()) downloadIndex(asked)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: MailError) {

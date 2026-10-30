@@ -1327,6 +1327,25 @@ class MailRepositoryTest {
         assertEquals(listed, server.undeletedUidsCalls)
     }
 
+    /** A pull to refresh downloads at once, the quarter hour after a whole download or not (#586). */
+    @Test
+    fun `a pull downloads mail for search at once, soon after a whole download too`() = runTest {
+        server.deliver("期中考")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.clock = { 1_000_000L }
+        visit(repo)
+        val listed = server.undeletedUidsCalls
+        val late = server.deliver("期中考 補")
+
+        repo.downloadNow()
+        runCurrent()
+        withContext(Dispatchers.Default) { withTimeout(30_000) { while (repo.downloadingInApp) delay(10) } }
+
+        assertTrue(server.undeletedUidsCalls > listed)
+        assertTrue(late in setup.searchIndex.uids(setup.account.ownAddress!!.lowercase(), "INBOX"))
+    }
+
     @Test
     fun `coming back once the interval has passed downloads again`() = runTest {
         server.deliver("期中考")

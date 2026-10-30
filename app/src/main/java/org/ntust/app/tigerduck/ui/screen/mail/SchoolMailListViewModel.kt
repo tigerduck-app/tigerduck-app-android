@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
@@ -340,6 +342,19 @@ class SchoolMailListViewModel @Inject constructor(
     init {
         viewModelScope.launch { account.authFailed.collect { authBannerClosed.value = false } }
         viewModelScope.launch { repository.changes.collect(::apply) }
+        // While mail downloads for search, a search on screen runs again as it comes in, at most
+        // every [SEARCH_REGROW_MS], so its results grow rather than wait for a new search; as the
+        // iPhone's (tigerduck-app#894). Not over the user's own search or a page of it still out.
+        viewModelScope.launch {
+            repository.searchIndexProgress
+                .filter { it != null && it.total != null && it.done > 0 }
+                .conflate()
+                .collect {
+                    val s = _state.value
+                    if (s.searchResults != null && !s.isSearching && !s.isPagingSearch) runSearch(keepShown = true)
+                    delay(SEARCH_REGROW_MS)
+                }
+        }
         // Signing out must not leave the previous account's mail on screen for
         // whoever signs in next (spec §7.5).
         viewModelScope.launch {
@@ -549,6 +564,10 @@ class SchoolMailListViewModel @Inject constructor(
         // is first in the queue behind that one page.
         prefetchJob?.cancel()
         prefetchJob = null
+        // Mail for search too, at once: a pull is the user asking for the mail as it is now, and
+        // the download would otherwise wait out the quarter hour after the last one, or the
+        // background run's retry; as the iPhone's (tigerduck-app#894).
+        repository.downloadNow()
         viewModelScope.launch {
             if (_state.value.searchResults != null) runSearch() else fetchFirstPage()
             // Restarted once the user's own request has landed, exactly as [selectFolder] does --
@@ -1146,7 +1165,12 @@ class SchoolMailListViewModel @Inject constructor(
         return if (messages === page.messages) page else page.copy(messages = messages)
     }
 
-    private suspend fun runSearch() {
+    /**
+     * [keepShown]: the search on screen run again as mail for it downloads, whose results stay
+     * until the new ones replace them, with no spinner and no toast for a failure that need not
+     * stick: the user did not ask for it.
+     */
+    private suspend fun runSearch(keepShown: Boolean = false) {
         val selection = _state.value.selected
         val query = _state.value.searchText.trim()
         forgetSearch()
@@ -1158,7 +1182,9 @@ class SchoolMailListViewModel @Inject constructor(
         val generation = account.accountGeneration
         val since = changeSeq
         // Nothing on screen until its matches come: the mail shown before is no answer to it.
-        _state.update { it.copy(isSearching = true, searchResults = emptyList(), searchLocalOnly = false, searchIndexPartial = false) }
+        if (!keepShown) {
+            _state.update { it.copy(isSearching = true, searchResults = emptyList(), searchLocalOnly = false, searchIndexPartial = false) }
+        }
         try {
             // One search per real folder, in the search index on this phone, merged the same way
             // the list itself is; the server fetches the matches it finds. A folder that could not
@@ -1264,7 +1290,7 @@ class SchoolMailListViewModel @Inject constructor(
                 }
             }
             refetchIfChangedSince(outcomes.map { it.first }, since)
-            failure?.let { searchFail(it, generation) }
+            failure?.takeIf { !keepShown || it is MailError.Certificate || it is MailError.AuthFailed }?.let { searchFail(it, generation) }
             // Nothing on screen means no last row to scroll to, however many matches are left.
             // Unless the server's part of the search ended early: in All mail the inbox can have
             // answered, with matches left to fetch, before Sent found the connection gone or the
@@ -1581,6 +1607,9 @@ class SchoolMailListViewModel @Inject constructor(
 
     companion object {
         const val POLL_MS = 60_000L
+
+        /** How often at most a search on screen runs again while mail downloads for search. */
+        internal const val SEARCH_REGROW_MS = 3_000L
 
         /** How long after a first page lands a resume skips its look at the inbox. */
         internal const val RESUME_POLL_FRESH_MS = 5_000L
