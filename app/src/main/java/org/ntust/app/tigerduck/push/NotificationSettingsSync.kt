@@ -1448,7 +1448,7 @@ class NotificationSettingsSync internal constructor(
     private val schoolAccountStored: () -> Boolean,
     syncLiveActivityChanged: Flow<Unit>,
     syncAssignmentRemindersChanged: Flow<Unit>,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     // The real entry point: Hilt calls this (the @Inject constructor), which
     // adapts the app's singletons to the plain types of the primary
@@ -1655,35 +1655,56 @@ class NotificationSettingsSync internal constructor(
         // AppPreferences emits only on an actual change.
         scope.launch {
             syncLiveActivityChanged.collect {
-                if (syncLiveActivity()) {
-                    pullOnMain(what = "adopting live_activity after its switch came on") {
-                        restartRecord(liveActivity = true)
-                    }
+                switchChanged(isOn = syncLiveActivity, section = "live_activity") {
+                    restartRecord(liveActivity = true)
                 }
             }
         }
         scope.launch {
             syncAssignmentRemindersChanged.collect {
-                if (syncAssignmentReminders()) {
-                    pullOnMain(what = "adopting assignments after its switch came on") {
-                        restartRecord(assignments = true)
-                    }
+                switchChanged(isOn = syncAssignmentReminders, section = "assignments") {
+                    restartRecord(assignments = true)
                 }
             }
         }
     }
 
     /**
-     * Runs [before], then [pullNow], on `Dispatchers.Main`, which [pullNow]'s
-     * check-and-apply requires; the application scope's dispatcher is Default.
-     * A failure is logged under [what] and goes no further.
+     * One change of the 同步內容 switch for [section]: when [isOn] says it is
+     * now on, [restart]s the section's record on `Dispatchers.Main`, where the
+     * settings screens make their edits, and starts the pull that adopts the
+     * section, which runs by itself.
+     *
+     * The pull is not waited for. A collector that waited out its read let
+     * every change made meanwhile queue up behind it, and the restart of a
+     * change taken that late recorded the section's values as they were by
+     * then: an edit made after the switch came on was in them, so its push
+     * found nothing changed, sent nothing, and the pull took the edit back.
+     * Taken at once, each restart records the values of its own turn-on.
+     * The pull still goes through [pullNow], under [documentLock] like every
+     * other pull and push; the restart, as before, does not take the lock,
+     * which a pull holds for the whole of its read.
      */
-    private suspend fun pullOnMain(what: String, before: () -> Unit = {}) {
+    private suspend fun switchChanged(isOn: () -> Boolean, section: String, restart: () -> Unit) {
+        val turnedOn = try {
+            withContext(Dispatchers.Main) { isOn().also { if (it) restart() } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "restarting the $section record after its switch came on failed: ${e.logSummary()}")
+            false
+        }
+        if (turnedOn) scope.launch { pullOnMain(what = "adopting $section after its switch came on") }
+    }
+
+    /**
+     * Runs [pullNow] on `Dispatchers.Main`, which its check-and-apply
+     * requires; the application scope's dispatcher is Default. A failure is
+     * logged under [what] and goes no further.
+     */
+    private suspend fun pullOnMain(what: String) {
         try {
-            withContext(Dispatchers.Main) {
-                before()
-                pullNow()
-            }
+            withContext(Dispatchers.Main) { pullNow() }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -1696,8 +1717,9 @@ class NotificationSettingsSync internal constructor(
      * document before anything is sent, as iOS 2.9.2 does. This device's
      * values went stale while the switch was off, and sending them, as this
      * once did, took back every change another device made in the meantime.
-     * So the section's values here become its record ([LastSyncedSections]),
-     * and the pull that follows adopts the section. An edit made while the
+     * So the section's values here, as they are when the switch comes on
+     * ([switchChanged]), become its record ([LastSyncedSections]), and the
+     * pull that follows adopts the section. An edit made while the
      * switch was off gives way with them; one made after it goes up. With no
      * real record (signed out, or a push an update found pending) there is
      * nothing to restart.

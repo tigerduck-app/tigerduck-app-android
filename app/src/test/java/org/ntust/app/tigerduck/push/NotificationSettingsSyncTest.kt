@@ -7,6 +7,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -878,8 +879,12 @@ class NotificationSettingsSyncTest {
         var cloudSync = true
         var syncLiveActivity = true
         var syncAssignmentReminders = true
-        val syncLiveActivityChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-        val syncAssignmentRemindersChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        // Buffered as AppPreferences buffers them: a change made while the
+        // last one is still being handled waits, and a third drops the second.
+        val syncLiveActivityChanged =
+            MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+        val syncAssignmentRemindersChanged =
+            MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         /**
          * Runs while a PUT resolves its bearer — `AuthTokenManager.authHeader()`,
          * which can refresh the token or run a full relogin. Whichever account
@@ -939,6 +944,20 @@ class NotificationSettingsSyncTest {
         /** What an earlier launch left with the backend session lapsed: the school account alone. */
         fun restoreSchoolAccount(account: String) {
             schoolAccount = account
+        }
+
+        /** The 同步內容 → 即時更新 switch, as AppPreferences sets it: a signal only on a change. */
+        fun switchLiveActivitySync(on: Boolean) {
+            if (on == syncLiveActivity) return
+            syncLiveActivity = on
+            syncLiveActivityChanged.tryEmit(Unit)
+        }
+
+        /** The 同步內容 → 作業到期提醒 switch, as AppPreferences sets it. */
+        fun switchAssignmentReminderSync(on: Boolean) {
+            if (on == syncAssignmentReminders) return
+            syncAssignmentReminders = on
+            syncAssignmentRemindersChanged.tryEmit(Unit)
         }
 
         /** Each of AuthService's sign-in paths: the v3 session exists, then the catch-up. */
@@ -2892,6 +2911,79 @@ class NotificationSettingsSyncTest {
         assertEquals("an edit made after it goes up", 3_600, section.get("assignment_lead_seconds").asInt)
         assertEquals("alone", 900, section.get("class_preparing_lead_seconds").asInt)
         assertEquals(false, section.get("show_assignment").asBoolean)
+    }
+
+    @Test
+    fun `an edit made after live-activity sync is turned off and on again, while the first turn-on's pull reads, goes up`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json(sharedLiveActivity)
+        device.sync.pullNow()
+        device.switchLiveActivitySync(false)
+        runQueue()
+        device.server("A").anotherDeviceWrites("live_activity") { addProperty("show_assignment", false) }
+
+        // Turned on: the pull that follows is still reading when the switch
+        // goes off and on again and the edit is made.
+        val response = CompletableDeferred<Unit>()
+        device.server("A").holdRead = response
+        device.switchLiveActivitySync(true)
+        runCurrent()
+        device.switchLiveActivitySync(false)
+        runCurrent()
+        device.switchLiveActivitySync(true)
+        runCurrent()
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        response.complete(Unit)
+        runQueue()
+
+        val section = device.server("A").section("live_activity")
+        assertEquals("the edit made after the switch came on goes up", 1_800, section.get("class_preparing_lead_seconds").asInt)
+        assertEquals("alone", false, section.get("show_assignment").asBoolean)
+        assertEquals("and the pulls leave it here", 1_800L, device.prefs.classPreparingLeadTimeSec)
+        assertFalse("while the iPhone's change arrives", device.prefs.showAssignment)
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    @Test
+    fun `an edit made after assignment-reminder sync is turned off and on again, while the first turn-on's pull reads, goes up`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.sync.pullNow()
+        device.switchAssignmentReminderSync(false)
+        runQueue()
+        device.server("A").anotherDeviceWrites("assignments") { addProperty("enabled", false) }
+
+        val response = CompletableDeferred<Unit>()
+        device.server("A").holdRead = response
+        device.switchAssignmentReminderSync(true)
+        runCurrent()
+        device.switchAssignmentReminderSync(false)
+        runCurrent()
+        device.switchAssignmentReminderSync(true)
+        runCurrent()
+        device.assignments.offsets = AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10
+        device.sync.markAssignmentUnconfirmedAndPush()
+        response.complete(Unit)
+        runQueue()
+
+        val section = device.server("A").section("assignments")
+        assertEquals(
+            "the edit made after the switch came on goes up",
+            listOf(2_880, 1_440, 480, 120, 60, 30, 10),
+            section.getAsJsonArray("reminder_offsets_minutes").map { it.asInt },
+        )
+        assertEquals("alone", false, section.get("enabled").asBoolean)
+        assertEquals(
+            "and the pulls leave it here",
+            AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10,
+            device.assignments.offsets,
+        )
+        assertFalse("while the iPhone's change arrives", device.assignments.enabled)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
     }
 
     @Test
