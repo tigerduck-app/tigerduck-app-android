@@ -37,8 +37,6 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.BackendSyncResult
-import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
-import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.ui.screen.home.BackgroundMarkStep
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
@@ -46,7 +44,9 @@ import org.ntust.app.tigerduck.ui.screen.home.sendMovedColors
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.ui.RefreshPolicies
+import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.SemesterCatalog

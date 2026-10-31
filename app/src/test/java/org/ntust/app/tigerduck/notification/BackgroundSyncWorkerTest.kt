@@ -21,9 +21,9 @@ import org.ntust.app.tigerduck.data.PendingHolidayOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.CourseOverrideResult
-import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
+import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -448,20 +448,22 @@ class BackgroundSyncWorkerTest {
 
     @Test
     fun `a background sync's names reach the cached courses the widgets read, and a removed name clears`() = runTest {
-        val courses = listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms"))
-        suspend fun sync(names: Map<String, String>): List<Course> {
+        // Each sync stamps the courses the last one cached, as the worker does.
+        suspend fun sync(cached: List<Course>, names: Map<String, String>): List<Course> {
             CourseSyncReconciler.applyNameOverrides(
                 cache, listOf(override("CS1001", names)), syncNames = true,
             )
-            return CourseNameOverrides.stamp(courses, cache.loadCourseCustomNames(), "zh")
+            return CourseNameOverrides.stamp(cached, cache.loadCourseCustomNames(), "zh")
         }
 
-        val named = sync(mapOf("zh" to "資結"))
+        val named = sync(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), mapOf("zh" to "資結"))
+        assertEquals("資結", named.first { it.courseNo == "CS1001" }.customCourseName)
         assertEquals("資結", named.first { it.courseNo == "CS1001" }.displayName)
         assertEquals("Algorithms", named.first { it.courseNo == "CS1002" }.displayName)
 
         // The server clears it: an empty name.
-        val cleared = sync(mapOf("zh" to ""))
+        val cleared = sync(named, mapOf("zh" to ""))
+        assertNull(cleared.first { it.courseNo == "CS1001" }.customCourseName)
         assertEquals("Data Structures", cleared.first { it.courseNo == "CS1001" }.displayName)
     }
 }
