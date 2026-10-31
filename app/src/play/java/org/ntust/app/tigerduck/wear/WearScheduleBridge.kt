@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.wear
 import android.content.Context
 import android.util.Log
 import com.google.android.gms.wearable.PutDataMapRequest
+import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -86,7 +87,23 @@ class WearScheduleBridge @Inject constructor(
      * user's quiet days and the classes the school changed to the watch via
      * DataClient. Safe to call repeatedly — same payload no-ops.
      */
-    suspend fun publish() {
+    suspend fun publish() = schedule.publish()
+
+    // One publish at a time, as the TLS pins': a course save, the sign-in, the calendar, the
+    // course changes feed and the rest each start one of their own, and a publish that read the
+    // phone before another must not be put after it, which would leave the watch signed in after
+    // a sign-out or showing a feed the phone no longer holds.
+    private val schedule = WatchItemPublisher(snapshot = { scheduleItem() }) { (request, summary) ->
+        try {
+            Wearable.getDataClient(context).putDataItem(request).await()
+            Log.d(TAG, "publish ok: $summary")
+        } catch (t: Throwable) {
+            Log.w(TAG, "publish failed: ${t.logSummary()}")
+        }
+    }
+
+    /** The schedule item as the phone stands now, with what the log says of it. */
+    private suspend fun scheduleItem(): Pair<PutDataRequest, String> {
         val loggedIn = authService.authState.value
         val courses = if (loggedIn) {
             dataCache.loadCourses()
@@ -144,16 +161,8 @@ class WearScheduleBridge @Inject constructor(
             dataMap.putString(WearProtocol.Schedule.KEY_COURSE_CHANGES, courseChanges)
         }.asPutDataRequest().setUrgent()
 
-        try {
-            Wearable.getDataClient(context).putDataItem(request).await()
-            Log.d(
-                TAG,
-                "publish ok: ${courses.size} courses, ${gzipped.size} bytes, " +
-                    "${quietDays.size} quiet days, ${courseChanges.length} chars of course changes",
-            )
-        } catch (t: Throwable) {
-            Log.w(TAG, "publish failed: ${t.logSummary()}")
-        }
+        return request to "${courses.size} courses, ${gzipped.size} bytes, " +
+            "${quietDays.size} quiet days, ${courseChanges.length} chars of course changes"
     }
 
     /**
@@ -213,7 +222,7 @@ class WearScheduleBridge @Inject constructor(
      */
     suspend fun publishTlsPins() = tlsPins.publish()
 
-    private val tlsPins = TlsPinsPublisher(
+    private val tlsPins = WatchItemPublisher(
         snapshot = {
             PutDataMapRequest.create(WearProtocol.TlsPins.PATH).apply {
                 pins.envelope?.let { dataMap.putByteArray(WearProtocol.TlsPins.KEY_ENVELOPE, it) }
@@ -360,10 +369,11 @@ internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBrid
 )
 
 /**
- * Publishes the TLS pins item one at a time (A8): a snapshot, its version included, is taken and
- * put with no other publish in between, so the item last put is always the newest.
+ * Publishes a Data Layer item one at a time: a snapshot is taken and put with no other publish of
+ * the item in between, so the item last put is always the newest. The TLS pins item's snapshot
+ * takes its version too (A8); the schedule's reads the sign-in, the courses and the course changes.
  */
-internal class TlsPinsPublisher<T>(private val snapshot: () -> T, private val put: suspend (T) -> Unit) {
+internal class WatchItemPublisher<T>(private val snapshot: suspend () -> T, private val put: suspend (T) -> Unit) {
     private val mutex = Mutex()
 
     suspend fun publish() = mutex.withLock { put(snapshot()) }
