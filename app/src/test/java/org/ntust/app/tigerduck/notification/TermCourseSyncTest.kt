@@ -261,6 +261,24 @@ class TermCourseSyncTest {
         assertEquals(emptyList<Any>(), uploads())
     }
 
+    /**
+     * The worker passes the sign-in it began under. One that has moved on before the fetch starts,
+     * the catalog refresh before it having waited across a sign-out and sign-in, would otherwise
+     * adopt the new sign-in and write its rows.
+     */
+    @Test
+    fun `a sync begun under an old sign-in fetches and writes nothing`() = runTest {
+        val old = auth.signInGeneration
+        auth.logout()
+        tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
+
+        assertTrue(sync.sync(STUDENT, PASSWORD, TERM, signIn = old))
+
+        assertEquals(emptyList<Boolean>(), selectionAsks)
+        assertEquals(emptyList<String>(), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(emptyList<Any>(), uploads())
+    }
+
     /** A full sync's roster requests, answered once its account has signed out and another signed in. */
     @Test
     fun `roster requests of a sign-in that has ended ask nothing and upload nothing`() = runTest {

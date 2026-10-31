@@ -168,6 +168,8 @@ class TermCourseSync internal constructor(
         rosterRequested: Boolean = false,
         signIn: Int = signInGeneration(),
     ): Boolean {
+        // A run that outlived its sign-in fetches nothing, and has nothing to retry.
+        if (signInGeneration() != signIn) return true
         val servesSelection = sources.servesSelection(semester)
         if (rosterRequested && !servesSelection) return true
         // Before the fetch: a sign-out while it runs drops its roster.

@@ -123,16 +123,21 @@ class SyncWiringTest {
         val worker = body(rel, "doWork")
         assertTrue("the worker no longer captures the sign-in", "authTokenManager.signInGeneration" in worker)
         assertTrue("the worker compares the student ID alone again", "storedStudentId != studentId" !in worker)
-        for ((stamp, name) in listOf(
-            "prefs.backgroundOverridesSyncedAtMs = now" to "the backend stamp",
-            "prefs.backgroundCoursesSyncedAtMs = now" to "the courses stamp",
-            "liveActivityManager.refreshAndWait()" to "the refreshes",
-        )) {
+        // Each stamp is written inside the sign-in lock, so a sign-out cannot clear it between the check and the write.
+        for (stamp in listOf("prefs.backgroundOverridesSyncedAtMs = now", "prefs.backgroundCoursesSyncedAtMs = now", "prefs.backgroundCoursesTerm = term.code")) {
             val at = worker.indexOf(stamp)
-            assertTrue("the worker no longer has $name", at >= 0)
-            assertTrue("the worker no longer checks run.ended() before $name", worker.lastIndexOf("run.ended()", at) >= 0)
+            assertTrue("the worker no longer writes $stamp", at >= 0)
+            assertTrue("the worker writes $stamp outside run.writeIfCurrent", worker.lastIndexOf("run.writeIfCurrent {", at) >= 0)
         }
+        assertTrue("run.writeIfCurrent no longer runs under the sign-in lock", "runIfSignedIn = authTokenManager::runIfSignedIn" in worker)
+        // The courses phase ends the run before the assignments, and passes its sign-in to the fetch.
+        val fetch = worker.indexOf("syncCourses(studentId, password, signIn)")
+        val assignments = worker.indexOf("val assignmentsOk")
+        assertTrue("the worker no longer passes its sign-in to the course fetch", fetch >= 0)
+        assertTrue("the worker no longer checks run.ended() right after the course fetch", "run.ended()" in worker.substring(fetch, assignments))
         assertTrue("the worker does not check after the assignments", worker.indexOf("run.ended()", worker.indexOf("syncAssignments()")) >= 0)
+        assertTrue("the worker no longer checks before the refreshes", worker.lastIndexOf("run.ended()", worker.indexOf("liveActivityManager.refreshAndWait()")) > worker.indexOf("syncAssignments()"))
+        assertCalls(rel, "syncCourses", "termCourseSync.sync(studentId, password, courseService.currentSemesterCode(), signIn = signIn)")
     }
 
     @Test
@@ -469,7 +474,7 @@ class SyncWiringTest {
         )
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
         assertTrue("TermCourseSync no longer waits on the adds still going up", "waitingAdds = pendingCourseAdds::waitingIn" in sync)
-        assertCalls("notification/BackgroundSyncWorker.kt", "syncCourses", "termCourseSync.sync(studentId, password, courseService.currentSemesterCode())")
+        assertCalls("notification/BackgroundSyncWorker.kt", "syncCourses", "termCourseSync.sync(studentId, password, courseService.currentSemesterCode(), signIn = signIn)")
         for ((rel, name) in listOf("ui/screen/home/HomeViewModel.kt" to "fetchData", "notification/TermCourseSync.kt" to "sync")) {
             assertFalse("$rel $name saves a fetch past the commit", "dataCache.saveCourses(" in body(rel, name))
         }
