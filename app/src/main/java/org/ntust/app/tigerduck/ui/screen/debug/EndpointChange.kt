@@ -47,6 +47,8 @@ class EndpointChange internal constructor(
     private val registerAgain: () -> Unit,
     /** Lets go of what the backend left stored, which no account owns: the bulletins. */
     private val forgetBackendData: () -> Unit,
+    /** Told after a move to another backend, for the data fetched from it to come from the new one. */
+    private val movedBackend: () -> Unit = {},
 ) {
     @Inject
     constructor(
@@ -60,6 +62,7 @@ class EndpointChange internal constructor(
         wearBridge: WearScheduleBridge,
         mailAccount: MailAccount,
         pushRegistration: PushRegistrationService,
+        courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
         bulletinCache: BulletinCache,
         bulletinRepository: BulletinRepository,
         bulletinReadState: BulletinReadStateStore,
@@ -95,6 +98,11 @@ class EndpointChange internal constructor(
             bulletinReadState.clear()
             bulletinCache.clearIn(scope)
         },
+        // Drops the old backend's course changes at once and fetches the new one's.
+        movedBackend = {
+            courseChangeStore.endpointMoved()
+            scope.launch { courseChangeStore.refresh() }
+        },
     )
 
     /** Whether storing [target] (null: the default) moves the app to another backend, and so asks first. */
@@ -122,5 +130,6 @@ class EndpointChange internal constructor(
         // dropped (AnnouncementsViewModel).
         if (moves) forgetBackendData()
         registerAgain()
+        if (moves) movedBackend()
     }
 }

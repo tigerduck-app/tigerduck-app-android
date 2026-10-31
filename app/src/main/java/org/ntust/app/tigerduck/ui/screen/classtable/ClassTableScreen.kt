@@ -173,6 +173,7 @@ fun ClassTableScreen(
     val schoolDataSyncedAtMs by viewModel.schoolDataSyncedAtMs.collectAsStateWithLifecycle()
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val currentMinute by viewModel.currentMinute.collectAsStateWithLifecycle()
+    val thisWeek by viewModel.thisWeek.collectAsStateWithLifecycle()
     // Collected as snapshot state (rather than reading the ViewModel's raw
     // StateFlow.value) so the badge icons recompose when the assignments
     // fetch completes after the courses fetch — a raw read registers no
@@ -511,6 +512,7 @@ fun ClassTableScreen(
                                             ongoing.firstPeriodId,
                                             fromLiveTerm = true,
                                             periods = ongoing.periods,
+                                            date = AppClock.localDateTime().toLocalDate(),
                                         )
                                     },
                                     modifier = Modifier.fillMaxHeight()
@@ -544,6 +546,7 @@ fun ClassTableScreen(
                                             block?.first() ?: "",
                                             fromLiveTerm = true,
                                             periods = block,
+                                            date = AppClock.localDateTime().toLocalDate(),
                                         )
                                     },
                                     modifier = Modifier.fillMaxHeight()
@@ -620,9 +623,11 @@ fun ClassTableScreen(
                             if (shownPerson == null) courseNosIgnoringAssignments else emptySet(),
                         outlineRequiredCourses = outlineRequiredCourses,
                         onSelect = { course, weekday, periodId ->
-                            viewModel.selectCourse(course, weekday, periodId)
+                            viewModel.selectCourse(course, weekday, periodId, date = thisWeek?.date(weekday))
                         },
                         editable = shownPerson == null,
+                        thisWeek = thisWeek,
+                        nowMinute = currentMinute,
                         onRowsPlaced = { rows, rowHeightPx ->
                             val content = scrolledContent[0]
                             if (content != null && content.isAttached && rows.isAttached) {
@@ -755,7 +760,9 @@ fun ClassTableScreen(
             weekday = target.weekday,
             periodId = target.periodId,
             onPick = { picked ->
-                viewModel.selectCourse(picked, target.weekday, target.periodId)
+                viewModel.selectCourse(
+                    picked, target.weekday, target.periodId, date = viewModel.thisWeek.value?.date(target.weekday),
+                )
                 conflictPicker = null
             },
             onDismiss = { conflictPicker = null },

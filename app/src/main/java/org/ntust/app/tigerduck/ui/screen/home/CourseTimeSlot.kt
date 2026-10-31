@@ -138,12 +138,20 @@ val CourseTimeSlot.weekday: Int
         }
     }
 
-/** What the class table's course detail opens on: the course, the weekday and the period it was tapped at. */
-data class CourseDetailSelection(val course: Course, val weekday: Int, val periodId: String)
+/**
+ * What the class table's course detail opens on: the course, the weekday and the period it was
+ * tapped at, and the day whose course changes it shows, null for none.
+ */
+data class CourseDetailSelection(
+    val course: Course,
+    val weekday: Int,
+    val periodId: String,
+    val date: java.time.LocalDate? = null,
+)
 
-/** This slot's course on its own day and first period, so the detail shows this slot's room and time. */
+/** This slot's course on its own day and first period, so the detail shows this slot's room, time and changes. */
 val CourseTimeSlot.detailSelection: CourseDetailSelection
-    get() = CourseDetailSelection(course, weekday, periods.firstOrNull().orEmpty())
+    get() = CourseDetailSelection(course, weekday, periods.firstOrNull().orEmpty(), localDate)
 
 /**
  * Classroom resolved per-period for this slot — iterates [periods] through

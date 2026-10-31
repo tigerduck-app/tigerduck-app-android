@@ -123,6 +123,7 @@ class AppState @Inject constructor(
     val librarySession: LibrarySession,
     private val wearBridge: org.ntust.app.tigerduck.wear.WearScheduleBridge,
     private val browserData: org.ntust.app.tigerduck.browser.BrowserDataCleaner,
+    private val courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
 ) {
     /**
      * Whether the demo account was signed in when this process started.
@@ -613,6 +614,8 @@ class AppState @Inject constructor(
         // during onboarding — nothing else would re-trigger a register for
         // a user who never signs in.
         scope.launch { pushRegistration.onOnboardingCompleted() }
+        // Asked nothing until now, and no return to the app comes at the wizard's end.
+        scope.launch { courseChangeStore.refresh() }
     }
 
     /**

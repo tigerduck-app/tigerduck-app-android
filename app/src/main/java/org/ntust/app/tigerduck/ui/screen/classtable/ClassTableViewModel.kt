@@ -114,6 +114,7 @@ class ClassTableViewModel @Inject constructor(
     private val pendingCourseDeletes: org.ntust.app.tigerduck.data.PendingCourseDeletes,
     private val pendingCourseOverrides: org.ntust.app.tigerduck.data.PendingCourseOverrides,
     private val reviewPrompt: ReviewPrompt,
+    private val courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
     private val authTokenManager: AuthTokenManager,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
@@ -313,6 +314,9 @@ class ClassTableViewModel @Inject constructor(
     // meeting twice a day shows the times of the one tapped, not the day's.
     private val _selectedPeriods = MutableStateFlow<List<String>?>(null)
 
+    /** The day the detail was opened for, whose course changes it shows; null shows none. */
+    private val _selectedDate = MutableStateFlow<java.time.LocalDate?>(null)
+
     // The term the selected course belongs to. Not always the picker's: the
     // today carousel shows the live term's courses whatever term the grid
     // is on, and a course added by hand is looked up in Moodle by
@@ -446,6 +450,21 @@ class ClassTableViewModel @Inject constructor(
         SharingStarted.Eagerly,
         ShownClassTable(null, _currentSemester.value, _availableSemesters.value, emptyList(), 0),
     )
+
+    /**
+     * The class table as a week from today, with the school's course changes on its blocks, while
+     * it shows the term in session and the changes feed has answered; null for a plain timetable.
+     * Rechecked each minute, for the day and the term to roll over. As the iPhone's `showsThisWeek`.
+     */
+    val thisWeek: StateFlow<ClassTableWeek?> = combine(
+        courseChangeStore.changes,
+        shownTable,
+        _currentDayTime,
+    ) { changes, shown, _ ->
+        ClassTableWeek(AppClock.localDateTime().toLocalDate(), changes).takeIf {
+            ClassTableThisWeek.showsThisWeek(changes.term, shown.semester, courseService.currentSemesterCode())
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _isRefreshingShownPerson = MutableStateFlow(false)
 
@@ -913,6 +932,36 @@ class ClassTableViewModel @Inject constructor(
             )
         }
 
+    /** The selected block on the selected day as the school changed it; null without a day or a change. */
+    val selectedMeeting: org.ntust.app.tigerduck.coursechanges.ClassSlot?
+        get() {
+            val course = _selectedCourse.value ?: return null
+            return org.ntust.app.tigerduck.coursechanges.CourseChangeSummary.shownMeeting(
+                course, null, _selectedPeriods.value, _selectedDate.value, courseChangeStore.current(),
+            )
+        }
+
+    /**
+     * 課程異動's rows for the selected course from today on, leaving [shown]'s own change to the
+     * cards; none for a detail opened without a day.
+     */
+    fun selectedChangeRows(
+        shown: org.ntust.app.tigerduck.coursechanges.ClassSlot?,
+        cancelled: String,
+        locale: java.util.Locale,
+    ): List<org.ntust.app.tigerduck.coursechanges.CourseChangeRow> {
+        val course = _selectedCourse.value ?: return emptyList()
+        if (_selectedDate.value == null) return emptyList()
+        val changes = courseChangeStore.current()
+        val today = AppClock.localDateTime().toLocalDate()
+        return org.ntust.app.tigerduck.coursechanges.CourseChangeSummary.rows(
+            org.ntust.app.tigerduck.coursechanges.CourseMeetings.upcomingChanges(course, today, changes),
+            shown,
+            cancelled,
+            locale,
+        )
+    }
+
     fun isCourseFinishedToday(course: Course): Boolean =
         ClassTableSelection.isFinishedAt(course, _currentDayTime.value)
 
@@ -956,7 +1005,11 @@ class ClassTableViewModel @Inject constructor(
         fromLiveTerm: Boolean = false,
         // The block a today card stands for; a grid tap opens the cell's, around [periodId].
         periods: List<String>? = null,
+        // The day whose course changes the detail shows: the column's in a week from today, a
+        // card's own; null shows none.
+        date: java.time.LocalDate? = null,
     ) {
+        _selectedDate.value = date
         _selectedWeekday.value = weekday
         _selectedPeriodId.value = periodId
         _selectedPeriods.value = periods ?: ClassTableSelection.block(
@@ -1514,6 +1567,8 @@ class ClassTableViewModel @Inject constructor(
 
     /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
     fun refresh() {
+        // The school's course changes too, on either class table, as on iOS (#911).
+        viewModelScope.launch { courseChangeStore.refresh() }
         if (isShowingSomeoneElse) {
             refreshShownPerson()
             return
