@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -13,14 +14,16 @@ class ClassTableWiringTest {
 
     private val rel = "src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt"
 
-    private fun source(): List<String> {
+    private fun source(): List<String> = source(rel)
+
+    private fun source(path: String): List<String> {
         var dir: File? = File("").absoluteFile
         while (dir != null) {
-            File(dir, rel).let { if (it.isFile) return it.readLines() }
-            File(dir, "app/$rel").let { if (it.isFile) return it.readLines() }
+            File(dir, path).let { if (it.isFile) return it.readLines() }
+            File(dir, "app/$path").let { if (it.isFile) return it.readLines() }
             dir = dir.parentFile
         }
-        throw AssertionError("Could not locate ClassTableViewModel.kt from ${File("").absolutePath}")
+        throw AssertionError("Could not locate $path from ${File("").absolutePath}")
     }
 
     /** Member function [name], up to the next member or doc comment. */
@@ -112,7 +115,7 @@ class ClassTableWiringTest {
      */
     @Test
     fun `a fetch looks the term's hand-added courses up again, onto the list as the user left it`() {
-        assertCalls("fetchData", "fetchTermCourses(semester, orderedCourseNos, moodleByNo, countsAsUse = true)")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, countsAsUse = true)")
         assertCalls("fetchTermCourses", "termFetch.lookUp(", "termFetch.foldLatest(", "latestCourses(semester)")
         assertCalls("latestCourses", "if (coursesSemester == semester) _courses.value else dataCache.loadCourses(semester)")
     }
@@ -177,7 +180,7 @@ class ClassTableWiringTest {
             "resetCourses no longer supersedes the warm before anything else",
             reset.indexOf("termWarm.supersede(") < reset.indexOf("viewModelScope.launch"),
         )
-        assertCalls("warmTerm", "fetchTermCourses(semester, rosterNos, moodleByNo) {", "isCurrent()")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo) {", "isCurrent()")
         // The commit — the generation check, the snapshot, the fold, the save and the upload —
         // in the order the backend's DELETEs run in, and held through the upload: a reset's
         // DELETE waits for an upload under way, and an upload after it finds the term superseded.
@@ -222,11 +225,93 @@ class ClassTableWiringTest {
         val synced = fetch.indexOf("_syncCompleteEvent.tryEmit(Unit)")
         val warmed = fetch.indexOf("warmTerms(")
         assertTrue("fetchData no longer warms the other terms once its own is done", synced in 0 until warmed)
-        assertCalls("warmTerms", "termWarm.run {")
-        assertCalls("warmTerm", "fetchTermCourses(semester, rosterNos, moodleByNo)")
+        assertCalls("warmTerms", "termWarm.run(")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo)")
         val source = source().joinToString("\n")
         for (call in listOf("warmJob?.cancel()", "termWarm.reset()")) {
             assertTrue("a sign-out no longer calls $call", call in source)
+        }
+    }
+
+    // --- Past terms from the transcript (iOS tigerduck-app#890) ---
+
+    /**
+     * The page's own fetch asks the score system only for a term course selection gave nothing
+     * for, alongside Moodle, through its day-long cache; the warm of the other terms reuses that
+     * answer. The fetch and the warm read their terms the same way.
+     */
+    @Test
+    fun `the transcript is asked for only when course selection gave nothing, and handed to the warm`() {
+        assertCalls(
+            "fetchData",
+            "if (selectionDef.await().isEmpty()) transcript.fetched() else transcript.cachedOnly()",
+            "scoreService.fetchScoreReport(studentId, password)",
+            "ServerStatusTracker.set(it, ServerKind.SCORE_SYSTEM)",
+            "warmTerms(studentId, password, moodleAll, transcript)",
+            "ClassTableTermSource.of(semester, selectionNos, report, servesSelectionSemester,",
+        )
+        assertTrue("fetchData forces the transcript past its cache", "forceRefresh" !in body("fetchData"))
+        assertCalls("warmTerms", "shared = { transcript.fetched() }")
+        assertCalls("warmTerm", "ClassTableTermSource.of(semester, selectionNos, report, servesSelection,")
+    }
+
+    /** Moodle's sites add no course to any term; they still decide whose assignments are asked for. */
+    @Test
+    fun `Moodle's sites are no term's roster`() {
+        for (name in listOf("fetchData", "warmTerm")) {
+            assertFalse("$name still takes Moodle's sites for a roster", "rosterOrder" in body(name))
+        }
+        assertCalls("fetchData", "rosterCourseNos = assignmentNos.toSet()")
+        assertFalse("the warm asks for assignments", "assignmentCourseNos" in body("warmTerm"))
+    }
+
+    /**
+     * Answers fetched for an account that signed out meanwhile reach no term (iOS
+     * WarmTermsTests): the page's own term commits only while the account its fetch began under
+     * is signed in, and so does each term of the warm, whose answers are dropped otherwise; see
+     * ClassTableTermWarmTest.
+     */
+    @Test
+    fun `answers fetched for an account that left reach no term`() {
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, countsAsUse = true) { authService.isStillSignedInAs(studentId) }")
+        assertCalls("fetchData", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
+        assertCalls("warmTerms", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
+    }
+
+    /**
+     * A rebuilt past term's drops reach the disk before the term is saved, inside the commit
+     * lock, with the hand-adds still on their way up kept out of them; the order within the
+     * commit is ClassTableTermFetch.committed's, under ClassTableTermFetchTest.
+     */
+    @Test
+    fun `a rebuilt past term records its drops, then is saved and uploaded, under the commit lock`() {
+        val body = body("fetchTermCourses")
+        val commit = body.indexOf("pendingCourseAdds.uploading {")
+        val committed = body.indexOf("termFetch.committed(")
+        val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping)")
+        val fold = body.indexOf("termFetch.foldLatest(")
+        val save = body.indexOf("dataCache.saveCourses(")
+        val upload = body.indexOf("pushApiClient.uploadCourses(")
+        assertTrue("fetchTermCourses no longer commits the drawn term under the lock", commit in 0 until committed)
+        assertTrue("fetchTermCourses no longer records a rebuild's drops in the commit", record in committed until fold)
+        assertTrue("fetchTermCourses no longer saves, then uploads, the folded term", fold < save && save < upload)
+        assertCalls(
+            "fetchTermCourses",
+            "waitingAdds = { pendingCourseAdds.waitingIn(semester) }",
+            "atMost = source.lookupsAtOnce",
+        )
+    }
+
+    /** Someone else's class table is looked up as shared; only the user's own terms are rebuilt. */
+    @Test
+    fun `someone else's class table is never rebuilt from a transcript`() {
+        val shown = body("refreshShownPerson")
+        for (call in listOf("ClassTableTermSource", "recordFinalRoster", "transcript", "fetchTermCourses")) {
+            assertFalse("refreshShownPerson reaches $call", call in shown)
+        }
+        val lookup = source("src/main/java/org/ntust/app/tigerduck/data/sharing/ImportedCourseLookup.kt").joinToString("\n")
+        for (call in listOf("TranscriptTerms", "recordFinalRoster", "ScoreReport", "ClassTableTermSource")) {
+            assertFalse("ImportedCourseLookup reaches $call", call in lookup)
         }
     }
 }

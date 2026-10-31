@@ -10,6 +10,8 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.network.LookedUpCourse
@@ -47,6 +49,12 @@ internal class ClassTableTermFetch(
          * term's merged rows.
          */
         val rebuildDrops: Set<String>? = null,
+        /**
+         * Set when the term only gains from the transcript: [fold] removes
+         * none of its courses, a course saved while the lookups ran, which
+         * [fetched] does not list, included.
+         */
+        val onlyGains: Boolean = false,
     ) {
         /** Nothing came back: the term is left as it is. A rebuild always comes back, even empty. */
         val isEmpty: Boolean get() = rebuildDrops == null && fetched.isEmpty() && lookedUp.isEmpty()
@@ -68,12 +76,15 @@ internal class ClassTableTermFetch(
      * keeps those as stored, so a room or time the school changed since they
      * were added never reached them. One the query does not answer keeps its
      * snapshot.
+     *
+     * [atMost] queries are in flight at once, or every one for null.
      */
     suspend fun lookUp(
         semester: String,
         rosterNos: List<String>,
         moodleByNo: Map<String, MoodleEnrolledCourse>,
         before: List<Course>,
+        atMost: Int? = null,
     ): Answers = coroutineScope {
         val manualNos = ClassTableCourseMerge.manualNosToLookUp(before, rosterNos)
         if (rosterNos.isEmpty() && manualNos.isEmpty()) {
@@ -81,21 +92,72 @@ internal class ClassTableTermFetch(
         }
         var failed = false
         val noteFailure = { failed = true }
+        val permits = atMost?.let { Semaphore(it) }
+        suspend fun ask(courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): LookedUpCourse {
+            val lookUp = suspend { lookUpCourse(semester, courseNo, moodle, kept, noteFailure) }
+            return if (permits == null) lookUp() else permits.withPermit { lookUp() }
+        }
         // A roster course whose query fails, or brings no rows, keeps its row
         // in the term, where Moodle's stand-in would take its times and room
         // (#417).
         val beforeByNo = before.associateBy { it.courseNo }
         val roster = rosterNos.map { courseNo ->
-            async { lookUpCourse(semester, courseNo, moodleByNo[courseNo], beforeByNo[courseNo], noteFailure) }
+            async { ask(courseNo, moodleByNo[courseNo], beforeByNo[courseNo]) }
         }
         // Without Moodle to fall back on: a hand-added course the query does
         // not answer keeps its snapshot, where a stub would take its times.
         val manual = manualNos.map { courseNo ->
-            async { lookUpCourse(semester, courseNo, null, null, noteFailure) }
+            async { ask(courseNo, null, null) }
         }
         val looked = roster.awaitAll()
         val lookedUp = manual.awaitAll().mapNotNull { lookup -> lookup.course?.let { lookup.courseNo to it } }.toMap()
         Answers(looked.mapNotNull { it.course }, lookedUp, answered = !failed, looked = looked)
+    }
+
+    /**
+     * One term's commit of its [answers], read as [source] says, under the
+     * caller's lock, before anything of the term is saved: course selection's
+     * answer as fetched; a class the transcript adds only with class times,
+     * and nothing the term holds by the fold removed
+     * ([TranscriptTerms.drawnCourses], [Answers.onlyGains]); an ended term as
+     * its transcript rebuilds it ([TranscriptTerms.rebuiltPastTerm]), whose
+     * drops [recordFinalRoster] writes first, so a sync landing before the
+     * save cannot merge the junk back. Then the term [fold]s, through the
+     * caller's [foldLatest], for the caller to save and upload.
+     *
+     * [latest] is the term's list as it stands; [waitingAdds] the courses
+     * whose add has not gone up yet, which are never dropped. Null leaves the
+     * term as it is: nothing came back, or [fold] gave nothing.
+     *
+     * As iOS `AppServiceBridge.fetchCourses`' save (tigerduck-app#890).
+     */
+    suspend fun committed(
+        answers: Answers,
+        source: ClassTableTermSource,
+        semester: String,
+        moodleNos: Collection<String>,
+        latest: suspend () -> List<Course>,
+        waitingAdds: suspend () -> Set<String>,
+        recordFinalRoster: suspend (TranscriptTerms.RebuiltTerm) -> Unit,
+        fold: suspend (Answers) -> List<Course>?,
+    ): List<Course>? {
+        val drawn = when (source) {
+            is ClassTableTermSource.Rebuild -> {
+                val rebuilt = TranscriptTerms.rebuiltPastTerm(
+                    answers.looked, source.report, semester, latest(), moodleNos, waitingAdds(),
+                )
+                recordFinalRoster(rebuilt)
+                answers.rebuilding(rebuilt)
+            }
+            is ClassTableTermSource.Gaining -> {
+                val cached = latest().mapTo(mutableSetOf()) { it.courseNo }
+                val fetched = TranscriptTerms.drawnCourses(answers.fetched, fromSelection = false, cached = cached)
+                Answers(fetched, answers.lookedUp, answers.answered, answers.looked, onlyGains = true)
+            }
+            is ClassTableTermSource.Selection, ClassTableTermSource.Unanswered -> answers
+        }
+        if (drawn.isEmpty) return null
+        return fold(drawn)
     }
 
     /**
@@ -175,8 +237,9 @@ internal class ClassTableTermFetch(
                 refreshed.filterNot { it.isManual && !it.moodleIdNumber.isNullOrEmpty() && it.courseNo in rebuildDrops },
                 names, locale, deletedNos,
             )
-            answers.fetched.isNotEmpty() ->
-                ClassTableCourseMerge.mergeFetched(answers.fetched, refreshed, names, locale, deletedNos)
+            answers.fetched.isNotEmpty() -> ClassTableCourseMerge.mergeFetched(
+                answers.fetched, refreshed, names, locale, deletedNos, alsoKeeps = { answers.onlyGains },
+            )
             // The roster brought nothing, so the term stays as it is, its
             // hand-added rows refreshed; a merge over nothing would drop the
             // rest.

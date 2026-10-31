@@ -154,4 +154,135 @@ class ClassTableTermWarmTest {
         }
         assertEquals(listOf("1151", "1141"), fetched)
     }
+
+    // --- Answers fetched once for every term (iOS WarmTermsTests, tigerduck-app#890) ---
+
+    /**
+     * Moodle and the transcript answer once for every term the warm fetches, for the account the
+     * fetch began under. Answers that outlive a sign-out reach no term, and each term commits only
+     * while that account is still the one signed in.
+     */
+    @Test
+    fun `answers fetched for an account that signed out meanwhile reach no term`() = runTest {
+        var account = "TEST00001"
+        val warm = warm()
+        val reached = mutableMapOf<String, String?>()
+
+        warm.run(stillSignedIn = { account == "TEST00001" }, shared = {
+            // Signed out, and in as someone else, while the score system answered.
+            account = "TEST00002"
+            "answers of TEST00001"
+        }) { term, answers, _ ->
+            reached[term] = answers
+            fetch(term)
+        }
+        assertEquals(emptyMap<String, String?>(), reached)
+
+        // The next account's own warm, after the sign-out.
+        warm.reset()
+        val current = mutableMapOf<String, Boolean>()
+        warm.run(stillSignedIn = { account == "TEST00002" }, shared = { "answers of TEST00002" }) { term, answers, isCurrent ->
+            reached[term] = answers
+            // Signed out while 114-2's lookups ran: it must not commit, and the rest are not fetched.
+            if (term == "1142") account = "TEST00003"
+            current[term] = isCurrent()
+            fetch(term, isCurrent)
+        }
+        assertEquals(listOf("1151", "114H", "1142"), reached.keys.toList())
+        assertEquals(setOf<String?>("answers of TEST00002"), reached.values.toSet())
+        assertEquals(mapOf("1151" to true, "114H" to true, "1142" to false), current)
+        assertEquals(setOf("1151", "114H"), cached)
+    }
+
+    /** The answers are asked for once, and only when some term still needs them. */
+    @Test
+    fun `the shared answers are fetched once, and not at all when every term is cached`() = runTest {
+        var asked = 0
+        warm().run(stillSignedIn = { true }, shared = { asked++; "answers" }) { term, _, isCurrent -> fetch(term, isCurrent) }
+        assertEquals(1, asked)
+        assertEquals(listOf("1151", "114H", "1142", "1141"), fetched)
+
+        asked = 0
+        cached += catalogue
+        warm().run(stillSignedIn = { true }, shared = { asked++; "answers" }) { term, _, isCurrent -> fetch(term, isCurrent) }
+        assertEquals(0, asked)
+    }
+
+    /**
+     * The transcript failed, so no term but the one course selection serves has a source: that
+     * one is warmed from course selection as it was before the transcript, and the rest wait for
+     * a later fetch, which does not find the run spent. Each term picks its source itself, so
+     * every one is handed the missing answer.
+     */
+    @Test
+    fun `without the shared answers a term that needs none is still warmed, and the rest wait for a later fetch`() = runTest {
+        val served = "1151"
+        val handed = mutableMapOf<String, String?>()
+        /** Course selection's term needs no transcript; any other is the transcript's to build. */
+        suspend fun fetchFrom(term: String, answers: String?, isCurrent: () -> Boolean): Boolean {
+            handed[term] = answers
+            if (term != served && answers == null) return true
+            return fetch(term, isCurrent)
+        }
+        val warm = warm()
+        warm.run<String>(stillSignedIn = { true }, shared = { null }) { term, answers, isCurrent -> fetchFrom(term, answers, isCurrent) }
+        assertEquals(setOf(served), cached)
+        assertEquals(mapOf<String, String?>(served to null, "114H" to null, "1142" to null, "1141" to null), handed)
+
+        handed.clear()
+        warm.run<String>(stillSignedIn = { true }, shared = { "answers" }) { term, answers, isCurrent -> fetchFrom(term, answers, isCurrent) }
+        assertEquals(mapOf<String, String?>("114H" to "answers", "1142" to "answers", "1141" to "answers"), handed)
+        assertEquals(setOf(served, "114H", "1142", "1141"), cached)
+    }
+
+    // --- The wait for the shared answers ---
+
+    /**
+     * The shared answers are asked for as the first term's turn comes, and take seconds. The
+     * user can pick that term meanwhile and leave it before its own fetch lands: the pick
+     * superseded the warm, whose older answers must not land over that fetch's.
+     */
+    @Test
+    fun `a term picked while the shared answers are on their way makes its warm stale`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val warm = warm()
+        val current = mutableMapOf<String, Boolean>()
+        val job = launch {
+            warm.run(stillSignedIn = { true }, shared = { gate.await(); "answers" }) { term, _, isCurrent ->
+                current[term] = isCurrent()
+                fetch(term, isCurrent)
+            }
+        }
+        advanceUntilIdle()
+        // Picked, its own fetch begun, and left again before that fetch landed.
+        shown = "1151"
+        warm.supersede("1151")
+        shown = "1152"
+        gate.complete(Unit)
+        advanceUntilIdle()
+        job.join()
+        assertTrue("115-1's warm still counts as current", current["1151"] != true)
+        assertEquals(setOf("114H", "1142", "1141"), cached)
+    }
+
+    /** Picked, or cached by another fetch, while the shared answers were on their way: left to that fetch. */
+    @Test
+    fun `a term picked or cached while the shared answers are on their way is not fetched`() = runTest {
+        for (meanwhile in listOf<() -> Unit>({ shown = "1151" }, { cached += "1151" })) {
+            fetched.clear()
+            cached.clear()
+            shown = "1152"
+            val gate = CompletableDeferred<Unit>()
+            val warm = warm()
+            val job = launch {
+                warm.run(stillSignedIn = { true }, shared = { gate.await(); "answers" }) { term, _, isCurrent -> fetch(term, isCurrent) }
+            }
+            advanceUntilIdle()
+            meanwhile()
+            gate.complete(Unit)
+            advanceUntilIdle()
+            job.join()
+            assertEquals(listOf("114H", "1142", "1141"), fetched)
+        }
+    }
 }

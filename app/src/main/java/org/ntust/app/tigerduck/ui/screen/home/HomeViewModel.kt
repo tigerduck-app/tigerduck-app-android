@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import android.os.SystemClock
 import android.util.Log
 import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -725,18 +726,19 @@ class HomeViewModel @Inject constructor(
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
                 if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
-                    val (remoteCourses, remoteAssignments) =
+                    val (remote, remoteAssignments) =
                         fetchCoursesAndAssignments(studentId, password)
 
-                    if (!remoteCourses.isNullOrEmpty()) {
+                    if (remote != null && remote.courses.isNotEmpty()) {
                         // Re-read cache so a concurrent color change isn't erased,
                         // and so manually-added courses survive the refresh.
                         courses = HomeCourseMerge.mergeRemote(
-                            remote = remoteCourses,
+                            remote = remote.courses,
                             cached = dataCache.loadCourses(),
                             names = dataCache.loadCourseCustomNames(),
                             locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
                             deletedNos = hiddenNow(),
+                            onlyGains = remote.onlyGains,
                         )
                         dataCache.saveCourses(courses)
                         // The class table loaded: a day of use towards the
@@ -787,18 +789,24 @@ class HomeViewModel @Inject constructor(
     /** A Moodle round's assignments as the cache should hold them, with the round that gave them; see [MoodleService.storeAssignments]. */
     private class AssignmentsToStore(val assignments: List<Assignment>, val answer: MoodleService.AssignmentsAnswer)
 
+    /** A fetch's courses of the term, and whether the term only gains them; see [HomeCourseMerge.mergeRemote]. */
+    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean)
+
     /**
      * One network round of the two enrolment sources (NTUST course-selection
      * portal + Moodle enrolled-courses) run in parallel, then per-course
      * detail lookups run in parallel while assignments are fetched alongside.
+     * The term's courses are course selection's, else the transcript's on
+     * disk added to the cached ones (see [TranscriptTerms.termFrom]); Moodle
+     * gives their names and links, and the assignments' courses.
      * Returns (null, null) for any piece that failed so the caller can fall
-     * back to cached data cleanly, and null assignments when there was no
-     * course to ask Moodle about.
+     * back to cached data cleanly, null courses when no source named any, and
+     * null assignments when there was no course to ask Moodle about.
      */
     private suspend fun fetchCoursesAndAssignments(
         studentId: String,
         password: String,
-    ): Pair<List<Course>?, AssignmentsToStore?> = coroutineScope {
+    ): Pair<RemoteCourses?, AssignmentsToStore?> = coroutineScope {
         // TTL-throttled, so this costs one request an hour however often Home
         // refreshes. Resolved before the gate below, which depends on it.
         semesterCatalog.refreshIfStale()
@@ -851,23 +859,32 @@ class HomeViewModel @Inject constructor(
         val moodleEnrolled = moodleEnrolledDef.await()
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
-        val orderedCourseNos = CourseRosterMerge.rosterOrder(courseNos, moodleForSemester)
-        val rosterCourseNos = orderedCourseNos.toSet()
+        // Moodle adds no course to the term, but its courses are still whose
+        // assignments are asked for when course selection gave nothing.
+        val rosterCourseNos = CourseRosterMerge.assignmentCourseNos(courseNos, moodleForSemester).toSet()
+        val cached = dataCache.loadCourses(semester)
+        // Course selection's answer, else the transcript's classes added to
+        // the term, else the term stays as it is (tigerduck-app#890). The
+        // transcript on disk: Home never signs in to the score system.
+        val term = TranscriptTerms.termFrom(courseNos, dataCache.loadScoreReport(studentId)?.report, semester, cached)
 
         val coursesDef = async {
-            if (courseNos == null && moodleEnrolled == null) return@async null
-
-            if (orderedCourseNos.isEmpty()) return@async emptyList()
+            term ?: return@async null
 
             // A course whose query fails, or brings no rows, keeps its row in
             // the term, where Moodle's stand-in would take its times and room
             // off this phone and, uploaded, off every other device (#417).
-            val cachedByNo = dataCache.loadCourses(semester).associateBy { it.courseNo }
-            orderedCourseNos.map { courseNo ->
+            val cachedByNo = cached.associateBy { it.courseNo }
+            val looked = term.courseNos.map { courseNo ->
                 async {
                     courseService.lookupOrFallback(semester, courseNo, moodleByNo[courseNo], kept = cachedByNo[courseNo])
                 }
             }.awaitAll().mapNotNull { it.course }
+            // A class the transcript adds joins with class times; course selection's all do.
+            RemoteCourses(
+                TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys),
+                onlyGains = term.onlyGains,
+            )
         }
 
         val assignmentsDef = async {

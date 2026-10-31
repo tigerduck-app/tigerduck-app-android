@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.ScoreReport
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -23,12 +24,24 @@ sealed class NtustScoreError : Exception() {
  * both clients.
  */
 @Singleton
-class NtustScoreService @Inject constructor(
-    private val sessionManager: NtustSessionManager,
-    private val ssoLoginService: SsoLoginService,
+class NtustScoreService internal constructor(
     private val dataCache: DataCache,
+    /** Whether [studentId] is still the account signed in, read again before a fetched report is kept. */
+    private val isSignedInAs: (studentId: String) -> Boolean,
+    /** The school's page parsed, signing in to the score system first when the session is stale. */
+    private val download: suspend (studentId: String, password: String) -> ScoreReport,
 ) {
-    private val client: OkHttpClient get() = sessionManager.client
+    @Inject
+    constructor(
+        sessionManager: NtustSessionManager,
+        ssoLoginService: SsoLoginService,
+        dataCache: DataCache,
+        credentials: CredentialManager,
+    ) : this(
+        dataCache = dataCache,
+        isSignedInAs = { credentials.ntustStudentId == it },
+        download = SchoolScorePage(sessionManager, ssoLoginService)::download,
+    )
 
     suspend fun fetchScoreReport(
         studentId: String,
@@ -46,20 +59,17 @@ class NtustScoreService @Inject constructor(
             ) return@withContext cachedReport
         }
 
-        if (!sessionManager.cookiesValid) {
-            val loggedIn = ssoLoginService.ensureServiceLogin(SCORE_ROOT_URL, studentId, password)
-            if (!loggedIn) throw NtustScoreError.NotAuthenticated()
-        }
-
-        val html = fetchHtml(studentId, password)
-        val report = NtustScoreParser.parse(html)
+        val report = download(studentId, password)
 
         // A successful fetch that parses to a fully empty report usually
         // means the HTML was actually the SSO page disguised as a 200 —
         // don't poison the cache with that.
         if (report == ScoreReport.EMPTY) throw NtustScoreError.ParseFailed()
 
-        dataCache.saveScoreReport(report, studentId)
+        // Kept only while the student is still signed in: the school takes
+        // seconds, and a sign-out meanwhile wipes the student's files, which
+        // this save would put back. As iOS's persistGuard.
+        if (isSignedInAs(studentId)) dataCache.saveScoreReport(report, studentId)
         report
     }
 
@@ -68,6 +78,27 @@ class NtustScoreService @Inject constructor(
         dataCache.loadScoreReport(studentId)
 
     suspend fun invalidateCache(studentId: String) = dataCache.invalidateScoreReport(studentId)
+
+    companion object {
+        /** 24h — grade updates are a weeks-to-months cadence, stale-hit dominates. */
+        private const val CACHE_TTL_MS: Long = 24 * 60 * 60 * 1000
+    }
+}
+
+/** The score system's DisplayAll page, over the school session: [NtustScoreService]'s network half. */
+private class SchoolScorePage(
+    private val sessionManager: NtustSessionManager,
+    private val ssoLoginService: SsoLoginService,
+) {
+    private val client: OkHttpClient get() = sessionManager.client
+
+    suspend fun download(studentId: String, password: String): ScoreReport {
+        if (!sessionManager.cookiesValid) {
+            val loggedIn = ssoLoginService.ensureServiceLogin(SCORE_ROOT_URL, studentId, password)
+            if (!loggedIn) throw NtustScoreError.NotAuthenticated()
+        }
+        return NtustScoreParser.parse(fetchHtml(studentId, password))
+    }
 
     private suspend fun fetchHtml(studentId: String, password: String): String {
         val (html, finalUrl) = get(SCORE_DISPLAY_URL)
@@ -91,12 +122,9 @@ class NtustScoreService @Inject constructor(
         }
     }
 
-    companion object {
-        private const val SCORE_ROOT_URL = "https://stuinfosys.ntust.edu.tw/StuScoreQueryServ/"
-        private const val SCORE_DISPLAY_URL =
+    private companion object {
+        const val SCORE_ROOT_URL = "https://stuinfosys.ntust.edu.tw/StuScoreQueryServ/"
+        const val SCORE_DISPLAY_URL =
             "https://stuinfosys.ntust.edu.tw/StuScoreQueryServ/StuScoreQuery/DisplayAll"
-
-        /** 24h — grade updates are a weeks-to-months cadence, stale-hit dominates. */
-        private const val CACHE_TTL_MS: Long = 24 * 60 * 60 * 1000
     }
 }

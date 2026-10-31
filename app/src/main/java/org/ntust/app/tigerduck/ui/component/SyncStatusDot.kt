@@ -53,6 +53,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.School
@@ -547,6 +548,8 @@ private val ServerKind.icon: ImageVector
     get() = when (this) {
         ServerKind.MOODLE -> Icons.Filled.School
         ServerKind.COURSE_SELECTION -> Icons.Outlined.Checklist
+        // The score page's own tab icon.
+        ServerKind.SCORE_SYSTEM -> Icons.Filled.BarChart
         ServerKind.BACKEND -> Icons.Filled.Cloud
         ServerKind.LIBRARY -> Icons.AutoMirrored.Filled.MenuBook
     }
@@ -555,6 +558,7 @@ private val ServerKind.labelRes: Int
     get() = when (this) {
         ServerKind.MOODLE -> R.string.calendar_source_moodle
         ServerKind.COURSE_SELECTION -> R.string.feature_course_selection
+        ServerKind.SCORE_SYSTEM -> R.string.sync_status_score_system
         ServerKind.BACKEND -> R.string.cloud_sync_title
         ServerKind.LIBRARY -> R.string.feature_library
     }

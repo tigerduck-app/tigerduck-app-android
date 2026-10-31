@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.sync
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -377,5 +378,61 @@ class SyncWiringTest {
     @Test
     fun `Home's fetch keeps a course's row when its query fails`() {
         assertCalls("ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments", "kept = cachedByNo[courseNo]")
+    }
+
+    /**
+     * tigerduck-app#890: Moodle lists course sites and keeps a dropped class, so Home and the
+     * background sync take the term in session from course selection, else add the transcript's
+     * classes to it, else leave it as it is. The transcript is the one on disk: neither signs in
+     * to the score system. The rule is TranscriptTerms.termFrom's, under ClassTableTermSourceTest.
+     */
+    @Test
+    fun `Home and the background sync add no course Moodle alone lists, and read the transcript from its cache`() {
+        for ((rel, name) in listOf(
+            "ui/screen/home/HomeViewModel.kt" to "fetchCoursesAndAssignments",
+            "notification/BackgroundSyncWorker.kt" to "syncCourses",
+        )) {
+            val body = body(rel, name)
+            for (call in listOf("TranscriptTerms.termFrom(", "dataCache.loadScoreReport(studentId)?.report", "TranscriptTerms.drawnCourses(")) {
+                assertTrue("$rel $name no longer calls $call", call in body)
+            }
+            for (call in listOf("rosterOrder", "fetchScoreReport", "recordFinalRoster")) {
+                assertFalse("$rel $name calls $call", call in body)
+            }
+        }
+    }
+
+    /**
+     * Home and the background sync fold their answers onto the term through the class table's
+     * merge, ClassTableCourseMerge.mergeFetched (Home's mergeRemote hands to it), under
+     * ClassTableCourseMergeTest and HomeCourseMergeTest. A course added here keeps having no
+     * Moodle ID, where the lookup's would make a past term's rebuild drop it; and a term only
+     * gaining from the transcript keeps the courses saved while its lookups ran, which its
+     * answers do not list (tigerduck-app#890).
+     */
+    @Test
+    fun `Home and the background sync merge as the class table does, and a term only gaining removes nothing`() {
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "onlyGains = remote.onlyGains")
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments", "onlyGains = term.onlyGains")
+        val merge = source("ui/screen/home/HomeCourseMerge.kt").joinToString("\n")
+        assertTrue("Home's merge no longer hands to the class table's", "ClassTableCourseMerge.mergeFetched(" in merge)
+        assertCalls(
+            "notification/BackgroundSyncWorker.kt", "syncCourses",
+            "ClassTableCourseMerge.mergeFetched(",
+            "term.onlyGains ||",
+            "names = dataCache.loadCourseCustomNames()",
+        )
+    }
+
+    /**
+     * The background sync adds the transcript's classes to the term's cached courses and looks
+     * every one up: one whose query fails, or brings no rows, keeps the row the term has, where
+     * Moodle's stand-in would take its times and room, as Home's fetch does (#417).
+     */
+    @Test
+    fun `the background sync keeps a course's row when its query fails`() {
+        val body = body("notification/BackgroundSyncWorker.kt", "syncCourses")
+        assertEquals(2, Regex("""CourseService\.afterFailedLookup\(courseNo, moodleByNo\[courseNo], cachedByNo\[courseNo]\)""").findAll(body).count())
+        assertFalse("syncCourses still stands Moodle in for a failed query", "CourseService.fallbackCourseFromMoodle(" in body)
     }
 }

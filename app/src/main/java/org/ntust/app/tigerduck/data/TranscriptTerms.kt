@@ -16,7 +16,10 @@ import org.ntust.app.tigerduck.ui.screen.score.ScoreCourseRoster
 object TranscriptTerms {
 
     /** A term's course numbers, and the roster its drops are read from, null when it has none. */
-    data class TermCourses(val courseNos: List<String>, val roster: List<String>?)
+    data class TermCourses(val courseNos: List<String>, val roster: List<String>?) {
+        /** With no roster the term only gains: its merge removes none of its courses. */
+        val onlyGains: Boolean get() = roster == null
+    }
 
     /** An ended term rebuilt from its transcript; see [rebuiltPastTerm]. */
     data class RebuiltTerm(
@@ -53,6 +56,23 @@ object TranscriptTerms {
         if (fromTranscript.isEmpty()) return null
         return TermCourses(uniqueCourseNos(fromTranscript + cached), roster = null)
     }
+
+    /**
+     * [termCourseNos] of [term], with the transcript's classes read off
+     * [report] and [cached], the term's list, as its portal courses: a manual
+     * row, added by hand or merged from the server, is the fetch's to keep as
+     * it is. Never a rebuild, which [rebuildsFromTranscript] decides apart.
+     *
+     * Home and the background sync use it as it is, with the transcript on
+     * disk, and never sign in to the score system; a past term is rebuilt by
+     * the class table's own fetch.
+     */
+    fun termFrom(selection: List<String>?, report: ScoreReport?, term: String, cached: List<Course>): TermCourses? =
+        termCourseNos(
+            selection,
+            report?.let { classRows(it, term).map { row -> row.code } },
+            cached.filterNot { it.isManual }.map { it.courseNo },
+        )
 
     /**
      * A term the transcript lists is rebuilt only once it lists a later one

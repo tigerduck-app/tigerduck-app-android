@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
@@ -31,6 +32,10 @@ import org.ntust.app.tigerduck.network.NtustScoreError
 import org.ntust.app.tigerduck.network.NtustScoreService
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatus
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,6 +51,8 @@ class ScoreViewModel internal constructor(
     private val strings: (Int) -> String,
     /** The class table's cached courses of a term, portal and hand-added together; see [DataCache.loadCourses]. */
     private val rosterCourses: suspend (term: String) -> List<Course>,
+    /** Where the score system's answer is reported, for the sync dot; [ServerStatusTracker] in the app. */
+    private val recordStatus: (ServerKind, ServerStatus) -> Unit = { server, status -> ServerStatusTracker.set(status, server) },
 ) : ViewModel() {
 
     @Inject
@@ -61,7 +68,10 @@ class ScoreViewModel internal constructor(
         storedStudentId = { authService.storedStudentId },
         storedPassword = { authService.storedPassword },
         cachedSnapshot = scoreService::cachedScoreReport,
-        fetchReport = { id, password, force -> scoreService.fetchScoreReport(id, password, forceRefresh = force) },
+        fetchReport = { id, password, force ->
+            if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.SCORE_SYSTEM)
+            scoreService.fetchScoreReport(id, password, forceRefresh = force)
+        },
         isOnline = networkChecker::isAvailable,
         isDemo = { demoAccount.isActive },
         strings = context::getString,
@@ -221,10 +231,12 @@ class ScoreViewModel internal constructor(
             if (studentId != reportStudentId) return
             _report.value = fresh
             applyDefaultCollapseRule()
+            recordStatus(ServerKind.SCORE_SYSTEM, ServerStatus.OK)
         } catch (e: CancellationException) {
             throw e
         } catch (e: NtustScoreError) {
             if (studentId != reportStudentId) return
+            recordStatus(ServerKind.SCORE_SYSTEM, ServerStatus.FAILED)
             _errorMessage.value = when (e) {
                 is NtustScoreError.NotAuthenticated -> strings(R.string.common_not_signed_in)
                 is NtustScoreError.RedirectedToSSO -> strings(R.string.score_error_sign_in_expired)
@@ -233,6 +245,7 @@ class ScoreViewModel internal constructor(
             }
         } catch (e: Exception) {
             if (studentId != reportStudentId) return
+            recordStatus(ServerKind.SCORE_SYSTEM, ServerStatus.FAILED)
             _errorMessage.value = e.message ?: strings(R.string.score_error_load_failed)
         } finally {
             if (studentId == reportStudentId) _isRefreshing.value = false

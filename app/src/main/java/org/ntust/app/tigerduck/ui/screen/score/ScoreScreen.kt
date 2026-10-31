@@ -108,7 +108,7 @@ fun ScoreScreen(
             ) {
                 PageHeader(title = stringResource(R.string.feature_score)) {
                     SyncStatusDot(
-                        servers = listOf(ServerKind.COURSE_SELECTION),
+                        servers = ServerKind.transcriptSources,
                         isLoading = isRefreshing,
                         syncedAtMs = syncedAtMs,
                     )

@@ -45,6 +45,9 @@ import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import org.ntust.app.tigerduck.ui.screen.home.sendMovedColors
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.RefreshPolicy
+import org.ntust.app.tigerduck.data.TranscriptTerms
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
 import org.ntust.app.tigerduck.ui.RefreshPolicies
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
@@ -419,23 +422,26 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // DataCache.recordSelectionRoster.
             selectionNos?.let { dataCache.recordSelectionRoster(semester, it) }
 
-            if (selectionNos == null && moodleAll == null) return false
-            // With 選課 gated off, Moodle is the only source — its failure is
-            // a total failure, so retry rather than report success on an
-            // empty roster.
-            if (!servesSelectionSemester && moodleAll == null) return false
-            val moodleForSemester = moodleAll
-                .orEmpty()
-                .filter { it.semesterCode == semester && it.courseNo.isNotEmpty() }
-            val moodleByNo = moodleForSemester.associateBy { it.courseNo }
+            // Names and Moodle IDs only: Moodle lists course sites and keeps
+            // a dropped class, so it adds no course to the term.
+            val moodleByNo = CourseRosterMerge.moodleCoursesFor(semester, moodleAll).associateBy { it.courseNo }
+            // The list the merge below folds onto.
+            val before = dataCache.loadCourses()
+            // Course selection's answer, else the transcript's classes added
+            // to the term, else the term stays as it is (tigerduck-app#890).
+            // The transcript on disk: the background never signs in to the
+            // score system.
+            val term = TranscriptTerms.termFrom(selectionNos, dataCache.loadScoreReport(studentId)?.report, semester, before)
+                // Course selection serves the term and could not be reached,
+                // and nothing stands in for it: retried.
+                ?: return selectionNos != null
+            // A course whose query fails, or brings no rows, keeps its row in
+            // the term, where Moodle's stand-in would take its times and room
+            // (#417), and the upload below would take them off every device.
+            val cachedByNo = before.associateBy { it.courseNo }
 
-            val orderedCourseNos =
-                CourseRosterMerge.rosterOrder(selectionNos, moodleForSemester)
-
-            if (orderedCourseNos.isEmpty()) return true
-
-            val fetched = coroutineScope {
-                orderedCourseNos.map { courseNo ->
+            val looked = coroutineScope {
+                term.courseNos.map { courseNo ->
                     async {
                         try {
                             val results = courseService.lookupCourse(semester, courseNo)
@@ -472,45 +478,37 @@ class BackgroundSyncWorker @AssistedInject constructor(
                                     requireOption = CourseService.firstNonEmpty(results.map { it.requireOption }),
                                 )
                             } else {
-                                CourseService.fallbackCourseFromMoodle(
-                                    courseNo,
-                                    moodleByNo[courseNo]
-                                )
+                                CourseService.afterFailedLookup(courseNo, moodleByNo[courseNo], cachedByNo[courseNo])
                             }
                         } catch (e: Exception) {
                             Log.w(TAG, "Course lookup failed: ${e.logSummary()}")
-                            CourseService.fallbackCourseFromMoodle(courseNo, moodleByNo[courseNo])
+                            CourseService.afterFailedLookup(courseNo, moodleByNo[courseNo], cachedByNo[courseNo])
                         }
                     }
                 }.awaitAll().filterNotNull()
             }
+            // A class the transcript adds joins with class times; course selection's all do.
+            val fetched = TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys)
 
             if (fetched.isNotEmpty()) {
-                // Preserve user-picked tile colors and manually-added courses
-                // across the background refresh.
-                val cached = dataCache.loadCourses()
-                val deletedNos = CourseTombstoneKeys.hiddenIn(
-                    courseService.currentSemesterCode(),
-                    dataCache.loadDeletedCourseNos(),
+                // Through the class table's merge, onto the term as it is
+                // now: user-picked colors, renames and manually-added courses
+                // survive, and a course added here keeps having no Moodle ID.
+                val unresolvedNos = term.courseNos.toSet() - fetched.mapTo(mutableSetOf()) { it.courseNo }
+                val merged = ClassTableCourseMerge.mergeFetched(
+                    fetched,
+                    cached = dataCache.loadCourses(),
+                    names = dataCache.loadCourseCustomNames(),
+                    locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
+                    deletedNos = CourseTombstoneKeys.hiddenIn(
+                        courseService.currentSemesterCode(),
+                        dataCache.loadDeletedCourseNos(),
+                    ),
+                    // A term only gaining removes nothing, a course saved while
+                    // these lookups ran included; otherwise a roster course a
+                    // transient lookup failure left unresolved keeps its row.
+                    alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
                 )
-                val cachedByNo = cached.associateBy { it.courseNo }
-                val fetchedWithState = fetched.map { c ->
-                    val prior = cachedByNo[c.courseNo]
-                    c.copy(
-                        customColorHex = prior?.customColorHex,
-                        isManual = prior?.isManual == true,
-                    )
-                }
-                val fetchedNos = fetchedWithState.map { it.courseNo }.toSet()
-                val rosterNos = orderedCourseNos.toSet()
-                val unresolvedNos = rosterNos - fetchedNos
-                val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
-                // Keep stale non-manual cache entries only for courses still in
-                // this cycle's roster but unresolved due to transient lookup failures.
-                val cachedRemoteFallbacks =
-                    cached.filter { !it.isManual && it.courseNo in unresolvedNos }
-                val merged = (fetchedWithState + manualLeftovers + cachedRemoteFallbacks)
-                    .filter { it.courseNo !in deletedNos }
                 dataCache.saveCourses(merged)
                 runCatching { pushApiClient.uploadCourses(merged, semester) }
                     .onFailure {

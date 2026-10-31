@@ -65,7 +65,7 @@ class ReviewPromptWiringTest {
         )
         assertTrue(
             "fetchData no longer asks its term fetch to count a day of use",
-            "fetchTermCourses(semester, orderedCourseNos, moodleByNo, countsAsUse = true)" in body(classTable, "fetchData"),
+            "fetchTermCourses(semester, source, moodleByNo, countsAsUse = true)" in body(classTable, "fetchData"),
         )
         assertFalse("warmTerm counts a day of use", "countsAsUse" in body(classTable, "warmTerm"))
     }

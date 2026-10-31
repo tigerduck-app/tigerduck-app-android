@@ -12,6 +12,9 @@ import org.ntust.app.tigerduck.network.MoodleWebserviceError
 enum class ServerKind {
     MOODLE,
     COURSE_SELECTION,
+
+    /** The school's score system, whose transcript the score page shows and past terms are built from. */
+    SCORE_SYSTEM,
     BACKEND,
 
     /**
@@ -19,7 +22,15 @@ enum class ServerKind {
      * simulator uses it so far: no page's header lists it, so the sync dot
      * never shows it.
      */
-    LIBRARY,
+    LIBRARY;
+
+    companion object {
+        /** The class table's sources, as its header lists them; as iOS `ServerKind.classTableSources`. */
+        val classTableSources: List<ServerKind> = listOf(COURSE_SELECTION, SCORE_SYSTEM, MOODLE, BACKEND)
+
+        /** The score page's one source, the transcript's; as iOS `ServerKind.transcriptSources`. */
+        val transcriptSources: List<ServerKind> = listOf(SCORE_SYSTEM)
+    }
 }
 
 enum class ServerStatus {

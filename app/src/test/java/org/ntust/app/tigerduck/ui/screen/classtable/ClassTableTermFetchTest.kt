@@ -6,20 +6,26 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.TranscriptTerms
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
 import org.ntust.app.tigerduck.data.model.GradeStatus
 import org.ntust.app.tigerduck.data.model.ScoreReport
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.LookedUpCourse
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.util.JvmContext
 
 /**
  * One term's fetch as far as its list goes. The lookups take seconds, and the user keeps
@@ -443,5 +449,213 @@ class ClassTableTermFetchTest {
         snapshot.fileGate.complete(Unit)
         advanceUntilIdle()
         assertEquals(listOf("A"), out()!!.map { it.courseNo })
+    }
+
+    // --- The commit: the term drawn from its source (iOS fetchCourses, tigerduck-app#890) ---
+
+    /** A transcript whose newest term is 115-1, so the term only gains. */
+    private fun newest(vararg codes: String) = ScoreReport(
+        student = "", currentTerm = "", rankings = emptyList(),
+        courses = codes.map { CourseGrade(term = "1151", code = it, name = it, status = GradeStatus.PENDING) },
+        creditSummary = CreditSummary.EMPTY,
+    )
+
+    private fun moodle(no: String) = no to MoodleEnrolledCourse(7, "$no on Moodle", no, "1151$no", 0, 0)
+
+    private fun cache(): DataCache {
+        val context = JvmContext()
+        return DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
+    }
+
+    /** [committed] with nothing recorded and [fold] over [latest], for the sources that rebuild nothing. */
+    private suspend fun committed(
+        answers: ClassTableTermFetch.Answers,
+        source: ClassTableTermSource,
+        latest: List<Course>,
+        moodleNos: Collection<String> = emptyList(),
+    ) = fetch.committed(
+        answers, source, "1151", moodleNos,
+        latest = { latest },
+        waitingAdds = { emptySet() },
+        recordFinalRoster = { error("only a rebuild records drops") },
+    ) { fold(it, latest) }
+
+    /**
+     * iOS PastTermRebuildTests, through the commit: the term's drops are on disk before the term
+     * is saved, so a sync landing between the two cannot merge the junk back, and the save takes
+     * the junk off this phone without a hide. A course added here stays, and so does one whose
+     * lookup failed, with the times and room it had.
+     */
+    @Test
+    fun `a past term is rebuilt with its drops recorded before it is saved`() = runTest {
+        gate.complete(Unit)
+        failing += "XG0000007"
+        val store = cache()
+        val keptCopy = Course.fromSchedule("XG0000007", "Kept", classroom = "TR-313", schedule = mapOf(3 to listOf("6", "7")))
+        val before = listOf(course("XA0000001"), course("XC0000003"), keptCopy, merged("XD0000004"), manual("XF0000006"))
+        store.saveCourses(before, "1151")
+        val source = ClassTableTermSource.of("1151", emptyList(), transcript("XA0000001", "XG0000007"), servedBySelection = false, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before, atMost = source.lookupsAtOnce)
+
+        val steps = mutableListOf<String>()
+        var droppedAtTheFold = emptySet<String>()
+        val saved = fetch.committed(
+            answers, source, "1151",
+            // XW is a Moodle site of the term whose add here has not gone up yet.
+            moodleNos = listOf("XD0000004", "XW0000023"),
+            latest = { store.loadCourses("1151") },
+            waitingAdds = { setOf("XW0000023") },
+            recordFinalRoster = {
+                steps += "recorded"
+                store.recordFinalRoster("1151", it.roster, alsoListed = it.dropping)
+            },
+        ) { drawn ->
+            steps += "folded"
+            droppedAtTheFold = store.loadSelectionDroppedNos()["1151"].orEmpty().toSet()
+            fetch.foldLatest(
+                drawn, "1151",
+                editGeneration = { 0 },
+                cachedCourses = { store.loadCourses("1151") },
+                storedTombstones = { store.loadDeletedCourseNos() },
+                shownCourses = { null },
+                withPendingEdits = { it },
+                names = { emptyMap() },
+                locale = "zh",
+            )
+        }!!
+        store.saveCourses(saved, "1151")
+
+        assertEquals(listOf("recorded", "folded"), steps)
+        // The junk, cached and merged, is dropped; the waiting add and the course added here are not.
+        assertEquals(setOf("XC0000003", "XD0000004"), droppedAtTheFold)
+        val term = store.loadCourses("1151")
+        assertEquals(listOf("XA0000001", "XG0000007", "XF0000006"), term.map { it.courseNo })
+        assertEquals("IB-202", term[0].classroom)
+        assertEquals(keptCopy.schedule, term[1].schedule)
+        assertEquals("TR-313", term[1].classroom)
+        // Taken off by the save, not hidden: listed again, the course comes back.
+        assertEquals(emptySet<String>(), CourseTombstoneKeys.hiddenIn("1151", store.loadDeletedCourseNos()))
+    }
+
+    @Test
+    fun `a past term the transcript leaves no class is still committed, and saved empty but for what was added here`() = runTest {
+        gate.complete(Unit)
+        val report = ScoreReport(
+            student = "", currentTerm = "", rankings = emptyList(),
+            courses = listOf(
+                CourseGrade(term = "1151", code = "XW0000023", name = "Withdrawn", status = GradeStatus.WITHDREW),
+                CourseGrade(term = "1152", code = "XZ0000099", name = "Later", status = GradeStatus.PENDING),
+            ),
+            creditSummary = CreditSummary.EMPTY,
+        )
+        val before = listOf(course("XW0000023"), manual("XF0000006"))
+        val source = ClassTableTermSource.of("1151", emptyList(), report, servedBySelection = false, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before = emptyList())
+        var recorded: TranscriptTerms.RebuiltTerm? = null
+
+        val saved = fetch.committed(
+            answers, source, "1151", emptyList(),
+            latest = { before },
+            waitingAdds = { emptySet() },
+            recordFinalRoster = { recorded = it },
+        ) { fold(it, before) }
+
+        assertEquals(listOf("XF0000006"), saved!!.map { it.courseNo })
+        assertEquals(emptyList<String>(), recorded!!.roster)
+        assertEquals(setOf("XW0000023"), recorded!!.dropped)
+    }
+
+    @Test
+    fun `a rebuild looks its classes up at most four at a time`() = runTest {
+        var inFlight = 0
+        var most = 0
+        val counting = ClassTableTermFetch { _, courseNo, _, _, _ ->
+            inFlight++
+            most = maxOf(most, inFlight)
+            gate.await()
+            inFlight--
+            LookedUpCourse(courseNo, null, answered = false)
+        }
+        val codes = (1..9).map { "XA00000%02d".format(it) }
+
+        launch { counting.lookUp("1151", codes, emptyMap(), before = emptyList(), atMost = 4) }
+        advanceUntilIdle()
+        assertEquals(4, inFlight)
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(4, most)
+        assertEquals(0, inFlight)
+    }
+
+    /**
+     * A term course selection gave nothing for only gains the transcript's classes: a new one
+     * joins with class times, a cached one stays, and a Moodle site of the term is not even
+     * looked up.
+     */
+    @Test
+    fun `a term only gaining from the transcript adds a class with times and keeps every cached course`() = runTest {
+        gate.complete(Unit)
+        timeless += "XH0000008"
+        val moodle = mapOf(moodle("XM0000013"), moodle("XA0000001"))
+        val before = listOf(course("XC0000003"), manual("XF0000006"))
+        val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001", "XH0000008"), servedBySelection = true, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, moodle, before)
+
+        val saved = committed(answers, source, before, moodle.keys)
+
+        assertEquals(listOf("XA0000001", "XC0000003", "XF0000006"), saved!!.map { it.courseNo })
+        assertFalse("XM0000013" in asked)
+    }
+
+    /**
+     * The term's list is read for its source as the lookups begin, and Home or the background
+     * sync can save the term before they land. A term that only gains removes none of what that
+     * saved, as its answers do not list it, but a course deleted meanwhile stays deleted.
+     */
+    @Test
+    fun `a term only gaining keeps a course saved while its lookups ran, but not one deleted then`() = runTest {
+        gate.complete(Unit)
+        val before = listOf(course("XA0000001"))
+        val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001"), servedBySelection = true, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
+        // Home's fetch saved XB and XC while these lookups ran, and the user deleted XC since.
+        val latest = before + course("XB0000002") + course("XC0000003")
+
+        val saved = fetch.committed(
+            answers, source, "1151", emptyList(),
+            latest = { latest },
+            waitingAdds = { emptySet() },
+            recordFinalRoster = { error("only a rebuild records drops") },
+        ) { fold(it, latest, deleted = setOf("XC0000003")) }
+
+        assertEquals(listOf("XA0000001", "XB0000002"), saved!!.map { it.courseNo })
+        assertEquals("IB-202", saved[0].classroom)
+    }
+
+    /** Before #890 Moodle's sites were the roster of a term course selection gave nothing for. */
+    @Test
+    fun `with neither course selection nor the transcript, a Moodle site adds no course and the term is left as it is`() = runTest {
+        gate.complete(Unit)
+        val moodle = mapOf(moodle("XM0000013"))
+        val before = listOf(course("XC0000003"))
+        for (servedBySelection in listOf(true, false)) {
+            val source = ClassTableTermSource.of("1151", emptyList(), null, servedBySelection, cached = before)
+            val answers = fetch.lookUp("1151", source.rosterNos, moodle, before)
+
+            assertNull(committed(answers, source, before, moodle.keys))
+        }
+        assertEquals(emptyList<String>(), asked)
+    }
+
+    /** The term course selection serves keeps its rules: its answer is the term, timeless courses too. */
+    @Test
+    fun `course selection's answer is committed as before`() = runTest {
+        gate.complete(Unit)
+        timeless += "XB0000002"
+        val before = listOf(course("XC0000003"))
+        val source = ClassTableTermSource.of("1151", listOf("XA0000001", "XB0000002"), null, servedBySelection = true, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
+
+        assertEquals(listOf("XA0000001", "XB0000002"), committed(answers, source, before)!!.map { it.courseNo })
     }
 }

@@ -95,6 +95,25 @@ class ClassTableCourseMergeTest {
         assertEquals(listOf("A"), out.map { it.courseNo })
     }
 
+    /**
+     * A fetch that only gains from the transcript removes nothing: a school course it does not
+     * list, saved by another fetch while its lookups ran, stays, renamed as any other, and a
+     * course deleted meanwhile is still taken off (tigerduck-app#890).
+     */
+    @Test
+    fun `a school course the fetch does not list stays when the merge is told to keep it, but not one deleted`() {
+        val out = ClassTableCourseMerge.mergeFetched(
+            fetched = listOf(course("A")),
+            cached = listOf(course("A"), course("B"), course("GONE"), course("STALE")),
+            names = CourseNameOverrides.withOverride(emptyMap(), "B", "zh", "Renamed"),
+            locale = "zh",
+            deletedNos = setOf("GONE"),
+            alsoKeeps = { it.courseNo != "STALE" },
+        )
+        assertEquals(listOf("A", "B"), out.map { it.courseNo })
+        assertEquals("Renamed", out[1].displayName)
+    }
+
     @Test
     fun `the rename for the current locale is applied`() {
         val names = CourseNameOverrides.withOverride(emptyMap(), "A", "en", "Renamed")

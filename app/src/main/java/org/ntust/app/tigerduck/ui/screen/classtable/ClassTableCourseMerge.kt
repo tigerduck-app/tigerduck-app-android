@@ -6,10 +6,10 @@
 // they deleted. Each of those has to be carried across explicitly, and each
 // one that is missed is a user-visible regression on the next refresh.
 //
-// Home has its own version of this (HomeCourseMerge.mergeRemote). They are
-// deliberately not shared: the class table is per-semester and additionally
-// restores the manual flag and the per-locale rename, neither of which Home's
-// current-term-only path deals with.
+// Home (HomeCourseMerge.mergeRemote) and the background sync fold their
+// fetches through this as well: all three write the same cache file, and a
+// rule only one of them kept, the manual flag or a hand-add's missing Moodle
+// ID, made a course's survival depend on which refreshed last.
 
 package org.ntust.app.tigerduck.ui.screen.classtable
 
@@ -30,10 +30,17 @@ object ClassTableCourseMerge {
      * cannot stamp the previous locale's name.
      *
      * Kept from [cached]: manual courses the fetch does not mention, since
-     * the school's roster has never heard of them.
+     * the school's roster has never heard of them, and any other course it
+     * does not mention that [alsoKeeps] says stays: every one, for a term that
+     * only gains from the transcript (tigerduck-app#890), whose answers do not
+     * list a course another fetch saved while its lookups ran.
      *
      * Dropped last: anything in [deletedNos], applied to the merged list so a
      * deleted course cannot re-enter through either half.
+     *
+     * Home ([HomeCourseMerge][org.ntust.app.tigerduck.ui.screen.home.HomeCourseMerge])
+     * and the background sync merge through this too: the three write the
+     * same file.
      */
     fun mergeFetched(
         fetched: List<Course>,
@@ -41,6 +48,7 @@ object ClassTableCourseMerge {
         names: CustomNameMap,
         locale: String,
         deletedNos: Set<String>,
+        alsoKeeps: (Course) -> Boolean = { false },
     ): List<Course> {
         val cachedByNo = cached.associateBy { it.courseNo }
         val restored = fetched.map { course ->
@@ -57,8 +65,8 @@ object ClassTableCourseMerge {
             )
         }
         val fetchedNos = restored.mapTo(mutableSetOf()) { it.courseNo }
-        val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
-        return CourseNameOverrides.resolve(restored + manualLeftovers, names, locale)
+        val leftovers = cached.filter { it.courseNo !in fetchedNos && (it.isManual || alsoKeeps(it)) }
+        return CourseNameOverrides.resolve(restored + leftovers, names, locale)
             .filter { it.courseNo !in deletedNos }
     }
 
