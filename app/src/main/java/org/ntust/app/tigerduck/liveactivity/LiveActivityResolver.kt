@@ -44,7 +44,7 @@ class LiveActivityResolver {
         val todaySlots = classesToday(courses, now, skippedDates, changes)
         // Whether or not the in-class scenario is on: a deadline shown now
         // says whether a class is going on under it.
-        val current = todaySlots.firstOrNull { now in it.start..it.end }
+        val current = todaySlots.firstOrNull { !now.before(it.start) && now.before(it.end) }
 
         if (preferences.showAssignment) {
             val urgent = assignments
