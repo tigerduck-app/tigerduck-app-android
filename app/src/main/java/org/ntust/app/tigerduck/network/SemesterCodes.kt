@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.network
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import java.util.Calendar
 
 /**
@@ -44,14 +45,7 @@ object SemesterCodes {
      * [walkBack] dedupe the repeat away rather than emit garbage — the walk is
      * only ever a pre-catalogue fallback, so a short list beats a wrong one.
      */
-    fun previous(code: String): String {
-        val year = code.dropLast(1).toIntOrNull() ?: return code
-        return when (code.last()) {
-            '2' -> "${year}1"
-            '1' -> "${year - 1}2"
-            else -> code
-        }
-    }
+    fun previous(code: String): String = AcademicTerm.parse(code)?.previous()?.code ?: code
 
     /** [count] terms ending at [from], newest first, with repeats dropped. */
     fun walkBack(from: String, count: Int): List<String> {

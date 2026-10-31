@@ -8,6 +8,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.periodOrder
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.util.replaceIosArg
 
 internal object ScoreCourseRoster {
@@ -26,12 +27,6 @@ internal object ScoreCourseRoster {
         return roster.firstOrNull { it.courseNo.trim() == code }
     }
 
-    /** The class table's own code: three digits of year and a term digit, or H for summer. */
-    private val classTableCode = Regex("""\d{3}[0-9A-Z]""")
-
-    /** The same term with a 0 before the term digit, as the parser's fixtures spell it. */
-    private val fiveCharacterCode = Regex("""\d{3}0[12]""")
-
     /**
      * The semester code the class table keys its cache by for a score row's
      * [term], or null when the term is in no form the cache uses. The cache
@@ -45,14 +40,7 @@ internal object ScoreCourseRoster {
      * the year and the term digit. Anything else is left unmatched rather
      * than guessed at, so no wrong term's roster is ever shown.
      */
-    fun semesterCode(term: String): String? {
-        val code = term.trim().uppercase()
-        return when {
-            classTableCode.matches(code) -> code
-            fiveCharacterCode.matches(code) -> code.take(3) + code.last()
-            else -> null
-        }
-    }
+    fun semesterCode(term: String): String? = AcademicTerm.parse(term)?.code
 
     /**
      * The class table's rows for [roster], label resource to value, leaving

@@ -49,9 +49,9 @@ class TermCodeCharacterizationTest {
             '114H' -> 114H
             '113H' -> 113H
             '1131' -> 1122
-            '114h' -> 114h
-            ' 1141 ' ->  1141 
-            '11402' -> 11401
+            '114h' -> 114H
+            ' 1141 ' -> 1132
+            '11402' -> 1141
             '' -> 
             'abc' -> abc
             """.trimIndent(),
@@ -69,8 +69,8 @@ class TermCodeCharacterizationTest {
             '113H' -> 113
             '1131' -> 113
             '114h' -> 114
-            ' 1141 ' -> 1141
-            '11402' -> 1140
+            ' 1141 ' -> 114
+            '11402' -> 114
             '' -> null
             'abc' -> null
             """.trimIndent(),
@@ -108,7 +108,7 @@ class TermCodeCharacterizationTest {
             '1131' -> 1131
             '114h' -> 114H
             ' 1141 ' -> null
-            '11402' -> 1140
+            '11402' -> null
             '' -> null
             'abc' -> null
             """.trimIndent(),
