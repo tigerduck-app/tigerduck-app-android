@@ -103,7 +103,7 @@ class ClassPreparingNotificationReceiverTest {
         assertEquals(0, posted().size)
     }
 
-    private fun armReminders() {
+    private fun armReminders(startedFor: String? = credentials.ntustStudentId) {
         ClassPreparingNotificationScheduler(context, storedStudentId = { credentials.ntustStudentId }).scheduleAll(
             coursesByTerm = mapOf(
                 ClassPreparingNotificationScheduler.termOn(AcademicCalendar.EMPTY, java.time.LocalDate.now())
@@ -113,6 +113,7 @@ class ClassPreparingNotificationReceiverTest {
             leadTimeSec = 600,
             calendar = AcademicCalendar.EMPTY,
             optedInHolidayIds = emptySet(),
+            startedFor = startedFor,
         )
     }
 
@@ -136,4 +137,48 @@ class ClassPreparingNotificationReceiverTest {
 
         assertEquals(2, posted().size)
     }
+
+    @Test
+    fun `an alarm armed for one student posts nothing once another is signed in`() {
+        credentials.ntustStudentId = "B00015999"
+        armReminders()
+        val alarm = firstArmed()
+
+        credentials.ntustStudentId = "B00016000"
+        ClassPreparingNotificationReceiver().onReceive(context, alarm)
+
+        assertEquals(0, posted().size)
+    }
+
+    @Test
+    fun `a stored student ID that cannot be read does not lose the reminder`() {
+        credentials.ntustStudentId = "B00015999"
+        armReminders()
+        val alarm = firstArmed()
+        val readable = context.component as ClassPreparingNotificationReceiver.Deps
+        context.component = object : ClassPreparingNotificationReceiver.Deps by readable, GeneratedComponent {
+            override fun credentials(): CredentialManager = throw IllegalStateException("keystore unavailable")
+        }
+
+        ClassPreparingNotificationReceiver().onReceive(context, alarm)
+
+        assertEquals(2, posted().size)
+    }
+
+    @Test
+    fun `a refresh begun for one student arms nothing once the store reads another or nobody`() {
+        credentials.ntustStudentId = "B00015999"
+        armReminders(startedFor = "B00015999")
+        assertEquals(true, alarmsArmed() > 0)
+
+        credentials.ntustStudentId = null
+        armReminders(startedFor = "B00015999")
+        assertEquals(0, alarmsArmed())
+
+        credentials.ntustStudentId = "B00016000"
+        armReminders(startedFor = "B00015999")
+        assertEquals(0, alarmsArmed())
+    }
+
+    private fun alarmsArmed() = shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.size
 }

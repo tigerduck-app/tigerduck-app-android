@@ -69,6 +69,7 @@ class LiveActivityManagerTest {
             leadTimeSec: Long,
             calendar: AcademicCalendar,
             optedInHolidayIds: Set<Int>,
+            startedFor: String?,
         ): Long? {
             armedLeadSec = leadTimeSec
             armedCoursesByTerm = coursesByTerm

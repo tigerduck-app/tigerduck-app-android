@@ -114,6 +114,7 @@ class ClassBannerClearingTest {
                 leadTimeSec: Long,
                 calendar: AcademicCalendar,
                 optedInHolidayIds: Set<Int>,
+                startedFor: String?,
             ): Long? = nextClassStart
             override fun cancelAllTracked() = Unit
         },

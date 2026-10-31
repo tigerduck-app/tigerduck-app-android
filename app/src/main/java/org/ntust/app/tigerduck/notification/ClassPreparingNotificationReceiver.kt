@@ -73,7 +73,12 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         if (!stillDue(deps.academicCalendar().current(), startDate, intent.getStringExtra(EXTRA_TERM))) return
         // Signing out cancels the alarms, but one that was already on its way, or that the cancel
         // missed, must not announce a class to whoever is signed in now, or to nobody.
-        if (!armedForSignedInStudent(intent.getStringExtra(EXTRA_STUDENT_ID), deps.credentials().ntustStudentId)) return
+        // A read that throws skips the check: it must not lose a signed-in student's reminder.
+        val armedFor = intent.getStringExtra(EXTRA_STUDENT_ID)
+        if (armedFor != null) {
+            val signedIn = runCatching { deps.credentials().ntustStudentId }
+            if (signedIn.isSuccess && !armedForSignedInStudent(armedFor, signedIn.getOrNull())) return
+        }
         // The feed is read only for an alarm that names its class: older alarms carry no id to check.
         val classId = intent.getStringExtra(EXTRA_CLASS_ID)
         if (classId != null && cancelledSince(deps.courseChanges().current(), classId)) return

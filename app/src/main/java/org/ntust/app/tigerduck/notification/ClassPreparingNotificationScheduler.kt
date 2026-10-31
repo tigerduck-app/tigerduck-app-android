@@ -74,6 +74,7 @@ class ClassPreparingNotificationScheduler internal constructor(
         leadTimeSec: Long,
         calendar: AcademicCalendar,
         optedInHolidayIds: Set<Int>,
+        startedFor: String?,
     ): Long? = synchronized(schedulerLock) {
         // Load the persisted slotId→requestCode map BEFORE cancelling so cancel
         // looks up the same code each alarm was originally registered with.
@@ -81,6 +82,10 @@ class ClassPreparingNotificationScheduler internal constructor(
         // across two different slots and silently overwrite the earlier alarm.
         val codeMap = loadCodeMap()
         cancelAllTrackedLocked(codeMap)
+        // The courses are from the student the refresh began under; if another account is stored
+        // now, they would be armed for someone else, or tagged with the wrong student.
+        val armedFor = storedStudentId()
+        if (armedFor != startedFor) return@synchronized null
         if (leadTimeSec <= 0) return@synchronized null
         if (coursesByTerm.values.all { it.isEmpty() }) {
             // No class is left to remind of, so a reminder still up for one goes as its alarm did.
@@ -89,8 +94,6 @@ class ClassPreparingNotificationScheduler internal constructor(
         }
 
         val now = AppClock.nowMillis()
-        // Read once for the whole arming: the account the reminders are for.
-        val armedFor = storedStudentId()
         val scheduled = mutableSetOf<String>()
         var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
         var nextClassStart: Long? = null

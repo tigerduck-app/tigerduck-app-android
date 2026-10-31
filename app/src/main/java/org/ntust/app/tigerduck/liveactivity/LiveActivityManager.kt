@@ -54,6 +54,7 @@ class LiveActivityManager internal constructor(
     private val appScope: CoroutineScope,
     private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
     private val courseChangesUpdated: Flow<CourseChanges> = emptyFlow(),
+    private val storedStudentId: () -> String? = { null },
 ) {
     // The real entry point, which Hilt calls. The primary constructor takes
     // the sign-in state and the class reminder alarms as plain types, so
@@ -86,6 +87,7 @@ class LiveActivityManager internal constructor(
         // Cold, so the store reads its copy from disk once this is collected
         // on the app's scope, not as the manager is injected on the main thread.
         courseChangesUpdated = flow { emitAll(courseChangeStore.changes) },
+        storedStudentId = { authService.storedStudentId },
     )
 
     private val resolver = LiveActivityResolver()
@@ -163,6 +165,8 @@ class LiveActivityManager internal constructor(
         // The cookie jar is in-memory, so gating on it stopped the Live Update
         // after every reboot or background kill until the user signed in again.
         val signedIn = isSignedIn()
+        // Before anything is loaded: the account the courses read below belong to.
+        val startedFor = storedStudentId()
         // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
         // the timetable weeks ahead of the term, so having courses is not
         // evidence that classes have started. Neither the chip nor the
@@ -178,7 +182,7 @@ class LiveActivityManager internal constructor(
 
         // Before the Live Update's own gate: class reminders have a switch of
         // their own and no longer stop with the Live Update.
-        val remindersWake = armClassReminders(signedIn, skipped, calendar, optedIn)
+        val remindersWake = armClassReminders(signedIn, skipped, calendar, optedIn, startedFor)
         // And whatever the Live Update shows: with a due-soon assignment
         // shown first, the switch to "in class" that cleared these may never
         // come. The boundary alarm at class start brings a refresh here,
@@ -256,6 +260,7 @@ class LiveActivityManager internal constructor(
         skipped: Map<String, List<String>>,
         calendar: org.ntust.app.tigerduck.academic.AcademicCalendar,
         optedIn: Set<Int>,
+        startedFor: String?,
     ): Long? {
         val settings = ClassReminderSettings(appPrefs.classReminderEnabled, appPrefs.classReminderLeadMinutes)
         val leadSec = ClassReminders.leadSecondsToArm(settings, signedIn)
@@ -277,6 +282,7 @@ class LiveActivityManager internal constructor(
             leadTimeSec = leadSec,
             calendar = calendar,
             optedInHolidayIds = optedIn,
+            startedFor = startedFor,
         )
         // Nothing else announces a term flip, and the days past it are armed
         // from whatever that term had cached by now; see
