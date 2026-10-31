@@ -37,6 +37,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.util.SingleFlight
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 import java.time.LocalDate
@@ -492,6 +493,5 @@ class CalendarViewModel @Inject constructor(
     }
 }
 
-/** The calendar event title's label for a term code: `1141` reads `114-1`, any other length is kept as is. */
-internal fun calendarTermLabel(code: String): String =
-    if (code.length == 4) "${code.take(3)}-${code.drop(3)}" else code
+/** The calendar event title's label for a term code: `1141` reads `114-1`. */
+internal fun calendarTermLabel(code: String): String = AcademicTerm.labelOf(code)

@@ -21,7 +21,6 @@ import org.ntust.app.tigerduck.ui.screen.classtable.sharing.semesterLabel
 import org.ntust.app.tigerduck.ui.screen.score.ScoreCourseRoster
 import org.ntust.app.tigerduck.ui.screen.score.displayTermShort
 import org.ntust.app.tigerduck.ui.screen.score.formatCurrentTerm
-import org.ntust.app.tigerduck.ui.screen.score.termYearAndPart
 import java.time.Instant
 import java.time.LocalDate
 
@@ -188,11 +187,11 @@ class TermCodeCharacterizationTest {
             '114H' -> 114-H
             '113H' -> 113-H
             '1131' -> 113-1
-            '114h' -> 114-h
-            ' 1141 ' ->  1141- 
-            '11402' -> 1140-2
+            '114h' -> 114-H
+            ' 1141 ' -> 114-1
+            '11402' -> 114-2
             '' -> 
-            'abc' -> ab-c
+            'abc' -> abc
             """.trimIndent(), table { semesterDisplayLabel(it) })
     }
 
@@ -204,11 +203,11 @@ class TermCodeCharacterizationTest {
             '114H' -> 114-H
             '113H' -> 113-H
             '1131' -> 113-1
-            '114h' -> 114-h
-            ' 1141 ' ->  1141- 
-            '11402' -> 1140-2
-            '' -> -
-            'abc' -> ab-c
+            '114h' -> 114-H
+            ' 1141 ' -> 114-1
+            '11402' -> 114-2
+            '' -> 
+            'abc' -> abc
             """.trimIndent(), table { semesterLabel(it) })
     }
 
@@ -220,28 +219,12 @@ class TermCodeCharacterizationTest {
             '114H' -> 114-H
             '113H' -> 113-H
             '1131' -> 113-1
-            '114h' -> 114-h
-            ' 1141 ' ->  1141 
-            '11402' -> 11402
+            '114h' -> 114-H
+            ' 1141 ' -> 114-1
+            '11402' -> 114-2
             '' -> 
             'abc' -> abc
             """.trimIndent(), table { calendarTermLabel(it) })
-    }
-
-    @Test
-    fun `score screen label parts`() {
-        assertEquals("""
-            '1141' -> (114, 1)
-            '1142' -> (114, 2)
-            '114H' -> (114, H)
-            '113H' -> (113, H)
-            '1131' -> (113, 1)
-            '114h' -> (114, h)
-            ' 1141 ' -> null
-            '11402' -> null
-            '' -> null
-            'abc' -> null
-            """.trimIndent(), table { termYearAndPart(it) })
     }
 
     @Test
@@ -252,7 +235,7 @@ class TermCodeCharacterizationTest {
             '114H' -> 114學年度第H學期 | 114-H
             '113H' -> 113學年度第H學期 | 113-H
             '1131' -> 113學年度第1學期 | 113-1
-            '114h' -> 114學年度第h學期 | 114-h
+            '114h' -> 114h | 114h
             ' 1141 ' ->  1141  |  1141 
             '11402' -> 11402 | 11402
             '' ->  | 

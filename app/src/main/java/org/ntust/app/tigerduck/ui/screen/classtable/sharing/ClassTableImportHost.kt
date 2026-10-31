@@ -69,6 +69,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportModel.Prompt
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -477,4 +478,4 @@ internal fun importConfirmRows(
 }
 
 /** `1151` as `115-1`, as the term picker shows it. */
-internal fun semesterLabel(semester: String) = semester.dropLast(1) + "-" + semester.takeLast(1)
+internal fun semesterLabel(semester: String) = AcademicTerm.labelOf(semester)
