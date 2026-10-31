@@ -34,6 +34,7 @@ import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
@@ -1760,14 +1761,20 @@ class ClassTableViewModel @Inject constructor(
         )
         // A rebuilt term is its transcript's even with nothing to look up.
         if (answers.isEmpty && source !is ClassTableTermSource.Rebuild) return answers.answered
+        // A rebuilt past term's roster, read off its final transcript as it is committed.
+        var rebuiltRoster: List<String>? = null
         pendingCourseAdds.uploading {
             if (!mayCommit()) return@uploading
             val merged = termFetch.committed(
                 answers, source, semester, moodleByNo.keys,
                 latest = { latestCourses(semester) },
                 waitingAdds = { pendingCourseAdds.waitingIn(semester) },
-                droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() },
-                recordFinalRoster = { dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation) },
+                // With the courses dropped on the server, which a term only gaining leaves out too.
+                droppedNos = { dataCache.fetchDropsIn(semester) },
+                recordFinalRoster = {
+                    rebuiltRoster = it.roster
+                    dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation)
+                },
             ) { drawn ->
                 // Folded and saved under the courses' lock, onto the term as its cache holds it: a
                 // sync or the background fetch that took a course out of it lands wholly before.
@@ -1782,8 +1789,8 @@ class ClassTableViewModel @Inject constructor(
                         storedTombstones = { dataCache.loadDeletedCourseNos() },
                         shownCourses = { _courses.value.takeIf { coursesSemester == semester } },
                         unsavedEdits = { unsavedEditsIn(semester) },
-                        // Again under the lock: a course selection answer may have dropped a course since.
-                        droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() },
+                        // Again under the lock: a course selection answer or a sync may have dropped a course since.
+                        droppedNos = { dataCache.fetchDropsIn(semester) },
                         waitingAdds = { pendingCourseAdds.waitingIn(semester) },
                         withPendingEdits = tombstoneEdits::over,
                         names = { courseCustomNames },
@@ -1813,7 +1820,17 @@ class ClassTableViewModel @Inject constructor(
             // fetch's save, takes the file, and these rows need not go up to
             // be taken down again.
             if (!mayCommit()) return@uploading
-            runCatching { pushApiClient.uploadCourses(merged, semester) }
+            // As the term's roster when this fetch's course selection answer or a past term's final
+            // transcript gave it, and the upload lists all of it; see CourseUpload.of.
+            val roster = when (source) {
+                is ClassTableTermSource.Selection -> source.rosterNos
+                is ClassTableTermSource.Rebuild -> rebuiltRoster
+                else -> null
+            }
+            val upload = CourseUpload.of(
+                merged, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
+            )
+            runCatching { pushApiClient.uploadCourses(upload.courses, semester, rosterTerms = upload.rosterTerms) }
                 .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             widgetUpdater.requestUpdate()
         }

@@ -420,6 +420,10 @@ class PushApiClient @Inject constructor(
      *
      * [signIn], when given, pins the request to that sign-in, as
      * [patchAssignmentOverride]'s is.
+     *
+     * [rosterTerms] names the terms the list is the school's whole roster
+     * of; see [CourseUpload.of], which decides it. A roster the backend asks
+     * for (`roster_requests`) goes with [resend], past the ledger.
      */
     suspend fun uploadCourses(
         courses: List<Course>,
@@ -427,9 +431,10 @@ class PushApiClient @Inject constructor(
         forceKeys: List<String> = emptyList(),
         signIn: Int? = null,
         resend: Boolean = false,
+        rosterTerms: List<String> = emptyList(),
     ): List<String>? = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext null
-        val payload = CourseUploadPayload.build(courses, semester, forceKeys)
+        val payload = CourseUploadPayload.build(courses, semester, forceKeys, rosterTerms)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         // Resolved once, for the fingerprint and the request alike, so the
         // ledger remembers what this backend accepted; see uploadFingerprint.
@@ -440,7 +445,7 @@ class PushApiClient @Inject constructor(
         val startedIn = signIn ?: authTokenManager.signInGeneration
         var accepted: List<String> = emptyList()
         courseUploads(semester).sendIfDue(
-            fingerprint = courseUploadFingerprint(base, courses, semester),
+            fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
             // Recorded under the sign-in lock, so a sign-out's clear cannot
             // fall between the check and the record; see UploadLedger.sendIfDue.
             ifCurrent = { record -> authTokenManager.runIfSignedIn(startedIn, record) },

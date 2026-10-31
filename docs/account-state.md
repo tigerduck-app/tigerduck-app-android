@@ -355,9 +355,11 @@ Under `cacheDir/TigerDuckCache/`, `filesDir/TigerDuckData/` and, for the downloa
 | cache | `pending_course_overrides.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `restored_courses.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `score_*.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `selection_answered_at.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `selection_dropped.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `selection_rosters.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `semester_reset_at.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `server_dropped.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `server_known_courses.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `skipped_dates.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `unsent_marks.json` | school | `DataCache.kt` `clearAllUserData` |

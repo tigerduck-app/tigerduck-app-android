@@ -49,9 +49,24 @@ internal fun uploadFingerprint(backend: String, json: String): String =
  * [backend], without force keys (a list with any goes whatever the ledger holds), the courses in
  * course-number order, so the roster as the class table holds it and as a sync holds it, the
  * same courses in another order, are one list. The term is the ledger's key, not part of this.
+ *
+ * [rosterTerms] is part of it: the same courses sent as the term's roster are another list, so
+ * the first fetch after an update that sends rosters sends each term once as one, unchanged or
+ * not, which drops what the student left since. As iOS `PushCoordinator.fingerprint`
+ * (tigerduck-app#914).
  */
-internal fun courseUploadFingerprint(backend: String, courses: List<Course>, semester: String): String =
-    uploadFingerprint(backend, fingerprintGson.toJson(CourseUploadPayload.build(courses.sortedBy { it.courseNo }, semester)))
+internal fun courseUploadFingerprint(
+    backend: String,
+    courses: List<Course>,
+    semester: String,
+    rosterTerms: List<String> = emptyList(),
+): String =
+    uploadFingerprint(
+        backend,
+        fingerprintGson.toJson(
+            CourseUploadPayload.build(courses.sortedBy { it.courseNo }, semester, rosterTerms = rosterTerms.sorted()),
+        ),
+    )
 
 private val fingerprintGson = Gson()
 

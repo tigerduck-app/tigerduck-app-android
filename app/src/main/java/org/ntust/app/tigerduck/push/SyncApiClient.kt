@@ -110,6 +110,11 @@ data class BackendSyncResult(
      * not the same as "the user has none", so the local set is left alone.
      */
     val holidayOverrides: Set<Int>? = null,
+    /**
+     * The terms the backend asks this account's roster of (backend 3.10.1): none of it arrived in
+     * a week. Empty from an older backend, which sends no `roster_requests`.
+     */
+    val rosterRequests: List<String> = emptyList(),
 )
 
 // The change feed's answer when the changes after the asked revision are gone.
@@ -200,7 +205,7 @@ class SyncApiClient @Inject constructor(
                 throw PushApiException("sync/full failed: HTTP ${response.code}")
             }
             val json = JSONObject(response.body.string())
-            parseFullSync(json).copy(fetchedAtMs = fetchedAtMs)
+            parseFullSync(json).copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))
         }
     }
 

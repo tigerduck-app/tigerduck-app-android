@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.data.cache
 import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
+import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
@@ -10,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.network.SemesterCodes
@@ -463,6 +465,8 @@ class DataCache @Inject constructor(
      * Fold one successful 選課 answer for [semester] into the dropped set,
      * and keep it as the term's latest answer, which lifts the marked hides
      * of the deleted hand-added courses it lists; see [hideDeletedCourse].
+     * Kept with when it arrived, and its courses are no longer dropped on
+     * the server here ([selectionAnswerIn], [recordServerDrops]).
      *
      * Must be called *before* the fetch overwrites the course cache: the
      * courses on disk right now are what the answer is diffed against, and
@@ -481,8 +485,11 @@ class DataCache @Inject constructor(
     suspend fun recordSelectionRoster(semester: String, roster: List<String>, generation: Int? = null) {
         val expected = generation ?: writeGeneration()
         if (roster.isEmpty()) return
+        // Taken as the answer lands, before any wait for the lock, which would make it read newer.
+        val answeredAt = System.currentTimeMillis()
         val kept = selectionDropsMutex.withLock {
-            saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected)
+            saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected) &&
+                recordAnswerLocked(semester, roster, answeredAt, expected)
         }
         if (!kept) return
         liftHandAddedHides(semester, roster, expected)
@@ -969,8 +976,87 @@ class DataCache @Inject constructor(
             .toMap()
     }
 
-    /** [semester]'s latest non-empty course selection answer, empty when none was kept. */
-    suspend fun selectionRosterIn(semester: String): Set<String> = loadSelectionRosters()[semester].orEmpty().toSet()
+    // --- When each course selection answer arrived, and the courses dropped on the server ---
+    // selection_answered_at.json keeps, per term, when the answer selection_rosters.json holds
+    // arrived (epoch millis). A file of its own, as the rosters' shape cannot take a field: an
+    // install that kept its answers before has none, and reads them with no time, which exempts
+    // no course from a server drop (SelectionAnswer.listsSince) until the next answer brings one.
+    //
+    // server_dropped.json keeps, per term, the courses the last full sync found a roster dropped
+    // on the server, but those the term's answer listed since (tigerduck-app#914's
+    // server_dropped.json). The snapshot's rows are not kept, and a fetch that only gains from a
+    // running term's transcript, which may still list such a course, leaves them out when it
+    // saves (tigerduck-app#918). Both go under [selectionDropsMutex], with the drop list.
+
+    /** [semester]'s latest non-empty course selection answer, and when it arrived; null when none was kept. */
+    suspend fun selectionAnswerIn(semester: String): SelectionAnswer? {
+        val courseNos = loadSelectionRosters()[semester] ?: return null
+        return SelectionAnswer(courseNos.toSet(), loadSelectionAnsweredAt()[semester])
+    }
+
+    /**
+     * Records, for a full sync, [semester]'s courses a roster dropped on the server, each by
+     * when ([droppedAt], null when not known), but those the term's answer as it stands now
+     * listed since: this phone's roster enrolls them again. The term's earlier ones go: the
+     * snapshot is newer. Nothing is written once the data has been wiped since [generation].
+     */
+    suspend fun recordServerDrops(semester: String, droppedAt: Map<String, Long?>, generation: Int? = null) {
+        val expected = generation ?: writeGeneration()
+        selectionDropsMutex.withLock {
+            val answer = selectionAnswerIn(semester)
+            val dropped = droppedAt.filterNot { (courseNo, at) -> answer?.listsSince(courseNo, at) == true }.keys
+            val stored = loadServerDropped()
+            if (stored[semester].orEmpty().toSet() == dropped) return@withLock
+            saveToUserDataIf(
+                if (dropped.isEmpty()) stored - semester else stored + (semester to dropped.sorted()),
+                SERVER_DROPPED_FILE,
+                expected,
+            )
+        }
+    }
+
+    /** [semester]'s courses the last full sync found dropped on the server; see [recordServerDrops]. */
+    suspend fun serverDroppedIn(semester: String): Set<String> = loadServerDropped()[semester].orEmpty().toSet()
+
+    /**
+     * What a fetch of [semester] that only gains leaves out: its drop list and its courses
+     * dropped on the server. Takes only the user data's lock, never the drop list's, so a commit
+     * under the courses' lock may read it.
+     */
+    suspend fun fetchDropsIn(semester: String): Set<String> =
+        loadSelectionDroppedNos()[semester].orEmpty().toSet() + serverDroppedIn(semester)
+
+    // The answer's time, after the answer it dates: one cut short between the two leaves the
+    // newer answer with the older time, which exempts no more than before. The answer's courses
+    // are no longer dropped on the server for this phone, whose roster enrolls them again.
+    private suspend fun recordAnswerLocked(semester: String, roster: List<String>, answeredAt: Long, generation: Int): Boolean {
+        if (!saveToUserDataIf(loadSelectionAnsweredAt() + (semester to answeredAt), SELECTION_ANSWERED_AT_FILE, generation)) {
+            return false
+        }
+        val stored = loadServerDropped()
+        val dropped = stored[semester] ?: return true
+        val still = dropped - roster.toSet()
+        if (still.size == dropped.size) return true
+        return saveToUserDataIf(if (still.isEmpty()) stored - semester else stored + (semester to still), SERVER_DROPPED_FILE, generation)
+    }
+
+    // An entry that is not a number reads as no time, the others as written.
+    private suspend fun loadSelectionAnsweredAt(): Map<String, Long> {
+        val type = object : TypeToken<Map<String?, JsonElement?>>() {}.type
+        return loadFromUserData<Map<String?, JsonElement?>>(type, SELECTION_ANSWERED_AT_FILE).orEmpty()
+            .mapNotNull { (semester, at) ->
+                val ms = runCatching { at?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asLong }.getOrNull()
+                if (semester == null || ms == null) null else semester to ms
+            }
+            .toMap()
+    }
+
+    private suspend fun loadServerDropped(): Map<String, List<String>> {
+        val type = object : TypeToken<Map<String?, List<String?>?>>() {}.type
+        return loadFromUserData<Map<String?, List<String?>?>>(type, SERVER_DROPPED_FILE).orEmpty()
+            .mapNotNull { (semester, nos) -> semester?.let { it to nos.orEmpty().filterNotNull() } }
+            .toMap()
+    }
 
     /** Each term's latest non-empty course selection answer, by [recordSelectionRoster]. */
     private suspend fun loadSelectionRosters(): Map<String, List<String>> {
@@ -1501,6 +1587,8 @@ class DataCache @Inject constructor(
                         "course_custom_names.json",
                         "selection_dropped.json",
                         SELECTION_ROSTERS_FILE,
+                        SELECTION_ANSWERED_AT_FILE,
+                        SERVER_DROPPED_FILE,
                         "server_known_courses.json",
                         "semester_reset_at.json",
                         "course_rows_seen.json",
@@ -1636,6 +1724,8 @@ class DataCache @Inject constructor(
         private const val HAND_ADDED_HIDES_FILE = "hand_added_hides.json"
         private const val RESTORED_COURSES_FILE = "restored_courses.json"
         private const val SELECTION_ROSTERS_FILE = "selection_rosters.json"
+        private const val SELECTION_ANSWERED_AT_FILE = "selection_answered_at.json"
+        private const val SERVER_DROPPED_FILE = "server_dropped.json"
 
         /** What [atomicWrite] names its temporary file with, after the file it writes. */
         private const val TEMP_SUFFIX = ".tmp"

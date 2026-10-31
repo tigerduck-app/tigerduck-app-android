@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
+import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
@@ -46,8 +47,8 @@ class CourseSyncDropsTest {
     /** Merged down from a server row, whose Moodle ID it takes. */
     private fun mergedCopy(no: String) = Course(courseNo = no, courseName = no, isManual = true, moodleIdNumber = "$TERM$no")
 
-    private fun row(no: String, source: String? = "ntust_portal", status: String? = null) =
-        ServerCourse(no, no, TERM, moodleId = "$TERM$no", source = source, enrollmentStatus = status)
+    private fun row(no: String, source: String? = "ntust_portal", status: String? = null, updatedAt: String? = null) =
+        ServerCourse(no, no, TERM, moodleId = "$TERM$no", source = source, enrollmentStatus = status, updatedAt = updatedAt)
 
     private fun reconcile(
         local: List<Course>,
@@ -55,6 +56,8 @@ class CourseSyncDropsTest {
         selectionDropped: Set<String> = emptySet(),
         tombstones: Set<String> = emptySet(),
         serverKnown: Set<String> = local.mapTo(mutableSetOf()) { it.courseNo },
+        answer: SelectionAnswer? = null,
+        fetchedAtMs: Long = 0L,
     ) = CourseSyncReconciler.reconcileSemester(
         semester = TERM,
         localCourses = local,
@@ -63,7 +66,12 @@ class CourseSyncDropsTest {
         tombstones = tombstones,
         serverKnownNos = serverKnown,
         selectionDroppedNos = selectionDropped,
+        answer = answer,
+        fetchedAtMs = fetchedAtMs,
     )
+
+    /** [ms] as the backend writes a row's `updated_at`. */
+    private fun iso(ms: Long) = java.time.Instant.ofEpochMilli(ms).atOffset(java.time.ZoneOffset.UTC).toString()
 
     /** The term's rows once another device's roster upload stopped listing four of them. */
     private val rowsAfterARoster = listOf(
@@ -106,10 +114,9 @@ class CourseSyncDropsTest {
     }
 
     /**
-     * The iPhone also takes [FETCHED] out of the courses fetched here, unless course selection
-     * listed it live since the drop. That needs the time of course selection's answer, which this
-     * phone does not keep yet, so here it stays for course selection to settle. Either way nothing
-     * hides it, which would keep it out even once it is enrolled again.
+     * [FETCHED] leaves the courses fetched here too, as on the iPhone (tigerduck-app#914), with no
+     * answer here to say otherwise. Nothing hides it, which would keep it out even once it is
+     * enrolled again.
      */
     @Test
     fun `a course a roster dropped is not hidden, and its row does not bring back a course hidden here`() {
@@ -120,8 +127,62 @@ class CourseSyncDropsTest {
         )
 
         assertEquals(setOf("$TERM:$ELSEWHERE"), out.tombstones)
-        assertEquals(setOf(MERGED), out.left)
+        assertEquals(setOf(MERGED, FETCHED), out.left)
         assertTrue(out.merged.none { it.courseNo == FETCHED || it.courseNo == ELSEWHERE })
+    }
+
+    /**
+     * A course this phone's course selection listed after another device's roster dropped it is
+     * enrolled again by this phone's roster, so the drop does not take it. An answer older than
+     * the drop, or within the clock margin of it, says nothing about it, and the course leaves:
+     * an old answer must not hold off a newer drop for good. As the iPhone's
+     * `serverDropLeavesFetchedCourses` (tigerduck-app#914).
+     */
+    @Test
+    fun `a course a roster dropped leaves the courses fetched here, unless course selection listed it since the drop`() {
+        val droppedAt = 1_800_000_000_000L
+        val hour = 3_600_000L
+        fun read(answeredAt: Long?) = reconcile(
+            local = listOf(fetched(ENROLLED), fetched(FETCHED), mergedCopy(MERGED)),
+            rows = listOf(
+                row(ENROLLED, status = "enrolled"),
+                row(FETCHED, status = "dropped", updatedAt = iso(droppedAt)),
+                row(MERGED, status = "dropped", updatedAt = iso(droppedAt)),
+            ),
+            answer = answeredAt?.let { SelectionAnswer(setOf(ENROLLED, FETCHED, MERGED), it) },
+            fetchedAtMs = droppedAt + 2 * hour,
+        )
+
+        for (answeredAt in listOf(null, droppedAt - hour, droppedAt + 60_000L)) {
+            val out = read(answeredAt)
+            assertEquals("answered at $answeredAt", setOf(FETCHED, MERGED), out.left)
+            assertEquals(emptySet<String>(), out.tombstones)
+        }
+        val listedSince = read(droppedAt + hour)
+        assertEquals(emptySet<String>(), listedSince.left)
+        assertTrue(listedSince.merged.isEmpty())
+        assertEquals(emptySet<String>(), listedSince.tombstones)
+    }
+
+    /**
+     * The backend sends each row's `updated_at`, which its drop sets. Without one the drop is no
+     * later than the full sync that read it, so only an answer since that sync exempts the course.
+     */
+    @Test
+    fun `a drop with no time of its own counts from the full sync that read it`() {
+        val fetchedAt = 1_800_000_000_000L
+        val hour = 3_600_000L
+        fun left(answeredAt: Long, fetchedAtMs: Long = fetchedAt) = reconcile(
+            local = listOf(fetched(ENROLLED), fetched(FETCHED)),
+            rows = listOf(row(ENROLLED), row(FETCHED, status = "dropped")),
+            answer = SelectionAnswer(setOf(ENROLLED, FETCHED), answeredAt),
+            fetchedAtMs = fetchedAtMs,
+        ).left
+
+        assertEquals(setOf(FETCHED), left(answeredAt = fetchedAt - hour))
+        assertEquals(emptySet<String>(), left(answeredAt = fetchedAt + hour))
+        // A snapshot with no time either: no answer is known to be newer.
+        assertEquals(setOf(FETCHED), left(answeredAt = fetchedAt + hour, fetchedAtMs = 0L))
     }
 
     @Test
@@ -240,12 +301,32 @@ class CourseSyncDropsTest {
             read, read, kept = read, merged = emptyList(), hidden = emptySet(),
             left = setOf(FETCHED, MERGED, OTHER_DEVICE, ELSEWHERE),
             droppedHere = setOf(FETCHED),
-            droppedOnServer = setOf(OTHER_DEVICE, ELSEWHERE),
+            droppedOnServer = mapOf(OTHER_DEVICE to null, ELSEWHERE to null),
         )
 
-        // MERGED was listed again since the reconcile; a course fetched here that only the server
-        // dropped stays for course selection to settle.
-        assertEquals(listOf(ENROLLED, MERGED, ELSEWHERE), committed.map { it.courseNo })
+        // MERGED was listed again since the reconcile.
+        assertEquals(listOf(ENROLLED, MERGED), committed.map { it.courseNo })
+    }
+
+    /**
+     * The commit reads the term's latest course selection answer again, as a fetch may have
+     * answered since the reconcile. It kept any course that answer listed, so an answer from
+     * before another device's roster dropped the course held the drop off for good.
+     */
+    @Test
+    fun `at the commit, only a course selection answer newer than a drop keeps the course`() {
+        val droppedAt = 1_800_000_000_000L
+        val hour = 3_600_000L
+        val read = listOf(fetched(ENROLLED), fetched(FETCHED), mergedCopy(MERGED))
+        fun committed(answeredAt: Long) = CourseSyncReconciler.committedCourses(
+            read, read, kept = read, merged = emptyList(), hidden = emptySet(),
+            left = setOf(FETCHED, MERGED),
+            droppedOnServer = mapOf(FETCHED to droppedAt, MERGED to droppedAt),
+            answer = SelectionAnswer(setOf(ENROLLED, FETCHED, MERGED), answeredAt),
+        ).map { it.courseNo }
+
+        assertEquals(listOf(ENROLLED), committed(answeredAt = droppedAt - hour))
+        assertEquals(listOf(ENROLLED, FETCHED, MERGED), committed(answeredAt = droppedAt + hour))
     }
 
     private val context = JvmContext()
@@ -274,6 +355,7 @@ class CourseSyncDropsTest {
     private suspend fun syncListing(vararg rows: ServerCourse, beforeCommit: suspend () -> Unit = {}) {
         val courseSync = cache.beginCourseSync()
         courseSync.fetching()
+        val fetchedAtMs = System.currentTimeMillis()
         try {
             val localCourses = cache.loadCourses(TERM)
             val stored = cache.loadDeletedCourseNos()
@@ -285,7 +367,10 @@ class CourseSyncDropsTest {
                 tombstones = stored,
                 serverKnownNos = cache.loadServerKnownNos()[TERM].orEmpty().toSet(),
                 selectionDroppedNos = cache.loadSelectionDroppedNos()[TERM].orEmpty().toSet(),
+                answer = cache.selectionAnswerIn(TERM),
+                fetchedAtMs = fetchedAtMs,
             )
+            cache.recordServerDrops(TERM, outcome.serverDrops)
             beforeCommit()
             cache.saveServerKnownNos(mapOf(TERM to outcome.serverKnownNos.sorted()))
             val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
@@ -378,17 +463,46 @@ class CourseSyncDropsTest {
     @Test
     fun `a merged copy course selection lists stays though the snapshot has it dropped, until an answer leaves it out`() = runTest {
         cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+        val anHourAgo = iso(System.currentTimeMillis() - 3_600_000L)
 
-        syncListing(row(ENROLLED), row(MERGED, status = "dropped")) {
+        syncListing(row(ENROLLED), row(MERGED, status = "dropped", updatedAt = anHourAgo)) {
             cache.recordSelectionRoster(TERM, listOf(ENROLLED, MERGED))
             cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
         }
         assertEquals(listOf(ENROLLED, MERGED), cache.loadCourses(TERM).map { it.courseNo })
 
         cache.recordSelectionRoster(TERM, listOf(ENROLLED))
-        syncListing(row(ENROLLED), row(MERGED, status = "dropped"))
+        syncListing(row(ENROLLED), row(MERGED, status = "dropped", updatedAt = anHourAgo))
         assertEquals(listOf(ENROLLED), cache.loadCourses(TERM).map { it.courseNo })
         assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
+    }
+
+    /**
+     * Round 7's finding: the term's latest course selection answer kept every course it listed,
+     * however old, so an answer from before another device's roster dropped a course kept it on
+     * this phone, and its reminders, for good. Only an answer since the drop keeps it now, and
+     * the next course selection answer that lists it brings it back.
+     */
+    @Test
+    fun `a course selection answer older than a roster's drop does not keep the course, and a newer one does`() = runTest {
+        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED), mergedCopy(MERGED)), TERM)
+        cache.recordSelectionRoster(TERM, listOf(ENROLLED, FETCHED, MERGED))
+        val inAnHour = iso(System.currentTimeMillis() + 3_600_000L)
+
+        syncListing(
+            row(ENROLLED),
+            row(FETCHED, status = "dropped", updatedAt = inAnHour),
+            row(MERGED, status = "dropped", updatedAt = inAnHour),
+        )
+
+        assertEquals(listOf(ENROLLED), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
+        assertEquals(setOf(FETCHED, MERGED), cache.serverDroppedIn(TERM))
+
+        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED)), TERM)
+        syncListing(row(ENROLLED), row(FETCHED, status = "dropped", updatedAt = iso(System.currentTimeMillis() - 3_600_000L)))
+        assertEquals(listOf(ENROLLED, FETCHED), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(emptySet<String>(), cache.serverDroppedIn(TERM))
     }
 
     /** As above for a past term's rebuild, which keeps no answer but takes the course's drop off. */

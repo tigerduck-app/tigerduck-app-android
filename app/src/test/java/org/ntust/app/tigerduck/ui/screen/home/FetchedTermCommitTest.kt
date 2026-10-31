@@ -172,10 +172,37 @@ class FetchedTermCommitTest {
         }
     }
 
+    /**
+     * A running term's transcript may still list a course another device's roster dropped since,
+     * and a fetch that only gains would put it back at every fetch for each sync to take out
+     * again. Read as the commit saves, as a sync may have found the drop while the lookups ran.
+     * Course selection's answer, which this phone always asks the school for, saves what it
+     * lists, and its roster enrolls it again. A course added here stays either way. As the
+     * iPhone's `savedCoursesSkipServerDrops` (tigerduck-app#918).
+     */
+    @Test
+    fun `a fetch only gaining leaves out a course a roster dropped on the server, but one added here, and an answer saves it`() = runTest {
+        val fetched = listOf(answered(ENROLLED), answered(DROPPED), answered(ADDED_HERE))
+        suspend fun commit(onlyGains: Boolean) = commitFetchedTerm(
+            cache, TERM, fetched, onlyGains, waitingAdds = { emptySet() },
+        ) { rows, current, hidden ->
+            ClassTableCourseMerge.mergeFetched(rows, current, emptyMap(), "zh", hidden, alsoKeeps = { onlyGains })
+        }
+        cache.saveCourses(listOf(portal(ENROLLED), Course(courseNo = ADDED_HERE, courseName = ADDED_HERE, isManual = true)), TERM)
+        cache.recordServerDrops(TERM, mapOf(DROPPED to null, ADDED_HERE to null))
+
+        assertEquals(listOf(ENROLLED, ADDED_HERE), commit(onlyGains = true).map { it.courseNo })
+        assertEquals(listOf(ENROLLED, ADDED_HERE), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(listOf(ENROLLED, DROPPED, ADDED_HERE), commit(onlyGains = false).map { it.courseNo })
+        assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
+    }
+
     private companion object {
         const val TERM = "1151"
         const val LATER_TERM = "1152"
         const val ENROLLED = "XA0000001"
+        const val DROPPED = "XB0000002"
+        const val ADDED_HERE = "XF0000006"
         const val JUNK = "XH0000008"
         const val WAITING = "XW0000023"
         const val LATER = "XZ0000099"

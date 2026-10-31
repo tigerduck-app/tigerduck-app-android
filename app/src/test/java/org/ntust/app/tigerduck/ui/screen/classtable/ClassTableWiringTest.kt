@@ -182,7 +182,7 @@ class ClassTableWiringTest {
         assertTrue("fetchTermCourses no longer folds under the courses' lock", locked in 0 until fold)
         assertCalls("fetchTermCourses", "cachedCourses = { current }", "unsavedEdits = { unsavedEditsIn(semester) }")
         for (read in listOf(
-            "droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() }",
+            "droppedNos = { dataCache.fetchDropsIn(semester) }",
             "waitingAdds = { pendingCourseAdds.waitingIn(semester) }",
         )) {
             assertTrue("fetchTermCourses no longer reads $read again under the courses' lock", body.indexOf(read, fold) > fold)
@@ -323,10 +323,31 @@ class ClassTableWiringTest {
         assertCalls(
             "fetchTermCourses",
             "waitingAdds = { pendingCourseAdds.waitingIn(semester) }",
-            // A term only gaining leaves out what a rebuild committed meanwhile dropped.
-            "droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() }",
+            // A term only gaining leaves out what a rebuild committed meanwhile dropped, and what a
+            // roster dropped on the server (tigerduck-app#918).
+            "droppedNos = { dataCache.fetchDropsIn(semester) }",
             "atMost = source.lookupsAtOnce",
         )
+    }
+
+    /**
+     * The upload goes as the term's roster (`roster_terms`, tigerduck-app-android#595) from
+     * course selection's answer this fetch got, or a past term's roster read off its final
+     * transcript as it was committed; CourseUpload.of, under CourseUploadTest, decides whether
+     * the upload lists all of it.
+     */
+    @Test
+    fun `a fetch uploads course selection's answer or a rebuilt term's transcript as the term's roster`() {
+        val body = body("fetchTermCourses")
+        assertCalls(
+            "fetchTermCourses",
+            "rebuiltRoster = it.roster",
+            "is ClassTableTermSource.Selection -> source.rosterNos",
+            "is ClassTableTermSource.Rebuild -> rebuiltRoster",
+            "hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos())",
+            "pushApiClient.uploadCourses(upload.courses, semester, rosterTerms = upload.rosterTerms)",
+        )
+        assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("val upload = CourseUpload.of("))
     }
 
     /** Someone else's class table is looked up as shared; only the user's own terms are rebuilt. */
