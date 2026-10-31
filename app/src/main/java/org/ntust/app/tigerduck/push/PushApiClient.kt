@@ -155,14 +155,14 @@ class PushApiClient @Inject constructor(
             if (!isSyncCapable) return@withContext false
             val service = api.at(baseUrl)
             val header = authHeader(signIn)
-            executeStamped(madeAtMs, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
+            executeStamped(madeAtMs, { isSyncCapable }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
                 if (!response.isSuccessful) {
                     throw PushApiException(
                         "holiday override failed: HTTP ${response.code}"
                     )
                 }
                 true
-            }
+            } ?: false
         }
 
     suspend fun updateDevicePreferences(
@@ -227,24 +227,24 @@ class PushApiClient @Inject constructor(
     /**
      * [signIn], when given, pins the request to that sign-in
      * ([AuthTokenManager.signInGeneration]): after a sign-out it goes without
-     * a token rather than with the next account's. [madeAtMs] is the time the
-     * mark was made, sent as its `hlc`; see [executeStamped].
+     * a token rather than with the next account's. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchAssignmentOverride(
         assignmentId: Int,
         localStatus: String,
         signIn: Int? = null,
         madeAtMs: Long? = null,
-    ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
+    ): Unit = withContext(Dispatchers.IO) {
+        val syncs = { isSyncCapable && prefs.syncAssignments }
+        if (!syncs()) return@withContext
         val payload = mapOf("local_status" to localStatus)
         val service = api.at(baseUrl)
         val header = authHeader(signIn)
-        executeStamped(madeAtMs, { hlc -> service.assignmentOverride(header, assignmentId, payload.stampedWith(hlc)) }) { response ->
+        executeStamped(madeAtMs, syncs, { hlc -> service.assignmentOverride(header, assignmentId, payload.stampedWith(hlc)) }) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchAssignmentOverride failed: HTTP ${response.code}", response.code)
             }
-        }
+        } ?: Unit
     }
 
     /**
@@ -253,8 +253,7 @@ class PushApiClient @Inject constructor(
      * for colours or names, is off, or when [allowed] says no right before
      * the request goes, after the header is made. Throws when the request
      * fails. [signIn], when given, pins the request to that sign-in, as
-     * [patchAssignmentOverride]'s is. [madeAtMs] is the time the change was
-     * made, sent as its `hlc`; see [executeStamped].
+     * [patchAssignmentOverride]'s is. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseOverride(
         courseId: Any,
@@ -265,25 +264,24 @@ class PushApiClient @Inject constructor(
         allowed: () -> Boolean = { true },
         madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext false
-        if (colorHex != null && !prefs.syncCourseColors) return@withContext false
-        if (customName != null && !prefs.syncCourseNames) return@withContext false
-        val payload = mutableMapOf<String, Any>()
-        if (colorHex != null) payload["color_hex"] = colorHex
-        if (customName != null) payload["custom_name"] = customName
-        if (locale != null) payload["locale"] = locale
+        val switchesOn = { isSyncCapable && (colorHex == null || prefs.syncCourseColors) && (customName == null || prefs.syncCourseNames) }
+        if (!switchesOn()) return@withContext false
+        val payload = listOfNotNull(colorHex?.let { "color_hex" to it }, customName?.let { "custom_name" to it }, locale?.let { "locale" to it })
+            .toMap()
         val service = api.at(baseUrl)
         val header = authHeader(signIn)
         // Read once the header is made, which can renew the session and so
         // suspend: a hold the course outbox put on the kind meanwhile must
         // stop the request, which the switches above alone would let through.
         if (!allowed()) return@withContext false
-        executeStamped(madeAtMs, { hlc -> service.courseOverride(header, courseId.toString(), payload.stampedWith(hlc)) }) { response ->
+        // The resend passes the same gate as the first request: the hold can go on meanwhile.
+        val call = { hlc: Long? -> service.courseOverride(header, courseId.toString(), payload.stampedWith(hlc)) }
+        executeStamped(madeAtMs, { switchesOn() && allowed() }, call) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseOverride failed: HTTP ${response.code}", response.code)
             }
-        }
-        true
+            true
+        } ?: false
     }
 
     /**
@@ -295,8 +293,7 @@ class PushApiClient @Inject constructor(
      * Returns whether the backend stored it: false when the answer has no
      * `ignore_assignments`, as from a backend that predates the field and
      * drops it unread, and null when course or assignment sync is off and
-     * nothing went out. Throws when the request fails. [madeAtMs] is the time
-     * the change was made, sent as its `hlc`; see [executeStamped].
+     * nothing went out. Throws when the request fails. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseIgnore(
         moodleId: String,
@@ -304,14 +301,15 @@ class PushApiClient @Inject constructor(
         moodleCourseId: Int?,
         madeAtMs: Long? = null,
     ): Boolean? = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncAssignments || !prefs.syncCourses) return@withContext null
+        val syncs = { isSyncCapable && prefs.syncAssignments && prefs.syncCourses }
+        if (!syncs()) return@withContext null
         val payload = mutableMapOf<String, Any>()
         if (ignore != null) payload["ignore_assignments"] = ignore
         if (moodleCourseId != null && moodleCourseId >= 1) payload["moodle_course_id"] = moodleCourseId
         if (payload.isEmpty()) return@withContext null
         val service = api.at(baseUrl)
         val header = authHeader()
-        executeStamped(madeAtMs, { hlc -> service.courseIgnore(header, moodleId, payload.stampedWith(hlc)) }) { response ->
+        executeStamped(madeAtMs, syncs, { hlc -> service.courseIgnore(header, moodleId, payload.stampedWith(hlc)) }) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseIgnore failed: HTTP ${response.code}", response.code)
             }

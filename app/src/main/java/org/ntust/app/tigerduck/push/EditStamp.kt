@@ -21,14 +21,23 @@ internal fun Map<String, Any>.stampedWith(hlc: Long?): Map<String, Any> =
  * Sends an edit with the time it was made as its `hlc` ([madeAtMs], epoch ms; null sends none), which
  * the backend settles it by: an edit that waited in a queue then loses to a newer one another device
  * sent meanwhile. One the backend refuses as stamped ahead of its clock goes once more without,
- * counting from when it arrives, as the course upload's adds do. [call] makes the request for the
- * `hlc` it is given; [handle] reads the answer of the request that stands.
+ * counting from when it arrives, as the course upload's adds do, if [mayResend] still says yes:
+ * the gate the first request passed can have closed meanwhile (a hold, a switch), and the resend,
+ * past it, would overwrite what the user is yet to choose. Then nothing more goes out, and the
+ * result is null: not sent. [call] makes the request for the `hlc` it is given; [handle] reads the
+ * answer of the request that stands.
  */
-internal fun <T> executeStamped(madeAtMs: Long?, call: (hlc: Long?) -> Call, handle: (Response) -> T): T {
+internal fun <T : Any> executeStamped(
+    madeAtMs: Long?,
+    mayResend: () -> Boolean,
+    call: (hlc: Long?) -> Call,
+    handle: (Response) -> T,
+): T? {
     if (madeAtMs != null) {
         val stamped = call(clockOf(madeAtMs)).execute()
         if (!isClockAhead(stamped)) return stamped.use(handle)
         stamped.close()
+        if (!mayResend()) return null
     }
     return call(null).execute().use(handle)
 }
