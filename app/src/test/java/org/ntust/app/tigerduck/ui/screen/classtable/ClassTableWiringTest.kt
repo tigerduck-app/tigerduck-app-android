@@ -298,6 +298,8 @@ class ClassTableWiringTest {
         assertCalls(
             "fetchTermCourses",
             "waitingAdds = { pendingCourseAdds.waitingIn(semester) }",
+            // A term only gaining leaves out what a rebuild committed meanwhile dropped.
+            "droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() }",
             "atMost = source.lookupsAtOnce",
         )
     }

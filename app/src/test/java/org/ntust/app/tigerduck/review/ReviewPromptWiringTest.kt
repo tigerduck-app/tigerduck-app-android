@@ -53,7 +53,8 @@ class ReviewPromptWiringTest {
     fun `a fetch counts as a day of use once the class table's courses are saved`() {
         // The class table's fetch saves each term's courses in fetchTermCourses.
         assertCountsAfterSaving(classTable, "fetchTermCourses", "dataCache.saveCourses(merged, semester)")
-        assertCountsAfterSaving(home, "fetchData", "dataCache.saveCourses(courses)")
+        // Home saves its fetch through commitFetchedTerm.
+        assertCountsAfterSaving(home, "fetchData", "courses = commitFetchedTerm(")
     }
 
     /** A warm of the other terms runs on its own, and must not lift a failed load's hold. */

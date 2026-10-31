@@ -477,6 +477,7 @@ class ClassTableTermFetchTest {
         answers, source, "1151", moodleNos,
         latest = { latest },
         waitingAdds = { emptySet() },
+        droppedNos = { emptySet() },
         recordFinalRoster = { error("only a rebuild records drops") },
     ) { fold(it, latest) }
 
@@ -505,6 +506,7 @@ class ClassTableTermFetchTest {
             moodleNos = listOf("XD0000004", "XW0000023"),
             latest = { store.loadCourses("1151") },
             waitingAdds = { setOf("XW0000023") },
+            droppedNos = { emptySet() },
             recordFinalRoster = {
                 steps += "recorded"
                 store.recordFinalRoster("1151", it.roster, alsoListed = it.dropping)
@@ -557,6 +559,7 @@ class ClassTableTermFetchTest {
             answers, source, "1151", emptyList(),
             latest = { before },
             waitingAdds = { emptySet() },
+            droppedNos = { emptySet() },
             recordFinalRoster = { recorded = it },
         ) { fold(it, before) }
 
@@ -625,11 +628,40 @@ class ClassTableTermFetchTest {
             answers, source, "1151", emptyList(),
             latest = { latest },
             waitingAdds = { emptySet() },
+            droppedNos = { emptySet() },
             recordFinalRoster = { error("only a rebuild records drops") },
         ) { fold(it, latest, deleted = setOf("XC0000003")) }
 
         assertEquals(listOf("XA0000001", "XB0000002"), saved!!.map { it.courseNo })
         assertEquals("IB-202", saved[0].classroom)
+    }
+
+    /**
+     * A term only gaining looks up every course it held as its fetch began. A rebuild of the term
+     * committed while the lookups ran took its junk off and put it on the drop list, and the
+     * junk's answer, with class times, would join the term again. A course added back by hand
+     * since, here or with its add still waiting, takes its answer as before.
+     */
+    @Test
+    fun `a term only gaining does not bring back a course a rebuild dropped while its lookups ran, but one added back by hand takes its answer`() = runTest {
+        gate.complete(Unit)
+        val before = listOf(course("XA0000001"), course("XJ0000009"), course("XB0000002"), course("XW0000023"))
+        val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001"), servedBySelection = true, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
+        // The rebuild dropped the three and saved the term; XB and XW were then added back by hand.
+        val latest = listOf(course("XA0000001"), manual("XB0000002", room = "TR-313"), merged("XW0000023"))
+
+        val saved = fetch.committed(
+            answers, source, "1151", emptyList(),
+            latest = { latest },
+            waitingAdds = { setOf("XW0000023") },
+            droppedNos = { setOf("XJ0000009", "XB0000002", "XW0000023") },
+            recordFinalRoster = { error("only a rebuild records drops") },
+        ) { fold(it, latest) }!!
+
+        assertEquals(listOf("XA0000001", "XB0000002", "XW0000023"), saved.map { it.courseNo })
+        assertEquals(listOf("IB-202", "IB-202"), saved.drop(1).map { it.classroom })
+        assertTrue(saved.drop(1).all { it.isManual })
     }
 
     /** Before #890 Moodle's sites were the roster of a term course selection gave nothing for. */

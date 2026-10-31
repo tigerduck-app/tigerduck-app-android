@@ -425,6 +425,30 @@ class SyncWiringTest {
     }
 
     /**
+     * A past term's rebuild can record its drops and save the term while a gaining fetch's lookups
+     * run, so Home and the background sync commit through commitFetchedTerm, which checks the
+     * drop list under the courses' lock and keeps the adds still waiting (FetchedTermCommitTest).
+     * The background sync uploads the list as committed, never a course the commit left out.
+     */
+    @Test
+    fun `Home and the background sync commit a fetch against the drop list as it stands, and the sync uploads what was committed`() {
+        assertCalls(
+            "ui/screen/home/HomeViewModel.kt", "fetchData",
+            "courses = commitFetchedTerm(",
+            "waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) }",
+        )
+        assertCalls(
+            "notification/BackgroundSyncWorker.kt", "syncCourses",
+            "val merged = commitFetchedTerm(",
+            "waitingAdds = { pendingCourseAdds.waitingIn(semester) }",
+            "pushApiClient.uploadCourses(merged, semester)",
+        )
+        for ((rel, name) in listOf("ui/screen/home/HomeViewModel.kt" to "fetchData", "notification/BackgroundSyncWorker.kt" to "syncCourses")) {
+            assertFalse("$rel $name saves a fetch past the commit", "dataCache.saveCourses(" in body(rel, name))
+        }
+    }
+
+    /**
      * The background sync adds the transcript's classes to the term's cached courses and looks
      * every one up: one whose query fails, or brings no rows, keeps the row the term has, where
      * Moodle's stand-in would take its times and room, as Home's fetch does (#417).

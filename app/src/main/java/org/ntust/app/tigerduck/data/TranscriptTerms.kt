@@ -107,6 +107,20 @@ object TranscriptTerms {
         if (fromSelection) courses else courses.filter { it.courseNo in cached || hasTimes(it) }
 
     /**
+     * A term only gaining's [fetched] rows without those [dropped], the
+     * term's drop list read at the commit, names: the fetch looked up the
+     * term as it began, and a rebuild that saved meanwhile took those off.
+     * As [rebuiltPastTerm] drops neither, a course added here, in [current],
+     * the term's list, stays, and so does one in [waitingAdds], whose add
+     * has not gone up yet.
+     */
+    fun withoutDrops(fetched: List<Course>, dropped: Set<String>, current: List<Course>, waitingAdds: Set<String>): List<Course> {
+        if (dropped.isEmpty()) return fetched
+        val addedHere = current.filter(::isAddedHere).mapTo(mutableSetOf()) { it.courseNo } + waitingAdds
+        return fetched.filter { it.courseNo !in dropped || it.courseNo in addedHere }
+    }
+
+    /**
      * An ended term rebuilt from [report], the transcript that lists [term]
      * and a later one: its classes the course query found with class times,
      * and the cached copy of one it did not find or of a row it cannot look

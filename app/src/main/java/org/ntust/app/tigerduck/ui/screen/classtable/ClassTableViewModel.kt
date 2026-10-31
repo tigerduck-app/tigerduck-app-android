@@ -1741,6 +1741,7 @@ class ClassTableViewModel @Inject constructor(
                 answers, source, semester, moodleByNo.keys,
                 latest = { latestCourses(semester) },
                 waitingAdds = { pendingCourseAdds.waitingIn(semester) },
+                droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() },
                 recordFinalRoster = { dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation) },
             ) { drawn ->
                 // The reads that suspend first, the list chosen and folded

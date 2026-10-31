@@ -31,7 +31,6 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
-import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.auth.retryingAfterRelogin
 import org.ntust.app.tigerduck.data.PendingCourseAdds
@@ -41,6 +40,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.ui.screen.home.BackgroundMarkStep
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.ui.screen.home.commitFetchedTerm
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import org.ntust.app.tigerduck.ui.screen.home.sendMovedColors
 import org.ntust.app.tigerduck.data.CourseRosterMerge
@@ -497,21 +497,25 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // now: user-picked colors, renames and manually-added courses
                 // survive, and a course added here keeps having no Moodle ID.
                 val unresolvedNos = term.courseNos.toSet() - fetched.mapTo(mutableSetOf()) { it.courseNo }
-                val merged = ClassTableCourseMerge.mergeFetched(
-                    fetched,
-                    cached = dataCache.loadCourses(),
-                    names = dataCache.loadCourseCustomNames(),
-                    locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
-                    deletedNos = CourseTombstoneKeys.hiddenIn(
-                        courseService.currentSemesterCode(),
-                        dataCache.loadDeletedCourseNos(),
-                    ),
-                    // A term only gaining removes nothing, a course saved while
-                    // these lookups ran included; otherwise a roster course a
-                    // transient lookup failure left unresolved keeps its row.
-                    alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
-                )
-                dataCache.saveCourses(merged)
+                val names = dataCache.loadCourseCustomNames()
+                val locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage)
+                // Uploaded as written: what the commit left out stays off the server too.
+                val merged = commitFetchedTerm(
+                    dataCache, semester, fetched, term.onlyGains,
+                    waitingAdds = { pendingCourseAdds.waitingIn(semester) },
+                ) { rows, current, hidden ->
+                    ClassTableCourseMerge.mergeFetched(
+                        rows,
+                        cached = current,
+                        names = names,
+                        locale = locale,
+                        deletedNos = hidden,
+                        // A term only gaining removes nothing, a course saved while
+                        // these lookups ran included; otherwise a roster course a
+                        // transient lookup failure left unresolved keeps its row.
+                        alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
+                    )
+                }
                 runCatching { pushApiClient.uploadCourses(merged, semester) }
                     .onFailure {
                         prefs.setLastSyncSource(SyncSource.LOCAL)

@@ -396,6 +396,7 @@ class CourseSyncDropsTest {
             answers, source, TERM, moodleNos,
             latest = { cache.loadCourses(TERM) },
             waitingAdds = { emptySet() },
+            droppedNos = { emptySet() },
             recordFinalRoster = { cache.recordFinalRoster(TERM, it.roster, alsoListed = it.dropping) },
         ) { drawn ->
             fetch.fold(drawn, cache.loadCourses(TERM), emptyMap(), "zh", CourseTombstoneKeys.hiddenIn(TERM, cache.loadDeletedCourseNos()))

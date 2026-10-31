@@ -119,15 +119,17 @@ internal class ClassTableTermFetch(
      * caller's lock, before anything of the term is saved: course selection's
      * answer as fetched; a class the transcript adds only with class times,
      * and nothing the term holds by the fold removed
-     * ([TranscriptTerms.drawnCourses], [Answers.onlyGains]); an ended term as
+     * ([TranscriptTerms.drawnCourses], [Answers.onlyGains]), nor any the drop
+     * list names but a hand-add ([TranscriptTerms.withoutDrops]); an ended term as
      * its transcript rebuilds it ([TranscriptTerms.rebuiltPastTerm]), whose
      * drops [recordFinalRoster] writes first, so a sync landing before the
      * save cannot merge the junk back. Then the term [fold]s, through the
      * caller's [foldLatest], for the caller to save and upload.
      *
      * [latest] is the term's list as it stands; [waitingAdds] the courses
-     * whose add has not gone up yet, which are never dropped. Null leaves the
-     * term as it is: nothing came back, or [fold] gave nothing.
+     * whose add has not gone up yet, which are never dropped; [droppedNos]
+     * the term's drop list as it stands. Null leaves the term as it is:
+     * nothing came back, or [fold] gave nothing.
      *
      * As iOS `AppServiceBridge.fetchCourses`' save (tigerduck-app#890).
      */
@@ -138,6 +140,7 @@ internal class ClassTableTermFetch(
         moodleNos: Collection<String>,
         latest: suspend () -> List<Course>,
         waitingAdds: suspend () -> Set<String>,
+        droppedNos: suspend () -> Set<String>,
         recordFinalRoster: suspend (TranscriptTerms.RebuiltTerm) -> Unit,
         fold: suspend (Answers) -> List<Course>?,
     ): List<Course>? {
@@ -150,8 +153,11 @@ internal class ClassTableTermFetch(
                 answers.rebuilding(rebuilt)
             }
             is ClassTableTermSource.Gaining -> {
-                val cached = latest().mapTo(mutableSetOf()) { it.courseNo }
-                val fetched = TranscriptTerms.drawnCourses(answers.fetched, fromSelection = false, cached = cached)
+                val current = latest()
+                val cached = current.mapTo(mutableSetOf()) { it.courseNo }
+                // The lookups began from the term as it was: a rebuild committed meanwhile took its drops off.
+                val undropped = TranscriptTerms.withoutDrops(answers.fetched, droppedNos(), current, waitingAdds())
+                val fetched = TranscriptTerms.drawnCourses(undropped, fromSelection = false, cached = cached)
                 Answers(fetched, answers.lookedUp, answers.answered, answers.looked, onlyGains = true)
             }
             is ClassTableTermSource.Selection, ClassTableTermSource.Unanswered -> answers

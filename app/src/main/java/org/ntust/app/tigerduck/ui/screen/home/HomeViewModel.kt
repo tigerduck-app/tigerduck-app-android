@@ -45,6 +45,7 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.OutstandingAssignments
+import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.UnsentMarks
@@ -106,6 +107,7 @@ class HomeViewModel @Inject constructor(
     private val localEdits: LocalEdits,
     private val reenableCheck: org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck,
     private val reviewPrompt: ReviewPrompt,
+    private val pendingCourseAdds: PendingCourseAdds,
 ) : ViewModel() {
 
 
@@ -730,17 +732,23 @@ class HomeViewModel @Inject constructor(
                         fetchCoursesAndAssignments(studentId, password)
 
                     if (remote != null && remote.courses.isNotEmpty()) {
-                        // Re-read cache so a concurrent color change isn't erased,
-                        // and so manually-added courses survive the refresh.
-                        courses = HomeCourseMerge.mergeRemote(
-                            remote = remote.courses,
-                            cached = dataCache.loadCourses(),
-                            names = dataCache.loadCourseCustomNames(),
-                            locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
-                            deletedNos = hiddenNow(),
-                            onlyGains = remote.onlyGains,
-                        )
-                        dataCache.saveCourses(courses)
+                        // Onto the term as it stands, so a concurrent color change isn't
+                        // erased and manually-added courses survive the refresh.
+                        val names = dataCache.loadCourseCustomNames()
+                        val locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage)
+                        courses = commitFetchedTerm(
+                            dataCache, remote.semester, remote.courses, remote.onlyGains,
+                            waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) },
+                        ) { fetched, current, hidden ->
+                            HomeCourseMerge.mergeRemote(
+                                remote = fetched,
+                                cached = current,
+                                names = names,
+                                locale = locale,
+                                deletedNos = hidden,
+                                onlyGains = remote.onlyGains,
+                            )
+                        }
                         // The class table loaded: a day of use towards the
                         // Play rating ask (issue #332). A source that failed
                         // is a status dot, which ReviewPrompt reads.
@@ -789,8 +797,8 @@ class HomeViewModel @Inject constructor(
     /** A Moodle round's assignments as the cache should hold them, with the round that gave them; see [MoodleService.storeAssignments]. */
     private class AssignmentsToStore(val assignments: List<Assignment>, val answer: MoodleService.AssignmentsAnswer)
 
-    /** A fetch's courses of the term, and whether the term only gains them; see [HomeCourseMerge.mergeRemote]. */
-    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean)
+    /** A fetch's courses of [semester], and whether the term only gains them; see [HomeCourseMerge.mergeRemote]. */
+    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String)
 
     /**
      * One network round of the two enrolment sources (NTUST course-selection
@@ -886,6 +894,7 @@ class HomeViewModel @Inject constructor(
             RemoteCourses(
                 TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys),
                 onlyGains = term.onlyGains,
+                semester = semester,
             )
         }
 
