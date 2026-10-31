@@ -93,6 +93,7 @@ class LiveActivityManagerTest {
     private var signedIn = true
     private var storedId: String? = "B00015999"
     private var demoSession = false
+    private var storedIdRead: () -> String? = { storedId }
 
     private val course = Course(courseNo = "CS3005301", courseName = "Data Structures", scheduleJson = """{"1":["2","3"]}""")
 
@@ -106,7 +107,7 @@ class LiveActivityManagerTest {
         academicCalendar = calendar,
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = scope,
-        storedStudentId = { storedId },
+        storedStudentId = { storedIdRead() },
         isDemoSession = { demoSession },
     )
 
@@ -285,6 +286,23 @@ class LiveActivityManagerTest {
         val at = ZonedDateTime.of(2026, 10, 12, 20, 0, 0, 0, AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
         val wake = refreshWakes().single()
         assertTrue("woke at ${wake - at} ms", wake in at + 30 * 60_000L..at + 31 * 60_000L)
+    }
+
+    @Test
+    fun `a refresh whose account cannot be read still finishes and leaves the armed reminders alone`() {
+        liveUpdate.isEnabled = true
+        appPrefs.classReminderEnabled = true
+        storedIdRead = { error("keystore unavailable") }
+
+        runBlocking { overTwoTerms(day = 12, hour = 20, month = 10).refreshAndWait() }
+
+        // The Live Update's own wake-up is still set, as in the refresh above.
+        val at = ZonedDateTime.of(2026, 10, 12, 20, 0, 0, 0, AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
+        val wake = refreshWakes().single()
+        assertTrue("woke at ${wake - at} ms", wake in at + 30 * 60_000L..at + 31 * 60_000L)
+        // Neither armed nor cancelled: what is armed stays.
+        assertNull(alarms.armedLeadSec)
+        assertEquals(0, alarms.cancels)
     }
 
     // The school's course changes, over the iPhone suite's course: CC900 meets on Thursday

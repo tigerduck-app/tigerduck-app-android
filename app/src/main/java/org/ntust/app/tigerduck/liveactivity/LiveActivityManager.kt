@@ -170,8 +170,9 @@ class LiveActivityManager internal constructor(
         // Before anything is loaded: the account the courses read below belong to. Read with the
         // sign-in state: logout clears the stored ID a moment before it lowers authState, and a
         // refresh in that gap sees both "signed in" and no ID.
-        val startedFor = storedStudentId()
-        val leaving = signedIn && startedFor == null && !isDemoSession()
+        val account = runCatching { storedStudentId() }
+        val startedFor = account.getOrNull()
+        val leaving = account.isSuccess && signedIn && startedFor == null && !isDemoSession()
         // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
         // the timetable weeks ahead of the term, so having courses is not
         // evidence that classes have started. Neither the chip nor the
@@ -187,7 +188,10 @@ class LiveActivityManager internal constructor(
 
         // Before the Live Update's own gate: class reminders have a switch of
         // their own and no longer stop with the Live Update.
-        val remindersWake = armClassReminders(signedIn, leaving, skipped, calendar, optedIn, startedFor)
+        // An account that cannot be read stops only the class reminders: what is armed stays, and the
+        // rest of the refresh is the Live Update's own.
+        val remindersWake =
+            if (account.isSuccess) armClassReminders(signedIn, leaving, skipped, calendar, optedIn, startedFor) else null
         // And whatever the Live Update shows: with a due-soon assignment
         // shown first, the switch to "in class" that cleared these may never
         // come. The boundary alarm at class start brings a refresh here,
