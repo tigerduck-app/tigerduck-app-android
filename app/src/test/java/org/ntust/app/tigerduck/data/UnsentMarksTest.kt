@@ -59,6 +59,7 @@ class UnsentMarksTest {
             stamps += madeAtMs
             sent += id to status
             answer(id, status)
+            true
         },
         records = { records },
         sends = { records && sends },

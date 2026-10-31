@@ -14,9 +14,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Sends one assignment's mark; see [PushApiClient.patchAssignmentOverride]. */
+/** Sends one assignment's mark, and says whether it went out; see [PushApiClient.patchAssignmentOverride]. */
 internal fun interface MarkSender {
-    suspend fun send(assignmentId: Int, status: String, signIn: Int, madeAtMs: Long?)
+    suspend fun send(assignmentId: Int, status: String, signIn: Int, madeAtMs: Long?): Boolean
 }
 
 /**
@@ -157,7 +157,6 @@ class UnsentMarks internal constructor(
             if (intId == null) return@withLock true
             try {
                 sender.send(intId, status, signIn, tap.madeAtMs)
-                true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

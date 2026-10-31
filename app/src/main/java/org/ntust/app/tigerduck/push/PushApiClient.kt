@@ -228,15 +228,16 @@ class PushApiClient @Inject constructor(
      * [signIn], when given, pins the request to that sign-in
      * ([AuthTokenManager.signInGeneration]): after a sign-out it goes without
      * a token rather than with the next account's. [madeAtMs] is sent as `hlc`.
+     * Says whether it went out: false when the switch stopped it, so the mark waits.
      */
     suspend fun patchAssignmentOverride(
         assignmentId: Int,
         localStatus: String,
         signIn: Int? = null,
         madeAtMs: Long? = null,
-    ): Unit = withContext(Dispatchers.IO) {
+    ): Boolean = withContext(Dispatchers.IO) {
         val syncs = { isSyncCapable && prefs.syncAssignments }
-        if (!syncs()) return@withContext
+        if (!syncs()) return@withContext false
         val payload = mapOf("local_status" to localStatus)
         val service = api.at(baseUrl)
         val header = authHeader(signIn)
@@ -244,7 +245,8 @@ class PushApiClient @Inject constructor(
             if (!response.isSuccessful) {
                 throw PushApiException("patchAssignmentOverride failed: HTTP ${response.code}", response.code)
             }
-        } ?: Unit
+            true
+        } ?: false
     }
 
     /**
