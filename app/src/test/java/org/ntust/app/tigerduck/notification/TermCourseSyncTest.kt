@@ -226,6 +226,35 @@ class TermCourseSyncTest {
         assertEquals(emptyList<String?>(), backend.received(UPLOAD).map { it.authorization })
     }
 
+    /**
+     * The background worker checks the account after each phase by student ID, which a sign-in as the
+     * same student passes. What keeps the old run's rows out of the new session is the pin of its
+     * writes to the sign-in and the cache's generation, so that is what is driven here: the fetch
+     * is held at its lookups, the account signs out (wiping the cache) and signs in as the same
+     * student, who saves a course, and the old run then finishes.
+     */
+    @Test
+    fun `a sign-out and sign-in as the same student during a background sync writes nothing from the old run`() = runTest {
+        var switched = false
+        val switching = object : TermCourseSync.Sources by sources {
+            override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? {
+                if (!switched) {
+                    switched = true
+                    auth.logout()
+                    cache.clearAllUserData()
+                    tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
+                    cache.saveCourses(listOf(Course(courseNo = HAND, courseName = HAND)), TERM)
+                }
+                return sources.lookUp(semester, courseNo, moodle, kept)
+            }
+        }
+        termSync(switching).sync(STUDENT, PASSWORD, TERM)
+
+        assertTrue(switched)
+        assertEquals(listOf(HAND), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(emptyList<Any>(), uploads())
+    }
+
     /** A full sync's roster requests, answered once its account has signed out and another signed in. */
     @Test
     fun `roster requests of a sign-in that has ended ask nothing and upload nothing`() = runTest {
