@@ -78,7 +78,12 @@ class ClassPreparingNotificationScheduler internal constructor(
         // across two different slots and silently overwrite the earlier alarm.
         val codeMap = loadCodeMap()
         cancelAllTrackedLocked(codeMap)
-        if (leadTimeSec <= 0 || coursesByTerm.values.all { it.isEmpty() }) return@synchronized null
+        if (leadTimeSec <= 0) return@synchronized null
+        if (coursesByTerm.values.all { it.isEmpty() }) {
+            // No class is left to remind of, so a reminder still up for one goes as its alarm did.
+            refreshShownLocked(emptyMap(), leadTimeSec * 1000L, AppClock.nowMillis())
+            return@synchronized null
+        }
 
         val now = AppClock.nowMillis()
         val scheduled = mutableSetOf<String>()

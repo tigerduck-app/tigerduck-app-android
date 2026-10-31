@@ -336,6 +336,23 @@ class ClassPreparingNotificationSchedulerTest {
     }
 
     @Test
+    fun `a reminder already up goes when its course was the last one and is removed`() {
+        remindedOfTheMorningClass()
+        assertEquals(1, shown().size)
+
+        clockAt("09:00")
+        ClassPreparingNotificationScheduler(context) { CourseChanges.EMPTY }.scheduleAll(
+            coursesByTerm = mapOf(noCalendarTerm to emptyList()),
+            skippedDates = emptyMap(),
+            leadTimeSec = 15 * 60,
+            calendar = AcademicCalendar.EMPTY,
+            optedInHolidayIds = emptySet(),
+        )
+
+        assertEquals(emptyList<Notification>(), shown())
+    }
+
+    @Test
     fun `a reminder already up shows its class's new room, without sounding again`() {
         remindedOfTheMorningClass()
         assertEquals(listOf("09:10–12:10 · T4-501"), shown().map { it.text })
