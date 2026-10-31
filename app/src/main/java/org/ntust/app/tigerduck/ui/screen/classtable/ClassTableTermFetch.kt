@@ -66,6 +66,11 @@ internal class ClassTableTermFetch(
          */
         fun rebuilding(rebuilt: TranscriptTerms.RebuiltTerm): Answers =
             Answers(rebuilt.courses, lookedUp, answered, looked, rebuildDrops = rebuilt.dropped)
+
+        /** A term only gaining's answers without what [dropped] names: [TranscriptTerms.withoutDrops]. */
+        fun withoutDrops(dropped: Set<String>, current: List<Course>, waitingAdds: Set<String>): Answers =
+            if (!onlyGains || dropped.isEmpty()) this
+            else Answers(TranscriptTerms.withoutDrops(fetched, dropped, current, waitingAdds), lookedUp, answered, looked, onlyGains = true)
     }
 
     /**
@@ -181,18 +186,25 @@ internal class ClassTableTermFetch(
      * [cachedCourses], and [storedTombstones] after it, so a tombstone whose
      * write landed during the cache read — retiring its pending edit, which
      * leaves the file as the only record of it — is in what is read. Then,
-     * with nothing suspending in between: the list is chosen, [shownCourses]
-     * when the list on screen is this term's by now, else the cache just
-     * read; the edits still on their way are laid over the file
-     * ([withPendingEdits]); and the fold is made. The term can come on screen
-     * during the reads, which is why the list is chosen after them.
+     * with nothing suspending in between: the list is chosen, the cache just
+     * read with the edits of [shownCourses] laid over it when the list on
+     * screen is this term's by now; the edits still on their way are laid
+     * over the file ([withPendingEdits]); and the fold is made. The term can
+     * come on screen during the reads, which is why the list is chosen after
+     * them.
      *
-     * The list on screen keeps no course the cache read lacks, but one whose
-     * add's save of the list has not landed ([unsavedAdds], read before the
-     * cache, so such a course is in one or the other): a sync or the
-     * background fetch may have taken it out of the cache, a dropped merged
-     * copy say, before its notice reached the screen, and the fold would
-     * keep it as a hand-added leftover and save it back.
+     * The cache read is the base, and the list on screen gives it only the
+     * courses an edit there changed whose save of the list has not landed
+     * ([unsavedEdits], read before the cache, so such an edit is in one or
+     * the other): added, taken off or changed, as the screen has them. A sync
+     * or the background fetch may have saved the term since the screen last
+     * read it, before its notice came, a course merged from another device
+     * or one dropped, and the list on screen would undo it.
+     *
+     * For a term only gaining, its answers lose again what the drop list
+     * names now ([droppedNos], [waitingAdds]; [TranscriptTerms.withoutDrops]):
+     * read under the courses' lock, a course selection answer that dropped a
+     * course since [committed] read the list has saved the term too.
      *
      * [editGeneration] counts the term's in-place edits, bumped at the tap.
      * Read before the reads and again after them: an edit in between may have
@@ -210,20 +222,24 @@ internal class ClassTableTermFetch(
         cachedCourses: suspend () -> List<Course>,
         storedTombstones: suspend () -> Set<String>,
         shownCourses: () -> List<Course>?,
-        unsavedAdds: () -> Set<String> = { emptySet() },
+        unsavedEdits: () -> Set<String> = { emptySet() },
+        droppedNos: suspend () -> Set<String> = { emptySet() },
+        waitingAdds: suspend () -> Set<String> = { emptySet() },
         withPendingEdits: (Set<String>) -> Set<String>,
         names: () -> CustomNameMap,
         locale: String,
     ): List<Course>? {
         repeat(SNAPSHOT_ATTEMPTS) {
             val generation = editGeneration()
-            val adding = unsavedAdds()
+            val edited = unsavedEdits()
             val cached = cachedCourses()
             val stored = storedTombstones()
+            val dropped = if (answers.onlyGains) droppedNos() else emptySet()
+            val waiting = if (dropped.isEmpty()) emptySet() else waitingAdds()
             if (editGeneration() != generation) return@repeat
-            val cachedNos = cached.mapTo(mutableSetOf()) { it.courseNo }
-            val latest = shownCourses()?.filter { it.courseNo in cachedNos || it.courseNo in adding } ?: cached
-            return fold(answers, latest, names(), locale, CourseTombstoneKeys.hiddenIn(semester, withPendingEdits(stored)))
+            val latest = shownCourses()?.let { withEdits(cached, it, edited) } ?: cached
+            val drawn = answers.withoutDrops(dropped, latest, waiting)
+            return fold(drawn, latest, names(), locale, CourseTombstoneKeys.hiddenIn(semester, withPendingEdits(stored)))
         }
         return null
     }
@@ -231,6 +247,15 @@ internal class ClassTableTermFetch(
     private companion object {
         /** Snapshots a commit tries before leaving a term edited throughout them to the next fetch. */
         const val SNAPSHOT_ATTEMPTS = 3
+
+        /** [cached] with each course in [edited] as [shown] has it, or without it where [shown] has none. */
+        fun withEdits(cached: List<Course>, shown: List<Course>, edited: Set<String>): List<Course> {
+            if (edited.isEmpty()) return cached
+            val shownByNo = shown.associateBy { it.courseNo }
+            val cachedNos = cached.mapTo(mutableSetOf()) { it.courseNo }
+            return cached.mapNotNull { if (it.courseNo in edited) shownByNo[it.courseNo] else it } +
+                shown.filter { it.courseNo in edited && it.courseNo !in cachedNos }
+        }
     }
 
     fun fold(

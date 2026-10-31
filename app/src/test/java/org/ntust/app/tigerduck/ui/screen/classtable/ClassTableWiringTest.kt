@@ -154,39 +154,43 @@ class ClassTableWiringTest {
             "addCourse", "deleteCourse", "setCustomCourseName", "revertCourseName", "updateCourseColor", "lookUpMissingRooms",
         )) {
             val body = body(name)
-            val edit = body.indexOf("_courses.value = updated")
-            val noted = body.indexOf("noteTermEdit(")
-            assertTrue("$name no longer counts its edit right after making it", edit in 0 until noted)
+            assertTrue("$name no longer makes its edit through showEdit", "showEdit(updated, " in body)
+            assertTrue("$name no longer saves its edit through saveEdit", "saveEdit(updated, " in body)
+            assertFalse("$name sets the list on screen past showEdit", "_courses.value = " in body)
         }
         // The abbreviation relabel is an edit too, made from a collector in init rather than a function.
         val source = source().joinToString("\n")
-        val relabel = source.indexOf("_courses.value = relabeled")
-        assertTrue("the relabel collector is gone", relabel >= 0)
-        assertTrue(
-            "the abbreviation relabel no longer counts its edit right after making it",
-            source.indexOf("noteTermEdit(semester)", relabel) in relabel until source.indexOf("dataCache.saveCourses(relabeled", relabel),
-        )
+        val relabel = source.indexOf("showEdit(relabeled, semester)")
+        assertTrue("the abbreviation relabel no longer makes its edit through showEdit", relabel >= 0)
+        assertTrue("the abbreviation relabel no longer saves through saveEdit", source.indexOf("saveEdit(relabeled, semester, edit)", relabel) > relabel)
+        assertCalls("showEdit", "_courses.value = updated", "noteTermEdit(semester)", "unsavedEdits[edit] = semester to edited")
+        assertCalls("saveEdit", "dataCache.saveCourses(updated, semester)", "unsavedEdits.remove(edit)")
         assertCalls("fetchTermCourses", "editGeneration = { termEdits[semester] ?: 0 }")
     }
 
     /**
-     * The background sync can take a dropped course off the term's cache before its notice
-     * reaches the list on screen. The commit folds under the courses' lock onto the cache as it
-     * stands, taking from the screen its edits and the adds whose save has not landed; see
-     * ClassTableTermFetch.foldLatest.
+     * A sync or the background fetch can save the term's cache before its notice reaches the list
+     * on screen. The commit folds under the courses' lock onto the cache as it stands, taking from
+     * the screen only the courses an edit there changed whose save has not landed, and reads the
+     * drop list again there for a term only gaining; see ClassTableTermFetch.foldLatest.
      */
     @Test
-    fun `a fetch folds onto the term's cache under the courses' lock, with the adds still on their way`() {
+    fun `a fetch folds onto the term's cache under the courses' lock, with the edits still on their way`() {
         val body = body("fetchTermCourses")
         val locked = body.indexOf("dataCache.updateCourses(semester) { current, _ ->")
-        assertTrue("fetchTermCourses no longer folds under the courses' lock", locked in 0 until body.indexOf("termFetch.foldLatest("))
-        assertCalls("fetchTermCourses", "cachedCourses = { current }", "unsavedAdds = { unsavedAddsIn(semester) }")
+        val fold = body.indexOf("termFetch.foldLatest(")
+        assertTrue("fetchTermCourses no longer folds under the courses' lock", locked in 0 until fold)
+        assertCalls("fetchTermCourses", "cachedCourses = { current }", "unsavedEdits = { unsavedEditsIn(semester) }")
+        for (read in listOf(
+            "droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() }",
+            "waitingAdds = { pendingCourseAdds.waitingIn(semester) }",
+        )) {
+            assertTrue("fetchTermCourses no longer reads $read again under the courses' lock", body.indexOf(read, fold) > fold)
+        }
         assertFalse("fetchTermCourses saves the folded term outside the courses' lock", "dataCache.saveCourses(" in body)
         val add = body("addCourse")
-        val marked = add.indexOf("unsavedAdds[unsaved] = ")
-        val saved = add.indexOf("dataCache.saveCourses(updated, semester)")
+        val marked = add.indexOf("showEdit(updated, semester)")
         assertTrue("addCourse no longer marks its add unsaved before launching the save", marked in 0 until add.indexOf("viewModelScope.launch"))
-        assertTrue("addCourse no longer lets go of its add once saved", add.indexOf("unsavedAdds.remove(unsaved)", saved) > saved)
     }
 
     /** A warm's older rows must not land over a reset of the term, or a fetch the user asked for. */
@@ -234,7 +238,7 @@ class ClassTableWiringTest {
             "lookUpMissingRooms",
             "ClassTableCourseMerge.nosWithoutRoom(",
             "ClassTableCourseMerge.withRoomsFound(",
-            "dataCache.saveCourses(",
+            "saveEdit(updated, semester, edit)",
             "widgetUpdater.requestUpdate()",
         )
     }

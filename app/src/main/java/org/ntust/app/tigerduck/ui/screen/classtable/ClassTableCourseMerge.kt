@@ -70,6 +70,13 @@ object ClassTableCourseMerge {
             .filter { it.courseNo !in deletedNos }
     }
 
+    /** The course numbers an edit of the list from [before] to [after] added, took off or changed. */
+    fun editedNos(before: List<Course>, after: List<Course>): Set<String> {
+        val was = before.toSet()
+        val now = after.toSet()
+        return (before.filterNot { it in now } + after.filterNot { it in was }).mapTo(mutableSetOf()) { it.courseNo }
+    }
+
     // --- Looking a stored course up again (tigerduck-app-android#264) ---
     //
     // mergeFetched keeps a hand-added course, or one merged from another

@@ -180,13 +180,36 @@ class ClassTableViewModel @Inject constructor(
         termEdits[semester] = (termEdits[semester] ?: 0) + 1
     }
 
-    // By tap, the term and number of each course added on screen whose save of the list has not
-    // landed, which the term's cache lacks meanwhile; see ClassTableTermFetch.foldLatest.
-    private val unsavedAdds = HashMap<Long, Pair<String, String>>()
-    private var nextUnsavedAdd = 0L
+    // By tap, the term and the courses each in-place edit of the list on screen added, took off or
+    // changed, until its save of the list lands: the term's cache lacks them meanwhile, and a fetch
+    // takes those from the screen; see ClassTableTermFetch.foldLatest.
+    private val unsavedEdits = HashMap<Long, Pair<String, Set<String>>>()
+    private var nextUnsavedEdit = 0L
 
-    private fun unsavedAddsIn(semester: String): Set<String> =
-        unsavedAdds.values.filter { it.first == semester }.mapTo(mutableSetOf()) { it.second }
+    private fun unsavedEditsIn(semester: String): Set<String> =
+        unsavedEdits.values.filter { it.first == semester }.flatMapTo(mutableSetOf()) { it.second }
+
+    /**
+     * Puts [updated], an in-place edit of [semester]'s list, on screen: the edit counted, and the
+     * courses it changed noted unsaved until [saveEdit] is handed the id returned.
+     */
+    private fun showEdit(updated: List<Course>, semester: String): Long {
+        val edited = ClassTableCourseMerge.editedNos(_courses.value, updated)
+        _courses.value = updated
+        noteTermEdit(semester)
+        val edit = nextUnsavedEdit++
+        unsavedEdits[edit] = semester to edited
+        return edit
+    }
+
+    /** Saves [updated], the list [edit] left, and lets the edit go once the save is done. */
+    private suspend fun saveEdit(updated: List<Course>, semester: String, edit: Long) {
+        try {
+            dataCache.saveCourses(updated, semester)
+        } finally {
+            unsavedEdits.remove(edit)
+        }
+    }
 
     // When each term's courses without a room were last looked up again, on
     // the monotonic clock; see lookUpMissingRooms.
@@ -574,11 +597,10 @@ class ClassTableViewModel @Inject constructor(
                     semester, _courses.value
                 )
                 if (relabeled != _courses.value) {
-                    _courses.value = relabeled
                     // An edit of the list like any other, for a commit
-                    // reading the term meanwhile; see noteTermEdit.
-                    noteTermEdit(semester)
-                    dataCache.saveCourses(relabeled, semester)
+                    // reading the term meanwhile; see showEdit.
+                    val edit = showEdit(relabeled, semester)
+                    saveEdit(relabeled, semester, edit)
                     TigerDuckTheme.buildCourseColorMap(relabeled)
                 }
             }
@@ -1007,11 +1029,8 @@ class ClassTableViewModel @Inject constructor(
         }
         val flagged = course.copy(isManual = true)
         val updated = _courses.value + flagged
-        _courses.value = updated
         val semester = _currentSemester.value
-        noteTermEdit(semester)
-        val unsaved = nextUnsavedAdd++
-        unsavedAdds[unsaved] = semester to course.courseNo
+        val edit = showEdit(updated, semester)
         // Ahead of the write below: a fetch folding meanwhile reads the
         // tombstones with this on top, or its filter would drop the course
         // just added back; see ClassTableTombstoneEdits.
@@ -1031,11 +1050,7 @@ class ClassTableViewModel @Inject constructor(
                 } finally {
                     tombstoneEdits.saved(tombstone)
                 }
-                try {
-                    dataCache.saveCourses(updated, semester)
-                } finally {
-                    unsavedAdds.remove(unsaved)
-                }
+                saveEdit(updated, semester, edit)
                 // A delete of it still queued goes first, or it could land after
                 // this add and take the course off the server again; as the
                 // iPhone's `discardCourseDeletes` before an add.
@@ -1107,12 +1122,11 @@ class ClassTableViewModel @Inject constructor(
         courseCustomNames =
             CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, override)
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, override)
-        _courses.value = updated
-        noteTermEdit(_currentSemester.value)
+        val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, override)
         viewModelScope.launch {
             dataCache.saveCourseCustomNames(courseCustomNames)
-            dataCache.saveCourses(updated, _currentSemester.value)
+            saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
         syncCourseOverride(course, semester, customName = trimmed.ifEmpty { "" }, locale = locale)
@@ -1140,12 +1154,11 @@ class ClassTableViewModel @Inject constructor(
         courseCustomNames =
             CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, null)
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, null)
-        _courses.value = updated
-        noteTermEdit(_currentSemester.value)
+        val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, null)
         viewModelScope.launch {
             dataCache.saveCourseCustomNames(courseCustomNames)
-            dataCache.saveCourses(updated, _currentSemester.value)
+            saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
         if (course != null && semester != null) syncCourseOverride(course, semester, customName = "", locale = locale)
@@ -1199,9 +1212,8 @@ class ClassTableViewModel @Inject constructor(
         val deletedCourse = _courses.value.firstOrNull { it.courseNo == courseNo }
         val moodleId = deletedCourse?.moodleIdNumber
         val updated = _courses.value.filter { it.courseNo != courseNo }
-        _courses.value = updated
         val semester = _currentSemester.value
-        noteTermEdit(semester)
+        val listEdit = showEdit(updated, semester)
         val ignoreKey = CourseIgnores.key(semester, courseNo)
         val edit = ignoredCourses.edit { it - ignoreKey }
         appScope.launch {
@@ -1234,7 +1246,7 @@ class ClassTableViewModel @Inject constructor(
                     tombstoneEdits.saved(tombstoneEdit)
                 }
             }
-            dataCache.saveCourses(updated, semester)
+            saveEdit(updated, semester, listEdit)
             // A colour or name of it still waiting to go up goes with it; see
             // PendingCourseOverrides.forget.
             pendingCourseOverrides.forget(listOfNotNull(moodleId))
@@ -1272,11 +1284,10 @@ class ClassTableViewModel @Inject constructor(
             shown = TigerDuckTheme::courseColorVibrant,
         )
         val updated = pick.courses
-        _courses.value = updated
-        noteTermEdit(_currentSemester.value)
+        val edit = showEdit(updated, _currentSemester.value)
         TigerDuckTheme.buildCourseColorMap(updated)
         viewModelScope.launch {
-            dataCache.saveCourses(updated, _currentSemester.value)
+            saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
         // A concrete hex each, a default included: the backend reads a
@@ -1770,7 +1781,10 @@ class ClassTableViewModel @Inject constructor(
                         cachedCourses = { current },
                         storedTombstones = { dataCache.loadDeletedCourseNos() },
                         shownCourses = { _courses.value.takeIf { coursesSemester == semester } },
-                        unsavedAdds = { unsavedAddsIn(semester) },
+                        unsavedEdits = { unsavedEditsIn(semester) },
+                        // Again under the lock: a course selection answer may have dropped a course since.
+                        droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() },
+                        waitingAdds = { pendingCourseAdds.waitingIn(semester) },
                         withPendingEdits = tombstoneEdits::over,
                         names = { courseCustomNames },
                         locale = currentCourseLocale,
@@ -1934,10 +1948,9 @@ class ClassTableViewModel @Inject constructor(
             }.awaitAll().mapNotNull { (courseNo, course) -> course?.let { courseNo to it } }.toMap()
             if (!authService.isStillSignedInAs(account) || coursesSemester != semester) return@launch
             val updated = ClassTableCourseMerge.withRoomsFound(_courses.value, found) ?: return@launch
-            _courses.value = updated
-            noteTermEdit(semester)
+            val edit = showEdit(updated, semester)
             TigerDuckTheme.buildCourseColorMap(updated)
-            dataCache.saveCourses(updated, semester)
+            saveEdit(updated, semester, edit)
             widgetUpdater.requestUpdate()
             if (semester == liveSemesterCode) {
                 // Home and the Live Update read today's courses off the cache.

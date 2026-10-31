@@ -311,7 +311,7 @@ class ClassTableTermFetchTest {
             cached = cached + course
         }
 
-        /** The courses added on screen whose save of the list has not landed. */
+        /** The courses an edit on screen added, took off or changed, whose save of the list has not landed. */
         val unsaved = mutableSetOf<String>()
 
         /** An add whose save of the list is still to land, with [saved]. */
@@ -324,6 +324,13 @@ class ClassTableTermFetchTest {
         fun saved(course: Course) {
             cached = cached + course
             unsaved -= course.courseNo
+        }
+
+        /** A take-back, off the list at once, whose save of the list is still to land. */
+        fun removeUnsaved(courseNo: String) {
+            shown = shown?.filter { it.courseNo != courseNo }
+            generation++
+            unsaved += courseNo
         }
 
         /** The user picks another term: the list on screen is that term's now. */
@@ -343,7 +350,7 @@ class ClassTableTermFetchTest {
                 cachedCourses = { snapshot.cacheReads++; val read = snapshot.cached; snapshot.cacheGate.await(); read },
                 storedTombstones = { snapshot.fileGate.await(); snapshot.file },
                 shownCourses = { snapshot.shown },
-                unsavedAdds = { snapshot.unsaved.toSet() },
+                unsavedEdits = { snapshot.unsaved.toSet() },
                 withPendingEdits = snapshot.edits::over,
                 names = { emptyMap() },
                 locale = "zh",
@@ -453,7 +460,8 @@ class ClassTableTermFetchTest {
     /**
      * The background sync took a dropped merged copy off the term's cache, and the list on screen
      * holds it until the sync's notice comes. A term only gaining keeps a hand-added leftover, so
-     * the fold onto that list saved the course back. The screen's edits still count.
+     * the fold onto that list saved the course back. The screen's edits still count: XA's colour,
+     * whose save has not landed.
      */
     @Test
     fun `a course the cache no longer holds is not brought back by the list on screen`() = runTest {
@@ -461,6 +469,7 @@ class ClassTableTermFetchTest {
         val snapshot = Snapshot().apply {
             cached = listOf(course("XA0000001"), manual("XF0000006"))
             shown = listOf(course("XA0000001", color = "#FF0000"), merged("XD0000004"), manual("XF0000006"))
+            unsaved += "XA0000001"
             cacheGate.complete(Unit)
             fileGate.complete(Unit)
         }
@@ -495,6 +504,47 @@ class ClassTableTermFetchTest {
 
         assertEquals(1, snapshot.cacheReads)
         assertEquals(listOf("XA0000001", "XQ0000017"), out()!!.map { it.courseNo })
+    }
+
+    /**
+     * While the lookups ran a sync merged XD, added on another device, into the term's cache, and
+     * the colour picked there for XA; its notice has not reached the screen, which holds neither.
+     * Course selection answers XA alone, so the fold onto the list on screen saved, and uploaded,
+     * the term without XD and XA's colour. The cache is the base; the screen gave no edit.
+     */
+    @Test
+    fun `a course and a colour a sync saved while the lookups ran survive the fold`() = runTest {
+        val answers = ClassTableTermFetch.Answers(listOf(course("XA0000001")), emptyMap(), answered = true)
+        val snapshot = Snapshot().apply {
+            cached = listOf(course("XA0000001", color = "#00FF00"), merged("XD0000004"))
+            shown = listOf(course("XA0000001"))
+            cacheGate.complete(Unit)
+            fileGate.complete(Unit)
+        }
+
+        val out = foldLatest(answers, snapshot)
+        advanceUntilIdle()
+
+        assertEquals(listOf("XA0000001", "XD0000004"), out()!!.map { it.courseNo })
+        assertEquals("#00FF00", out()!![0].customColorHex)
+    }
+
+    /** A take-back removes a course added here with no tombstone: only its save, still to land, says so. */
+    @Test
+    fun `a course taken back on screen whose save has not landed stays out`() = runTest {
+        val answers = ClassTableTermFetch.Answers(listOf(course("XA0000001")), emptyMap(), answered = true)
+        val snapshot = Snapshot().apply {
+            cached = listOf(course("XA0000001"), manual("XQ0000017"))
+            shown = cached
+            cacheGate.complete(Unit)
+            fileGate.complete(Unit)
+        }
+        snapshot.removeUnsaved("XQ0000017")
+
+        val out = foldLatest(answers, snapshot)
+        advanceUntilIdle()
+
+        assertEquals(listOf("XA0000001"), out()!!.map { it.courseNo })
     }
 
     @Test
@@ -725,6 +775,61 @@ class ClassTableTermFetchTest {
         assertEquals(listOf("XA0000001", "XB0000002", "XW0000023"), saved.map { it.courseNo })
         assertEquals(listOf("IB-202", "IB-202"), saved.drop(1).map { it.classroom })
         assertTrue(saved.drop(1).all { it.isManual })
+    }
+
+    /**
+     * The commit read the drop list, empty, and then the waiting adds; while that read suspended,
+     * Home's course selection answer dropped XB and saved the term without it. The answers still
+     * list XB, and a term only gaining keeps every answer: the drop list is read again under the
+     * courses' lock, where the term cannot be saved meanwhile.
+     */
+    @Test
+    fun `a term only gaining does not bring back a course course selection dropped while the waiting adds were read`() = runTest {
+        gate.complete(Unit)
+        val store = cache()
+        val before = listOf(course("XA0000001"), course("XB0000002"))
+        store.saveCourses(before, "1151")
+        val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001", "XB0000002"), servedBySelection = true, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
+        val dropped = suspend { store.loadSelectionDroppedNos()["1151"].orEmpty().toSet() }
+        var answered = false
+
+        val saved = fetch.committed(
+            answers, source, "1151", emptyList(),
+            latest = { store.loadCourses("1151") },
+            waitingAdds = {
+                if (!answered) {
+                    answered = true
+                    store.recordSelectionRoster("1151", listOf("XA0000001"))
+                    store.saveCourses(listOf(course("XA0000001")), "1151")
+                }
+                emptySet()
+            },
+            droppedNos = dropped,
+            recordFinalRoster = { error("only a rebuild records drops") },
+        ) { drawn ->
+            var folded: List<Course>? = null
+            store.updateCourses("1151") { current, _ ->
+                folded = fetch.foldLatest(
+                    drawn, "1151",
+                    editGeneration = { 0 },
+                    cachedCourses = { current },
+                    storedTombstones = { store.loadDeletedCourseNos() },
+                    shownCourses = { null },
+                    droppedNos = dropped,
+                    waitingAdds = { emptySet() },
+                    withPendingEdits = { it },
+                    names = { emptyMap() },
+                    locale = "zh",
+                )
+                folded ?: current
+            }
+            folded
+        }
+
+        assertTrue(answered)
+        assertEquals(listOf("XA0000001"), saved!!.map { it.courseNo })
+        assertEquals(listOf("XA0000001"), store.loadCourses("1151").map { it.courseNo })
     }
 
     /** Before #890 Moodle's sites were the roster of a term course selection gave nothing for. */
