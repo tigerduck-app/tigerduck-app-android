@@ -77,14 +77,21 @@ internal interface PushApi {
     @POST("sync/assignments/upload")
     fun assignmentsUpload(@Header("Authorization") auth: String, @Body body: RequestBody): Call
 
+    /** [protocol] "2" for an upload whose adds carry their time; null leaves the header out. */
     @POST("sync/courses/upload")
-    fun coursesUpload(@Header("Authorization") auth: String, @Body body: RequestBody): Call
+    fun coursesUpload(
+        @Header("Authorization") auth: String,
+        @Body body: RequestBody,
+        @Header("X-TigerSync-Protocol") protocol: String?,
+    ): Call
 
+    /** [hlc] the hide's time, in microseconds since the epoch; null sends none. */
     @HTTP(method = "DELETE", path = "sync/courses/{courseKey}", hasBody = true)
     fun removeCourse(
         @Header("Authorization") auth: String,
         @Path("courseKey", encoded = true) courseKey: String,
         @Body empty: RequestBody,
+        @Query("hlc") hlc: Long?,
     ): Call
 
     /** [semester] form-encoded already (`URLEncoder`), or null for every term. */

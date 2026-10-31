@@ -363,7 +363,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
             Log.i(TAG, "[Sync] backend empty, auto-uploaded ${outcome.toUpload.size} courses")
         }
         if (known != knownHere) {
-            dataCache.saveServerKnownNos(storedKnown + (semester to known.sorted()))
+            // Added to what is stored now: an add answered meanwhile may have added to it too.
+            dataCache.updateServerKnownNos { current ->
+                current + (semester to (current[semester].orEmpty() + known).distinct().sorted())
+            }
         }
     }
 

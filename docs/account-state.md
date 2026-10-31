@@ -351,6 +351,7 @@ Under `cacheDir/TigerDuckCache/`, `filesDir/TigerDuckData/` and, for the downloa
 | cache | `moodle_files/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `moodle_open/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_adds.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `pending_course_add_times.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_deletes.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_ignores.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_overrides.json` | school | `DataCache.kt` `clearAllUserData` |

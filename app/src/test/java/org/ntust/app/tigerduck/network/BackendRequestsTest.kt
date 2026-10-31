@@ -73,7 +73,7 @@ class BackendRequestsTest {
         )
         assertSameRequest(
             Request.Builder().url("$base/sync/courses/client:114-1:CS1001").delete().header("Authorization", auth).build(),
-            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody),
+            api.removeCourse(auth, "client:114-1:CS1001", EmptyBody, null),
         )
     }
 
