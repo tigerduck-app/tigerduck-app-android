@@ -32,11 +32,8 @@ value class AcademicTerm private constructor(val code: String) : Comparable<Acad
         else -> this
     }
 
-    // A year before 100 keeps the spelling it was read in, padded to three characters or not.
-    private fun of(year: Int, part: Char): AcademicTerm {
-        val padded = if (' ' in code && year < 100) "%02d ".format(year) else "%02d".format(year)
-        return AcademicTerm((if (year >= 100) "$year" else padded) + part)
-    }
+    // Only a year before 100 gets here, from stepping back across 100, and it has no padded spelling.
+    private fun of(year: Int, part: Char) = AcademicTerm("$year$part")
 
     /** Year, then 1 before 2 before H. */
     override fun compareTo(other: AcademicTerm): Int {
@@ -45,12 +42,12 @@ value class AcademicTerm private constructor(val code: String) : Comparable<Acad
     }
 
     companion object {
-        // A year before 100 is two digits, which the catalogue pads to three characters: `99 1`,
-        // and a transcript may leave bare: `991`. Years from 100 are three digits.
-        private val FOUR = Regex("""(\d{3}|\d\d ?)([12H])""")
+        // Years from 100 are three digits; the catalogue writes a year before 100 padded to three
+        // characters, `99 1`. [0-9], not \d: on Android \d also matches digits of other scripts.
+        private val FOUR = Regex("""([0-9]{3}|[0-9]{2} )([12H])""")
 
         // The five-character spelling some score pages and fixtures use: year, a 0, the term digit.
-        private val FIVE = Regex("""(\d{3})0([12])""")
+        private val FIVE = Regex("""([0-9]{3})0([12])""")
 
         private fun rank(part: Char): Int = if (part == 'H') 3 else part - '0'
 
@@ -68,16 +65,23 @@ value class AcademicTerm private constructor(val code: String) : Comparable<Acad
         fun parseExact(raw: String?): AcademicTerm? = parse(raw)?.takeIf { it.code == raw }
 
         /**
-         * [parse]d label of [code], so `1141` reads `114-1`. A four-character code of another kind
-         * (`113A`) gets the same shape; anything else comes back as written.
+         * The label of a stored code of any kind: all but the last character, a dash, the last, so
+         * `1141` reads `114-1` and `113A` reads `113-A`. It does not read the code as a term, so
+         * a padded or odd code keeps its own characters.
          */
-        fun labelOf(code: String): String =
-            parse(code)?.label ?: if (code.length == 4) code.take(3) + "-" + code.last() else code
+        fun labelOf(code: String): String = code.dropLast(1) + "-" + code.takeLast(1)
+
+        /** [compareCodes], newest first. */
+        val newestFirst: Comparator<String> = Comparator { a, b -> compareCodes(b, a) }
 
         /**
          * Two stored codes in term order. A code that is not a term, or two spelled differently
          * but naming one term, fall back on plain string order, so the same inputs always sort
          * the same way. For four-character codes of one shape that is also the plain string order.
+         *
+         * Not a general order: it holds only for the shapes its one caller passes (four-character
+         * codes of one spelling). Across spellings it can cycle: `1141 < 11402 < 1140A < 1141`. So
+         * the score sorts, which can see the five-character form, must not reuse it.
          */
         fun compareCodes(a: String, b: String): Int {
             val x = parse(a)

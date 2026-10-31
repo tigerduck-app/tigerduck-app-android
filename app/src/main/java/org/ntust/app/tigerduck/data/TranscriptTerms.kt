@@ -91,9 +91,9 @@ object TranscriptTerms {
     fun rebuildsFromTranscript(report: ScoreReport?, term: String, servedBySelection: Boolean): Boolean {
         if (servedBySelection || report == null) return false
         val code = termCode(term) ?: return false
-        val order = AcademicTerm.parse(code) ?: return false
+        val order = termOf(code) ?: return false
         val listed = report.rows().filter { it.status != GradeStatus.EXEMPTED }.mapNotNull { termCode(it.term) }
-        return code in listed && listed.any { other -> AcademicTerm.parse(other)?.let { it > order } == true }
+        return code in listed && listed.any { other -> termOf(other)?.let { it > order } == true }
     }
 
     /**
@@ -230,6 +230,13 @@ object TranscriptTerms {
         val text = term.orBlank().trim().uppercase()
         if (text.isEmpty()) return null
         return ScoreCourseRoster.semesterCode(text) ?: text
+    }
+
+    // The term a code names: year, then 1 < 2 < H. A transcript may write a year before 100 bare,
+    // as "991", which AcademicTerm reads only padded, so it is padded here to keep 991 before 1001.
+    private fun termOf(code: String): AcademicTerm? {
+        if (' ' in code) return null
+        return AcademicTerm.parse(if (code.length == 3) code.take(2) + " " + code.last() else code)
     }
 
     // A cached report read back by Gson holds null in a missing field, whatever its declared type.

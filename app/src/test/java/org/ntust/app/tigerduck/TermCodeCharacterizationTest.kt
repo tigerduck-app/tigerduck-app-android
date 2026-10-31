@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.data.TranscriptTerms
@@ -11,11 +12,14 @@ import org.ntust.app.tigerduck.data.model.CreditType
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.data.model.GradeStatus
 import org.ntust.app.tigerduck.data.model.ScoreReport
+import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
 import org.ntust.app.tigerduck.data.sharing.ImportedPerson
 import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.SemesterCodes
-import org.ntust.app.tigerduck.shared.time.AcademicTerm
+import org.ntust.app.tigerduck.ui.screen.calendar.calendarTermLabel
+import org.ntust.app.tigerduck.ui.screen.classtable.semesterDisplayLabel
+import org.ntust.app.tigerduck.ui.screen.classtable.sharing.importConfirmRows
 import org.ntust.app.tigerduck.ui.screen.score.ScoreCourseRoster
 import org.ntust.app.tigerduck.ui.screen.score.displayTermShort
 import org.ntust.app.tigerduck.ui.screen.score.formatCurrentTerm
@@ -23,10 +27,10 @@ import java.time.Instant
 import java.time.LocalDate
 
 /**
- * What each place that reads a term code does with the same odd inputs, as the code stood before
- * [org.ntust.app.tigerduck.shared.time.AcademicTerm] took the parsing, ordering and labeling over.
- * The expectations are the output of that code, kept as it was; the refactor commits leave them
- * alone, except where a commit says that an input no site can receive changed.
+ * What each place that reads a term code does with the same odd inputs, as the code stood at
+ * 81f9f0b19, before [org.ntust.app.tigerduck.shared.time.AcademicTerm] took the parsing, ordering
+ * and labeling over. The expectations are that code's output. Two sites keep a change, because no
+ * real input reaches them, and say so beside the rows: `previous` and `academicYear`.
  */
 class TermCodeCharacterizationTest {
 
@@ -37,6 +41,12 @@ class TermCodeCharacterizationTest {
 
     // --- Parse ---
 
+    /**
+     * Accepted change: no caller passes a lower-case, padded or five-character code (the codes come
+     * from the catalogue and the calendar, four characters). Old and new:
+     * `114h` was `114h`, now `114H`; `" 1141 "` was `" 1141 "`, now `1132`; `11402` was `11401`
+     * (a nonsense code), now `1141`.
+     */
     @Test
     fun `SemesterCodes previous`() {
         assertEquals(
@@ -56,6 +66,10 @@ class TermCodeCharacterizationTest {
         )
     }
 
+    /**
+     * Accepted change, for the same reason. Old and new: `" 1141 "` was `1141`, now `114`;
+     * `11402` was `1140`, now `114`.
+     */
     @Test
     fun `SemesterCatalog academicYear`() {
         assertEquals(
@@ -73,6 +87,26 @@ class TermCodeCharacterizationTest {
             """.trimIndent(),
             table { SemesterCatalog.academicYear(it) },
         )
+    }
+
+    /** A year before 100 is no class table code: bare, padded or three characters, the roster is null. */
+    @Test
+    fun `ScoreCourseRoster semesterCode reads no year before 100`() {
+        assertEquals(
+            "'112' -> null, '111' -> null, '991' -> null, '99 1' -> null, '99 H' -> null",
+            listOf("112", "111", "991", "99 1", "99 H").joinToString { "'$it' -> ${ScoreCourseRoster.semesterCode(it)}" },
+        )
+    }
+
+    /**
+     * Also changed, and not in the lists above: a code with a year before 100. Old and new:
+     * previous `991` was `982`, now `991`; previous `99 1` was `99 1`, now `982`; academicYear `991`
+     * was 99, now null. The catalogue pads such years (`99 1`) and nothing walks back to them.
+     */
+    @Test
+    fun `a year before 100 in previous and academicYear`() {
+        assertEquals("991, 982", listOf("991", "99 1").joinToString { SemesterCodes.previous(it) })
+        assertEquals("null, 99", listOf("991", "99 1").joinToString { "${SemesterCatalog.academicYear(it)}" })
     }
 
     @Test
@@ -105,7 +139,7 @@ class TermCodeCharacterizationTest {
             '1131' -> 1131
             '114h' -> 114H
             ' 1141 ' -> null
-            '11402' -> null
+            '11402' -> 1140
             '' -> null
             'abc' -> null
             """.trimIndent(),
@@ -177,68 +211,119 @@ class TermCodeCharacterizationTest {
 
     // --- Labels ---
 
+    /** The odd shapes above, plus the four-character codes that are not a term, and a year before 100. */
+    private val labelInputs = inputs + listOf("1130", "1143", "114A", "991", "99 1", "0991")
+
+    private fun importLabel(semester: String): String {
+        val code = ClassTableShareCode(
+            ClassTableShareCode.Format.TIGER_DUCK, null, null,
+            listOf(ClassTableShareCode.Term(semester, listOf("CS1001301"))),
+        )
+        val rows = importConfirmRows(code, joinList = { it.joinToString("|") }, formatCount = { "$it" }, formatTime = { "$it" })
+        return rows.first { it.title == R.string.class_table_semester_picker_label }.value
+    }
+
+    private fun labelTable(f: (String) -> Any?): String =
+        labelInputs.joinToString("\n") { "'$it' -> ${f(it)}" }
+
     @Test
     fun `class table label`() {
-        assertEquals("""
+        assertEquals(
+            """
             '1141' -> 114-1
             '1142' -> 114-2
             '114H' -> 114-H
             '113H' -> 113-H
             '1131' -> 113-1
-            '114h' -> 114-H
-            ' 1141 ' -> 114-1
-            '11402' -> 114-2
+            '114h' -> 114-h
+            ' 1141 ' ->  1141- 
+            '11402' -> 1140-2
             '' -> 
-            'abc' -> abc
-            """.trimIndent(), table { AcademicTerm.labelOf(it) })
+            'abc' -> ab-c
+            '1130' -> 113-0
+            '1143' -> 114-3
+            '114A' -> 114-A
+            '991' -> 99-1
+            '99 1' -> 99 -1
+            '0991' -> 099-1
+            """.trimIndent(),
+            labelTable { semesterDisplayLabel(it) },
+        )
     }
 
     @Test
     fun `class table import label`() {
-        assertEquals("""
+        assertEquals(
+            """
             '1141' -> 114-1
             '1142' -> 114-2
             '114H' -> 114-H
             '113H' -> 113-H
             '1131' -> 113-1
-            '114h' -> 114-H
-            ' 1141 ' -> 114-1
-            '11402' -> 114-2
-            '' -> 
-            'abc' -> abc
-            """.trimIndent(), table { AcademicTerm.labelOf(it) })
+            '114h' -> 114-h
+            ' 1141 ' ->  1141- 
+            '11402' -> 1140-2
+            '' -> -
+            'abc' -> ab-c
+            '1130' -> 113-0
+            '1143' -> 114-3
+            '114A' -> 114-A
+            '991' -> 99-1
+            '99 1' -> 99 -1
+            '0991' -> 099-1
+            """.trimIndent(),
+            labelTable { importLabel(it) },
+        )
     }
 
     @Test
     fun `calendar event label`() {
-        assertEquals("""
+        assertEquals(
+            """
             '1141' -> 114-1
             '1142' -> 114-2
             '114H' -> 114-H
             '113H' -> 113-H
             '1131' -> 113-1
-            '114h' -> 114-H
-            ' 1141 ' -> 114-1
-            '11402' -> 114-2
+            '114h' -> 114-h
+            ' 1141 ' ->  1141 
+            '11402' -> 11402
             '' -> 
             'abc' -> abc
-            """.trimIndent(), table { AcademicTerm.labelOf(it) })
+            '1130' -> 113-0
+            '1143' -> 114-3
+            '114A' -> 114-A
+            '991' -> 991
+            '99 1' -> 99 -1
+            '0991' -> 099-1
+            """.trimIndent(),
+            labelTable { calendarTermLabel(it) },
+        )
     }
 
     @Test
     fun `score screen current term and trend chart short label`() {
-        assertEquals("""
+        assertEquals(
+            """
             '1141' -> 114學年度第1學期 | 114-1
             '1142' -> 114學年度第2學期 | 114-2
             '114H' -> 114學年度第H學期 | 114-H
             '113H' -> 113學年度第H學期 | 113-H
             '1131' -> 113學年度第1學期 | 113-1
-            '114h' -> 114h | 114h
+            '114h' -> 114學年度第h學期 | 114-h
             ' 1141 ' ->  1141  |  1141 
             '11402' -> 11402 | 11402
             '' ->  | 
             'abc' -> abc | abc
-            """.trimIndent(), table { "${formatCurrentTerm("%s學年度第%s學期", it)} | ${displayTermShort(it)}" })
+            '1130' -> 113學年度第0學期 | 113-0
+            '1143' -> 114學年度第3學期 | 114-3
+            '114A' -> 114學年度第A學期 | 114-A
+            '991' -> 991 | 991
+            '99 1' -> 99 學年度第1學期 | 99 -1
+            '0991' -> 099學年度第1學期 | 099-1
+            """.trimIndent(),
+            labelTable { "${formatCurrentTerm("%s學年度第%s學期", it)} | ${displayTermShort(it)}" },
+        )
     }
 
     // --- Current term ---

@@ -40,7 +40,7 @@ internal object ScoreCourseRoster {
      * the year and the term digit. Anything else is left unmatched rather
      * than guessed at, so no wrong term's roster is ever shown.
      */
-    fun semesterCode(term: String): String? = AcademicTerm.parse(term)?.code
+    fun semesterCode(term: String): String? = AcademicTerm.parse(term)?.takeIf { it.year >= 100 }?.code
 
     /**
      * The class table's rows for [roster], label resource to value, leaving

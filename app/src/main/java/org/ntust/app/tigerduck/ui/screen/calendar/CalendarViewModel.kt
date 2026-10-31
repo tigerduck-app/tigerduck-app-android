@@ -37,7 +37,6 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.util.SingleFlight
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 import java.time.LocalDate
@@ -155,7 +154,7 @@ class CalendarViewModel @Inject constructor(
             languageTag = localized.resources.configuration.locales[0].toLanguageTag(),
             startTitle = { localized.getString(R.string.calendar_semester_start, it) },
             endTitle = { localized.getString(R.string.calendar_semester_end, it) },
-            formatCode = AcademicTerm.Companion::labelOf,
+            formatCode = ::calendarTermLabel,
             zone = org.ntust.app.tigerduck.AppConstants.TAIPEI_ZONE,
         )
     }
@@ -492,3 +491,5 @@ class CalendarViewModel @Inject constructor(
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 }
+
+internal fun calendarTermLabel(code: String) = if (code.length == 4) org.ntust.app.tigerduck.shared.time.AcademicTerm.labelOf(code) else code

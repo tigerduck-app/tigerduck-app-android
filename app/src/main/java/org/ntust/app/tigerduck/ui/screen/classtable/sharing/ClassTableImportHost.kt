@@ -476,4 +476,3 @@ internal fun importConfirmRows(
     add(ImportConfirmRow(R.string.class_table_import_course_count, formatCount(code.terms.sumOf { it.courseNos.size })))
     code.sharedAt?.let { add(ImportConfirmRow(R.string.class_table_import_shared_at, formatTime(it))) }
 }
-

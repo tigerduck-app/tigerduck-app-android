@@ -66,7 +66,6 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
-import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.replaceIosArg
@@ -577,7 +576,8 @@ private fun resolvedSelection(
     return points.last()
 }
 internal fun displayTermShort(code: String): String {
-    return AcademicTerm.parseExact(code)?.label ?: code
+    val (year, part) = termYearAndPart(code) ?: return code
+    return "$year-$part"
 }
 
 // --- Semester section ---

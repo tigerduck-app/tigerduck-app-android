@@ -541,7 +541,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarViewModel.kt",
     "kind": "long-file",
-    "count": 494
+    "count": 495
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
@@ -625,7 +625,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-file",
-    "count": 2080
+    "count": 2082
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",

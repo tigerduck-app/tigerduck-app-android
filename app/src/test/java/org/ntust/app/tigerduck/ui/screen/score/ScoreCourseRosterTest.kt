@@ -102,7 +102,7 @@ class ScoreCourseRosterTest {
     /** Anything else is left unmatched rather than guessed at, so no wrong file is ever read. */
     @Test
     fun `a term in no known form has no code`() {
-        listOf("", "  ", "92", "114", "11203", "1141-2", "202401", "114-1").forEach {
+        listOf("", "  ", "92", "112", "111", "99 1", "991", "114", "11203", "1141-2", "202401", "114-1").forEach {
             assertNull("term '$it'", ScoreCourseRoster.semesterCode(it))
         }
     }

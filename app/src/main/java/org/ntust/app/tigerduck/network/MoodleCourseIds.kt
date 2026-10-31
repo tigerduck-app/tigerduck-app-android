@@ -19,7 +19,6 @@
 package org.ntust.app.tigerduck.network
 
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
-import org.ntust.app.tigerduck.shared.time.AcademicTerm
 
 object MoodleCourseIds {
 
@@ -37,8 +36,11 @@ object MoodleCourseIds {
      */
     fun semesterPrefix(idnumber: String): String? {
         if (idnumber.length <= 4) return null
-        // A padded year before 100 is a catalogue spelling; an idnumber's prefix has none.
-        return AcademicTerm.parse(idnumber.take(4))?.code?.takeIf { ' ' !in it }
+        val prefix = idnumber.take(4)
+        if (!prefix.take(3).all { it in '0'..'9' }) return null
+        val term = prefix[3]
+        if (term !in '0'..'9' && term.lowercaseChar() !in 'a'..'z') return null
+        return prefix.uppercase()
     }
 
     /**
