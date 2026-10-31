@@ -91,21 +91,21 @@ class FetchedTermCommitTest {
     /** Home's fetch, committed as fetchData commits it; the list it shows. */
     private suspend fun homeFetch(waitingAdds: Set<String> = emptySet(), duringLookups: suspend () -> Unit): List<Course> {
         val (term, fetched) = gainingFetch(duringLookups)
-        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, waitingAdds = { waitingAdds }) { rows, current, hidden ->
+        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, answer = null, waitingAdds = { waitingAdds }) { rows, current, hidden ->
             HomeCourseMerge.mergeRemote(rows, current, emptyMap(), "zh", hidden, onlyGains = term.onlyGains)
-        }
+        }!!
     }
 
     /** The background sync's fetch, committed as syncCourses commits it; the list it uploads. */
     private suspend fun workerFetch(waitingAdds: Set<String> = emptySet(), duringLookups: suspend () -> Unit): List<Course> {
         val (term, fetched) = gainingFetch(duringLookups)
         val unresolvedNos = term.courseNos.toSet() - fetched.mapTo(mutableSetOf()) { it.courseNo }
-        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, waitingAdds = { waitingAdds }) { rows, current, hidden ->
+        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, answer = null, waitingAdds = { waitingAdds }) { rows, current, hidden ->
             ClassTableCourseMerge.mergeFetched(
                 rows, current, emptyMap(), "zh", hidden,
                 alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
             )
-        }
+        }!!
     }
 
     private suspend fun rebuildDroppingJunk() {
@@ -184,10 +184,10 @@ class FetchedTermCommitTest {
     fun `a fetch only gaining leaves out a course a roster dropped on the server, but one added here, and an answer saves it`() = runTest {
         val fetched = listOf(answered(ENROLLED), answered(DROPPED), answered(ADDED_HERE))
         suspend fun commit(onlyGains: Boolean) = commitFetchedTerm(
-            cache, TERM, fetched, onlyGains, waitingAdds = { emptySet() },
+            cache, TERM, fetched, onlyGains, answer = null, waitingAdds = { emptySet() },
         ) { rows, current, hidden ->
             ClassTableCourseMerge.mergeFetched(rows, current, emptyMap(), "zh", hidden, alsoKeeps = { onlyGains })
-        }
+        }!!
         cache.saveCourses(listOf(portal(ENROLLED), Course(courseNo = ADDED_HERE, courseName = ADDED_HERE, isManual = true)), TERM)
         cache.recordServerDrops(TERM, mapOf(DROPPED to null, ADDED_HERE to null))
 

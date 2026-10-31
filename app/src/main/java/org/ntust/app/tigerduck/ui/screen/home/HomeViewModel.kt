@@ -48,6 +48,7 @@ import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
+import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.AppFeature
@@ -737,7 +738,7 @@ class HomeViewModel @Inject constructor(
                         val names = dataCache.loadCourseCustomNames()
                         val locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage)
                         courses = commitFetchedTerm(
-                            dataCache, remote.semester, remote.courses, remote.onlyGains,
+                            dataCache, remote.semester, remote.courses, remote.onlyGains, remote.answer,
                             waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) },
                         ) { fetched, current, hidden ->
                             HomeCourseMerge.mergeRemote(
@@ -749,6 +750,8 @@ class HomeViewModel @Inject constructor(
                                 onlyGains = remote.onlyGains,
                             )
                         }
+                            // A newer course selection answer's fetch committed the term instead.
+                            ?: dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
                         // The class table loaded: a day of use towards the
                         // Play rating ask (issue #332). A source that failed
                         // is a status dot, which ReviewPrompt reads.
@@ -797,8 +800,12 @@ class HomeViewModel @Inject constructor(
     /** A Moodle round's assignments as the cache should hold them, with the round that gave them; see [MoodleService.storeAssignments]. */
     private class AssignmentsToStore(val assignments: List<Assignment>, val answer: MoodleService.AssignmentsAnswer)
 
-    /** A fetch's courses of [semester], and whether the term only gains them; see [HomeCourseMerge.mergeRemote]. */
-    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String)
+    /**
+     * A fetch's courses of [semester], and whether the term only gains them; see
+     * [HomeCourseMerge.mergeRemote]. [answer] is the course selection answer they come from, as
+     * recorded; see [commitFetchedTerm].
+     */
+    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String, val answer: SelectionAnswer?)
 
     /**
      * One network round of the two enrolment sources (NTUST course-selection
@@ -865,7 +872,7 @@ class HomeViewModel @Inject constructor(
         // Before anything overwrites the cache: a course that was in the
         // portal roster and is not in this answer was dropped in 加退選, and
         // the backend will keep serving it until someone deletes it by hand.
-        courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        val answer = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
         val moodleEnrolled = moodleEnrolledDef.await()
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
@@ -895,6 +902,7 @@ class HomeViewModel @Inject constructor(
                 TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys),
                 onlyGains = term.onlyGains,
                 semester = semester,
+                answer = answer,
             )
         }
 

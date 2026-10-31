@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
+import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.sharing.ClassTableShare
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableChange
@@ -1616,8 +1617,8 @@ class ClassTableViewModel @Inject constructor(
             }
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
             // Before the merge below rewrites the cache — see
-            // DataCache.recordSelectionRoster.
-            dataCache.recordSelectionRoster(semester, selectionNos, generation)
+            // DataCache.recordSelectionRoster. The fetch's version of the term.
+            val answer = dataCache.recordSelectionRoster(semester, selectionNos, generation)
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${
@@ -1658,7 +1659,7 @@ class ClassTableViewModel @Inject constructor(
             // soon as it lands.
             coroutineScope {
                 val coursesJob = launch {
-                    fetchTermCourses(semester, source, moodleByNo, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
+                    fetchTermCourses(semester, source, moodleByNo, answer, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
                 }
 
                 // Assignments are always "upcoming from now", so they belong
@@ -1742,7 +1743,11 @@ class ClassTableViewModel @Inject constructor(
      * is left as it is when nothing came back, and when [mayCommit] says no
      * under that lock, before the snapshot or again before the upload: a warm
      * whose term was picked, fetched or reset meanwhile has rows older than
-     * what that left — see [ClassTableTermWarm.supersede].
+     * what that left — see [ClassTableTermWarm.supersede]. Nor when [answer],
+     * the course selection answer the fetch recorded, was replaced by a newer
+     * one, at the snapshot or before the upload ([DataCache.isLatestAnswer]):
+     * that answer dropped what it no longer lists, and its fetch saves and
+     * sends the term.
      *
      * Returns whether every query went through: false when one failed, which
      * [warmTerms] stops on — the Moodle metadata a failed lookup falls back
@@ -1752,6 +1757,7 @@ class ClassTableViewModel @Inject constructor(
         semester: String,
         source: ClassTableTermSource,
         moodleByNo: Map<String, MoodleEnrolledCourse>,
+        answer: SelectionAnswer?,
         // The page's own fetch is a day of use; a warm of the other terms is not.
         countsAsUse: Boolean = false,
         mayCommit: () -> Boolean = { true },
@@ -1784,6 +1790,7 @@ class ClassTableViewModel @Inject constructor(
                 // sync or the background fetch that took a course out of it lands wholly before.
                 var folded: List<Course>? = null
                 dataCache.updateCourses(semester) { current, _ ->
+                    if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@updateCourses current
                     // The reads that suspend first, the list chosen and folded
                     // after them with nothing in between; the order is foldLatest's.
                     folded = termFetch.foldLatest(
@@ -1812,9 +1819,9 @@ class ClassTableViewModel @Inject constructor(
                 }
                 folded
             } ?: run {
-                // Nothing to draw, or edited throughout its reads: left as it
-                // is, for the next fetch.
-                Log.w("ClassTableVM", "fetchTermCourses: $semester drew nothing or was edited throughout the snapshot, left as it is")
+                // Nothing to draw, edited throughout its reads, or a newer
+                // answer's: left as it is, for the next fetch.
+                Log.w("ClassTableVM", "fetchTermCourses: $semester drew nothing, was edited throughout the snapshot or superseded, left as it is")
                 return@uploading
             }
             // The class table loaded: a day of use towards the Play rating ask
@@ -1822,8 +1829,9 @@ class ClassTableViewModel @Inject constructor(
             if (countsAsUse) reviewPrompt.classTableLoaded()
             // Superseded during the save: the reset's wipe, or the newer
             // fetch's save, takes the file, and these rows need not go up to
-            // be taken down again.
+            // be taken down again. A newer answer's roster would be undone.
             if (!mayCommit()) return@uploading
+            if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
             // As the term's roster when this fetch's course selection answer or a past term's final
             // transcript gave it, and the upload lists all of it; see CourseUpload.of.
             val roster = when (source) {
@@ -1922,7 +1930,7 @@ class ClassTableViewModel @Inject constructor(
         } else {
             emptyList()
         }
-        dataCache.recordSelectionRoster(semester, selectionNos, generation)
+        val answer = dataCache.recordSelectionRoster(semester, selectionNos, generation)
         val moodleByNo = CourseRosterMerge.moodleCoursesFor(semester, moodleAll).associateBy { it.courseNo }
         val source = ClassTableTermSource.of(semester, selectionNos, report, servesSelection, cached = latestCourses(semester))
         Log.i("ClassTableVM", "warm: $semester $source")
@@ -1930,7 +1938,7 @@ class ClassTableViewModel @Inject constructor(
         if (source == ClassTableTermSource.Unanswered) return true
         // Not over a reset or a fetch of the term begun since, nor under a
         // reset Settings has latched meanwhile.
-        val answered = fetchTermCourses(semester, source, moodleByNo) {
+        val answered = fetchTermCourses(semester, source, moodleByNo, answer) {
             isCurrent() && semester !in dataCache.resettingSemesters()
         }
         // The today strip reads the live term off its own copy while the

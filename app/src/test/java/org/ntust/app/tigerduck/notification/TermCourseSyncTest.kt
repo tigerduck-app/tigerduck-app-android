@@ -1,6 +1,10 @@
 package org.ntust.app.tigerduck.notification
 
 import android.content.Context
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.json.JSONObject
@@ -13,6 +17,8 @@ import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
+import org.ntust.app.tigerduck.data.CourseUploader
+import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
@@ -25,6 +31,7 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RosterRequestLog
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermReset
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -67,6 +74,9 @@ class TermCourseSyncTest {
 
     private lateinit var sync: TermCourseSync
 
+    // Only its locks are used here: no add waits.
+    private val adds by lazy { PendingCourseAdds(cache, CourseUploader { _, _, _, _ -> null }, { auth.signInGeneration }) }
+
     @Before
     fun setUp() {
         val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
@@ -83,13 +93,18 @@ class TermCourseSyncTest {
     }
 
     /** The app's wiring of [TermCourseSync] but its [sources]: the upload, as the app's, pinned to the sign-in. */
-    private fun termSync(sources: TermCourseSync.Sources) = TermCourseSync(
-        cache, sources,
-        uploader = { courses, semester, resend, rosterTerms, signIn ->
+    private fun termSync(
+        sources: TermCourseSync.Sources,
+        uploader: TermCourseSync.Uploader = TermCourseSync.Uploader { courses, semester, resend, rosterTerms, signIn ->
             api.uploadCourses(courses, semester, signIn = signIn, resend = resend, rosterTerms = rosterTerms)
         },
+        uploading: suspend (suspend () -> Unit) -> Unit = { block -> adds.uploading(block) },
+    ) = TermCourseSync(
+        cache, sources,
+        uploader = uploader,
         signInGeneration = { auth.signInGeneration },
         waitingAdds = { emptySet() },
+        uploading = uploading,
         courseLocale = { "zh" },
         uploadFailed = {},
         clock = { now },
@@ -245,6 +260,85 @@ class TermCourseSyncTest {
         assertEquals(List(2) { listOf(CS1, CS2) to listOf(TERM) }, uploads())
     }
 
+    /**
+     * A roster request reads [CS1, CS2] off course selection and waits on CS2's lookup while a
+     * newer fetch reads [CS1], drops CS2 and uploads that roster. The older answer is no longer
+     * the term's: committed and sent as its roster, it would enroll CS2 on the backend again.
+     */
+    @Test
+    fun `a roster read before a newer course selection answer commits and uploads nothing`() = runTest {
+        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM)
+        val waiting = CompletableDeferred<Unit>()
+        val goOn = CompletableDeferred<Unit>()
+        val holding = object : TermCourseSync.Sources by sources {
+            override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? {
+                if (courseNo == CS2 && waiting.complete(Unit)) goOn.await()
+                return sources.lookUp(semester, courseNo, moodle, kept)
+            }
+        }
+        val sync = termSync(holding)
+
+        val older = async { sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true) }
+        waiting.await()
+        answer = listOf(CS1)
+        sync.sync(STUDENT, PASSWORD, TERM)
+        goOn.complete(Unit)
+        older.await()
+
+        assertEquals(listOf(listOf(CS1) to listOf(TERM)), uploads())
+        assertEquals(listOf(CS1), cache.loadCourses(TERM).map { it.courseNo })
+    }
+
+    /**
+     * A term reset on the class table takes the term off the backend and then this phone's copy
+     * of it, a course added here by hand included, while the fetch's lookups run. The fetch
+     * commits and uploads after it, onto the term as the reset left it: the list it began from
+     * would put the hand-added course back on the backend, past the reset.
+     */
+    @Test
+    fun `a reset during the fetch leaves its hand-added course gone`() = runTest {
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM)
+        answer = listOf(CS1)
+        // The backend's requests in order: "DELETE" for the reset, else an upload's course numbers.
+        val sent = mutableListOf<Any>()
+        val resetHolds = CompletableDeferred<Unit>()
+        // The fetch waits for the commit lock, or else has its upload ready: the reset goes on then.
+        val fetchReady = CompletableDeferred<Unit>()
+        var reset: Job? = null
+        val resetting = object : TermCourseSync.Sources by sources {
+            override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? {
+                if (reset == null) {
+                    reset = launch {
+                        adds.removing {
+                            resetHolds.complete(Unit)
+                            fetchReady.await()
+                            ClassTableTermReset(cache).run(TERM) { sent.add("DELETE") }
+                        }
+                    }
+                    resetHolds.await()
+                }
+                return sources.lookUp(semester, courseNo, moodle, kept)
+            }
+        }
+        val sync = termSync(
+            resetting,
+            uploader = { courses, _, _, _, _ ->
+                fetchReady.complete(Unit)
+                reset?.join()
+                sent.add(courses.map { it.courseNo })
+            },
+            uploading = { block ->
+                fetchReady.complete(Unit)
+                adds.uploading(block)
+            },
+        )
+
+        sync.sync(STUDENT, PASSWORD, TERM)
+
+        assertEquals(listOf("DELETE", listOf(CS1)), sent)
+        assertEquals(listOf(CS1), cache.loadCourses(TERM).map { it.courseNo })
+    }
+
     /** A running term's transcript: [TERM] is the newest it lists, so the term only gains from it. */
     private fun transcriptListing(vararg codes: String) = ScoreReport(
         student = "", currentTerm = "", rankings = emptyList(),
@@ -261,5 +355,6 @@ class TermCourseSyncTest {
         const val CS1 = "XA0000001"
         const val CS2 = "XB0000002"
         const val CS3 = "XC0000003"
+        const val HAND = "XH0000008"
     }
 }

@@ -40,6 +40,8 @@ class TermCourseSync internal constructor(
     /** `AuthTokenManager.signInGeneration`, which a sign-out moves on. */
     private val signInGeneration: () -> Int,
     private val waitingAdds: suspend (semester: String) -> Set<String>,
+    /** `PendingCourseAdds.uploading`: [block] run with no course taken off the backend meanwhile. */
+    private val uploading: suspend (block: suspend () -> Unit) -> Unit,
     private val courseLocale: () -> String,
     private val uploadFailed: () -> Unit,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -78,6 +80,7 @@ class TermCourseSync internal constructor(
         },
         signInGeneration = { authTokenManager.signInGeneration },
         waitingAdds = pendingCourseAdds::waitingIn,
+        uploading = { block -> pendingCourseAdds.uploading(block) },
         courseLocale = { AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage) },
         uploadFailed = { prefs.setLastSyncSource(SyncSource.LOCAL) },
     )
@@ -152,6 +155,9 @@ class TermCourseSync internal constructor(
      * [signIn], read before the fetch, is the sign-in the term is fetched for. The upload goes
      * with its token alone, and after a sign-out nothing is committed or sent: the next
      * account's token would take this roster as that account's and drop its courses.
+     *
+     * Course selection's answer, replaced by a newer one while the fetch ran, commits and sends
+     * nothing ([DataCache.isLatestAnswer]): it would enroll again what the newer one dropped.
      */
     suspend fun sync(
         studentId: String,
@@ -191,8 +197,9 @@ class TermCourseSync internal constructor(
         // Nothing answered the request: the backend asks again until a roster arrives.
         if (rosterRequested && selectionNos.isNullOrEmpty()) return true
 
-        // Before the merge below rewrites the cache — see DataCache.recordSelectionRoster.
-        selectionNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        // Before the merge below rewrites the cache — see DataCache.recordSelectionRoster. The
+        // fetch's version of the term: a newer answer recorded meanwhile supersedes its rows.
+        val answer = selectionNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
 
         // Names and Moodle IDs only: Moodle lists course sites and keeps
         // a dropped class, so it adds no course to the term.
@@ -219,45 +226,53 @@ class TermCourseSync internal constructor(
         // A class the transcript adds joins with class times; course selection's all do.
         val fetched = TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys)
         if (fetched.isEmpty()) return true
-        // Signed out during the fetch: the rows are the account's that left.
-        if (signInGeneration() != signIn) return true
 
         // Through the class table's merge, onto the term as it is
         // now: user-picked colors, renames and manually-added courses
         // survive, and a course added here keeps having no Moodle ID.
         val unresolvedNos = term.courseNos.toSet() - fetched.mapTo(mutableSetOf()) { it.courseNo }
-        val names = dataCache.loadCourseCustomNames()
-        val locale = courseLocale()
-        // Uploaded as written: what the commit left out stays off the server too.
-        val merged = commitFetchedTerm(
-            dataCache, semester, fetched, term.onlyGains,
-            waitingAdds = { waitingAdds(semester) },
-        ) { rows, current, hidden ->
-            ClassTableCourseMerge.mergeFetched(
-                rows,
-                cached = current,
-                names = names,
-                locale = locale,
-                deletedNos = hidden,
-                // A term only gaining removes nothing, a course saved while
-                // these lookups ran included; otherwise a roster course a
-                // transient lookup failure left unresolved keeps its row.
-                alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
+        // Committed, built and sent in the order a reset's DELETE runs in, as the class table's
+        // fetch is, from what the reset left: a reset between the commit and the upload would be
+        // undone by the list committed before it, its hand-added courses back on the backend.
+        uploading {
+            // Signed out during the fetch, or while the lock was waited for: the rows are the account's that left.
+            if (signInGeneration() != signIn) return@uploading
+            // A reset takes the names of the term's courses with it.
+            val names = dataCache.loadCourseCustomNames()
+            val locale = courseLocale()
+            // Uploaded as written: what the commit left out stays off the server too.
+            val merged = commitFetchedTerm(
+                dataCache, semester, fetched, term.onlyGains, answer,
+                waitingAdds = { waitingAdds(semester) },
+            ) { rows, current, hidden ->
+                ClassTableCourseMerge.mergeFetched(
+                    rows,
+                    cached = current,
+                    names = names,
+                    locale = locale,
+                    deletedNos = hidden,
+                    // A term only gaining removes nothing, a course saved while
+                    // these lookups ran included; otherwise a roster course a
+                    // transient lookup failure left unresolved keeps its row.
+                    alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
+                )
+            } ?: return@uploading
+            val upload = CourseUpload.of(
+                merged, semester, roster = term.roster,
+                hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
             )
-        }
-        val upload = CourseUpload.of(
-            merged, semester, roster = term.roster,
-            hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
-        )
-        try {
-            // Past the ledger only as the roster asked for; anything less goes as any fetch's.
-            uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Not the next account's sync state: its own sync has not failed.
-            if (signInGeneration() == signIn) uploadFailed()
-            Log.w(TAG, "uploadCourses failed (non-fatal): ${e.logSummary()}")
+            // Superseded since the commit: the newer answer's fetch sends the term's roster.
+            if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
+            try {
+                // Past the ledger only as the roster asked for; anything less goes as any fetch's.
+                uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Not the next account's sync state: its own sync has not failed.
+                if (signInGeneration() == signIn) uploadFailed()
+                Log.w(TAG, "uploadCourses failed (non-fatal): ${e.logSummary()}")
+            }
         }
         return true
     }

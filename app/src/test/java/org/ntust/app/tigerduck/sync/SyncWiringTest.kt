@@ -453,6 +453,30 @@ class SyncWiringTest {
     }
 
     /**
+     * A fetch whose course selection answer a newer one replaced commits nothing, and the
+     * background sync's sends nothing, under TermCourseSyncTest. The background sync commits,
+     * builds and sends under PendingCourseAdds.uploading, as the class table's fetch does, so a
+     * reset's DELETE never lands between its commit and its upload.
+     */
+    @Test
+    fun `Home and the background sync commit an answer only while it is the term's latest, and the sync uploads under the adds lock`() {
+        assertCalls(
+            "ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments",
+            "val answer = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }",
+            "answer = answer,",
+        )
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "remote.onlyGains, remote.answer,")
+        val body = body("notification/TermCourseSync.kt", "sync")
+        val lock = body.indexOf("uploading {")
+        val commit = body.indexOf("commitFetchedTerm(")
+        val upload = body.indexOf("uploader.upload(")
+        assertTrue("TermCourseSync no longer commits and uploads under the adds lock", lock in 0 until commit && commit < upload)
+        assertTrue("TermCourseSync no longer commits against its answer", "term.onlyGains, answer," in body)
+        val sync = source("notification/TermCourseSync.kt").joinToString("\n")
+        assertTrue("TermCourseSync no longer wires the adds lock", "uploading = { block -> pendingCourseAdds.uploading(block) }" in sync)
+    }
+
+    /**
      * The background sync adds the transcript's classes to the term's cached courses and looks
      * every one up: one whose query fails, or brings no rows, keeps the row the term has, where
      * Moodle's stand-in would take its times and room, as Home's fetch does (#417).

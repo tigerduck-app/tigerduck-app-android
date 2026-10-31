@@ -481,20 +481,36 @@ class DataCache @Inject constructor(
      *
      * Nothing is written once the data has been wiped since [generation], the
      * fetch's, or else since this call: the answer is the account's that left.
+     *
+     * Returns the answer as kept, null when none was: the fetch's version of
+     * the term, which [isLatestAnswer] checks before the fetch commits or
+     * uploads it.
      */
-    suspend fun recordSelectionRoster(semester: String, roster: List<String>, generation: Int? = null) {
+    suspend fun recordSelectionRoster(semester: String, roster: List<String>, generation: Int? = null): SelectionAnswer? {
         val expected = generation ?: writeGeneration()
-        if (roster.isEmpty()) return
+        if (roster.isEmpty()) return null
         // Taken as the answer lands, before any wait for the lock, which would make it read newer.
         val answeredAt = System.currentTimeMillis()
         val kept = selectionDropsMutex.withLock {
             saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected) &&
                 recordAnswerLocked(semester, roster, answeredAt, expected)
         }
-        if (!kept) return
+        if (!kept) return null
         liftHandAddedHides(semester, roster, expected)
         recordDrops(semester, roster, alsoListed = emptyList(), isFinal = false, expected)
+        return SelectionAnswer(roster.toSet(), answeredAt)
     }
+
+    /**
+     * Whether [answer], which a fetch of [semester] recorded, is still the
+     * term's latest. One a newer answer replaced is no roster to commit or
+     * send: the newer answer has recorded its drops, and its fetch saves and
+     * uploads the term. By its time and its courses, so two answers kept in
+     * the same millisecond differ unless they list the same. Takes only the
+     * user data's lock, as [fetchDropsIn], so a commit under the courses'
+     * lock may read it.
+     */
+    suspend fun isLatestAnswer(semester: String, answer: SelectionAnswer): Boolean = selectionAnswerIn(semester) == answer
 
     /**
      * Fold an ended term's roster, read off its transcript, into the dropped

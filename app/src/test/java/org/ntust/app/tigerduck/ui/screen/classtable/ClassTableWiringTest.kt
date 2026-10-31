@@ -115,7 +115,7 @@ class ClassTableWiringTest {
      */
     @Test
     fun `a fetch looks the term's hand-added courses up again, onto the list as the user left it`() {
-        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, countsAsUse = true)")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, answer, countsAsUse = true)")
         assertCalls("fetchTermCourses", "termFetch.lookUp(", "termFetch.foldLatest(", "latestCourses(semester)")
         assertCalls("latestCourses", "if (coursesSemester == semester) _courses.value else dataCache.loadCourses(semester)")
     }
@@ -204,7 +204,7 @@ class ClassTableWiringTest {
             "resetCourses no longer supersedes the warm before anything else",
             reset.indexOf("termWarm.supersede(") < reset.indexOf("viewModelScope.launch"),
         )
-        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo) {", "isCurrent()")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, answer) {", "isCurrent()")
         // The commit — the generation check, the snapshot, the fold, the save and the upload —
         // in the order the backend's DELETEs run in, and held through the upload: a reset's
         // DELETE waits for an upload under way, and an upload after it finds the term superseded.
@@ -231,6 +231,26 @@ class ClassTableWiringTest {
     }
 
     /** tigerduck-app-android#264: rooms are announced late, and the page fetches on launch only. */
+    /**
+     * A fetch whose course selection answer a newer one replaced (Home's, the background's or
+     * another of the class table's) saves and uploads nothing: the newer answer dropped what it
+     * no longer lists. Checked at the snapshot and again before the upload; DataCache.isLatestAnswer,
+     * as TermCourseSyncTest drives it.
+     */
+    @Test
+    fun `a fetch of a superseded course selection answer saves and uploads nothing`() {
+        for (name in listOf("fetchData", "warmTerm")) {
+            assertCalls(name, "val answer = dataCache.recordSelectionRoster(semester, selectionNos, generation)")
+        }
+        val body = body("fetchTermCourses")
+        val checks = Regex("""answer != null && !dataCache\.isLatestAnswer\(semester, answer\)""").findAll(body).map { it.range.first }.toList()
+        val save = body.indexOf("dataCache.updateCourses(semester)")
+        val fold = body.indexOf("termFetch.foldLatest(")
+        val upload = body.indexOf("pushApiClient.uploadCourses(")
+        assertTrue("fetchTermCourses no longer checks the answer under the courses' lock", checks.any { it in save until fold })
+        assertTrue("fetchTermCourses no longer checks the answer before the upload", checks.any { it in fold until upload })
+    }
+
     @Test
     fun `each visit looks the courses without a room up again, and a hit reaches the widget`() {
         assertCalls("onPageShown", "lookUpMissingRooms()")
@@ -251,7 +271,7 @@ class ClassTableWiringTest {
         val warmed = fetch.indexOf("warmTerms(")
         assertTrue("fetchData no longer warms the other terms once its own is done", synced in 0 until warmed)
         assertCalls("warmTerms", "termWarm.run(")
-        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo)")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, answer)")
         val source = source().joinToString("\n")
         for (call in listOf("warmJob?.cancel()", "termWarm.reset()")) {
             assertTrue("a sign-out no longer calls $call", call in source)
@@ -298,7 +318,7 @@ class ClassTableWiringTest {
      */
     @Test
     fun `answers fetched for an account that left reach no term`() {
-        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, countsAsUse = true) { authService.isStillSignedInAs(studentId) }")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, answer, countsAsUse = true) { authService.isStillSignedInAs(studentId) }")
         assertCalls("fetchData", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
         assertCalls("warmTerms", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
     }
