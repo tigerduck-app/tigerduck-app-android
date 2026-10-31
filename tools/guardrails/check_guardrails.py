@@ -209,6 +209,21 @@ CONTINUES = re.compile(
     r"(?:else|catch|finally|as|in|is)\b|\.|\?\.|\?:|&&|\|\||->|==|!=|[-+*/%]")
 
 
+DANGLING_WORD = re.compile(r"\b(?:else|try|finally)\s*$")
+CONTROL_HEAD = re.compile(r"\b(?:if|while|for|when)\s*\(")
+
+
+def needs_branch(line):
+    """True when the line ends in `if (...)`, `else`, `try` and the like, with the branch on the next line."""
+    line = line.rstrip()
+    if DANGLING_WORD.search(line):
+        return True
+    for m in CONTROL_HEAD.finditer(line):
+        if balanced(line, m.end() - 1, "(", ")") == len(line) - 1:
+            return True
+    return False
+
+
 def expression_end(code, i):
     """Index where the expression body starting at code[i] ends.
 
@@ -229,7 +244,9 @@ def expression_end(code, i):
             return i
         elif c == "\n" and depth == 0:
             j = prev_char_index(code, i)
-            if not code[:j + 1].endswith(ENDS_OPEN) and not CONTINUES.match(code, skip_ws(code, i)):
+            if (not code[:j + 1].endswith(ENDS_OPEN)
+                    and not CONTINUES.match(code, skip_ws(code, i))
+                    and not needs_branch(code[code.rfind("\n", 0, i) + 1:i])):
                 return i
         i += 1
     return n
@@ -266,45 +283,40 @@ def body_end(code, i):
     return None
 
 
-def split_top_level(text):
-    parts, depth, cur = [], 0, []
-    for k, c in enumerate(text):
-        if c in "([{<":
+def param_types(text):
+    """The types of a parameter list, with default values dropped.
+
+    Commas split parameters only outside (), [] and {}, and outside the
+    generic <...> of a type. A "<" in a default value (`= 1 < 2`) is an
+    operator, so angle brackets are tracked in the type part alone.
+    """
+    types, cur = [], []
+    depth = angle = 0
+    state = "name"  # then "type" after the colon, then "default" after "="
+    for k, c in enumerate(text + ","):
+        if c in "([{":
             depth += 1
-        elif c in ")]}" or (c == ">" and text[k - 1] != "-"):
+        elif c in ")]}":
             depth -= 1
-        if c == "," and depth == 0:
-            parts.append("".join(cur))
-            cur = []
-        else:
+        elif depth == 0 and state == "type" and c == "<":
+            angle += 1
+        elif depth == 0 and state == "type" and c == ">" and text[k - 1] != "-":
+            angle = max(angle - 1, 0)
+        elif depth == 0 and angle == 0:
+            if c == "," :
+                if "".join(cur).strip() or state != "name":
+                    types.append(re.sub(r"\s+", "", "".join(cur)))
+                cur, state = [], "name"
+                continue
+            if c == ":" and state == "name":
+                state = "type"
+                continue
+            if c == "=" and state == "type":
+                state = "default"
+                continue
+        if state == "type":
             cur.append(c)
-    parts.append("".join(cur))
-    return [p for p in parts if p.strip()]
-
-
-def param_type(param):
-    depth = 0
-    colon = None
-    for k, c in enumerate(param):
-        if c in "([{<":
-            depth += 1
-        elif c in ")]}" or (c == ">" and param[k - 1] != "-"):
-            depth -= 1
-        elif c == ":" and depth == 0:
-            colon = k
-            break
-    if colon is None:
-        return ""
-    rest, depth, cut = param[colon + 1:], 0, None
-    for k, c in enumerate(rest):
-        if c in "([{<":
-            depth += 1
-        elif c in ")]}" or (c == ">" and rest[k - 1] != "-"):
-            depth -= 1
-        elif c == "=" and depth == 0:
-            cut = k
-            break
-    return re.sub(r"\s+", "", rest[:cut])
+    return [t for t in types if t]
 
 
 # ---------------------------------------------------------------- functions
@@ -341,7 +353,7 @@ def parse_function(code, start):
     name = m.group(1).strip("`") if m else "<anonymous>"
     receiver = header[:m.start()].rstrip(".") if m else ""
     pe = balanced(code, i, "(", ")")
-    types = [param_type(p) for p in split_top_level(code[i + 1:pe])]
+    types = param_types(code[i + 1:pe])
     body = body_end(code, pe + 1)
     if body is None:
         return None
@@ -418,6 +430,12 @@ def term_sorts(code):
         if i >= n or code[i] not in "({":
             continue
         end = balanced(code, i, code[i], ")" if code[i] == "(" else "}")
+        if code[i] == "(":
+            k = end + 1
+            while k < n and code[k] in " \t":
+                k += 1
+            if k < n and code[k] == "{":
+                end = balanced(code, k, "{", "}")  # a trailing lambda: sortedBy() { ... }
         if TERM_NAME.search(code, i, end):
             count += 1
             covered = end

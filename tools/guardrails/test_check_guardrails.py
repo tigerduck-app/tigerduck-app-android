@@ -254,6 +254,24 @@ class GuardrailsTest(unittest.TestCase):
         self.assertEqual(self.long_functions(),
                          {"String.shout(Int, List<Int>)": 85, "((Int)->Unit).twice()": 85})
 
+    # --- fix round 3
+
+    def test_multiline_if_branch_is_counted(self):
+        src = ("fun text(flag: Boolean) = if (flag)\n    buildString {\n"
+               + "".join("        append(1)\n" for _ in range(82)) + "    }\n    else \"\"\n")
+        self.write(APP + "B.kt", src)
+        self.assertEqual(self.long_functions(), {"text(Boolean)": 86})
+
+    def test_comparison_in_a_default_value_keeps_the_signature(self):
+        body = "".join("    println(1)\n" for _ in range(83))
+        self.write(APP + "D.kt", "fun f(enabled: Boolean = 1 < 2, limit: Int = 3) {\n" + body + "}\n")
+        self.assertEqual(self.long_functions(), {"f(Boolean, Int)": 85})
+        self.write(APP + "D.kt", "fun f(enabled: Boolean = true, limit: Int = 3) {\n" + body + "}\n")
+        self.assertEqual(self.long_functions(), {"f(Boolean, Int)": 85})
+
+    def test_trailing_lambda_after_empty_parentheses(self):
+        self.assertTrue(self.term_sort_fails("val a = terms.sortedByDescending() { it.semester }"))
+
     def git(self, *args):
         subprocess.run(["git", "-C", self.root, "-c", "user.email=a@b", "-c", "user.name=t",
                         "-c", "commit.gpgsign=false"] + list(args),
