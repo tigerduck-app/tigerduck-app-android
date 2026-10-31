@@ -42,6 +42,13 @@ class CourseScheduleUtilsTest {
     }
 
     @Test
+    fun `a period 4 class is ongoing at 12-09 and over at 12-10 (start until end)`() {
+        val course = Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "4")))   // 10:20-12:10
+        assertEquals(1, computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 12 * 60 + 9).size)
+        assertTrue(computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 12 * 60 + 10).isEmpty())
+    }
+
+    @Test
     fun `returns empty when between two non-contiguous blocks of the same course`() {
         val course =
             Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "6")))

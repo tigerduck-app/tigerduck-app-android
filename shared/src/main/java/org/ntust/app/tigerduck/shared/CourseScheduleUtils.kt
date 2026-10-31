@@ -80,7 +80,7 @@ fun computeOngoingCourses(
         for (block in contiguousPeriodRuns(periods)) {
             val startMin = parseHm(PeriodTimes.mapping[block.first()]?.first)
             val endMin = parseHm(PeriodTimes.mapping[block.last()]?.second)
-            if (startMin != null && endMin != null && minuteOfDay in startMin..endMin) {
+            if (startMin != null && endMin != null && minuteOfDay in startMin until endMin) {
                 results.add(
                     OngoingCourseInfo(
                         course = course,

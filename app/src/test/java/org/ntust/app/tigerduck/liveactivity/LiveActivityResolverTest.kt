@@ -305,4 +305,18 @@ class LiveActivityResolverTest {
         assertEquals(thursdayAt("11:00"), during.countdownTarget)
         assertNull("#904", resolveThursday("11:30", changes))
     }
+
+    @Test
+    fun `a class is going on in its last minute and over at its end minute`() {
+        assertEquals(LiveActivityScenario.IN_CLASS, resolveThursday("12:09", CourseChanges.EMPTY)?.scenario)
+        assertNull(resolveThursday("12:10", CourseChanges.EMPTY))
+    }
+
+    @Test
+    fun `a class the school ended early is over at its changed end minute`() {
+        val changes = changes(row(1, "end", periods = morning, values = mapOf("end" to "11:45")))
+
+        assertEquals(LiveActivityScenario.IN_CLASS, resolveThursday("11:44", changes)?.scenario)
+        assertNull(resolveThursday("11:45", changes))
+    }
 }
