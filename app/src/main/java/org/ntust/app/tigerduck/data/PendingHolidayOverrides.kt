@@ -149,8 +149,13 @@ class PendingHolidayOverrides internal constructor(
     }
 
     // The choice as it stands, and when it was made (null for one made before the time was kept).
-    private fun edit(holidayId: Int): Pair<Boolean, Long?> =
-        (holidayId in prefs.holidayNotifyOverrides) to prefs.holidayOverrideEditTimes[holidayId]
+    // The time is read first: a tap writes the value and then the time, so a tap between these two
+    // reads pairs its new value with the old time, which that tap's own PUT then corrects, and
+    // never an old value with the new time, which nothing would.
+    private fun edit(holidayId: Int): Pair<Boolean, Long?> {
+        val madeAtMs = prefs.holidayOverrideEditTimes[holidayId]
+        return (holidayId in prefs.holidayNotifyOverrides) to madeAtMs
+    }
 
     /**
      * Forgets the edit times of [holidayIds], whose choice a pull just replaced: the value is the
