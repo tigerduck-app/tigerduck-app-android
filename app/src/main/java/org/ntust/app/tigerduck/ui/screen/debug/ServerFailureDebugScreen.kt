@@ -157,6 +157,7 @@ private fun ServerFailureRow(
     val label = when (server) {
         ServerKind.MOODLE -> "Moodle"
         ServerKind.COURSE_SELECTION -> "Course Selection"
+        ServerKind.SCORE_SYSTEM -> "Score System"
         ServerKind.BACKEND -> "TigerDuck Backend"
         ServerKind.LIBRARY -> "Library"
     }

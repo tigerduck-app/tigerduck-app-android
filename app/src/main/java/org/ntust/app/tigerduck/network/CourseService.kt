@@ -44,6 +44,14 @@ import org.ntust.app.tigerduck.util.toCreditsOrZero
  */
 internal const val SHARED_ANSWER_WINDOW_MS = 60_000L
 
+/**
+ * One course number looked up: [course] as it came back, and whether
+ * QueryCourse [answered] with rows for it. When it did not, [course] is the
+ * row the term already had, or Moodle's stand-in, or null for neither — see
+ * [CourseService.lookupOrFallback]. As iOS `AppServiceBridge.LookedUpCourse`.
+ */
+data class LookedUpCourse(val courseNo: String, val course: Course?, val answered: Boolean)
+
 sealed class CourseServiceError : Exception() {
     class NotAuthenticated : CourseServiceError()
     class RedirectedToSSO : CourseServiceError()
@@ -333,15 +341,17 @@ class CourseService @Inject constructor(
      * Everything else is read off the first row, which repeats the
      * course-level fields.
      *
-     * Returns null only when both sources come up empty. A lookup that throws
-     * does not fail the whole roster: it comes to [afterFailedLookup] — one
-     * unreachable course must not blank out a timetable.
+     * The course is null only when both sources come up empty. A lookup that
+     * throws does not fail the whole roster: it comes to [afterFailedLookup]
+     * — one unreachable course must not blank out a timetable — and so does
+     * one QueryCourse has no rows for, see [lookedUp]. Either way the lookup
+     * is not [LookedUpCourse.answered].
      */
     suspend fun lookupOrFallback(
         semester: String,
         courseNo: String,
         moodle: MoodleEnrolledCourse?,
-        /** The row the term already has for the course, which a failed query keeps. */
+        /** The row the term already has for the course, which a query that brings none keeps. */
         kept: Course? = null,
         /**
          * Told of a query that failed, which the fallback otherwise hides: a
@@ -349,13 +359,8 @@ class CourseService @Inject constructor(
          * would fail the same way.
          */
         onLookupFailed: (() -> Unit)? = null,
-    ): Course? = try {
-        val results = lookupCourse(semester, courseNo)
-        if (results.isEmpty()) {
-            fallbackCourseFromMoodle(courseNo, moodle)
-        } else {
-            courseFrom(results, moodle)
-        }
+    ): LookedUpCourse = try {
+        lookedUp(courseNo, lookupCourse(semester, courseNo), moodle, kept, ::courseFrom)
     } catch (e: CancellationException) {
         // ClassTableViewModel cancels its load job on every semester flip, and
         // each in-flight lookup lands here. Swallowing it would log a failure
@@ -365,7 +370,7 @@ class CourseService @Inject constructor(
     } catch (e: Exception) {
         Log.e(TAG_LOOKUP, "Failed to look up a course: ${e.logSummary()}")
         onLookupFailed?.invoke()
-        afterFailedLookup(courseNo, moodle, kept)
+        LookedUpCourse(courseNo, afterFailedLookup(courseNo, moodle, kept), answered = false)
     }
 
     /**
@@ -495,6 +500,26 @@ class CourseService @Inject constructor(
          */
         fun afterFailedLookup(courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? =
             kept ?: fallbackCourseFromMoodle(courseNo, moodle)
+
+        /**
+         * What QueryCourse's [results] for [courseNo] come to: the course
+         * [build] makes of them, answered. No rows is no answer: QueryCourse
+         * has none for a course it no longer indexes, or is re-indexing, and
+         * that says no more of the course than a failure does, so it comes to
+         * [afterFailedLookup] too. As iOS `AppServiceBridge.refreshedCourseData`.
+         */
+        internal fun lookedUp(
+            courseNo: String,
+            results: List<CourseSearchResult>,
+            moodle: MoodleEnrolledCourse?,
+            kept: Course?,
+            build: (List<CourseSearchResult>, MoodleEnrolledCourse?) -> Course,
+        ): LookedUpCourse =
+            if (results.isEmpty()) {
+                LookedUpCourse(courseNo, afterFailedLookup(courseNo, moodle, kept), answered = false)
+            } else {
+                LookedUpCourse(courseNo, build(results, moodle), answered = true)
+            }
 
         /**
          * Build a stub [Course] from Moodle enrolment metadata when QueryCourse

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.Course
 
@@ -166,5 +167,43 @@ class HomeCourseMergeTest {
             deletedNos = emptySet(),
         )
         assertEquals(false, merged.single().isManual)
+    }
+
+    /**
+     * Home looks a transcript class up even when Moodle does not list it, and the lookup gives
+     * it the school's Moodle ID. Taken onto a course added here, that ID makes it read as merged
+     * from the server, which a past term's rebuild drops (tigerduck-app#890). It keeps the
+     * identity it was added with, none, as the class table's merge keeps it.
+     */
+    @Test
+    fun `a course added here keeps no Moodle ID when the school also lists it`() {
+        val merged = HomeCourseMerge.mergeRemote(
+            remote = listOf(course("A").copy(moodleIdNumber = "1151A", moodleNumericCourseId = 7)),
+            cached = listOf(course("A", manual = true)),
+            names = emptyMap(),
+            locale = "en",
+            deletedNos = emptySet(),
+        ).single()
+        assertEquals(true, merged.isManual)
+        assertNull(merged.moodleIdNumber)
+        assertNull(merged.moodleNumericCourseId)
+    }
+
+    /**
+     * A term course selection gave nothing for only gains the transcript's classes. The class
+     * table can save the term while Home's lookups run, and its courses are not in Home's
+     * answers; only gaining, Home removes none of them, but a course deleted stays deleted.
+     */
+    @Test
+    fun `a term only gaining keeps every cached course the fetch does not list, but a deleted one`() {
+        val merged = HomeCourseMerge.mergeRemote(
+            remote = listOf(course("A")),
+            cached = listOf(course("A"), course("B"), course("GONE")),
+            names = emptyMap(),
+            locale = "en",
+            deletedNos = setOf("GONE"),
+            onlyGains = true,
+        )
+        assertEquals(listOf("A", "B"), merged.map { it.courseNo })
     }
 }
