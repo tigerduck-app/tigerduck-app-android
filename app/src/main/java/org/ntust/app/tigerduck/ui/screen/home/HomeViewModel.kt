@@ -408,23 +408,13 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            dataCache.backgroundSyncVersion.drop(1).collect {
-                if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
-                val courses = dataCache.loadCourses()
-                val assignments = dataCache.loadAssignments()
-                val ignored = dataCache.loadIgnoredAssignments()
-                val marked = dataCache.loadMarkedCompletedAssignments()
-                val courseKeys = dataCache.loadIgnoredCourses()
-                // Signed out, or in as someone else, while the files were
-                // read: what they held was the departing account's.
-                if (!authService.isStillSignedInAs(account)) return@collect
-                _ignoredAssignmentIds.value = ignored
-                _markedCompletedIds.value = marked
-                _ignoredCourseKeys.value = courseKeys
-                TigerDuckTheme.buildCourseColorMap(courses)
-                updateCoursesAndAssignments(courses, assignments)
-            }
+            dataCache.backgroundSyncVersion.drop(1).collect { reloadFromCache() }
+        }
+        viewModelScope.launch {
+            // A course the class table adds or edits is saved with no sync round after it, so
+            // the sync version above never moves for it. Home reads the cache again on every
+            // write of a term's courses, the same read a sync round ends with.
+            dataCache.coursesVersion.drop(1).collect { reloadFromCache() }
         }
         viewModelScope.launch {
             // Marks a re-enable answer took (Use Server): read now, or the
@@ -939,6 +929,28 @@ class HomeViewModel @Inject constructor(
         }
 
         coursesDef.await() to assignmentsDef.await()
+    }
+
+    /**
+     * Reads the courses, assignments and marks off the cache and shows them, for a sync round that
+     * has ended and for a write of a term's courses (see the collectors in `init`).
+     */
+    private suspend fun reloadFromCache() {
+        if (!authService.authState.value) return
+        val account = authService.storedStudentId
+        val courses = dataCache.loadCourses()
+        val assignments = dataCache.loadAssignments()
+        val ignored = dataCache.loadIgnoredAssignments()
+        val marked = dataCache.loadMarkedCompletedAssignments()
+        val courseKeys = dataCache.loadIgnoredCourses()
+        // Signed out, or in as someone else, while the files were
+        // read: what they held was the departing account's.
+        if (!authService.isStillSignedInAs(account)) return
+        _ignoredAssignmentIds.value = ignored
+        _markedCompletedIds.value = marked
+        _ignoredCourseKeys.value = courseKeys
+        TigerDuckTheme.buildCourseColorMap(courses)
+        updateCoursesAndAssignments(courses, assignments)
     }
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
