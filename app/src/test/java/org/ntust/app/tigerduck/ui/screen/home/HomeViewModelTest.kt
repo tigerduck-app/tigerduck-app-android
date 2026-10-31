@@ -98,6 +98,7 @@ class HomeViewModelTest {
                     leadTimeSec: Long,
                     calendar: AcademicCalendar,
                     optedInHolidayIds: Set<Int>,
+                    startedFor: String?,
                 ): Long? = null
                 override fun cancelAllTracked() = Unit
             },
