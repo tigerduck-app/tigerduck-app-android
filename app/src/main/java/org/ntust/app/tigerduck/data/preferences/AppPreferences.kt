@@ -926,6 +926,16 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getString("lastSyncedClassReminderSettings", null)
         set(value) = prefs.edit().putString("lastSyncedClassReminderSettings", value).apply()
 
+    /**
+     * Set once this device has run the step for the first launch of the build
+     * that brought the three keys above, signed in or not; see
+     * `NotificationSettingsSync`'s `LastSyncedSeed`. Never cleared: it belongs
+     * to the device, so a sign-out keeps it, and the step runs only once.
+     */
+    var lastSyncedSettingsSeedDone: Boolean
+        get() = prefs.getBoolean("lastSyncedSettingsSeedDone", false)
+        set(value) = prefs.edit().putBoolean("lastSyncedSettingsSeedDone", value).apply()
+
     /** Set once [ClassReminders.migrateIfNeeded] has given this install its class reminder settings. */
     var classReminderSettingsMigrated: Boolean
         get() = prefs.getBoolean("classReminderSettingsMigrated", false)

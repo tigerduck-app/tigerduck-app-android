@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.push.AssignmentReminderAlarms
 import org.ntust.app.tigerduck.push.AssignmentReminderSyncStore
 import org.ntust.app.tigerduck.push.ClassReminderSyncStore
 import org.ntust.app.tigerduck.push.LastSyncedSections
+import org.ntust.app.tigerduck.push.LastSyncedSeed
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.SettingsDocumentEnvelope
 import org.ntust.app.tigerduck.push.SettingsDocumentTransport
@@ -100,10 +101,14 @@ class ClassReminderSettingsViewModelTest {
                 get() = prefs.lastSyncedClassReminderSettings
                 set(value) { prefs.lastSyncedClassReminderSettings = value }
         },
+        lastSyncedSeed = object : LastSyncedSeed {
+            override var done = false
+        },
         cloudSyncEnabled = { true },
         syncLiveActivity = { false },
         syncAssignmentReminders = { false },
         isLoggedIn = { true },
+        schoolAccountStored = { true },
         syncLiveActivityChanged = MutableSharedFlow(),
         syncAssignmentRemindersChanged = MutableSharedFlow(),
         scope = queue,

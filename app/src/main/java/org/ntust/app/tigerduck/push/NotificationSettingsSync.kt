@@ -70,6 +70,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
@@ -87,6 +88,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncUpdate
@@ -265,10 +267,13 @@ internal fun merging(updates: JsonObject, into: JsonObject): JsonObject {
  *
  * A null [lastSynced] means nothing is recorded, so nothing counts as
  * changed and only what [server] lacks is written: a value nobody has written
- * cannot be a newer one. An empty [lastSynced] shares no field with [local],
- * so every field counts as changed, which is how every push wrote before this
+ * cannot be a newer one. An empty [lastSynced] ([SENDS_EVERY_FIELD]) makes
+ * every field count as changed, which is how every push wrote before this
  * merge, and what the one push an update finds pending does
- * ([LastSyncedSections]).
+ * ([LastSyncedSections]). Otherwise a field [lastSynced] does not hold counts
+ * as unchanged: a record an earlier build wrote lacks a field a later build
+ * adds, and this device has no claim to having changed it, so another
+ * device's value of it stays.
  */
 internal fun keepingOwnChanges(
     updates: JsonObject,
@@ -284,7 +289,11 @@ internal fun keepingOwnChanges(
     val kept = JsonObject()
     for ((key, value) in wanted.entrySet()) {
         val field = fieldOf(key)
-        val changedHere = lastSynced != null && local.get(field) != lastSynced.get(field)
+        val changedHere = when {
+            lastSynced == null -> false
+            lastSynced.isEmpty -> true
+            else -> lastSynced.has(field) && local.get(field) != lastSynced.get(field)
+        }
         if (changedHere || field !in held) kept.add(key, value)
     }
     return if (kept.isEmpty) JsonObject() else JsonObject().apply { add(section, kept) }
@@ -1072,26 +1081,41 @@ internal fun ClassReminderSyncValues.documentUpdates(existing: JsonObject): Json
         ?.asJsonObject
         ?.get(REMINDER_OFFSETS_MINUTES_KEY)
         .asValidatedIntListOrNull()
-    val writesLead = (hasPickedLead || existingOffsets == null) &&
-        leadMinutes in ClassReminders.LEAD_CHOICES_MINUTES
 
     val section = JsonObject()
     section.addProperty(COURSES_ENABLED_KEY, enabled)
-    if (writesLead) section.add(REMINDER_OFFSETS_MINUTES_KEY, JsonArray().apply { add(leadMinutes) })
+    if (writesLead(listHeld = existingOffsets != null)) {
+        section.add(REMINDER_OFFSETS_MINUTES_KEY, JsonArray().apply { add(leadMinutes) })
+    }
 
     val root = JsonObject()
     root.add(COURSES_SECTION_KEY, section)
     return root
 }
 
+/** Whether a push writes the lead time over a document that holds a list ([listHeld]) or none; see [documentUpdates]. */
+private fun ClassReminderSyncValues.writesLead(listHeld: Boolean): Boolean =
+    (hasPickedLead || !listHeld) && leadMinutes in ClassReminders.LEAD_CHOICES_MINUTES
+
 /**
- * These values as the `courses` section holds them, the lead time always
- * included: what [LastSyncedSections.courses] records. Whether a push may
- * write the lead time at all is still [documentUpdates]' to decide.
+ * These values as the `courses` section holds them: what
+ * [LastSyncedSections.courses] records, and what a push compares with it
+ * field by field ([keepingOwnChanges]). The lead time is the one
+ * [documentUpdates] writes over a document that holds a list: the lead time
+ * when it was picked here, and JSON null when it was not, which is how iOS's
+ * `before` leaves the minutes out of a copy with no pick. So a lead time
+ * picked after the document's list was adopted counts as changed even when it
+ * is the one the screen already showed, and goes up over a list this device
+ * did not pick (`[7]`, `[10, 30]`), as on iOS. Null rather than left out: a
+ * field the record does not hold counts as unchanged. Over a document with no
+ * list the lead time goes up regardless, as a field the document lacks.
  */
 internal fun ClassReminderSyncValues.syncedSection(): JsonObject = JsonObject().apply {
     addProperty(COURSES_ENABLED_KEY, enabled)
-    add(REMINDER_OFFSETS_MINUTES_KEY, JsonArray().apply { add(leadMinutes) })
+    add(
+        REMINDER_OFFSETS_MINUTES_KEY,
+        if (writesLead(listHeld = true)) JsonArray().apply { add(leadMinutes) } else JsonNull.INSTANCE,
+    )
 }
 
 /**
@@ -1216,10 +1240,9 @@ internal suspend fun pullClassReminderSettingsCatching(
 /**
  * How many additional attempts [NotificationSettingsSync]'s coalesced push
  * loop makes after a push fails, before giving up until the next trigger:
- * an edit, either section's 同步內容 switch turning on, or — while the edit
- * is still unconfirmed — a sign-in, a successful full sync, or either
- * settings screen opening. Bounded so a persistent failure (offline,
- * server down) cannot retry forever.
+ * an edit, or — while the edit is still unconfirmed — a sign-in, a
+ * successful full sync, or a settings screen opening. Bounded so a
+ * persistent failure (offline, server down) cannot retry forever.
  */
 internal const val MAX_PUSH_RETRIES = 2
 
@@ -1274,11 +1297,12 @@ internal fun pushRetryBackoffMillis(consecutiveFailures: Int): Long =
  * `applyOptOutIfAccepted`, where the local pref *is* the thing the server
  * has to accept first.
  *
- * Every push is queued through one of two entry points, and which one a
- * caller uses is the protocol: [markUnconfirmedAndPush] /
- * [markAssignmentUnconfirmedAndPush] for a change this device made, which
- * the other devices must now see, and [pushIfUnconfirmed] for everything
- * that only wants a change still pending delivered, for either section.
+ * Every push is queued through one of two kinds of entry point, and which
+ * one a caller uses is the protocol: [markUnconfirmedAndPush] /
+ * [markAssignmentUnconfirmedAndPush] / [markClassReminderUnconfirmedAndPush]
+ * for a change this device made, which the other devices must now see, and
+ * [pushIfUnconfirmed] for everything that only wants a change still pending
+ * delivered, for any section.
  * [cancelPendingPushes] ends all of it at logout.
  */
 /**
@@ -1332,11 +1356,12 @@ internal interface ClassReminderSyncStore {
  *   finds with no unconfirmed edit at the values it then holds.
  * - A 同步內容 switch turned back on makes that section's values the record,
  *   so what was edited while it was off gives way too.
- * - The first launch of this build, signed in, records each section with no
- *   edit pending at its values. A section with one gets [SENDS_EVERY_FIELD]:
- *   that edit was made on an earlier build, so its push sends every field
- *   once, as that build would have, and then records what it sent. Signed
- *   out, the next sign-in starts the record.
+ * - The first launch of this build, once per device ([LastSyncedSeed]) and
+ *   signed in to the school, records each section with no edit pending at
+ *   its values. A section with one gets [SENDS_EVERY_FIELD]: that edit was
+ *   made on an earlier build, so its push sends every field once, as that
+ *   build would have, and then records what it sent. Signed out, the next
+ *   sign-in starts the record.
  * - A sign-out clears it, with the unconfirmed-edit flags: it describes the
  *   departing account's document.
  *
@@ -1344,9 +1369,12 @@ internal interface ClassReminderSyncStore {
  * the assignments and courses flags rather than in the Live Update's own
  * file, which "reset to defaults" wipes: that reset is an edit to send, and
  * it would find nothing to compare against. Plain JSON text read back by
- * [recordedSection], never bound to a class by Gson, so an older build's copy
- * cannot lack a field; a build before this one recorded none, and text that
- * does not parse reads the same way.
+ * [recordedSection], never bound to a class by Gson, so a field is never
+ * filled in for it: a record an earlier build wrote simply lacks a field a
+ * later build adds, and [keepingOwnChanges] counts a field the record lacks
+ * as unchanged, so that field is not sent over another device's value. A
+ * build before this one recorded none, and text that does not parse reads
+ * the same way.
  */
 internal interface LastSyncedSections {
     var liveActivity: String?
@@ -1359,6 +1387,19 @@ internal interface LastSyncedSections {
  * field: an empty object, which shares no field with this device's values.
  */
 internal const val SENDS_EVERY_FIELD = "{}"
+
+/**
+ * Whether this device has run the update's step: the one the first launch of
+ * the build that brought [LastSyncedSections] runs, in
+ * [NotificationSettingsSync]'s init. Set by that step's first run, signed in
+ * or not, and never cleared: it belongs to the device, not to an account, so a
+ * sign-out keeps it. Backed by
+ * [org.ntust.app.tigerduck.data.preferences.AppPreferences], which needs a
+ * real `Context`, hence an interface, as for [LastSyncedSections].
+ */
+internal interface LastSyncedSeed {
+    var done: Boolean
+}
 
 /**
  * What a pull that changes the assignment-reminder settings does to the
@@ -1389,10 +1430,17 @@ class NotificationSettingsSync internal constructor(
     private val assignmentAlarms: AssignmentReminderAlarms,
     private val classReminderStore: ClassReminderSyncStore,
     private val lastSynced: LastSyncedSections,
+    private val lastSyncedSeed: LastSyncedSeed,
     private val cloudSyncEnabled: () -> Boolean,
     private val syncLiveActivity: () -> Boolean,
     private val syncAssignmentReminders: () -> Boolean,
     private val isLoggedIn: () -> Boolean,
+    /**
+     * Whether the school account is stored, which is what "signed in" means
+     * to the user, whatever state the backend session is in: the update's
+     * step ([LastSyncedSeed]) asks it, as iOS asks for stored credentials.
+     */
+    private val schoolAccountStored: () -> Boolean,
     syncLiveActivityChanged: Flow<Unit>,
     syncAssignmentRemindersChanged: Flow<Unit>,
     scope: CoroutineScope,
@@ -1409,6 +1457,7 @@ class NotificationSettingsSync internal constructor(
         liveActivityPreferences: LiveActivityPreferences,
         appPreferences: AppPreferences,
         authTokenManager: AuthTokenManager,
+        credentials: CredentialManager,
         scheduler: AssignmentNotificationScheduler,
         dataCache: DataCache,
         @ApplicationScope scope: CoroutineScope,
@@ -1471,10 +1520,16 @@ class NotificationSettingsSync internal constructor(
                 get() = appPreferences.lastSyncedClassReminderSettings
                 set(value) { appPreferences.lastSyncedClassReminderSettings = value }
         },
+        lastSyncedSeed = object : LastSyncedSeed {
+            override var done: Boolean
+                get() = appPreferences.lastSyncedSettingsSeedDone
+                set(value) { appPreferences.lastSyncedSettingsSeedDone = value }
+        },
         cloudSyncEnabled = { appPreferences.cloudSyncEnabled },
         syncLiveActivity = { appPreferences.syncLiveActivity },
         syncAssignmentReminders = { appPreferences.syncAssignmentReminders },
         isLoggedIn = { authTokenManager.isLoggedIn },
+        schoolAccountStored = { credentials.ntustStudentId != null },
         syncLiveActivityChanged = appPreferences.syncLiveActivityChanged,
         syncAssignmentRemindersChanged = appPreferences.syncAssignmentRemindersChanged,
         scope = scope,
@@ -1532,13 +1587,7 @@ class NotificationSettingsSync internal constructor(
     private var owedPull: Int? = null
 
     init {
-        // The first launch of the build that brought the field-by-field
-        // merge finds nothing recorded: an earlier build kept no record. See
-        // LastSyncedSections for what this records. Android never runs before
-        // the first unlock (no component is directBootAware), so the stored
-        // flags always read back here. Every later launch finds a record for
-        // a signed-in account, and this does nothing.
-        startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = true)
+        startRecordsOnUpdate()
         scope.launch {
             for (queuedGeneration in pending) {
                 // Settle before reading the preferences: a drag that is still
@@ -1742,8 +1791,8 @@ class NotificationSettingsSync internal constructor(
     }
 
     /**
-     * Queues a push only if an earlier edit — live_activity's, assignments',
-     * or both — is still unconfirmed, and never marks anything: with nothing
+     * Queues a push only if an earlier edit, to any of the three sections,
+     * is still unconfirmed, and never marks anything: with nothing
      * pending it does nothing at all, and the next pull is free to adopt
      * what another device wrote.
      *
@@ -1757,7 +1806,10 @@ class NotificationSettingsSync internal constructor(
      * login and the automatic sign-in), after every
      * successful full sync (`HomeBackendSync.pull`), and by [pullNow] when it
      * finds an edit it must not overwrite. Signed in with nothing recorded, it
-     * first starts the record, which is what makes it the sign-in's.
+     * first starts the record, which is what makes it the sign-in's; so each
+     * sign-in path calls it as soon as its backend login returns, before
+     * anything else it waits for, or an edit made in between would be pushed
+     * against no record and lost (`followTypedSignIn`).
      *
      * The automatic sign-in is one more reason this must never mark: a
      * lapsed refresh token or a missing session sends
@@ -1773,7 +1825,7 @@ class NotificationSettingsSync internal constructor(
         // account with nothing recorded starts its record from this device's
         // values, so an edit made while signed out gives way to the
         // account's document (LastSyncedSections).
-        startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = false)
+        if (isLoggedIn()) startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = false)
         if (!liveActivityPreferences.hasUnconfirmedSyncEdit &&
             !assignmentStore.hasUnconfirmedEdit &&
             !classReminderStore.hasUnconfirmedEdit
@@ -2031,13 +2083,39 @@ class NotificationSettingsSync internal constructor(
     }
 
     /**
-     * Signed in, gives each section with no record (none stored, or one that
-     * does not parse) one at its values now; see [LastSyncedSections]. With
-     * [sendEveryFieldOfAPendingEdit], the update's first launch, a section
-     * with an unconfirmed edit gets [SENDS_EVERY_FIELD] instead.
+     * The step the first launch of the build that brought the field-by-field
+     * merge runs, once per device ([LastSyncedSeed]): an earlier build kept no
+     * record. Signed in, each section with no edit pending is recorded at its
+     * values, and one with an edit pending gets [SENDS_EVERY_FIELD]; signed
+     * out, nothing is recorded, and the next sign-in starts the record. See
+     * [LastSyncedSections].
+     *
+     * Once, because "an edit is pending and nothing is recorded" means "made
+     * on an earlier build" only on that launch. On any later one it is a
+     * record that went missing or stopped parsing, and sending every field
+     * then would take back what another device changed since.
+     *
+     * Signed in means the school account is stored, as iOS asks for stored
+     * credentials, not that the backend session is: a session that lapsed
+     * before the update is the automatic sign-in's to renew, and the edit the
+     * earlier build left pending is still this device's. Android never runs
+     * before the first unlock (no component is directBootAware), so what is
+     * stored always reads back here.
+     */
+    private fun startRecordsOnUpdate() {
+        if (lastSyncedSeed.done) return
+        if (schoolAccountStored()) startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = true)
+        lastSyncedSeed.done = true
+    }
+
+    /**
+     * Gives each section with no record (none stored, or one that does not
+     * parse) one at its values now; see [LastSyncedSections]. With
+     * [sendEveryFieldOfAPendingEdit], the update's step, a section with an
+     * unconfirmed edit gets [SENDS_EVERY_FIELD] instead. The caller has
+     * checked that an account is signed in.
      */
     private fun startRecordsWhereMissing(sendEveryFieldOfAPendingEdit: Boolean) {
-        if (!isLoggedIn()) return
         fun start(text: String?, pending: Boolean, values: () -> JsonObject): String? = when {
             recordedSection(text) != null -> text
             sendEveryFieldOfAPendingEdit && pending -> SENDS_EVERY_FIELD
@@ -2084,20 +2162,21 @@ class NotificationSettingsSync internal constructor(
     }
 
     /**
-     * Pushes whichever of the two sections this class owns is actually
+     * Pushes whichever of the three sections this class owns is actually
      * unconfirmed, sequentially under the one queued trigger: live_activity
-     * first (unchanged from before assignments existed), then assignments.
-     * Sequential, not concurrent, so the assignments push's own read sees
-     * whatever the live_activity push just wrote rather than racing it into
-     * an avoidable 409.
+     * first (unchanged from before assignments existed), then assignments,
+     * then courses. Sequential, not concurrent, so each push's own read sees
+     * whatever the one before it just wrote rather than racing it into an
+     * avoidable 409.
      *
      * Each is gated on its own unconfirmed-edit flag *in addition to* its
-     * own sync switch: every path that enqueues a push — [markUnconfirmedAndPush],
-     * [markAssignmentUnconfirmedAndPush], [pushIfUnconfirmed], the off→on
-     * switch collectors, and the failure handler's own re-`trySend` — sets
-     * or requires at least one of the two flags first, so this never skips
-     * a push that was actually asked for. What it does prevent: one
-     * section's trigger (an assignments edit, say) re-sending the *other*
+     * own gates: every path that enqueues a push — [markUnconfirmedAndPush],
+     * [markAssignmentUnconfirmedAndPush], [markClassReminderUnconfirmedAndPush],
+     * [pushIfUnconfirmed] and the failure handler's own re-`trySend` — sets
+     * or requires at least one of the three flags first, so this never skips
+     * a push that was actually asked for. A 同步內容 switch turned back on
+     * queues none: it pulls instead ([restartRecord]). What it does prevent:
+     * one section's trigger (an assignments edit, say) re-sending another
      * section's values on every unrelated queue run. Those values are only
      * this device's copy, and another device may have changed that section
      * since this one last pulled: an unconditional push would write the
