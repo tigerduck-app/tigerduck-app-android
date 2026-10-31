@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.File
 import java.io.IOException
@@ -49,7 +50,7 @@ data class ImportedPerson(
     )
 
     /** Newest first, as the term picker lists them. */
-    val semesters: List<String> get() = terms.map { it.semester }.sortedDescending()
+    val semesters: List<String> get() = terms.map { it.semester }.sortedWith { a, b -> AcademicTerm.compareCodes(b, a) }
 
     /** The term to open this class table on: [keeping] when the person shared it, else their latest. */
     fun semester(keeping: String): String =

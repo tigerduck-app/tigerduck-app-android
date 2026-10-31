@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.LookedUpCourse
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.ui.screen.score.ScoreCourseRoster
 
 object TranscriptTerms {
@@ -90,9 +91,9 @@ object TranscriptTerms {
     fun rebuildsFromTranscript(report: ScoreReport?, term: String, servedBySelection: Boolean): Boolean {
         if (servedBySelection || report == null) return false
         val code = termCode(term) ?: return false
-        val order = termOrder(code) ?: return false
+        val order = AcademicTerm.parse(code) ?: return false
         val listed = report.rows().filter { it.status != GradeStatus.EXEMPTED }.mapNotNull { termCode(it.term) }
-        return code in listed && listed.any { other -> termOrder(other)?.let { it > order } == true }
+        return code in listed && listed.any { other -> AcademicTerm.parse(other)?.let { it > order } == true }
     }
 
     /**
@@ -229,17 +230,6 @@ object TranscriptTerms {
         val text = term.orBlank().trim().uppercase()
         if (text.isEmpty()) return null
         return ScoreCourseRoster.semesterCode(text) ?: text
-    }
-
-    // Year, then 1 < 2 < H; null for a code with neither.
-    private fun termOrder(code: String): Int? {
-        val year = code.dropLast(1).toIntOrNull() ?: return null
-        val part = when (val last = code.last()) {
-            in '0'..'9' -> last - '0'
-            'H' -> 10
-            else -> return null
-        }
-        return year * 100 + part
     }
 
     // A cached report read back by Gson holds null in a missing field, whatever its declared type.
