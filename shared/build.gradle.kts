@@ -20,6 +20,12 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
     }
+
+    // CourseChangeFixture, the Thursday both this module's timeline tests and the app's screen
+    // tests build their feeds from, so there is one copy of it.
+    testFixtures {
+        enable = true
+    }
 }
 
 dependencies {
@@ -37,6 +43,10 @@ dependencies {
     // LibraryService uses Mutex / Dispatchers / withContext.
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
+    // org.json is Android framework code, stubbed in plain unit tests; CourseChanges.decode reads
+    // the feed with it. Test-only, so the licence lists do not change.
+    testImplementation(libs.json)
+    testFixturesImplementation(libs.json)
     // TaipeiClockTest drives minuteTicks() in virtual time.
     testImplementation(libs.kotlinx.coroutines.test)
     // Hand-made certificates for PinnedTrustManagerTest's local TLS server.

@@ -1,16 +1,15 @@
-package org.ntust.app.tigerduck.coursechanges
+package org.ntust.app.tigerduck.shared.timeline
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.thursday
-import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
 import java.io.File
 import java.time.LocalDate
 import java.util.Locale
 
 /**
- * `CourseChangeStore` keeps the feed's own JSON under the `payload` key and reads it back by hand
+ * `CourseChangeStore` (in :app) keeps the feed's own JSON under the `payload` key and reads it back by hand
  * with `CourseChanges.decode`; no Gson and no class name is in that copy. This fixture is such a
  * copy as the current build stores it (the feed's body, one row of a kind this build skips), so a
  * build that moves the types still has to read what the last one wrote.
@@ -48,16 +47,5 @@ class StoredCourseChangesTest {
         assertEquals(listOf("CC900_20261105_2", "CC900_20261105_7"), slots.map { it.id })
         assertEquals(CourseChangeFixture.time("11:45"), slots[0].end)
         assertEquals(listOf(false, true), slots.map { it.isCancelled })
-    }
-
-    @Test
-    fun `the store reads a stored copy from the current build off the disk`() {
-        val prefs = JvmContext().getSharedPreferences("stored_course_changes_test", 0).also { it.edit().clear().commit() }
-        prefs.edit().putString("payload", stored).putString("etag", "W/\"1\"").putString("endpoint", "https://api.example.test/v3").commit()
-
-        val store = CourseChangeStore(prefs, okhttp3.OkHttpClient(), { "https://api.example.test/v3" }, { true })
-
-        assertEquals("1151", store.current().term)
-        assertEquals(4, store.current().changes("CC900", thursday).size)
     }
 }

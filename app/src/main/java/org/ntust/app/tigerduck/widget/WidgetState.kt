@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.widget
 
 import androidx.compose.ui.graphics.Color
 import androidx.datastore.preferences.core.longPreferencesKey
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 

@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.academic.Holiday
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.emptyclassroom.CampusUsage
 import org.ntust.app.tigerduck.emptyclassroom.ClassStop
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageError

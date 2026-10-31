@@ -3,10 +3,10 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
-import org.ntust.app.tigerduck.coursechanges.ClassSlot
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 
 /** A class table block's time and bottom lines under the school's changes, as on iOS. */

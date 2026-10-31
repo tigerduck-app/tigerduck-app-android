@@ -1,9 +1,9 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.coursechanges.ClassSlot
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import java.time.Instant
 import java.time.LocalDate

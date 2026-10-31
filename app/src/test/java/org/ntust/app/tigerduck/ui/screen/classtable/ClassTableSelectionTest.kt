@@ -9,8 +9,8 @@ import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.Holiday
 import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.academic.SemesterTerm
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 import java.time.LocalTime

@@ -21,11 +21,11 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.QuietDays
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.at
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.course
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.at
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.course
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme

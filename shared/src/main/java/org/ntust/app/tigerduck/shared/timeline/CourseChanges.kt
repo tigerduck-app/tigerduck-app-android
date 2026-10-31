@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.coursechanges
+package org.ntust.app.tigerduck.shared.timeline
 
 import org.json.JSONArray
 import org.json.JSONException

@@ -8,8 +8,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.SemesterTerm
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService
 import org.ntust.app.tigerduck.emptyclassroom.FakeCour01Transport
 import org.ntust.app.tigerduck.mail.MainDispatcherRule

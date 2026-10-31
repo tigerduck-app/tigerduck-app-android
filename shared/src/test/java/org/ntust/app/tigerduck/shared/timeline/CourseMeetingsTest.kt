@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.coursechanges
+package org.ntust.app.tigerduck.shared.timeline
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -6,15 +6,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.at
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.course
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.feed
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.slots
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.thursday
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.time
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.timetable
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.at
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.course
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.feed
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.slots
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.time
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.timetable
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 
