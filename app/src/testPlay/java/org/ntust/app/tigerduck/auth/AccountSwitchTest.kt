@@ -279,7 +279,7 @@ class AccountSwitchTest {
                 DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
             ),
             notificationSettingsSync = NotificationSettingsSync(
-                SettingsDocumentApiClient(refusing, appPrefs, tokens), liveUpdate, appPrefs, tokens,
+                SettingsDocumentApiClient(refusing, appPrefs, tokens), liveUpdate, appPrefs, tokens, credentials,
                 assignmentReminders, dataCache, idleScope,
             ),
             authTokenManager = tokens,

@@ -56,5 +56,9 @@ internal class FullReset(
         prefs.libraryTabKeepChecked = true
         // Nothing from before the reset is left for it to read.
         prefs.flipToLibraryDefaultOffChecked = true
+        // Nor for the notification settings' upgrade step, which, run again,
+        // would read an edit made after the reset, with nothing recorded, as
+        // one an earlier build left, and send every field of it once.
+        prefs.lastSyncedSettingsSeedDone = true
     }
 }

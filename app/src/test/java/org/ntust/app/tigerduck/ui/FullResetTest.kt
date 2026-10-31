@@ -81,4 +81,16 @@ class FullResetTest {
         assertTrue(prefs.libraryTabKeepChecked)
         assertTrue(prefs.flipToLibraryDefaultOffChecked)
     }
+
+    @Test
+    fun `a full reset keeps the notification settings upgrade step done`() = runBlocking {
+        // A device that ran the step at the update. Run again after the reset,
+        // it would read an edit made then, with nothing recorded, as one an
+        // earlier build left, and send every field of it once.
+        prefs.lastSyncedSettingsSeedDone = true
+
+        fullReset().start(this) {}.join()
+
+        assertTrue(prefs.lastSyncedSettingsSeedDone)
+    }
 }
