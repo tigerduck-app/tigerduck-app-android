@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import org.ntust.app.tigerduck.shared.NextClassResult
+import org.ntust.app.tigerduck.shared.TodayClassEntry
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.MainActivity
 import org.ntust.app.tigerduck.wear.R
@@ -28,6 +29,19 @@ import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.weekdayCaptionRes
 import java.time.LocalDate
 import java.time.ZoneId
+
+/**
+ * The minutes after [minuteOfDay] at which the tile's state changes: each block's start, and its end,
+ * the minute the class is over (start <= now < end).
+ */
+internal fun tileTransitionMinutes(blocks: List<TodayClassEntry>, minuteOfDay: Int): List<Int> {
+    val transitions = mutableListOf<Int>()
+    for (block in blocks) {
+        if (block.startMinute > minuteOfDay) transitions += block.startMinute
+        transitions += block.endMinute
+    }
+    return transitions
+}
 
 class NextClassTileService : TileService() {
 
@@ -109,11 +123,7 @@ class NextClassTileService : TileService() {
         val blocks = snapshot.todaysClasses(today, minuteOfDay)
             .filter { it.endMinute > minuteOfDay }
 
-        val transitions = mutableListOf<Int>()
-        for (block in blocks) {
-            if (block.startMinute > minuteOfDay) transitions += block.startMinute
-            transitions += block.endMinute + 1
-        }
+        val transitions = tileTransitionMinutes(blocks, minuteOfDay)
 
         for (i in transitions.indices) {
             val from = transitions[i]

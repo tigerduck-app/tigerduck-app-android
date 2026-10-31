@@ -63,7 +63,7 @@ class ClassTableTodayChangesTest {
     }
 
     @Test
-    fun `a class runs through its changed times, its last minute included as the strip has it`() {
+    fun `a class runs from its changed start until its changed end minute`() {
         val changes = changes(
             row(1, "start", periods = morning, values = mapOf("start" to "09:40")),
             row(2, "end", periods = morning, values = mapOf("end" to "11:50")),
@@ -71,8 +71,8 @@ class ClassTableTodayChangesTest {
 
         assertTrue(ongoing(changes, "09:30").isEmpty())
         assertEquals(LocalTime.of(9, 40) to LocalTime.of(11, 50), ongoing(changes, "09:40").single().let { it.start to it.end })
-        assertEquals(1, ongoing(changes, "11:50").size)
-        assertTrue(ongoing(changes, "11:51").isEmpty())
+        assertEquals(1, ongoing(changes, "11:49").size)
+        assertTrue(ongoing(changes, "11:50").isEmpty())
     }
 
     @Test

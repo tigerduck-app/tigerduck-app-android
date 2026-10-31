@@ -162,26 +162,26 @@ object ClassTableSelection {
 
     /**
      * The block of [course] on [weekday] a today-carousel card stands for at [minuteOfDay]: the
-     * first not yet over, or the last once all are. A course meeting twice a day shows the
+     * first not yet over (a class is over from its end minute), or the last once all are. A course meeting twice a day shows the
      * afternoon block's times and room once the morning one ends. Null when it does not meet.
      */
     fun carouselBlock(course: Course, weekday: Int, minuteOfDay: Int): List<String>? {
         val runs = contiguousPeriodRuns(course.schedule[weekday].orEmpty())
         return runs.firstOrNull { run ->
             val end = AppConstants.PeriodTimes.mapping[run.last()]?.second?.let(::minuteOfDay)
-            end == null || minuteOfDay <= end
+            end == null || minuteOfDay < end
         } ?: runs.lastOrNull()
     }
 
     /**
      * The classes of [courses] running at [minuteOfDay] on [today] as the school changed them, at
      * most one a course: a cancelled class is not running, and a moved one has its own room and
-     * times. A class's last minute still counts, as the today strip has always counted it. As iOS
+     * times. A class is over from its end minute (start <= now < end). As iOS
      * `ongoingCourses(at:changes:)`.
      */
     fun ongoingClasses(courses: List<Course>, today: LocalDate, minuteOfDay: Int, changes: CourseChanges): List<ClassSlot> =
         CourseMeetings.buildSlots(courses, today, changes)
-            .filter { !it.isCancelled && minuteOfDay in minuteOf(it.start)..minuteOf(it.end) }
+            .filter { !it.isCancelled && minuteOfDay in minuteOf(it.start) until minuteOf(it.end) }
             .distinctBy { it.course.courseNo }
 
     /**
@@ -208,11 +208,11 @@ object ClassTableSelection {
         val meetings = contiguousPeriodRuns(course.schedule[weekday].orEmpty())
             .mapNotNull { CourseMeetings.meeting(course, it, today, changes) }
             .sortedBy { it.start }
-        val meeting = meetings.firstOrNull { minuteOfDay <= minuteOf(it.end) } ?: meetings.lastOrNull()
+        val meeting = meetings.firstOrNull { minuteOfDay < minuteOf(it.end) } ?: meetings.lastOrNull()
         return TodayCard(
             meeting?.periods,
             meeting?.takeIf { it.changes.isNotEmpty() },
-            meetings.maxOfOrNull { minuteOf(it.end) }?.let { minuteOfDay > it } ?: false,
+            meetings.maxOfOrNull { minuteOf(it.end) }?.let { minuteOfDay >= it } ?: false,
         )
     }
 
@@ -233,7 +233,7 @@ object ClassTableSelection {
     }
 
     /**
-     * True once the course's last period today has ended.
+     * True once the course's last period today has ended, from its end minute.
      *
      * False whenever that cannot be established — the course does not meet
      * today, or a period is missing a time mapping. Used to grey out finished
@@ -246,7 +246,7 @@ object ClassTableSelection {
         val endMinutes = minuteOfDay(
             AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
         ) ?: return false
-        return dayTime.minuteOfDay > endMinutes
+        return dayTime.minuteOfDay >= endMinutes
     }
 
     /** "14:20" -> 860. Null on anything that is not HH:MM. */

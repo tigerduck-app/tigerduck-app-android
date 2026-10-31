@@ -95,7 +95,7 @@ object NextClassResolver {
         val todaysCourses = if (isQuietDay(0)) emptyList() else courses
         val today = { course: Course -> classesOf(course, weekday, changedClasses(course.courseNo, 0)) }
         val ongoing = todaysCourses.firstNotNullOfOrNull { course ->
-            today(course).firstOrNull { minuteOfDay in it.startMinute..it.endMinute }?.let { Pick(course, it.startMinute, it) }
+            today(course).firstOrNull { minuteOfDay in it.startMinute until it.endMinute }?.let { Pick(course, it.startMinute, it) }
         }
         if (ongoing != null) {
             // The course going on is left out of what comes next, as before changes; but a meeting
@@ -149,8 +149,8 @@ object NextClassResolver {
         return courses.flatMap { course ->
             classesOf(course, weekday, changedClasses(course.courseNo)).map { dayClass ->
                 val status = when {
-                    minuteOfDay > dayClass.endMinute -> TodayClassStatus.Ended
-                    minuteOfDay in dayClass.startMinute..dayClass.endMinute -> TodayClassStatus.Ongoing
+                    minuteOfDay >= dayClass.endMinute -> TodayClassStatus.Ended
+                    minuteOfDay >= dayClass.startMinute -> TodayClassStatus.Ongoing
                     else -> TodayClassStatus.Upcoming
                 }
                 TodayClassEntry(
