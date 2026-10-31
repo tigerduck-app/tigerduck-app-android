@@ -486,19 +486,29 @@ class DataCache @Inject constructor(
      * the term, which [isLatestAnswer] checks before the fetch commits or
      * uploads it.
      */
-    suspend fun recordSelectionRoster(semester: String, roster: List<String>, generation: Int? = null): SelectionAnswer? {
+    suspend fun recordSelectionRoster(
+        semester: String,
+        roster: List<String>,
+        generation: Int? = null,
+        // Taken as the answer lands, before any wait for the lock, which would make it read newer.
+        answeredAt: Long = System.currentTimeMillis(),
+    ): SelectionAnswer? {
         val expected = generation ?: writeGeneration()
         if (roster.isEmpty()) return null
-        // Taken as the answer lands, before any wait for the lock, which would make it read newer.
-        val answeredAt = System.currentTimeMillis()
-        val kept = selectionDropsMutex.withLock {
-            saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected) &&
+        // The answer, the hides it lifts and the drops it records under one hold of the lock: let go
+        // of between them, a newer answer could land in the gap, and this one's drops after it
+        // would drop what the newer lists. An answer older than the one kept, come to the lock
+        // later, is no answer at all.
+        return selectionDropsMutex.withLock {
+            val keptAt = loadSelectionAnsweredAt()[semester]
+            if (keptAt != null && keptAt > answeredAt) return@withLock null
+            val kept = saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected) &&
                 recordAnswerLocked(semester, roster, answeredAt, expected)
+            if (!kept) return@withLock null
+            liftHandAddedHides(semester, roster, expected)
+            recordDropsLocked(semester, roster, alsoListed = emptyList(), isFinal = false, expected)
+            SelectionAnswer(roster.toSet(), answeredAt)
         }
-        if (!kept) return null
-        liftHandAddedHides(semester, roster, expected)
-        recordDrops(semester, roster, alsoListed = emptyList(), isFinal = false, expected)
-        return SelectionAnswer(roster.toSet(), answeredAt)
     }
 
     /**
@@ -538,8 +548,8 @@ class DataCache @Inject constructor(
     // Every read, change and write of the drop list and the rosters, one at a time: a past term's
     // rebuild and another term's course selection answer each rewrite the whole file, and the later
     // write would erase the other term's drops. The wipes hold it too, so none reads a file a wipe
-    // then deletes. Taken before the cache's and the user data's own locks, never while holding one
-    // of them or the courses' or hides' lock.
+    // then deletes. Taken before the hides', the cache's and the user data's own locks, never while
+    // holding one of them or the courses' lock.
     private val selectionDropsMutex = Mutex()
 
     // A course added by hand here is a manual row, never in the portal rows diffed against.

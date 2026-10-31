@@ -8,10 +8,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
@@ -78,6 +80,20 @@ class DataCacheRosterSignOutTest {
         }
 
         assertNothingLeft()
+    }
+
+    @Test
+    fun `an older course selection answer reaching the lock after a newer one changes nothing`() {
+        // Two fetches of one term, the older's answer taken first, the newer's recorded first: the
+        // older must neither replace the newer answer nor drop what the newer lists.
+        val other = Course.fromSchedule("XB0000002", "Other", schedule = mapOf(3 to listOf("4")))
+        runBlocking {
+            cache.saveCourses(listOf(timed, other), TERM)
+            cache.recordSelectionRoster(TERM, listOf("XA0000001", "XB0000002"), answeredAt = 2_000L)
+            assertNull(cache.recordSelectionRoster(TERM, listOf("XA0000001"), answeredAt = 1_000L))
+            assertEquals(SelectionAnswer(setOf("XA0000001", "XB0000002"), 2_000L), cache.selectionAnswerIn(TERM))
+            assertFalse("XB0000002" in cache.loadSelectionDroppedNos()[TERM].orEmpty())
+        }
     }
 
     private fun assertNothingLeft() {
