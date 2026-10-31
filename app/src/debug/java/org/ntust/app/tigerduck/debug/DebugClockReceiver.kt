@@ -13,6 +13,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * Drives the debug clock override over `adb shell am broadcast`, so a script
@@ -129,6 +130,6 @@ class DebugClockReceiver : BroadcastReceiver() {
         // Matches DebugViewModel: the in-app picker means Taipei local time,
         // and a broadcast that meant something else would silently disagree
         // with the UI it is standing in for.
-        val ZONE: ZoneId = ZoneId.of("Asia/Taipei")
+        val ZONE: ZoneId = TaipeiClock.zone
     }
 }

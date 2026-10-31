@@ -14,6 +14,7 @@ import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * A three-digit ROC academic year in a link's text on the calendar page, as the school writes
@@ -81,7 +82,7 @@ class CalendarService internal constructor(
 
     private val currentRocYear: Int
         get() {
-            val cal = Calendar.getInstance(TimeZone.getTimeZone("Asia/Taipei"))
+            val cal = Calendar.getInstance(TaipeiClock.timeZone)
             val year = cal.get(Calendar.YEAR) - 1911
             val month = cal.get(Calendar.MONTH) + 1
             return if (month >= 8) year else year - 1
@@ -117,14 +118,14 @@ class CalendarService internal constructor(
         }
             ?: try {
                 SimpleDateFormat("yyyyMMdd'T'HHmmss", Locale.US).apply {
-                    timeZone = TimeZone.getTimeZone("Asia/Taipei")
+                    timeZone = TaipeiClock.timeZone
                 }.parse(value)
             } catch (e: Exception) {
                 null
             }
             ?: try {
                 SimpleDateFormat("yyyyMMdd", Locale.US).apply {
-                    timeZone = TimeZone.getTimeZone("Asia/Taipei")
+                    timeZone = TaipeiClock.timeZone
                 }.parse(value)
             } catch (e: Exception) {
                 null
@@ -159,7 +160,7 @@ class CalendarService internal constructor(
                     if (title != null && start != null) {
                         val eventId = uid ?: "school-$title-${start.time}"
                         val end = dtEnd
-                        val taipeiTz = TimeZone.getTimeZone("Asia/Taipei")
+                        val taipeiTz = TaipeiClock.timeZone
 
                         if (end != null) {
                             // Check if multi-day

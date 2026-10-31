@@ -83,7 +83,7 @@ data class DemoMoodleForum(
 )
 
 object DemoMoodleFixture {
-    private val ZONE: ZoneId = ZoneId.of("Asia/Taipei")
+    private val ZONE: ZoneId = org.ntust.app.tigerduck.shared.time.TaipeiClock.zone
 
     /** The `moodle` section of [root], or null without one. A malformed entry is skipped. */
     fun parse(root: JsonObject, lang: String): DemoMoodle? {

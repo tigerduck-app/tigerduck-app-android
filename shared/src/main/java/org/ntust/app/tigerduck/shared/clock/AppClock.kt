@@ -8,6 +8,7 @@ import java.util.Calendar
 import java.util.TimeZone
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * Single source of "now" for the app. All UI / class-status / scheduler code
@@ -53,10 +54,10 @@ object AppClock {
 
     fun instant(): Instant = Instant.ofEpochMilli(nowMillis())
 
-    fun localDateTime(zone: ZoneId = ZoneId.of("Asia/Taipei")): LocalDateTime =
+    fun localDateTime(zone: ZoneId = TaipeiClock.zone): LocalDateTime =
         LocalDateTime.ofInstant(instant(), zone)
 
-    fun calendar(tz: TimeZone = TimeZone.getTimeZone("Asia/Taipei")): Calendar {
+    fun calendar(tz: TimeZone = TaipeiClock.timeZone): Calendar {
         val cal = Calendar.getInstance(tz)
         cal.timeInMillis = nowMillis()
         return cal

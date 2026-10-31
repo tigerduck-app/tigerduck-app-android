@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.wear.data.WatchSnapshot
 import org.ntust.app.tigerduck.wear.ui.weekdayCaptionRes
 import java.time.LocalDate
 import java.time.ZoneId
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * The minutes after [minuteOfDay] at which the tile's state changes: each block's start, and its end,
@@ -117,7 +118,7 @@ class NextClassTileService : TileService() {
         minuteOfDay: Int,
     ) {
         val todayBaseMs = today
-            .atStartOfDay(ZoneId.of("Asia/Taipei"))
+            .atStartOfDay(TaipeiClock.zone)
             .toInstant().toEpochMilli()
 
         val blocks = snapshot.todaysClasses(today, minuteOfDay)

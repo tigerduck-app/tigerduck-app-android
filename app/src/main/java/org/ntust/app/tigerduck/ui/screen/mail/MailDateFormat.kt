@@ -4,10 +4,11 @@ import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /** Today's mail shows HH:mm, older mail M/d (spec §6.2) — Taipei time like the rest of the app. */
 object MailDateFormat {
-    private val ZONE: ZoneId = ZoneId.of("Asia/Taipei")
+    private val ZONE: ZoneId = TaipeiClock.zone
     private val TIME = DateTimeFormatter.ofPattern("HH:mm")
     private val DAY = DateTimeFormatter.ofPattern("M/d")
     private val FULL = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm")

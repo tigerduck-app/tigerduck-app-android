@@ -25,9 +25,10 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 object MailDiagnostics {
-    private val FORMAT = DateTimeFormatter.ofPattern("MM/dd HH:mm:ss").withZone(ZoneId.of("Asia/Taipei"))
+    private val FORMAT = DateTimeFormatter.ofPattern("MM/dd HH:mm:ss").withZone(TaipeiClock.zone)
 
     /** `"<epochMillis>|<source>|<outcome>"` → `"09/15 18:00:42 · ALARM · NewMail"`, or null if malformed. */
     fun format(entry: String): String? {

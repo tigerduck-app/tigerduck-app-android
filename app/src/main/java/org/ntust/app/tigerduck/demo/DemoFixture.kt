@@ -12,6 +12,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
 import java.util.Date
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * A made-up student, read from the hand-written `assets/demo.json`.
@@ -70,7 +71,7 @@ data class DemoFixture(
         const val LANG_ZH = "zh"
         const val LANG_EN = "en"
 
-        private val ZONE: ZoneId = ZoneId.of("Asia/Taipei")
+        private val ZONE: ZoneId = TaipeiClock.zone
 
         /**
          * [lang] picks which half of every `{"zh": …, "en": …}` pair to read.
