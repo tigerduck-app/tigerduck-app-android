@@ -8,6 +8,8 @@ import androidx.lifecycle.SavedStateHandle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -277,12 +279,20 @@ class AnnouncementsSyncedAtTest {
     @Test
     fun `a visit before the move's clear has run does not open on the old list`() {
         runBlocking { cache.save(listOf(bulletin(9))) }
-        val clearScope = TestScope()
+        // Its own scheduler: a TestScope() -- and a StandardTestDispatcher() with none given --
+        // takes the Main dispatcher's, so the advance below would run the clear too, and the IO
+        // threads could finish it, the load and the new backend's fetch before the assert: "the
+        // clear has not run" would be a matter of timing.
+        val clearScope = TestScope(StandardTestDispatcher(TestCoroutineScheduler()))
         moveEndpoint("http://127.0.0.1:10/v3", clearScope)
 
         val vm = viewModel(repository)
         vm.load()
-        main.dispatcher.scheduler.advanceUntilIdle()
+        // The page's own dispatcher gets every chance to run what the IO threads send back.
+        repeat(40) {
+            Thread.sleep(25)
+            main.dispatcher.scheduler.advanceUntilIdle()
+        }
         assertTrue(vm.state.value.items.isEmpty())
 
         // The clear and the load each come back from the IO threads to their test dispatchers.
