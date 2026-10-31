@@ -16,6 +16,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -408,23 +409,15 @@ class HomeViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            dataCache.backgroundSyncVersion.drop(1).collect {
-                if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
-                val courses = dataCache.loadCourses()
-                val assignments = dataCache.loadAssignments()
-                val ignored = dataCache.loadIgnoredAssignments()
-                val marked = dataCache.loadMarkedCompletedAssignments()
-                val courseKeys = dataCache.loadIgnoredCourses()
-                // Signed out, or in as someone else, while the files were
-                // read: what they held was the departing account's.
-                if (!authService.isStillSignedInAs(account)) return@collect
-                _ignoredAssignmentIds.value = ignored
-                _markedCompletedIds.value = marked
-                _ignoredCourseKeys.value = courseKeys
-                TigerDuckTheme.buildCourseColorMap(courses)
-                updateCoursesAndAssignments(courses, assignments)
-            }
+            dataCache.backgroundSyncVersion.drop(1).collect { reloadFromCache() }
+        }
+        viewModelScope.launch {
+            // A course the class table adds or edits is saved with no sync round after it, so
+            // the sync version above never moves for it. Home reads the courses again on every
+            // write of a term's courses, and only the courses: the marks are Home's own to write,
+            // and a read here could undo a swipe still on its way to disk.
+            val start = dataCache.coursesVersion.value
+            dataCache.coursesVersion.filter { it != start }.collect { reloadCoursesFromCache() }
         }
         viewModelScope.launch {
             // Marks a re-enable answer took (Use Server): read now, or the
@@ -941,11 +934,51 @@ class HomeViewModel @Inject constructor(
         coursesDef.await() to assignmentsDef.await()
     }
 
-    private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
+    /**
+     * Reads the courses, assignments and marks off the cache and shows them, for a sync round that
+     * has ended.
+     */
+    private suspend fun reloadFromCache() {
+        if (!authService.authState.value) return
+        val account = authService.storedStudentId
+        val courses = dataCache.loadCourses()
+        val assignments = dataCache.loadAssignments()
+        val ignored = dataCache.loadIgnoredAssignments()
+        val marked = dataCache.loadMarkedCompletedAssignments()
+        val courseKeys = dataCache.loadIgnoredCourses()
+        // Signed out, or in as someone else, while the files were
+        // read: what they held was the departing account's.
+        if (!authService.isStillSignedInAs(account)) return
+        _ignoredAssignmentIds.value = ignored
+        _markedCompletedIds.value = marked
+        _ignoredCourseKeys.value = courseKeys
+        TigerDuckTheme.buildCourseColorMap(courses)
+        updateCoursesAndAssignments(courses, assignments)
+    }
+
+    /** Shows the cached courses with the assignments and marks Home already holds; see the `coursesVersion` collector. */
+    private suspend fun reloadCoursesFromCache() {
+        if (!authService.authState.value) return
+        val account = authService.storedStudentId
+        val courses = dataCache.loadCourses()
+        if (!authService.isStillSignedInAs(account)) return
+        TigerDuckTheme.buildCourseColorMap(courses)
+        updateCoursesAndAssignments(courses, _allAssignments.value, rearmReminders = false)
+    }
+
+    /**
+     * Shows [courses] and [assignments]. [rearmReminders] is false for a courses-only reload: the
+     * assignments did not change, and re-arming drops a reminder Android is late in delivering.
+     */
+    private fun updateCoursesAndAssignments(
+        courses: List<Course>,
+        assignments: List<Assignment>,
+        rearmReminders: Boolean = true,
+    ) {
         _allCourses.value = courses
         _allAssignments.value = assignments.sortedBy { it.studentDueDate }
 
-        if (prefs.notifyAssignments) {
+        if (rearmReminders && prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(assignments)
         }
 
