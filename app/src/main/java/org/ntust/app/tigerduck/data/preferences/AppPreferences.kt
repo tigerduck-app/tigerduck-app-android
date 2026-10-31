@@ -1250,16 +1250,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }
 
     /**
-     * Semester codes published by NTUST, newest first — see
-     * [org.ntust.app.tigerduck.network.SemesterCatalog]. Empty until the first
-     * successful fetch, which the catalogue reads as "fall back to the month
-     * heuristic".
-     *
-     * Stored as a delimited string rather than a `StringSet` because
-     * `SharedPreferences` sets are unordered, and this list's whole value is
-     * that it is newest-first.
-     */
-    /**
      * Holidays the user asked to keep receiving class reminders on.
      *
      * Written whether or not cloud sync is on — the holiday guard itself is
@@ -1269,13 +1259,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * and the opt-in should follow the holiday.
      */
     var holidayNotifyOverrides: Set<Int>
-        get() = prefs.getStringSet("holidayNotifyOverrides", emptySet())
-            ?.mapNotNull(String::toIntOrNull)
-            ?.toSet()
-            ?: emptySet()
-        set(value) = prefs.edit()
-            .putStringSet("holidayNotifyOverrides", value.map(Int::toString).toSet())
-            .apply()
+        get() = prefs.getIds("holidayNotifyOverrides")
+        set(value) = prefs.edit().putIds("holidayNotifyOverrides", value).apply()
 
     /**
      * Holidays whose choice in [holidayNotifyOverrides] the backend has not
@@ -1284,16 +1269,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * `PendingHolidayOverrides`; the iPhone's `holidayOverridesAwaitingUpload`.
      */
     var holidayOverridesAwaitingUpload: Set<Int>
-        get() = prefs.getStringSet("holidayOverridesAwaitingUpload", emptySet())
-            ?.mapNotNull(String::toIntOrNull)
-            ?.toSet()
-            ?: emptySet()
-        set(value) = prefs.edit()
-            .putStringSet("holidayOverridesAwaitingUpload", value.map(Int::toString).toSet())
-            .apply()
+        get() = prefs.getIds("holidayOverridesAwaitingUpload")
+        set(value) = prefs.edit().putIds("holidayOverridesAwaitingUpload", value).apply()
 
     /**
-     * At sign-out: both holiday sets are the departing account's. Left
+     * When each holiday's choice was last made here, epoch ms by holiday id: the `hlc` its upload
+     * sends, so a retry is no newer than the choice. None for a choice made before the time was
+     * kept. Dropped for a holiday a pull replaces; the iPhone's `holidayOverrideEditTimes`.
+     */
+    var holidayOverrideEditTimes: Map<Int, Long>
+        get() = prefs.getTimesById("holidayOverrideEditTimes")
+        set(value) = prefs.edit().putTimesById("holidayOverrideEditTimes", value).apply()
+
+    /**
+     * At sign-out: the holiday sets and edit times are the departing account's. Left
      * behind, the next student would inherit their quiet days, and the
      * awaiting set would send those choices up as the new account. As the
      * iPhone's `forgetHolidayOverrides`.
@@ -1302,9 +1291,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         prefs.edit()
             .remove("holidayNotifyOverrides")
             .remove("holidayOverridesAwaitingUpload")
+            .remove("holidayOverrideEditTimes")
             .apply()
     }
 
+    /**
+     * Semester codes published by NTUST, newest first — see
+     * [org.ntust.app.tigerduck.network.SemesterCatalog]. Empty until the first
+     * successful fetch, which the catalogue reads as "fall back to the month
+     * heuristic".
+     *
+     * Stored as a delimited string rather than a `StringSet` because
+     * `SharedPreferences` sets are unordered, and this list's whole value is
+     * that it is newest-first.
+     */
     var semesterCatalogTerms: List<String>
         get() = prefs.getString("semesterCatalogTerms", null)
             ?.split(SEMESTER_LIST_DELIMITER)

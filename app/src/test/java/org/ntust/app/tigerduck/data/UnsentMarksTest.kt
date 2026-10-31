@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiException
+import java.io.File
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 
@@ -29,6 +30,10 @@ class UnsentMarksTest {
     private lateinit var marks: UnsentMarks
 
     private val sent = mutableListOf<Pair<Int, String>>()
+
+    // The edit time each PATCH carried as `hlc` (before the clock's microsecond scale).
+    private val stamps = mutableListOf<Long?>()
+    private lateinit var context: JvmContext
     private var answer: suspend (Int, String) -> Unit = { _, _ -> }
     /** Mark sync on: the Assignments switch and TigerSync. */
     private var records = true
@@ -38,7 +43,7 @@ class UnsentMarksTest {
 
     @Before
     fun setUp() {
-        val context = JvmContext()
+        context = JvmContext()
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         marks = newProcess()
     }
@@ -46,8 +51,9 @@ class UnsentMarksTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = UnsentMarks(
         dataCache = cache,
-        sender = MarkSender { id, status, signIn ->
+        sender = MarkSender { id, status, signIn, madeAtMs ->
             signIns += signIn
+            stamps += madeAtMs
             sent += id to status
             answer(id, status)
         },
@@ -76,6 +82,35 @@ class UnsentMarksTest {
 
         assertEquals(listOf(7 to "locally_completed", 7 to "locally_completed"), sent)
         assertEquals(emptySet<String>(), marks.ids())
+    }
+
+    @Test
+    fun `a tap sent after a newer one carries the time it was made`() = runTest {
+        answer = { _, _ -> throw IOException("offline") }
+        now = 2_000L
+        marks.send("7", "ignored")
+        answer = { _, _ -> }
+        now = 3_000L
+        marks.send("8", "locally_completed")
+        now = 4_000L
+        marks.retry()
+
+        // 7 failed at T1, 8 landed at T2, and the retry sent 7 again at its own time.
+        assertEquals(listOf<Long?>(2_000L, 3_000L, 2_000L), stamps)
+        assertEquals(emptySet<String>(), marks.ids())
+    }
+
+    @Test
+    fun `a mark stored by the build before has no time, and goes out without one`() = runTest {
+        File(context.filesDir, "TigerDuckData/unsent_marks.json").writeText(
+            """[{"assignmentId":"7","status":"ignored","attempts":0,"lastRefusedAtMs":0}]""",
+        )
+        assertEquals(null, cache.loadUnsentMarks().single().madeAtMs)
+
+        marks.retry()
+
+        assertEquals(listOf<Long?>(null), stamps)
+        assertEquals(listOf(7 to "ignored"), sent)
     }
 
     @Test

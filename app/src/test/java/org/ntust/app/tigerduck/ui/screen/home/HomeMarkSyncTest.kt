@@ -54,7 +54,7 @@ class HomeMarkSyncTest {
         // Sending as with TigerSync on, which the fdroid build never is.
         unsent = UnsentMarks(
             cache,
-            MarkSender { id, status, _ -> send(id, status) },
+            MarkSender { id, status, _, _ -> send(id, status) },
             records = { prefs.syncAssignments },
             sends = { prefs.syncAssignments },
             signInGeneration = { 0 },

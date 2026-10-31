@@ -18,4 +18,6 @@ data class UnsentMark(
     val attempts: Int = 0,
     /** When the backend last refused it, epoch ms; 0 when it never has. */
     val lastRefusedAtMs: Long = 0L,
+    /** When the user tapped it, sent as its `hlc`; null on a mark written before it was kept, which goes out unstamped. */
+    val madeAtMs: Long? = null,
 )

@@ -9,7 +9,9 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
+import okhttp3.OkHttpClient
 import org.junit.Test
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
@@ -26,6 +28,9 @@ class PendingHolidayOverridesTest {
     private lateinit var holidays: PendingHolidayOverrides
 
     private val sent = mutableListOf<Pair<Int, Boolean>>()
+
+    // The edit time each PUT carried as `hlc` (before the clock's microsecond scale).
+    private val stamps = mutableListOf<Long?>()
     private var answer: suspend (Int, Boolean) -> Unit = { _, _ -> }
 
     /** TigerSync on. */
@@ -47,8 +52,9 @@ class PendingHolidayOverridesTest {
         prefs = AppPreferences(JvmContext())
         holidays = PendingHolidayOverrides(
             prefs = prefs,
-            sender = HolidayOverrideSender { id, notify, signIn ->
+            sender = HolidayOverrideSender { id, notify, signIn, madeAtMs ->
                 signIns += signIn
+                stamps += madeAtMs
                 sent += id to notify
                 answer(id, notify)
                 delivered
@@ -92,6 +98,80 @@ class PendingHolidayOverridesTest {
 
         assertEquals(listOf(3 to true, 3 to false), sent)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
+    }
+
+    @Test
+    fun `a choice sent after a newer one carries the time it was made`() = runTest {
+        answer = { _, _ -> throw IOException("offline") }
+        now = 2_000L
+        tap(3, notify = true)
+        answer = { _, _ -> }
+        now = 3_000L
+        tap(5, notify = true)
+        now = 4_000L
+        holidays.retry()
+
+        // 3 failed at T1, 5 landed at T2, and the retry sent 3 again at its own time.
+        assertEquals(listOf<Long?>(2_000L, 3_000L, 2_000L), stamps)
+        assertEquals(emptySet<Int>(), holidays.waitingIds)
+    }
+
+    @Test
+    fun `a choice waiting from the build before has no time, and goes out without one`() = runTest {
+        prefs.holidayNotifyOverrides = setOf(4)
+        prefs.holidayOverridesAwaitingUpload = setOf(4)
+        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+
+        holidays.retry()
+
+        assertEquals(listOf<Long?>(null), stamps)
+        assertEquals(listOf(4 to true), sent)
+    }
+
+    @Test
+    fun `a choice made again during its PUT stays waiting though its setting is the same`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        answer = { _, _ -> gate.await() }
+        now = 2_000L
+        val first = launch { tap(3, notify = true) }
+        testScheduler.runCurrent()
+
+        // Off and on again while the PUT is out: the same setting, made later.
+        now = 3_000L
+        prefs.holidayNotifyOverrides = emptySet()
+        val off = launch { holidays.send(3) }
+        testScheduler.runCurrent()
+        now = 4_000L
+        prefs.holidayNotifyOverrides = setOf(3)
+        val on = launch { holidays.send(3) }
+        testScheduler.runCurrent()
+        gate.complete(Unit)
+        first.join()
+        off.join()
+        on.join()
+
+        assertEquals(listOf<Long?>(2_000L, 4_000L), stamps)
+        assertEquals(emptySet<Int>(), holidays.waitingIds)
+    }
+
+    @Test
+    fun `a pull that replaces a choice drops its edit time, and one it leaves keeps it`() = runTest {
+        val context = JvmContext()
+        val calendar = AcademicCalendarStore(context, OkHttpClient(), prefs)
+        now = 2_000L
+        tap(9, notify = true)
+        now = 3_000L
+        tap(5, notify = true)
+        assertEquals(mapOf(9 to 2_000L, 5 to 3_000L), prefs.holidayOverrideEditTimes)
+
+        now = 5_000L
+        HolidayOverrideApply.apply(
+            setOf(5), fetchedAtMs = now, signIn = 1, pending = holidays, calendar = calendar,
+            runIfSignedIn = { _, block -> block(); true },
+        )
+
+        assertEquals(setOf(5), prefs.holidayNotifyOverrides)
+        assertEquals(mapOf(5 to 3_000L), prefs.holidayOverrideEditTimes)
     }
 
     @Test
@@ -216,10 +296,12 @@ class PendingHolidayOverridesTest {
     fun `the sign-out forgets both sets`() {
         prefs.holidayNotifyOverrides = setOf(3)
         prefs.holidayOverridesAwaitingUpload = setOf(3)
+        prefs.holidayOverrideEditTimes = mapOf(3 to 1_000L)
 
         prefs.forgetHolidayOverrides()
 
         assertEquals(emptySet<Int>(), prefs.holidayNotifyOverrides)
         assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
+        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
     }
 }

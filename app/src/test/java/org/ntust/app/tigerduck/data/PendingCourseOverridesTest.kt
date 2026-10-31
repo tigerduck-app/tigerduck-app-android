@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.Course
+import java.io.File
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 
@@ -42,6 +43,10 @@ class PendingCourseOverridesTest {
     )
 
     private val patches = mutableListOf<Patch>()
+
+    // The edit time each PATCH carried as `hlc` (before the clock's microsecond scale), by PATCH.
+    private val stamps = mutableListOf<Long?>()
+    private lateinit var context: JvmContext
     private var answer: suspend () -> Boolean = { true }
 
     // The switches, by kind (true for colours): whether changes are this phone's own or sync at
@@ -60,17 +65,18 @@ class PendingCourseOverridesTest {
 
     @Before
     fun setUp() {
-        val context = JvmContext()
+        context = JvmContext()
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         // As PushApiClient.patchCourseOverride: pinned to a sign-in, the header is that account's or
         // none, and the hold is read once more after the header is made, right before the request.
         overrides = PendingCourseOverrides(
             cache,
-            { moodleId, colorHex, customName, locale, pinned, stillAllowed ->
+            { moodleId, colorHex, customName, locale, pinned, stillAllowed, madeAtMs ->
                 beforeHeader()
                 if (pinned != signIn) throw NotSignedInException()
                 if (!stillAllowed()) return@PendingCourseOverrides false
                 patches += Patch(moodleId, colorHex, customName, locale, account = signIn)
+                stamps += madeAtMs
                 answer()
             },
             records = { records(it) },
@@ -78,6 +84,36 @@ class PendingCourseOverridesTest {
             signInGeneration = { signIn },
             clock = { now++ },
         )
+    }
+
+    @Test
+    fun `an edit sent after a newer one carries the time it was made`() = runTest {
+        val physics = "1151PH1010002"
+        answer = { throw IOException("offline") }
+        overrides.send(calculus, colorHex = "#FF0000")
+        answer = { true }
+        overrides.send(physics, customName = "Phys", locale = "en")
+        assertEquals("the row keeps the time it was made", stamps.first(), cache.loadPendingCourseOverrides().single().madeAtMs)
+        overrides.retry()
+
+        // Calculus's colour (T1) failed, physics's name (T2) landed, and the retry sent T1 again.
+        assertEquals(listOf(calculus, physics, calculus), patches.map { it.moodleId })
+        val (first, second, retried) = stamps
+        assertTrue("T1 is kept: $stamps", first != null && first < second!!)
+        assertEquals(first, retried)
+    }
+
+    @Test
+    fun `a row stored by the build before has no time, and goes out without one`() = runTest {
+        File(context.filesDir, "TigerDuckData/pending_course_overrides.json").writeText(
+            """[{"moodleId":"$calculus","colorHex":"#FF0000","changedAtMs":1000,"attempts":0,"seq":5}]""",
+        )
+        assertEquals(null, cache.loadPendingCourseOverrides().single().madeAtMs)
+
+        overrides.retry()
+
+        assertEquals(listOf<Long?>(null), stamps)
+        assertEquals(1, patches.size)
     }
 
     private fun refused(code: Int): suspend () -> Boolean = { throw PushApiException("patchCourseOverride failed: HTTP $code", code) }
@@ -313,7 +349,7 @@ class PendingCourseOverridesTest {
         now = 1L
         val restarted = PendingCourseOverrides(
             cache,
-            { _, _, _, _, _, _ -> throw IOException("offline") },
+            { _, _, _, _, _, _, _ -> throw IOException("offline") },
             records = { true },
             sends = { true },
             signInGeneration = { signIn },

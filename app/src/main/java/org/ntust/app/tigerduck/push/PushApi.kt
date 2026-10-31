@@ -55,7 +55,7 @@ internal interface PushApi {
     fun assignmentOverride(
         @Header("Authorization") auth: String,
         @Path("assignmentId", encoded = true) assignmentId: Int,
-        @Body override: Map<String, String>,
+        @Body override: Map<String, Any>,
     ): Call
 
     @PATCH("sync/courses/{courseId}/override")

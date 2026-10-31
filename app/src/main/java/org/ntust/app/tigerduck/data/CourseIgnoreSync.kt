@@ -22,7 +22,7 @@ import javax.inject.Singleton
 
 /** Sends one course's setting; see [PushApiClient.patchCourseIgnore]. */
 internal fun interface CourseIgnoreSender {
-    suspend fun send(moodleId: String, ignore: Boolean?, moodleCourseId: Int?): Boolean?
+    suspend fun send(moodleId: String, ignore: Boolean?, moodleCourseId: Int?, madeAtMs: Long?): Boolean?
 }
 
 /**
@@ -116,7 +116,7 @@ class CourseIgnoreSync internal constructor(
         onWritten: () -> Unit = {},
     ) {
         val generation = currentGeneration()
-        val change = PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, clock())
+        val change = clock().let { PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, it, madeAtMs = it) }
         val key = CourseIgnores.key(semester, courseNo)
         val written = mutex.withLock {
             val keys = dataCache.loadIgnoredCourses()
@@ -359,7 +359,7 @@ class CourseIgnoreSync internal constructor(
         }
         if (!current) return@withLock
         val stored = try {
-            sender.send(moodleId, change.ignore, change.moodleCourseId)
+            sender.send(moodleId, change.ignore, change.moodleCourseId, change.madeAtMs)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -410,7 +410,7 @@ class CourseIgnoreSync internal constructor(
             sendMutex.withLock {
                 if (generation != currentGeneration()) return
                 try {
-                    sender.send(o.moodleCourseId, null, numericId)
+                    sender.send(o.moodleCourseId, null, numericId, null)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -438,7 +438,7 @@ class CourseIgnoreSync internal constructor(
             moodleId = moodleId,
             moodleCourseId = serverRow?.moodleNumericCourseId ?: course?.moodleNumericCourseId,
             ignore = ignore,
-            changedAtMs = now,
+            changedAtMs = now, madeAtMs = now,
         )
     }
 
