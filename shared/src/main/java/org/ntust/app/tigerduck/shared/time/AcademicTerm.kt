@@ -32,6 +32,12 @@ value class AcademicTerm private constructor(val code: String) : Comparable<Acad
         else -> this
     }
 
+    // A year before 100 keeps the spelling it was read in, padded to three characters or not.
+    private fun of(year: Int, part: Char): AcademicTerm {
+        val padded = if (' ' in code && year < 100) "%02d ".format(year) else "%02d".format(year)
+        return AcademicTerm((if (year >= 100) "$year" else padded) + part)
+    }
+
     /** Year, then 1 before 2 before H. */
     override fun compareTo(other: AcademicTerm): Int {
         val byYear = year.compareTo(other.year)
@@ -39,16 +45,14 @@ value class AcademicTerm private constructor(val code: String) : Comparable<Acad
     }
 
     companion object {
-        private val FOUR = Regex("""(\d{3}|\d\d )([12H])""")
+        // A year before 100 is two digits, which the catalogue pads to three characters: `99 1`,
+        // and a transcript may leave bare: `991`. Years from 100 are three digits.
+        private val FOUR = Regex("""(\d{3}|\d\d ?)([12H])""")
 
         // The five-character spelling some score pages and fixtures use: year, a 0, the term digit.
         private val FIVE = Regex("""(\d{3})0([12])""")
 
         private fun rank(part: Char): Int = if (part == 'H') 3 else part - '0'
-
-        // The catalogue writes a year before 100 padded to three characters: `99 1`.
-        private fun of(year: Int, part: Char) =
-            AcademicTerm((if (year >= 100) "$year" else "%02d ".format(year)) + part)
 
         /**
          * The term [raw] names, trimmed and upper-cased, with `11402` read as `1142`; null for

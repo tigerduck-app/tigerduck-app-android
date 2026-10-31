@@ -31,7 +31,7 @@ class AcademicTermTest {
     @Test
     fun `parse of null, blanks and other shapes is null and never throws`() {
         assertNull(AcademicTerm.parse(null))
-        listOf("  ", "114", "11", "1143", "1140", "114A", "11403", "11411", "1141-2", "114-1", "202401", "114中", "١١٤1")
+        listOf("  ", "11", "114", "1143", "1140", "114A", "11403", "11411", "1141-2", "114-1", "202401", "114中", "١١٤1")
             .forEach { assertNull("'$it'", AcademicTerm.parse(it)) }
     }
 
@@ -41,6 +41,11 @@ class AcademicTermTest {
         assertEquals(99, old.year)
         assertEquals("99 1", old.code)
         assertTrue(old < AcademicTerm.parse("1001")!!)
+        // The transcript's bare spelling reads the same, and stepping back keeps whichever it was read in.
+        assertEquals(99, AcademicTerm.parse("991")!!.year)
+        assertTrue(AcademicTerm.parse("991")!! < AcademicTerm.parse("1001")!!)
+        assertEquals("98 2", old.previous().code)
+        assertEquals("982", AcademicTerm.parse("991")!!.previous().code)
     }
 
     @Test
