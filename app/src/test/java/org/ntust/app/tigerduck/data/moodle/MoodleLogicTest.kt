@@ -79,10 +79,10 @@ class MoodleLogicTest {
     @Test
     fun `a summary that only repeats the course's names or codes is not shown`() {
         val names = listOf("資料結構 Data Structures")
-        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "1151CS3005301", emptyList()), listOf("1151CS3005301")))
-        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "資料結構  data structures", names), emptyList()))
-        assertFalse("digits only", MoodleSections.isWorthShowing(MoodleCourseSummary("", "2026", emptyList()), emptyList()))
-        assertTrue(MoodleSections.isWorthShowing(MoodleCourseSummary("", "Weekly quizzes", names), listOf("CS3005301")))
+        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "1151CS3005301", emptyList(), null, null), listOf("1151CS3005301")))
+        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "資料結構  data structures", names, null, null), emptyList()))
+        assertFalse("digits only", MoodleSections.isWorthShowing(MoodleCourseSummary("", "2026", emptyList(), null, null), emptyList()))
+        assertTrue(MoodleSections.isWorthShowing(MoodleCourseSummary("", "Weekly quizzes", names, null, null), listOf("CS3005301")))
     }
 
     @Test
