@@ -47,6 +47,7 @@ import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -253,6 +254,13 @@ interface SchoolMailRepository {
 
     /** The mail screen became active again: cancels a pending idle close so the connection isn't dropped mid-visit. No-op in demo mode. */
     fun acquire()
+
+    /**
+     * Downloads mail for search now, as a pull to refresh asks: past the wait after a whole
+     * download that [acquire] keeps to, and without waiting for the background run's retry. No
+     * second one while one is under way, nor in demo mode or after a rejected password.
+     */
+    fun downloadNow()
 
     /**
      * Every write made through the repository, as it lands: what the message and compose screens
@@ -866,6 +874,9 @@ class MailRepository @Inject constructor(
      * list by its own poll, and a search catches up on it first.
      */
     private fun indexDue(): Boolean {
+        // A pull asked for one: whichever download takes the lock first, in the app or the
+        // background run, makes it.
+        if (downloadAsked.get()) return true
         val last = lastWhole ?: return true
         return !stillIndexOwner(last.owner) || last.gaps != gapsFound.get() || clock() - last.at >= INDEX_RESYNC_MS
     }
@@ -899,12 +910,15 @@ class MailRepository @Inject constructor(
             // came, and the run the search asked for was this one -- the background run's request
             // keeps the one already under way, and the download in the app runs one at a time.
             // Only for a gap found since the pass began, which only a search makes, so it ends.
+            // Again, too, for a pull made while a pass ran: that pass planned before the mail the
+            // pull asked for. Each pass begun is the one a pull before it asked for.
             var gaps: Int
             var through: Boolean
             do {
                 gaps = gapsFound.get()
+                downloadAsked.set(false)
                 through = downloadEveryFolder(owner, gaps, current)
-            } while (gapsFound.get() != gaps && current())
+            } while ((gapsFound.get() != gaps || downloadAsked.get()) && current())
             // Done only when the last pass got through and no search found a gap since: a pass
             // let go of before it ran again leaves mail missing, which the row keeps saying.
             if (through) clearProgress(owner, gaps)
@@ -1193,6 +1207,22 @@ class MailRepository @Inject constructor(
     override fun acquire() {
         if (account.isDemo) return
         holder.hold()
+        startDownload()
+    }
+
+    override fun downloadNow() {
+        if (account.isDemo) return
+        // Kept until a download begins, in the app or the background run, whichever takes the
+        // lock first: one under way already does not stand for it, as it planned before the pull.
+        downloadAsked.set(true)
+        startDownload()
+    }
+
+    // A pull's request for a download past the wait after a whole one; see [downloadNow].
+    private val downloadAsked = AtomicBoolean(false)
+
+    /** The download in the app, when [indexDue] says it is due. */
+    private fun startDownload() {
         // A rejected password downloads nothing until the student signs in again (spec §7.4).
         if (!indexDue() || state.authFailed) return
         // The mail screen is in use: whatever mail the phone lacks comes in now, here, rather than
