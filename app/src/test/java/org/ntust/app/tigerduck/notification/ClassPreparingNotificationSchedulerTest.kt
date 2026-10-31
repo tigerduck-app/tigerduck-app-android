@@ -14,6 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
+import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
 import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
@@ -93,7 +94,7 @@ class ClassPreparingNotificationSchedulerTest {
     }
 
     /** The term every day falls in with no calendar. */
-    private val noCalendarTerm = ClassPreparingNotificationScheduler.termOn(AcademicCalendar.EMPTY, LocalDate.now())
+    private val noCalendarTerm = SemesterCodes.termOn(AcademicCalendar.EMPTY, LocalDate.now())
 
     // One term ends on Friday 11 September 2026 and the next begins on the
     // Monday after, so the ten days from Wednesday the 9th reach into both.

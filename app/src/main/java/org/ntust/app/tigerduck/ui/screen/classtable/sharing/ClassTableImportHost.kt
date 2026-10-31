@@ -69,6 +69,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportModel.Prompt
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -471,10 +472,7 @@ internal fun importConfirmRows(
     formatTime: (Instant) -> String,
 ): List<ImportConfirmRow> = buildList {
     code.studentId?.let { add(ImportConfirmRow(R.string.sign_in_student_id, it)) }
-    add(ImportConfirmRow(R.string.class_table_semester_picker_label, joinList(code.terms.map { semesterLabel(it.semester) })))
+    add(ImportConfirmRow(R.string.class_table_semester_picker_label, joinList(code.terms.map { AcademicTerm.labelOf(it.semester) })))
     add(ImportConfirmRow(R.string.class_table_import_course_count, formatCount(code.terms.sumOf { it.courseNos.size })))
     code.sharedAt?.let { add(ImportConfirmRow(R.string.class_table_import_shared_at, formatTime(it))) }
 }
-
-/** `1151` as `115-1`, as the term picker shows it. */
-private fun semesterLabel(semester: String) = semester.dropLast(1) + "-" + semester.takeLast(1)

@@ -15,6 +15,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
+import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -106,7 +107,7 @@ class ClassPreparingNotificationReceiverTest {
     private fun armReminders(startedFor: String? = credentials.ntustStudentId) {
         ClassPreparingNotificationScheduler(context, storedStudentId = { credentials.ntustStudentId }).scheduleAll(
             coursesByTerm = mapOf(
-                ClassPreparingNotificationScheduler.termOn(AcademicCalendar.EMPTY, java.time.LocalDate.now())
+                SemesterCodes.termOn(AcademicCalendar.EMPTY, java.time.LocalDate.now())
                     to listOf(monday),
             ),
             skippedDates = emptyMap(),

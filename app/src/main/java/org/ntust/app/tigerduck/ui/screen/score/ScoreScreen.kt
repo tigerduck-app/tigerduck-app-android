@@ -224,13 +224,13 @@ private fun StudentHeaderCard(student: String, currentTerm: String) {
         }
     }
 }
-private fun formatCurrentTerm(pattern: String, code: String): String {
-    if (code.length != 4) return code
-    val year = code.take(3)
-    val label = when (val sem = code.last()) {
-        '1' -> "1"; '2' -> "2"; else -> sem.toString()
-    }
-    return pattern.format(year, label)
+/** A four-character term code as its year digits and its last character; null for any other length. */
+internal fun termYearAndPart(code: String): Pair<String, Char>? =
+    if (code.length != 4) null else code.take(3) to code.last()
+
+internal fun formatCurrentTerm(pattern: String, code: String): String {
+    val (year, part) = termYearAndPart(code) ?: return code
+    return pattern.format(year, part.toString())
 }
 
 // --- Credit summary ---
@@ -294,12 +294,11 @@ private fun CreditStat(label: String, value: Float, modifier: Modifier = Modifie
 // --- GPA trend ---
 @Composable
 internal fun displayTerm(code: String): String {
-    if (code.length != 4) return code
-    val year = code.take(3)
-    val label = when (val sem = code.last()) {
+    val (year, part) = termYearAndPart(code) ?: return code
+    val label = when (part) {
         '1' -> stringResource(R.string.score_semester_upper)
         '2' -> stringResource(R.string.score_semester_lower)
-        else -> sem.toString()
+        else -> part.toString()
     }
     return stringResource(R.string.score_academic_year_semester, year, label)
 }

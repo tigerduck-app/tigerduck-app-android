@@ -343,8 +343,7 @@ class DataCache @Inject constructor(
      * never reached the backend still has to open on something.
      */
     internal fun currentSemesterCode(): String =
-        academicCalendar.current().currentTerm(AppClock.localDateTime().toLocalDate())?.code
-            ?: SemesterCodes.heuristic()
+        SemesterCodes.termOn(academicCalendar.current(), AppClock.localDateTime().toLocalDate())
 
     // --- Assignments ---
 

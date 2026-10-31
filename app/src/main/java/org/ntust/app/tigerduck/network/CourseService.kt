@@ -422,10 +422,10 @@ class CourseService @Inject constructor(
      *  calendar. Falls back to [heuristicSemesterCode] while that is
      *  unknown. */
     fun currentSemesterCode(): String =
-        academicCalendar.current()
-            .currentTerm(org.ntust.app.tigerduck.shared.clock.AppClock.localDateTime().toLocalDate())
-            ?.code
-            ?: SemesterCodes.heuristic()
+        SemesterCodes.termOn(
+            academicCalendar.current(),
+            org.ntust.app.tigerduck.shared.clock.AppClock.localDateTime().toLocalDate(),
+        )
 
     /**
      * The month-based guess, used when the published calendar has not been

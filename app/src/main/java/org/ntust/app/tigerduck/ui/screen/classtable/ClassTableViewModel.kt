@@ -63,6 +63,7 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.review.ReviewPrompt
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
@@ -781,10 +782,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     /** Format semester code for display, e.g. "1142" → "114-2". */
-    fun displayLabel(code: String): String {
-        if (code.length < 2) return code
-        return code.dropLast(1) + "-" + code.last()
-    }
+    fun displayLabel(code: String): String = semesterDisplayLabel(code)
 
     fun setSemester(code: String) {
         val displayed = _displayed.value
@@ -2080,3 +2078,5 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 }
+
+internal fun semesterDisplayLabel(code: String) = if (code.length < 2) code else AcademicTerm.labelOf(code)

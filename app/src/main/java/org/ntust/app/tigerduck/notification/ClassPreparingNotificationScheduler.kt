@@ -61,7 +61,7 @@ class ClassPreparingNotificationScheduler internal constructor(
 
     /**
      * @param coursesByTerm each term's courses, by code: a day's reminders
-     *   come from the term [termOn] puts it in, and a day whose term is
+     *   come from the term [SemesterCodes.termOn] puts it in, and a day whose term is
      *   missing here gets none.
      * @param calendar the school calendar, used to skip days classes do not
      *   meet; [AcademicCalendar.EMPTY] suppresses nothing.
@@ -309,7 +309,7 @@ class ClassPreparingNotificationScheduler internal constructor(
             // 開學 while the term the app shows is still the last one, whose
             // classes, times and rooms are not the new term's. A term with
             // nothing cached arms nothing rather than borrow another's.
-            val term = termOn(calendar, date)
+            val term = SemesterCodes.termOn(calendar, date)
             val courses = coursesByTerm[term] ?: continue
             val isoDate = date.toString()
             // A meeting the school split arms each class of it that still
@@ -343,18 +343,10 @@ class ClassPreparingNotificationScheduler internal constructor(
         private const val DAYS_AHEAD = 10
 
         /**
-         * The term whose timetable [date]'s reminders come from: the one the
-         * calendar puts that day in. With no calendar, the month guess
-         * DataCache falls back on too, the same term for every day.
-         */
-        internal fun termOn(calendar: AcademicCalendar, date: LocalDate): String =
-            calendar.currentTerm(date)?.code ?: SemesterCodes.heuristic()
-
-        /**
          * The terms whose courses [scheduleAll] needs to arm the days ahead
-         * from [today]; see [termOn].
+         * from [today]; see [SemesterCodes.termOn].
          */
         internal fun termsAhead(calendar: AcademicCalendar, today: LocalDate): Set<String> =
-            (0 until DAYS_AHEAD).mapTo(linkedSetOf()) { termOn(calendar, today.plusDays(it.toLong())) }
+            (0 until DAYS_AHEAD).mapTo(linkedSetOf()) { SemesterCodes.termOn(calendar, today.plusDays(it.toLong())) }
     }
 }
