@@ -246,6 +246,8 @@ class SyncWiringTest {
         assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseOverrides", "CourseSyncReconciler.applyNameOverrides(")
         assertCalls("notification/BackgroundSyncWorker.kt", "applyCourseOverridesBackground", "CourseSyncReconciler.applyNameOverrides(")
         assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "CourseSyncReconciler.syncsCourseNames(")
+        // The cached courses are what the widgets read.
+        assertCalls("notification/BackgroundSyncWorker.kt", "applyCourseOverridesBackground", "CourseNameOverrides.stamp(")
     }
 
     /** tigerduck-app-android#404: the switches kept the set they were built with. */

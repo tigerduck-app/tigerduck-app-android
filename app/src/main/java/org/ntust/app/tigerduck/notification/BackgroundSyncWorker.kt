@@ -37,6 +37,8 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.ui.screen.home.BackgroundMarkStep
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
@@ -418,18 +420,32 @@ class BackgroundSyncWorker @AssistedInject constructor(
         syncColors: Boolean,
         syncNames: Boolean,
     ) {
-        val courses = dataCache.loadCourses().ifEmpty { return }
+        val cached = dataCache.loadCourses().ifEmpty { return }
         CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, held)
+        // The names reach the cached courses too, which the widgets read: one
+        // load and one save, so the colour pass below builds on them.
+        val courses = if (syncNames) {
+            CourseNameOverrides.stamp(
+                cached, dataCache.loadCourseCustomNames(),
+                AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
+            )
+        } else {
+            cached
+        }
         val outcome = CourseSyncReconciler.applyColorOverrides(
             courses = courses,
             overrides = overrides,
             syncColors = syncColors,
             held = held,
-        ) ?: return
-        dataCache.saveCourses(outcome.courses)
+        )
+        val updated = outcome?.courses ?: courses
+        if (updated == cached) return
+        dataCache.saveCourses(updated)
         widgetUpdater.requestUpdate()
-        sendMovedColors(outcome.courses, outcome.moved) { moodleId, hex ->
-            pendingCourseOverrides.send(moodleId, colorHex = hex)
+        outcome?.let {
+            sendMovedColors(updated, it.moved) { moodleId, hex ->
+                pendingCourseOverrides.send(moodleId, colorHex = hex)
+            }
         }
     }
 

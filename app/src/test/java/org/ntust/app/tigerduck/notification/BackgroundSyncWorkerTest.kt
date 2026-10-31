@@ -22,6 +22,8 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -440,5 +442,26 @@ class BackgroundSyncWorkerTest {
         )
 
         assertEquals(setOf(7), appPrefs.holidayNotifyOverrides)
+    }
+
+    private fun course(no: String, name: String) = Course(courseNo = no, courseName = name)
+
+    @Test
+    fun `a background sync's names reach the cached courses the widgets read, and a removed name clears`() = runTest {
+        val courses = listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms"))
+        suspend fun sync(names: Map<String, String>): List<Course> {
+            CourseSyncReconciler.applyNameOverrides(
+                cache, listOf(override("CS1001", names)), syncNames = true,
+            )
+            return CourseNameOverrides.stamp(courses, cache.loadCourseCustomNames(), "zh")
+        }
+
+        val named = sync(mapOf("zh" to "資結"))
+        assertEquals("資結", named.first { it.courseNo == "CS1001" }.displayName)
+        assertEquals("Algorithms", named.first { it.courseNo == "CS1002" }.displayName)
+
+        // The server clears it: an empty name.
+        val cleared = sync(mapOf("zh" to ""))
+        assertEquals("Data Structures", cleared.first { it.courseNo == "CS1001" }.displayName)
     }
 }
