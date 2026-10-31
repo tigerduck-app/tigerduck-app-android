@@ -15,14 +15,18 @@ class SessionNotForThisBackend : IOException("session not issued by this backend
  * setting, and a header taken after it, or the other way round, never meet.
  *
  * For the clients that take the session's header. The sign-out's unregister names its backend
- * and token itself, from the debt, and goes without it.
+ * and token itself, from the debt, and goes without it. A 401 is noted with the token it
+ * refused ([AuthTokenManager.noteRefused]).
  */
 class SessionHostGuard(private val authTokenManager: AuthTokenManager) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val token = request.header("Authorization")?.takeIf { it.startsWith(BEARER) }?.removePrefix(BEARER)
         if (token != null && !authTokenManager.mayPresent(token, request.url)) throw SessionNotForThisBackend()
-        return chain.proceed(request)
+        val response = chain.proceed(request)
+        // Which pair the backend refused, for a relogin to tell from one a newer pair has made moot.
+        if (token != null && response.code == 401) authTokenManager.noteRefused(token)
+        return response
     }
 
     private companion object {

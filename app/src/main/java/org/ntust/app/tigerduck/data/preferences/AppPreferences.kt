@@ -1023,6 +1023,18 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     }
 
     /**
+     * The course numbers of [semester]'s list [coursesUploadFingerprint] holds when it went as
+     * the term's roster, null when it went as none; see `PushApiClient.serverDropped`. Recorded
+     * with it, and forgotten with it.
+     */
+    fun coursesUploadRoster(semester: String): Set<String>? = prefs.getStringSet(COURSES_UPLOAD_ROSTER + semester, null)
+
+    fun recordCoursesUploadRoster(semester: String, roster: Collection<String>?) {
+        val key = COURSES_UPLOAD_ROSTER + semester
+        prefs.edit().apply { if (roster == null) remove(key) else putStringSet(key, roster.toSet()) }.apply()
+    }
+
+    /**
      * Forgets the course list the backend last accepted for [semester], or
      * for every term when null: a reset took it off the server, and the
      * upload after the reset, usually that same list, has to go.
@@ -1034,10 +1046,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     private fun SharedPreferences.Editor.removeCourseUploads(semester: String?): SharedPreferences.Editor {
         if (semester != null) {
             return remove(COURSES_UPLOAD_FINGERPRINT + semester).remove(COURSES_UPLOADED_AT + semester)
+                .remove(COURSES_UPLOAD_ROSTER + semester)
         }
         // The terms are not listed anywhere else; the keys are the list.
         prefs.all.keys
-            .filter { it.startsWith(COURSES_UPLOAD_FINGERPRINT) || it.startsWith(COURSES_UPLOADED_AT) }
+            .filter { key -> listOf(COURSES_UPLOAD_FINGERPRINT, COURSES_UPLOADED_AT, COURSES_UPLOAD_ROSTER).any(key::startsWith) }
             .forEach { remove(it) }
         return this
     }
@@ -1336,9 +1349,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         private const val PIN_TODAY_COURSES_ON_CLASS_TABLE = "pinTodayCoursesOnClassTable"
         private const val OUTLINE_REQUIRED_COURSES = "outlineRequiredCourses"
 
-        /** The course upload ledger's keys, one pair per term, the term after the colon; see [coursesUploadFingerprint]. */
+        /** The course upload ledger's keys, one set per term, the term after the colon; see [coursesUploadFingerprint]. */
         private const val COURSES_UPLOAD_FINGERPRINT = "coursesUploadFingerprint:"
         private const val COURSES_UPLOADED_AT = "coursesUploadedAtMs:"
+        private const val COURSES_UPLOAD_ROSTER = "coursesUploadRoster:"
 
         const val WHATS_NEW_UNSET = -1
         const val WHATS_NEW_REPLAY = 0

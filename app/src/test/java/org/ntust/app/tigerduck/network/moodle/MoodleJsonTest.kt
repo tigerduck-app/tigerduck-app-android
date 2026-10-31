@@ -111,12 +111,22 @@ class MoodleJsonTest {
     fun `the summary of the course asked about, or none`() {
         val answer = json(
             """{"courses":[{"id":5,"fullname":"Data Structures","shortname":"DS","idnumber":"1151CS3005301",
-                 "summary":"<p>Weekly <a href=\"/mod/page/view.php?id=1\">notes</a></p>"}]}""",
+                 "summary":"<p>Weekly <a href=\"/mod/page/view.php?id=1\">notes</a></p>",
+                 "format":"weeks","startdate":1788192000}]}""",
         )
         val summary = MoodleJson.summary(answer, courseId = 5)
         assertEquals("Weekly notes", summary.text)
         assertEquals(listOf("Data Structures", "DS", "1151CS3005301"), summary.names)
+        assertEquals("weeks", summary.format)
+        assertEquals(1788192000L, summary.startDate)
         assertEquals(MoodleCourseSummary.EMPTY, MoodleJson.summary(answer, courseId = 6))
+    }
+
+    @Test
+    fun `a summary without a format or start date has neither`() {
+        val summary = MoodleJson.summary(json("""{"courses":[{"id":5,"fullname":"Data Structures"}]}"""), courseId = 5)
+        assertNull(summary.format)
+        assertNull(summary.startDate)
     }
 
     @Test
@@ -172,7 +182,7 @@ class MoodleJsonTest {
         val materials = MoodleJson.materials(
             json(
                 """
-                [{"id":10,"name":"General","modules":[
+                [{"id":10,"name":"General","section":0,"modules":[
                    {"id":101,"instance":7,"modname":"resource","name":"Syllabus","contents":[
                      {"type":"file","filename":"syllabus.pdf","filepath":"/","filesize":10,
                       "fileurl":"https://moodle2.ntust.edu.tw/webservice/pluginfile.php/1/mod_resource/content/1/syllabus.pdf",
@@ -184,7 +194,7 @@ class MoodleJsonTest {
                      {"type":"url","filename":"Slides","fileurl":"https://slides.example.com/ds"}]},
                    {"id":104,"instance":10,"modname":"url","name":"Script","contents":[
                      {"type":"url","filename":"x","fileurl":"javascript:alert(1)"}]}]},
-                 {"id":11,"name":"<b>Week 1</b>","modules":[
+                 {"id":11,"name":"<b>Week 1</b>","section":1,"modules":[
                    {"id":105,"instance":11,"modname":"folder","name":"Labs","contents":[
                      {"type":"file","filename":"lab1.zip","filepath":"/a/","filesize":5,
                       "fileurl":"https://moodle2.ntust.edu.tw/webservice/pluginfile.php/2/mod_folder/content/0/a/lab1.zip"},
@@ -201,6 +211,7 @@ class MoodleJsonTest {
         )
         assertEquals(listOf(10, 11), materials.sections.map { it.id })
         assertEquals("Week 1", materials.sections[1].name)
+        assertEquals("Moodle's section numbers", listOf(0, 1), materials.sections.map { it.number })
         val general = materials.sections[0].materials
         assertEquals(listOf(101, 103), general.map { it.id })
         assertEquals("a resource shows its first file", listOf("syllabus.pdf"), general[0].files.map { it.name })
@@ -211,5 +222,19 @@ class MoodleJsonTest {
         assertEquals("folder", labs.module)
         assertEquals(listOf("/a/", "/b/"), labs.files.map { it.path })
         assertEquals("files and links, a folder by its files", 4, org.ntust.app.tigerduck.data.moodle.MoodleMaterials.count(materials))
+    }
+
+    @Test
+    fun `a section Moodle sends without its number has none`() {
+        val materials = MoodleJson.materials(
+            json(
+                """
+                [{"id":10,"name":"Week 1","modules":[
+                   {"id":103,"instance":9,"modname":"url","name":"Slides","contents":[
+                     {"type":"url","filename":"Slides","fileurl":"https://slides.example.com/ds"}]}]}]
+                """,
+            ),
+        )
+        assertNull(materials.sections.single().number)
     }
 }

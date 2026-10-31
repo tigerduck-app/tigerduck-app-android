@@ -5,8 +5,10 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.SavedStateHandle
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -52,6 +54,8 @@ class AnnouncementsSyncedAtTest {
     private val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
     private val cache = BulletinCache(context)
     private val credentials = testCredentials(context)
+    // The process's, for the tests of an endpoint move, which lets go of it.
+    private val repository = BulletinRepository()
 
     /** Whether the backend answers the list; the taxonomy it never answers, as the page allows. */
     @Volatile private var listAnswers = true
@@ -88,11 +92,12 @@ class AnnouncementsSyncedAtTest {
         }
         .build()
 
-    private fun viewModel(): AnnouncementsViewModel {
+    /** A page as the app builds one: [repository] is the process's, which an endpoint move lets go of. */
+    private fun viewModel(repository: BulletinRepository = BulletinRepository()): AnnouncementsViewModel {
         val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-test", Context.MODE_PRIVATE))
         val api = BulletinApiClient(client, prefs, AuthTokenManager(tokens, client, prefs, "device-1"))
         return AnnouncementsViewModel(
-            SavedStateHandle(), api, cache, BulletinRepository(), BulletinReadStateStore(context),
+            SavedStateHandle(), api, cache, repository, BulletinReadStateStore(context),
             testDemoAccount(context, prefs, cache), credentials, AppReturns(now = { 0L }, register = {}),
         )
     }
@@ -113,6 +118,16 @@ class AnnouncementsSyncedAtTest {
     private fun signOut() {
         credentials.signOutSchoolAccount()
         runBlocking { cache.clear() }
+    }
+
+    /**
+     * What [org.ntust.app.tigerduck.ui.screen.debug.EndpointChange] does to the bulletins when the
+     * API endpoint moves to [to]: stored first, then let go of, the files on [clearScope].
+     */
+    private fun moveEndpoint(to: String, clearScope: CoroutineScope? = null) {
+        prefs.announcementApiBaseUrlOverride = to
+        repository.forget()
+        if (clearScope != null) cache.clearIn(clearScope) else runBlocking { cache.clear() }
     }
 
     @Test
@@ -192,6 +207,109 @@ class AnnouncementsSyncedAtTest {
         assertEquals(listOf(1), vm.state.value.items.map { it.id })
         assertTrue(vm.state.value.syncedAtMs > 0L)
         assertEquals(listOf(1), runBlocking { cache.load() }.map { it.id })
+    }
+
+    /**
+     * A refresh still out when the API endpoint moves to another backend: the move lets go of the
+     * cached list, signed in or not, and the old backend's page that then arrives must not write
+     * it back, nor merge by id into the new backend's rows (#592).
+     */
+    @Test
+    fun `a refresh that returns after the endpoint moved writes neither the list nor the date`() {
+        val gate = CountDownLatch(1).also { listGates[FIRST] = it }
+        val vm = viewModel(repository)
+        vm.load()
+        eventually("the list is asked for") { listRequests.get() == 1 }
+
+        moveEndpoint("http://127.0.0.1:10/v3")
+        gate.countDown()
+
+        eventually("the page is dropped") { vm.state.value.loadState == LoadState.Idle }
+        assertTrue(vm.state.value.items.isEmpty())
+        assertTrue(runBlocking { cache.load() }.isEmpty())
+        assertEquals(0L, runBlocking { cache.loadFetchedAt() })
+
+        // The next visit lists the new backend's.
+        listGates.clear()
+        vm.load()
+        eventually("the next visit's refresh lands") { vm.state.value.loadState == LoadState.Loaded }
+        assertEquals(listOf(1), runBlocking { cache.load() }.map { it.id })
+    }
+
+    /**
+     * The page kept in memory, as when its tab is the first and so never leaves the back stack:
+     * a return after an endpoint move lists the new backend's, not the old one's still in memory.
+     */
+    @Test
+    fun `a return after the endpoint moved fetches the new backend's list`() {
+        val vm = viewModel(repository)
+        vm.load()
+        eventually("the first refresh lands") { vm.state.value.loadState == LoadState.Loaded }
+        assertEquals(1, listRequests.get())
+
+        moveEndpoint("http://127.0.0.1:10/v3")
+        vm.load()
+
+        eventually("the new backend is asked") { listRequests.get() == 2 }
+        eventually("its list lands") { vm.state.value.loadState == LoadState.Loaded }
+    }
+
+    /** There and back again: the page asked of the first backend is still the old list's. */
+    @Test
+    fun `a refresh that returns after the endpoint moved away and back writes nothing`() {
+        val gate = CountDownLatch(1).also { listGates[FIRST] = it }
+        val vm = viewModel(repository)
+        vm.load()
+        eventually("the list is asked for") { listRequests.get() == 1 }
+
+        moveEndpoint("http://127.0.0.1:10/v3")
+        moveEndpoint("http://127.0.0.1:9/v3")
+        gate.countDown()
+
+        eventually("the page is dropped") { vm.state.value.loadState == LoadState.Idle }
+        assertTrue(runBlocking { cache.load() }.isEmpty())
+    }
+
+    /**
+     * The move clears the files on the application scope. A visit that comes before that clear
+     * has run waits for it rather than open on the old backend's list.
+     */
+    @Test
+    fun `a visit before the move's clear has run does not open on the old list`() {
+        runBlocking { cache.save(listOf(bulletin(9))) }
+        val clearScope = TestScope()
+        moveEndpoint("http://127.0.0.1:10/v3", clearScope)
+
+        val vm = viewModel(repository)
+        vm.load()
+        main.dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(vm.state.value.items.isEmpty())
+
+        // The clear and the load each come back from the IO threads to their test dispatchers.
+        eventually("the new backend's list lands") {
+            clearScope.testScheduler.advanceUntilIdle()
+            main.dispatcher.scheduler.advanceUntilIdle()
+            vm.state.value.loadState == LoadState.Loaded
+        }
+        assertEquals(listOf(1), vm.state.value.items.map { it.id })
+    }
+
+    /** The old backend's departments are not the new one's: a selection kept would hide its bulletins. */
+    @Test
+    fun `a return after the endpoint moved drops the old backend's filters`() {
+        val vm = viewModel(repository)
+        vm.load()
+        eventually("the first refresh lands") { vm.state.value.loadState == LoadState.Loaded }
+        vm.setOrgFilter(setOf("old-org"))
+        vm.setTagFilter(setOf("old-tag"))
+
+        moveEndpoint("http://127.0.0.1:10/v3")
+        vm.load()
+
+        assertTrue(vm.state.value.selectedOrgs.isEmpty())
+        assertTrue(vm.state.value.selectedTags.isEmpty())
+        eventually("the new backend's list lands") { vm.state.value.loadState == LoadState.Loaded }
+        assertEquals(listOf(1), vm.state.value.displayed.map { it.id })
     }
 
     /** The walk through older pages behind a refresh writes the list too, and is dropped the same way. */

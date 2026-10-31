@@ -47,6 +47,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.SyncSource
+import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
@@ -121,6 +122,7 @@ class HomeBackendSync @Inject constructor(
     private val pendingCourseOverrides: PendingCourseOverrides,
     private val pendingHolidayOverrides: org.ntust.app.tigerduck.data.PendingHolidayOverrides,
     private val reenableCheck: ReenableCheck,
+    private val termCourseSync: TermCourseSync,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) {
 
@@ -245,6 +247,7 @@ class HomeBackendSync @Inject constructor(
                 pendingConflictCategories = prefs.pendingConflictCategories,
             )
             syncCourseList(result, syncCourses, courseSync)
+            if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)
             // Only what this sync took, and only for the account it was for:
             // recorded after a sign-out, it would mark the next account's
             // categories before their first sync.
@@ -330,6 +333,34 @@ class HomeBackendSync @Inject constructor(
             Log.w(TAG, "[Sync] override sync failed: ${e.logSummary()}")
         } finally {
             dataCache.endCourseSync(courseSync)
+        }
+    }
+
+    /**
+     * The terms the snapshot asks this account's roster of (`roster_requests`), answered from
+     * course selection; see [TermCourseSync.answerRosterRequests]. Launched, never awaited: the
+     * sync this refresh shows is done, and the school takes seconds. On the application scope,
+     * pinned to the data this sync began with, so a sign-out meanwhile drops what it writes, and
+     * to [signIn], the sign-in the snapshot was fetched as, whose token alone the roster goes with.
+     */
+    private suspend fun answerRosterRequests(requests: List<String>, signIn: Int) {
+        if (requests.isEmpty()) return
+        val studentId = authService.storedStudentId ?: return
+        val password = authService.storedPassword ?: return
+        val pinned = currentCoroutineContext()[DataCache.Generation] ?: return
+        appScope.launch(pinned) {
+            runCatching { termCourseSync.answerRosterRequests(requests, studentId, password, signIn) }
+                .onSuccess { asked ->
+                    // The open screens and the widget read the term again, as after the worker's sync.
+                    if (asked) {
+                        widgetUpdater.requestUpdate()
+                        dataCache.notifyBackgroundSyncComplete()
+                    }
+                }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "[Sync] roster request failed: ${e.logSummary()}")
+                }
         }
     }
 
@@ -533,7 +564,14 @@ class HomeBackendSync @Inject constructor(
                 pendingAddNos = pendingCourseAdds.waitingIn(semester),
                 selectionDroppedNos = selectionDropped[semester].orEmpty().toSet(),
                 restoredNos = restored,
+                // A course it listed since a roster dropped it elsewhere stays: see SelectionAnswer.listsSince.
+                answer = dataCache.selectionAnswerIn(semester),
+                fetchedAtMs = result.fetchedAtMs,
             )
+            // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
+            dataCache.recordServerDrops(semester, outcome.serverDrops)
+            // A roster from here that listed one goes again, unchanged or not.
+            pushApiClient.serverDropped(semester, outcome.serverDrops.keys)
             dataCache.restoredCoursesListed(semester, rowsBySemester[semester].orEmpty().map { it.courseNo }, result.fetchedAtMs)
             tombstones = outcome.tombstones
             if (outcome.serverKnownNos.isNotEmpty()) {
@@ -547,7 +585,13 @@ class HomeBackendSync @Inject constructor(
             if (outcome.merged.isNotEmpty()) {
                 Log.i(TAG, "[Sync] $semester: merged from server ${outcome.merged.map { it.courseNo }}")
             }
-            if (commitReconciledTerm(dataCache, courseSync, semester, read, tombstones, tombstoneNos, localCourses, pruned, outcome.merged, pendingCourseOverrides) &&
+            if (outcome.left.isNotEmpty()) {
+                Log.i(TAG, "[Sync] $semester: dropped merged copies left ${outcome.left.sorted()}")
+            }
+            if (commitReconciledTerm(
+                    dataCache, courseSync, semester, read, tombstones, tombstoneNos, localCourses, pruned, outcome.left,
+                    outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides,
+                ) &&
                 semester == currentSemester
             ) {
                 touchedCurrent = true
@@ -614,9 +658,13 @@ class HomeBackendSync @Inject constructor(
  * it changed, from [read], the hides it was handed, to [hides], the marks of those
  * [tombstoneNos], the course numbers its snapshot's tombstones name, hold let go of, and the
  * term's courses, without those it pruned from [localCourses], its own load ([kept] says which
- * stay, null when it pruned none), and with the rows it [merged] down. Each is applied to the
- * store as it stands, so a delete, a fetch or a hide lifted while the sync ran stays. Returns
- * whether it wrote the courses.
+ * stay, null when it pruned none), without the dropped courses it lets go with no hide ([left]),
+ * those still dropped as the commit finds the drop list and as [droppedOnServer], the snapshot's
+ * rows a roster dropped by when, says, but those the term's latest course selection answer, read
+ * here with when it arrived, listed since the drop (`SelectionAnswer.listsSince`), and with
+ * the rows it [merged] down that the drop list, as the commit finds it too, does not name, or that
+ * were added by hand ([handAdded]). Each is applied to the store as it stands, so a delete, a
+ * fetch or a hide lifted while the sync ran stays. Returns whether it wrote the courses.
  *
  * The hides first: the courses keep out every merged row the store hides when they are written,
  * and a course another device added back has its row merged and its hide lifted by the same
@@ -631,8 +679,8 @@ class HomeBackendSync @Inject constructor(
  * pruned for the older read: added back by hand, or brought back where the server is silent
  * (`DataCache.commitSyncHides`). Its hide not written, its row stays, as one whose hide was lifted.
  *
- * A course the commit takes out of the term, hidden since here or on another device, takes its
- * waiting colour and name in [overrides] with it, those set before the commit wrote the term:
+ * A course the commit takes out of the term, hidden since here or on another device, or dropped,
+ * takes its waiting colour and name in [overrides] with it, those set before the commit wrote the term:
  * a course put back meanwhile stays, and so does what waits for it. The two go together however
  * the sync is cancelled: a course gone with its changes left waiting would have them refused at
  * every sync, and given to it again if it came back.
@@ -646,20 +694,31 @@ internal suspend fun commitReconciledTerm(
     tombstoneNos: Set<String>,
     localCourses: List<Course>,
     kept: List<Course>?,
+    left: Set<String>,
+    droppedOnServer: Map<String, Long?>,
     merged: List<Course>,
+    handAdded: Set<String>,
     overrides: PendingCourseOverrides,
 ): Boolean {
     val newlyHidden = dataCache.commitSyncHides(semester, read, hides, tombstoneNos, courseSync)
-    if (kept == null && merged.isEmpty() && newlyHidden.isEmpty()) return false
+    if (kept == null && left.isEmpty() && merged.isEmpty() && newlyHidden.isEmpty()) return false
     withContext(NonCancellable) {
         val before = overrides.reserveVersion()
         var removed = emptyList<Course>()
         dataCache.updateCourses(semester) { current, hidden ->
-            CourseSyncReconciler.committedCourses(current, localCourses, kept ?: localCourses, merged, hidden, newlyHidden)
-                .also { committed ->
-                    val stays = committed.mapTo(mutableSetOf()) { it.courseNo }
-                    removed = current.filter { it.courseNo !in stays }
-                }
+            // Read with the term's courses: a fetch records its roster before it saves them, so
+            // a rebuild that saved since the reconcile has its drops in this read.
+            val droppedHere = if (left.isEmpty() && merged.isEmpty()) emptySet() else {
+                dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet()
+            }
+            val answer = if (left.isEmpty()) null else dataCache.selectionAnswerIn(semester)
+            CourseSyncReconciler.committedCourses(
+                current, localCourses, kept ?: localCourses, merged, hidden, newlyHidden, left, droppedHere, droppedOnServer,
+                handAdded, answer,
+            ).also { committed ->
+                val stays = committed.mapTo(mutableSetOf()) { it.courseNo }
+                removed = current.filter { it.courseNo !in stays }
+            }
         }
         overrides.forget(removed.mapNotNull { it.moodleIdNumber }, madeBefore = before)
     }

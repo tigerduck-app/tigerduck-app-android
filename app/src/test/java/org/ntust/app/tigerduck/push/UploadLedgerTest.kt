@@ -197,6 +197,24 @@ class UploadLedgerTest {
         )
     }
 
+    /**
+     * The roster flag is part of the list (iOS `UnchangedUploadTests.rosterTermsGoUpAndCount`): a
+     * term's courses sent once without it go again as its roster, unchanged or not.
+     */
+    @Test
+    fun `the same courses as a term's roster are another list than without`() {
+        val cs1 = Course(courseNo = "CS1", courseName = "CS1")
+
+        assertNotEquals(
+            courseUploadFingerprint(BACKEND, listOf(cs1), "1151"),
+            courseUploadFingerprint(BACKEND, listOf(cs1), "1151", rosterTerms = listOf("1151")),
+        )
+        assertEquals(
+            courseUploadFingerprint(BACKEND, listOf(cs1), "1151", rosterTerms = listOf("1151")),
+            courseUploadFingerprint(BACKEND, listOf(cs1), "1151", rosterTerms = listOf("1151")),
+        )
+    }
+
     @Test
     fun `a clock moved back past the last upload sends again`() {
         assertTrue(uploadIsDue("x", acceptedAtMs = 5_000L, fingerprint = "x", nowMs = 4_000L))

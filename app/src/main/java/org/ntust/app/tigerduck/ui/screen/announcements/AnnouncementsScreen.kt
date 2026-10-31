@@ -110,6 +110,8 @@ import kotlin.math.roundToInt
 fun AnnouncementsScreen(
     onOpenBulletin: (Int) -> Unit,
     onOpenSubscriptions: () -> Unit,
+    // The backend keeps bulletin subscriptions only for an account, so their settings need one.
+    signedIn: Boolean,
     viewModel: AnnouncementsViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(Unit) { viewModel.load() }
@@ -334,11 +336,13 @@ fun AnnouncementsScreen(
                                 contentDescription = null,
                             )
                         }
-                        IconButton(onClick = onOpenSubscriptions) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = stringResource(R.string.bulletin_notifications_title),
-                            )
+                        if (signedIn) {
+                            IconButton(onClick = onOpenSubscriptions) {
+                                Icon(
+                                    Icons.Filled.Settings,
+                                    contentDescription = stringResource(R.string.bulletin_notifications_title),
+                                )
+                            }
                         }
                     }
                     SearchDrawer(searchReveal) {

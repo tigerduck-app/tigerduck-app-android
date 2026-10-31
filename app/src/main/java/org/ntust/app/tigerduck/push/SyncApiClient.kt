@@ -63,7 +63,24 @@ data class ServerCourse(
      * `CourseIgnoreReconciler.recreated`. Null from a snapshot without it.
      */
     val id: Long? = null,
-)
+    /**
+     * Where the row came from: `user_added` for a course added by hand on
+     * some device. Null from a backend that does not send it.
+     */
+    val source: String? = null,
+    /**
+     * `enrolled`, or `dropped` once a roster upload stopped listing the
+     * course (backend 3.10.1). Null, from an older backend, counts as
+     * enrolled.
+     */
+    val enrollmentStatus: String? = null,
+) {
+    /** A roster upload dropped the course; see [enrollmentStatus]. */
+    val isDropped: Boolean get() = enrollmentStatus == "dropped"
+
+    /** Added by hand, here or on another device; see [source]. A roster never drops such a row. */
+    val isUserAdded: Boolean get() = source == "user_added"
+}
 
 data class CourseTombstone(
     val courseKey: String,
@@ -93,6 +110,11 @@ data class BackendSyncResult(
      * not the same as "the user has none", so the local set is left alone.
      */
     val holidayOverrides: Set<Int>? = null,
+    /**
+     * The terms the backend asks this account's roster of (backend 3.10.1): none of it arrived in
+     * a week. Empty from an older backend, which sends no `roster_requests`.
+     */
+    val rosterRequests: List<String> = emptyList(),
 )
 
 // The change feed's answer when the changes after the asked revision are gone.
@@ -183,7 +205,7 @@ class SyncApiClient @Inject constructor(
                 throw PushApiException("sync/full failed: HTTP ${response.code}")
             }
             val json = JSONObject(response.body.string())
-            parseFullSync(json).copy(fetchedAtMs = fetchedAtMs)
+            parseFullSync(json).copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))
         }
     }
 
@@ -230,35 +252,9 @@ class SyncApiClient @Inject constructor(
             for (i in 0 until coursesArr.length()) {
                 val c = coursesArr.getJSONObject(i)
                 val courseNo = nullStr(c, "course_no")
-                if (courseNo != null) {
-                    serverCourseNos.add(courseNo)
-                    val instructors = mutableListOf<String>()
-                    val instrArr = c.optJSONArray("instructors")
-                    if (instrArr != null) {
-                        for (j in 0 until instrArr.length()) {
-                            instrArr.optString(j)?.takeIf { it.isNotEmpty() }?.let { instructors.add(it) }
-                        }
-                    }
-                    val schedObj = c.optJSONObject("schedule_json")
-                    val schedStr = schedObj?.toString() ?: "{}"
-                    val cmapObj = c.optJSONObject("classroom_map")
-                    val cmapStr = cmapObj?.toString() ?: "{}"
-                    serverCourses.add(ServerCourse(
-                        courseNo = courseNo,
-                        courseName = nullStr(c, "course_name") ?: courseNo,
-                        semester = nullStr(c, "semester") ?: "",
-                        instructors = instructors,
-                        credits = c.optDouble("credits", 0.0).toFloat(),
-                        classroom = nullStr(c, "classroom") ?: "",
-                        enrolledCount = c.optInt("enrolled_count", 0),
-                        maxCount = c.optInt("max_count", 0),
-                        moodleId = nullStr(c, "moodle_id"),
-                        scheduleJson = schedStr,
-                        classroomMapJson = cmapStr,
-                        version = c.optInt("version", 1),
-                        updatedAt = nullStr(c, "updated_at"),
-                        id = serverCourseRowId(c),
-                    ))
+                parseServerCourse(c)?.let { course ->
+                    serverCourseNos.add(course.courseNo)
+                    serverCourses.add(course)
                 }
                 val mId = nullStr(c, "moodle_id") ?: continue
                 if (courseNo != null) {
@@ -324,6 +320,36 @@ class SyncApiClient @Inject constructor(
     }
 
     private fun nullStr(obj: JSONObject, key: String): String? = nullableString(obj, key)
+}
+
+/** One of the snapshot's `courses`, or null for a row without a `course_no`. */
+internal fun parseServerCourse(row: JSONObject): ServerCourse? {
+    val courseNo = nullableString(row, "course_no") ?: return null
+    val instructors = mutableListOf<String>()
+    val instrArr = row.optJSONArray("instructors")
+    if (instrArr != null) {
+        for (j in 0 until instrArr.length()) {
+            instrArr.optString(j)?.takeIf { it.isNotEmpty() }?.let { instructors.add(it) }
+        }
+    }
+    return ServerCourse(
+        courseNo = courseNo,
+        courseName = nullableString(row, "course_name") ?: courseNo,
+        semester = nullableString(row, "semester") ?: "",
+        instructors = instructors,
+        credits = row.optDouble("credits", 0.0).toFloat(),
+        classroom = nullableString(row, "classroom") ?: "",
+        enrolledCount = row.optInt("enrolled_count", 0),
+        maxCount = row.optInt("max_count", 0),
+        moodleId = nullableString(row, "moodle_id"),
+        scheduleJson = row.optJSONObject("schedule_json")?.toString() ?: "{}",
+        classroomMapJson = row.optJSONObject("classroom_map")?.toString() ?: "{}",
+        version = row.optInt("version", 1),
+        updatedAt = nullableString(row, "updated_at"),
+        id = serverCourseRowId(row),
+        source = nullableString(row, "source"),
+        enrollmentStatus = nullableString(row, "enrollment_status"),
+    )
 }
 
 /** A snapshot course row's `id`, or null when it has none. */

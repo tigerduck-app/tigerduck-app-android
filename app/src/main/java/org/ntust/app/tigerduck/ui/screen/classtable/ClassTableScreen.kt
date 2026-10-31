@@ -319,11 +319,7 @@ fun ClassTableScreen(
             ) {
                 PageHeader(title = stringResource(R.string.feature_class_table)) {
                     SyncStatusDot(
-                        servers = listOf(
-                            ServerKind.MOODLE,
-                            ServerKind.COURSE_SELECTION,
-                            ServerKind.BACKEND,
-                        ),
+                        servers = ServerKind.classTableSources,
                         isLoading = isLoading,
                         syncedAtMs = schoolDataSyncedAtMs,
                     )

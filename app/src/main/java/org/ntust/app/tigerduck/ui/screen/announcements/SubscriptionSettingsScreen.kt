@@ -42,6 +42,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.BuildConfig
@@ -79,9 +81,22 @@ private val isFdroidFlavor: Boolean
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionSettingsScreen(
+    signedIn: Boolean,
     onBack: () -> Unit,
     viewModel: SubscriptionSettingsViewModel = hiltViewModel(),
 ) {
+    // Signed out, here or on another tab while this page waited on the back stack: the rules
+    // were the account's, and the backend keeps none without one. Closed once the page is
+    // resumed, so on top: composed as a predictive back gesture's preview, under the page still
+    // current, it is not, and closing then would pop that page instead.
+    if (!signedIn) {
+        val close by rememberUpdatedState(onBack)
+        LifecycleResumeEffect(Unit) {
+            close()
+            onPauseOrDispose { }
+        }
+        return
+    }
     val state by viewModel.state.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<EditingTarget?>(null) }
 

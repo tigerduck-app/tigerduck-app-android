@@ -100,14 +100,41 @@ class BulletinRepository @Inject constructor() {
 
     /**
      * Cache-or-fetch with exclusive cold-start serialization: if [fetcher]
-     * returns null (network failure) the cache stays empty and the next caller
+     * returns null (network failure), or an endpoint move ([forget]) came while
+     * it ran, the cache stays empty, null is returned, and the next caller
      * retries. Double-checks inside the lock so a single fetcher fires across
      * concurrent ViewModels.
      */
     suspend fun getOrFetchTaxonomy(fetcher: suspend () -> TaxonomyResponse?): TaxonomyResponse? {
         taxonomyValue?.let { return it }
         return taxonomyMutex.withLock {
-            taxonomyValue ?: fetcher()?.also { taxonomyValue = it }
+            taxonomyValue?.let { return@withLock it }
+            val asked = generation
+            val fetched = fetcher() ?: return@withLock null
+            // An endpoint move during the fetch: the answer is the old backend's.
+            synchronized(this) { fetched.takeIf { generation == asked }?.also { taxonomyValue = it } }
         }
+    }
+
+    /**
+     * Moved by each [forget]. What was fetched for an earlier value is the old backend's, and
+     * whoever fetched it drops it rather than keep it here, on disk or on screen.
+     */
+    @Volatile
+    var generation: Int = 0
+        private set
+
+    /**
+     * Lets go of everything here, for an API endpoint move: the bulletins, their list session and
+     * the departments and categories all came from the backend the app no longer talks to.
+     */
+    @Synchronized
+    fun forget() {
+        generation++
+        summaries.clear()
+        listSummaries.clear()
+        details.clear()
+        listSession = null
+        taxonomyValue = null
     }
 }

@@ -20,28 +20,24 @@ import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 object CourseRosterMerge {
 
     /**
-     * The course numbers a term renders, in source priority order, deduped.
+     * The courses whose Moodle assignments a fetch asks for, in source
+     * priority order, deduped. No longer a term's roster: Moodle keeps an
+     * enrollment after the student drops the class, so it adds no course to
+     * any term, and a term course selection gives nothing for takes its
+     * courses from the transcript (tigerduck-app#890; see
+     * [TranscriptTerms.termCourseNos]).
      *
-     * **A non-empty 選課 answer owns its term outright.** Moodle keeps an
-     * enrolment after the student drops the class and gains one only once
-     * the teacher opens the course, so during 加退選 the two disagree in both
-     * directions: a dropped course lingers there for days, and a just-added
-     * one is missing. Letting Moodle top up the roster put the dropped course
-     * back on the timetable — which is why it no longer does. A course 選課
-     * lists but Moodle has not caught up with still renders; it simply has no
-     * Moodle link until the binding resolves.
+     * **A non-empty 選課 answer owns its term outright.** During 加退選 the
+     * two disagree in both directions: a dropped course lingers on Moodle for
+     * days, and a just-added one is missing until the teacher opens it.
      *
      * [selectionCourseNos] is null when the scrape failed and empty when 選課
      * serves another term or the page yielded nothing. Both mean the same
-     * thing here — **Moodle is the source** — because the scrape is a regex
-     * over HTML, and a layout change returns zero matches rather than an
-     * error. "Everything was dropped" and "the parser broke" are
-     * indistinguishable, and only one of them may blank a timetable.
-     *
-     * Matches iOS `AppServiceBridge.enrolledCourseNos`, minus its transcript
-     * source, which Android has no equivalent of.
+     * thing here — **every Moodle course of the term** — because the scrape
+     * is a regex over HTML, and a layout change returns zero matches rather
+     * than an error.
      */
-    fun rosterOrder(
+    fun assignmentCourseNos(
         selectionCourseNos: List<String>?,
         moodleForSemester: List<MoodleEnrolledCourse>,
     ): List<String> {
@@ -70,16 +66,21 @@ object CourseRosterMerge {
      * Anything 選課 lists again is cleared, so re-adding a course in 加退選
      * brings it straight back.
      *
-     * Call only with a non-empty [roster]: an empty answer means the scrape
+     * An empty [roster] records nothing: an empty answer means the scrape
      * was not consulted or the page drifted, and would read as "everything
-     * was dropped". See [rosterOrder].
+     * was dropped". See [assignmentCourseNos]. Unless [isFinal], an ended term's
+     * transcript, which may list no class at all; see
+     * [DataCache.recordFinalRoster][org.ntust.app.tigerduck.data.cache.DataCache.recordFinalRoster].
+     *
+     * As iOS `AppServiceBridge.selectionDrops`.
      */
     fun selectionDrops(
         previous: Set<String>,
         localPortalNos: List<String>,
         roster: List<String>,
+        isFinal: Boolean = false,
     ): Set<String> {
-        if (roster.isEmpty()) return previous
+        if (roster.isEmpty() && !isFinal) return previous
         val enrolled = roster.toSet()
         return (previous + localPortalNos).filterNot { it in enrolled }.toSet()
     }

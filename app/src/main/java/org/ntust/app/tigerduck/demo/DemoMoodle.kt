@@ -195,7 +195,7 @@ object DemoMoodleFixture {
             }
         }
         if (materials.isEmpty()) return null
-        return MoodleMaterialSection(id, localized(o, "name", lang), materials)
+        return MoodleMaterialSection(id, localized(o, "name", lang), materials, null)
     }
 
     /**
@@ -491,6 +491,8 @@ class DemoMoodleCourseApi(
             html = course.summaryHtml,
             text = MoodleHtmlText.plainText(course.summaryHtml),
             names = listOf(course.fullname).filter { it.isNotEmpty() },
+            format = null,
+            startDate = null,
         )
     }
 
