@@ -970,6 +970,19 @@ class ClassTableViewModel @Inject constructor(
         return lookupMoodleCourseId(idnumber)
     }
 
+    /** The term the selected course is shown from, for its syllabus; see [moodleCourseIdFor]. */
+    val selectedCourseTerm: String
+        get() = selectedCourseSemester ?: _currentSemester.value
+
+    /**
+     * [course]'s syllabus in [semester] from the school's course query, public as it is; null
+     * when it has none, or no course number to ask by. Throws when it cannot be fetched.
+     */
+    suspend fun syllabusFor(course: Course, semester: String): org.ntust.app.tigerduck.network.CourseSyllabus? {
+        if (semester.isBlank() || course.courseNo.isBlank()) return null
+        return courseService.syllabus(semester, course.courseNo)
+    }
+
     /** Normalised on both sides: see [MoodleCourseIds.normalizedIdnumber]. */
     private fun lookupMoodleCourseId(idnumber: String): Int? =
         _moodleCourseIdByIdnumber.value[MoodleCourseIds.normalizedIdnumber(idnumber)]
