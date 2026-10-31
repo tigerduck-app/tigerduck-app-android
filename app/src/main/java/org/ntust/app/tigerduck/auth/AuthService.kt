@@ -76,6 +76,9 @@ class AuthService @Inject constructor(
      */
     private val demoMode = demoAccount.isActive
 
+    /** Whether the demo account is the session, read now; it has no stored student ID. */
+    val isDemoSession: Boolean get() = demoAccount.isActive
+
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
 

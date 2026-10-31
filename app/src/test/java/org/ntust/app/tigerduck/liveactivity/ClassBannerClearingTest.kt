@@ -121,6 +121,7 @@ class ClassBannerClearingTest {
         academicCalendar = calendarStore,
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = scope,
+        isDemoSession = { true },
     )
 
     /** When the Live Update's wake-up alarm, the one that brings a refresh, is set for. */

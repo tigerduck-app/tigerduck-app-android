@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -90,6 +91,8 @@ class LiveActivityManagerTest {
     private val alarms = FakeClassReminderAlarms()
     private val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher())
     private var signedIn = true
+    private var storedId: String? = "B00015999"
+    private var demoSession = false
 
     private val course = Course(courseNo = "CS3005301", courseName = "Data Structures", scheduleJson = """{"1":["2","3"]}""")
 
@@ -103,6 +106,8 @@ class LiveActivityManagerTest {
         academicCalendar = calendar,
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = scope,
+        storedStudentId = { storedId },
+        isDemoSession = { demoSession },
     )
 
     private val manager = managerWith(calendar)
@@ -158,6 +163,29 @@ class LiveActivityManagerTest {
 
         assertNull(alarms.armedLeadSec)
         assertTrue(alarms.cancels > 0)
+    }
+
+    @Test
+    fun `signed in with the stored student ID already cleared arms nothing`() {
+        // logout clears the ID a moment before it lowers authState.
+        storedId = null
+        appPrefs.classReminderEnabled = true
+
+        refresh()
+
+        assertNull(alarms.armedLeadSec)
+        assertTrue(alarms.cancels > 0)
+    }
+
+    @Test
+    fun `the demo account, which has no stored student ID, still arms`() {
+        storedId = null
+        demoSession = true
+        appPrefs.classReminderEnabled = true
+
+        refresh()
+
+        assertNotNull(alarms.armedLeadSec)
     }
 
     @Test
@@ -298,6 +326,8 @@ class LiveActivityManagerTest {
             appScope = liveScope,
             courseChanges = { feed.value },
             courseChangesUpdated = feed,
+            // No account: the real scheduler here reads none either.
+            isDemoSession = { true },
         ).also {
             runBlocking { it.refreshAndWait() }
             // Past the feed it starts with, so the next one is a change.

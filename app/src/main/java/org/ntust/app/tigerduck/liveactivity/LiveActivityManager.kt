@@ -55,6 +55,7 @@ class LiveActivityManager internal constructor(
     private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
     private val courseChangesUpdated: Flow<CourseChanges> = emptyFlow(),
     private val storedStudentId: () -> String? = { null },
+    private val isDemoSession: () -> Boolean = { false },
 ) {
     // The real entry point, which Hilt calls. The primary constructor takes
     // the sign-in state and the class reminder alarms as plain types, so
@@ -88,6 +89,7 @@ class LiveActivityManager internal constructor(
         // on the app's scope, not as the manager is injected on the main thread.
         courseChangesUpdated = flow { emitAll(courseChangeStore.changes) },
         storedStudentId = { authService.storedStudentId },
+        isDemoSession = { authService.isDemoSession },
     )
 
     private val resolver = LiveActivityResolver()
@@ -165,8 +167,11 @@ class LiveActivityManager internal constructor(
         // The cookie jar is in-memory, so gating on it stopped the Live Update
         // after every reboot or background kill until the user signed in again.
         val signedIn = isSignedIn()
-        // Before anything is loaded: the account the courses read below belong to.
+        // Before anything is loaded: the account the courses read below belong to. Read with the
+        // sign-in state: logout clears the stored ID a moment before it lowers authState, and a
+        // refresh in that gap sees both "signed in" and no ID.
         val startedFor = storedStudentId()
+        val leaving = signedIn && startedFor == null && !isDemoSession()
         // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
         // the timetable weeks ahead of the term, so having courses is not
         // evidence that classes have started. Neither the chip nor the
@@ -182,7 +187,7 @@ class LiveActivityManager internal constructor(
 
         // Before the Live Update's own gate: class reminders have a switch of
         // their own and no longer stop with the Live Update.
-        val remindersWake = armClassReminders(signedIn, skipped, calendar, optedIn, startedFor)
+        val remindersWake = armClassReminders(signedIn, leaving, skipped, calendar, optedIn, startedFor)
         // And whatever the Live Update shows: with a due-soon assignment
         // shown first, the switch to "in class" that cleared these may never
         // come. The boundary alarm at class start brings a refresh here,
@@ -257,6 +262,7 @@ class LiveActivityManager internal constructor(
      */
     private suspend fun armClassReminders(
         signedIn: Boolean,
+        leaving: Boolean,
         skipped: Map<String, List<String>>,
         calendar: org.ntust.app.tigerduck.academic.AcademicCalendar,
         optedIn: Set<Int>,
@@ -264,7 +270,9 @@ class LiveActivityManager internal constructor(
     ): Long? {
         val settings = ClassReminderSettings(appPrefs.classReminderEnabled, appPrefs.classReminderLeadMinutes)
         val leadSec = ClassReminders.leadSecondsToArm(settings, signedIn)
-        if (leadSec == null) {
+        // Signed in with no student ID, and not the demo account: a sign-out under way. Alarms
+        // armed now would carry no student, and the receiver could not tell whose they are.
+        if (leadSec == null || leaving) {
             classPreparingScheduler.cancelAllTracked()
             return null
         }

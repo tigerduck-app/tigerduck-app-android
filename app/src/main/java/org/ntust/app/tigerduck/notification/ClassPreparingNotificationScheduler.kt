@@ -80,11 +80,12 @@ class ClassPreparingNotificationScheduler internal constructor(
         // looks up the same code each alarm was originally registered with.
         // Previously we hashed slotId into the requestCode, which could collide
         // across two different slots and silently overwrite the earlier alarm.
+        // Before the cancel: if the account cannot be read, the reminders already armed stay.
+        val armedFor = runCatching { storedStudentId() }.getOrElse { return@synchronized null }
         val codeMap = loadCodeMap()
         cancelAllTrackedLocked(codeMap)
         // The courses are from the student the refresh began under; if another account is stored
         // now, they would be armed for someone else, or tagged with the wrong student.
-        val armedFor = storedStudentId()
         if (armedFor != startedFor) return@synchronized null
         if (leadTimeSec <= 0) return@synchronized null
         if (coursesByTerm.values.all { it.isEmpty() }) {

@@ -180,5 +180,24 @@ class ClassPreparingNotificationReceiverTest {
         assertEquals(0, alarmsArmed())
     }
 
+    @Test
+    fun `an account that cannot be read keeps the reminders already armed`() {
+        credentials.ntustStudentId = "B00015999"
+        armReminders()
+        val armedBefore = alarmsArmed()
+
+        ClassPreparingNotificationScheduler(context, storedStudentId = { error("keystore unavailable") }).scheduleAll(
+            coursesByTerm = emptyMap(),
+            skippedDates = emptyMap(),
+            leadTimeSec = 600,
+            calendar = AcademicCalendar.EMPTY,
+            optedInHolidayIds = emptySet(),
+            startedFor = "B00015999",
+        )
+
+        assertEquals(true, armedBefore > 0)
+        assertEquals(armedBefore, alarmsArmed())
+    }
+
     private fun alarmsArmed() = shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.size
 }
