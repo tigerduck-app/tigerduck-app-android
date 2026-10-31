@@ -199,7 +199,7 @@ class TermCodeCharacterizationTest {
     }
 
     @Test
-    fun `ImportedPerson semesters newest first by plain string sort`() {
+    fun `ImportedPerson semesters newest first`() {
         val person = ImportedPerson(
             id = "p", studentId = null, nickname = "n", importedAt = Instant.EPOCH, sharedAt = null,
             terms = listOf("1141", "1142", "114H", "113H", "1131", "114A", "1143").map {
