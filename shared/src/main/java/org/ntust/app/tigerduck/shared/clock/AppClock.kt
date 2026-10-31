@@ -92,4 +92,7 @@ object AppClock {
     }
 
     fun currentOverride(): ClockOverride? = override
+
+    /** True while an override holds the clock still, so [nowMillis] only changes when it is set again. */
+    fun isFrozen(): Boolean = override?.frozen == true
 }

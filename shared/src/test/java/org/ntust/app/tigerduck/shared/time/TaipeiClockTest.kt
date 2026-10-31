@@ -72,4 +72,52 @@ class TaipeiClockTest {
         assertEquals(91, seen[1].hour * 60 + seen[1].minute)
         job.cancel()
     }
+
+    @Test
+    fun `a clock frozen just before a boundary emits once and then waits for a change`() = runTest(UnconfinedTestDispatcher()) {
+        freeze("2026-11-01T02:30:59.999Z")
+        val seen = mutableListOf<ZonedDateTime>()
+        val job = launch { TaipeiClock.minuteTicks().toList(seen) }
+        assertEquals(1, seen.size)
+
+        testScheduler.advanceTimeBy(10 * 60_000L)
+        testScheduler.runCurrent()
+        assertEquals(1, seen.size)
+
+        freeze("2026-11-01T02:31:30Z")
+        assertEquals(2, seen.size)
+        job.cancel()
+    }
+
+    @Test
+    fun `a boundary crossed between the emit and the deadline still ticks`() = runTest(UnconfinedTestDispatcher()) {
+        val base = Instant.parse("2026-11-01T02:30:59.999Z").toEpochMilli()
+        var reads = 0
+        // The first read is 10:30:59.999 and every later one is 10:31:00.000.
+        val clock = { if (reads++ == 0) base else base + 1 }
+        val seen = mutableListOf<ZonedDateTime>()
+        val job = launch { TaipeiClock.minuteTicks(clock, { false }).toList(seen) }
+        assertEquals(10 * 60 + 31, seen[1].hour * 60 + seen[1].minute)
+        assertEquals(10 * 60 + 30, seen[0].hour * 60 + seen[0].minute)
+        job.cancel()
+    }
+
+    @Test
+    fun `a running clock ticks at each minute boundary`() = runTest(UnconfinedTestDispatcher()) {
+        val base = Instant.parse("2026-11-01T02:30:30Z").toEpochMilli()
+        val seen = mutableListOf<ZonedDateTime>()
+        val job = launch {
+            TaipeiClock.minuteTicks({ base + testScheduler.currentTime }, { false }).toList(seen)
+        }
+        assertEquals(1, seen.size)
+        testScheduler.advanceTimeBy(29_999L)
+        assertEquals(1, seen.size)
+        testScheduler.advanceTimeBy(1L)
+        testScheduler.runCurrent()
+        assertEquals(2, seen.size)
+        testScheduler.advanceTimeBy(60_000L)
+        testScheduler.runCurrent()
+        assertEquals(3, seen.size)
+        job.cancel()
+    }
 }

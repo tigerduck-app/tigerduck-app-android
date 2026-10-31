@@ -38,16 +38,28 @@ object TaipeiClock {
      * override changes (the debug clock is set, moved or cleared) it emits at
      * once and re-aligns to the new time's next boundary.
      */
-    fun minuteTicks(): Flow<ZonedDateTime> = channelFlow {
+    fun minuteTicks(): Flow<ZonedDateTime> = minuteTicks(AppClock::nowMillis, AppClock::isFrozen)
+
+    /** The seam for tests: the clock and its frozen state are passed in. */
+    internal fun minuteTicks(nowMillis: () -> Long, isFrozen: () -> Boolean): Flow<ZonedDateTime> = channelFlow {
         val changed = Channel<Unit>(Channel.CONFLATED)
         val listener: (Long) -> Unit = { changed.trySend(Unit) }
         // Registered before the first emit, so a change right after it is not lost.
         AppClock.addOverrideListener(listener)
         try {
             while (true) {
-                send(now())
-                val untilNextMinute = MINUTE_MS - AppClock.nowMillis().mod(MINUTE_MS)
-                withTimeoutOrNull(untilNextMinute) { changed.receive() }
+                // One reading per tick: the emitted time and the deadline come from it, so a
+                // boundary crossed meanwhile is caught by the next pass instead of skipped.
+                val at = nowMillis()
+                send(Instant.ofEpochMilli(at).atZone(zone))
+                val deadline = (at.floorDiv(MINUTE_MS) + 1) * MINUTE_MS
+                if (isFrozen()) {
+                    // A frozen clock never reaches the deadline; only a new override moves it.
+                    changed.receive()
+                } else {
+                    val remaining = deadline - nowMillis()
+                    if (remaining > 0) withTimeoutOrNull(remaining) { changed.receive() }
+                }
             }
         } finally {
             AppClock.removeOverrideListener(listener)
