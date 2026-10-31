@@ -156,11 +156,6 @@ object CourseMeetings {
         }
     }
 
-    /** The classes running at [now] as the school changed them; a cancelled one is not running. */
-    fun ongoingClasses(courses: List<Course>, now: Instant, changes: CourseChanges): List<ClassSlot> =
-        buildSlots(courses, now.atZone(TaipeiClock.zone).toLocalDate(), changes)
-            .filter { !it.isCancelled && it.startsAt <= now && now < it.endsAt }
-
     private class Meeting(
         val course: Course,
         val date: LocalDate,
