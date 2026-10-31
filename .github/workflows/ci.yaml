@@ -161,3 +161,12 @@ jobs:
 
       - name: Check the tree against the baseline
         run: python3 tools/guardrails/check_guardrails.py
+
+      # A PR could raise baseline.json to make its own offenses pass, so the
+      # baseline is also held to the target branch's: it may only shrink.
+      - name: Check the baseline against the target branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          python3 tools/guardrails/check_guardrails.py --against-ref "origin/$BASE_REF"

@@ -17,13 +17,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/MainActivity.kt",
     "kind": "long-function",
-    "name": "onCreate",
+    "name": "MainActivity.onCreate(Bundle?)",
     "lines": 193
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt",
     "kind": "long-function",
-    "name": "onCreate",
+    "name": "TigerDuckApp.onCreate()",
     "lines": 133
   },
   {
@@ -34,13 +34,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-function",
-    "name": "login",
+    "name": "AuthService.login(String, String)",
     "lines": 89
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-function",
-    "name": "logout",
+    "name": "AuthService.logout()",
     "lines": 81
   },
   {
@@ -91,7 +91,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/sharing/PackedClassTableCode.kt",
     "kind": "long-function",
-    "name": "decode",
+    "name": "PackedClassTableCode.decode(String)",
     "lines": 105
   },
   {
@@ -127,7 +127,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
     "kind": "long-function",
-    "name": "refreshLocked",
+    "name": "LiveActivityManager.refreshLocked(Boolean)",
     "lines": 84
   },
   {
@@ -138,7 +138,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityNotifier.kt",
     "kind": "long-function",
-    "name": "apply",
+    "name": "LiveActivityNotifier.apply(LiveActivitySnapshot?, Boolean)",
     "lines": 159
   },
   {
@@ -164,13 +164,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/sync/MailChecker.kt",
     "kind": "long-function",
-    "name": "run",
+    "name": "MailChecker.run(CheckSource)",
     "lines": 90
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/CalendarService.kt",
     "kind": "long-function",
-    "name": "parseICS",
+    "name": "CalendarService.parseICS(String)",
     "lines": 93
   },
   {
@@ -191,7 +191,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleService.kt",
     "kind": "long-function",
-    "name": "fetchAssignments",
+    "name": "MoodleService.fetchAssignments(List<MoodleEnrolledCourse>, Set<String>?)",
     "lines": 87
   },
   {
@@ -202,13 +202,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleTokenService.kt",
     "kind": "long-function",
-    "name": "walkOidc",
+    "name": "MoodleTokenService.walkOidc(OkHttpClient, String, HttpUrl, String, String, PasswordPosting, Int, (html:String,url:HttpUrl)->T?)",
     "lines": 108
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/SsoLoginService.kt",
     "kind": "long-function",
-    "name": "logIn",
+    "name": "SsoLoginService.logIn(String, String, String, Boolean, (()->Unit)?)",
     "lines": 92
   },
   {
@@ -224,25 +224,25 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
-    "name": "doWork",
+    "name": "BackgroundSyncWorker.doWork()",
     "lines": 83
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
-    "name": "syncOverridesFromBackend",
+    "name": "BackgroundSyncWorker.syncOverridesFromBackend()",
     "lines": 102
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",
     "kind": "long-function",
-    "name": "scheduleAll",
+    "name": "ClassPreparingNotificationScheduler.scheduleAll(Map<String,List<Course>>, Map<String,List<String>>, Long, AcademicCalendar, Set<Int>)",
     "lines": 110
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/NotificationChannels.kt",
     "kind": "long-function",
-    "name": "registerAll",
+    "name": "NotificationChannels.registerAll(Context, String)",
     "lines": 83
   },
   {
@@ -253,7 +253,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/TermCourseSync.kt",
     "kind": "long-function",
-    "name": "sync",
+    "name": "TermCourseSync.sync(String, String, String, Boolean, Int)",
     "lines": 120
   },
   {
@@ -264,7 +264,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/NotificationSettingsSync.kt",
     "kind": "long-function",
-    "name": "pullNow",
+    "name": "NotificationSettingsSync.pullNow(Long?)",
     "lines": 103
   },
   {
@@ -290,7 +290,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
     "kind": "long-function",
-    "name": "registerWith",
+    "name": "PushRegistrationService.registerWith(String?)",
     "lines": 91
   },
   {
@@ -301,7 +301,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/SyncApiClient.kt",
     "kind": "long-function",
-    "name": "parseFullSync",
+    "name": "SyncApiClient.parseFullSync(JSONObject)",
     "lines": 95
   },
   {
@@ -312,13 +312,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/AssignmentItem.kt",
     "kind": "long-function",
-    "name": "AssignmentItem",
+    "name": "AssignmentItem(Assignment, Modifier, Course?, Boolean, Boolean, Boolean, (()->Unit)?)",
     "lines": 83
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/AssignmentItem.kt",
     "kind": "long-function",
-    "name": "AssignmentTrailing",
+    "name": "AssignmentTrailing(Assignment, AssignmentStatus, Boolean, Boolean, Boolean, Long, Alignment.Horizontal)",
     "lines": 81
   },
   {
@@ -329,31 +329,31 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ColorPickerSheet.kt",
     "kind": "long-function",
-    "name": "ColorPickerSheet",
+    "name": "ColorPickerSheet(String, Color, List<Color>, Set<Int>, (Color)->Unit, ()->Unit)",
     "lines": 200
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ConflictLShape.kt",
     "kind": "long-function",
-    "name": "gammaPath",
+    "name": "ConflictLShape.gammaPath(Float, Float, Float, Float, Float, Float, Boolean, Boolean)",
     "lines": 121
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ConflictLShape.kt",
     "kind": "long-function",
-    "name": "mirrorLPath",
+    "name": "ConflictLShape.mirrorLPath(Float, Float, Float, Float, Float, Float, Boolean, Boolean)",
     "lines": 124
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/CourseCard.kt",
     "kind": "long-function",
-    "name": "CourseCard",
+    "name": "CourseCard(Course, String?, Boolean, Boolean, Int?, List<String>?, ClassSlot?, ()->Unit, Modifier)",
     "lines": 92
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/CourseCard.kt",
     "kind": "long-function",
-    "name": "CurrentClassCard",
+    "name": "CurrentClassCard(Course, Int, Int, Int, Boolean, Int?, List<String>?, ClassSlot?, ()->Unit, Modifier)",
     "lines": 100
   },
   {
@@ -364,7 +364,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/DetentSheet.kt",
     "kind": "long-function",
-    "name": "DetentSheetLayer",
+    "name": "DetentSheetLayer(DetentSheetState, ()->Unit, Modifier, Boolean, Boolean, DetentSheetValue?, Color, Boolean, Boolean, @ComposableColumnScope.()->Unit)",
     "lines": 86
   },
   {
@@ -375,7 +375,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/OutlinedAccountIdField.kt",
     "kind": "long-function",
-    "name": "OutlinedAccountIdField",
+    "name": "OutlinedAccountIdField(String, (String)->Unit, String, Modifier, KeyboardCapitalization, ImeAction, ()->Unit, Boolean, String?, Boolean?)",
     "lines": 259
   },
   {
@@ -386,7 +386,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/Scrollbar.kt",
     "kind": "long-function",
-    "name": "scrollbar#2",
+    "name": "Modifier.scrollbar(LazyListState, ()->Float, ()->Unit)",
     "lines": 94
   },
   {
@@ -402,13 +402,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/SyncStatusDot.kt",
     "kind": "long-function",
-    "name": "SyncStatusDotBody",
+    "name": "SyncStatusDotBody(List<DotSource>, Boolean, Modifier, Long?, String?)",
     "lines": 134
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/TigerDuckDialog.kt",
     "kind": "long-function",
-    "name": "TigerDuckDialog",
+    "name": "TigerDuckDialog(()->Unit, Modifier, String?, String?, String?, ()->Unit, String?, ()->Unit, (@Composable()->Unit)?, Boolean, Boolean, ButtonColors, Boolean, (@ComposableColumnScope.()->Unit)?)",
     "lines": 93
   },
   {
@@ -419,7 +419,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/TigerPullToRefresh.kt",
     "kind": "long-function",
-    "name": "TigerPullToRefresh",
+    "name": "TigerPullToRefresh(Boolean, ()->Unit, Modifier, (Float)->Unit, String?, AppBarState?, SearchRevealState?, @Composable()->Unit)",
     "lines": 193
   },
   {
@@ -430,31 +430,31 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/AppNavigation.kt",
     "kind": "long-function",
-    "name": "MainNavigation",
+    "name": "MainNavigation(AppState, AnalyticsLogger, String?, ()->Unit)",
     "lines": 693
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/CoursePages.kt",
     "kind": "long-function",
-    "name": "coursePages",
+    "name": "NavGraphBuilder.coursePages(NavController, ()->String)",
     "lines": 113
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/navigation/FlipToLibrary.kt",
     "kind": "long-function",
-    "name": "FlipToLibraryEffect#2",
+    "name": "FlipToLibraryEffect(NavController, ()->Boolean, ()->Boolean, ()->Boolean, ()->Unit, ()->Boolean, ()->Unit, FlipToLibraryOpenRequest?, (Context,onFaceDown:()->Unit)->FlipSensor?)",
     "lines": 105
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementDetailScreen.kt",
     "kind": "long-function",
-    "name": "AnnouncementDetailScreen",
+    "name": "AnnouncementDetailScreen(String, ()->Unit, AnnouncementDetailViewModel)",
     "lines": 99
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementDetailScreen.kt",
     "kind": "long-function",
-    "name": "DetailBody",
+    "name": "DetailBody(BulletinSummary, String?, BodyState, TaxonomyResponse?, String)",
     "lines": 123
   },
   {
@@ -465,13 +465,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsScreen.kt",
     "kind": "long-function",
-    "name": "AnnouncementsScreen",
+    "name": "AnnouncementsScreen((Int)->Unit, ()->Unit, Boolean, AnnouncementsViewModel)",
     "lines": 257
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsScreen.kt",
     "kind": "long-function",
-    "name": "SwipeableBulletinCard",
+    "name": "SwipeableBulletinCard(BulletinSummary, TaxonomyResponse?, Boolean, ()->Unit, ()->Unit, Modifier)",
     "lines": 122
   },
   {
@@ -482,7 +482,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/SubscriptionRuleEditorScreen.kt",
     "kind": "long-function",
-    "name": "SubscriptionRuleEditorScreen",
+    "name": "SubscriptionRuleEditorScreen(SubscriptionRule, Boolean, TaxonomyResponse?, (SubscriptionRule)->Unit, (()->Unit)?, ()->Unit)",
     "lines": 148
   },
   {
@@ -498,7 +498,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/SubscriptionSettingsScreen.kt",
     "kind": "long-function",
-    "name": "SubscriptionSettingsScreen",
+    "name": "SubscriptionSettingsScreen(Boolean, ()->Unit, SubscriptionSettingsViewModel)",
     "lines": 187
   },
   {
@@ -509,7 +509,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/browser/BrowserSheets.kt",
     "kind": "long-function",
-    "name": "BrowserMenuPage",
+    "name": "BrowserMenuPage(BrowserPageState, BrowserAppearance, BrowserActions, ()->Unit, ()->Unit, ()->Unit, ()->Unit)",
     "lines": 117
   },
   {
@@ -520,7 +520,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/browser/InAppBrowserActivity.kt",
     "kind": "long-function",
-    "name": "onCreate",
+    "name": "InAppBrowserActivity.onCreate(Bundle?)",
     "lines": 89
   },
   {
@@ -531,7 +531,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/browser/InAppBrowserScreen.kt",
     "kind": "long-function",
-    "name": "InAppBrowserScreen",
+    "name": "InAppBrowserScreen(BrowserPageState, BrowserAppearance, List<BrowserDownload>, BrowserActions, @Composable(Modifier)->Unit)",
     "lines": 106
   },
   {
@@ -542,19 +542,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarScreen.kt",
     "kind": "long-function",
-    "name": "CalendarGrid",
+    "name": "CalendarGrid(Date, Date, Map<LocalDate,List<CalendarEvent>>, (Date)->Unit)",
     "lines": 130
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarScreen.kt",
     "kind": "long-function",
-    "name": "CalendarScreen",
+    "name": "CalendarScreen(CalendarViewModel, ()->Unit, (assignmentId:String)->Unit)",
     "lines": 135
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarScreen.kt",
     "kind": "long-function",
-    "name": "MonthCalendar",
+    "name": "MonthCalendar(Date, Date, Map<LocalDate,List<CalendarEvent>>, (Date)->Unit, (Date)->Unit)",
     "lines": 122
   },
   {
@@ -570,19 +570,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
     "kind": "long-function",
-    "name": "AddCourseSheet",
+    "name": "AddCourseSheet(String, Set<String>, CourseService, DetentSheetState, (Course)->Boolean, (String)->Unit, ()->Unit)",
     "lines": 393
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
     "kind": "long-function",
-    "name": "search",
+    "name": "search()",
     "lines": 119
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableCellLayout.kt",
     "kind": "long-function",
-    "name": "roleAt",
+    "name": "ClassTableCellLayout.roleAt(List<Course>, List<TimetablePeriod>, Int, Int)",
     "lines": 93
   },
   {
@@ -593,13 +593,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableConflictCells.kt",
     "kind": "long-function",
-    "name": "ConflictCourseCell",
+    "name": "ConflictCourseCell(CellRole.ConflictStart, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, Int, String, List<String>, Boolean, Boolean, Boolean, Boolean, Boolean, (Course,Course,Int,String)->Unit, (()->Unit)?, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course)->Unit)",
     "lines": 248
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableConflictCells.kt",
     "kind": "long-function",
-    "name": "MultiConflictCourseCell",
+    "name": "MultiConflictCourseCell(CellRole.MultiConflictStart, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, Int, (String)->Boolean, (String)->Boolean, Boolean, (Course,String)->Unit, (()->Unit)?, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course)->Unit)",
     "lines": 177
   },
   {
@@ -610,7 +610,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableCourseCell.kt",
     "kind": "long-function",
-    "name": "SoloCourseCell",
+    "name": "SoloCourseCell(Course, String?, Int, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, androidx.compose.ui.unit.Dp, Int, String?, Boolean, Boolean, Boolean, ()->Unit, (()->Unit)?, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course)->Unit, ClassSlot?, Boolean)",
     "lines": 223
   },
   {
@@ -621,13 +621,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableGrid.kt",
     "kind": "long-function",
-    "name": "CourseSlot",
+    "name": "CourseSlot(CellRole, Int, String, List<org.ntust.app.tigerduck.data.model.TimetablePeriod>, Int, String?, Dp, Dp, (course:Course,weekday:Int,periodId:String)->Unit, Set<String>, Set<String>, Boolean, (()->Unit)?, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course)->Unit, (Course,Course,Int,String)->Unit, ClassSlot?, Boolean)",
     "lines": 94
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableGrid.kt",
     "kind": "long-function",
-    "name": "TimetableGrid",
+    "name": "TimetableGrid(List<Course>, Boolean, List<Int>, List<org.ntust.app.tigerduck.data.model.TimetablePeriod>, Set<String>, Set<String>, Boolean, (Course)->Unit, (Course)->Unit, (Course)->Unit, ((Course)->Unit)?, (Course,Course,Int,String)->Unit, (course:Course,weekday:Int,periodId:String)->Unit, Boolean, ((rows:LayoutCoordinates,rowHeightPx:Float)->Unit)?, ClassTableWeek?, Int?)",
     "lines": 200
   },
   {
@@ -638,7 +638,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableScreen.kt",
     "kind": "long-function",
-    "name": "ClassTableScreen",
+    "name": "ClassTableScreen(ClassTableViewModel, ()->Unit, ()->Unit)",
     "lines": 759
   },
   {
@@ -649,13 +649,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
-    "name": "fetchData",
-    "lines": 174
+    "name": "ClassTableViewModel.fetchData()",
+    "lines": 194
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
-    "name": "fetchTermCourses",
+    "name": "ClassTableViewModel.fetchTermCourses(String, ClassTableTermSource, Map<String,MoodleEnrolledCourse>, RecordedSelection?, Boolean, ()->Boolean)",
     "lines": 98
   },
   {
@@ -666,13 +666,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/CourseDetailSheetPage.kt",
     "kind": "long-function",
-    "name": "CourseDetailContent",
+    "name": "CourseDetailContent(Course, String, String, String?, List<Assignment>, (()->Unit)?, (()->Unit)?, (()->Unit)?, (Assignment)->Unit, ClassSlot?, List<CourseChangeRow>)",
     "lines": 196
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/CourseDetailSheetPage.kt",
     "kind": "long-function",
-    "name": "CourseDetailSheetPage",
+    "name": "CourseDetailSheetPage(ClassTableViewModel, String, (String)->Unit, ScrollState, MoodleCourseViewModel)",
     "lines": 104
   },
   {
@@ -683,25 +683,25 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/sharing/ClassTableImportHost.kt",
     "kind": "long-function",
-    "name": "ImportPage",
+    "name": "ImportPage(ClassTableImportModel, ()->Unit, ()->Unit, ()->Unit, (()->Unit)?, ()->Unit, Any?, @Composable(onScanned:(String)->ClassTableImportModel.ScanAnswer,torch:ScannerTorch,modifier:Modifier)->Unit)",
     "lines": 118
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/sharing/ClassTableShareSheet.kt",
     "kind": "long-function",
-    "name": "ClassTableShareSheet",
+    "name": "ClassTableShareSheet(ClassTableShare, (semester:String)->String, ()->Unit, ()->Unit)",
     "lines": 145
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/sharing/QrCameraScanner.kt",
     "kind": "long-function",
-    "name": "CameraPreview",
+    "name": "CameraPreview((String)->ClassTableImportModel.ScanAnswer, ScannerTorch, Modifier)",
     "lines": 91
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleAnnouncementsScreen.kt",
     "kind": "long-function",
-    "name": "MoodleDiscussionCard",
+    "name": "MoodleDiscussionCard(MoodleDiscussion, Long, ()->Unit, Boolean)",
     "lines": 114
   },
   {
@@ -722,13 +722,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleForumScreens.kt",
     "kind": "long-function",
-    "name": "MoodlePostCard",
+    "name": "MoodlePostCard(MoodleThreadEntry, Boolean, MoodleCourseStore, MoodleDiscussion, org.ntust.app.tigerduck.data.moodle.MoodleFileDownloads.Snapshot?, MoodleFileOpener, String)",
     "lines": 83
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleGradesScreen.kt",
     "kind": "long-function",
-    "name": "GradeRow",
+    "name": "GradeRow(MoodleGradeItem, Boolean, ()->Unit, String)",
     "lines": 100
   },
   {
@@ -739,7 +739,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMemberScreen.kt",
     "kind": "long-function",
-    "name": "MoodleMemberScreen",
+    "name": "MoodleMemberScreen(Int, ()->Unit, (address:String)->Unit, MoodleCourseViewModel)",
     "lines": 140
   },
   {
@@ -750,7 +750,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMembersScreen.kt",
     "kind": "long-function",
-    "name": "MembersList",
+    "name": "MembersList(MoodleCourseStore, String, (String)->Unit, (MoodleMember)->Unit)",
     "lines": 113
   },
   {
@@ -761,19 +761,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/ApiEndpointDebugScreen.kt",
     "kind": "long-function",
-    "name": "ApiEndpointDebugScreen",
+    "name": "ApiEndpointDebugScreen(()->Unit)",
     "lines": 257
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/BrowserAllowlistDebugScreen.kt",
     "kind": "long-function",
-    "name": "BrowserAllowlistDebugScreen",
+    "name": "BrowserAllowlistDebugScreen(()->Unit, BrowserAllowlistStore, (Context,String)->Boolean)",
     "lines": 132
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/DebugScreen.kt",
     "kind": "long-function",
-    "name": "DebugScreen",
+    "name": "DebugScreen(()->Unit, DebugViewModel)",
     "lines": 161
   },
   {
@@ -784,43 +784,43 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/MailDevServerDebugScreen.kt",
     "kind": "long-function",
-    "name": "MailDevServerDebugScreen",
+    "name": "MailDevServerDebugScreen(()->Unit)",
     "lines": 257
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/NotificationDebugScreen.kt",
     "kind": "long-function",
-    "name": "NotificationDebugScreen",
+    "name": "NotificationDebugScreen(()->Unit)",
     "lines": 149
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/TriggersDebugScreen.kt",
     "kind": "long-function",
-    "name": "TriggersDebugScreen",
+    "name": "TriggersDebugScreen(AppState, ()->Unit)",
     "lines": 139
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/ViewerSamplesDebugScreen.kt",
     "kind": "long-function",
-    "name": "ViewerSamplesDebugScreen",
+    "name": "ViewerSamplesDebugScreen(()->Unit)",
     "lines": 84
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/WhatsNewSample.kt",
     "kind": "long-function",
-    "name": "rememberWhatsNewSampleFlow",
+    "name": "rememberWhatsNewSampleFlow((String)->Unit)",
     "lines": 162
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/emptyclassroom/EmptyClassroomScreen.kt",
     "kind": "long-function",
-    "name": "EmptyClassroomScreen",
+    "name": "EmptyClassroomScreen(()->Unit, EmptyClassroomViewModel)",
     "lines": 82
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/emptyclassroom/RoomDaySheet.kt",
     "kind": "long-function",
-    "name": "PeriodRow",
+    "name": "PeriodRow(RoomUsage, Int, Boolean, Boolean, Boolean)",
     "lines": 105
   },
   {
@@ -831,13 +831,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/files/ArchiveViewer.kt",
     "kind": "long-function",
-    "name": "ArchiveViewer",
+    "name": "ArchiveViewer(ViewedFile, (reason:Int?,failure:ViewerFailure)->Unit, ()->Unit)",
     "lines": 119
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/AddSectionDialog.kt",
     "kind": "long-function",
-    "name": "AddSectionDialog",
+    "name": "AddSectionDialog(List<HomeSection>, (HomeSection.HomeSectionType)->Unit, (title:String)->Unit, (AppFeature)->Unit, ()->Unit)",
     "lines": 106
   },
   {
@@ -848,13 +848,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/CourseSyncReconciler.kt",
     "kind": "long-function",
-    "name": "reconcileSemester",
+    "name": "CourseSyncReconciler.reconcileSemester(String, List<Course>, List<ServerCourse>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, SelectionAnswer?, Long)",
     "lines": 144
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeAssignmentList.kt",
     "kind": "long-function",
-    "name": "SwipeableAssignmentRow",
+    "name": "SwipeableAssignmentRow(Assignment, Course?, Boolean, Boolean, Boolean, Boolean, ()->Unit, ()->Unit, ()->Unit)",
     "lines": 159
   },
   {
@@ -865,13 +865,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-function",
-    "name": "pull",
+    "name": "HomeBackendSync.pull(HomeSyncState, Boolean)",
     "lines": 172
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-function",
-    "name": "syncCourseList",
+    "name": "HomeBackendSync.syncCourseList(BackendSyncResult, Boolean, DataCache.CourseSync)",
     "lines": 102
   },
   {
@@ -882,13 +882,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-function",
-    "name": "HomePage",
+    "name": "HomePage(List<HomeSection>, Boolean, ()->Unit, Boolean, ()->Unit, (fromId:String,toId:String)->Unit, (sectionId:String)->Unit, (sectionId:String,widgetId:String)->Unit, (sectionId:String,widgetId:String,toIndex:Int)->Unit, ()->Unit, @Composable()->Unit, (@Composable()->Unit)?, Modifier, LazyListState, @Composable(HomeSection)->Unit)",
     "lines": 139
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-function",
-    "name": "HomeScreen",
+    "name": "HomeScreen(AppState, HomeViewModel, ()->Unit, (Assignment)->Unit, (CourseDetailSelection)->Unit, (AppFeature)->Unit)",
     "lines": 234
   },
   {
@@ -899,13 +899,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeSections.kt",
     "kind": "long-function",
-    "name": "EditableSection",
+    "name": "EditableSection(HomeSection, Boolean, Float, ()->Unit, (Float)->Unit, ()->Unit, (height:Float)->Unit, ()->Unit, (widgetId:String)->Unit, (widgetId:String,toIndex:Int)->Unit, ()->Unit)",
     "lines": 115
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeSections.kt",
     "kind": "long-function",
-    "name": "HomeSectionContent",
+    "name": "HomeSectionContent(HomeSection, List<Course>, TimeSliderViewModel, QuietDays, CourseChanges, List<Assignment>, AssignmentFilter, Boolean, Set<String>, Set<String>, Set<String>, Boolean, Boolean, Boolean, (String)->Boolean, Boolean, Boolean, (CourseTimeSlot)->Unit, (Assignment)->Unit, (Assignment)->Unit, (Assignment)->Unit, (AssignmentFilter)->Unit, (AppFeature)->Unit, ()->Unit, ()->Unit)",
     "lines": 129
   },
   {
@@ -916,25 +916,25 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-function",
-    "name": "fetchCoursesAndAssignments",
+    "name": "HomeViewModel.fetchCoursesAndAssignments(String, String)",
     "lines": 114
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-function",
-    "name": "fetchData",
+    "name": "HomeViewModel.fetchData(Boolean)",
     "lines": 88
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/ShortcutGrid.kt",
     "kind": "long-function",
-    "name": "ShortcutCard",
+    "name": "ShortcutCard(WidgetItem, Int, Int, Boolean, Boolean, ()->Unit, ()->Unit, (Int)->Unit, Modifier)",
     "lines": 90
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/ShortcutGrid.kt",
     "kind": "long-function",
-    "name": "ShortcutGrid",
+    "name": "ShortcutGrid(List<WidgetItem>, Boolean, (AppFeature)->Unit, (WidgetItem)->Unit, (widgetId:String,toIndex:Int)->Unit, ()->Unit)",
     "lines": 117
   },
   {
@@ -945,25 +945,25 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
-    "name": "CourseTimeCard",
+    "name": "CourseTimeCard(CourseState, (CourseTimeSlot)->Unit)",
     "lines": 91
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
-    "name": "FluidTrack",
+    "name": "FluidTrack(TimeSliderViewModel, Boolean)",
     "lines": 192
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
-    "name": "SlotCard",
+    "name": "SlotCard(CourseTimeSlot, Boolean, Boolean, (()->Unit)?, ()->Unit, Modifier)",
     "lines": 188
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
-    "name": "TimeSliderSection",
+    "name": "TimeSliderSection(List<Course>, QuietDays, Boolean, Boolean, Boolean, ()->Unit, TimeSliderViewModel, CourseChanges, (CourseTimeSlot)->Unit)",
     "lines": 115
   },
   {
@@ -974,19 +974,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryScreen.kt",
     "kind": "long-function",
-    "name": "LibraryQRCodeCard",
+    "name": "LibraryQRCodeCard(android.graphics.Bitmap?, String?, Int, Boolean)",
     "lines": 93
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryScreen.kt",
     "kind": "long-function",
-    "name": "LibraryScreen",
+    "name": "LibraryScreen(LibraryViewModel)",
     "lines": 183
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/library/LibraryScreen.kt",
     "kind": "long-function",
-    "name": "LoginPromptCard",
+    "name": "LoginPromptCard(String, String, Boolean, (String)->Unit, (String)->Unit, ()->Unit)",
     "lines": 98
   },
   {
@@ -997,13 +997,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/MailRecipientTokenField.kt",
     "kind": "long-function",
-    "name": "MailRecipientTokenField",
+    "name": "MailRecipientTokenField(String, RecipientField, ((RecipientField)->RecipientField)->RecipientField, Boolean, Modifier, List<MailAddress>)",
     "lines": 178
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/MailWebView.kt",
     "kind": "long-function",
-    "name": "MailWebView",
+    "name": "MailWebView(String, Set<String>, Int, Int, (index:Int)->Unit, Modifier)",
     "lines": 82
   },
   {
@@ -1014,7 +1014,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeScreen.kt",
     "kind": "long-function",
-    "name": "SchoolMailComposeScreen",
+    "name": "SchoolMailComposeScreen(()->Unit, LeaveGuard, SchoolMailComposeViewModel)",
     "lines": 255
   },
   {
@@ -1025,13 +1025,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeViewModel.kt",
     "kind": "long-function",
-    "name": "runPrefill",
+    "name": "SchoolMailComposeViewModel.runPrefill(ComposePrefill.Labels)",
     "lines": 84
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailGuideScreen.kt",
     "kind": "long-function",
-    "name": "SchoolMailGuideScreen",
+    "name": "SchoolMailGuideScreen(String, ()->Unit)",
     "lines": 84
   },
   {
@@ -1042,7 +1042,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
     "kind": "long-function",
-    "name": "runSearch",
+    "name": "SchoolMailListViewModel.runSearch(Boolean)",
     "lines": 173
   },
   {
@@ -1053,7 +1053,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailMessageScreen.kt",
     "kind": "long-function",
-    "name": "SchoolMailMessageScreen",
+    "name": "SchoolMailMessageScreen(String, ()->Unit, (mode:ComposeMode,folder:String,uid:Long)->Unit, (folder:String,uid:Long,href:String)->Unit, SchoolMailMessageViewModel)",
     "lines": 382
   },
   {
@@ -1064,7 +1064,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailNotificationSettingsScreen.kt",
     "kind": "long-function",
-    "name": "SchoolMailNotificationSettingsScreen",
+    "name": "SchoolMailNotificationSettingsScreen(()->Unit, SchoolMailSettingsViewModel)",
     "lines": 114
   },
   {
@@ -1075,25 +1075,25 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-function",
-    "name": "MailCard",
+    "name": "MailCard(MailSummary, String, ()->Unit, Modifier, (()->Unit)?, String?, Boolean)",
     "lines": 81
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-function",
-    "name": "SchoolMailLoginCard",
+    "name": "SchoolMailLoginCard(String, String, Boolean, String?, String, String, Boolean, (String,String)->Unit)",
     "lines": 83
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-function",
-    "name": "SchoolMailScreen",
+    "name": "SchoolMailScreen(String, (folder:String,uid:Long)->Unit, (folder:String,uid:Long)->Unit, ()->Unit, ()->Unit, SchoolMailListViewModel, MailAccountViewModel)",
     "lines": 371
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-function",
-    "name": "SwipeableMailCard",
+    "name": "SwipeableMailCard(MailRow, String, Boolean, ()->Unit, ()->Unit, ()->Unit, ()->Unit, Modifier)",
     "lines": 141
   },
   {
@@ -1114,19 +1114,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/onboarding/OnboardingScreen.kt",
     "kind": "long-function",
-    "name": "OnboardingScreen",
+    "name": "OnboardingScreen(OnboardingViewModel)",
     "lines": 522
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/score/ScoreCourseList.kt",
     "kind": "long-function",
-    "name": "SemesterSection",
+    "name": "SemesterSection(String, List<CourseGrade>, GpaTrendPoint?, Boolean, ()->Unit, (CourseGrade)->Unit)",
     "lines": 87
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/score/ScoreScreen.kt",
     "kind": "long-function",
-    "name": "ScoreScreen",
+    "name": "ScoreScreen(ScoreViewModel, ()->Unit)",
     "lines": 115
   },
   {
@@ -1137,13 +1137,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/score/ScoreTrendChart.kt",
     "kind": "long-function",
-    "name": "RankingsTrendCard",
+    "name": "RankingsTrendCard(List<GpaTrendPoint>, ScoreViewModel.RankingScope, (ScoreViewModel.RankingScope)->Unit)",
     "lines": 88
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/score/ScoreTrendChart.kt",
     "kind": "long-function",
-    "name": "TrendChart",
+    "name": "TrendChart(List<GpaTrendPoint>, ScoreViewModel.RankingScope, String?, (String)->Unit)",
     "lines": 246
   },
   {
@@ -1154,19 +1154,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentColorScreen.kt",
     "kind": "long-function",
-    "name": "AccentColorPage",
+    "name": "AccentColorPage(Int, Int?, AccentGradientDirection, Boolean, Boolean, (Int)->Unit, (start:Int,end:Int)->Unit, (AccentGradientDirection)->Unit, ()->Unit, Modifier)",
     "lines": 135
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentPickerSheet.kt",
     "kind": "long-function",
-    "name": "AccentPickerSheet",
+    "name": "AccentPickerSheet(Int, Int?, AccentGradientDirection, Boolean, (start:Int,end:Int?)->Unit, ()->Unit)",
     "lines": 108
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/ClassReminderSettingsScreen.kt",
     "kind": "long-function",
-    "name": "ClassReminderSettingsScreen",
+    "name": "ClassReminderSettingsScreen(()->Unit, ClassReminderSettingsViewModel)",
     "lines": 82
   },
   {
@@ -1182,43 +1182,43 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/CloudSyncSettingsScreen.kt",
     "kind": "long-function",
-    "name": "CloudSyncSettingsScreen",
+    "name": "CloudSyncSettingsScreen(()->Unit, ()->Unit, SettingsViewModel)",
     "lines": 265
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/CourseNameSizeSettingsScreen.kt",
     "kind": "long-function",
-    "name": "CourseNameSizeContent",
+    "name": "CourseNameSizeContent(Float, (Float)->Unit, ()->Unit, ()->Unit)",
     "lines": 147
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/DisplaySizeSettingsScreen.kt",
     "kind": "long-function",
-    "name": "DisplaySizeContent",
+    "name": "DisplaySizeContent(Map<DisplayScale,Float>, Float, (DisplayScale,Float)->Unit, ()->Unit, ()->Unit, ()->Unit)",
     "lines": 131
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LanguagePickerScreen.kt",
     "kind": "long-function",
-    "name": "LanguagePickerScreen",
+    "name": "LanguagePickerScreen(SettingsViewModel, ()->Unit)",
     "lines": 136
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LiveActivitySettingsScreen.kt",
     "kind": "long-function",
-    "name": "LiveActivitySettingsScreen",
+    "name": "LiveActivitySettingsScreen(()->Unit, ()->Unit, LiveActivitySettingsViewModel)",
     "lines": 227
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LoginSheet.kt",
     "kind": "long-function",
-    "name": "LoginSheet",
+    "name": "LoginSheet(String, String?, String, String, String, String, Boolean, Boolean, Boolean, String?, (String,String)->Unit, ()->Unit, (@Composable()->Unit)?)",
     "lines": 258
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/NotificationPermissionSettingsScreen.kt",
     "kind": "long-function",
-    "name": "NotificationPermissionSettingsScreen",
+    "name": "NotificationPermissionSettingsScreen(()->Unit, NotificationPermissionSettingsViewModel)",
     "lines": 102
   },
   {
@@ -1229,7 +1229,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/OtherSettingsScreen.kt",
     "kind": "long-function",
-    "name": "OtherSettingsScreen",
+    "name": "OtherSettingsScreen(()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, SettingsViewModel)",
     "lines": 191
   },
   {
@@ -1240,7 +1240,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsRows.kt",
     "kind": "long-function",
-    "name": "AccountRow",
+    "name": "AccountRow(String, Boolean, String?, Boolean, ()->Unit, ()->Unit, Dp, Boolean, ()->Unit)",
     "lines": 91
   },
   {
@@ -1256,7 +1256,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsScreen.kt",
     "kind": "long-function",
-    "name": "SettingsScreen",
+    "name": "SettingsScreen(SettingsViewModel, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit)",
     "lines": 736
   },
   {
@@ -1267,31 +1267,31 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "long-function",
-    "name": "resolve",
+    "name": "SettingsViewModel.resolve(ReenableConflict, Boolean, Int, UseLocalLatch?)",
     "lines": 130
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/StorageScreen.kt",
     "kind": "long-function",
-    "name": "StorageScreen",
+    "name": "StorageScreen(()->Unit, StorageViewModel)",
     "lines": 150
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SyncContentScreen.kt",
     "kind": "long-function",
-    "name": "SyncContentScreen",
+    "name": "SyncContentScreen(()->Unit, SettingsViewModel)",
     "lines": 178
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/TabEditorScreen.kt",
     "kind": "long-function",
-    "name": "TabEditorScreen",
+    "name": "TabEditorScreen(AppState, ()->Unit)",
     "lines": 208
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/VibrationSettingsScreen.kt",
     "kind": "long-function",
-    "name": "ScenarioCard",
+    "name": "ScenarioCard(String, Int, Int, (Int)->Unit, (Int)->Unit, (Int,Int)->Unit, ()->Unit)",
     "lines": 82
   },
   {
@@ -1307,7 +1307,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/whatsnew/WhatsNewSheet.kt",
     "kind": "long-function",
-    "name": "whatsNewEffect",
+    "name": "Modifier.whatsNewEffect(WhatsNewEffect)",
     "lines": 89
   },
   {
@@ -1318,7 +1318,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/WidgetScheduleCells.kt",
     "kind": "long-function",
-    "name": "buildScheduleCells",
+    "name": "buildScheduleCells(List<String>, List<Course>, Int)",
     "lines": 98
   },
   {
@@ -1329,19 +1329,19 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/NextClassContent.kt",
     "kind": "long-function",
-    "name": "CompactLayout",
+    "name": "CompactLayout(WidgetState, WidgetColors, Action)",
     "lines": 169
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/NextClassContent.kt",
     "kind": "long-function",
-    "name": "FullLayout",
+    "name": "FullLayout(WidgetState, WidgetColors, Action)",
     "lines": 81
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/TodayListContent.kt",
     "kind": "long-function",
-    "name": "TodayListContent",
+    "name": "TodayListContent(WidgetState, WidgetColors, VisualStylePolicy, Action)",
     "lines": 160
   },
   {
@@ -1352,13 +1352,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
     "kind": "long-function",
-    "name": "ConflictCell",
+    "name": "ConflictCell(ScheduleCell.Conflict, WidgetColors, VisualStylePolicy, Map<String,Color>, TileOngoing, Dp, Dp, Float)",
     "lines": 98
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/content/WeekGridContent.kt",
     "kind": "long-function",
-    "name": "WeekGridContent",
+    "name": "WeekGridContent(WidgetState, WidgetColors, VisualStylePolicy, Action)",
     "lines": 151
   },
   {
@@ -1374,7 +1374,7 @@
   {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/WearApp.kt",
     "kind": "long-function",
-    "name": "WearApp",
+    "name": "WearApp()",
     "lines": 117
   },
   {
@@ -1390,19 +1390,19 @@
   {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/ui/LibraryQRScreen.kt",
     "kind": "long-function",
-    "name": "LoggedInState",
+    "name": "LoggedInState(String?)",
     "lines": 93
   },
   {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/ui/PaddingSettingsScreen.kt",
     "kind": "long-function",
-    "name": "PaddingSettingsScreen",
+    "name": "PaddingSettingsScreen(()->Unit)",
     "lines": 96
   },
   {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/ui/QRPaddingSettingsScreen.kt",
     "kind": "long-function",
-    "name": "QRPaddingSettingsScreen",
+    "name": "QRPaddingSettingsScreen(()->Unit)",
     "lines": 93
   }
 ]
