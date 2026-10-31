@@ -1219,6 +1219,8 @@ class SchoolMailListViewModel @Inject constructor(
     private suspend fun runSearch(keepShown: Boolean = false) {
         val selection = _state.value.selected
         val query = _state.value.searchText.trim()
+        // The rest of the matches on screen, for a quiet run that leaves them as they were.
+        val shownUnfetched = unfetchedMatches
         forgetSearch()
         val search = searchGeneration
         if (!keepShown) {
@@ -1306,9 +1308,18 @@ class SchoolMailListViewModel @Inject constructor(
                 failure?.takeIf { it is MailError.Certificate || it is MailError.AuthFailed }?.let { searchFail(it, generation) }
                 return
             }
+            // Run again silently, a folder the server could not search would answer with its
+            // matches among the loaded mail alone, taking away the older and body-only ones the
+            // server found and the rest of them still to fetch: the results on screen stay as they
+            // were, and run again as more mail comes. A failure that must stick is still shown.
+            if (keepShown && failure != null) {
+                unfetchedMatches = shownUnfetched
+                failure?.takeIf { it is MailError.Certificate || it is MailError.AuthFailed }?.let { searchFail(it, generation) }
+                return
+            }
             // Each row keeps the version of the folder its matches were read under.
             val rows = outcomes.flatMap { (folder, outcome) -> outcome.messages.map { MailRow(folder, it, outcome.version) } }
-            unfetchedMatches = outcomes.mapNotNull { (folder, outcome) ->
+            val unfetched = outcomes.mapNotNull { (folder, outcome) ->
                 (outcome as? SearchOutcome.Server)?.takeIf { it.remaining.isNotEmpty() }
                     ?.let { folder to UnfetchedMatches(it.uidValidity, it.remaining) }
             }.toMap()
@@ -1318,12 +1329,13 @@ class SchoolMailListViewModel @Inject constructor(
                 searchIndexPartial = outcomes.any { (_, outcome) -> (outcome as? SearchOutcome.Server)?.complete == false },
             )
             // Run again silently, it fetches no pages of its own: one whose first pages show
-            // nothing here, as under unread only, leaves the results on screen as they were. A
-            // failure that must stick is still shown.
+            // nothing here, as under unread only, leaves the results on screen as they were, and
+            // the rest of them still to fetch.
             if (keepShown && found.displayed.isEmpty() && _state.value.displayed.isNotEmpty()) {
-                failure?.takeIf { it is MailError.Certificate || it is MailError.AuthFailed }?.let { searchFail(it, generation) }
+                unfetchedMatches = shownUnfetched
                 return
             }
+            unfetchedMatches = unfetched
             _state.update {
                 it.copy(
                     searchResults = found.searchResults,

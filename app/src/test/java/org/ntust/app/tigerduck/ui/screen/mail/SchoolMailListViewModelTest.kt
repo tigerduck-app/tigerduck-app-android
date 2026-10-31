@@ -377,6 +377,58 @@ class SchoolMailListViewModelTest {
         assertEquals(listOf(5L, 4L, 3L, 2L, 1L), vm.state.value.displayed.map { it.uid })
     }
 
+    /**
+     * A folder the server cannot search as the search runs again quietly: its matches among the
+     * loaded mail alone do not stand for the older ones the server found, which stay.
+     */
+    @Test
+    fun `a folder that fails as the search runs again quietly keeps the matches shown`() {
+        repo.pageSize = 2
+        repo.add(
+            "INBOX",
+            mailSummary(1, subject = "other"), mailSummary(2, subject = "期中考 B"), mailSummary(3, subject = "other"),
+            mailSummary(4, subject = "other"), mailSummary(5, subject = "期中考 A"),
+        )
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(5L, 2L), vm.state.value.displayed.map { it.uid })
+        val searched = repo.searchCalls
+
+        repo.searchError = MailError.Network()
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.searchCalls > searched)
+        val s = vm.state.value
+        assertEquals(listOf(5L, 2L), s.displayed.map { it.uid })
+        assertFalse(s.searchLocalOnly)
+        assertNull(s.actionError)
+    }
+
+    /** Nor do the matches of that folder still to fetch go: scrolling on fetches them. */
+    @Test
+    fun `a folder that fails as the search runs again quietly keeps its matches still to fetch`() {
+        repo.pageSize = 2
+        repo.add("INBOX", *(1L..5L).map { mailSummary(it, subject = "期中考 $it") }.toTypedArray())
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(5L, 4L), vm.state.value.displayed.map { it.uid })
+
+        repo.searchError = MailError.Network()
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+        repo.searchError = null
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf("INBOX" to listOf(3L, 2L, 1L)), repo.searchPages)
+        assertEquals(listOf(5L, 4L, 3L, 2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
     @Test
     fun `a search the server fails keeps the list and shows the loaded matches`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2, subject = "other"))
