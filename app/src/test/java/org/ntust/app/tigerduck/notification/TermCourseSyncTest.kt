@@ -339,6 +339,37 @@ class TermCourseSyncTest {
         assertEquals(listOf(CS1), cache.loadCourses(TERM).map { it.courseNo })
     }
 
+    /**
+     * A term course selection does not serve only gains from the transcript on disk, and its
+     * fetch draws the transcript's class and the cached course. While the lookups ran, a full
+     * sync found one dropped on the server, and the drop list here names the other: neither is
+     * saved or uploaded, the term's own copy included, and the course added here stays. As the
+     * iPhone's `savedCoursesSkipServerDrops` (tigerduck-app#918).
+     */
+    @Test
+    fun `a term only gaining whose every drawn course was dropped during its lookups saves and uploads none of them`() = runTest {
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM)
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        selectionTerm = OTHER_TERM
+        var dropped = false
+        val dropping = object : TermCourseSync.Sources by sources {
+            override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? {
+                if (!dropped) {
+                    dropped = true
+                    cache.recordServerDrops(TERM, mapOf(CS1 to null))
+                    cache.saveSelectionDroppedNos(mapOf(TERM to listOf(CS2)))
+                }
+                return sources.lookUp(semester, courseNo, moodle, kept)
+            }
+        }
+
+        termSync(dropping).sync(STUDENT, PASSWORD, TERM)
+
+        assertTrue(dropped)
+        assertEquals(listOf(HAND), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(listOf(listOf(HAND) to null), uploads())
+    }
+
     /** A running term's transcript: [TERM] is the newest it lists, so the term only gains from it. */
     private fun transcriptListing(vararg codes: String) = ScoreReport(
         student = "", currentTerm = "", rankings = emptyList(),

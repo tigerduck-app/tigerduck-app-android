@@ -17,7 +17,9 @@ import org.ntust.app.tigerduck.shared.Course
  * the rows a roster dropped on the server, as the last full sync found them
  * (`DataCache.fetchDropsIn`): a running term's transcript may still list them. Only course
  * selection's answer, which this phone always asks the school for, saves such a course, and its
- * roster enrolls it again. As iOS `AppServiceBridge.savedCourses` (tigerduck-app#918).
+ * roster enrolls it again. As iOS `AppServiceBridge.savedCourses` (tigerduck-app#918). The term's
+ * own rows of those courses go too ([TranscriptTerms.withoutDroppedRows]): a fetch whose every
+ * course was dropped saves none of them.
  *
  * [answer] is the course selection answer the fetch recorded, null when its rows are not one.
  * Null, with the term left as it is, once a newer answer replaced it ([DataCache.isLatestAnswer]):
@@ -36,10 +38,13 @@ internal suspend fun commitFetchedTerm(
     dataCache.updateCourses(semester) { current, hidden ->
         if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@updateCourses current
         // The drop list's read takes only the user data's lock, never the drop list's own.
-        val rows = if (!onlyGains) fetched else TranscriptTerms.withoutDrops(
-            fetched, dataCache.fetchDropsIn(semester), current, waitingAdds(),
-        )
-        merge(rows, current, hidden).also { committed = it }
+        val dropped = if (onlyGains) dataCache.fetchDropsIn(semester) else emptySet()
+        val waiting = if (dropped.isEmpty()) emptySet() else waitingAdds()
+        merge(
+            TranscriptTerms.withoutDrops(fetched, dropped, current, waiting),
+            TranscriptTerms.withoutDroppedRows(current, dropped, waiting),
+            hidden,
+        ).also { committed = it }
     }
     return committed
 }

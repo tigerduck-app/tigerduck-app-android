@@ -832,6 +832,122 @@ class ClassTableTermFetchTest {
         assertEquals(listOf("XA0000001"), store.loadCourses("1151").map { it.courseNo })
     }
 
+    /**
+     * [answers] committed onto [store]'s term as fetchTermCourses commits them: drawn with the
+     * drop list as it stands, then folded under the courses' lock through [ClassTableTermFetch.foldLatest],
+     * which reads the drops again, and saved.
+     */
+    private suspend fun committedOnto(
+        store: DataCache,
+        answers: ClassTableTermFetch.Answers,
+        source: ClassTableTermSource,
+        waitingAdds: Set<String> = emptySet(),
+    ) = fetch.committed(
+        answers, source, "1151", emptyList(),
+        latest = { store.loadCourses("1151") },
+        waitingAdds = { waitingAdds },
+        droppedNos = { store.fetchDropsIn("1151") },
+        recordFinalRoster = { store.recordFinalRoster("1151", it.roster, alsoListed = it.dropping) },
+    ) { drawn ->
+        var folded: List<Course>? = null
+        store.updateCourses("1151") { current, _ ->
+            folded = fetch.foldLatest(
+                drawn, "1151",
+                editGeneration = { 0 },
+                cachedCourses = { current },
+                storedTombstones = { store.loadDeletedCourseNos() },
+                shownCourses = { null },
+                droppedNos = { store.fetchDropsIn("1151") },
+                waitingAdds = { waitingAdds },
+                withPendingEdits = { it },
+                names = { emptyMap() },
+                locale = "zh",
+            )
+            folded ?: current
+        }
+        folded
+    }
+
+    /**
+     * A term only gaining draws every course it held as its fetch began. While the lookups ran, a
+     * full sync found one dropped on the server, and the drop list here names the other: the
+     * drops take every course drawn. The term is saved without them, empty here, rather than
+     * left as it is, still holding them. As the iPhone's `savedCoursesSkipServerDrops`
+     * (tigerduck-app#918): only a fetch that drew nothing keeps the cache.
+     */
+    @Test
+    fun `a term only gaining whose every drawn course was dropped as it saves is saved without them, not left as it is`() = runTest {
+        gate.complete(Unit)
+        val store = cache()
+        val before = listOf(course("XA0000001"), course("XB0000002"))
+        store.saveCourses(before, "1151")
+        val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001"), servedBySelection = true, cached = before)
+        assertTrue(source is ClassTableTermSource.Gaining)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
+        store.recordServerDrops("1151", mapOf("XA0000001" to null))
+        store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002")))
+
+        val saved = committedOnto(store, answers, source)
+
+        assertEquals(emptyList<String>(), saved?.map { it.courseNo })
+        assertEquals(emptyList<String>(), store.loadCourses("1151").map { it.courseNo })
+        assertEquals(emptySet<String>(), store.loadDeletedCourseNos())
+    }
+
+    /**
+     * As above, with courses added by hand, here and with the add still waiting, which the drops
+     * name too, and a course Home saved while the lookups ran, which the fetch did not draw. The
+     * dropped courses leave; the hand-added ones stay, refreshed, and so does the one saved
+     * meanwhile, as the term only gains.
+     */
+    @Test
+    fun `a term only gaining whose every drawn course was dropped keeps what was added by hand and what was saved meanwhile`() = runTest {
+        gate.complete(Unit)
+        val store = cache()
+        val before = listOf(course("XA0000001"), course("XB0000002"), manual("XF0000006"), merged("XW0000023"))
+        store.saveCourses(before, "1151")
+        val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001"), servedBySelection = true, cached = before)
+        val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
+        store.saveCourses(store.loadCourses("1151") + course("XK0000011"), "1151")
+        store.recordServerDrops("1151", mapOf("XA0000001" to null, "XF0000006" to null))
+        store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002", "XW0000023")))
+
+        val saved = committedOnto(store, answers, source, waitingAdds = setOf("XW0000023"))!!
+
+        assertEquals(listOf("XK0000011", "XF0000006", "XW0000023"), saved.map { it.courseNo })
+        assertEquals(listOf("XK0000011", "XF0000006", "XW0000023"), store.loadCourses("1151").map { it.courseNo })
+        assertEquals(listOf("IB-202", "IB-202"), saved.drop(1).map { it.classroom })
+        assertEquals(emptySet<String>(), store.loadDeletedCourseNos())
+    }
+
+    /**
+     * Course selection's answer is the term's whole list, and a past term's rebuild is its final
+     * transcript's: each saves every course it draws, though the drops name every one.
+     */
+    @Test
+    fun `course selection's answer and a past term's rebuild save every course they draw though the drops name each`() = runTest {
+        gate.complete(Unit)
+        for (rebuilds in listOf(false, true)) {
+            val store = cache()
+            val before = listOf(course("XA0000001"), course("XB0000002"))
+            store.saveCourses(before, "1151")
+            val source = if (rebuilds) {
+                ClassTableTermSource.of("1151", emptyList(), transcript("XA0000001", "XB0000002"), servedBySelection = false, cached = before)
+            } else {
+                ClassTableTermSource.of("1151", listOf("XA0000001", "XB0000002"), null, servedBySelection = true, cached = before)
+            }
+            assertEquals(rebuilds, source is ClassTableTermSource.Rebuild)
+            val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before, atMost = source.lookupsAtOnce)
+            store.recordServerDrops("1151", mapOf("XA0000001" to null))
+            store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002")))
+
+            val saved = committedOnto(store, answers, source)
+
+            assertEquals(listOf("XA0000001", "XB0000002"), saved!!.map { it.courseNo })
+            assertEquals(listOf("XA0000001", "XB0000002"), store.loadCourses("1151").map { it.courseNo })
+        }
+    }
+
     /** Before #890 Moodle's sites were the roster of a term course selection gave nothing for. */
     @Test
     fun `with neither course selection nor the transcript, a Moodle site adds no course and the term is left as it is`() = runTest {

@@ -160,10 +160,14 @@ internal class ClassTableTermFetch(
             is ClassTableTermSource.Gaining -> {
                 val current = latest()
                 val cached = current.mapTo(mutableSetOf()) { it.courseNo }
+                val drew = TranscriptTerms.drawnCourses(answers.fetched, fromSelection = false, cached = cached)
+                // Only a fetch that drew nothing leaves the term as it is. One the drops took
+                // wholly folds still, which takes the term's rows of them off (iOS savedCourses,
+                // tigerduck-app#918).
+                if (drew.isEmpty() && answers.lookedUp.isEmpty()) return null
                 // The lookups began from the term as it was: a rebuild committed meanwhile took its drops off.
-                val undropped = TranscriptTerms.withoutDrops(answers.fetched, droppedNos(), current, waitingAdds())
-                val fetched = TranscriptTerms.drawnCourses(undropped, fromSelection = false, cached = cached)
-                Answers(fetched, answers.lookedUp, answers.answered, answers.looked, onlyGains = true)
+                val undropped = TranscriptTerms.withoutDrops(drew, droppedNos(), current, waitingAdds())
+                return fold(Answers(undropped, answers.lookedUp, answers.answered, answers.looked, onlyGains = true))
             }
             is ClassTableTermSource.Selection, ClassTableTermSource.Unanswered -> answers
         }
@@ -204,7 +208,9 @@ internal class ClassTableTermFetch(
      * For a term only gaining, its answers lose again what the drop list
      * names now ([droppedNos], [waitingAdds]; [TranscriptTerms.withoutDrops]):
      * read under the courses' lock, a course selection answer that dropped a
-     * course since [committed] read the list has saved the term too.
+     * course since [committed] read the list has saved the term too. So do
+     * the term's own rows of those courses
+     * ([TranscriptTerms.withoutDroppedRows]), which the fold would keep.
      *
      * [editGeneration] counts the term's in-place edits, bumped at the tap.
      * Read before the reads and again after them: an edit in between may have
@@ -239,7 +245,8 @@ internal class ClassTableTermFetch(
             if (editGeneration() != generation) return@repeat
             val latest = shownCourses()?.let { withEdits(cached, it, edited) } ?: cached
             val drawn = answers.withoutDrops(dropped, latest, waiting)
-            return fold(drawn, latest, names(), locale, CourseTombstoneKeys.hiddenIn(semester, withPendingEdits(stored)))
+            val kept = TranscriptTerms.withoutDroppedRows(latest, dropped, waiting)
+            return fold(drawn, kept, names(), locale, CourseTombstoneKeys.hiddenIn(semester, withPendingEdits(stored)))
         }
         return null
     }

@@ -121,6 +121,18 @@ object TranscriptTerms {
     }
 
     /**
+     * [current], a term only gaining's list as its fetch commits, without the courses fetched
+     * here that [dropped], the drop list read at the commit, names: [withoutDrops] leaves out
+     * their answers, and the list's own copy would keep them, as such a term removes none of its
+     * courses. So a fetch whose every course was dropped saves none of them. A row added by hand,
+     * here or merged from the server, is the sync's to take (`CourseSyncReconciler`), and a
+     * course in [waitingAdds] stays. As iOS `AppServiceBridge.savedCourses` (tigerduck-app#918).
+     */
+    fun withoutDroppedRows(current: List<Course>, dropped: Set<String>, waitingAdds: Set<String>): List<Course> =
+        if (dropped.isEmpty()) current
+        else current.filter { it.isManual || it.courseNo !in dropped || it.courseNo in waitingAdds }
+
+    /**
      * An ended term rebuilt from [report], the transcript that lists [term]
      * and a later one: its classes the course query found with class times,
      * and the cached copy of one it did not find or of a row it cannot look

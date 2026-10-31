@@ -197,12 +197,77 @@ class FetchedTermCommitTest {
         assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
     }
 
+    /**
+     * A fetch only gaining draws every course the term held as it began. While its lookups ran, a
+     * full sync found one dropped on the server, and the drop list here names the other: every
+     * course it drew is dropped as it saves. Their answers are left out, and so is the term's own
+     * copy of them, which a term only gaining would keep, shown and uploaded as written. A course
+     * saved meanwhile stays, as the term only gains, and none is hidden. A course added here, and
+     * one whose add is waiting, stay though the drops name them. As the iPhone's
+     * `savedCoursesSkipServerDrops`, which saves such a term empty (tigerduck-app#918).
+     */
+    @Test
+    fun `a fetch only gaining whose every drawn course was dropped as it saves takes them off the term, in Home and the background sync`() = runTest {
+        for (commit in listOf(::homeFetch, ::workerFetch)) {
+            cache = newCache()
+            cache.saveCourses(
+                listOf(
+                    portal(ENROLLED),
+                    portal(DROPPED),
+                    Course(courseNo = ADDED_HERE, courseName = ADDED_HERE, isManual = true),
+                    Course(courseNo = WAITING, courseName = WAITING, isManual = true, moodleIdNumber = "$TERM$WAITING"),
+                ),
+                TERM,
+            )
+
+            val committed = commit(setOf(WAITING)) {
+                cache.recordServerDrops(TERM, mapOf(ENROLLED to null, ADDED_HERE to null))
+                cache.saveSelectionDroppedNos(mapOf(TERM to listOf(DROPPED, WAITING)))
+                // Another fetch's save, which this one did not draw.
+                cache.saveCourses(cache.loadCourses(TERM) + portal(KEPT), TERM)
+            }
+
+            assertEquals(listOf(KEPT, ADDED_HERE, WAITING), cache.loadCourses(TERM).map { it.courseNo })
+            assertEquals(listOf(KEPT, ADDED_HERE, WAITING), committed.map { it.courseNo })
+            assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
+        }
+    }
+
+    /**
+     * Course selection's answer is the term's whole list: it saves every course it lists, though
+     * a sync found each dropped while its lookups ran, and a course fetched here that it does not
+     * list leaves the term.
+     */
+    @Test
+    fun `course selection's answer saves every course it lists though the drops name each, in Home and the background sync`() = runTest {
+        for (homeMerge in listOf(true, false)) {
+            cache = newCache()
+            cache.saveCourses(listOf(portal(ENROLLED), portal(DROPPED), portal(JUNK)), TERM)
+            val answer = cache.recordSelectionRoster(TERM, listOf(ENROLLED, DROPPED))!!
+            // A full sync while the lookups ran, its drops of no known time, which no answer is newer than.
+            cache.recordServerDrops(TERM, mapOf(ENROLLED to null))
+            cache.saveSelectionDroppedNos(mapOf(TERM to listOf(DROPPED, JUNK)))
+
+            val saved = commitFetchedTerm(
+                cache, TERM, listOf(answered(ENROLLED), answered(DROPPED)), onlyGains = false, answer,
+                waitingAdds = { emptySet() },
+            ) { rows, current, hidden ->
+                if (homeMerge) HomeCourseMerge.mergeRemote(rows, current, emptyMap(), "zh", hidden, onlyGains = false)
+                else ClassTableCourseMerge.mergeFetched(rows, current, emptyMap(), "zh", hidden)
+            }!!
+
+            assertEquals(listOf(ENROLLED, DROPPED), saved.map { it.courseNo })
+            assertEquals(listOf(ENROLLED, DROPPED), cache.loadCourses(TERM).map { it.courseNo })
+        }
+    }
+
     private companion object {
         const val TERM = "1151"
         const val LATER_TERM = "1152"
         const val ENROLLED = "XA0000001"
         const val DROPPED = "XB0000002"
         const val ADDED_HERE = "XF0000006"
+        const val KEPT = "XK0000011"
         const val JUNK = "XH0000008"
         const val WAITING = "XW0000023"
         const val LATER = "XZ0000099"
