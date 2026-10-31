@@ -16,6 +16,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.TranscriptTerms
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseTombstone
@@ -660,6 +661,29 @@ object CourseSyncReconciler {
             .mapNotNull { course -> course.customColorHex?.let { course.courseNo to it } }
             .toMap()
         return if (updated == courses && moved.isEmpty()) null else ColorOutcome(updated, moved)
+    }
+
+    /**
+     * Merges the snapshot's custom names ([mergeCustomNames]) into [dataCache]'s,
+     * writing only when something changed. Home's sync and the background
+     * worker apply names through this one, so a rule changed here reaches both.
+     *
+     * Merged into the names as they stand, under the lock every change to them
+     * takes ([DataCache.updateCourseCustomNames]), and [held] is read there too:
+     * a rename saved while the sync ran is neither undone by an older copy of
+     * the names nor, once it is held, overwritten by the snapshot's name. Returns
+     * the names as they stand after, or null with name sync off, when none are read.
+     */
+    internal suspend fun applyNameOverrides(
+        dataCache: DataCache,
+        overrides: List<CourseOverrideResult>,
+        syncNames: Boolean,
+        held: suspend () -> Set<String> = { emptySet() },
+    ): Map<String, Map<String, String>>? {
+        if (!syncNames) return null
+        return dataCache.updateCourseCustomNames { current ->
+            mergeCustomNames(current, overrides, syncNames = true, held = held()) ?: current
+        }
     }
 
     /**
