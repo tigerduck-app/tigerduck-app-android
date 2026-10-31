@@ -348,7 +348,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // A course it takes out goes with its waiting colour and name.
         commitReconciledTerm(
             dataCache, courseSync, semester, stored, outcome.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
-            outcome.droppedOnServer, emptyList(), pendingCourseOverrides,
+            outcome.droppedOnServer, emptyList(), outcome.handAddedNos, pendingCourseOverrides,
         )
         var known = outcome.serverKnownNos
         if (outcome.uploadLocal) {

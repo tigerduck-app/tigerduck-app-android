@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.network
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
@@ -68,6 +69,29 @@ class NtustScoreServiceSaveTest {
 
         assertNull(cache.loadScoreReport(STUDENT))
         assertNull(cache.loadScoreReport("TEST00002"))
+    }
+
+    /**
+     * The sign-in check and the save are two steps: a sign-out that wipes the data right after
+     * the check passed left the save free to take the wiped data's next generation, and so to put
+     * the departed student's transcript back.
+     */
+    @Test
+    fun `a report whose account signed out between the check and the save is not kept`() = runTest {
+        val wipingService = NtustScoreService(
+            dataCache = cache,
+            isSignedInAs = { studentId ->
+                val stillSignedIn = studentId == signedIn
+                // The sign-out lands on another thread just after the check read the credentials.
+                runBlocking { cache.clearAllUserData() }
+                signedIn = null
+                stillSignedIn
+            },
+            download = { _, _ -> report },
+        )
+
+        assertEquals(report, wipingService.fetchScoreReport(STUDENT, "not-a-password"))
+        assertNull(cache.loadScoreReport(STUDENT))
     }
 
     @Test

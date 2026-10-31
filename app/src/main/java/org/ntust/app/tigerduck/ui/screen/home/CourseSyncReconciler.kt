@@ -141,9 +141,8 @@ object CourseSyncReconciler {
         val droppedNos = selectionDroppedNos + droppedOnServer
         val addedHereNos = localCourses.filter(TranscriptTerms::isAddedHere).mapTo(mutableSetOf()) { it.courseNo } +
             pendingAddNos
-        val rows = filed.filter {
-            it.courseNo !in droppedNos || it.courseNo in addedHereNos || it.isUserAdded
-        }
+        val handAddedNos = addedHereNos + filed.filter { it.isUserAdded }.mapTo(mutableSetOf()) { it.courseNo }
+        val rows = filed.filter { it.courseNo !in droppedNos || it.courseNo in handAddedNos }
         val serverNos = rows.map { it.courseNo }.toSet()
         // Dropped, not deleted: the server still holds these rows.
         val skippedNos = filed.mapTo(mutableSetOf()) { it.courseNo } - serverNos
@@ -205,6 +204,7 @@ object CourseSyncReconciler {
                 serverKnownNos = serverKnownNos,
                 left = left,
                 droppedOnServer = droppedOnServer,
+                handAddedNos = handAddedNos,
             )
         }
 
@@ -258,6 +258,7 @@ object CourseSyncReconciler {
             serverKnownNos = serverKnownNos + serverNos,
             left = left,
             droppedOnServer = droppedOnServer,
+            handAddedNos = handAddedNos,
         )
     }
 
@@ -316,6 +317,11 @@ object CourseSyncReconciler {
      * ([droppedOnServer]), and not added back by hand since the read. A
      * roster that listed it again since clears its drop, and the fetch keeps
      * a merged copy's Moodle ID, so it would otherwise go regardless.
+     *
+     * Nor does a row of [merged] that [droppedHere] names come down, but one
+     * added by hand ([handAdded], [SemesterOutcome.handAddedNos]): the
+     * reconcile read the drop list before a past term's rebuild recorded its
+     * drops and saved the term, which took that course out.
      */
     fun committedCourses(
         current: List<Course>,
@@ -327,6 +333,7 @@ object CourseSyncReconciler {
         left: Set<String> = emptySet(),
         droppedHere: Set<String> = emptySet(),
         droppedOnServer: Set<String> = emptySet(),
+        handAdded: Set<String> = emptySet(),
     ): List<Course> {
         val pruned = read.mapTo(mutableSetOf()) { it.courseNo } - kept.mapTo(mutableSetOf()) { it.courseNo } + newlyHidden
         val held = current.filter {
@@ -334,7 +341,10 @@ object CourseSyncReconciler {
                 !(it.courseNo in left && leaves(it, droppedHere, droppedOnServer))
         }
         val heldNos = held.mapTo(mutableSetOf()) { it.courseNo }
-        return held + merged.filter { it.courseNo !in heldNos && it.courseNo !in hidden }
+        return held + merged.filter {
+            it.courseNo !in heldNos && it.courseNo !in hidden &&
+                (it.courseNo !in droppedHere || it.courseNo in handAdded)
+        }
     }
 
     data class SemesterOutcome(
@@ -357,6 +367,12 @@ object CourseSyncReconciler {
         val left: Set<String> = emptySet(),
         /** The course numbers of the snapshot's rows of the term a roster dropped. */
         val droppedOnServer: Set<String> = emptySet(),
+        /**
+         * The courses added by hand, which no drop takes: added here, or a
+         * `user_added` row from another device. For the commit, which checks
+         * [merged] against the drop list again (see [committedCourses]).
+         */
+        val handAddedNos: Set<String> = emptySet(),
     ) {
         val uploadLocal: Boolean get() = toUpload.isNotEmpty()
     }

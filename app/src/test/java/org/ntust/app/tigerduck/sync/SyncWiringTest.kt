@@ -319,7 +319,7 @@ class SyncWiringTest {
     @Test
     fun `the syncs forget the waiting colours and names of the courses they prune or a reset elsewhere wipes`() {
         // The term's commit hands the courses it took out to the forget (commitReconciledTerm).
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "syncCourseList", "outcome.merged, pendingCourseOverrides)")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "syncCourseList", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides,\n")
         assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseReset", "pendingCourseOverrides.forget(")
         assertCalls("notification/BackgroundSyncWorker.kt", "reconcileCurrentSemester", "pendingCourseOverrides,\n")
     }

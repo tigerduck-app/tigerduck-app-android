@@ -102,7 +102,7 @@ class ClassTableHandAddedHideTest {
         )
         beforeCommit()
         val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
-        commitReconciledTerm(cache, sync, TERM, stored, outcome.tombstones, setOf(course.courseNo), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, overrides)
+        commitReconciledTerm(cache, sync, TERM, stored, outcome.tombstones, setOf(course.courseNo), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides)
     }
 
     /**
@@ -134,7 +134,7 @@ class ClassTableHandAddedHideTest {
         cache.restoredCoursesListed(TERM, serverNos.toList(), fetchedAtMs)
         cache.saveServerKnownNos(mapOf(TERM to outcome.serverKnownNos.sorted()))
         val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
-        commitReconciledTerm(cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, overrides)
+        commitReconciledTerm(cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides)
     }
 
     /**

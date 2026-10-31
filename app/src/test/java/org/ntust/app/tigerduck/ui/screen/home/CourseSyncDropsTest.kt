@@ -4,11 +4,13 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -20,6 +22,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.LookedUpCourse
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermFetch
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermSource
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -287,7 +291,7 @@ class CourseSyncDropsTest {
             val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
             commitReconciledTerm(
                 cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left,
-                outcome.droppedOnServer, outcome.merged, overrides,
+                outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides,
             )
         } finally {
             cache.endCourseSync(courseSync)
@@ -366,8 +370,68 @@ class CourseSyncDropsTest {
         assertTrue(overrides.hasPending())
     }
 
+    /**
+     * [TERM] rebuilt from a transcript that lists only [ENROLLED], as the class table rebuilds an
+     * ended term: its classes looked up, its drops recorded, then the term folded and saved.
+     * [moodleNos] are the term's Moodle sites, which the rebuild drops.
+     */
+    private suspend fun rebuildTerm(moodleNos: List<String>) {
+        val fetch = ClassTableTermFetch { _, courseNo, _, _, _ ->
+            LookedUpCourse(courseNo, Course.fromSchedule(courseNo, courseNo, schedule = mapOf(2 to listOf("3", "4"))), answered = true)
+        }
+        val report = ScoreReport(
+            student = "",
+            currentTerm = "",
+            rankings = emptyList(),
+            courses = listOf(
+                CourseGrade(term = TERM, code = ENROLLED, name = ENROLLED, status = GradeStatus.GRADED),
+                CourseGrade(term = LATER_TERM, code = NO_STATUS, name = NO_STATUS, status = GradeStatus.PENDING),
+            ),
+            creditSummary = CreditSummary.EMPTY,
+        )
+        val source = ClassTableTermSource.of(TERM, selection = null, report, servedBySelection = false, cached = cache.loadCourses(TERM))
+        assertTrue(source is ClassTableTermSource.Rebuild)
+        val answers = fetch.lookUp(TERM, source.rosterNos, emptyMap(), before = cache.loadCourses(TERM))
+        val rebuilt = fetch.committed(
+            answers, source, TERM, moodleNos,
+            latest = { cache.loadCourses(TERM) },
+            waitingAdds = { emptySet() },
+            recordFinalRoster = { cache.recordFinalRoster(TERM, it.roster, alsoListed = it.dropping) },
+        ) { drawn ->
+            fetch.fold(drawn, cache.loadCourses(TERM), emptyMap(), "zh", CourseTombstoneKeys.hiddenIn(TERM, cache.loadDeletedCourseNos()))
+        }
+        cache.saveCourses(rebuilt!!, TERM)
+    }
+
+    /**
+     * A sync reads the drop list before its reconcile and commits seconds later. A rebuild that
+     * recorded its drops and saved the term in between had taken a Moodle site this phone never
+     * cached out of it, and the sync's commit put the site back as a merged copy, its row
+     * prepared before the drop. The commit checks its merges against the drop list as it stands.
+     */
+    @Test
+    fun `a row a rebuild dropped while the sync ran is not merged, but one added by hand is`() = runTest {
+        cache.saveCourses(listOf(fetched(ENROLLED)), TERM)
+
+        syncListing(row(ENROLLED), row(JUNK), row(OTHER_DEVICE, source = "user_added"), row(ADDED)) {
+            rebuildTerm(moodleNos = listOf(JUNK, OTHER_DEVICE, ADDED))
+            assertTrue(cache.loadSelectionDroppedNos()[TERM].orEmpty().containsAll(listOf(JUNK, OTHER_DEVICE, ADDED)))
+            // The rebuild took ADDED off, and the student added it back by hand.
+            cache.saveCourses(cache.loadCourses(TERM) + addedHere(ADDED), TERM)
+        }
+
+        val term = cache.loadCourses(TERM)
+        // Added by hand on another device, so no drop takes it.
+        assertEquals(listOf(ENROLLED, ADDED, OTHER_DEVICE), term.map { it.courseNo })
+        // The course added here, not the sync's merged copy of it.
+        assertNull(term.single { it.courseNo == ADDED }.moodleIdNumber)
+        assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
+    }
+
     private companion object {
         const val TERM = "1151"
+        const val LATER_TERM = "1152"
+        const val JUNK = "XH0000008"
         const val ENROLLED = "XA0000001"
         const val ADDED = "XB0000002"
         const val MERGED = "XC0000003"

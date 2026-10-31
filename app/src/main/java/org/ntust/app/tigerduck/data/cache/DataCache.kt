@@ -1156,8 +1156,9 @@ class DataCache @Inject constructor(
      */
     data class ScoreReportSnapshot(val report: ScoreReport?, val cachedAt: Date?)
 
-    suspend fun saveScoreReport(report: ScoreReport, studentId: String) =
-        save(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId))
+    /** False, and nothing written, when the data was wiped since [generation]. */
+    suspend fun saveScoreReport(report: ScoreReport, studentId: String, generation: Int? = null): Boolean =
+        saveIf(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId), generation ?: writeGeneration())
 
     suspend fun loadScoreReport(studentId: String): ScoreReportSnapshot? {
         val type = object : TypeToken<ScoreReportSnapshot>() {}.type
@@ -1480,14 +1481,18 @@ class DataCache @Inject constructor(
     }
 
     private suspend fun <T> save(value: T, filename: String) {
-        val generation = writeGeneration()
+        saveIf(value, filename, writeGeneration())
+    }
+
+    // As saveToUserDataIf, in the cache folder.
+    private suspend fun <T> saveIf(value: T, filename: String, generation: Int): Boolean =
         cacheMutex.withLock {
-            if (generation != userDataGeneration) return@withLock
+            if (generation != userDataGeneration) return@withLock false
             withContext(Dispatchers.IO) {
                 atomicWrite(File(cacheDir, filename), gson.toJson(value))
             }
+            true
         }
-    }
 
     private suspend fun <T> load(
         type: java.lang.reflect.Type,
