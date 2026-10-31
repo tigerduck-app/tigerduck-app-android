@@ -11,7 +11,14 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.TranscriptTerms
+import org.ntust.app.tigerduck.data.model.CourseGrade
+import org.ntust.app.tigerduck.data.model.CreditSummary
+import org.ntust.app.tigerduck.data.model.GradeStatus
+import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.network.LookedUpCourse
+import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.Course
 
 /**
@@ -26,16 +33,27 @@ class ClassTableTermFetchTest {
     private val asked = mutableListOf<String>()
     private val unanswered = mutableSetOf<String>()
     private val failing = mutableSetOf<String>()
+    private val timeless = mutableSetOf<String>()
 
-    /** Every code answered with a fresh row in IB-202, but the unanswered and the failing ones. */
+    /**
+     * Every code answered with a fresh row in IB-202, without times for the timeless ones, but
+     * the unanswered (no rows) and the failing ones.
+     */
     private val fetch = ClassTableTermFetch { _, courseNo, moodle, kept, onFailed ->
         asked += courseNo
         gate.await()
         when (courseNo) {
-            // As CourseService.lookupOrFallback comes to it.
-            in failing -> { onFailed(); CourseService.afterFailedLookup(courseNo, moodle, kept) }
-            in unanswered -> null
-            else -> Course.fromSchedule(courseNo, "$courseNo now", classroom = "IB-202", schedule = mapOf(2 to listOf("5")))
+            // As CourseService.lookupOrFallback comes to them.
+            in failing -> { onFailed(); LookedUpCourse(courseNo, CourseService.afterFailedLookup(courseNo, moodle, kept), answered = false) }
+            in unanswered -> CourseService.lookedUp(courseNo, emptyList(), moodle, kept) { _, _ -> error("no rows to build from") }
+            else -> LookedUpCourse(
+                courseNo,
+                Course.fromSchedule(
+                    courseNo, "$courseNo now", classroom = "IB-202",
+                    schedule = if (courseNo in timeless) emptyMap() else mapOf(2 to listOf("5")),
+                ),
+                answered = true,
+            )
         }
     }
 
@@ -127,9 +145,126 @@ class ClassTableTermFetchTest {
         gate.complete(Unit)
         assertTrue(lookUp(emptyList(), before = listOf(course("A"))).isEmpty)
         unanswered += listOf("A", "MINE")
-        val answers = lookUp(listOf("A"), before = listOf(course("A"), manual("MINE")))
-        assertTrue(answers.isEmpty)
+        // Nothing answered and nothing kept: nothing comes back.
+        assertTrue(lookUp(listOf("A"), before = listOf(manual("MINE"))).isEmpty)
+        // Nothing answered, and the rows the term has come back as they are (iOS tigerduck-app#890).
+        val before = listOf(course("A"), manual("MINE"))
+        val answers = lookUp(listOf("A"), before = before)
         assertTrue(answers.answered)
+        assertEquals(before, fold(answers, before))
+    }
+
+    @Test
+    fun `each roster course says whether the query answered it`() = runTest {
+        gate.complete(Unit)
+        unanswered += "B"
+        failing += "C"
+        val before = listOf(course("B"), course("C"))
+        val answers = lookUp(listOf("A", "B", "C"), before = before)
+        assertEquals(listOf("A" to true, "B" to false, "C" to false), answers.looked.map { it.courseNo to it.answered })
+        // Neither the empty answer nor the failure takes the row the term has.
+        assertEquals(before, answers.looked.drop(1).map { it.course })
+        assertFalse(answers.answered)
+    }
+
+    /**
+     * On the term course selection serves too, QueryCourse may have no rows for a course it lists
+     * (not indexed yet, or being re-indexed). That is no answer: the course keeps the times and
+     * room the term has for it, where Moodle's stand-in, which has neither, took them before.
+     */
+    @Test
+    fun `on the course selection term, a course the query has no rows for keeps its row, not Moodle's stand-in`() = runTest {
+        gate.complete(Unit)
+        unanswered += "B"
+        val scheduled = Course.fromSchedule("B", "B", classroom = "TR-313", schedule = mapOf(3 to listOf("6", "7")), moodleIdNumber = "1151B")
+        val latest = listOf(course("A"), scheduled)
+        val moodle = mapOf("B" to MoodleEnrolledCourse(7, "B on Moodle", "B", "1151B", 0, 0))
+
+        val answers = fetch.lookUp("1151", listOf("A", "B"), moodle, before = latest)
+        val out = fold(answers, latest)
+
+        assertEquals(listOf("A", "B"), out.map { it.courseNo })
+        assertEquals("TR-313", out[1].classroom)
+        assertEquals(mapOf(3 to listOf("6", "7")), out[1].schedule)
+        assertFalse(answers.looked[1].answered)
+        assertTrue(answers.answered)
+    }
+
+    // --- A past term rebuilt from its transcript (iOS tigerduck-app#890) ---
+
+    private fun merged(no: String) =
+        Course.fromSchedule(no, no, schedule = mapOf(1 to listOf("1")), moodleIdNumber = "1151$no", isManual = true)
+
+    private fun transcript(vararg codes: String) = ScoreReport(
+        student = "", currentTerm = "", rankings = emptyList(),
+        courses = codes.map { CourseGrade(term = "1151", code = it, name = it, status = GradeStatus.GRADED) } +
+            CourseGrade(term = "1152", code = "XZ0000099", name = "Later", status = GradeStatus.PENDING),
+        creditSummary = CreditSummary.EMPTY,
+    )
+
+    /** [before]'s rebuild from [report], its class rows looked up, as the class table makes one. */
+    private suspend fun rebuild(report: ScoreReport, before: List<Course>, moodleNos: List<String> = emptyList()): ClassTableTermFetch.Answers {
+        val answers = lookUp(TranscriptTerms.classRows(report, "1151").map { it.code }, before)
+        val rebuilt = TranscriptTerms.rebuiltPastTerm(answers.looked, report, "1151", before, moodleNos, waitingAdds = emptySet())
+        return answers.rebuilding(rebuilt)
+    }
+
+    @Test
+    fun `a rebuilt past term drops the junk merged from the server and keeps what was added here`() = runTest {
+        gate.complete(Unit)
+        // Merged from the server and on the transcript, its lookup unanswered.
+        unanswered += "XG0000007"
+        val before = listOf(
+            course("XA0000001"),
+            course("XC0000003"),
+            merged("XD0000004"),
+            manual("XF0000006"),
+            merged("XG0000007"),
+        )
+
+        val out = fold(rebuild(transcript("XA0000001", "XG0000007"), before, moodleNos = listOf("XD0000004")), before)
+
+        assertEquals(listOf("XA0000001", "XG0000007", "XF0000006"), out.map { it.courseNo })
+        assertEquals("IB-202", out[0].classroom)
+        assertTrue(out[1].isManual)
+        assertEquals("1151XG0000007", out[1].moodleIdNumber)
+        assertTrue(out[2].isManual)
+    }
+
+    @Test
+    fun `a past term the transcript leaves no class saves empty but for what was added here`() = runTest {
+        gate.complete(Unit)
+        timeless += "XH0000008"
+        val before = listOf(course("XJ0000009"), merged("XD0000004"), manual("XF0000006"))
+
+        val answers = rebuild(transcript("XH0000008"), before)
+
+        assertFalse(answers.isEmpty)
+        assertEquals(listOf("XF0000006"), fold(answers, before).map { it.courseNo })
+        val nothing = ClassTableTermFetch.Answers(emptyList(), emptyMap(), answered = true)
+        assertTrue(nothing.isEmpty)
+        assertFalse(nothing.rebuilding(TranscriptTerms.RebuiltTerm(emptyList(), emptyList(), listOf("XJ0000009"))).isEmpty)
+    }
+
+    @Test
+    fun `a rebuild keeps a delete and a hand-add made while its lookups ran`() = runTest {
+        gate.complete(Unit)
+        val before = listOf(course("XA0000001"), course("XB0000002"), merged("XD0000004"))
+        // XQ is a Moodle site of the term, so the rebuild drops its number.
+        val answers = rebuild(transcript("XA0000001", "XB0000002"), before, moodleNos = listOf("XQ0000017"))
+        val snapshot = Snapshot().apply {
+            cached = before
+            shown = before
+            cacheGate.complete(Unit)
+            fileGate.complete(Unit)
+        }
+        snapshot.delete("XB0000002", written = true)
+        snapshot.add(manual("XQ0000017"))
+
+        val out = foldLatest(answers, snapshot)
+        advanceUntilIdle()
+
+        assertEquals(listOf("XA0000001", "XQ0000017"), out()!!.map { it.courseNo })
     }
 
     /** The snapshot the fold is taken over, with the term's cache and the tombstone file each behind a gate. */

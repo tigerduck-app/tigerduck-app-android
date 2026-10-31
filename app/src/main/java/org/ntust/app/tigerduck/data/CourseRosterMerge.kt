@@ -70,16 +70,21 @@ object CourseRosterMerge {
      * Anything 選課 lists again is cleared, so re-adding a course in 加退選
      * brings it straight back.
      *
-     * Call only with a non-empty [roster]: an empty answer means the scrape
+     * An empty [roster] records nothing: an empty answer means the scrape
      * was not consulted or the page drifted, and would read as "everything
-     * was dropped". See [rosterOrder].
+     * was dropped". See [rosterOrder]. Unless [isFinal], an ended term's
+     * transcript, which may list no class at all; see
+     * [DataCache.recordFinalRoster][org.ntust.app.tigerduck.data.cache.DataCache.recordFinalRoster].
+     *
+     * As iOS `AppServiceBridge.selectionDrops`.
      */
     fun selectionDrops(
         previous: Set<String>,
         localPortalNos: List<String>,
         roster: List<String>,
+        isFinal: Boolean = false,
     ): Set<String> {
-        if (roster.isEmpty()) return previous
+        if (roster.isEmpty() && !isFinal) return previous
         val enrolled = roster.toSet()
         return (previous + localPortalNos).filterNot { it in enrolled }.toSet()
     }

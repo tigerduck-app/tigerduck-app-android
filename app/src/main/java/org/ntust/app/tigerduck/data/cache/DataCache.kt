@@ -478,13 +478,36 @@ class DataCache @Inject constructor(
         if (roster.isEmpty()) return
         saveToUserData(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE)
         liftHandAddedHides(semester, roster)
+        recordDrops(semester, roster, alsoListed = emptyList(), isFinal = false)
+    }
+
+    /**
+     * Fold an ended term's roster, read off its transcript, into the dropped
+     * set: what the term held here and [alsoListed], the courses it may hold
+     * on the server without this phone having fetched them, are dropped but
+     * the [roster]. Counts even when empty, as the transcript of an ended
+     * term is final. Called before the rebuild saves the term, as
+     * [recordSelectionRoster] is.
+     *
+     * Not a course selection answer: kept as none, and lifts no hide of a
+     * course added by hand, which only the school's enrolment brings back.
+     *
+     * As iOS `DataCache.recordSelectionRoster(isFinal: true)` (tigerduck-app#890).
+     */
+    suspend fun recordFinalRoster(semester: String, roster: List<String>, alsoListed: Collection<String>) =
+        recordDrops(semester, roster, alsoListed, isFinal = true)
+
+    // A course added by hand here is a manual row, never in the portal rows diffed against.
+    private suspend fun recordDrops(semester: String, roster: List<String>, alsoListed: Collection<String>, isFinal: Boolean) {
         val stored = loadSelectionDroppedNos()
+        val previous = stored[semester].orEmpty().toSet()
         val updated = CourseRosterMerge.selectionDrops(
-            previous = stored[semester].orEmpty().toSet(),
-            localPortalNos = loadCourses(semester).filterNot { it.isManual }.map { it.courseNo },
+            previous = previous,
+            localPortalNos = loadCourses(semester).filterNot { it.isManual }.map { it.courseNo } + alsoListed,
             roster = roster,
+            isFinal = isFinal,
         )
-        if (updated == stored[semester].orEmpty().toSet()) return
+        if (updated == previous) return
         saveSelectionDroppedNos(
             if (updated.isEmpty()) stored - semester else stored + (semester to updated.toList())
         )

@@ -45,10 +45,15 @@ object ClassTableCourseMerge {
         val cachedByNo = cached.associateBy { it.courseNo }
         val restored = fetched.map { course ->
             val prior = cachedByNo[course.courseNo]
+            // A course added here keeps the Moodle identity it was added with, none, as [refreshed]
+            // keeps it: with the school's it would read as merged, which a past term's rebuild drops.
+            val addedHere = prior != null && prior.isManual && prior.moodleIdNumber.isNullOrEmpty()
             course.copy(
                 customColorHex = prior?.customColorHex,
                 isManual = prior?.isManual == true,
                 customCourseName = CourseNameOverrides.overrideFor(names, course.courseNo, locale),
+                moodleIdNumber = if (addedHere) prior?.moodleIdNumber else course.moodleIdNumber,
+                moodleNumericCourseId = if (addedHere) prior?.moodleNumericCourseId else course.moodleNumericCourseId,
             )
         }
         val fetchedNos = restored.mapTo(mutableSetOf()) { it.courseNo }

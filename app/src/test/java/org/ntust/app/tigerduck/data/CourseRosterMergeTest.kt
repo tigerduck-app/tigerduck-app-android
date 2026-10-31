@@ -140,6 +140,25 @@ class CourseRosterMergeTest {
         assertEquals(setOf("C"), dropped)
     }
 
+    /**
+     * An ended term's transcript is final (iOS tigerduck-app#890): a term it leaves with no class
+     * held only junk, and its empty roster drops all of it.
+     */
+    @Test
+    fun `a final roster counts even when empty`() {
+        val dropped = CourseRosterMerge.selectionDrops(
+            previous = setOf("C"),
+            localPortalNos = listOf("A", "B"),
+            roster = emptyList(),
+            isFinal = true,
+        )
+        assertEquals(setOf("A", "B", "C"), dropped)
+        assertEquals(
+            setOf("B", "C"),
+            CourseRosterMerge.selectionDrops(setOf("C"), listOf("A", "B"), roster = listOf("A"), isFinal = true),
+        )
+    }
+
     @Test
     fun `moodle courses from other terms and without a course number are ignored`() {
         val kept = CourseRosterMerge.moodleCoursesFor(

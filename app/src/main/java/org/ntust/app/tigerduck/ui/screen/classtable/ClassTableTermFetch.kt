@@ -11,19 +11,21 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.TranscriptTerms
+import org.ntust.app.tigerduck.network.LookedUpCourse
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.Course
 
 internal class ClassTableTermFetch(
     /**
-     * One course as the school has it: QueryCourse's rows, or Moodle's
-     * stand-in when it has none, or null for neither —
-     * `CourseService.lookupOrFallback`. A query that fails comes to `kept`,
-     * the row the term already has, where there is one, and tells `onFailed`.
+     * One course as the school has it: QueryCourse's rows, answered, or else
+     * `kept`, the row the term already has, or Moodle's stand-in, or null for
+     * neither — `CourseService.lookupOrFallback`. A query that fails tells
+     * `onFailed` too.
      */
     private val lookUpCourse: suspend (
         semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?, onFailed: () -> Unit,
-    ) -> Course?,
+    ) -> LookedUpCourse,
 ) {
     /** What a term's lookups brought, for [fold]. */
     class Answers(
@@ -33,9 +35,29 @@ internal class ClassTableTermFetch(
         val lookedUp: Map<String, Course>,
         /** Whether every query went through; the warm of the other terms stops at one that did not. */
         val answered: Boolean,
+        /**
+         * Each roster course as its lookup came back, in the roster's order,
+         * and whether QueryCourse answered it, for
+         * [TranscriptTerms.rebuiltPastTerm].
+         */
+        val looked: List<LookedUpCourse> = emptyList(),
+        /**
+         * Set when [fetched] is a past term rebuilt from its transcript, see
+         * [rebuilding]: what the rebuild drops, which [fold] takes off the
+         * term's merged rows.
+         */
+        val rebuildDrops: Set<String>? = null,
     ) {
-        /** Nothing came back: the term is left as it is. */
-        val isEmpty: Boolean get() = fetched.isEmpty() && lookedUp.isEmpty()
+        /** Nothing came back: the term is left as it is. A rebuild always comes back, even empty. */
+        val isEmpty: Boolean get() = rebuildDrops == null && fetched.isEmpty() && lookedUp.isEmpty()
+
+        /**
+         * These answers as [rebuilt], an ended term rebuilt from its
+         * transcript: its courses are the term, and [fold] takes off the
+         * merged rows it drops. The hand-added rows looked up stay refreshed.
+         */
+        fun rebuilding(rebuilt: TranscriptTerms.RebuiltTerm): Answers =
+            Answers(rebuilt.courses, lookedUp, answered, looked, rebuildDrops = rebuilt.dropped)
     }
 
     /**
@@ -59,8 +81,9 @@ internal class ClassTableTermFetch(
         }
         var failed = false
         val noteFailure = { failed = true }
-        // A roster course whose query fails keeps its row in the term, where
-        // Moodle's stand-in would take its times and room (#417).
+        // A roster course whose query fails, or brings no rows, keeps its row
+        // in the term, where Moodle's stand-in would take its times and room
+        // (#417).
         val beforeByNo = before.associateBy { it.courseNo }
         val roster = rosterNos.map { courseNo ->
             async { lookUpCourse(semester, courseNo, moodleByNo[courseNo], beforeByNo[courseNo], noteFailure) }
@@ -68,11 +91,11 @@ internal class ClassTableTermFetch(
         // Without Moodle to fall back on: a hand-added course the query does
         // not answer keeps its snapshot, where a stub would take its times.
         val manual = manualNos.map { courseNo ->
-            async { courseNo to lookUpCourse(semester, courseNo, null, null, noteFailure) }
+            async { lookUpCourse(semester, courseNo, null, null, noteFailure) }
         }
-        val fetched = roster.awaitAll().filterNotNull()
-        val lookedUp = manual.awaitAll().mapNotNull { (courseNo, course) -> course?.let { courseNo to it } }.toMap()
-        Answers(fetched, lookedUp, answered = !failed)
+        val looked = roster.awaitAll()
+        val lookedUp = manual.awaitAll().mapNotNull { lookup -> lookup.course?.let { lookup.courseNo to it } }.toMap()
+        Answers(looked.mapNotNull { it.course }, lookedUp, answered = !failed, looked = looked)
     }
 
     /**
@@ -140,13 +163,24 @@ internal class ClassTableTermFetch(
         deletedNos: Set<String>,
     ): List<Course> {
         val refreshed = ClassTableCourseMerge.withLookedUp(latest, answers.lookedUp)
-        return if (answers.fetched.isNotEmpty()) {
-            ClassTableCourseMerge.mergeFetched(answers.fetched, refreshed, names, locale, deletedNos)
-        } else {
+        val rebuildDrops = answers.rebuildDrops
+        return when {
+            // A rebuilt past term is its transcript's, even when that is
+            // nothing. The merge keeps manual rows, so the merged ones it
+            // drops go first: kept in the list, a sync would hide them for
+            // good, or send them back up to a server that has none. A course
+            // added here has no Moodle ID and stays.
+            rebuildDrops != null -> ClassTableCourseMerge.mergeFetched(
+                answers.fetched,
+                refreshed.filterNot { it.isManual && !it.moodleIdNumber.isNullOrEmpty() && it.courseNo in rebuildDrops },
+                names, locale, deletedNos,
+            )
+            answers.fetched.isNotEmpty() ->
+                ClassTableCourseMerge.mergeFetched(answers.fetched, refreshed, names, locale, deletedNos)
             // The roster brought nothing, so the term stays as it is, its
             // hand-added rows refreshed; a merge over nothing would drop the
             // rest.
-            CourseNameOverrides.resolve(refreshed, names, locale).filter { it.courseNo !in deletedNos }
+            else -> CourseNameOverrides.resolve(refreshed, names, locale).filter { it.courseNo !in deletedNos }
         }
     }
 }

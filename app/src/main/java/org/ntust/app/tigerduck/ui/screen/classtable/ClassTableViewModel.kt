@@ -1665,10 +1665,9 @@ class ClassTableViewModel @Inject constructor(
      * [semester]'s courses as the school has them now — see
      * [ClassTableTermFetch] — folded onto the term's list as it stands once
      * the lookups land and, when it is the term on screen, shown; then saved,
-     * uploaded and sent to the widget. QueryCourse only indexes the latest
-     * term or two, so lookupOrFallback drops to Moodle metadata for
-     * historical courses, which still render with the name and credits but
-     * no schedule.
+     * uploaded and sent to the widget. A course QueryCourse has no rows for
+     * keeps the row the term has, or else drops to Moodle metadata, which
+     * still renders with the name and credits but no schedule.
      *
      * The commit runs under [PendingCourseAdds.uploading], in the order the
      * backend's DELETEs run in and held through the upload: a reset's DELETE
@@ -1836,7 +1835,7 @@ class ClassTableViewModel @Inject constructor(
             val found = courseNos.map { courseNo ->
                 // Without Moodle to fall back on: null for a query that failed
                 // or a course it does not know, which the row then waits out.
-                async { courseNo to courseService.lookupOrFallback(semester, courseNo, moodle = null) }
+                async { courseNo to courseService.lookupOrFallback(semester, courseNo, moodle = null).course }
             }.awaitAll().mapNotNull { (courseNo, course) -> course?.let { courseNo to it } }.toMap()
             if (!authService.isStillSignedInAs(account) || coursesSemester != semester) return@launch
             val updated = ClassTableCourseMerge.withRoomsFound(_courses.value, found) ?: return@launch

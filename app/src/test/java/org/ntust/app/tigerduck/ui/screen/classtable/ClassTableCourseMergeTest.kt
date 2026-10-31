@@ -55,6 +55,28 @@ class ClassTableCourseMergeTest {
     }
 
     @Test
+    fun `a course added here stays added here when the school also lists it`() {
+        // Its Moodle identity stays the one it was added with, none, as a lookup again keeps it:
+        // with the school's, it would read as merged, and a past term's rebuild could drop it.
+        val out = merge(
+            fetched = listOf(course("A").copy(moodleIdNumber = "1141A", moodleNumericCourseId = 42)),
+            cached = listOf(course("A", manual = true)),
+        ).single()
+        assertTrue(out.isManual)
+        assertNull(out.moodleIdNumber)
+        assertNull(out.moodleNumericCourseId)
+    }
+
+    @Test
+    fun `a merged course takes the school's Moodle identity`() {
+        val out = merge(
+            fetched = listOf(course("A").copy(moodleIdNumber = "1141A")),
+            cached = listOf(course("A", manual = true).copy(moodleIdNumber = "1141A-old")),
+        ).single()
+        assertEquals("1141A", out.moodleIdNumber)
+    }
+
+    @Test
     fun `a course only the user knows about is kept`() {
         val out = merge(
             fetched = listOf(course("A")),
