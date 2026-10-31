@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.shared.Course
 
 /**
@@ -209,6 +210,25 @@ class ClassTableCourseMergeTest {
         assertEquals("MINE", out.courseNo)
         assertEquals("1151MINE", out.moodleIdNumber)
         assertEquals(77, out.moodleNumericCourseId)
+    }
+
+    /**
+     * As the iPhone's `filledHandAddKeepsNoMoodleId` (tigerduck-app#890). The iPhone fills a
+     * hand-added course's empty schedule from its server row; here a lookup fills it, and the sync
+     * merge never does. Either way the course keeps having no Moodle ID, so a drop still passes it.
+     */
+    @Test
+    fun `a course added here filled in from a lookup keeps having no Moodle ID`() {
+        val added = Course.fromSchedule("XB0000002", "Added here", isManual = true)
+        val looked = Course.fromSchedule(
+            "XB0000002", "Added here", schedule = mapOf(2 to listOf("3", "4")), moodleIdNumber = "1141XB0000002",
+        )
+
+        val filled = ClassTableCourseMerge.refreshed(added, looked)
+
+        assertEquals(mapOf(2 to listOf("3", "4")), filled.schedule)
+        assertNull(filled.moodleIdNumber)
+        assertTrue(TranscriptTerms.isAddedHere(filled))
     }
 
     @Test

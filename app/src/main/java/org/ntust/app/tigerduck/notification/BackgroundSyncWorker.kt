@@ -344,8 +344,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // Merging down is Home's: nothing merged here.
         // A course it takes out goes with its waiting colour and name.
         commitReconciledTerm(
-            dataCache, courseSync, semester, stored, outcome.tombstones, tombstoneNos, localCourses, pruned, emptyList(),
-            pendingCourseOverrides,
+            dataCache, courseSync, semester, stored, outcome.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
+            outcome.droppedOnServer, emptyList(), pendingCourseOverrides,
         )
         var known = outcome.serverKnownNos
         if (outcome.uploadLocal) {

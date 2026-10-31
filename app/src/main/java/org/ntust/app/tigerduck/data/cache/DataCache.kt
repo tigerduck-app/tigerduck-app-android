@@ -175,9 +175,10 @@ class DataCache @Inject constructor(
      * what it changed: a delete or a fetch saved while it ran stays as that
      * left it. A delete writes its hide before its list, so a course deleted
      * before this read is in the hides, and one deleted after it is taken off
-     * by the delete's own save.
+     * by the delete's own save. What else [change] reads is read with no save
+     * of a term meanwhile either.
      */
-    suspend fun updateCourses(semester: String, change: (List<Course>, Set<String>) -> List<Course>) =
+    suspend fun updateCourses(semester: String, change: suspend (List<Course>, Set<String>) -> List<Course>) =
         coursesMutex.withLock {
             val hidden = CourseTombstoneKeys.hiddenIn(semester, loadDeletedCourseNos())
             writeCourses(change(loadCourses(semester), hidden), semester)
