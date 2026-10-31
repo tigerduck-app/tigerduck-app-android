@@ -12,6 +12,9 @@ import java.time.LocalDate
  * the end being the changed one when the school moved it. A cancelled class is neither on nor
  * next. The day is Taipei's, whatever zone the phone is in. Callers pass "now" in, read from
  * [org.ntust.app.tigerduck.shared.clock.AppClock] so the debug override moves them all together.
+ *
+ * Which classes count stays with the caller: holidays, skipped dates, hidden courses and the
+ * term a date falls in aren't known here, so pass [Course]s already filtered for them.
  */
 object ClassTimeline {
 
