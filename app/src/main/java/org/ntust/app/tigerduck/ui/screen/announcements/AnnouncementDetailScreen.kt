@@ -218,7 +218,7 @@ private fun DetailBody(
             Spacer(Modifier.weight(1f))
             chrome.postedAt?.let {
                 Text(
-                    text = it.substringBefore('T'),
+                    text = bulletinFullDateLabel(it),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                 )

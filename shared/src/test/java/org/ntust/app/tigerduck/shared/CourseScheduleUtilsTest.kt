@@ -64,12 +64,19 @@ class CourseScheduleUtilsTest {
     }
 
     @Test
-    fun `computeOngoingCourses is ongoing at exact block end minute (inclusive)`() {
-        // Period "2" ends at 10:00 = 10*60 = 600.  Minute == end → Ongoing.
+    fun `computeOngoingCourses is ongoing in the last minute before the block end`() {
+        // Period "2" ends at 10:00 = 600.  09:59 = 599 is still Ongoing.
         val courses = listOf(course("BC", mapOf(1 to listOf("1", "2"))))
-        val result = computeOngoingCourses(courses, weekday = 1, minuteOfDay = 600)
+        val result = computeOngoingCourses(courses, weekday = 1, minuteOfDay = 599)
         assertEquals(1, result.size)
         assertEquals(600, result[0].endMinute)
+    }
+
+    @Test
+    fun `computeOngoingCourses is not ongoing at the exact block end minute`() {
+        // D2: start <= now < end.  Minute == end → over.
+        val courses = listOf(course("BC", mapOf(1 to listOf("1", "2"))))
+        assertTrue(computeOngoingCourses(courses, weekday = 1, minuteOfDay = 600).isEmpty())
     }
 
     @Test

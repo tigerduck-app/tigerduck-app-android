@@ -83,6 +83,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
@@ -552,7 +553,7 @@ private fun BulletinCard(
                 Spacer(Modifier.weight(1f))
                 item.postedAt?.let {
                     Text(
-                        text = formatShortDate(it),
+                        text = bulletinDateLabel(it),
                         style = MaterialTheme.typography.labelSmall,
                         color = cs.onSurfaceVariant,
                     )
@@ -793,14 +794,31 @@ private fun TagStrip(tags: List<String>, taxonomy: TaxonomyResponse?) {
     }
 }
 
-private fun formatShortDate(raw: String): String {
-    // Server emits ISO-8601 with Z; show just the date portion. Falling back
-    // to the raw string preserves whatever the server sent if parsing fails.
+internal fun bulletinDateLabel(raw: String): String {
+    // Server emits ISO-8601 with Z; show just the date portion in Taipei time, like every
+    // other date in the app, so a phone in another zone still sees the school's day. Falling
+    // back to the raw string preserves whatever the server sent if parsing fails.
     return try {
         val instant = java.time.Instant.parse(raw)
         java.time.format.DateTimeFormatter
             .ofPattern("M/d")
-            .withZone(java.time.ZoneId.systemDefault())
+            .withZone(AppConstants.TAIPEI_ZONE)
+            .format(instant)
+    } catch (_: Exception) {
+        raw.substringBefore('T')
+    }
+}
+
+/**
+ * The full date on a bulletin's detail, in Taipei time like the list's short date. Reading the
+ * UTC date here would show a bulletin posted after midnight in Taipei on the previous day.
+ */
+internal fun bulletinFullDateLabel(raw: String): String {
+    return try {
+        val instant = java.time.Instant.parse(raw)
+        java.time.format.DateTimeFormatter
+            .ofPattern("yyyy-MM-dd")
+            .withZone(AppConstants.TAIPEI_ZONE)
             .format(instant)
     } catch (_: Exception) {
         raw.substringBefore('T')
