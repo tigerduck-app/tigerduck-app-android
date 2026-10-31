@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -122,6 +123,22 @@ class HomeViewModelTest {
             assertEquals(listOf("CS1001"), homeCourseNos())
         } finally {
             // Home's clock ticker never ends, and runTest waits for every coroutine on its scheduler.
+            home.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a courses save does not drop a mark Home holds that disk does not yet`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            // A swipe still on its way to disk: Home holds the id, the file does not.
+            home.markedCompletedIds.let { (it as MutableStateFlow<Set<String>>).value = setOf("7") }
+
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            assertEquals(listOf("CS1001"), homeCourseNos())
+
+            assertEquals(setOf("7"), home.markedCompletedIds.value)
+        } finally {
             home.viewModelScope.cancel()
         }
     }

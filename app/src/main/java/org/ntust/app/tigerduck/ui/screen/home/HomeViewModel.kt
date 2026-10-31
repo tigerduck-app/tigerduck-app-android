@@ -16,6 +16,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -412,9 +413,11 @@ class HomeViewModel @Inject constructor(
         }
         viewModelScope.launch {
             // A course the class table adds or edits is saved with no sync round after it, so
-            // the sync version above never moves for it. Home reads the cache again on every
-            // write of a term's courses, the same read a sync round ends with.
-            dataCache.coursesVersion.drop(1).collect { reloadFromCache() }
+            // the sync version above never moves for it. Home reads the courses again on every
+            // write of a term's courses, and only the courses: the marks are Home's own to write,
+            // and a read here could undo a swipe still on its way to disk.
+            val start = dataCache.coursesVersion.value
+            dataCache.coursesVersion.filter { it != start }.collect { reloadCoursesFromCache() }
         }
         viewModelScope.launch {
             // Marks a re-enable answer took (Use Server): read now, or the
@@ -933,7 +936,7 @@ class HomeViewModel @Inject constructor(
 
     /**
      * Reads the courses, assignments and marks off the cache and shows them, for a sync round that
-     * has ended and for a write of a term's courses (see the collectors in `init`).
+     * has ended.
      */
     private suspend fun reloadFromCache() {
         if (!authService.authState.value) return
@@ -951,6 +954,16 @@ class HomeViewModel @Inject constructor(
         _ignoredCourseKeys.value = courseKeys
         TigerDuckTheme.buildCourseColorMap(courses)
         updateCoursesAndAssignments(courses, assignments)
+    }
+
+    /** Shows the cached courses with the assignments and marks Home already holds; see the `coursesVersion` collector. */
+    private suspend fun reloadCoursesFromCache() {
+        if (!authService.authState.value) return
+        val account = authService.storedStudentId
+        val courses = dataCache.loadCourses()
+        if (!authService.isStillSignedInAs(account)) return
+        TigerDuckTheme.buildCourseColorMap(courses)
+        updateCoursesAndAssignments(courses, _allAssignments.value)
     }
 
     private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
