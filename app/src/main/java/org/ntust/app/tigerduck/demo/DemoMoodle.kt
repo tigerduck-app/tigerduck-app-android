@@ -3,10 +3,8 @@ package org.ntust.app.tigerduck.demo
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
-import org.ntust.app.tigerduck.data.moodle.MoodleMaterials
-import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
-import org.ntust.app.tigerduck.network.moodle.MoodleHtmlText
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.moodle.MoodleMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentGrade
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentSubmission
@@ -21,8 +19,10 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterialSection
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberRole
-import org.ntust.app.tigerduck.network.model.moodle.MoodleSubmissionComment
 import org.ntust.app.tigerduck.network.model.moodle.MoodlePost
+import org.ntust.app.tigerduck.network.model.moodle.MoodleSubmissionComment
+import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.network.moodle.MoodleHtmlText
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeParseException

@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.shared.clock
 
 import org.ntust.app.tigerduck.shared.clock.AppClock.setOverride
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -8,7 +9,6 @@ import java.util.Calendar
 import java.util.TimeZone
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
-import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * Single source of "now" for the app. All UI / class-status / scheduler code

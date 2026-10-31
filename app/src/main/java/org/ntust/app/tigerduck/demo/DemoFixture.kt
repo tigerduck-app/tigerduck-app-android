@@ -7,12 +7,12 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
 import java.util.Date
-import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * A made-up student, read from the hand-written `assets/demo.json`.

@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.data.model.EventSource
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.util.logSummary
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -14,7 +15,6 @@ import java.util.Locale
 import java.util.TimeZone
 import javax.inject.Inject
 import javax.inject.Singleton
-import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * A three-digit ROC academic year in a link's text on the calendar page, as the school writes

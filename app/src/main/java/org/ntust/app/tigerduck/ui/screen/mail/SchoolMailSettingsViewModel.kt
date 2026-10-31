@@ -20,12 +20,11 @@ import org.ntust.app.tigerduck.mail.sync.ExactAlarmAccess
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.DayOfWeek
 import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
-import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 object MailDiagnostics {
     private val FORMAT = DateTimeFormatter.ofPattern("MM/dd HH:mm:ss").withZone(TaipeiClock.zone)
