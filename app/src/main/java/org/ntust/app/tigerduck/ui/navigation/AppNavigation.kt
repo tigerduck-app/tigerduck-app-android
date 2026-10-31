@@ -260,6 +260,8 @@ fun MainNavigation(
     val classTableViewModel: ClassTableViewModel = hiltViewModel()
     val calendarViewModel: CalendarViewModel = hiltViewModel()
     val classTableImportViewModel: ClassTableImportViewModel = hiltViewModel()
+    // The pages that need an account read it here, and so does the scanner's QR button.
+    val signedIn by classTableViewModel.isLoggedIn.collectAsStateWithLifecycle()
     ShowOwnClassTableFromWidget(widgetStartRoute) { classTableViewModel.showTable(null) }
     LaunchedEffect(Unit) {
         homeViewModel.load()
@@ -604,6 +606,7 @@ fun MainNavigation(
                     onOpenSubscriptions = {
                         navController.navigate(Screen.AnnouncementSubscriptions.route)
                     },
+                    signedIn = signedIn,
                 )
             }
             page(
@@ -615,8 +618,8 @@ fun MainNavigation(
                     onBack = { navController.popBackStack() },
                 )
             }
-            page(Screen.AnnouncementSubscriptions.route) {
-                SubscriptionSettingsScreen(onBack = { navController.popBackStack() })
+            page(Screen.AnnouncementSubscriptions.route) { entry ->
+                SubscriptionSettingsScreen(signedIn = signedIn, onBack = { navController.popIfTop(entry) })
             }
             page(Screen.Library.route) { LibraryScreen() }
             page(Screen.SchoolMail.route) {
@@ -894,7 +897,6 @@ fun MainNavigation(
     }
 
     // What the scanner's QR button shares, read again as the class table's courses load.
-    val signedIn by classTableViewModel.isLoggedIn.collectAsStateWithLifecycle()
     val shareTerms by classTableViewModel.shareTerms.collectAsStateWithLifecycle()
     val shownCourses by classTableViewModel.courses.collectAsStateWithLifecycle()
     val semesters by classTableViewModel.availableSemesters.collectAsStateWithLifecycle()

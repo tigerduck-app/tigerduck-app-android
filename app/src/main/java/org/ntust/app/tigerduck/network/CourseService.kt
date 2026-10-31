@@ -13,6 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -42,6 +43,14 @@ import org.ntust.app.tigerduck.util.toCreditsOrZero
  * what is kept (`expireSharedResults`), so it never gets one at all.
  */
 internal const val SHARED_ANSWER_WINDOW_MS = 60_000L
+
+/**
+ * One course number looked up: [course] as it came back, and whether
+ * QueryCourse [answered] with rows for it. When it did not, [course] is the
+ * row the term already had, or Moodle's stand-in, or null for neither — see
+ * [CourseService.lookupOrFallback]. As iOS `AppServiceBridge.LookedUpCourse`.
+ */
+data class LookedUpCourse(val courseNo: String, val course: Course?, val answered: Boolean)
 
 sealed class CourseServiceError : Exception() {
     class NotAuthenticated : CourseServiceError()
@@ -77,6 +86,23 @@ class CourseService @Inject constructor(
         appScope, windowMs = 0, SystemClock::elapsedRealtime,
     )
 
+    // Courses' syllabi from QueryCourse's `coursedetials`, kept for the app's run; see [syllabus].
+    private val syllabi = CourseSyllabusStore(appScope) { semester, courseNo, language ->
+        withContext(Dispatchers.IO) {
+            client.newCall(courseSyllabusRequest(semester, courseNo, language)).execute().use { response ->
+                if (!response.isSuccessful) throw java.io.IOException("syllabus HTTP ${response.code}")
+                response.body.string()
+            }
+        }
+    }
+
+    /**
+     * [courseNo]'s syllabus in [semester], in the app's language for the course service; null when
+     * the school has none. Throws when it cannot be fetched. Public: no account is asked for.
+     */
+    suspend fun syllabus(semester: String, courseNo: String, language: String = preferredCourseApiLanguage()): CourseSyllabus? =
+        syllabi.syllabus(semester, courseNo, language)
+
     /** See [MoodleService.expireSharedResults]. */
     fun expireSharedResults() = sharedCourseNos.expire()
 
@@ -86,6 +112,7 @@ class CourseService @Inject constructor(
     private val courseSelectionRoot = "https://courseselection.ntust.edu.tw/"
     private val courseListUrl = "https://courseselection.ntust.edu.tw/ChooseList/D01/D01"
     private val courseSearchApiBaseUrl = "https://querycourse.ntust.edu.tw/QueryCourse/api/courses"
+
 
     // Per-course metadata cache — see DataCache.CourseLookupEntry. Entries
     // are loaded from disk once on first use and written through on every
@@ -314,15 +341,17 @@ class CourseService @Inject constructor(
      * Everything else is read off the first row, which repeats the
      * course-level fields.
      *
-     * Returns null only when both sources come up empty. A lookup that throws
-     * does not fail the whole roster: it comes to [afterFailedLookup] — one
-     * unreachable course must not blank out a timetable.
+     * The course is null only when both sources come up empty. A lookup that
+     * throws does not fail the whole roster: it comes to [afterFailedLookup]
+     * — one unreachable course must not blank out a timetable — and so does
+     * one QueryCourse has no rows for, see [lookedUp]. Either way the lookup
+     * is not [LookedUpCourse.answered].
      */
     suspend fun lookupOrFallback(
         semester: String,
         courseNo: String,
         moodle: MoodleEnrolledCourse?,
-        /** The row the term already has for the course, which a failed query keeps. */
+        /** The row the term already has for the course, which a query that brings none keeps. */
         kept: Course? = null,
         /**
          * Told of a query that failed, which the fallback otherwise hides: a
@@ -330,13 +359,8 @@ class CourseService @Inject constructor(
          * would fail the same way.
          */
         onLookupFailed: (() -> Unit)? = null,
-    ): Course? = try {
-        val results = lookupCourse(semester, courseNo)
-        if (results.isEmpty()) {
-            fallbackCourseFromMoodle(courseNo, moodle)
-        } else {
-            courseFrom(results, moodle)
-        }
+    ): LookedUpCourse = try {
+        lookedUp(courseNo, lookupCourse(semester, courseNo), moodle, kept, ::courseFrom)
     } catch (e: CancellationException) {
         // ClassTableViewModel cancels its load job on every semester flip, and
         // each in-flight lookup lands here. Swallowing it would log a failure
@@ -346,7 +370,7 @@ class CourseService @Inject constructor(
     } catch (e: Exception) {
         Log.e(TAG_LOOKUP, "Failed to look up a course: ${e.logSummary()}")
         onLookupFailed?.invoke()
-        afterFailedLookup(courseNo, moodle, kept)
+        LookedUpCourse(courseNo, afterFailedLookup(courseNo, moodle, kept), answered = false)
     }
 
     /**
@@ -476,6 +500,26 @@ class CourseService @Inject constructor(
          */
         fun afterFailedLookup(courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? =
             kept ?: fallbackCourseFromMoodle(courseNo, moodle)
+
+        /**
+         * What QueryCourse's [results] for [courseNo] come to: the course
+         * [build] makes of them, answered. No rows is no answer: QueryCourse
+         * has none for a course it no longer indexes, or is re-indexing, and
+         * that says no more of the course than a failure does, so it comes to
+         * [afterFailedLookup] too. As iOS `AppServiceBridge.refreshedCourseData`.
+         */
+        internal fun lookedUp(
+            courseNo: String,
+            results: List<CourseSearchResult>,
+            moodle: MoodleEnrolledCourse?,
+            kept: Course?,
+            build: (List<CourseSearchResult>, MoodleEnrolledCourse?) -> Course,
+        ): LookedUpCourse =
+            if (results.isEmpty()) {
+                LookedUpCourse(courseNo, afterFailedLookup(courseNo, moodle, kept), answered = false)
+            } else {
+                LookedUpCourse(courseNo, build(results, moodle), answered = true)
+            }
 
         /**
          * Build a stub [Course] from Moodle enrolment metadata when QueryCourse
@@ -650,3 +694,23 @@ class CourseService @Inject constructor(
         @SerializedName("translated") val translated: String? = null,
     )
 }
+
+private const val COURSE_SYLLABUS_API_URL = "https://querycourse.ntust.edu.tw/querycourse/api/coursedetials"
+
+/**
+ * QueryCourse's `coursedetials` for [courseNo] in [semester], answered in [language]. Asking for
+ * JSON, as every QueryCourse request does: the session's default header prefers HTML, which the
+ * service answers with a 500 in XML.
+ */
+internal fun courseSyllabusRequest(semester: String, courseNo: String, language: String): Request =
+    Request.Builder()
+        .url(
+            COURSE_SYLLABUS_API_URL.toHttpUrl().newBuilder()
+                .addQueryParameter("semester", semester)
+                .addQueryParameter("course_no", courseNo)
+                .addQueryParameter("language", language)
+                .build(),
+        )
+        .header("Accept", "application/json")
+        .get()
+        .build()

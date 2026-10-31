@@ -64,8 +64,8 @@ class PendingCourseAddsTest {
         }, signInGeneration = { signIn })
     }
 
-    private fun row(courseNo: String, semester: String = term) =
-        ServerCourse(courseNo = courseNo, courseName = courseNo, semester = semester)
+    private fun row(courseNo: String, semester: String = term, source: String? = null, status: String? = null) =
+        ServerCourse(courseNo = courseNo, courseName = courseNo, semester = semester, source = source, enrollmentStatus = status)
 
     @Test
     fun `an add whose upload fails is kept, and the next sync sends it again with its force key`() = runTest {
@@ -297,6 +297,49 @@ class PendingCourseAddsTest {
 
         cache.clearAllUserData()
 
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+    }
+
+    /**
+     * A landed add enrolls its course again, so a row a roster dropped is one from before the add.
+     * Taken as the add, it let the add go unsent, and every other device kept leaving the course out.
+     */
+    @Test
+    fun `a row a roster dropped is no sign the add landed, and the next sync sends it`() = runTest {
+        val added = Course(courseNo = "XB0000002", courseName = "Added back", isManual = true)
+        cache.saveCourses(listOf(added), term)
+        answer = { throw IOException("offline") }
+        adds.send(listOf(added), term, added.courseNo)
+        adds.retry()
+
+        adds.listed(listOf(row(added.courseNo, source = "ntust_portal", status = "dropped")))
+        assertEquals(mapOf(term to listOf(added.courseNo)), cache.loadPendingCourseAdds())
+
+        answer = { listOf(added.courseNo) }
+        adds.retry()
+        assertEquals(Upload(listOf(added.courseNo), term, listOf("client:$term:${added.courseNo}")), uploads.last())
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+    }
+
+    /**
+     * Nor is the enrolled row of a course this phone's course selection dropped: the server holds
+     * it from before the drop, and the next roster drops it unless the add lands. A row added by
+     * hand is the add's, or another device's that a roster leaves be.
+     */
+    @Test
+    fun `a row of a course on the drop list is no sign the add landed, unless it was added by hand`() = runTest {
+        val kept = Course(courseNo = "XA0000001", courseName = "Kept")
+        val added = Course(courseNo = "XB0000002", courseName = "Added back", isManual = true)
+        cache.saveCourses(listOf(kept, Course(courseNo = added.courseNo, courseName = "Dropped")), term)
+        cache.recordSelectionRoster(term, listOf(kept.courseNo))
+        cache.saveCourses(listOf(kept, added), term)
+        answer = { throw IOException("offline") }
+        adds.send(listOf(kept, added), term, added.courseNo)
+
+        adds.listed(listOf(row(added.courseNo, source = "ntust_portal", status = "enrolled")))
+        assertEquals(mapOf(term to listOf(added.courseNo)), cache.loadPendingCourseAdds())
+
+        adds.listed(listOf(row(added.courseNo, source = "user_added", status = "enrolled")))
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 }

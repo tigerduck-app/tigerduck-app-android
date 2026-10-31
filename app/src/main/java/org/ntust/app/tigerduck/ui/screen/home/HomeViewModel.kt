@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import android.os.SystemClock
 import android.util.Log
 import org.ntust.app.tigerduck.data.CourseRosterMerge
+import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -44,8 +45,11 @@ import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.OutstandingAssignments
+import org.ntust.app.tigerduck.data.PendingCourseAdds
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
+import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.AppFeature
@@ -105,6 +109,7 @@ class HomeViewModel @Inject constructor(
     private val localEdits: LocalEdits,
     private val reenableCheck: org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck,
     private val reviewPrompt: ReviewPrompt,
+    private val pendingCourseAdds: PendingCourseAdds,
 ) : ViewModel() {
 
 
@@ -725,20 +730,29 @@ class HomeViewModel @Inject constructor(
                 val studentId = authService.storedStudentId
                 val password = authService.storedPassword
                 if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
-                    val (remoteCourses, remoteAssignments) =
+                    val (remote, remoteAssignments) =
                         fetchCoursesAndAssignments(studentId, password)
 
-                    if (!remoteCourses.isNullOrEmpty()) {
-                        // Re-read cache so a concurrent color change isn't erased,
-                        // and so manually-added courses survive the refresh.
-                        courses = HomeCourseMerge.mergeRemote(
-                            remote = remoteCourses,
-                            cached = dataCache.loadCourses(),
-                            names = dataCache.loadCourseCustomNames(),
-                            locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
-                            deletedNos = hiddenNow(),
-                        )
-                        dataCache.saveCourses(courses)
+                    if (remote != null && remote.courses.isNotEmpty()) {
+                        // Onto the term as it stands, so a concurrent color change isn't
+                        // erased and manually-added courses survive the refresh.
+                        val names = dataCache.loadCourseCustomNames()
+                        val locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage)
+                        courses = commitFetchedTerm(
+                            dataCache, remote.semester, remote.courses, remote.onlyGains, remote.answer,
+                            waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) },
+                        ) { fetched, current, hidden ->
+                            HomeCourseMerge.mergeRemote(
+                                remote = fetched,
+                                cached = current,
+                                names = names,
+                                locale = locale,
+                                deletedNos = hidden,
+                                onlyGains = remote.onlyGains,
+                            )
+                        }
+                            // A newer course selection answer's fetch committed the term instead.
+                            ?: dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
                         // The class table loaded: a day of use towards the
                         // Play rating ask (issue #332). A source that failed
                         // is a status dot, which ReviewPrompt reads.
@@ -788,17 +802,28 @@ class HomeViewModel @Inject constructor(
     private class AssignmentsToStore(val assignments: List<Assignment>, val answer: MoodleService.AssignmentsAnswer)
 
     /**
+     * A fetch's courses of [semester], and whether the term only gains them; see
+     * [HomeCourseMerge.mergeRemote]. [answer] is the course selection answer they come from, as
+     * recorded; see [commitFetchedTerm].
+     */
+    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String, val answer: SelectionAnswer?)
+
+    /**
      * One network round of the two enrolment sources (NTUST course-selection
      * portal + Moodle enrolled-courses) run in parallel, then per-course
      * detail lookups run in parallel while assignments are fetched alongside.
+     * The term's courses are course selection's, else the transcript's on
+     * disk added to the cached ones (see [TranscriptTerms.termFrom]); Moodle
+     * gives their names and links, and the assignments' courses.
      * Returns (null, null) for any piece that failed so the caller can fall
-     * back to cached data cleanly, and null assignments when there was no
-     * course to ask Moodle about.
+     * back to cached data cleanly, null courses when no source named any or
+     * course selection's answer was refused ([RecordedSelection.Refused]), and
+     * null assignments when there was no course to ask Moodle about.
      */
     private suspend fun fetchCoursesAndAssignments(
         studentId: String,
         password: String,
-    ): Pair<List<Course>?, AssignmentsToStore?> = coroutineScope {
+    ): Pair<RemoteCourses?, AssignmentsToStore?> = coroutineScope {
         // TTL-throttled, so this costs one request an hour however often Home
         // refreshes. Resolved before the gate below, which depends on it.
         semesterCatalog.refreshIfStale()
@@ -809,6 +834,8 @@ class HomeViewModel @Inject constructor(
         // 選課 for the next term opens weeks before it starts — importing them
         // here would file the *next* term's enrolments into this term's cache.
         val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
+        // Before the fetch: a sign-out while it runs drops its roster.
+        val generation = dataCache.writeGeneration()
 
         // Moodle webservice calls auth with a long-lived wstoken, so they
         // don't need the NTUST SSO cookies that ensureAuthenticated refreshes.
@@ -847,27 +874,40 @@ class HomeViewModel @Inject constructor(
         // Before anything overwrites the cache: a course that was in the
         // portal roster and is not in this answer was dropped in 加退選, and
         // the backend will keep serving it until someone deletes it by hand.
-        courseNos?.let { dataCache.recordSelectionRoster(semester, it) }
+        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
         val moodleEnrolled = moodleEnrolledDef.await()
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
-        val orderedCourseNos = CourseRosterMerge.rosterOrder(courseNos, moodleForSemester)
-        val rosterCourseNos = orderedCourseNos.toSet()
+        // Moodle adds no course to the term, but its courses are still whose
+        // assignments are asked for when course selection gave nothing.
+        val rosterCourseNos = CourseRosterMerge.assignmentCourseNos(courseNos, moodleForSemester).toSet()
+        val cached = dataCache.loadCourses(semester)
+        // Course selection's answer, else the transcript's classes added to
+        // the term, else the term stays as it is (tigerduck-app#890). The
+        // transcript on disk: Home never signs in to the score system.
+        val term = TranscriptTerms.termFrom(courseNos, dataCache.loadScoreReport(studentId)?.report, semester, cached)
 
         val coursesDef = async {
-            if (courseNos == null && moodleEnrolled == null) return@async null
+            // A newer answer's fetch, or a wipe, has the term already: these rows are none to commit.
+            if (recorded == RecordedSelection.Refused) return@async null
+            term ?: return@async null
 
-            if (orderedCourseNos.isEmpty()) return@async emptyList()
-
-            // A course whose query fails keeps its row in the term, where
-            // Moodle's stand-in would take its times and room off this phone
-            // and, uploaded, off every other device (#417).
-            val cachedByNo = dataCache.loadCourses(semester).associateBy { it.courseNo }
-            orderedCourseNos.map { courseNo ->
+            // A course whose query fails, or brings no rows, keeps its row in
+            // the term, where Moodle's stand-in would take its times and room
+            // off this phone and, uploaded, off every other device (#417).
+            val cachedByNo = cached.associateBy { it.courseNo }
+            val looked = term.courseNos.map { courseNo ->
                 async {
                     courseService.lookupOrFallback(semester, courseNo, moodleByNo[courseNo], kept = cachedByNo[courseNo])
                 }
-            }.awaitAll().filterNotNull()
+            }.awaitAll().mapNotNull { it.course }
+            // A class the transcript adds joins with class times; course selection's all do.
+            RemoteCourses(
+                TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys),
+                onlyGains = term.onlyGains,
+                semester = semester,
+                answer = recorded?.answer,
+            )
         }
 
         val assignmentsDef = async {

@@ -4,6 +4,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.BulletinReadStateStore
+import org.ntust.app.tigerduck.data.BulletinRepository
+import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.demo.DemoAccount
@@ -21,8 +24,9 @@ import javax.inject.Inject
  * A change of the API endpoint setting, the only place it is stored. A change to another backend
  * asks first, then signs out of every account held, and only then stores the endpoint, as the
  * iPhone's does (tigerduck-app#745): that backend never issued the session this phone holds, and
- * at the next sign-in it receives the student ID and the Moodle tokens. Saving the endpoint
- * already in use asks nothing and signs nothing out.
+ * at the next sign-in it receives the student ID and the Moodle tokens. It then lets go of the
+ * bulletins, which no account owns (tigerduck-app#908). Saving the endpoint already in use asks
+ * nothing and signs nothing out.
  *
  * Nothing waits for the sign-out's unregister to go out first: it goes to the backend that issued
  * its tokens whatever the setting names, until that backend has it (DepartingDeviceUnregister).
@@ -41,6 +45,8 @@ class EndpointChange internal constructor(
     private val signOutMail: () -> Unit,
     /** Registers the device at the backend stored, without waiting for it. */
     private val registerAgain: () -> Unit,
+    /** Lets go of what the backend left stored, which no account owns: the bulletins. */
+    private val forgetBackendData: () -> Unit,
     /** Told after a move to another backend, for the data fetched from it to come from the new one. */
     private val movedBackend: () -> Unit = {},
 ) {
@@ -57,6 +63,9 @@ class EndpointChange internal constructor(
         mailAccount: MailAccount,
         pushRegistration: PushRegistrationService,
         courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
+        bulletinCache: BulletinCache,
+        bulletinRepository: BulletinRepository,
+        bulletinReadState: BulletinReadStateStore,
         @ApplicationScope scope: CoroutineScope,
     ) : this(
         stored = { prefs.announcementApiBaseUrlOverride },
@@ -81,6 +90,14 @@ class EndpointChange internal constructor(
         holdsMailAccount = { mailAccount.signedIn.value },
         signOutMail = mailAccount::signOut,
         registerAgain = { scope.launch { pushRegistration.syncNow() } },
+        // The list, its date and its details, and what this process holds of them; the read
+        // marks too, which are by the old backend's ids. The files go on the application scope,
+        // as the sign-out's, and every read and write of them waits for that.
+        forgetBackendData = {
+            bulletinRepository.forget()
+            bulletinReadState.clear()
+            bulletinCache.clearIn(scope)
+        },
         // Drops the old backend's course changes at once and fetches the new one's.
         movedBackend = {
             courseChangeStore.endpointMoved()
@@ -108,6 +125,10 @@ class EndpointChange internal constructor(
             if (holdsMailAccount()) signOutMail()
         }
         store(target)
+        // Signed in or not: the old backend's pages would merge into the new one's rows by id.
+        // After the store, so a page fetched from the old backend that lands from now on is
+        // dropped (AnnouncementsViewModel).
+        if (moves) forgetBackendData()
         registerAgain()
         if (moves) movedBackend()
     }

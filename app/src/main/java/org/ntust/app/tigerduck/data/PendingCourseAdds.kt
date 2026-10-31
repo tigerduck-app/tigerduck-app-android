@@ -29,7 +29,7 @@ internal fun interface CourseUploader {
  * disk, kept before the request so a process killed during it keeps it too,
  * and every full sync sends it again first with the same force key, as
  * [UnsentMarks] does for marks. It goes once an upload's answer accepts the
- * course or a snapshot lists it, or once the course has left this phone's
+ * course or a snapshot lists it as enrolled ([listed]), or once the course has left this phone's
  * cache or been deleted (by hand, a reset, Use Server). Account-scoped: sent
  * only as the account that kept it, and wiped with the user data at sign-out.
  * Meanwhile the reconcile keeps the course ([waitingIn]), past a tombstone or
@@ -103,12 +103,21 @@ class PendingCourseAdds internal constructor(
      */
     suspend fun <T> uploading(block: suspend () -> T): T = sendMutex.withLock { block() }
 
-    /** Lets go of the adds [serverCourses], a snapshot's rows, list: the server has them. */
+    /**
+     * Lets go of the adds [serverCourses], a snapshot's rows, list as enrolled: the server has
+     * them. A landed add enrolls its course, and a roster never drops it after, so a row a roster
+     * dropped is one from before the add. So is an enrolled row of a course on this phone's drop
+     * list, unless added by hand: the next roster drops it unless the add lands first. Taken as
+     * the add, either let it go unsent, the course left out on every other device.
+     */
     suspend fun listed(serverCourses: List<ServerCourse>) {
         val generation = dataCache.writeGeneration()
         val waiting = waiting()
         if (waiting.isEmpty()) return
-        val listed = serverCourses.groupBy({ it.semester }, { it.courseNo })
+        val droppedHere = dataCache.loadSelectionDroppedNos()
+        val listed = serverCourses
+            .filter { !it.isDropped && (it.isUserAdded || it.courseNo !in droppedHere[it.semester].orEmpty()) }
+            .groupBy({ it.semester }, { it.courseNo })
         if (waiting.none { (semester, nos) -> listed[semester].orEmpty().any { it in nos } }) return
         edit(generation) { pending ->
             listed.entries.fold(pending) { acc, (semester, nos) -> acc.without(semester, nos) }

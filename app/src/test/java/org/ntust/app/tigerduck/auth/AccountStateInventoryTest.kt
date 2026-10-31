@@ -347,8 +347,8 @@ class AccountStateInventoryTest {
     fun `a cache family whose statement no longer deletes fails`() {
         val problems = edited(
             "DataCache.kt",
-            "name.startsWith(\"score_\") && name.endsWith(\".json\") }\n                        ?.forEach { it.delete() }",
-            "name.startsWith(\"score_\") && name.endsWith(\".json\") }\n                        ?.forEach { it.exists() }",
+            "name.startsWith(\"score_\") && name.endsWith(\".json\") }\n                            ?.forEach { it.delete() }",
+            "name.startsWith(\"score_\") && name.endsWith(\".json\") }\n                            ?.forEach { it.exists() }",
         ).problems()
         assertTrue(problems.toString(), "cache `score_*.json`: `clearAllUserData` in DataCache.kt does not clear it" in problems)
     }

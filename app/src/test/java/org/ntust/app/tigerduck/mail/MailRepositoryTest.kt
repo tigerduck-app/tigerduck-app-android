@@ -1168,6 +1168,59 @@ class MailRepositoryTest {
         assertNull("gone once it is done", repo.searchIndexProgress.value)
     }
 
+    /**
+     * A download cut short, by the network say, leaves mail out of search: the status row says
+     * how far it came, stopped, rather than OK, until a later download gets through (#587).
+     */
+    @Test
+    fun `a download cut short says how far it came, stopped, until one gets through`() = runTest {
+        val inbox = MailIndexer.BATCH + 2
+        repeat(inbox) { server.deliver("收件 $it") }
+        val repo = TestSetup(backgroundScope).signedIn()
+        var fetched = 0
+        server.onFetchBody = { if (++fetched == MailIndexer.BATCH + 1) server.failBodyFetch = true }
+
+        runCatching { repo.updateSearchIndex() }
+
+        val left = repo.searchIndexProgress.value
+        assertNotNull("not OK while mail is missing", left)
+        assertFalse("stopped, not under way", left!!.running)
+        assertEquals(inbox, left.total)
+        assertTrue("${left.done} of ${left.total}", left.done < inbox)
+
+        server.failBodyFetch = false
+        repo.updateSearchIndex()
+        assertNull("gone once one gets through", repo.searchIndexProgress.value)
+    }
+
+    /**
+     * A search found mail missing while the pass ran, and the run was let go of before the pass
+     * that would fetch it: the row does not say OK, as that mail is still missing (#587).
+     */
+    @Test
+    fun `a gap found as the last pass ends, with no pass after, leaves the row saying mail is missing`() = runTest {
+        server.deliver("期中考 0")
+        val repo = TestSetup(backgroundScope).signedIn()
+        var wanted = true
+        var searching = true
+        repo.clock = {
+            if (searching) {
+                searching = false
+                (1..MailRepository.SEARCH_CATCH_UP + 5).forEach { server.deliver("期中考 $it") }
+                runBlocking { repo.search("INBOX", "期中") }
+                wanted = false
+            }
+            1_000_000L
+        }
+
+        repo.updateSearchIndex { wanted }
+
+        assertFalse("a search ran during the pass", searching)
+        val left = repo.searchIndexProgress.value
+        assertNotNull("not OK while mail is missing", left)
+        assertFalse(left!!.running)
+    }
+
     @Test
     fun `a search catching up shows no download under way`() = runTest {
         repeat(3) { server.deliver("期中考 $it") }

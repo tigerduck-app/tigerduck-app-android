@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.HorizontalDivider
@@ -156,6 +157,19 @@ internal fun CourseDetailSheetPage(
     }
     val store by moodleViewModel.store.collectAsStateWithLifecycle()
     var renaming by rememberSaveable { mutableStateOf(false) }
+    // Offered only when the school has a syllabus with something in it: a hand-added course, one
+    // whose fetch failed or one whose syllabus is blank shows no button. Public, so someone
+    // else's course has one too.
+    val term = viewModel.selectedCourseTerm
+    val teachingLabels = syllabusTeachingLabels()
+    // The language too: the course service answers in the app's, and a blank syllabus in one may
+    // have content in the other.
+    val locales = LocalConfiguration.current.locales
+    var syllabusShown by remember(term, course.courseNo, locales) { mutableStateOf(false) }
+    LaunchedEffect(term, course.courseNo, locales) {
+        syllabusShown = runCatching { viewModel.syllabusFor(course, term) }
+            .getOrNull()?.hasContent(teachingLabels) == true
+    }
 
     val sheetScroll = remember(scrollState) { SheetContentScroll(scrollState) }
     // Centred and held to a readable width on a tablet or in landscape.
@@ -181,6 +195,7 @@ internal fun CourseDetailSheetPage(
                 timeRange = timeRange,
                 assignments = assignments,
                 onRename = if (canRename) ({ renaming = true }) else null,
+                onOpenSyllabus = if (syllabusShown) ({ onOpenRoute(CourseSyllabusRoutes.syllabus(term, course.courseNo)) }) else null,
                 onOpenInMoodle = moodleCourseId?.takeIf { showsMoodle }?.let { id -> { openCourseInMoodle(context, id) } },
                 onOpenAssignment = { onOpenRoute(MoodleRoutes.assignment(moodleCourseId ?: 0, it.assignmentId)) },
                 meeting = meeting,
@@ -210,6 +225,8 @@ internal fun CourseDetailContent(
     onRename: (() -> Unit)?,
     /** Null for a course with no Moodle course of the user's. */
     onOpenInMoodle: (() -> Unit)?,
+    /** Opens the course's syllabus; null for a course with none to show. */
+    onOpenSyllabus: (() -> Unit)? = null,
     /** Opens an incomplete assignment's page, full screen. */
     onOpenAssignment: (Assignment) -> Unit = {},
     /** The shown day's meeting as the school changed it, which the cards show; null for the timetable's. */
@@ -280,6 +297,16 @@ internal fun CourseDetailContent(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = stringResource(R.string.class_table_rename_title),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // Left of "Open in Moodle", as on the iPhone.
+            if (onOpenSyllabus != null) {
+                IconButton(onClick = onOpenSyllabus) {
+                    Icon(
+                        imageVector = Icons.Filled.Description,
+                        contentDescription = stringResource(R.string.course_detail_syllabus),
+                        tint = MaterialTheme.colorScheme.primary,
                     )
                 }
             }

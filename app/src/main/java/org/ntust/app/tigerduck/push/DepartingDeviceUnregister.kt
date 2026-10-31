@@ -10,6 +10,9 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.DepartingRefresh
 import org.ntust.app.tigerduck.auth.DepartingSession
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.canonicalBackend
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.IOException
 import javax.inject.Inject
@@ -62,24 +65,32 @@ interface PendingUnregisterStore {
 @Singleton
 class DepartingDeviceUnregister internal constructor(
     private val owed: OwedUnregister,
-    /** The HTTP status; throws [IOException] when no reply came back. */
-    private val deleteDevice: suspend (base: String, deviceId: String, accessToken: String) -> Int,
-    private val refresh: suspend (DepartingSession, sendsWithoutReply: Int) -> DepartingRefresh,
+    /**
+     * [PushApiClient.deleteDevice]: the HTTP status; throws [IOException] when no reply came
+     * back, or when its last argument, asked right before the request goes, says no.
+     */
+    private val deleteDevice: suspend (base: String, deviceId: String, accessToken: String, mayDepart: () -> Boolean) -> Int,
+    /** [AuthTokenManager.refreshDeparting]: sends nothing once its last argument says no. */
+    private val refresh: suspend (DepartingSession, sendsWithoutReply: Int, mayDepart: () -> Boolean) -> DepartingRefresh,
     /** Whether this phone has a session from the backend it is given. */
     private val sessionAt: (base: String) -> Boolean,
     private val now: () -> Long,
+    /** The backend the API endpoint setting names now. */
+    private val endpoint: () -> String,
 ) {
     @Inject
     constructor(
         owed: OwedUnregister,
         api: PushApiClient,
         authTokenManager: AuthTokenManager,
+        prefs: AppPreferences,
     ) : this(
         owed = owed,
         deleteDevice = api::deleteDevice,
         refresh = authTokenManager::refreshDeparting,
         sessionAt = authTokenManager::hasSessionAt,
         now = System::currentTimeMillis,
+        endpoint = { resolveAnnouncementEndpoint(prefs).url },
     )
 
     enum class Outcome {
@@ -122,10 +133,14 @@ class DepartingDeviceUnregister internal constructor(
             drop()
             return@withLock Outcome.DONE
         }
+        if (heldBack(pending.session.baseUrl)) return@withLock Outcome.RETRY
         val outcome = try {
             sendAs(pending)
         } catch (e: CancellationException) {
             throw e
+        } catch (_: UnregisterHeldBack) {
+            // An http backend the setting moved off while the DELETE waited to go: see heldBack.
+            Outcome.RETRY
         } catch (e: IOException) {
             Log.w(TAG, "unregister got no reply: ${e.logSummary()}")
             Outcome.RETRY
@@ -138,6 +153,17 @@ class DepartingDeviceUnregister internal constructor(
         if (outcome == Outcome.DONE) drop()
         outcome
     }
+
+    /**
+     * Whether the debt waits rather than go to [base]: a plain http backend, which the endpoint
+     * setting takes on a private address, that the setting no longer names. On the network the
+     * phone is on now, that address may be another host, and the refresh token would reach it in
+     * cleartext (#593). The debt is kept, not dropped: it goes out once the setting names that
+     * backend again, the only way the backend learns the device left, or is dropped at the end of
+     * its lifetime. As the iPhone's retriesKeptSession (tigerduck-app#908).
+     */
+    private fun heldBack(base: String): Boolean =
+        base.startsWith("http://", ignoreCase = true) && canonicalBackend(base) != canonicalBackend(endpoint())
 
     // Under the mutex.
     private fun drop() {
@@ -158,12 +184,16 @@ class DepartingDeviceUnregister internal constructor(
         if (sessionAt(current.session.baseUrl)) return Outcome.DONE
         // A stop that came during the refresh ends here, with the rotated pair kept.
         currentCoroutineContext().ensureActive()
-        var status = deleteDevice(current.session.baseUrl, current.deviceId, current.session.accessToken)
+        // Asked again before each send: the setting can move while a refresh or a DELETE is out.
+        if (heldBack(current.session.baseUrl)) return Outcome.RETRY
+        val base = current.session.baseUrl
+        var status = deleteDevice(base, current.deviceId, current.session.accessToken) { !heldBack(base) }
         if (status == 401 && !refreshed) {
             // Turned down before its time, a revoked token, say: a refreshed one may still go out.
             current = renew(current) ?: return afterFailedRefresh()
             if (sessionAt(current.session.baseUrl)) return Outcome.DONE
-            status = deleteDevice(current.session.baseUrl, current.deviceId, current.session.accessToken)
+            if (heldBack(current.session.baseUrl)) return Outcome.RETRY
+            status = deleteDevice(base, current.deviceId, current.session.accessToken) { !heldBack(base) }
         }
         return when {
             // 404: the device is not registered to the account any more.
@@ -190,6 +220,12 @@ class DepartingDeviceUnregister internal constructor(
         var current = pending
         var reply: DepartingRefresh
         do {
+            // Held back since the last send, an http backend the setting moved off: left for a
+            // later try, with the count and any pair already kept.
+            if (heldBack(current.session.baseUrl)) {
+                refreshUnavailable = true
+                return@withContext null
+            }
             // Counted on disk before it goes out: a process ended during the send has it counted.
             // A reply that cannot be read throws, and stays counted, as one that never came.
             val sending = current.with(unansweredRefreshes = current.unansweredRefreshes + 1)
@@ -204,7 +240,10 @@ class DepartingDeviceUnregister internal constructor(
                 refreshUnavailable = true
                 return@withContext null
             }
-            reply = refresh(current.session, current.unansweredRefreshes)
+            // Asked again right before the token goes out: the refresh may first wait for the
+            // session's own, and the setting may move meanwhile.
+            val base = current.session.baseUrl
+            reply = refresh(current.session, current.unansweredRefreshes) { !heldBack(base) }
             // Sent once more at most: the next call refuses at two.
             if (reply == DepartingRefresh.NoReply) current = sending
         } while (reply == DepartingRefresh.NoReply)
