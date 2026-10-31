@@ -71,6 +71,19 @@ class CourseChangeSummaryTest {
     }
 
     @Test
+    fun `the changes list says an inner meeting is cancelled rather than giving its time`() {
+        val split = course(periods = listOf("4", "6"))
+        val changes = changes(
+            row(1, "end", periods = listOf("4"), values = mapOf("end" to "11:45")),
+            row(2, "cancelled", periods = listOf("4")),
+        )
+        val days = CourseMeetings.upcomingChanges(split, thursday, changes)
+        val block = CourseChangeSummary.shownMeeting(split, null, listOf("4", "6"), thursday, changes)!!
+
+        assertEquals(listOf("停課"), rows(days, shown = block).map { it.summary })
+    }
+
+    @Test
     fun `a tapped class shows its own changes while a timetable block shows its meeting`() {
         val changes = changes(
             row(1, "cancelled", periods = listOf("2")),

@@ -56,10 +56,14 @@ object CourseChangeSummary {
                 parts += meeting.changes
                     .filter { change -> change.kind == CourseChange.Kind.ROOM && shown.periods.none(change::covers) }
                     .mapNotNull { it.room }
-                // A block over more meetings shows only its outer ends, so this meeting's own time says
-                // which part moved.
-                if (meeting.hasChangedTime && shown.periods.any { it !in meeting.periods }) {
-                    parts += "${hm(meeting.start)} - ${hm(meeting.end)}"
+                // A block over more meetings shows only its outer ends and is cancelled only whole, so
+                // this meeting's own cancellation, else its own time, says which part changed.
+                if (shown.periods.any { it !in meeting.periods }) {
+                    if (meeting.isCancelled) {
+                        parts += cancelled
+                    } else if (meeting.hasChangedTime) {
+                        parts += "${hm(meeting.start)} - ${hm(meeting.end)}"
+                    }
                 }
                 continue
             }
