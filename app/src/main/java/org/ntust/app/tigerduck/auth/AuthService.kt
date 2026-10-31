@@ -426,6 +426,12 @@ class AuthService @Inject constructor(
         // Last, so everything above still sees the demo account and keeps
         // its requests on the device.
         demoAccount.exit()
+        // Bulletins are school-wide rather than private, but the read-state
+        // store is already cleared above — clear the content snapshot too
+        // so the next session starts coherent instead of half-stale. Started
+        // now, so every read and write of it waits for it, as an API endpoint
+        // move's clear (BulletinCache.clearIn).
+        bulletinCache.clearIn(appScope)
         // Wipe persisted user data on the application scope so a coroutine
         // launched from a transient ViewModel scope can't be cancelled mid-
         // delete when the user backs out of Settings or the activity dies.
@@ -438,11 +444,6 @@ class AuthService @Inject constructor(
                 .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
             runCatching { dataCache.clearAllUserData() }
                 .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
-            // Bulletins are school-wide rather than private, but the read-state
-            // store is already cleared above — clear the content snapshot too
-            // so the next session starts coherent instead of half-stale.
-            runCatching { bulletinCache.clear() }
-                .onFailure { android.util.Log.w("AuthService", "bulletinCache.clear failed on logout: ${it.logSummary()}") }
             // Now that the timetable is gone: a widget left alone shows the departing student's
             // until its next scheduled update, up to half an hour away.
             runCatching { widgetUpdater.updateAll() }
