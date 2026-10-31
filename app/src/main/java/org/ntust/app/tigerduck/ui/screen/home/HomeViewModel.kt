@@ -817,6 +817,8 @@ class HomeViewModel @Inject constructor(
         // 選課 for the next term opens weeks before it starts — importing them
         // here would file the *next* term's enrolments into this term's cache.
         val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
+        // Before the fetch: a sign-out while it runs drops its roster.
+        val generation = dataCache.writeGeneration()
 
         // Moodle webservice calls auth with a long-lived wstoken, so they
         // don't need the NTUST SSO cookies that ensureAuthenticated refreshes.
@@ -855,7 +857,7 @@ class HomeViewModel @Inject constructor(
         // Before anything overwrites the cache: a course that was in the
         // portal roster and is not in this answer was dropped in 加退選, and
         // the backend will keep serving it until someone deletes it by hand.
-        courseNos?.let { dataCache.recordSelectionRoster(semester, it) }
+        courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
         val moodleEnrolled = moodleEnrolledDef.await()
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }

@@ -1560,6 +1560,8 @@ class ClassTableViewModel @Inject constructor(
             //   Source 3: the transcript, once course selection gave nothing:
             //             past terms are built from it, and the open term
             //             falls back on it.
+            // Before the fetch: a sign-out while it runs drops its roster.
+            val generation = dataCache.writeGeneration()
             val (selectionNos, moodleAll, report) = coroutineScope {
                 val selectionDef = async {
                     if (servesSelectionSemester) {
@@ -1587,7 +1589,7 @@ class ClassTableViewModel @Inject constructor(
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
             // Before the merge below rewrites the cache — see
             // DataCache.recordSelectionRoster.
-            dataCache.recordSelectionRoster(semester, selectionNos)
+            dataCache.recordSelectionRoster(semester, selectionNos, generation)
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${
@@ -1726,6 +1728,8 @@ class ClassTableViewModel @Inject constructor(
         countsAsUse: Boolean = false,
         mayCommit: () -> Boolean = { true },
     ): Boolean {
+        // Before the lookups: a sign-out while they run drops the rebuild's drops.
+        val generation = dataCache.writeGeneration()
         val answers = termFetch.lookUp(
             semester, source.rosterNos, moodleByNo, before = latestCourses(semester), atMost = source.lookupsAtOnce,
         )
@@ -1737,7 +1741,7 @@ class ClassTableViewModel @Inject constructor(
                 answers, source, semester, moodleByNo.keys,
                 latest = { latestCourses(semester) },
                 waitingAdds = { pendingCourseAdds.waitingIn(semester) },
-                recordFinalRoster = { dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping) },
+                recordFinalRoster = { dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation) },
             ) { drawn ->
                 // The reads that suspend first, the list chosen and folded
                 // after them with nothing in between; the order is foldLatest's.
@@ -1845,6 +1849,8 @@ class ClassTableViewModel @Inject constructor(
         // be the old one, kept. Its own refetch fills the term.
         if (semester in dataCache.resettingSemesters()) return true
         val servesSelection = semester == semesterCatalog.selectionSemesterCode()
+        // Before the fetch: a sign-out while it runs drops its roster.
+        val generation = dataCache.writeGeneration()
         val selectionNos = if (servesSelection) {
             try {
                 courseService.fetchEnrolledCourseNos(studentId, password)
@@ -1857,7 +1863,7 @@ class ClassTableViewModel @Inject constructor(
         } else {
             emptyList()
         }
-        dataCache.recordSelectionRoster(semester, selectionNos)
+        dataCache.recordSelectionRoster(semester, selectionNos, generation)
         val moodleByNo = CourseRosterMerge.moodleCoursesFor(semester, moodleAll).associateBy { it.courseNo }
         val source = ClassTableTermSource.of(semester, selectionNos, report, servesSelection, cached = latestCourses(semester))
         Log.i("ClassTableVM", "warm: $semester $source")

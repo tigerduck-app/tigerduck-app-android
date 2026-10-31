@@ -397,6 +397,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // session, and importing them here would file the *next* term's
             // enrolments into this term's cache.
             val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
+            // Before the fetch: a sign-out while it runs drops its roster.
+            val generation = dataCache.writeGeneration()
             val (selectionNos, moodleAll) = coroutineScope {
                 val selectionDef = async {
                     if (!servesSelectionSemester) return@async emptyList()
@@ -420,7 +422,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
 
             // Before the merge below rewrites the cache — see
             // DataCache.recordSelectionRoster.
-            selectionNos?.let { dataCache.recordSelectionRoster(semester, it) }
+            selectionNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
 
             // Names and Moodle IDs only: Moodle lists course sites and keeps
             // a dropped class, so it adds no course to the term.

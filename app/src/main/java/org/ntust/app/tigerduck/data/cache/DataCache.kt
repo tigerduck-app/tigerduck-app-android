@@ -474,14 +474,19 @@ class DataCache @Inject constructor(
      * the class table and the background worker — because those three have
      * already grown one duplicated roster merge between them, and this is
      * load and save either side of one line of rule.
+     *
+     * Nothing is written once the data has been wiped since [generation], the
+     * fetch's, or else since this call: the answer is the account's that left.
      */
-    suspend fun recordSelectionRoster(semester: String, roster: List<String>) {
+    suspend fun recordSelectionRoster(semester: String, roster: List<String>, generation: Int? = null) {
+        val expected = generation ?: writeGeneration()
         if (roster.isEmpty()) return
-        selectionDropsMutex.withLock {
-            saveToUserData(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE)
+        val kept = selectionDropsMutex.withLock {
+            saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected)
         }
-        liftHandAddedHides(semester, roster)
-        recordDrops(semester, roster, alsoListed = emptyList(), isFinal = false)
+        if (!kept) return
+        liftHandAddedHides(semester, roster, expected)
+        recordDrops(semester, roster, alsoListed = emptyList(), isFinal = false, expected)
     }
 
     /**
@@ -496,21 +501,40 @@ class DataCache @Inject constructor(
      * course added by hand, which only the school's enrolment brings back.
      *
      * As iOS `DataCache.recordSelectionRoster(isFinal: true)` (tigerduck-app#890).
+     *
+     * Nothing is written once the data has been wiped since [generation], as
+     * [recordSelectionRoster].
      */
-    suspend fun recordFinalRoster(semester: String, roster: List<String>, alsoListed: Collection<String>) =
-        recordDrops(semester, roster, alsoListed, isFinal = true)
+    suspend fun recordFinalRoster(
+        semester: String,
+        roster: List<String>,
+        alsoListed: Collection<String>,
+        generation: Int? = null,
+    ) = recordDrops(semester, roster, alsoListed, isFinal = true, generation ?: writeGeneration())
 
     // Every read, change and write of the drop list and the rosters, one at a time: a past term's
     // rebuild and another term's course selection answer each rewrite the whole file, and the later
-    // write would erase the other term's drops. Taken before the user data's own lock, never with
-    // the courses' lock after it.
+    // write would erase the other term's drops. The wipes hold it too, so none reads a file a wipe
+    // then deletes. Taken before the cache's and the user data's own locks, never while holding one
+    // of them or the courses' or hides' lock.
     private val selectionDropsMutex = Mutex()
 
     // A course added by hand here is a manual row, never in the portal rows diffed against.
-    private suspend fun recordDrops(semester: String, roster: List<String>, alsoListed: Collection<String>, isFinal: Boolean) =
-        selectionDropsMutex.withLock { recordDropsLocked(semester, roster, alsoListed, isFinal) }
+    private suspend fun recordDrops(
+        semester: String,
+        roster: List<String>,
+        alsoListed: Collection<String>,
+        isFinal: Boolean,
+        generation: Int,
+    ) = selectionDropsMutex.withLock { recordDropsLocked(semester, roster, alsoListed, isFinal, generation) }
 
-    private suspend fun recordDropsLocked(semester: String, roster: List<String>, alsoListed: Collection<String>, isFinal: Boolean) {
+    private suspend fun recordDropsLocked(
+        semester: String,
+        roster: List<String>,
+        alsoListed: Collection<String>,
+        isFinal: Boolean,
+        generation: Int,
+    ) {
         val stored = loadSelectionDroppedNos()
         val previous = stored[semester].orEmpty().toSet()
         val updated = CourseRosterMerge.selectionDrops(
@@ -521,12 +545,14 @@ class DataCache @Inject constructor(
         )
         if (updated == previous) return
         saveSelectionDroppedNos(
-            if (updated.isEmpty()) stored - semester else stored + (semester to updated.toList())
+            if (updated.isEmpty()) stored - semester else stored + (semester to updated.toList()),
+            generation,
         )
     }
 
-    suspend fun saveSelectionDroppedNos(dropped: Map<String, List<String>>) =
-        saveToUserData(dropped, "selection_dropped.json")
+    /** False, and nothing written, when the data was wiped since [generation]. */
+    suspend fun saveSelectionDroppedNos(dropped: Map<String, List<String>>, generation: Int? = null): Boolean =
+        saveToUserDataIf(dropped, "selection_dropped.json", generation ?: writeGeneration())
 
     // --- Server-Known Course Nos ---
     // Per semester, every course number a `/sync/full` snapshot has carried.
@@ -649,17 +675,19 @@ class DataCache @Inject constructor(
      * the courses being brought back kept in step; see [hideDeletedCourse]. A
      * mark goes once its hide does, and so does one whose hide was gone
      * before this write, as a damaged file leaves it; a course being brought
-     * back goes once it is hidden again.
+     * back goes once it is hidden again. Nothing, once the data has been
+     * wiped since [generation], or else since this call.
      */
-    private suspend fun writeDeletedCourseNos(nos: Set<String>) {
+    private suspend fun writeDeletedCourseNos(nos: Set<String>, generation: Int? = null) {
+        val expected = generation ?: writeGeneration()
         val before = loadDeletedCourseNos()
-        saveToUserData(nos.toList(), "deleted_courses.json")
+        if (!saveToUserDataIf(nos.toList(), "deleted_courses.json", expected)) return
         val marks = loadHandAddedHides()
         val keptMarks = marks.filterTo(mutableSetOf()) { it in nos && it in before }
-        if (keptMarks != marks) saveToUserData(keptMarks.toList(), HAND_ADDED_HIDES_FILE)
+        if (keptMarks != marks) saveToUserDataIf(keptMarks.toList(), HAND_ADDED_HIDES_FILE, expected)
         val restored = loadRestoredCourses()
         val keptRestored = restored.filterKeys { it !in nos }
-        if (keptRestored != restored) saveToUserData(keptRestored, RESTORED_COURSES_FILE)
+        if (keptRestored != restored) saveToUserDataIf(keptRestored, RESTORED_COURSES_FILE, expected)
     }
 
     // --- Hides of deleted hand-added courses (scoped keys) ---
@@ -957,9 +985,11 @@ class DataCache @Inject constructor(
      * one whose DELETE is still queued (PendingCourseDeletes): landing after
      * the roster upload, it would take the course off the server again. An
      * answer after it lands lifts that one. Noted for every sync under way,
-     * whose read is older ([commitSyncHides]).
+     * whose read is older ([commitSyncHides]). Nothing, once the data has
+     * been wiped since [generation].
      */
-    private suspend fun liftHandAddedHides(semester: String, roster: List<String>) = courseHidesMutex.withLock {
+    private suspend fun liftHandAddedHides(semester: String, roster: List<String>, generation: Int) = courseHidesMutex.withLock {
+        if (generation != userDataGeneration) return@withLock
         val marks = loadHandAddedHides()
         if (marks.isEmpty()) return@withLock
         val hides = loadDeletedCourseNos()
@@ -971,8 +1001,9 @@ class DataCache @Inject constructor(
         courseSyncs.forEach { it.broughtBack += lifted }
         // Ahead of the hides: one held while its hide still stands is let go by the next write.
         val restoredAt = System.currentTimeMillis()
-        saveToUserData(loadRestoredCourses() + lifted.associateWith { RestoredCourse(restoredAt, listedAt = null) }, RESTORED_COURSES_FILE)
-        writeDeletedCourseNos(hides - lifted)
+        val restored = loadRestoredCourses() + lifted.associateWith { RestoredCourse(restoredAt, listedAt = null) }
+        if (!saveToUserDataIf(restored, RESTORED_COURSES_FILE, generation)) return@withLock
+        writeDeletedCourseNos(hides - lifted, generation)
     }
 
     /**
@@ -1394,89 +1425,95 @@ class DataCache @Inject constructor(
      * stops being complete the next time someone adds a cache.
      */
     suspend fun clearEverything() {
-        cacheMutex.withLock {
-            userDataMutex.withLock {
-                userDataGeneration++
-                withContext(Dispatchers.IO) {
-                    listOf(cacheDir, userDataDir).forEach { dir ->
-                        dir.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+        // Outside the folders' locks, as a recording takes them: see selectionDropsMutex.
+        selectionDropsMutex.withLock {
+            cacheMutex.withLock {
+                userDataMutex.withLock {
+                    userDataGeneration++
+                    withContext(Dispatchers.IO) {
+                        listOf(cacheDir, userDataDir).forEach { dir ->
+                            dir.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+                        }
+                        runCatching { moodleDownloadsRoot().deleteRecursively() }
+                        // It names the downloaded files' folders, which are gone, and a fresh install has none.
+                        forgetInstallSalt()
                     }
-                    runCatching { moodleDownloadsRoot().deleteRecursively() }
-                    // It names the downloaded files' folders, which are gone, and a fresh install has none.
-                    forgetInstallSalt()
                 }
             }
         }
     }
 
     suspend fun clearAllUserData() {
-        cacheMutex.withLock {
-            // First, under the cache's lock: a write checks it under the lock
-            // of the folder it writes to, and both folders are wiped after.
-            userDataGeneration++
-            withContext(Dispatchers.IO) {
-                listOf(
-                    "courses.json",
-                    "assignments.json",
-                    "calendar_events.json",
-                    "course_lookups.json",
-                    "moodle_course_ids.json",
-                    "closed_assignments.json",
-                    ASSIGNMENT_RECORDS_FILE,
-                ).forEach { name ->
-                    runCatching { File(cacheDir, name).delete() }
-                }
-                // Drop every per-semester course bucket so historical data
-                // doesn't bleed across accounts on the same device.
-                runCatching {
-                    cacheDir.listFiles { _, name -> name.startsWith("courses_") && name.endsWith(".json") }
-                        ?.forEach { it.delete() }
-                }
-                runCatching {
-                    cacheDir.listFiles { _, name -> name.startsWith("score_") && name.endsWith(".json") }
-                        ?.forEach { it.delete() }
-                }
-                runCatching { deleteUnfinishedWrites(cacheDir) }
-                // Every account's Moodle copies, member pictures and downloaded files, and the
-                // opened copies earlier builds kept apart.
-                runCatching { moodleDir.deleteRecursively() }
-                runCatching { File(cacheDir, MOODLE_OPENED_DIR).deleteRecursively() }
-                runCatching { moodleDownloadsRoot().deleteRecursively() }
-            }
-        }
-        userDataMutex.withLock {
-            withContext(Dispatchers.IO) {
-                listOf(
-                    "skipped_dates.json",
-                    "ignored_assignments.json",
-                    "ignored_courses.json",
-                    "pending_course_ignores.json",
-                    "marked_completed_assignments.json",
-                    "unsent_marks.json",
-                    "pending_course_adds.json",
-                    "pending_course_deletes.json",
-                    "pending_course_overrides.json",
-                    "deleted_courses.json",
-                    HAND_ADDED_HIDES_FILE,
-                    RESTORED_COURSES_FILE,
-                    "course_custom_names.json",
-                    "selection_dropped.json",
-                    SELECTION_ROSTERS_FILE,
-                    "server_known_courses.json",
-                    "semester_reset_at.json",
-                    "course_rows_seen.json",
-                ).forEach { name ->
-                    runCatching { File(userDataDir, name).delete() }
-                }
-                runCatching {
-                    userDataDir.listFiles { _, name ->
-                        name.startsWith("manual_courses_") && name.endsWith(
-                            ".json"
-                        )
+        // Outside the folders' locks, as a recording takes them: see selectionDropsMutex.
+        selectionDropsMutex.withLock {
+            cacheMutex.withLock {
+                // First, under the cache's lock: a write checks it under the lock
+                // of the folder it writes to, and both folders are wiped after.
+                userDataGeneration++
+                withContext(Dispatchers.IO) {
+                    listOf(
+                        "courses.json",
+                        "assignments.json",
+                        "calendar_events.json",
+                        "course_lookups.json",
+                        "moodle_course_ids.json",
+                        "closed_assignments.json",
+                        ASSIGNMENT_RECORDS_FILE,
+                    ).forEach { name ->
+                        runCatching { File(cacheDir, name).delete() }
                     }
-                        ?.forEach { it.delete() }
+                    // Drop every per-semester course bucket so historical data
+                    // doesn't bleed across accounts on the same device.
+                    runCatching {
+                        cacheDir.listFiles { _, name -> name.startsWith("courses_") && name.endsWith(".json") }
+                            ?.forEach { it.delete() }
+                    }
+                    runCatching {
+                        cacheDir.listFiles { _, name -> name.startsWith("score_") && name.endsWith(".json") }
+                            ?.forEach { it.delete() }
+                    }
+                    runCatching { deleteUnfinishedWrites(cacheDir) }
+                    // Every account's Moodle copies, member pictures and downloaded files, and the
+                    // opened copies earlier builds kept apart.
+                    runCatching { moodleDir.deleteRecursively() }
+                    runCatching { File(cacheDir, MOODLE_OPENED_DIR).deleteRecursively() }
+                    runCatching { moodleDownloadsRoot().deleteRecursively() }
                 }
-                runCatching { deleteUnfinishedWrites(userDataDir) }
+            }
+            userDataMutex.withLock {
+                withContext(Dispatchers.IO) {
+                    listOf(
+                        "skipped_dates.json",
+                        "ignored_assignments.json",
+                        "ignored_courses.json",
+                        "pending_course_ignores.json",
+                        "marked_completed_assignments.json",
+                        "unsent_marks.json",
+                        "pending_course_adds.json",
+                        "pending_course_deletes.json",
+                        "pending_course_overrides.json",
+                        "deleted_courses.json",
+                        HAND_ADDED_HIDES_FILE,
+                        RESTORED_COURSES_FILE,
+                        "course_custom_names.json",
+                        "selection_dropped.json",
+                        SELECTION_ROSTERS_FILE,
+                        "server_known_courses.json",
+                        "semester_reset_at.json",
+                        "course_rows_seen.json",
+                    ).forEach { name ->
+                        runCatching { File(userDataDir, name).delete() }
+                    }
+                    runCatching {
+                        userDataDir.listFiles { _, name ->
+                            name.startsWith("manual_courses_") && name.endsWith(
+                                ".json"
+                            )
+                        }
+                            ?.forEach { it.delete() }
+                    }
+                    runCatching { deleteUnfinishedWrites(userDataDir) }
+                }
             }
         }
     }

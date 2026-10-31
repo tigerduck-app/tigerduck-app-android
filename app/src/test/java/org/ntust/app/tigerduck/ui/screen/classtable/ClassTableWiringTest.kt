@@ -288,7 +288,7 @@ class ClassTableWiringTest {
         val body = body("fetchTermCourses")
         val commit = body.indexOf("pendingCourseAdds.uploading {")
         val committed = body.indexOf("termFetch.committed(")
-        val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping)")
+        val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation)")
         val fold = body.indexOf("termFetch.foldLatest(")
         val save = body.indexOf("dataCache.saveCourses(")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
