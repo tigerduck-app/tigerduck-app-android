@@ -782,7 +782,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     /** Format semester code for display, e.g. "1142" → "114-2". */
-    fun displayLabel(code: String): String = semesterDisplayLabel(code)
+    fun displayLabel(code: String): String = AcademicTerm.labelOf(code)
 
     fun setSemester(code: String) {
         val displayed = _displayed.value
@@ -2078,6 +2078,3 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 }
-
-/** The class table's label for a semester code: `1142` reads `114-2`. */
-internal fun semesterDisplayLabel(code: String): String = AcademicTerm.labelOf(code)

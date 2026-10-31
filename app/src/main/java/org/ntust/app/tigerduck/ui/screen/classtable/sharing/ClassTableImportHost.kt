@@ -472,10 +472,8 @@ internal fun importConfirmRows(
     formatTime: (Instant) -> String,
 ): List<ImportConfirmRow> = buildList {
     code.studentId?.let { add(ImportConfirmRow(R.string.sign_in_student_id, it)) }
-    add(ImportConfirmRow(R.string.class_table_semester_picker_label, joinList(code.terms.map { semesterLabel(it.semester) })))
+    add(ImportConfirmRow(R.string.class_table_semester_picker_label, joinList(code.terms.map { AcademicTerm.labelOf(it.semester) })))
     add(ImportConfirmRow(R.string.class_table_import_course_count, formatCount(code.terms.sumOf { it.courseNos.size })))
     code.sharedAt?.let { add(ImportConfirmRow(R.string.class_table_import_shared_at, formatTime(it))) }
 }
 
-/** `1151` as `115-1`, as the term picker shows it. */
-internal fun semesterLabel(semester: String) = AcademicTerm.labelOf(semester)

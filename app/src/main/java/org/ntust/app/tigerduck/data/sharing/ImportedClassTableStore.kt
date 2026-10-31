@@ -53,8 +53,7 @@ data class ImportedPerson(
     val semesters: List<String> get() = terms.map { it.semester }.sortedWith { a, b -> AcademicTerm.compareCodes(b, a) }
 
     /** The term to open this class table on: [keeping] when the person shared it, else their latest. */
-    fun semester(keeping: String): String =
-        if (keeping in semesters) keeping else semesters.firstOrNull() ?: keeping
+    fun semester(keeping: String): String = if (keeping in semesters) keeping else semesters.firstOrNull() ?: keeping
 
     fun courses(semester: String): List<Course> = terms.firstOrNull { it.semester == semester }?.courses.orEmpty()
 }

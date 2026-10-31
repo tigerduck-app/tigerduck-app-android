@@ -15,9 +15,7 @@ import org.ntust.app.tigerduck.data.sharing.ImportedPerson
 import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.SemesterCodes
-import org.ntust.app.tigerduck.ui.screen.calendar.calendarTermLabel
-import org.ntust.app.tigerduck.ui.screen.classtable.semesterDisplayLabel
-import org.ntust.app.tigerduck.ui.screen.classtable.sharing.semesterLabel
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.ui.screen.score.ScoreCourseRoster
 import org.ntust.app.tigerduck.ui.screen.score.displayTermShort
 import org.ntust.app.tigerduck.ui.screen.score.formatCurrentTerm
@@ -192,7 +190,7 @@ class TermCodeCharacterizationTest {
             '11402' -> 114-2
             '' -> 
             'abc' -> abc
-            """.trimIndent(), table { semesterDisplayLabel(it) })
+            """.trimIndent(), table { AcademicTerm.labelOf(it) })
     }
 
     @Test
@@ -208,7 +206,7 @@ class TermCodeCharacterizationTest {
             '11402' -> 114-2
             '' -> 
             'abc' -> abc
-            """.trimIndent(), table { semesterLabel(it) })
+            """.trimIndent(), table { AcademicTerm.labelOf(it) })
     }
 
     @Test
@@ -224,7 +222,7 @@ class TermCodeCharacterizationTest {
             '11402' -> 114-2
             '' -> 
             'abc' -> abc
-            """.trimIndent(), table { calendarTermLabel(it) })
+            """.trimIndent(), table { AcademicTerm.labelOf(it) })
     }
 
     @Test
