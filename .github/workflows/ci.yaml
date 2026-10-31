@@ -145,7 +145,7 @@ jobs:
     # tools/guardrails/check_guardrails.py fails a new Kotlin file over 400
     # lines, a new function over 80, and a second copy of a rule that has one
     # home (the Taipei zone, the flavor name, term-code sorting). Today's
-    # offences sit in baseline.json, which may only shrink. Stdlib only, on
+    # offenses sit in baseline.json, which may only shrink. Stdlib only, on
     # the Python floor the localization job tests.
     name: guardrails
     runs-on: ubuntu-24.04

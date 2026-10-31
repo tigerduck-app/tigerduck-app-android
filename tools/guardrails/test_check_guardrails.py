@@ -55,7 +55,6 @@ class GuardrailsTest(unittest.TestCase):
         self.assertEqual(self.run_cli(), 1)
 
     def test_baselined_file_that_grows_fails(self):
-        self.write(APP + "Big.kt", self.lines(450))
         # The count of a long file is its line count, so growth is caught.
         self.write_baseline([{"path": APP + "Big.kt", "kind": "long-file", "count": 450}])
         self.write(APP + "Big.kt", self.lines(451))
@@ -85,8 +84,8 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "F.kt", src)
         self.write_baseline([])
         self.assertEqual(self.run_cli(), 1)  # the file is long, the function is not
-        offences = cg.scan(self.root)
-        self.assertNotIn("long-function", {k for (_, k) in offences})
+        offenses = cg.scan(self.root)
+        self.assertNotIn("long-function", {k for (_, k, _) in offenses})
 
     def test_taipei_literal_allowed_in_home_only(self):
         self.write(TAIPEI_HOME, 'val z = ZoneId.of("Asia/Taipei")\n')
@@ -117,6 +116,57 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "Other.kt", "val c = compareBy<Term>({ it.semester })\n")
         self.write_baseline([])
         self.assertEqual(self.run_cli(), 1)
+
+    def test_bodiless_funs_do_not_swallow_the_next_class(self):
+        iface = "interface Api {\n    fun a(x: Int): String\n    fun b()\n    suspend fun c(): Int\n}\n"
+        body = "".join("        println(%d)\n" % i for i in range(79))
+        cls = "class Impl {\n    fun big() {\n" + body + "    }\n    fun small() { }\n}\n"
+        self.write(APP + "Api.kt", iface + cls)
+        found = [(k, v) for k, v in cg.scan(self.root).items() if k[1] == "long-function"]
+        self.assertEqual(found, [((APP + "Api.kt", "long-function", "big"), 81)])
+
+    def test_expression_body_counts_to_end_of_expression(self):
+        src = "fun f() =\n" + "".join("    listOf(%d) +\n" % i for i in range(85)) + "    emptyList()\nfun g() = 1\n"
+        self.write(APP + "E.kt", src)
+        found = {k[2]: v for k, v in cg.scan(self.root).items() if k[1] == "long-function"}
+        self.assertEqual(found, {"f": 87})
+
+    def test_new_long_function_fails_even_when_another_shrinks(self):
+        def fn(name, n):
+            return "fun %s() {\n" % name + "".join("    println(1)\n" for _ in range(n - 2)) + "}\n"
+        self.write(APP + "F.kt", fn("old", 85) + fn("fresh", 81))
+        self.write_baseline([{"path": APP + "F.kt", "kind": "long-function", "name": "old", "lines": 200}])
+        self.assertEqual(self.run_cli(), 1)
+        self.write(APP + "F.kt", fn("old", 85))
+        self.assertEqual(self.run_cli(), 0)
+
+    def test_baselined_function_that_grows_fails(self):
+        def fn(n):
+            return "fun old() {\n" + "".join("    println(1)\n" for _ in range(n - 2)) + "}\n"
+        self.write(APP + "F.kt", fn(91))
+        self.write_baseline([{"path": APP + "F.kt", "kind": "long-function", "name": "old", "lines": 90}])
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_renamed_long_function_counts_as_new(self):
+        body = "".join("    println(1)\n" for _ in range(80))
+        self.write(APP + "F.kt", "fun renamed() {\n" + body + "}\n")
+        self.write_baseline([{"path": APP + "F.kt", "kind": "long-function", "name": "old", "lines": 90}])
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_term_keyword_needs_word_boundary_and_ignores_case(self):
+        self.write_baseline([])
+        self.write(APP + "A.kt", "val s = list.sortedBy { it.determined }\n")
+        self.assertEqual(self.run_cli(), 0)
+        self.write(APP + "A.kt", "val s = list.sortedBy { it.Semester }\n")
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_play_debug_and_fdroid_source_sets_count(self):
+        self.write_baseline([])
+        for sset in ("play", "fdroid", "debug"):
+            self.write("app/src/%s/java/X.kt" % sset, self.lines(401))
+            self.assertEqual(self.run_cli(), 1, sset)
+            os.remove(os.path.join(self.root, "app/src/%s/java/X.kt" % sset))
+        self.assertEqual(self.run_cli(), 0)
 
     def test_new_path_for_baselined_kind_fails(self):
         self.write(APP + "A.kt", 'val z = "Asia/Taipei"\n')

@@ -126,7 +126,7 @@ default is silently dropped and the field is null at runtime.
 
 Each rule below lives in one place. A second copy fails
 `tools/guardrails/check_guardrails.py` (CI job `guardrails`); its
-`baseline.json` lists today's offences and may only shrink. Run
+`baseline.json` lists today's offenses and may only shrink. Run
 `python3 tools/guardrails/check_guardrails.py --update-baseline` after fixing
 some. The same check fails a new Kotlin file over 400 lines or function over 80.
 

@@ -2,20 +2,22 @@
 """Fails CI when a long file, a long function or a copied rule is added.
 
 The refactor gives each duplicated rule one home. This check stops the
-duplicates and the giant files from growing back. Today's offences live in
+duplicates and the giant files from growing back. Today's offenses live in
 baseline.json, which may only shrink: a count above the baseline, or a path
 the baseline does not list, fails.
 
 Offence kinds (counts in the baseline):
   long-file       a Kotlin file over 400 lines; the count is its line count.
-  long-function   functions over 80 lines (brace-counted); the count is the
-                  summed length of those functions.
+  long-function   a function over 80 lines (brace-counted; an expression body
+                  counts to the end of its expression), recorded one by one as
+                  {path, kind, name, lines}. A renamed function counts as new.
   taipei-literal  occurrences of the "Asia/Taipei" literal outside TaipeiClock.kt.
   fdroid-literal  occurrences of the "fdroid" literal outside BuildConfig reads
                   in AppPreferences.kt.
   term-sort       sorts over a semester or term string outside AcademicTerm.kt.
 
-Only main sources (src/main) of app, shared and wear are read; tests are not.
+Every production source set (main, play, fdroid, debug) of app, shared and
+wear is read; tests are not.
 Stdlib only, and it must run on Python 3.9.
 
     python3 tools/guardrails/check_guardrails.py [--update-baseline]
@@ -27,6 +29,7 @@ import re
 import sys
 
 MODULES = ("app", "shared", "wear")
+SOURCE_SETS = ("main", "play", "fdroid", "debug")
 MAX_FILE_LINES = 400
 MAX_FUNCTION_LINES = 80
 
@@ -36,8 +39,8 @@ PREFERENCES = "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPre
 
 # The brief's regex, widened to also match sortedByDescending and compareBy.
 TERM_SORT = re.compile(
-    r"sorted(By)?(Descending)?\s*\{[^}]*(semester|term)"
-    r"|compareBy\s*(<[^>]*>)?\s*[({][^})]*(semester|term)")
+    r"sorted(By)?(Descending)?\s*\{[^}]*\b(semester|term)"
+    r"|compareBy\s*(<[^>]*>)?\s*[({][^})]*\b(semester|term)", re.IGNORECASE)
 FUN = re.compile(r"\bfun\b")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -103,54 +106,123 @@ def blank_literals(text, keep_strings=False):
     return "".join(out)
 
 
-def long_function_lines(code):
-    """Lengths of every brace-bodied function, from `fun` to its closing brace."""
-    lengths = []
+def skip_ws(code, i):
+    while i < len(code) and code[i].isspace():
+        i += 1
+    return i
+
+
+def block_end(code, i):
+    """Index of the brace closing the one at code[i]."""
+    depth, n = 0, len(code)
+    while i < n:
+        if code[i] == "{":
+            depth += 1
+        elif code[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    return n - 1
+
+
+CONTINUES = ("&&", "||", "?:", "?.", ".", "+", "-", "*", "/", "%", "->", "as ", "as?", "in ", "is ")
+ENDS_OPEN = ("=", "+", "-", "*", "/", "%", ",", "&&", "||", "?:", "->", "(", ".", "?.")
+
+
+def expression_end(code, i):
+    """Index where the expression body starting at code[i] ends.
+
+    It ends at the first newline outside every bracket whose line does not
+    end in an operator and whose next line does not start with one.
+    """
+    depth, n = 0, len(code)
+    while i < n:
+        c = code[i]
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+            if depth < 0:
+                return i
+        elif c == "\n" and depth == 0:
+            before = code[:i].rstrip()
+            j = skip_ws(code, i)
+            if not before.endswith(ENDS_OPEN) and not code.startswith(CONTINUES, j):
+                return i
+        i += 1
+    return n
+
+
+def function_end(code, start):
+    """Index where the function whose `fun` begins at start ends, or None when bodiless."""
+    n = len(code)
+    i, paren, closed = start + 3, 0, False
+    while i < n:
+        c = code[i]
+        if c == "(":
+            paren += 1
+        elif c == ")":
+            paren -= 1
+            closed = closed or paren == 0
+        elif paren == 0 and closed:
+            if c == "{":
+                return block_end(code, i)
+            if c == "=":
+                return expression_end(code, i + 1)
+            if c == ";":
+                return None
+            if c == "\n":
+                # The signature goes on only if the next line says so.
+                j = skip_ws(code, i)
+                if not (code.startswith(("{", "=", ":", "where "), j)):
+                    return None
+        i += 1
+    return None
+
+
+def long_functions(code):
+    """[(name, lines)] for every function with a body, from `fun` to its end."""
+    found, seen = [], {}
     for m in FUN.finditer(code):
-        i, n, paren = m.end(), len(code), 0
-        # Find the body's "{" after the parameter list; "=" first means an
-        # expression body, and a ";" or a new declaration means no body.
-        while i < n:
-            c = code[i]
-            if c == "(":
-                paren += 1
-            elif c == ")":
-                paren -= 1
-            elif paren == 0 and c in "{=;":
-                break
-            i += 1
-        if i >= n or code[i] != "{":
+        if re.match(r"\s+interface\b", code[m.end():m.end() + 20]):
+            continue  # `fun interface`, not a function
+        end = function_end(code, m.start())
+        if end is None:
             continue
-        depth, j = 0, i
-        while j < n:
-            if code[j] == "{":
-                depth += 1
-            elif code[j] == "}":
-                depth -= 1
-                if depth == 0:
-                    break
-            j += 1
-        lengths.append(code.count("\n", m.start(), j) + 1)
-    return lengths
+        head = code[m.end():code.find("(", m.end())] if "(" in code[m.end():] else ""
+        head = re.sub(r"<[^<>]*>", " ", head)
+        ids = re.findall(r"[\w`]+", head)
+        name = ids[-1].strip("`") if ids else "<anonymous>"
+        seen[name] = seen.get(name, 0) + 1
+        if seen[name] > 1:
+            name += "#%d" % seen[name]  # overloads get an index, in file order
+        found.append((name, code.count("\n", m.start(), end) + 1))
+    return found
 
 
 def source_files(root):
     for module in MODULES:
-        base = os.path.join(root, module, "src", "main")
-        for dirpath, _, names in os.walk(base):
-            for name in sorted(names):
-                if name.endswith(".kt"):
-                    full = os.path.join(dirpath, name)
-                    yield os.path.relpath(full, root).replace(os.sep, "/"), full
+        for source_set in SOURCE_SETS:
+            base = os.path.join(root, module, "src", source_set)
+            for dirpath, _, names in os.walk(base):
+                for name in sorted(names):
+                    if name.endswith(".kt"):
+                        full = os.path.join(dirpath, name)
+                        yield os.path.relpath(full, root).replace(os.sep, "/"), full
 
 
 def scan(root):
-    """Returns {(path, kind): count} for every offence under root."""
+    """Returns {(path, kind, name): n} for every offense under root.
+
+    n is a count, a file's line count (long-file) or a function's line count
+    (long-function, the only kind with a name).
+    """
     found = {}
 
-    def add(path, kind, count):
+    def add(path, kind, count, name=""):
         if count > 0:
-            found[(path, kind)] = count
+            found[(path, kind, name)] = count
 
     for rel, full in source_files(root):
         with open(full, encoding="utf-8") as f:
@@ -160,8 +232,9 @@ def scan(root):
             add(rel, "long-file", total)
 
         code = blank_literals(text)
-        add(rel, "long-function",
-            sum(n for n in long_function_lines(code) if n > MAX_FUNCTION_LINES))
+        for name, lines in long_functions(code):
+            if lines > MAX_FUNCTION_LINES:
+                add(rel, "long-function", lines, name)
         add(rel, "term-sort",
             0 if rel == TERM_HOME else len(TERM_SORT.findall(code)))
 
@@ -180,18 +253,24 @@ def load_baseline(path):
     if not os.path.exists(path):
         return None
     with open(path, encoding="utf-8") as f:
-        return {(e["path"], e["kind"]): e["count"] for e in json.load(f)}
+        return {(e["path"], e["kind"], e.get("name", "")): e.get("lines", e.get("count"))
+                for e in json.load(f)}
 
 
 def write_baseline(path, counts):
-    entries = [{"path": p, "kind": k, "count": c} for (p, k), c in sorted(counts.items())]
+    entries = []
+    for (p, k, name), n in sorted(counts.items()):
+        if k == "long-function":
+            entries.append({"path": p, "kind": k, "name": name, "lines": n})
+        else:
+            entries.append({"path": p, "kind": k, "count": n})
     with open(path, "w", encoding="utf-8") as f:
         json.dump(entries, f, indent=2)
         f.write("\n")
 
 
 def worse(found, baseline):
-    """Offences above the baseline: new paths and counts that grew."""
+    """Offenses above the baseline: new paths and counts that grew."""
     return [(key, count, baseline.get(key, 0))
             for key, count in sorted(found.items()) if count > baseline.get(key, 0)]
 
@@ -226,14 +305,14 @@ def main(argv=None):
     if bad:
         report(bad)
         return 1
-    print("Guardrails ok: %d baselined offences, none new." % len(found))
+    print("Guardrails ok: %d baselined offenses, none new." % len(found))
     return 0
 
 
 def report(bad):
-    for (path, kind), count, allowed in bad:
-        print("%s: %s %d (baseline %d)" % (path, kind, count, allowed))
-    print("%d new offence(s). Fix them; the baseline must not grow." % len(bad))
+    for (path, kind, name), count, allowed in bad:
+        print("%s: %s%s %d (baseline %d)" % (path, kind, " " + name if name else "", count, allowed))
+    print("%d new offense(s). Fix them; the baseline must not grow." % len(bad))
 
 
 if __name__ == "__main__":
