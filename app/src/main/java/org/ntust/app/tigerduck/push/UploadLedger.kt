@@ -147,7 +147,8 @@ internal class UploadLedger(
      * has just taken off the server, and the upload that follows the reset,
      * usually that same list, would then wait six hours while the server
      * holds the reset's tombstones. It forgets the lists the server turned
-     * away, too, for the same reason.
+     * away, too, for the same reason. So does a roster the server has
+     * dropped a course of since (`PushApiClient.serverDropped`).
      */
     suspend fun <T> holdingUploads(block: suspend () -> T): T = mutex.withLock {
         block().also { refused.clear() }

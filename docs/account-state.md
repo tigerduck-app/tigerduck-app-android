@@ -141,6 +141,7 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `configuredTabs` | device | |
 | tigerduck_prefs | `courseNameScale` | device | |
 | tigerduck_prefs | `coursesUploadFingerprint:*` | school | `AppPreferences.kt` `removeCourseUploads` |
+| tigerduck_prefs | `coursesUploadRoster:*` | school | `AppPreferences.kt` `removeCourseUploads` |
 | tigerduck_prefs | `coursesUploadedAtMs:*` | school | `AppPreferences.kt` `removeCourseUploads` |
 | tigerduck_prefs | `dataSchemaVersion` | device | |
 | tigerduck_prefs | `disableScreenCaptureProtection` | device | |

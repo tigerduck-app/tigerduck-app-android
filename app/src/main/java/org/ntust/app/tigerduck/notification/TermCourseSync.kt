@@ -10,6 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseAdds
@@ -36,6 +37,8 @@ class TermCourseSync internal constructor(
     private val dataCache: DataCache,
     private val sources: Sources,
     private val uploader: Uploader,
+    /** `AuthTokenManager.signInGeneration`, which a sign-out moves on. */
+    private val signInGeneration: () -> Int,
     private val waitingAdds: suspend (semester: String) -> Set<String>,
     private val courseLocale: () -> String,
     private val uploadFailed: () -> Unit,
@@ -47,6 +50,7 @@ class TermCourseSync internal constructor(
         semesterCatalog: SemesterCatalog,
         dataCache: DataCache,
         pushApiClient: PushApiClient,
+        authTokenManager: AuthTokenManager,
         pendingCourseAdds: PendingCourseAdds,
         prefs: AppPreferences,
     ) : this(
@@ -69,9 +73,10 @@ class TermCourseSync internal constructor(
             override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? =
                 courseService.lookupOrFallback(semester, courseNo, moodle, kept = kept).course
         },
-        uploader = Uploader { courses, semester, resend, rosterTerms ->
-            pushApiClient.uploadCourses(courses, semester, resend = resend, rosterTerms = rosterTerms)
+        uploader = Uploader { courses, semester, resend, rosterTerms, signIn ->
+            pushApiClient.uploadCourses(courses, semester, signIn = signIn, resend = resend, rosterTerms = rosterTerms)
         },
+        signInGeneration = { authTokenManager.signInGeneration },
         waitingAdds = pendingCourseAdds::waitingIn,
         courseLocale = { AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage) },
         uploadFailed = { prefs.setLastSyncSource(SyncSource.LOCAL) },
@@ -92,9 +97,12 @@ class TermCourseSync internal constructor(
         suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course?
     }
 
-    /** Uploads a term's courses; see `PushApiClient.uploadCourses`. */
+    /**
+     * Uploads a term's courses, with the token of sign-in [signIn] alone; see
+     * `PushApiClient.uploadCourses`.
+     */
     internal fun interface Uploader {
-        suspend fun upload(courses: List<Course>, semester: String, resend: Boolean, rosterTerms: List<String>)
+        suspend fun upload(courses: List<Course>, semester: String, resend: Boolean, rosterTerms: List<String>, signIn: Int)
     }
 
     // One for the process, Home's full syncs and the worker's alike.
@@ -105,12 +113,21 @@ class TermCourseSync internal constructor(
      * (`roster_requests`), as [studentId]: each term [sync]ed as [rosterRequested], once per
      * request, and again only an hour on or for another account ([RosterRequestLog]). Returns
      * whether any went to the school, which may have changed the term's courses.
+     *
+     * [signIn] is the sign-in the requests came for: after a sign-out none is asked, and none
+     * goes up as the account signed in since.
      */
-    suspend fun answerRosterRequests(requests: List<String>, studentId: String, password: String): Boolean {
+    suspend fun answerRosterRequests(
+        requests: List<String>,
+        studentId: String,
+        password: String,
+        signIn: Int = signInGeneration(),
+    ): Boolean {
+        if (signInGeneration() != signIn) return false
         val terms = rosterRequestLog.termsToAsk(requests, dataCache.userDataGeneration, clock())
         for (term in terms) {
             Log.i(TAG, "roster requested for $term")
-            sync(studentId, password, term, rosterRequested = true)
+            sync(studentId, password, term, rosterRequested = true, signIn = signIn)
         }
         return terms.isNotEmpty()
     }
@@ -131,8 +148,18 @@ class TermCourseSync internal constructor(
      * because none arrived for a week, unchanged or not. Course selection not serving the term,
      * or giving nothing, sends nothing. As iOS `AppServiceBridge.answerRosterRequests`
      * (tigerduck-app#914).
+     *
+     * [signIn], read before the fetch, is the sign-in the term is fetched for. The upload goes
+     * with its token alone, and after a sign-out nothing is committed or sent: the next
+     * account's token would take this roster as that account's and drop its courses.
      */
-    suspend fun sync(studentId: String, password: String, semester: String, rosterRequested: Boolean = false): Boolean {
+    suspend fun sync(
+        studentId: String,
+        password: String,
+        semester: String,
+        rosterRequested: Boolean = false,
+        signIn: Int = signInGeneration(),
+    ): Boolean {
         val servesSelection = sources.servesSelection(semester)
         if (rosterRequested && !servesSelection) return true
         // Before the fetch: a sign-out while it runs drops its roster.
@@ -192,6 +219,8 @@ class TermCourseSync internal constructor(
         // A class the transcript adds joins with class times; course selection's all do.
         val fetched = TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys)
         if (fetched.isEmpty()) return true
+        // Signed out during the fetch: the rows are the account's that left.
+        if (signInGeneration() != signIn) return true
 
         // Through the class table's merge, onto the term as it is
         // now: user-picked colors, renames and manually-added courses
@@ -222,11 +251,12 @@ class TermCourseSync internal constructor(
         )
         try {
             // Past the ledger only as the roster asked for; anything less goes as any fetch's.
-            uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms)
+            uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            uploadFailed()
+            // Not the next account's sync state: its own sync has not failed.
+            if (signInGeneration() == signIn) uploadFailed()
             Log.w(TAG, "uploadCourses failed (non-fatal): ${e.logSummary()}")
         }
         return true

@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseIgnores
@@ -112,6 +113,7 @@ class ClassTableViewModel @Inject constructor(
     private val pendingCourseDeletes: org.ntust.app.tigerduck.data.PendingCourseDeletes,
     private val pendingCourseOverrides: org.ntust.app.tigerduck.data.PendingCourseOverrides,
     private val reviewPrompt: ReviewPrompt,
+    private val authTokenManager: AuthTokenManager,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -1756,6 +1758,8 @@ class ClassTableViewModel @Inject constructor(
     ): Boolean {
         // Before the lookups: a sign-out while they run drops the rebuild's drops.
         val generation = dataCache.writeGeneration()
+        // And the upload: the next account's token would take this roster as its own.
+        val signIn = authTokenManager.signInGeneration
         val answers = termFetch.lookUp(
             semester, source.rosterNos, moodleByNo, before = latestCourses(semester), atMost = source.lookupsAtOnce,
         )
@@ -1830,7 +1834,7 @@ class ClassTableViewModel @Inject constructor(
             val upload = CourseUpload.of(
                 merged, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
             )
-            runCatching { pushApiClient.uploadCourses(upload.courses, semester, rosterTerms = upload.rosterTerms) }
+            runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn = signIn, rosterTerms = upload.rosterTerms) }
                 .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             widgetUpdater.requestUpdate()
         }

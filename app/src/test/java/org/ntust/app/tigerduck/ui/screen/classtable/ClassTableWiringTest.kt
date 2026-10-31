@@ -345,9 +345,22 @@ class ClassTableWiringTest {
             "is ClassTableTermSource.Selection -> source.rosterNos",
             "is ClassTableTermSource.Rebuild -> rebuiltRoster",
             "hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos())",
-            "pushApiClient.uploadCourses(upload.courses, semester, rosterTerms = upload.rosterTerms)",
+            "pushApiClient.uploadCourses(upload.courses, semester, signIn = signIn, rosterTerms = upload.rosterTerms)",
         )
         assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("val upload = CourseUpload.of("))
+    }
+
+    /**
+     * The upload goes with the token of the sign-in read before the lookups alone: a sign-out
+     * and another sign-in while they run would send this account's roster as the next one's,
+     * which drops that account's courses.
+     */
+    @Test
+    fun `a fetch uploads as the sign-in its lookups began under`() {
+        val body = body("fetchTermCourses")
+        val pinned = body.indexOf("val signIn = authTokenManager.signInGeneration")
+        assertTrue("fetchTermCourses no longer reads the sign-in before its lookups", pinned in 0 until body.indexOf("termFetch.lookUp("))
+        assertCalls("fetchTermCourses", "signIn = signIn")
     }
 
     /** Someone else's class table is looked up as shared; only the user's own terms are rebuilt. */

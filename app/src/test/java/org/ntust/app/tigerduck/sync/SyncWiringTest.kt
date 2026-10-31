@@ -470,21 +470,32 @@ class SyncWiringTest {
      * `/v3/sync/full`'s `roster_requests` (backend 3.10.1, tigerduck-app-android#595) are answered
      * from both full syncs, Home's and the worker's, only with the course list synced, and through
      * TermCourseSync, under TermCourseSyncTest. Home's runs pinned to the data its sync began with.
+     *
+     * Both answer as the sign-in read before the snapshot's fetch, and TermCourseSync's upload
+     * goes with that sign-in's token alone: Home's runs on the application scope, and a sign-out
+     * and another sign-in during the lookups would send the roster as the next account's, which
+     * drops that account's courses.
      */
     @Test
     fun `Home's sync and the worker's answer the backend's roster requests`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "if (syncCourses) answerRosterRequests(result.rosterRequests)")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)")
         assertCalls(
             "ui/screen/home/HomeBackendSync.kt", "answerRosterRequests",
             "currentCoroutineContext()[DataCache.Generation]", "appScope.launch(pinned)",
-            "termCourseSync.answerRosterRequests(requests, studentId, password)",
+            "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)",
         )
         val worker = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
         val reconcile = worker.indexOf("reconcileCurrentSemester(result, courseSync)")
-        val answer = worker.indexOf("answerRosterRequests(result.rosterRequests)")
+        val answer = worker.indexOf("answerRosterRequests(result.rosterRequests, signIn)")
         assertTrue("the worker no longer answers roster requests after its reconcile", reconcile in 0 until answer)
-        assertCalls("notification/BackgroundSyncWorker.kt", "answerRosterRequests", "termCourseSync.answerRosterRequests(requests, studentId, password)")
+        val pinned = worker.indexOf("val signIn = authTokenManager.signInGeneration")
+        assertTrue("the worker no longer reads the sign-in before the snapshot", pinned in 0 until worker.indexOf("syncApiClient.fetchFullSync()"))
+        assertCalls("notification/BackgroundSyncWorker.kt", "answerRosterRequests", "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)")
         assertCalls("push/SyncApiClient.kt", "fetchFullSync", "rosterRequests = parseRosterRequests(json)")
+        val sync = source("notification/TermCourseSync.kt").joinToString("\n")
+        for (wired in listOf("signInGeneration = { authTokenManager.signInGeneration }", "pushApiClient.uploadCourses(courses, semester, signIn = signIn,")) {
+            assertTrue("TermCourseSync no longer wires $wired", wired in sync)
+        }
     }
 
     /**
@@ -503,6 +514,8 @@ class SyncWiringTest {
                 "answer = dataCache.selectionAnswerIn(semester)",
                 "fetchedAtMs = result.fetchedAtMs",
                 "dataCache.recordServerDrops(semester, outcome.serverDrops)",
+                // A roster from here listing one goes again unchanged; see TermCourseSyncTest.
+                "pushApiClient.serverDropped(semester, outcome.serverDrops.keys)",
             )
         }
         val commit = source("ui/screen/home/HomeBackendSync.kt").joinToString("\n").substringAfter("internal suspend fun commitReconciledTerm(")

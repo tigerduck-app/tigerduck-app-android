@@ -207,6 +207,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
             pendingCourseDeletes.retry()
             pendingCourseOverrides.retry()
             pendingHolidayOverrides.retry()
+            // The sign-in the snapshot is fetched as, which its roster requests are answered as.
+            val signIn = authTokenManager.signInGeneration
             // A session the backend ended before its access token ran out
             // draws a 401 until a sign-in, and the uploads below would draw
             // one too; as Home's full sync, this signs in again once.
@@ -236,7 +238,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             }
             if (CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.pendingConflictCategories)) {
                 reconcileCurrentSemester(result, courseSync)
-                answerRosterRequests(result.rosterRequests)
+                answerRosterRequests(result.rosterRequests, signIn)
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
             // Where a change another device made to the reminder settings
@@ -337,6 +339,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
         )
         // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
         dataCache.recordServerDrops(semester, outcome.serverDrops)
+        // A roster from here that listed one goes again, unchanged or not.
+        pushApiClient.serverDropped(semester, outcome.serverDrops.keys)
         dataCache.restoredCoursesListed(
             semester, result.serverCourses.filter { it.semester == semester }.map { it.courseNo }, result.fetchedAtMs,
         )
@@ -366,14 +370,15 @@ class BackgroundSyncWorker @AssistedInject constructor(
     /**
      * The terms the snapshot asks this account's roster of, answered from course selection
      * before the run ends; see [TermCourseSync.answerRosterRequests]. A failure there is no
-     * failed sync: the backend asks again until a roster arrives.
+     * failed sync: the backend asks again until a roster arrives. As [signIn], the sign-in the
+     * snapshot was fetched as.
      */
-    private suspend fun answerRosterRequests(requests: List<String>) {
+    private suspend fun answerRosterRequests(requests: List<String>, signIn: Int) {
         if (requests.isEmpty()) return
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
         try {
-            termCourseSync.answerRosterRequests(requests, studentId, password)
+            termCourseSync.answerRosterRequests(requests, studentId, password, signIn)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

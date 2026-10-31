@@ -247,7 +247,7 @@ class HomeBackendSync @Inject constructor(
                 pendingConflictCategories = prefs.pendingConflictCategories,
             )
             syncCourseList(result, syncCourses, courseSync)
-            if (syncCourses) answerRosterRequests(result.rosterRequests)
+            if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)
             // Only what this sync took, and only for the account it was for:
             // recorded after a sign-out, it would mark the next account's
             // categories before their first sync.
@@ -340,15 +340,16 @@ class HomeBackendSync @Inject constructor(
      * The terms the snapshot asks this account's roster of (`roster_requests`), answered from
      * course selection; see [TermCourseSync.answerRosterRequests]. Launched, never awaited: the
      * sync this refresh shows is done, and the school takes seconds. On the application scope,
-     * pinned to the data this sync began with, so a sign-out meanwhile drops what it writes.
+     * pinned to the data this sync began with, so a sign-out meanwhile drops what it writes, and
+     * to [signIn], the sign-in the snapshot was fetched as, whose token alone the roster goes with.
      */
-    private suspend fun answerRosterRequests(requests: List<String>) {
+    private suspend fun answerRosterRequests(requests: List<String>, signIn: Int) {
         if (requests.isEmpty()) return
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
         val pinned = currentCoroutineContext()[DataCache.Generation] ?: return
         appScope.launch(pinned) {
-            runCatching { termCourseSync.answerRosterRequests(requests, studentId, password) }
+            runCatching { termCourseSync.answerRosterRequests(requests, studentId, password, signIn) }
                 .onSuccess { asked ->
                     // The open screens and the widget read the term again, as after the worker's sync.
                     if (asked) {
@@ -569,6 +570,8 @@ class HomeBackendSync @Inject constructor(
             )
             // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
             dataCache.recordServerDrops(semester, outcome.serverDrops)
+            // A roster from here that listed one goes again, unchanged or not.
+            pushApiClient.serverDropped(semester, outcome.serverDrops.keys)
             dataCache.restoredCoursesListed(semester, rowsBySemester[semester].orEmpty().map { it.courseNo }, result.fetchedAtMs)
             tombstones = outcome.tombstones
             if (outcome.serverKnownNos.isNotEmpty()) {
