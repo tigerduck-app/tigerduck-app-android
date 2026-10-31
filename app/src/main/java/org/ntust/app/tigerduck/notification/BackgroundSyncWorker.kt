@@ -97,9 +97,18 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // is due, and the consent and flavor gates, are decided inside; a
         // no-op on fdroid.
         fcmBootstrap.retryRegistrationIfDue()
+        // The sign-in is read before the student, so a sign-in between the two reads ends the run.
+        val signIn = authTokenManager.signInGeneration
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
+        // The student alone would pass a sign-out and a sign-in as the same student.
+        val run = BackgroundRunAccount(
+            studentId, signIn,
+            currentStudentId = { authService.storedStudentId },
+            currentSignIn = { authTokenManager.signInGeneration },
+            runIfSignedIn = authTokenManager::runIfSignedIn,
+        )
 
         // A triggered run fetches everything: the server asked for it because
         // something changed. What it announced may postdate an answer the
@@ -118,9 +127,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
             RefreshPolicy.hasPassed(prefs.backgroundOverridesSyncedAtMs, now, OVERRIDES_EVERY)
         if (overridesDue) {
             syncOverridesFromBackend()
-            // Signed out meanwhile: the stamp went with the account.
-            if (authService.storedStudentId != studentId) return Result.success()
-            prefs.backgroundOverridesSyncedAtMs = now
+            // Signed out meanwhile: the stamp went with the account, and a sign-out cannot clear
+            // it between the check and the write.
+            if (!run.writeIfCurrent { prefs.backgroundOverridesSyncedAtMs = now }) return Result.success()
         }
 
         // The school servers only for data a page asks the worker to keep
@@ -147,12 +156,15 @@ class BackgroundSyncWorker @AssistedInject constructor(
             RefreshPolicy.hasPassed(prefs.schoolDataSyncedAtMs.value, now, it)
         } == true
 
-        val coursesOk = !coursesDue || syncCourses(studentId, password)
-        if (authService.storedStudentId != studentId) return Result.success()
+        val coursesOk = !coursesDue || syncCourses(studentId, password, signIn)
+        if (run.ended()) return Result.success()
         if (coursesDue && coursesOk) {
-            prefs.backgroundCoursesSyncedAtMs = now
-            // The term the fetch covered, by the app's clock: see firstRunOfTerm.
-            if (term != null && !today.isBefore(term.start)) prefs.backgroundCoursesTerm = term.code
+            val stamped = run.writeIfCurrent {
+                prefs.backgroundCoursesSyncedAtMs = now
+                // The term the fetch covered, by the app's clock: see firstRunOfTerm.
+                if (term != null && !today.isBefore(term.start)) prefs.backgroundCoursesTerm = term.code
+            }
+            if (!stamped) return Result.success()
         }
         val assignmentsOk = when {
             !assignmentsDue -> true
@@ -160,7 +172,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             triggered -> moodleService.recheckingSubmissions { syncAssignments() }
             else -> syncAssignments()
         }
-        if (authService.storedStudentId != studentId) return Result.success()
+        if (run.ended()) return Result.success()
 
         // Only after something was fetched: with nothing new in the cache
         // there is nothing for the Live Update, the widgets or the open
@@ -429,11 +441,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
         }
     }
 
-    private suspend fun syncCourses(studentId: String, password: String): Boolean {
+    /** As [signIn], the sign-in the run began under: a sync that outlived it fetches and writes nothing. */
+    private suspend fun syncCourses(studentId: String, password: String, signIn: Int): Boolean {
         return try {
             // TTL-throttled; resolved before the term, which depends on it.
             semesterCatalog.refreshIfStale()
-            termCourseSync.sync(studentId, password, courseService.currentSemesterCode())
+            termCourseSync.sync(studentId, password, courseService.currentSemesterCode(), signIn = signIn)
         } catch (e: Exception) {
             Log.w(TAG, "Course refresh failed: ${e.logSummary()}")
             false
