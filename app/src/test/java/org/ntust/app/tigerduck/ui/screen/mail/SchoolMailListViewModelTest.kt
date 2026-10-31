@@ -295,6 +295,88 @@ class SchoolMailListViewModelTest {
         assertTrue(repo.searchCalls > again)
     }
 
+    /**
+     * The user's own search reads the inbox, then the download's last batch lands and the
+     * download ends while that search is still out on Sent: the mail came after it read the inbox.
+     */
+    private fun searchOutAsTheDownloadEnds(): CompletableDeferred<Unit> {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        repo.searchIndexProgress.value = MailIndexProgress.COUNTING
+        main.dispatcher.scheduler.runCurrent()
+        val held = CompletableDeferred<Unit>()
+        repo.onSearched = { folder ->
+            if (folder == "INBOX") {
+                repo.onSearched = null
+                repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+                repo.searchIndexProgress.value = null
+                repo.searchGate = held
+            }
+        }
+        vm.submitSearch()
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(vm.state.value.isSearching)
+        repo.searchGate = null
+        return held
+    }
+
+    /** A download that ends during the user's own search runs it once more when it ends, quietly. */
+    @Test
+    fun `a download that ends during the user's own search runs it once more when it ends`() {
+        val held = searchOutAsTheDownloadEnds()
+        val searched = repo.searchCalls
+
+        held.complete(Unit)
+        main.dispatcher.scheduler.advanceTimeBy(3 * SchoolMailListViewModel.SEARCH_REGROW_MS)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+        assertEquals("once more, over All mail's two folders", searched + 2, repo.searchCalls)
+    }
+
+    /** Another query submitted meanwhile read the index after the mail came: no run once more. */
+    @Test
+    fun `another query submitted during that search drops its run once more`() {
+        val held = searchOutAsTheDownloadEnds()
+        vm.setSearchText("補考")
+        vm.submitSearch()
+        val searched = repo.searchCalls
+
+        held.complete(Unit)
+        main.dispatcher.scheduler.advanceTimeBy(3 * SchoolMailListViewModel.SEARCH_REGROW_MS)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+        assertEquals(searched, repo.searchCalls)
+    }
+
+    /**
+     * The last row reached while the search runs again quietly: the screen asks no more while that
+     * row stays the last, so its page loads once the run lands.
+     */
+    @Test
+    fun `a page asked for while the search runs again quietly loads once it lands`() {
+        repo.pageSize = 2
+        repo.add("INBOX", *(1L..5L).map { mailSummary(it, subject = "期中考 $it") }.toTypedArray())
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(5L, 4L), vm.state.value.displayed.map { it.uid })
+        val held = CompletableDeferred<Unit>().also { repo.searchGate = it }
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        repo.searchGate = null
+        held.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf("INBOX" to listOf(3L, 2L, 1L)), repo.searchPages)
+        assertEquals(listOf(5L, 4L, 3L, 2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
     @Test
     fun `a search the server fails keeps the list and shows the loaded matches`() {
         repo.add("INBOX", mailSummary(1, subject = "期中考"), mailSummary(2, subject = "other"))

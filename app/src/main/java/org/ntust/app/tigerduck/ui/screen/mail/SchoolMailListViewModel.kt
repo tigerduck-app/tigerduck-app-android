@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -312,6 +313,12 @@ class SchoolMailListViewModel @Inject constructor(
     // The query of the search on screen, as the user submitted it; main-thread-only.
     private var submittedQuery: String? = null
 
+    // The [searchGeneration] of the quiet run of the search still out, if any, and the last row the
+    // screen reached meanwhile. That run has put the matches still to fetch aside, and the screen
+    // asks again only once its last row changes, so the page is served when the run lands.
+    private var quietSearch: Int? = null
+    private var pageAskedWhileQuiet: MailRow? = null
+
     /**
      * The question [delete] or [requestMove] is still finding out from the server: which of the
      * two delete questions to ask, or which folders a mail can go to. One question at a time
@@ -351,7 +358,8 @@ class SchoolMailListViewModel @Inject constructor(
         viewModelScope.launch { repository.changes.collect(::apply) }
         // While mail downloads for search, a search on screen runs again as it comes in, at most
         // every [SEARCH_REGROW_MS], so its results grow rather than wait for a new search; as the
-        // iPhone's (tigerduck-app#894). Not over the user's own search or a page of it still out.
+        // iPhone's (tigerduck-app#894). Not over the user's own search, but after it; nor over a
+        // page of it still out.
         viewModelScope.launch {
             // Each batch downloaded, and the end of every download, for one last run over the last
             // batch: a StateFlow may hand over only its last value, so a download whose batches
@@ -367,12 +375,17 @@ class SchoolMailListViewModel @Inject constructor(
                 }
                 .conflate()
                 .collect {
+                    // Mail that came while the user's own search was out may have come after it
+                    // read the index, so it runs once more when that search ends. Not when another
+                    // search began meanwhile: that one read the index after the mail came.
+                    val search = searchGeneration
+                    _state.first { !it.isSearching }
                     val s = _state.value
                     // Nor over pages of it the user has scrolled to, or the search paged by
                     // itself: run again, it would show only the first of each folder, taking away
                     // the rows being read. Nor while the user edits the query: the search on
                     // screen is the one they submitted.
-                    if (s.searchResults != null && !s.isSearching && !s.isPagingSearch && !searchPaged &&
+                    if (search == searchGeneration && s.searchResults != null && !s.isPagingSearch && !searchPaged &&
                         s.searchText.trim() == submittedQuery
                     ) {
                         runSearch(keepShown = true)
@@ -660,6 +673,10 @@ class SchoolMailListViewModel @Inject constructor(
         val s = _state.value
         if (s.isPaginating || s.displayed.lastOrNull()?.key != last.key) return
         if (s.searchResults != null) {
+            if (quietSearch == searchGeneration) {
+                pageAskedWhileQuiet = last
+                return
+            }
             if (unfetchedMatches.values.any { it.uids.isNotEmpty() }) {
                 searchPaged = true
                 viewModelScope.launch { loadMoreSearchResults() }
@@ -1215,7 +1232,9 @@ class SchoolMailListViewModel @Inject constructor(
         val generation = account.accountGeneration
         val since = changeSeq
         // Nothing on screen until its matches come: the mail shown before is no answer to it.
-        if (!keepShown) {
+        if (keepShown) {
+            quietSearch = search
+        } else {
             _state.update { it.copy(isSearching = true, searchResults = emptyList(), searchLocalOnly = false, searchIndexPartial = false) }
         }
         try {
@@ -1350,6 +1369,12 @@ class SchoolMailListViewModel @Inject constructor(
         } finally {
             // Only the latest search's end stops the spinner: one it overtook may end while it runs.
             if (search == searchGeneration) _state.update { it.copy(isSearching = false) }
+            if (keepShown) {
+                if (quietSearch == search) quietSearch = null
+                val asked = pageAskedWhileQuiet
+                pageAskedWhileQuiet = null
+                if (asked != null && search == searchGeneration) loadMoreIfNeeded(asked)
+            }
         }
     }
 
