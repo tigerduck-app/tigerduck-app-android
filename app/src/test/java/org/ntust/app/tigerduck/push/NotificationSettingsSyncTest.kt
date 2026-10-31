@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.push
 import android.content.SharedPreferences
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import kotlin.concurrent.thread
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -845,9 +846,34 @@ class NotificationSettingsSyncTest {
 
     /** In-memory [LastSyncedSections], in the place AppPreferences has in production. */
     private class FakeLastSyncedSections : LastSyncedSections {
+        /**
+         * Runs once, just before the next record (not a clear) is stored:
+         * what else happens on the phone while that write is under way.
+         */
+        var beforeNextRecord: (() -> Unit)? = null
+
         override var liveActivity: String? = null
+            set(value) {
+                recording(value)
+                field = value
+            }
         override var assignments: String? = null
+            set(value) {
+                recording(value)
+                field = value
+            }
         override var courses: String? = null
+            set(value) {
+                recording(value)
+                field = value
+            }
+
+        private fun recording(value: String?) {
+            if (value == null) return
+            val hook = beforeNextRecord ?: return
+            beforeNextRecord = null
+            hook()
+        }
     }
 
     /** In-memory [LastSyncedSeed], in the place AppPreferences has in production. */
@@ -3434,23 +3460,49 @@ class NotificationSettingsSyncTest {
         assertEquals("and this phone's goes up", listOf(30), retried.getAsJsonArray("reminder_offsets_minutes").map { it.asInt })
     }
 
+    /** One edit to each section, each queuing its push. */
+    private val oneEditPerSection = mapOf<String, Device.() -> Unit>(
+        "live_activity" to {
+            prefs.classPreparingLeadTimeSec = 1_800
+            sync.markUnconfirmedAndPush()
+        },
+        "assignments" to {
+            assignments.enabled = false
+            sync.markAssignmentUnconfirmedAndPush()
+        },
+        "courses" to {
+            classReminders.enabled = false
+            sync.markClassReminderUnconfirmedAndPush()
+        },
+    )
+
+    /**
+     * Signs [device] out on a thread of its own, as `AuthService.logout()`
+     * can run beside a push, and returns once that sign-out has finished or
+     * is waiting on a lock the calling thread holds. A sign-out on the
+     * calling thread would walk straight into any lock it holds.
+     */
+    private fun signOutBeside(device: Device): Thread {
+        val signOut = thread(name = "sign-out") { device.logOut() }
+        val deadline = System.nanoTime() + 10_000_000_000L
+        while (true) {
+            when (signOut.state) {
+                Thread.State.TERMINATED -> {
+                    signOut.join()
+                    return signOut
+                }
+                Thread.State.BLOCKED -> return signOut
+                else -> {
+                    check(System.nanoTime() < deadline) { "the sign-out neither finished nor waited on a lock" }
+                    Thread.sleep(1)
+                }
+            }
+        }
+    }
+
     @Test
     fun `a push that lands after a sign-out records nothing`() = runTest {
-        val edits = mapOf<String, Device.() -> Unit>(
-            "live_activity" to {
-                prefs.classPreparingLeadTimeSec = 1_800
-                sync.markUnconfirmedAndPush()
-            },
-            "assignments" to {
-                assignments.enabled = false
-                sync.markAssignmentUnconfirmedAndPush()
-            },
-            "courses" to {
-                classReminders.enabled = false
-                sync.markClassReminderUnconfirmedAndPush()
-            },
-        )
-        for ((section, edit) in edits) {
+        for ((section, edit) in oneEditPerSection) {
             val device = Device(backgroundScope)
             device.signIn("A")
             // The sign-out comes once the PUT is past its account check, so
@@ -3460,6 +3512,29 @@ class NotificationSettingsSyncTest {
             device.edit()
             runQueue()
 
+            assertEquals(section, setOf(section), device.server("A").writes.single().keySet())
+            assertNull("$section: nothing recorded for the account that left", device.lastSynced.liveActivity)
+            assertNull(section, device.lastSynced.assignments)
+            assertNull(section, device.lastSynced.courses)
+        }
+    }
+
+    @Test
+    fun `a sign-out while a landed push writes its record still leaves nothing recorded`() = runTest {
+        for ((section, edit) in oneEditPerSection) {
+            val device = Device(backgroundScope)
+            device.signIn("A")
+            // The push lands and finds the account unchanged; as it stores
+            // its record, the sign-out runs on another thread.
+            var signOut: Thread? = null
+            device.lastSynced.beforeNextRecord = { signOut = signOutBeside(device) }
+
+            device.edit()
+            runQueue()
+            val signedOut = checkNotNull(signOut) { "$section: the landed push stored no record" }
+            signedOut.join(10_000)
+
+            assertFalse("$section: the sign-out finished", signedOut.isAlive)
             assertEquals(section, setOf(section), device.server("A").writes.single().keySet())
             assertNull("$section: nothing recorded for the account that left", device.lastSynced.liveActivity)
             assertNull(section, device.lastSynced.assignments)
