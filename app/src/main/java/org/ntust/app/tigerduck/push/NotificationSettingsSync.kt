@@ -1290,12 +1290,15 @@ internal fun pushRetryBackoffMillis(consecutiveFailures: Int): Long =
  * hazard is live in `SettingsViewModel.setServerPushOn` today; it is tracked
  * separately and deliberately not copied here.)
  *
- * Nothing is persisted locally by this class, so there is no fail-closed
- * question to answer: [LiveActivityPreferences] is the source of truth and
- * has already committed the user's choice by the time a push is enqueued.
- * The document is a copy of it, not the record of it — unlike
- * `applyOptOutIfAccepted`, where the local pref *is* the thing the server
- * has to accept first.
+ * No setting is persisted by this class, so there is no fail-closed
+ * question to answer: [LiveActivityPreferences] and the two stores are the
+ * source of truth and have already committed the user's choice by the time a
+ * push is enqueued. The document is a copy of them, not the record of them —
+ * unlike `applyOptOutIfAccepted`, where the local pref *is* the thing the
+ * server has to accept first. What this class does persist is bookkeeping
+ * about the sync itself: the unconfirmed-edit flags, through those stores,
+ * what each section last synced ([LastSyncedSections]), and whether the
+ * update's step has run ([LastSyncedSeed]).
  *
  * Every push is queued through one of two kinds of entry point, and which
  * one a caller uses is the protocol: [markUnconfirmedAndPush] /
@@ -1392,8 +1395,10 @@ internal const val SENDS_EVERY_FIELD = "{}"
  * Whether this device has run the update's step: the one the first launch of
  * the build that brought [LastSyncedSections] runs, in
  * [NotificationSettingsSync]'s init. Set by that step's first run, signed in
- * or not, and never cleared: it belongs to the device, not to an account, so a
- * sign-out keeps it. Backed by
+ * or not. It belongs to the device, not to an account, so a sign-out keeps
+ * it; a full reset clears the file it lives in and sets it again
+ * (`FullReset`), since nothing from before the reset is left for the step to
+ * read. Backed by
  * [org.ntust.app.tigerduck.data.preferences.AppPreferences], which needs a
  * real `Context`, hence an interface, as for [LastSyncedSections].
  */
@@ -2194,11 +2199,12 @@ class NotificationSettingsSync internal constructor(
      * while it was on the wire then differs from that record, and its own
      * push sends it.
      *
-     * Returns `true` if *either* section actually pushed, so the retry loop
-     * above only treats "neither was dirty, or every dirty gate was closed"
-     * as the no-op case; either section throwing propagates immediately
-     * (the other is not attempted that pass), and the whole call is
-     * retried together on the next attempt, exactly as a single-section
+     * Returns `true` if any section's push landed (a push whose change the
+     * document already held counts as landed), so the retry loop above only
+     * treats "no section was dirty, or every dirty section's gate was
+     * closed" as the no-op case. A section that throws propagates at once,
+     * and the sections after it are not attempted that pass; the whole call
+     * is retried together on the next attempt, exactly as a single-section
      * push already was.
      */
     private suspend fun pushNow(queuedGeneration: Int): Boolean {

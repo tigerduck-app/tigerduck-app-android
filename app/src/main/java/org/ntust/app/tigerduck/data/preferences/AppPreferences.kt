@@ -929,8 +929,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     /**
      * Set once this device has run the step for the first launch of the build
      * that brought the three keys above, signed in or not; see
-     * `NotificationSettingsSync`'s `LastSyncedSeed`. Never cleared: it belongs
-     * to the device, so a sign-out keeps it, and the step runs only once.
+     * `NotificationSettingsSync`'s `LastSyncedSeed`. It belongs to the device,
+     * so a sign-out keeps it, and the step runs only once. [clearAllPrefs]
+     * drops it with everything else, and the full reset sets it again
+     * (`FullReset`), like [previousDefaultTabsChecked]: nothing from before
+     * the reset is left for the step to read.
      */
     var lastSyncedSettingsSeedDone: Boolean
         get() = prefs.getBoolean("lastSyncedSettingsSeedDone", false)
