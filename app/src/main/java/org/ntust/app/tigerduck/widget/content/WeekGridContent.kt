@@ -29,13 +29,17 @@ import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextAlign
+import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableThisWeek
 import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy.ClassTableGridStyle
+import org.ntust.app.tigerduck.widget.CourseBlock
 import org.ntust.app.tigerduck.widget.LayerCourse
 import org.ntust.app.tigerduck.widget.LocalWidgetScale
 import org.ntust.app.tigerduck.widget.ScheduleCell
@@ -46,6 +50,7 @@ import org.ntust.app.tigerduck.widget.buildScheduleCells
 import org.ntust.app.tigerduck.widget.isOngoingTile
 import org.ntust.app.tigerduck.widget.renderConflictLayer
 import org.ntust.app.tigerduck.widget.scaled
+import org.ntust.app.tigerduck.widget.widgetChangeInk
 import org.ntust.app.tigerduck.widget.widgetCourseColor
 
 /**
@@ -192,6 +197,9 @@ fun WeekGridContent(
                                     state.activePeriodIds.rows(start + offset, span),
                                 )
                             },
+                            changeOf = { course, offset, span ->
+                                weekBlockChange(state, course, weekday, state.activePeriodIds.rows(start + offset, span))
+                            },
                             blockHeight = cellHeight * cell.length,
                             blockWidth = dayColWidth,
                             courseNameScale = state.courseNameScale,
@@ -208,6 +216,9 @@ fun WeekGridContent(
  * row the tile starts at within its cell and the rows it spans.
  */
 private typealias TileOngoing = (course: Course, offset: Int, span: Int) -> Boolean
+
+/** A tile's block as the school changed it, from the same; see [weekBlockChange]. */
+private typealias TileChange = (course: Course, offset: Int, span: Int) -> CourseBlock?
 
 /** The period ids of [span] rows from row [start]. */
 private fun List<String>.rows(start: Int, span: Int): List<String> =
@@ -312,16 +323,19 @@ private fun ScheduleCellBox(
     style: VisualStylePolicy,
     courseColors: Map<String, Color>,
     isOngoing: TileOngoing,
+    changeOf: TileChange,
     blockHeight: Dp,
     blockWidth: Dp,
     courseNameScale: Float,
 ) {
     when (cell) {
         is ScheduleCell.Empty -> EmptyCell(blockHeight, colors, style)
+        // Solo blocks only, as on iOS: a 衝堂 cluster keeps the weekly look.
         is ScheduleCell.Solo -> SoloCell(
             course = cell.course,
             length = cell.length,
             ongoing = isOngoing(cell.course, 0, cell.length),
+            change = changeOf(cell.course, 0, cell.length),
             colors = colors,
             style = style,
             courseColors = courseColors,
@@ -377,14 +391,25 @@ private fun SoloCell(
     course: Course,
     length: Int,
     ongoing: Boolean,
+    /** The block as the school changed it on its column's date; null for the timetable's. */
+    change: CourseBlock?,
     colors: WidgetColors,
     style: VisualStylePolicy,
     courseColors: Map<String, Color>,
     blockHeight: Dp,
     courseNameScale: Float,
 ) {
-    val cellBg = weekCourseFill(course, ongoing, colors, style, courseColors)
-    val textColor = weekCourseTextColor(ongoing, colors, style)
+    val cancelled = change?.isCancelled == true
+    val cellBg = weekCourseFill(course, ongoing, colors, style, courseColors, cancelled)
+    // A cancelled class steps back, as on the iPhone; it is never in session.
+    val textColor = if (cancelled) colors.onSurfaceVariant else weekCourseTextColor(ongoing, colors, style)
+    // Only a block of more than one period has room to say what changed, as on iOS.
+    val lines = weekBlockLines(
+        change.takeIf { length > 1 },
+        cancelledLabel = LocalContext.current.getString(R.string.course_card_cancelled),
+        ink = weekChangeInk(ongoing, colors, style),
+        stepBack = colors.onSurfaceVariant,
+    )
     when (style.classTableGridStyle) {
         ClassTableGridStyle.Blocks -> CourseTile(
             name = course.displayName,
@@ -392,18 +417,26 @@ private fun SoloCell(
             textColor = textColor,
             height = blockHeight,
             cornerRadius = 6.dp.scaled,
-            maxLines = if (length >= 2) 3 else 2,
+            maxLines = ((if (length >= 2) 3 else 2) - lines.count).coerceAtLeast(1),
             courseNameScale = courseNameScale,
+            struckThrough = cancelled,
+            topLine = lines.top,
+            bottomLine = lines.bottom,
         )
 
         // One tile per period, each naming the course, as on the class table.
+        // The change goes on the first tile and the last, where they fit it.
         ClassTableGridStyle.PeriodTiles -> {
             val tileHeight = blockHeight / length
             val fontScale = LocalContext.current.resources.configuration.fontScale
+            val nameLines = tileNameLines(tileHeight, courseNameScale, fontScale, LocalWidgetScale.current)
+            val fits = nameLines >= 2
             GlanceStack(
                 items = List(length) { it },
                 modifier = GlanceModifier.fillMaxWidth().height(blockHeight),
-            ) {
+            ) { index ->
+                val top = lines.top.takeIf { fits && index == 0 }
+                val bottom = lines.bottom.takeIf { fits && index == length - 1 }
                 CourseTile(
                     name = course.displayName,
                     fill = cellBg,
@@ -411,15 +444,44 @@ private fun SoloCell(
                     height = tileHeight,
                     // A period tile's corners, tighter than a block's.
                     cornerRadius = 4.dp.scaled,
-                    maxLines = tileNameLines(tileHeight, courseNameScale, fontScale, LocalWidgetScale.current),
+                    maxLines = nameLines - listOfNotNull(top, bottom).size,
                     courseNameScale = courseNameScale,
+                    struckThrough = cancelled,
+                    topLine = top,
+                    bottomLine = bottom,
                 )
             }
         }
     }
 }
 
-/** A course's name on its own fill, [height] high, with the 1dp above and below that every cell keeps. */
+/** A short line on a Week block besides its name, such as its changed time or room. */
+internal data class TileLine(val text: String, val color: Color)
+
+/** What a Week block says of [change] above its name and below it. */
+internal data class WeekBlockLines(val top: TileLine?, val bottom: TileLine?) {
+    val count: Int get() = listOfNotNull(top, bottom).size
+}
+
+/**
+ * The lines a changed Week block adds, as iOS `WeekGridView.courseBlock`: a
+ * changed time above the name in [ink]; below it the cancellation in
+ * [stepBack] or a moved room after `⇄` in [ink]. None for no [change].
+ */
+internal fun weekBlockLines(change: CourseBlock?, cancelledLabel: String, ink: Color, stepBack: Color): WeekBlockLines {
+    if (change == null) return WeekBlockLines(null, null)
+    if (change.isCancelled) return WeekBlockLines(null, TileLine(cancelledLabel, stepBack))
+    return WeekBlockLines(
+        top = change.changedTimeLabel?.let { TileLine(it, ink) },
+        bottom = change.takeIf { it.roomChanged }?.let { TileLine(it.roomLabel, ink) },
+    )
+}
+
+/**
+ * A course's name on its own fill, [height] high, with the 1dp above and below
+ * that every cell keeps; struck through for a cancelled class, between a
+ * [topLine] and a [bottomLine] where the school changed it.
+ */
 @Composable
 private fun CourseTile(
     name: String,
@@ -429,6 +491,9 @@ private fun CourseTile(
     cornerRadius: Dp,
     maxLines: Int,
     courseNameScale: Float,
+    struckThrough: Boolean = false,
+    topLine: TileLine? = null,
+    bottomLine: TileLine? = null,
 ) {
     Box(
         modifier = GlanceModifier
@@ -444,18 +509,44 @@ private fun CourseTile(
                 .padding(2.dp.scaled),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = name,
-                style = TextStyle(
-                    color = ColorProvider(textColor),
-                    fontSize = 10.sp.scaled * courseNameScale,
-                    fontWeight = FontWeight.Medium,
-                    textAlign = TextAlign.Center,
-                ),
-                maxLines = maxLines,
-            )
+            val nameText = @Composable {
+                Text(
+                    text = name,
+                    style = TextStyle(
+                        color = ColorProvider(textColor),
+                        fontSize = 10.sp.scaled * courseNameScale,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center,
+                        textDecoration = if (struckThrough) TextDecoration.LineThrough else null,
+                    ),
+                    maxLines = maxLines.coerceAtLeast(1),
+                )
+            }
+            if (topLine == null && bottomLine == null) {
+                nameText()
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    topLine?.let { TileLineText(it) }
+                    nameText()
+                    bottomLine?.let { TileLineText(it) }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun TileLineText(line: TileLine) {
+    Text(
+        text = line.text,
+        style = TextStyle(
+            color = ColorProvider(line.color),
+            fontSize = 8.sp.scaled,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.Center,
+        ),
+        maxLines = 1,
+    )
 }
 
 @Composable
@@ -677,7 +768,8 @@ private fun ConflictLabel(
 /**
  * A course's fill on the Week widget: the highlight while the class is on,
  * else the class table's pastel under TAT, else the widget's own tint, a
- * little stronger in light mode than the class table's.
+ * little stronger in light mode than the class table's; fainter for a block
+ * the school [cancelled].
  */
 internal fun weekCourseFill(
     course: Course,
@@ -685,10 +777,11 @@ internal fun weekCourseFill(
     colors: WidgetColors,
     style: VisualStylePolicy,
     courseColors: Map<String, Color>,
+    cancelled: Boolean = false,
 ): Color {
     if (highlighted) return colors.highlight
     val themed = widgetCourseColor(course, courseColors, colors.isDark)
-    return when (style.classTableGridStyle) {
+    val fill = when (style.classTableGridStyle) {
         ClassTableGridStyle.Blocks -> if (colors.isDark) themed else themed.copy(alpha = 0.55f)
         ClassTableGridStyle.PeriodTiles -> style.classTableCourseFill(
             courseColor = widgetCourseColor(course, courseColors, isDark = false),
@@ -696,6 +789,8 @@ internal fun weekCourseFill(
             isDark = colors.isDark,
         )
     }
+    // Two fifths of it, as the iPhone's 0.1 to 0.25 and the class table's cancelled block.
+    return if (cancelled) fill.copy(alpha = fill.alpha * 0.4f) else fill
 }
 
 /** A course's name on [weekCourseFill]. */
@@ -718,4 +813,33 @@ internal fun tileNameLines(height: Dp, courseNameScale: Float, fontScale: Float,
     val textHeight = height.value - (2 * 1f + 2 * 2f) * scale.ui
     val lineHeight = 10f * courseNameScale * fontScale * scale.text * 1.45f
     return (textHeight / lineHeight).toInt().coerceIn(1, 2)
+}
+
+/**
+ * The ink a Week block marks the school's change in: on the highlight, the
+ * text on it, as the Today list's full-color row; on a pastel, which stays
+ * light in either theme, the light ink; else the theme's.
+ */
+internal fun weekChangeInk(highlighted: Boolean, colors: WidgetColors, style: VisualStylePolicy): Color = when {
+    highlighted -> colors.onHighlight
+    style.classTableGridStyle == ClassTableGridStyle.PeriodTiles -> widgetChangeInk(isDark = false)
+    else -> widgetChangeInk(colors.isDark)
+}
+
+/**
+ * The block of [course] over [periods] in the [weekday] column as the school
+ * changed it: the changed meeting that starts at the block's first period on
+ * the column's date, the week running from today, whole and cancelled only
+ * when every period is. A tile that spans a hidden period draws two meetings
+ * as one, and merging them would lose the first one's changed end. Null where
+ * nothing a block shows changed, notes alone included, and for a state with no
+ * [WidgetState.today]. As iOS `WeekGridView`'s look-up of the snapshot's
+ * `meetingChanges`.
+ */
+internal fun weekBlockChange(state: WidgetState, course: Course, weekday: Int, periods: List<String>): CourseBlock? {
+    val today = state.today ?: return null
+    val date = ClassTableThisWeek.columnDate(weekday, today)
+    val meeting = CourseMeetings.changedMeetings(course, date, state.courseChanges)
+        .firstOrNull { it.periods.firstOrNull() == periods.firstOrNull() } ?: return null
+    return CourseBlock.of(meeting).takeIf { it.isCancelled || it.roomChanged || it.timeChanged }
 }

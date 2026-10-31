@@ -11,8 +11,9 @@ import org.ntust.app.tigerduck.shared.Course
 interface ClassReminderAlarms {
     /**
      * Arms a reminder [leadTimeSec] ahead of each class in the days ahead,
-     * replacing every one armed before. Each day's classes come from its
-     * own term's courses in [coursesByTerm], keyed by term code.
+     * replacing every one armed before, and brings a reminder already up in
+     * step with its class. Each day's classes come from its own term's
+     * courses in [coursesByTerm], keyed by term code.
      *
      * Returns the start of the next class these reminders cover, epoch ms in
      * AppClock time, or null for none. A class whose reminder has already

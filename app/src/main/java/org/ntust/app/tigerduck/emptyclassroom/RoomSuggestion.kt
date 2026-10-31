@@ -1,6 +1,11 @@
 package org.ntust.app.tigerduck.emptyclassroom
 
+import org.ntust.app.tigerduck.coursechanges.ClassSlot
+import org.ntust.app.tigerduck.coursechanges.CourseChange
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
+import java.time.LocalDate
 
 /** One of the user's classes on the day in question, by period index (0 is period 1, 13 is D). */
 data class ClassStop(
@@ -13,46 +18,75 @@ data class ClassStop(
 ) {
     companion object {
         /**
-         * One stop per run of neighbouring periods a course meets in on [weekday] (Mon=1 … Sun=7)
-         * in the same room, each period's room resolved as the class table resolves it. A course
-         * that moves room between neighbouring periods is two stops, so the walk after it starts
-         * from the room it ends in.
+         * The stops of [courses]' weekly timetable on [weekday] (Mon=1 … Sun=7), as [stops] gives
+         * them for a day the school changed nothing.
          */
-        fun stops(courses: List<Course>, weekday: Int): List<ClassStop> = courses.flatMap { course ->
-            val periods = course.schedule[weekday].orEmpty()
-                .mapNotNull(EmptyClassroomSchedule::periodIndex)
-                .distinct()
-                .sorted()
-            runs(periods) { roomAt(course, weekday, it) }.map { run ->
-                val room = roomAt(course, weekday, run.first())
+        fun stops(courses: List<Course>, weekday: Int): List<ClassStop> =
+            // Without changes only the weekday counts, so any date on it will do.
+            stops(CourseMeetings.buildSlots(courses, ANY_MONDAY.plusDays(weekday - 1L), CourseChanges.EMPTY))
+
+        /**
+         * One stop per run of neighbouring periods a class of [slots] meets in the same room, each
+         * period's room resolved as the class table resolves it. A course that moves room between
+         * neighbouring periods is two stops, so the walk after it starts from the room it ends in.
+         *
+         * [slots] are the day's classes as the school changed them ([CourseMeetings.meetingSlots]),
+         * so a cancelled class is no stop and a room the school moved a class to is its stop's. A
+         * class moved to other hours meets at the periods those hours overlap, which its rooms
+         * share in their order, each room at least one (tigerduck-app#904). As iOS
+         * `ClassStop.stops(from:rawRoom:)`.
+         */
+        fun stops(slots: List<ClassSlot>): List<ClassStop> = slots.flatMap { slot ->
+            val runs = mutableListOf<MutableList<Int>>()
+            for (position in slot.periods.indices) {
+                val last = runs.lastOrNull()
+                if (last != null && roomAt(slot, last.last()) == roomAt(slot, position)) {
+                    last += position
+                } else {
+                    runs += mutableListOf(position)
+                }
+            }
+            val hours = if (slot.hasChangedTime) EmptyClassroomSchedule.periods(slot.start, slot.end) else null
+            runs.mapNotNull { run ->
+                val periods = if (hours == null) {
+                    run.mapNotNull { EmptyClassroomSchedule.periodIndex(slot.periods[it]) }
+                } else {
+                    share(hours, run.first(), run.last(), slot.periods.size)
+                }
+                if (periods.isEmpty()) return@mapNotNull null
+                val room = roomAt(slot, run.first())
                 ClassStop(
-                    course = course.displayName,
+                    course = slot.course.displayName,
                     room = room,
                     place = RoomPlace.of(room),
-                    firstPeriod = run.first(),
-                    lastPeriod = run.last(),
+                    firstPeriod = periods.min(),
+                    lastPeriod = periods.max(),
                 )
             }
         }.sortedBy { it.firstPeriod }
 
-        /** The first room the class table gives [course] at [period] on [weekday]. */
-        private fun roomAt(course: Course, weekday: Int, period: Int): String {
-            val shown = course.classroom(weekday, EmptyClassroomSchedule.periodIds[period])
-            return Course.splitRooms(shown).firstOrNull() ?: shown
+        /** A Monday, for [stops] of a weekday. */
+        private val ANY_MONDAY: LocalDate = LocalDate.of(2026, 1, 5)
+
+        /**
+         * The share of [hours] for the room run at positions [first] to [last] of a class's
+         * [count] timetable periods. Rounding keeps each run at least one hour, even when the
+         * class now holds fewer hours than rooms (tigerduck-app#904).
+         */
+        private fun share(hours: List<Int>, first: Int, last: Int, count: Int): List<Int> {
+            if (hours.isEmpty()) return emptyList()
+            val low = first * hours.size / count
+            val high = maxOf(low, ((last + 1) * hours.size - 1) / count)
+            return hours.subList(low, high + 1)
         }
 
-        /** Neighbouring periods with the same [room], each run in order. */
-        private fun runs(periods: List<Int>, room: (Int) -> String): List<List<Int>> {
-            val runs = mutableListOf<MutableList<Int>>()
-            for (period in periods) {
-                val last = runs.lastOrNull()
-                if (last != null && last.last() + 1 == period && room(last.last()) == room(period)) {
-                    last += period
-                } else {
-                    runs += mutableListOf(period)
-                }
-            }
-            return runs
+        /** The first room of the class at [position] of its periods: where the school moved it, else the class table's. */
+        private fun roomAt(slot: ClassSlot, position: Int): String {
+            val period = slot.periods[position]
+            val shown = slot.changes
+                .firstOrNull { it.kind == CourseChange.Kind.ROOM && it.covers(period) }?.room
+                ?: slot.course.classroom(slot.weekday, period)
+            return Course.splitRooms(shown).firstOrNull() ?: shown
         }
     }
 }

@@ -6,6 +6,7 @@ import org.ntust.app.tigerduck.academic.Holiday
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 /**
  * Period and day math for the finder: the 14 periods by index (0 is period 1, 13 is D), and
@@ -35,6 +36,13 @@ object EmptyClassroomSchedule {
         timeRange(period)?.let { "${it.first}–${it.second}" }.orEmpty()
 
     fun periodIndex(periodId: String): Int? = periodIds.indexOf(periodId).takeIf { it >= 0 }
+
+    /** The periods the span from [start] to [end] overlaps, by index. As iOS `EmptyClassroomSchedule.periods(from:to:)`. */
+    fun periods(start: LocalTime, end: LocalTime): List<Int> {
+        val from = start.hour * 60 + start.minute
+        val to = end.hour * 60 + end.minute
+        return periodMinutes.indices.filter { periodMinutes[it].first < to && periodMinutes[it].second > from }
+    }
 
     /** The period in progress at [time], or during a break the next one; null after the last. */
     fun upcomingPeriod(time: LocalDateTime): Int? {

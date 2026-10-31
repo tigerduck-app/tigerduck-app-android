@@ -18,6 +18,9 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -34,6 +37,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
     internal interface Deps {
         fun academicCalendar(): AcademicCalendarStore
         fun appPreferences(): AppPreferences
+        fun courseChanges(): CourseChangeStore
         fun notificationChannels(): NotificationChannelRegistrar
     }
 
@@ -65,6 +69,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val deps = EntryPointAccessors
             .fromApplication(rawContext.applicationContext, Deps::class.java)
         if (!stillDue(deps.academicCalendar().current(), startDate, intent.getStringExtra(EXTRA_TERM))) return
+        // The feed is read only for an alarm that names its class: older alarms carry no id to check.
+        val classId = intent.getStringExtra(EXTRA_CLASS_ID)
+        if (classId != null && cancelledSince(deps.courseChanges().current(), classId)) return
         // The lead-time extra lets us auto-cancel the "即將上課" notification when
         // class actually starts: post-time + leadTimeMs ≈ classStart. Without it
         // (older intents from before the field existed) we fall back to manual
@@ -78,6 +85,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         post(
             rawContext, deps.appPreferences().appLanguage,
             notificationId, courseName, classroom, instructor, startMs, endMs, leadTimeMs,
+            classId = classId,
         )
     }
 
@@ -94,6 +102,19 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
         /** The term whose timetable the reminder was armed from; absent on alarms armed before it was added. */
         const val EXTRA_TERM = "term"
+
+        /** The class's `courseNo_yyyyMMdd_period` id; absent on alarms armed before it was added. */
+        const val EXTRA_CLASS_ID = "class_id"
+
+        /**
+         * Whether the school has cancelled the class [classId] names since its
+         * reminder was armed. A new course changes feed arms the reminders
+         * again, but an alarm can still go off in between. Only the class's
+         * first period is checked, as [CourseMeetings.isSkipped] does; an
+         * alarm with no id goes out.
+         */
+        internal fun cancelledSince(changes: CourseChanges, classId: String?): Boolean =
+            classId != null && CourseMeetings.isSkipped(classId, emptyList(), changes)
 
         /**
          * Whether a reminder for a class on [startDate], armed from
@@ -115,6 +136,16 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
          * the banner once the class has begun.
          */
         const val EXTRA_CLASS_START_MS = "org.ntust.app.tigerduck.class_start_ms"
+
+        /**
+         * On the posted banner too: its class's [EXTRA_CLASS_ID], end and
+         * room, which ClassPreparingNotificationScheduler checks against the
+         * class as it is now each time it arms the reminders. A banner the
+         * developer menu posts, or one from a build before these, has none.
+         */
+        const val EXTRA_POSTED_CLASS_ID = "org.ntust.app.tigerduck.class_id"
+        const val EXTRA_CLASS_END_MS = "org.ntust.app.tigerduck.class_end_ms"
+        const val EXTRA_CLASS_ROOM = "org.ntust.app.tigerduck.class_room"
 
         /**
          * The class reminder switch is on, and the app may post
@@ -139,6 +170,10 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
          * language is resolved here, where no caller can skip it.
          *
          * A tap opens the class table, through `tigerduck://classtable`.
+         *
+         * [classId] names the class on the banner; see [EXTRA_POSTED_CLASS_ID].
+         * [update] is for a banner already up whose class has changed: it is
+         * replaced without sounding again.
          */
         fun post(
             baseContext: Context,
@@ -150,6 +185,8 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             startMs: Long,
             endMs: Long,
             leadTimeMs: Long,
+            classId: String? = null,
+            update: Boolean = false,
         ) {
             val context = AppLanguageManager.localizedContext(baseContext, appLanguage)
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -188,7 +225,19 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
                 .setAutoCancel(true)
                 .setContentIntent(AppLink.ClassTable.pendingIntent(context))
                 .setGroup(NotificationGroup.CLASS.key)
-                .apply { if (startMs > 0L) addExtras(Bundle().apply { putLong(EXTRA_CLASS_START_MS, startMs) }) }
+                // Alerts only when it is not already up, so an update to one
+                // still showing says what changed without a second chime.
+                .setOnlyAlertOnce(update)
+                .addExtras(
+                    Bundle().apply {
+                        if (startMs > 0L) putLong(EXTRA_CLASS_START_MS, startMs)
+                        if (classId != null) {
+                            putString(EXTRA_POSTED_CLASS_ID, classId)
+                            putLong(EXTRA_CLASS_END_MS, endMs)
+                            putString(EXTRA_CLASS_ROOM, classroom)
+                        }
+                    }
+                )
                 .apply { if (timeout > 0L) setTimeoutAfter(timeout) }
                 .build()
 

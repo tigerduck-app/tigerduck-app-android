@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.wear.data
 
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.mutablePreferencesOf
@@ -10,6 +11,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
+import org.ntust.app.tigerduck.shared.WatchClassChange
+import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import java.time.LocalDate
 
 class SchedulePersistenceTest {
@@ -164,5 +167,62 @@ class SchedulePersistenceTest {
         val snapshot = SchedulePersistence.readSnapshot(write(null, null, 2))
         assertNull(snapshot.accentEndHex)
         assertNull(snapshot.accentDirection)
+    }
+
+    // ---- the school's course changes ----
+
+    /** CS101's Monday 2-3 moved to TR-411 on 2026-10-12, as the phone sends it. */
+    private val courseChangesJson =
+        """{"CS101":{"2026-10-12":[{"periods":["2","3"],"cancelled":false,"room":"TR-411"}]}}"""
+
+    private fun writeChanges(prefs: MutablePreferences, courseChanges: String?) =
+        SchedulePersistence.writeSnapshot(
+            prefs, coursesJson, "#112233", accentEndHex = null, accentDirectionCode = null, syncedAtMs = 2_000L,
+            loggedIn = true, languageTag = null, disableScreenCaptureProtection = false, quietDays = null,
+            courseChanges = courseChanges,
+        )
+
+    @Test
+    fun `the course changes the phone sends are stored and read back`() {
+        val prefs = mutablePreferencesOf().also { writeChanges(it, courseChangesJson) }
+        val snapshot = SchedulePersistence.readSnapshot(prefs)
+        val monday = LocalDate.of(2026, 10, 12)
+        assertEquals(
+            WatchCourseChanges(mapOf("CS101" to mapOf(monday to listOf(WatchClassChange(listOf("2", "3"), room = "TR-411"))))),
+            snapshot.courseChanges,
+        )
+        assertEquals("TR-411", snapshot.todaysClasses(monday, 8 * 60).single().classroom)
+        assertEquals("T3-101", snapshot.todaysClasses(monday.plusDays(7), 8 * 60).single().classroom)
+    }
+
+    @Test
+    fun `a payload from a phone that predates course changes clears the earlier ones`() {
+        val prefs = mutablePreferencesOf().also { writeChanges(it, courseChangesJson) }
+        writeChanges(prefs, null)
+        val snapshot = SchedulePersistence.readSnapshot(prefs)
+        assertEquals(WatchCourseChanges.EMPTY, snapshot.courseChanges)
+        assertEquals("CS101", snapshot.courses.single().courseNo)
+    }
+
+    /** Upgrade guard: a watch build before course changes stored no such key. */
+    @Test
+    fun `a snapshot an older watch build stored has no course changes`() {
+        val stored = preferencesOf(
+            stringPreferencesKey("courses_json") to coursesJson,
+            stringPreferencesKey("accent_hex") to "#112233",
+            longPreferencesKey("synced_at_ms") to 1_000L,
+        )
+        val snapshot = SchedulePersistence.readSnapshot(stored)
+        assertEquals(WatchCourseChanges.EMPTY, snapshot.courseChanges)
+        assertEquals("CS101", snapshot.courses.single().courseNo)
+    }
+
+    @Test
+    fun `malformed course changes read as none and the schedule still loads`() {
+        for (raw in listOf("", "{\"CS101\":", "[1,2]", """{"CS101":{"2026-10-12":"moved"}}""")) {
+            val snapshot = SchedulePersistence.readSnapshot(mutablePreferencesOf().also { writeChanges(it, raw) })
+            assertEquals(raw, WatchCourseChanges.EMPTY, snapshot.courseChanges)
+            assertEquals(raw, "CS101", snapshot.courses.single().courseNo)
+        }
     }
 }

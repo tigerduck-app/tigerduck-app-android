@@ -33,7 +33,6 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseIgnores
-import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.data.OutstandingAssignments
@@ -48,7 +47,6 @@ import org.ntust.app.tigerduck.data.sharing.ImportedClassTables
 import org.ntust.app.tigerduck.data.sharing.ImportedCourseLookup
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.shared.Course
@@ -316,6 +314,9 @@ class ClassTableViewModel @Inject constructor(
 
     /** The day the detail was opened for, whose course changes it shows; null shows none. */
     private val _selectedDate = MutableStateFlow<java.time.LocalDate?>(null)
+
+    /** The class the detail was opened for, as the Current class card names it; null merges its block. */
+    private val _selectedSlot = MutableStateFlow<org.ntust.app.tigerduck.coursechanges.ClassSlot?>(null)
 
     // The term the selected course belongs to. Not always the picker's: the
     // today carousel shows the live term's courses whatever term the grid
@@ -937,7 +938,7 @@ class ClassTableViewModel @Inject constructor(
         get() {
             val course = _selectedCourse.value ?: return null
             return org.ntust.app.tigerduck.coursechanges.CourseChangeSummary.shownMeeting(
-                course, null, _selectedPeriods.value, _selectedDate.value, courseChangeStore.current(),
+                course, _selectedSlot.value, _selectedPeriods.value, _selectedDate.value, courseChangeStore.current(),
             )
         }
 
@@ -962,14 +963,27 @@ class ClassTableViewModel @Inject constructor(
         )
     }
 
-    fun isCourseFinishedToday(course: Course): Boolean =
-        ClassTableSelection.isFinishedAt(course, _currentDayTime.value)
+    /** The school's course changes, for the today strip to follow. */
+    val courseChanges: StateFlow<org.ntust.app.tigerduck.coursechanges.CourseChanges>
+        get() = courseChangeStore.changes
 
-    val ongoingCourses: List<OngoingCourseInfo>
-        get() {
-            val dayTime = _currentDayTime.value
-            return computeOngoingCourses(liveCourses, dayTime.weekday, dayTime.minuteOfDay)
-        }
+    /** A today-strip card for [course] now, by the times the school changed it to. */
+    fun todayCard(course: Course): ClassTableSelection.TodayCard =
+        ClassTableSelection.todayCard(
+            course,
+            AppClock.localDateTime().toLocalDate(),
+            _currentDayTime.value.minuteOfDay,
+            courseChangeStore.current(),
+        )
+
+    /** The classes going on now as the school changed them; a cancelled one is not. */
+    val ongoingCourses: List<org.ntust.app.tigerduck.coursechanges.ClassSlot>
+        get() = ClassTableSelection.ongoingClasses(
+            liveCourses,
+            AppClock.localDateTime().toLocalDate(),
+            _currentDayTime.value.minuteOfDay,
+            courseChangeStore.current(),
+        )
 
     // coursesAt / cellRole were removed for the same reason hasAssignment was
     // (below): they read _courses.value, which Compose does not track. The
@@ -1008,8 +1022,11 @@ class ClassTableViewModel @Inject constructor(
         // The day whose course changes the detail shows: the column's in a week from today, a
         // card's own; null shows none.
         date: java.time.LocalDate? = null,
+        // The piece the Current class card or a Home card stands for, whose own changes the detail shows.
+        slot: org.ntust.app.tigerduck.coursechanges.ClassSlot? = null,
     ) {
         _selectedDate.value = date
+        _selectedSlot.value = slot
         _selectedWeekday.value = weekday
         _selectedPeriodId.value = periodId
         _selectedPeriods.value = periods ?: ClassTableSelection.block(

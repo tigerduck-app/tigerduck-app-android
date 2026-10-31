@@ -57,10 +57,12 @@ class DataLayerListener : WearableListenerService() {
         val quietDays: List<String>? = map.getStringArrayList(WearProtocol.Schedule.KEY_QUIET_DAYS)
         // Null from a phone that predates the key: TigerDuck's cards.
         val visualPreset: String? = map.getString(WearProtocol.Schedule.KEY_VISUAL_PRESET)
+        // Null from a phone that predates the key: every class as the timetable has it.
+        val courseChanges: String? = map.getString(WearProtocol.Schedule.KEY_COURSE_CHANGES)
         try {
             SchedulePersistenceHolder.get(this@DataLayerListener).write(
                 courses, accent, gradient?.first, gradient?.second, syncedAt, loggedIn, language,
-                disableScreenCaptureProtection, quietDays, visualPreset,
+                disableScreenCaptureProtection, quietDays, visualPreset, courseChanges,
             )
         } catch (e: Exception) {
             // Most likely a malformed/truncated gzip payload from the Data Layer

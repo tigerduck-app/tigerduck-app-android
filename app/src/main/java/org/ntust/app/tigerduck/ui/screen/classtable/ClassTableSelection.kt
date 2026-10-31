@@ -9,9 +9,13 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.coursechanges.ClassSlot
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.Calendar
 
 object ClassTableSelection {
@@ -168,6 +172,51 @@ object ClassTableSelection {
             end == null || minuteOfDay <= end
         } ?: runs.lastOrNull()
     }
+
+    /**
+     * The classes of [courses] running at [minuteOfDay] on [today] as the school changed them, at
+     * most one a course: a cancelled class is not running, and a moved one has its own room and
+     * times. A class's last minute still counts, as the today strip has always counted it. As iOS
+     * `ongoingCourses(at:changes:)`.
+     */
+    fun ongoingClasses(courses: List<Course>, today: LocalDate, minuteOfDay: Int, changes: CourseChanges): List<ClassSlot> =
+        CourseMeetings.buildSlots(courses, today, changes)
+            .filter { !it.isCancelled && minuteOfDay in minuteOf(it.start)..minuteOf(it.end) }
+            .distinctBy { it.course.courseNo }
+
+    /**
+     * A today-strip card: the block of the course it stands for, the block as the school changed it
+     * when a change touches it, and whether the course's classes today are over.
+     */
+    data class TodayCard(val periods: List<String>?, val meeting: ClassSlot?, val isFinished: Boolean)
+
+    /**
+     * The today-strip card of [course] at [minuteOfDay] on [today]: [carouselBlock] and
+     * [isFinishedAt] by the changed times, so a class moved later is not over at its timetable end.
+     * The block is merged back whole, as the class table shows it.
+     */
+    fun todayCard(course: Course, today: LocalDate, minuteOfDay: Int, changes: CourseChanges): TodayCard {
+        val weekday = today.dayOfWeek.value
+        if (changes.changes(course.courseNo, today).isEmpty()) {
+            return TodayCard(
+                carouselBlock(course, weekday, minuteOfDay),
+                null,
+                isFinishedAt(course, DayTime(weekday, minuteOfDay)),
+            )
+        }
+        // By their changed starts: a meeting moved to the evening comes after the afternoon's.
+        val meetings = contiguousPeriodRuns(course.schedule[weekday].orEmpty())
+            .mapNotNull { CourseMeetings.meeting(course, it, today, changes) }
+            .sortedBy { it.start }
+        val meeting = meetings.firstOrNull { minuteOfDay <= minuteOf(it.end) } ?: meetings.lastOrNull()
+        return TodayCard(
+            meeting?.periods,
+            meeting?.takeIf { it.changes.isNotEmpty() },
+            meetings.maxOfOrNull { minuteOf(it.end) }?.let { minuteOfDay > it } ?: false,
+        )
+    }
+
+    private fun minuteOf(time: LocalTime): Int = time.hour * 60 + time.minute
 
     /**
      * The room for the tapped slot, narrowing as far as the caller can say.

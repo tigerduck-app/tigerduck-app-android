@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AccountSessionEffects
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.StoredPasswordRetry
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -67,6 +68,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var academicCalendar: AcademicCalendarStore
+
+    @Inject
+    lateinit var courseChangeStore: CourseChangeStore
 
     @Inject
     lateinit var analyticsLogger: AnalyticsLogger
@@ -225,6 +229,12 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // calendar or a flipped "Still have class?" switch needs a publish.
         appScope.launch {
             academicCalendar.changes.collect { wearBridge.publish() }
+        }
+        // It shows the classes the school changed as it was last sent them too, so a new course
+        // changes feed needs a publish as well. The store reads its copy from disk as this starts,
+        // on the app's scope rather than the main thread.
+        appScope.launch {
+            courseChangeStore.onEachNewFeed { wearBridge.publish() }
         }
         // Switching language recreates the Activities but not the process, so
         // without this the channel names in system Settings would stay in the

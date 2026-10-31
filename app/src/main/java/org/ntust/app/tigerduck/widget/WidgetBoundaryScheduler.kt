@@ -8,19 +8,37 @@ import android.os.Build
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.util.logSummary
+import java.time.LocalDate
 import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Arms the alarm that redraws the class widgets at the next class boundary:
+ * a start or end of today's classes, the school's changed ones included, or
+ * the first of the next day with a class.
+ */
 @Singleton
-class WidgetBoundaryScheduler @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class WidgetBoundaryScheduler internal constructor(
+    private val context: Context,
     private val academicCalendar: AcademicCalendarStore,
+    /** The school's course changes, whose new starts and ends are boundaries too. */
+    private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
 ) {
+    // The real entry point, which Hilt calls; tests build the scheduler
+    // around a feed of their own, as LiveActivityManager's do.
+    @Inject constructor(
+        @ApplicationContext context: Context,
+        academicCalendar: AcademicCalendarStore,
+        courseChangeStore: CourseChangeStore,
+    ) : this(context, academicCalendar, courseChangeStore::current)
+
     fun scheduleForToday(courses: List<Course>) {
         val alarmManager = context.getSystemService(AlarmManager::class.java)
         val pi = makePendingIntent()
@@ -29,10 +47,13 @@ class WidgetBoundaryScheduler @Inject constructor(
         val cal = AppClock.calendar()
         val weekday = cal.toWeekday()
         val nowMinute = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+        val today = AppClock.localDateTime().toLocalDate()
+        val changes = courseChanges()
 
-        val nextTodayMinute = nextBoundaryMinuteAfter(courses, weekday, nowMinute)
+        val nextTodayMinute = nextBoundaryMinuteAfter(courses, weekday, nowMinute, today, changes)
         val triggerCal = if (nextTodayMinute != null) {
-            Calendar.getInstance(AppConstants.TAIPEI_TZ).apply {
+            // The app's day, not the phone's: under the debug clock they differ.
+            AppClock.calendar().apply {
                 set(Calendar.HOUR_OF_DAY, nextTodayMinute / 60)
                 set(Calendar.MINUTE, nextTodayMinute % 60)
                 set(Calendar.SECOND, 0)
@@ -43,7 +64,7 @@ class WidgetBoundaryScheduler @Inject constructor(
             // next day that has any courses, so the widget keeps advancing
             // (tomorrow's first class, next-class preview) without relying on
             // the 30-min updatePeriodMillis tick to eventually catch up.
-            firstBoundaryOnOrAfterTomorrow(courses, weekday) ?: return
+            firstBoundaryOnOrAfterTomorrow(courses, weekday, today, changes) ?: return
         }
 
         val triggerMillis = chooseTriggerMillis(
@@ -84,10 +105,13 @@ class WidgetBoundaryScheduler @Inject constructor(
     private fun firstBoundaryOnOrAfterTomorrow(
         courses: List<Course>,
         fromWeekday: Int,
+        today: LocalDate,
+        changes: CourseChanges,
     ): Calendar? {
         for (offset in 1..7) {
             val targetWeekday = ((fromWeekday - 1 + offset) % 7) + 1
-            val minute = nextBoundaryMinuteAfter(courses, targetWeekday, -1) ?: continue
+            val day = today.plusDays(offset.toLong())
+            val minute = nextBoundaryMinuteAfter(courses, targetWeekday, -1, day, changes) ?: continue
             return AppClock.calendar().apply {
                 add(Calendar.DAY_OF_YEAR, offset)
                 set(Calendar.HOUR_OF_DAY, minute / 60)
@@ -145,10 +169,19 @@ class WidgetBoundaryScheduler @Inject constructor(
             return minOf(nextTermFlip, boundaryMillis)
         }
 
+        /**
+         * The first class start or end on [weekday] after [currentMinute]. On
+         * [day], whose weekday it is, the school's [changes] add the new start
+         * and end of each class they move, as iOS `WidgetTimelineDerivation.entryDates`
+         * does; the timetable's own stay, which costs at most a redraw that
+         * changes nothing.
+         */
         internal fun nextBoundaryMinuteAfter(
             courses: List<Course>,
             weekday: Int,
             currentMinute: Int,
+            day: LocalDate? = null,
+            changes: CourseChanges = CourseChanges.EMPTY,
         ): Int? {
             val boundaries = mutableSetOf<Int>()
             for (course in courses) {
@@ -157,6 +190,12 @@ class WidgetBoundaryScheduler @Inject constructor(
                     val times = AppConstants.PeriodTimes.mapping[periodId] ?: continue
                     parseHm(times.first)?.let { boundaries.add(it) }
                     parseHm(times.second)?.let { boundaries.add(it) }
+                }
+                if (day != null) {
+                    for (block in CourseBlock.on(course, day, changes)) {
+                        parseHm(block.startTime)?.let { boundaries.add(it) }
+                        parseHm(block.endTime)?.let { boundaries.add(it) }
+                    }
                 }
             }
             return boundaries.filter { it > currentMinute }.minOrNull()

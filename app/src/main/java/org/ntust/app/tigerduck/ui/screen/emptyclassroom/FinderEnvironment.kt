@@ -2,10 +2,15 @@ package org.ntust.app.tigerduck.ui.screen.emptyclassroom
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -61,6 +66,12 @@ interface FinderEnvironment {
     var pickedBuilding: String?
 
     fun isOffline(error: Throwable): Boolean
+
+    /** The school's course changes, which cancel, move or retime the user's classes on a date. */
+    fun courseChanges(): CourseChanges = CourseChanges.EMPTY
+
+    /** Emits when a new course-changes feed arrives. */
+    val courseChangesChanged: Flow<Unit> get() = emptyFlow()
 }
 
 /**
@@ -78,6 +89,7 @@ class AppFinderEnvironment @Inject constructor(
     private val prefs: AppPreferences,
     private val networkChecker: NetworkChecker,
     private val demoAccount: DemoAccount,
+    private val courseChangeStore: CourseChangeStore,
 ) : FinderEnvironment {
     override fun now(): LocalDateTime = AppClock.localDateTime(AppConstants.TAIPEI_ZONE)
 
@@ -113,6 +125,10 @@ class AppFinderEnvironment @Inject constructor(
         set(value) {
             prefs.emptyClassroomBuilding = value
         }
+
+    override fun courseChanges(): CourseChanges = courseChangeStore.current()
+
+    override val courseChangesChanged: Flow<Unit> get() = courseChangeStore.changes.drop(1).map { }
 
     override fun isOffline(error: Throwable): Boolean {
         if (!networkChecker.isAvailable()) return true

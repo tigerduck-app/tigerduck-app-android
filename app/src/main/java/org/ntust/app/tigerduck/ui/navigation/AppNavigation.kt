@@ -552,6 +552,7 @@ fun MainNavigation(
                         // The slider shows the live term, as the class table's today strip does.
                         classTableViewModel.selectCourse(
                             picked.course, picked.weekday, picked.periodId, fromLiveTerm = true, date = picked.date,
+                            periods = picked.slot?.periods, slot = picked.slot,
                         )
                     },
                     // As a widget or notification opens a page: a feature the bar

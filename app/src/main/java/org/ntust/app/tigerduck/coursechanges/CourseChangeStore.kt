@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -71,6 +73,15 @@ class CourseChangeStore internal constructor(
 
     /** The stored feed, for callers with no coroutine to collect [changes] in (alarms, widgets). */
     fun current(): CourseChanges = _changes.value
+
+    /**
+     * Runs [action] for each feed after the one held when this starts, until cancelled: the
+     * caller has already used the held one, as the watch publish at launch has. A feed equal to
+     * the last, as after a 304, runs nothing; conflated, as only the last of a burst matters.
+     */
+    suspend fun onEachNewFeed(action: suspend () -> Unit) {
+        changes.drop(1).conflate().collect { action() }
+    }
 
     /**
      * Fetches the feed again; one at a time. Returns whether the backend answered, a 304 included.

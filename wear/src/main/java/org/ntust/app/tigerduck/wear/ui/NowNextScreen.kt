@@ -24,6 +24,7 @@ import androidx.wear.compose.material3.ScreenScaffold
 import androidx.wear.compose.material3.Text
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResult
+import org.ntust.app.tigerduck.shared.WatchClassChange
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.wear.R
 import org.ntust.app.tigerduck.wear.data.WatchSnapshot
@@ -74,6 +75,7 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
                             NextCard(
                                 course = next.course,
                                 classroom = next.classroom,
+                                change = next.change,
                                 statusText = nextStatusText(next.startMinute, minuteOfDay),
                                 titleResId = R.string.watch_next,
                                 style = cardStyle,
@@ -86,6 +88,7 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
                     NextCard(
                         course = result.course,
                         classroom = result.classroom,
+                        change = result.change,
                         statusText = nextStatusText(result.startMinute, minuteOfDay),
                         titleResId = null,
                         style = cardStyle,
@@ -96,6 +99,7 @@ fun NowNextScreen(snapshot: WatchSnapshot) {
                     NextCard(
                         course = result.course,
                         classroom = result.classroom,
+                        change = result.change,
                         statusText = futureStatusText(result.daysAhead, result.startMinute, result.weekday),
                         titleResId = null,
                         style = cardStyle,
@@ -126,7 +130,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int, style
     ) {
         Text(
             text = stringResource(R.string.watch_now_ends_at, formatHm(result.endMinute)),
-            color = colors.emphasis,
+            color = if (result.change?.end != null) ChangeInk else colors.emphasis,
         )
         Text(
             text = result.course.displayName,
@@ -135,7 +139,7 @@ private fun OngoingCard(result: NextClassResult.Ongoing, minuteOfDay: Int, style
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${result.classroom} · ${result.course.instructor}",
+            text = classroomLine(result.classroom, result.course.instructor, moved = result.change?.room != null),
             color = colors.secondaryText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -164,6 +168,8 @@ private fun NextCard(
     course: Course,
     /** The room of the block the card is about, not every room of the course that day. */
     classroom: String,
+    /** What the school changed of the class, its time and room marked in [ChangeInk]. */
+    change: WatchClassChange?,
     statusText: String,
     titleResId: Int?,
     style: WatchCardStyle,
@@ -187,14 +193,14 @@ private fun NextCard(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "$classroom · ${course.instructor}",
+            text = classroomLine(classroom, course.instructor, moved = change?.room != null),
             color = colors.secondaryText,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = statusText,
-            color = colors.emphasis,
+            color = if (change?.start != null) ChangeInk else colors.emphasis,
         )
     }
 }

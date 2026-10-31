@@ -24,7 +24,9 @@ class CourseDetailSelectionTest {
                 CourseDetailSelection(course, 3, "3", java.time.LocalDate.of(2026, 9, 30)),
                 CourseDetailSelection(course, 3, "6", java.time.LocalDate.of(2026, 9, 30)),
             ),
-            wednesday.map { it.detailSelection },
+            wednesday.map { it.detailSelection.copy(slot = null) },
         )
+        // Each with its own piece of the day, whose changes the detail shows.
+        assertEquals(listOf(listOf("3", "4"), listOf("6", "7")), wednesday.map { it.detailSelection.slot?.periods })
     }
 }

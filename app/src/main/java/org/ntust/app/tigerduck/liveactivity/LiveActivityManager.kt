@@ -5,7 +5,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
@@ -13,6 +17,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -30,6 +36,10 @@ import javax.inject.Singleton
  * `LiveActivityCoordinator`. Owns no state itself; loads cached courses /
  * assignments on every refresh, asks the resolver what should be shown, and
  * forwards the result to the notifier.
+ *
+ * [courseChanges] is the school's course changes feed each refresh reads,
+ * and [courseChangesUpdated] brings a refresh with each new one; with no
+ * feed, [CourseChanges.EMPTY], every class runs as the timetable has it.
  */
 @Singleton
 class LiveActivityManager internal constructor(
@@ -42,6 +52,8 @@ class LiveActivityManager internal constructor(
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
     private val boundaryScheduler: LiveActivityBoundaryScheduler,
     private val appScope: CoroutineScope,
+    private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
+    private val courseChangesUpdated: Flow<CourseChanges> = emptyFlow(),
 ) {
     // The real entry point, which Hilt calls. The primary constructor takes
     // the sign-in state and the class reminder alarms as plain types, so
@@ -58,6 +70,7 @@ class LiveActivityManager internal constructor(
         academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
         boundaryScheduler: LiveActivityBoundaryScheduler,
         @ApplicationScope appScope: CoroutineScope,
+        courseChangeStore: CourseChangeStore,
     ) : this(
         preferences = preferences,
         notifier = notifier,
@@ -69,6 +82,10 @@ class LiveActivityManager internal constructor(
         academicCalendar = academicCalendar,
         boundaryScheduler = boundaryScheduler,
         appScope = appScope,
+        courseChanges = courseChangeStore::current,
+        // Cold, so the store reads its copy from disk once this is collected
+        // on the app's scope, not as the manager is injected on the main thread.
+        courseChangesUpdated = flow { emitAll(courseChangeStore.changes) },
     )
 
     private val resolver = LiveActivityResolver()
@@ -87,11 +104,15 @@ class LiveActivityManager internal constructor(
         scope.launch {
             // And on every write of the ignored, marked-done and ignored-course
             // sets: the resolver only sees what is still outstanding. And on a
-            // change to the class reminder's settings, which this arms.
+            // change to the class reminder's settings, which this arms. And on
+            // a new course changes feed: a class it cancels, moves or puts in
+            // another room changes the Live Update, its boundaries and the
+            // reminders.
             merge(
                 preferences.changeEvent,
                 dataCache.assignmentMarksVersion.drop(1),
                 appPrefs.classReminderSettingsChanged,
+                courseChangesUpdated.drop(1),
             ).collect { refresh() }
         }
     }
@@ -191,6 +212,8 @@ class LiveActivityManager internal constructor(
         // same list, so no boundary alarm is armed for a quiet day either.
         val courses = if (quietToday) emptyList() else dataCache.loadCourses()
         val assignments = dataCache.loadOutstandingAssignments()
+        // Read once, so the snapshot and its boundaries see the same classes.
+        val changes = courseChanges()
 
         val snapshot = resolver.resolve(
             courses = courses,
@@ -199,6 +222,7 @@ class LiveActivityManager internal constructor(
             preferences = preferences,
             accentHex = appPrefs.accentColorHex,
             now = now,
+            changes = changes,
         )
         // Distinguishes "the resolver looked and found nothing" from the
         // bail-outs above, which is the difference between a wrong timetable
@@ -212,7 +236,9 @@ class LiveActivityManager internal constructor(
         }
         val spelledOut = notifier.apply(snapshot, quiet)
 
-        scheduleBoundaryRefresh(snapshot, courses, assignments, skipped, now, spelledOut, calendar.termFlipMillis())
+        scheduleBoundaryRefresh(
+            snapshot, courses, assignments, skipped, changes, now, spelledOut, calendar.termFlipMillis(),
+        )
     }
 
     /**
@@ -268,6 +294,7 @@ class LiveActivityManager internal constructor(
         courses: List<org.ntust.app.tigerduck.shared.Course>,
         assignments: List<org.ntust.app.tigerduck.data.model.Assignment>,
         skippedDates: Map<String, List<String>>,
+        changes: CourseChanges,
         now: Date,
         spelledOut: Boolean,
         termFlips: List<Long>,
@@ -300,7 +327,7 @@ class LiveActivityManager internal constructor(
         // Cover the CLASS_PREPARING → IN_CLASS → (idle) progression for the
         // upcoming class even if it isn't currently the snapshot scenario,
         // so the boundary fires once a class enters the lead-time window.
-        nextClassBoundaries(courses, skippedDates, now, classPrepLead).forEach { candidates += it }
+        nextClassBoundaries(courses, skippedDates, changes, now, classPrepLead).forEach { candidates += it }
 
         assignments.asSequence()
             .filter { !it.isCompleted && it.studentDueDate.after(now) }
@@ -317,10 +344,11 @@ class LiveActivityManager internal constructor(
     private fun nextClassBoundaries(
         courses: List<org.ntust.app.tigerduck.shared.Course>,
         skippedDates: Map<String, List<String>>,
+        changes: CourseChanges,
         now: Date,
         classPrepLeadMs: Long,
     ): List<Long> {
-        val slots = resolver.todaySlotsAfter(courses, now, skippedDates)
+        val slots = resolver.todaySlotsAfter(courses, now, skippedDates, changes)
         val first = slots.firstOrNull() ?: return emptyList()
         return listOfNotNull(
             (first.start.time - classPrepLeadMs).takeIf { it > now.time },

@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -29,9 +30,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.coursechanges.ClassSlot
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.blockClassroom
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
@@ -57,20 +60,23 @@ fun CourseCard(
     weekday: Int? = null,
     /** The block of [weekday] the card stands for; its room is the one shown. */
     periods: List<String>? = null,
+    /** That block as the school changed it today; null for the timetable's. */
+    change: ClassSlot? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val style = LocalVisualStylePolicy.current
     val isDark = TigerDuckTheme.isDarkMode
+    val cancelled = change?.isCancelled == true
     val cardColor = style.courseCardFill(
         // Vibrant (light-palette) color so the tint stays visible in dark mode.
         courseColor = TigerDuckTheme.courseColorVibrant(course.courseNo),
         tintAlpha = when {
-            isFinished -> 0.35f
+            isFinished || cancelled -> 0.35f
             isDark -> 0.55f
             else -> 0.50f
         },
-        muted = isFinished,
+        muted = isFinished || cancelled,
         surface = MaterialTheme.colorScheme.surface,
         isDark = isDark,
     )
@@ -106,26 +112,18 @@ fun CourseCard(
                         fontSize = nameStyle.fontSize * TigerDuckTheme.courseNameScale
                     ),
                     color = textColor,
+                    textDecoration = if (cancelled) TextDecoration.LineThrough else null,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                val room = cardRoom(course, weekday, periods)
-                if (room.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = room,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = secondaryColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                CardRoomLine(course, weekday, periods, change, secondaryColor, Modifier.padding(top = 4.dp))
                 Spacer(Modifier.weight(1f))
                 if (timeRange != null) {
                     Text(
                         text = timeRange,
                         style = MaterialTheme.typography.labelSmall,
-                        color = secondaryColor,
+                        color = if (change?.hasChangedTime == true && !cancelled) courseChangeInk() else secondaryColor,
+                        textDecoration = if (cancelled) TextDecoration.LineThrough else null,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -157,6 +155,8 @@ fun CurrentClassCard(
     weekday: Int? = null,
     /** The periods of the block going on; its room is the one shown. */
     periods: List<String>? = null,
+    /** The class going on as the school changed it; null for the timetable's. */
+    change: ClassSlot? = null,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -212,16 +212,7 @@ fun CurrentClassCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                val room = cardRoom(course, weekday, periods)
-                if (room.isNotEmpty()) {
-                    Text(
-                        text = room,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = secondaryColor,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                CardRoomLine(course, weekday, periods, change, secondaryColor)
                 Spacer(Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { progress },
@@ -237,7 +228,7 @@ fun CurrentClassCard(
                 Text(
                     text = timeRange,
                     style = MaterialTheme.typography.labelSmall,
-                    color = secondaryColor
+                    color = if (change?.hasChangedTime == true) courseChangeInk() else secondaryColor
                 )
             }
 
@@ -250,6 +241,58 @@ fun CurrentClassCard(
                         .padding(8.dp)
                         .size(14.dp),
                     tint = style.courseCardMarkColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * A course card's room line: 停課 for a cancelled class, the room the school moved it to in the
+ * change ink, else [cardRoom]. Nothing for a class without a room.
+ */
+@Composable
+private fun CardRoomLine(
+    course: Course,
+    weekday: Int?,
+    periods: List<String>?,
+    change: ClassSlot?,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    val style = MaterialTheme.typography.labelSmall
+    when {
+        change?.isCancelled == true -> Text(
+            text = stringResource(R.string.course_card_cancelled),
+            style = style,
+            color = color,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            modifier = modifier,
+        )
+        change?.hasChangedRoom == true -> Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
+            val ink = courseChangeInk()
+            Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = ink, modifier = Modifier.size(12.dp))
+            Spacer(Modifier.width(2.dp))
+            Text(
+                text = change.room,
+                style = style,
+                color = ink,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        else -> {
+            val room = cardRoom(course, weekday, periods)
+            if (room.isNotEmpty()) {
+                Text(
+                    text = room,
+                    style = style,
+                    color = color,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = modifier,
                 )
             }
         }

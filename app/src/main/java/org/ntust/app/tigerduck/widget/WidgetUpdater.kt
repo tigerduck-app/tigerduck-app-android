@@ -13,11 +13,18 @@ import androidx.glance.appwidget.state.updateAppWidgetState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -39,15 +46,36 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * Redraws every placed widget, on demand and on a change of the app's
+ * language or of the school's course changes ([courseChangesUpdated], empty
+ * in a test that does not give one), then arms the next class boundary.
+ */
 @Singleton
-class WidgetUpdater @Inject constructor(
-    @param:ApplicationContext private val context: Context,
+class WidgetUpdater internal constructor(
+    private val context: Context,
     private val dataCache: DataCache,
     private val boundaryScheduler: WidgetBoundaryScheduler,
     private val analyticsLogger: AnalyticsLogger,
-    @param:ApplicationScope private val scope: CoroutineScope,
+    private val scope: CoroutineScope,
     uiLanguage: UiLanguageMonitor,
+    courseChangesUpdated: Flow<CourseChanges> = emptyFlow(),
 ) {
+    @Inject constructor(
+        @ApplicationContext context: Context,
+        dataCache: DataCache,
+        boundaryScheduler: WidgetBoundaryScheduler,
+        analyticsLogger: AnalyticsLogger,
+        @ApplicationScope scope: CoroutineScope,
+        uiLanguage: UiLanguageMonitor,
+        courseChangeStore: CourseChangeStore,
+    ) : this(
+        context, dataCache, boundaryScheduler, analyticsLogger, scope, uiLanguage,
+        // Cold, so the store reads its copy from disk once this is collected
+        // on the app's scope, not as the updater is injected at launch.
+        flow { emitAll(courseChangeStore.changes) },
+    )
+
     private val boundaryLock = Mutex()
     private var boundaryInFlight = false
     private val boundaryFinishers = mutableListOf<() -> Unit>()
@@ -60,6 +88,12 @@ class WidgetUpdater @Inject constructor(
         // matters. TigerDuckApp injects this, so it listens from launch.
         scope.launch {
             uiLanguage.changes.conflate().collect { updateAll() }
+        }
+        // And a new course changes feed: a class it cancels, moves or puts in
+        // another room changes every widget and the day's boundaries. The
+        // first value is the copy the widgets already read.
+        scope.launch {
+            courseChangesUpdated.drop(1).conflate().collect { updateAll() }
         }
     }
 

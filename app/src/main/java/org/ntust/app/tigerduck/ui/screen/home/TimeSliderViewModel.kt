@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
@@ -39,6 +41,8 @@ class TimeSliderViewModel {
     val hasCourses: Boolean get() = timeSlots.isNotEmpty()
 
     private var allCourses: List<Course> = emptyList()
+    private var changes: CourseChanges = CourseChanges.EMPTY
+    private var skipped: (Course, LocalDate) -> Boolean = CourseMeetings.NO_SKIPS
     private var isQuietDay: (LocalDate) -> Boolean = { false }
     private var timelineCenterDate: Date = Date(AppClock.nowMillis())
     private var lastHapticSlot: Int = 0
@@ -47,11 +51,20 @@ class TimeSliderViewModel {
     private var anchors: List<Pair<Date, Float>> = emptyList()
 
     /**
-     * Rebuild the timeline from [courses], leaving off the slots on every day
-     * [isQuietDay] says no class meets, so the days around it keep theirs.
+     * Rebuild the timeline from [courses] as the school's [changes] split, move and cancel their
+     * classes, leaving off the classes the user [skipped] and the slots on every day [isQuietDay]
+     * says no class meets, so the days around it keep theirs. A cancelled class stays, to be shown
+     * as one. As iOS `TimeSliderViewModel.rebuildTimeline`.
      */
-    fun configure(courses: List<Course>, isQuietDay: (LocalDate) -> Boolean = { false }) {
+    fun configure(
+        courses: List<Course>,
+        changes: CourseChanges = CourseChanges.EMPTY,
+        skipped: (Course, LocalDate) -> Boolean = CourseMeetings.NO_SKIPS,
+        isQuietDay: (LocalDate) -> Boolean = { false },
+    ) {
         allCourses = courses
+        this.changes = changes
+        this.skipped = skipped
         this.isQuietDay = isQuietDay
         rebuildTimeline(Date(AppClock.nowMillis()))
         if (!isUserDragging) {
@@ -61,8 +74,8 @@ class TimeSliderViewModel {
 
     private fun rebuildTimeline(center: Date) {
         timelineCenterDate = center
-        timeSlots = CourseTimeSlot.buildMultiDaySlots(allCourses, center, TIMELINE_DAY_RADIUS)
-            .filterNot { isQuietDay(it.localDate) }
+        timeSlots = CourseTimeSlot.buildMultiDaySlots(allCourses, center, TIMELINE_DAY_RADIUS, changes)
+            .filterNot { isQuietDay(it.localDate) || skipped(it.course, it.localDate) }
         slotLayouts = computeSlotLayouts(timeSlots)
         rebuildAnchors()
     }
@@ -224,6 +237,13 @@ class TimeSliderViewModel {
     }
 
     val currentCourseState: CourseState get() = courseState(selectedTime)
+
+    /**
+     * The class whose color the thumb takes: the first in session that is not cancelled. As iOS
+     * `FluidGlassTrackView.thumbGlowColor`.
+     */
+    val thumbSlot: CourseTimeSlot?
+        get() = (currentCourseState as? CourseState.InClass)?.slots?.firstOrNull { !it.isCancelled }
 
     // Compressed X offset
     fun xOffset(time: Date): Float {

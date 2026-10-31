@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.wear
 import android.content.Context
 import android.util.Log
 import com.google.android.gms.wearable.PutDataMapRequest
+import com.google.android.gms.wearable.PutDataRequest
 import com.google.android.gms.wearable.Wearable
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -13,6 +14,10 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.coursechanges.ClassSlot
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -21,12 +26,16 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.library.libraryCredentialsForWatch
 import org.ntust.app.tigerduck.network.tls.PinManager
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.WatchClassChange
+import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import org.ntust.app.tigerduck.shared.WearProtocol
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.tls.PinAcceptances
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
+import java.time.LocalTime
+import java.util.Locale
 import java.util.zip.GZIPOutputStream
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -40,6 +49,7 @@ class WearScheduleBridge @Inject constructor(
     private val credentials: CredentialManager,
     private val academicCalendar: AcademicCalendarStore,
     private val pins: PinManager,
+    private val courseChangeStore: CourseChangeStore,
 ) {
     private val gson = Gson()
 
@@ -73,11 +83,27 @@ class WearScheduleBridge @Inject constructor(
     }
 
     /**
-     * Publishes the current course list, accent color, login state and the
-     * user's quiet days to the watch via DataClient. Safe to call repeatedly —
-     * same payload no-ops.
+     * Publishes the current course list, accent color, login state, the
+     * user's quiet days and the classes the school changed to the watch via
+     * DataClient. Safe to call repeatedly — same payload no-ops.
      */
-    suspend fun publish() {
+    suspend fun publish() = schedule.publish()
+
+    // One publish at a time, as the TLS pins': a course save, the sign-in, the calendar, the
+    // course changes feed and the rest each start one of their own, and a publish that read the
+    // phone before another must not be put after it, which would leave the watch signed in after
+    // a sign-out or showing a feed the phone no longer holds.
+    private val schedule = WatchItemPublisher(snapshot = { scheduleItem() }) { (request, summary) ->
+        try {
+            Wearable.getDataClient(context).putDataItem(request).await()
+            Log.d(TAG, "publish ok: $summary")
+        } catch (t: Throwable) {
+            Log.w(TAG, "publish failed: ${t.logSummary()}")
+        }
+    }
+
+    /** The schedule item as the phone stands now, with what the log says of it. */
+    private suspend fun scheduleItem(): Pair<PutDataRequest, String> {
         val loggedIn = authService.authState.value
         val courses = if (loggedIn) {
             dataCache.loadCourses()
@@ -110,6 +136,7 @@ class WearScheduleBridge @Inject constructor(
             academicCalendar.optedInHolidayIds,
             AppClock.localDateTime().toLocalDate(),
         )
+        val courseChanges = wearCourseChanges(courses, courseChangeStore.current())
 
         val request = PutDataMapRequest.create(WearProtocol.Schedule.PATH).apply {
             dataMap.putByteArray(WearProtocol.Schedule.KEY_COURSES, gzipped)
@@ -129,18 +156,13 @@ class WearScheduleBridge @Inject constructor(
                 disableScreenCaptureProtection,
             )
             dataMap.putStringArrayList(WearProtocol.Schedule.KEY_QUIET_DAYS, quietDays)
+            // A key of its own rather than fields on CourseDto, so the course JSON keeps the
+            // shape every watch build reads.
+            dataMap.putString(WearProtocol.Schedule.KEY_COURSE_CHANGES, courseChanges)
         }.asPutDataRequest().setUrgent()
 
-        try {
-            Wearable.getDataClient(context).putDataItem(request).await()
-            Log.d(
-                TAG,
-                "publish ok: ${courses.size} courses, ${gzipped.size} bytes, " +
-                    "${quietDays.size} quiet days",
-            )
-        } catch (t: Throwable) {
-            Log.w(TAG, "publish failed: ${t.logSummary()}")
-        }
+        return request to "${courses.size} courses, ${gzipped.size} bytes, " +
+            "${quietDays.size} quiet days, ${courseChanges.length} chars of course changes"
     }
 
     /**
@@ -200,7 +222,7 @@ class WearScheduleBridge @Inject constructor(
      */
     suspend fun publishTlsPins() = tlsPins.publish()
 
-    private val tlsPins = TlsPinsPublisher(
+    private val tlsPins = WatchItemPublisher(
         snapshot = {
             PutDataMapRequest.create(WearProtocol.TlsPins.PATH).apply {
                 pins.envelope?.let { dataMap.putByteArray(WearProtocol.TlsPins.KEY_ENVELOPE, it) }
@@ -305,6 +327,33 @@ internal fun wearQuietDays(
     calendar.quietDays(optedInHolidayIds, today, today.plusDays(WEAR_QUIET_DAYS_AHEAD))
 )
 
+/**
+ * The classes the school changed in [courses], on every day of the feed, past days included, in
+ * the form the watch reads under [WearProtocol.Schedule.KEY_COURSE_CHANGES]: each meeting moved,
+ * cancelled or given a room, as the classes it splits into, cancelled ones included. A meeting
+ * with only a note is left out. As the iPhone's `WatchPayloadEncoder` fills `changes`.
+ */
+internal fun wearCourseChanges(courses: List<Course>, changes: CourseChanges): String {
+    val byCourse = courses.associate { course ->
+        course.courseNo to changes.days(course.courseNo)
+            .associateWith { day -> CourseMeetings.changedClasses(course, day, changes).map(::wearClassChange) }
+            .filterValues { it.isNotEmpty() }
+    }
+    return WearProtocol.Schedule.encodeCourseChanges(WatchCourseChanges(byCourse.filterValues { it.isNotEmpty() }))
+}
+
+/** [slot] with only the values the school changed, as the iPhone's `SnapshotCourseChange`. */
+private fun wearClassChange(slot: ClassSlot) = WatchClassChange(
+    periods = slot.periods,
+    cancelled = slot.isCancelled,
+    room = slot.room.takeIf { slot.hasChangedRoom },
+    start = slot.originalStart?.let { wearHm(slot.start) },
+    end = slot.originalEnd?.let { wearHm(slot.end) },
+)
+
+// Latin digits in every locale, as the watch parses them.
+private fun wearHm(time: LocalTime): String = "%02d:%02d".format(Locale.US, time.hour, time.minute)
+
 internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBridge.CourseDto(
     courseNo = courseNo,
     courseName = displayName,
@@ -320,10 +369,11 @@ internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBrid
 )
 
 /**
- * Publishes the TLS pins item one at a time (A8): a snapshot, its version included, is taken and
- * put with no other publish in between, so the item last put is always the newest.
+ * Publishes a Data Layer item one at a time: a snapshot is taken and put with no other publish of
+ * the item in between, so the item last put is always the newest. The TLS pins item's snapshot
+ * takes its version too (A8); the schedule's reads the sign-in, the courses and the course changes.
  */
-internal class TlsPinsPublisher<T>(private val snapshot: () -> T, private val put: suspend (T) -> Unit) {
+internal class WatchItemPublisher<T>(private val snapshot: suspend () -> T, private val put: suspend (T) -> Unit) {
     private val mutex = Mutex()
 
     suspend fun publish() = mutex.withLock { put(snapshot()) }
