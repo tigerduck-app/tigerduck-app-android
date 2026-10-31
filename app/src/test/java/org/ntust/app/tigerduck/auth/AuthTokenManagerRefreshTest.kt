@@ -958,6 +958,15 @@ class AuthTokenManagerRefreshTest {
         assertEquals(DepartingRefresh.Unused, manager(Reply.Unsent).refreshDeparting(departing(), sendsWithoutReply = 0))
     }
 
+    /** Told no right before the send, as a debt to an http backend the setting moved off is: nothing goes. */
+    @Test
+    fun `a departing refresh told not to depart sends nothing and says the token is unused`() = runTest {
+        val manager = manager(Reply.Pair("access-2", "refresh-2"))
+
+        assertEquals(DepartingRefresh.Unused, manager.refreshDeparting(departing(), sendsWithoutReply = 0) { false })
+        assertEquals(emptyList<String>(), sentRefreshTokens)
+    }
+
     @Test
     fun `the departing session carries every send of the token that may have been used, the one on its way too`() = runTest {
         val manager = manager(Reply.Lost, Reply.Lost)
@@ -1070,6 +1079,39 @@ class AuthTokenManagerRefreshTest {
 
         assertNull(sessionRefresh.await())
         assertEquals("refresh-2", (unregisterRefresh.await() as DepartingRefresh.Refreshed).session.refreshToken)
+        assertEquals(listOf("refresh-1"), sentRefreshTokens)
+    }
+
+    /**
+     * Its check is asked after that wait, right before the send (#593): the setting may move
+     * while the session's refresh is out, and a send after it would go to the old http backend.
+     */
+    @Test
+    fun `a departing refresh told not to depart during its wait sends nothing after it`() = runBlocking {
+        val manager = manager(Reply.Status(503), Reply.Pair("access-3", "refresh-3"))
+        val sent = CountDownLatch(1)
+        val answer = CountDownLatch(1)
+        var departing: DepartingSession? = null
+        onRefreshSent = {
+            departing = manager.departingSession()
+            manager.logout()
+            onRefreshSent = {}
+            sent.countDown()
+            answer.await(5, TimeUnit.SECONDS)
+        }
+        val sessionRefresh = async(Dispatchers.IO) { manager.authHeader() }
+        assertTrue(sent.await(5, TimeUnit.SECONDS))
+
+        val mayDepart = java.util.concurrent.atomic.AtomicBoolean(true)
+        val unregisterRefresh = async(Dispatchers.IO) {
+            manager.refreshDeparting(departing!!, sendsWithoutReply = 0) { mayDepart.get() }
+        }
+        Thread.sleep(300)
+        mayDepart.set(false)
+        answer.countDown()
+
+        assertNull(sessionRefresh.await())
+        assertEquals(DepartingRefresh.Unused, unregisterRefresh.await())
         assertEquals(listOf("refresh-1"), sentRefreshTokens)
     }
 

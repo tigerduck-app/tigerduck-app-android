@@ -12,6 +12,7 @@ import org.json.JSONException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.DepartingRefresh
 import org.ntust.app.tigerduck.auth.DepartingSession
@@ -64,6 +65,12 @@ class DepartingDeviceUnregisterTest {
     /** The backend the session [signedInSince] stands for is from. */
     private var sessionBackend = BACKEND
 
+    /** The backend the debt is owed to, which its session came from. */
+    private var backend = BACKEND
+
+    /** The backend the API endpoint setting names. */
+    private var endpoint = BACKEND
+
     /** Holds each refresh's reply until the test completes it. */
     private var refreshGate: CompletableDeferred<Unit>? = null
 
@@ -73,10 +80,19 @@ class DepartingDeviceUnregisterTest {
     /** Runs as each refresh is sent, before its reply. */
     private var onRefresh: () -> Unit = {}
 
+    /** Runs as each DELETE reaches the I/O thread, before it asks whether it may go. */
+    private var beforeDelete: () -> Unit = {}
+
+    /** What the last refresh was told to ask right before its token goes out. */
+    private var lastMayDepart: (() -> Boolean)? = null
+
     private fun unregister() = DepartingDeviceUnregister(
         owed = owed,
-        deleteDevice = { base, device, token ->
-            assertEquals("the DELETE goes to the backend that issued the token", BACKEND, base)
+        deleteDevice = { base, device, token, mayDepart ->
+            assertEquals("the DELETE goes to the backend that issued the token", backend, base)
+            // As PushApiClient.deleteDevice: asked once on the I/O thread, right before it goes.
+            beforeDelete()
+            if (!mayDepart()) throw UnregisterHeldBack()
             deletes += "$device $token"
             heldDelete?.let { held -> heldDelete = null; return@DepartingDeviceUnregister held.await() }
             when (val reply = deleteReplies.removeFirstOrNull() ?: 204) {
@@ -84,10 +100,11 @@ class DepartingDeviceUnregisterTest {
                 else -> reply as Int
             }
         },
-        refresh = { session, sendsWithoutReply ->
-            assertEquals("the refresh goes to the backend that issued the token", BACKEND, session.baseUrl)
+        refresh = { session, sendsWithoutReply, mayDepart ->
+            assertEquals("the refresh goes to the backend that issued the token", backend, session.baseUrl)
             // As AuthTokenManager.refreshDeparting: a token gone twice without a reply is not sent.
             if (sendsWithoutReply >= 2) return@DepartingDeviceUnregister DepartingRefresh.Refused
+            lastMayDepart = mayDepart
             refreshes += session.refreshToken
             onRefresh()
             refreshGate?.await()
@@ -96,10 +113,11 @@ class DepartingDeviceUnregisterTest {
         },
         sessionAt = { base -> signedInSince && base == sessionBackend },
         now = { now },
+        endpoint = { endpoint },
     )
 
     private fun session(access: String, refresh: String, expiresAt: Long) =
-        DepartingSession(access, refresh, expiresAt, BACKEND, STUDENT)
+        DepartingSession(access, refresh, expiresAt, backend, STUDENT)
 
     private fun refreshed(access: String, refresh: String) =
         DepartingRefresh.Refreshed(session(access, refresh, now + 900_000))
@@ -455,6 +473,147 @@ class DepartingDeviceUnregisterTest {
         assertEquals(1, store.pending?.unansweredRefreshes)
     }
 
+    // A self-hosted http backend (#593)
+
+    /**
+     * The endpoint setting takes plain http to a private address. Once it names another backend,
+     * that address may be another network's host: the departing refresh token would go to it in
+     * cleartext. So nothing is sent, and the debt waits, as on the iPhone (tigerduck-app#908).
+     */
+    @Test
+    fun `a debt to an http backend no longer in use sends nothing, and waits`() = runTest {
+        backend = LAN
+        endpoint = BACKEND
+        owe(expiresAt = now - 1)
+
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        assertEquals(emptyList<String>(), refreshes)
+        assertEquals(emptyList<String>(), deletes)
+        assertEquals("refresh-1", store.pending?.session?.refreshToken)
+    }
+
+    /** The only way that backend learns the device left: switched back to, it goes out. */
+    @Test
+    fun `a debt to an http backend goes out once the setting names it again`() = runTest {
+        backend = LAN
+        endpoint = BACKEND
+        owe()
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        endpoint = "http://192.168.1.10:8000/v3/"
+        assertEquals(Outcome.DONE, unregister().send())
+
+        assertEquals(listOf("device-1 access-1"), deletes)
+        assertNull(store.pending)
+    }
+
+    @Test
+    fun `a debt to an http backend still past its lifetime is dropped`() = runTest {
+        backend = LAN
+        endpoint = BACKEND
+        owe()
+
+        now += 90L * 24 * 60 * 60 * 1000
+        assertEquals(Outcome.DONE, unregister().send())
+
+        assertEquals(emptyList<String>(), deletes)
+        assertNull(store.pending)
+    }
+
+    /** The setting moves while the refresh is out: the refreshed pair is kept, and nothing more goes. */
+    @Test
+    fun `a debt to an http backend the setting moves off during the refresh sends no DELETE`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe(expiresAt = now - 1)
+        refreshReplies += refreshed("access-2", "refresh-2")
+        onRefresh = { endpoint = BACKEND }
+
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        assertEquals(listOf("refresh-1"), refreshes)
+        assertEquals(emptyList<String>(), deletes)
+        assertEquals("refresh-2", store.pending?.session?.refreshToken)
+    }
+
+    /**
+     * The refresh may first wait for the session's own, and the setting may move meanwhile: it is
+     * told to ask again right before the token goes out (AuthTokenManager.refreshDeparting).
+     */
+    @Test
+    fun `the refresh asks right before it sends whether the http backend is still in use`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe(expiresAt = now - 1)
+        refreshReplies += refreshed("access-2", "refresh-2")
+
+        unregister().send()
+        assertTrue(lastMayDepart!!())
+
+        endpoint = BACKEND
+        assertFalse(lastMayDepart!!())
+    }
+
+    /** The setting moves while the DELETE waits for its thread: it does not go. */
+    @Test
+    fun `a DELETE the setting moves off the http backend before it goes is not sent`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe()
+        beforeDelete = { endpoint = BACKEND }
+
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        assertEquals(emptyList<String>(), deletes)
+        assertEquals("refresh-1", store.pending?.session?.refreshToken)
+    }
+
+    /** A refresh whose reply was lost is sent once more at most -- and not after the setting moved. */
+    @Test
+    fun `a lost refresh reply is not sent again once the setting moved off the http backend`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe(expiresAt = now - 1)
+        refreshReplies += DepartingRefresh.NoReply
+        onRefresh = { endpoint = BACKEND }
+
+        assertEquals(Outcome.RETRY, unregister().send())
+
+        assertEquals(listOf("refresh-1"), refreshes)
+        assertEquals(emptyList<String>(), deletes)
+        assertEquals("refresh-1", store.pending?.session?.refreshToken)
+    }
+
+    /** A 401 that comes back after the setting moved is not answered with a refresh and a resend. */
+    @Test
+    fun `a 401 that lands after the setting moved off the http backend sends nothing more`() = runTest {
+        backend = LAN
+        endpoint = LAN
+        owe()
+        val held = CompletableDeferred<Int>().also { heldDelete = it }
+
+        val sending = async { unregister().send() }
+        runCurrent()
+        endpoint = BACKEND
+        held.complete(401)
+
+        assertEquals(Outcome.RETRY, sending.await())
+        assertEquals(listOf("device-1 access-1"), deletes)
+        assertEquals(emptyList<String>(), refreshes)
+    }
+
+    /** TLS keeps the token to the host that issued it, wherever the phone is. */
+    @Test
+    fun `a debt to an https backend no longer in use still goes out to it`() = runTest {
+        endpoint = ELSEWHERE
+        owe()
+
+        assertEquals(Outcome.DONE, unregister().send())
+
+        assertEquals(listOf("device-1 access-1"), deletes)
+    }
+
     @Test
     fun `giving up drops the debt`() = runTest {
         owe()
@@ -468,5 +627,6 @@ class DepartingDeviceUnregisterTest {
         const val STUDENT = "B11300001"
         const val BACKEND = "https://backend.example/v3"
         const val ELSEWHERE = "https://elsewhere.example/v3"
+        const val LAN = "http://192.168.1.10:8000/v3"
     }
 }
