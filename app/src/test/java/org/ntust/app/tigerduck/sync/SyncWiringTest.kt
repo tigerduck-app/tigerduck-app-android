@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.sync
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -318,7 +319,7 @@ class SyncWiringTest {
     @Test
     fun `the syncs forget the waiting colours and names of the courses they prune or a reset elsewhere wipes`() {
         // The term's commit hands the courses it took out to the forget (commitReconciledTerm).
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "syncCourseList", "outcome.merged, pendingCourseOverrides)")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "syncCourseList", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides,\n")
         assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseReset", "pendingCourseOverrides.forget(")
         assertCalls("notification/BackgroundSyncWorker.kt", "reconcileCurrentSemester", "pendingCourseOverrides,\n")
     }
@@ -377,5 +378,189 @@ class SyncWiringTest {
     @Test
     fun `Home's fetch keeps a course's row when its query fails`() {
         assertCalls("ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments", "kept = cachedByNo[courseNo]")
+    }
+
+    /**
+     * tigerduck-app#890: Moodle lists course sites and keeps a dropped class, so Home and the
+     * background sync take the term in session from course selection, else add the transcript's
+     * classes to it, else leave it as it is. The transcript is the one on disk: neither signs in
+     * to the score system. The rule is TranscriptTerms.termFrom's, under ClassTableTermSourceTest.
+     */
+    @Test
+    fun `Home and the background sync add no course Moodle alone lists, and read the transcript from its cache`() {
+        for ((rel, name) in listOf(
+            "ui/screen/home/HomeViewModel.kt" to "fetchCoursesAndAssignments",
+            "notification/TermCourseSync.kt" to "sync",
+        )) {
+            val body = body(rel, name)
+            for (call in listOf("TranscriptTerms.termFrom(", "dataCache.loadScoreReport(studentId)?.report", "TranscriptTerms.drawnCourses(")) {
+                assertTrue("$rel $name no longer calls $call", call in body)
+            }
+            for (call in listOf("rosterOrder", "fetchScoreReport", "recordFinalRoster")) {
+                assertFalse("$rel $name calls $call", call in body)
+            }
+        }
+    }
+
+    /**
+     * Home and the background sync fold their answers onto the term through the class table's
+     * merge, ClassTableCourseMerge.mergeFetched (Home's mergeRemote hands to it), under
+     * ClassTableCourseMergeTest and HomeCourseMergeTest. A course added here keeps having no
+     * Moodle ID, where the lookup's would make a past term's rebuild drop it; and a term only
+     * gaining from the transcript keeps the courses saved while its lookups ran, which its
+     * answers do not list (tigerduck-app#890).
+     */
+    @Test
+    fun `Home and the background sync merge as the class table does, and a term only gaining removes nothing`() {
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "onlyGains = remote.onlyGains")
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments", "onlyGains = term.onlyGains")
+        val merge = source("ui/screen/home/HomeCourseMerge.kt").joinToString("\n")
+        assertTrue("Home's merge no longer hands to the class table's", "ClassTableCourseMerge.mergeFetched(" in merge)
+        assertCalls(
+            "notification/TermCourseSync.kt", "sync",
+            "ClassTableCourseMerge.mergeFetched(",
+            "term.onlyGains ||",
+            "names = dataCache.loadCourseCustomNames()",
+        )
+    }
+
+    /**
+     * A past term's rebuild can record its drops and save the term while a gaining fetch's lookups
+     * run, so Home and the background sync commit through commitFetchedTerm, which checks the
+     * drop list under the courses' lock and keeps the adds still waiting (FetchedTermCommitTest).
+     * The background sync uploads the list as committed, never a course the commit left out.
+     */
+    @Test
+    fun `Home and the background sync commit a fetch against the drop list as it stands, and the sync uploads what was committed`() {
+        assertCalls(
+            "ui/screen/home/HomeViewModel.kt", "fetchData",
+            "courses = commitFetchedTerm(",
+            "waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) }",
+        )
+        assertCalls(
+            "notification/TermCourseSync.kt", "sync",
+            "val merged = commitFetchedTerm(",
+            "waitingAdds = { waitingAdds(semester) }",
+            "merged, semester, roster = term.roster,",
+            "uploader.upload(upload.courses, semester,",
+        )
+        val sync = source("notification/TermCourseSync.kt").joinToString("\n")
+        assertTrue("TermCourseSync no longer waits on the adds still going up", "waitingAdds = pendingCourseAdds::waitingIn" in sync)
+        assertCalls("notification/BackgroundSyncWorker.kt", "syncCourses", "termCourseSync.sync(studentId, password, courseService.currentSemesterCode())")
+        for ((rel, name) in listOf("ui/screen/home/HomeViewModel.kt" to "fetchData", "notification/TermCourseSync.kt" to "sync")) {
+            assertFalse("$rel $name saves a fetch past the commit", "dataCache.saveCourses(" in body(rel, name))
+        }
+    }
+
+    /**
+     * A fetch whose course selection answer a newer one replaced commits nothing, and the
+     * background sync's sends nothing, under TermCourseSyncTest. The background sync commits,
+     * builds and sends under PendingCourseAdds.uploading, as the class table's fetch does, so a
+     * reset's DELETE never lands between its commit and its upload.
+     */
+    @Test
+    fun `Home and the background sync commit an answer only while it is the term's latest, and the sync uploads under the adds lock`() {
+        assertCalls(
+            "ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments",
+            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }",
+            "answer = recorded?.answer,",
+        )
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "remote.onlyGains, remote.answer,")
+        val body = body("notification/TermCourseSync.kt", "sync")
+        val lock = body.indexOf("uploading {")
+        val commit = body.indexOf("commitFetchedTerm(")
+        val upload = body.indexOf("uploader.upload(")
+        assertTrue("TermCourseSync no longer commits and uploads under the adds lock", lock in 0 until commit && commit < upload)
+        assertTrue("TermCourseSync no longer commits against its answer", "term.onlyGains, answer," in body)
+        val sync = source("notification/TermCourseSync.kt").joinToString("\n")
+        assertTrue("TermCourseSync no longer wires the adds lock", "uploading = { block -> pendingCourseAdds.uploading(block) }" in sync)
+    }
+
+    /**
+     * Home's fetch of a course selection answer DataCache refused, for a newer one kept or a wipe
+     * since the fetch began, looks up and draws no courses, so its fetchData commits and uploads
+     * none: its roster would take off what the newer answer lists. The background sync's stops
+     * as TermCourseSyncTest drives it.
+     */
+    @Test
+    fun `Home's fetch of a refused course selection answer draws no courses to commit`() {
+        val body = body("ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments")
+        val stop = body.indexOf("if (recorded == RecordedSelection.Refused) return@async null")
+        val lookUp = body.indexOf("courseService.lookupOrFallback(")
+        assertTrue("Home's fetch no longer stops on a refused answer before the lookups", stop in 0 until lookUp)
+        assertTrue("Home's fetch no longer stops on a refused answer before it draws the courses", lookUp < body.indexOf("RemoteCourses("))
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "if (remote != null && remote.courses.isNotEmpty()) {")
+    }
+
+    /**
+     * The background sync adds the transcript's classes to the term's cached courses and looks
+     * every one up: one whose query fails, or brings no rows, keeps the row the term has, where
+     * Moodle's stand-in would take its times and room, as Home's fetch does (#417).
+     */
+    @Test
+    fun `the background sync keeps a course's row when its query fails`() {
+        val body = body("notification/TermCourseSync.kt", "sync")
+        assertTrue("sync no longer hands the term's row to the lookup", "sources.lookUp(semester, courseNo, moodleByNo[courseNo], kept = cachedByNo[courseNo])" in body)
+        val sync = source("notification/TermCourseSync.kt").joinToString("\n")
+        assertTrue("the lookup is no longer CourseService.lookupOrFallback", "courseService.lookupOrFallback(semester, courseNo, moodle, kept = kept)" in sync)
+        assertFalse("sync still stands Moodle in for a failed query", "CourseService.fallbackCourseFromMoodle(" in sync)
+    }
+
+    /**
+     * `/v3/sync/full`'s `roster_requests` (backend 3.10.1, tigerduck-app-android#595) are answered
+     * from both full syncs, Home's and the worker's, only with the course list synced, and through
+     * TermCourseSync, under TermCourseSyncTest. Home's runs pinned to the data its sync began with.
+     *
+     * Both answer as the sign-in read before the snapshot's fetch, and TermCourseSync's upload
+     * goes with that sign-in's token alone: Home's runs on the application scope, and a sign-out
+     * and another sign-in during the lookups would send the roster as the next account's, which
+     * drops that account's courses.
+     */
+    @Test
+    fun `Home's sync and the worker's answer the backend's roster requests`() {
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)")
+        assertCalls(
+            "ui/screen/home/HomeBackendSync.kt", "answerRosterRequests",
+            "currentCoroutineContext()[DataCache.Generation]", "appScope.launch(pinned)",
+            "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)",
+        )
+        val worker = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
+        val reconcile = worker.indexOf("reconcileCurrentSemester(result, courseSync)")
+        val answer = worker.indexOf("answerRosterRequests(result.rosterRequests, signIn)")
+        assertTrue("the worker no longer answers roster requests after its reconcile", reconcile in 0 until answer)
+        val pinned = worker.indexOf("val signIn = authTokenManager.signInGeneration")
+        assertTrue("the worker no longer reads the sign-in before the snapshot", pinned in 0 until worker.indexOf("syncApiClient.fetchFullSync()"))
+        assertCalls("notification/BackgroundSyncWorker.kt", "answerRosterRequests", "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)")
+        assertCalls("push/SyncApiClient.kt", "fetchFullSync", "rosterRequests = parseRosterRequests(json)")
+        val sync = source("notification/TermCourseSync.kt").joinToString("\n")
+        for (wired in listOf("signInGeneration = { authTokenManager.signInGeneration }", "pushApiClient.uploadCourses(courses, semester, signIn = signIn,")) {
+            assertTrue("TermCourseSync no longer wires $wired", wired in sync)
+        }
+    }
+
+    /**
+     * Each full sync's reconcile reads the term's course selection answer with when it arrived,
+     * against when the snapshot was fetched, and records the server drops for the fetches that
+     * only gain (tigerduck-app#914, #918).
+     */
+    @Test
+    fun `Home's sync and the worker's read the answer's time and record the server drops`() {
+        for ((rel, name) in listOf(
+            "ui/screen/home/HomeBackendSync.kt" to "syncCourseList",
+            "notification/BackgroundSyncWorker.kt" to "reconcileCurrentSemester",
+        )) {
+            assertCalls(
+                rel, name,
+                "answer = dataCache.selectionAnswerIn(semester)",
+                "fetchedAtMs = result.fetchedAtMs",
+                "dataCache.recordServerDrops(semester, outcome.serverDrops)",
+                // A roster from here listing one goes again unchanged; see TermCourseSyncTest.
+                "pushApiClient.serverDropped(semester, outcome.serverDrops.keys)",
+            )
+        }
+        val commit = source("ui/screen/home/HomeBackendSync.kt").joinToString("\n").substringAfter("internal suspend fun commitReconciledTerm(")
+        assertTrue("the commit no longer reads the term's answer with its time", "dataCache.selectionAnswerIn(semester)" in commit)
+        val fetched = source("ui/screen/home/FetchedTermCommit.kt").joinToString("\n")
+        assertTrue("a fetch only gaining no longer leaves out the server drops", "dataCache.fetchDropsIn(semester)" in fetched)
     }
 }

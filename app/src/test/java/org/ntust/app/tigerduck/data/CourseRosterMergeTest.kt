@@ -43,25 +43,30 @@ class CourseRosterMergeTest {
     )
 
 
-    // --- roster ------------------------------------------------------------
+    // --- whose assignments are asked for ------------------------------------
 
     /**
      * The 加退選 case. "C" is a course the student dropped in 選課 that Moodle
-     * has not let go of yet; topping the roster up with Moodle would put it
-     * back on the timetable for however many days that takes.
+     * has not let go of yet; asking for its assignments would put them back
+     * on Home for however many days that takes.
      */
     @Test
-    fun `a selection answer owns its term and moodle adds nothing`() {
-        val order = CourseRosterMerge.rosterOrder(
+    fun `a selection answer owns its term's assignments and moodle adds nothing`() {
+        val order = CourseRosterMerge.assignmentCourseNos(
             selectionCourseNos = listOf("B", "A", "B"),
             moodleForSemester = listOf(moodle("C", "1131"), moodle("A", "1131")),
         )
         assertEquals(listOf("B", "A"), order)
     }
 
+    /**
+     * Moodle adds no course to a term (tigerduck-app#890), but with course
+     * selection unreachable its sites still say whose assignments are asked
+     * for, as they did when they were the roster.
+     */
     @Test
-    fun `a failed selection scrape still yields the moodle roster`() {
-        val order = CourseRosterMerge.rosterOrder(
+    fun `a failed selection scrape still asks for every moodle course's assignments`() {
+        val order = CourseRosterMerge.assignmentCourseNos(
             selectionCourseNos = null,
             moodleForSemester = listOf(moodle("C", "1131")),
         )
@@ -74,8 +79,8 @@ class CourseRosterMergeTest {
      * covers the terms 選課 does not serve, where the caller passes empty.
      */
     @Test
-    fun `an empty selection answer falls back to moodle rather than blanking the term`() {
-        val order = CourseRosterMerge.rosterOrder(
+    fun `an empty selection answer falls back to moodle's courses for the assignments`() {
+        val order = CourseRosterMerge.assignmentCourseNos(
             selectionCourseNos = emptyList(),
             moodleForSemester = listOf(moodle("C", "1131"), moodle("D", "1131")),
         )
@@ -138,6 +143,25 @@ class CourseRosterMergeTest {
             roster = emptyList(),
         )
         assertEquals(setOf("C"), dropped)
+    }
+
+    /**
+     * An ended term's transcript is final (iOS tigerduck-app#890): a term it leaves with no class
+     * held only junk, and its empty roster drops all of it.
+     */
+    @Test
+    fun `a final roster counts even when empty`() {
+        val dropped = CourseRosterMerge.selectionDrops(
+            previous = setOf("C"),
+            localPortalNos = listOf("A", "B"),
+            roster = emptyList(),
+            isFinal = true,
+        )
+        assertEquals(setOf("A", "B", "C"), dropped)
+        assertEquals(
+            setOf("B", "C"),
+            CourseRosterMerge.selectionDrops(setOf("C"), listOf("A", "B"), roster = listOf("A"), isFinal = true),
+        )
     }
 
     @Test

@@ -320,6 +320,7 @@ class MailRepository @Inject constructor(
             account.signOuts.collect { departing ->
                 numberings.clear()
                 lastWhole = null
+                clearProgressOf(departing)
                 withContext(Dispatchers.IO) {
                     // With a search's request, which may be waiting for WorkManager's answer.
                     scheduled { indexScheduler.cancel() }
@@ -336,6 +337,7 @@ class MailRepository @Inject constructor(
             account.studentChanges.collect { departing ->
                 numberings.clear()
                 lastWhole = null
+                clearProgressOf(departing)
                 withContext(Dispatchers.IO) { clearIndexOf(departing) }
             }
         }
@@ -764,6 +766,69 @@ class MailRepository @Inject constructor(
     private val _searchIndexProgress = MutableStateFlow<MailIndexProgress?>(null)
     override val searchIndexProgress: StateFlow<MailIndexProgress?> = _searchIndexProgress.asStateFlow()
 
+    // Under progressLock: the mailbox, by address and index epoch, whose download the progress
+    // tells of. A sign-in of the same student again keeps it, as it keeps the downloaded mail.
+    private val progressLock = Any()
+    private var progressMailbox: Pair<String, Int>? = null
+
+    private fun MailIndexer.Owner.mailbox() = address to epoch
+
+    // Under progressLock: the mailbox that left last and the account generation as it left. A sign-in
+    // tells of the student leaving before it moves the generation, and a download of theirs
+    // still running must not show progress in between.
+    private var departed: Pair<String, Int>? = null
+
+    // [progress] of [owner]'s download, while the index is still its own and its student has not left.
+    private fun showProgress(owner: MailIndexer.Owner, progress: MailIndexProgress) = synchronized(progressLock) {
+        if (!stillIndexOwner(owner)) return
+        departed?.let { (address, generation) -> if (owner.address == address && owner.generation <= generation) return }
+        progressMailbox = owner.mailbox()
+        _searchIndexProgress.value = progress
+    }
+
+    // [owner]'s progress, stopped, left on screen while mail is missing from search (#587):
+    // unless the mailbox's progress was cleared since, by a sign-out or the mail's deletion.
+    private fun stopProgress(owner: MailIndexer.Owner) = synchronized(progressLock) {
+        if (progressMailbox != owner.mailbox()) return
+        _searchIndexProgress.value = _searchIndexProgress.value?.copy(running = false)
+    }
+
+    // No progress: [owner]'s download got through with no gap found since its last pass planned
+    // ([gaps]), asked under the lock a gap is published under; its mailbox left ([departing]); or
+    // the downloaded mail went (null, every mailbox). Only that mailbox's: another's signed in
+    // since stays.
+    private fun clearProgress(owner: MailIndexer.Owner, gaps: Int) =
+        clearProgressWhere { it == owner.mailbox() && gapsFound.get() == gaps }
+
+    // A sign-out with no one signed in ([departing] null) has no mailbox to clear.
+    private fun clearProgressOf(departing: String?) {
+        if (departing == null) return
+        // As it left, not as it is now: the same student may have signed in again since.
+        val leftAt = account.departedAt(departing) ?: account.accountGeneration
+        synchronized(progressLock) { departed = departing.lowercase() to leftAt }
+        clearProgressWhere { it.first == departing.lowercase() }
+    }
+
+    private fun clearAllProgress() = clearProgressWhere { true }
+
+    // A search found mail missing: the row says so, stopped, until a download gets through,
+    // where it said OK; a download under way keeps its own. Under the lock the last pass's clear
+    // asks [gapsFound] under, so it cannot clear past this gap.
+    private fun noteGap() = synchronized(progressLock) {
+        gapsFound.incrementAndGet()
+        if (_searchIndexProgress.value != null) return
+        val owner = indexOwnerNow() ?: return
+        progressMailbox = owner.mailbox()
+        _searchIndexProgress.value = MailIndexProgress.COUNTING.copy(running = false)
+    }
+
+    private fun clearProgressWhere(mailbox: (Pair<String, Int>) -> Boolean) = synchronized(progressLock) {
+        val shown = progressMailbox ?: return
+        if (!mailbox(shown)) return
+        progressMailbox = null
+        _searchIndexProgress.value = null
+    }
+
     /** Held by the download under way, so the in-app one and the background one never both run. */
     private val indexing = Mutex()
 
@@ -834,10 +899,15 @@ class MailRepository @Inject constructor(
             // came, and the run the search asked for was this one -- the background run's request
             // keeps the one already under way, and the download in the app runs one at a time.
             // Only for a gap found since the pass began, which only a search makes, so it ends.
+            var gaps: Int
+            var through: Boolean
             do {
-                val gaps = gapsFound.get()
-                downloadEveryFolder(owner, gaps, current)
+                gaps = gapsFound.get()
+                through = downloadEveryFolder(owner, gaps, current)
             } while (gapsFound.get() != gaps && current())
+            // Done only when the last pass got through and no search found a gap since: a pass
+            // let go of before it ran again leaves mail missing, which the row keeps saying.
+            if (through) clearProgress(owner, gaps)
         } catch (e: MailError.AuthFailed) {
             // Unless the account that was refused has left since: its rejection must not stop the
             // next one, whose password the server has not seen.
@@ -846,11 +916,15 @@ class MailRepository @Inject constructor(
         }
     }
 
-    /** One pass over every folder, planned once a search had found [gaps] gaps ([gapsFound]). */
-    private suspend fun downloadEveryFolder(owner: MailIndexer.Owner, gaps: Int, stillWanted: () -> Boolean) {
+    /**
+     * One pass over every folder, planned once a search had found [gaps] gaps ([gapsFound]); says
+     * whether it got through.
+     */
+    private suspend fun downloadEveryFolder(owner: MailIndexer.Owner, gaps: Int, stillWanted: () -> Boolean): Boolean {
         // Under way from the first folder listed: counting what every folder lacks takes seconds
         // on a large mailbox, and the sync dot used to say "OK" through all of it.
-        _searchIndexProgress.value = MailIndexProgress.COUNTING
+        showProgress(owner, MailIndexProgress.COUNTING)
+        var through = false
         try {
             val folders = folders(stillWanted)
             val first = listOfNotNull(folders.nameOf(SpecialFolder.INBOX), folders.nameOf(SpecialFolder.SENT))
@@ -867,20 +941,26 @@ class MailRepository @Inject constructor(
             val total = plans.sumOf { it.missing.size }
             if (total == 0) {
                 if (whole) lastWhole = WholeDownload(owner, clock(), gaps)
-                return
+                through = whole
+                return through
             }
             var done = 0
-            _searchIndexProgress.value = MailIndexProgress(done, total)
+            showProgress(owner, MailIndexProgress(done, total))
             for (plan in plans) {
-                val through = indexer.fill(plan, stillWanted = stillWanted) { added ->
+                val filled = indexer.fill(plan, stillWanted = stillWanted) { added ->
                     done += added
-                    _searchIndexProgress.value = MailIndexProgress(done, total)
+                    showProgress(owner, MailIndexProgress(done, total))
                 }
-                whole = whole && through
+                whole = whole && filled
             }
             if (whole) lastWhole = WholeDownload(owner, clock(), gaps)
+            through = whole
+            return through
         } finally {
-            _searchIndexProgress.value = null
+            // Stopped, and left: one cut short -- the network, a folder recreated meanwhile --
+            // leaves mail out of search, and the row says how far it came rather than OK until
+            // one gets through (#587). The caller clears it once one has; see downloadIndex.
+            stopProgress(owner)
         }
     }
 
@@ -1083,7 +1163,7 @@ class MailRepository @Inject constructor(
         if (whole) {
             indexScheduler.request()
         } else {
-            gapsFound.incrementAndGet()
+            noteGap()
             // A run that plans after now, if the one under way may be past its last look at
             // [gapsFound], or done and yet to be filed so, when a request would only join it.
             indexScheduler.requestAgain()
@@ -1105,6 +1185,7 @@ class MailRepository @Inject constructor(
         }
         inAppIndexing?.cancel()
         lastWhole = null
+        clearAllProgress()
         numberings.clear()
         withContext(Dispatchers.IO) { searchIndex.clear() }
     }

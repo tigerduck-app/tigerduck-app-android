@@ -401,12 +401,14 @@ fun SchoolMailScreen(
                             // failure still has a home: the list itself shows the error.
                             //
                             // While every mail downloads for search, which the first time takes a
-                            // while, the dot syncs and the row says how far it has come -- or that it
-                            // is syncing while it still counts, rather than an "OK" that says nothing
-                            // has started.
+                            // while, the row says how far it has come -- or that it is syncing while
+                            // it still counts, rather than an "OK" that says nothing has started.
+                            // One cut short keeps saying so, stopped, until one gets through: mail is
+                            // still missing from search (#587). The dot turns only while mail
+                            // downloads, not while it counts.
                             text = indexProgress?.let { indexProgressText(it) ?: stringResource(R.string.sync_status_syncing) }
                                 ?: statusText(mailStatus),
-                            isLoading = isLoading || indexProgress != null,
+                            isLoading = isLoading || indexProgress?.downloading() == true,
                             syncedAtMs = state.fetchedAt,
                         )
                         IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
@@ -1032,3 +1034,5 @@ internal fun searchNote(searched: Boolean, loadedOnly: Boolean, partial: Boolean
     else -> null
 }
 
+/** Whether [this] progress is mail downloading: under way, past the count. */
+internal fun MailIndexProgress.downloading(): Boolean = running && total != null

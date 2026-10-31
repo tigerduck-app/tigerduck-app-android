@@ -47,16 +47,56 @@ internal class ClassTableTermWarm(
      *
      * Once per sign-in: a later call returns at once, until [reset].
      */
-    suspend fun run(fetch: suspend (term: String, isCurrent: () -> Boolean) -> Boolean) {
+    suspend fun run(fetch: suspend (term: String, isCurrent: () -> Boolean) -> Boolean) =
+        run(stillSignedIn = { true }, shared = { Unit }) { term, _, isCurrent -> fetch(term, isCurrent) }
+
+    /**
+     * [run], with what [shared] answers once for every term (the class
+     * table's transcript), asked for as the first term still needing a fetch
+     * comes up, for the account [stillSignedIn] names. An answer that
+     * outlives a sign-out reaches no term, and each term's `isCurrent` says
+     * no once the account has left.
+     *
+     * The answer takes seconds, and a term can be picked, fetched or cached
+     * meanwhile: its `isCurrent` counts from before the wait, and a term no
+     * longer wanting a fetch once it ends is left to its own.
+     *
+     * With no answer, null, each term is still handed to [fetch], which picks
+     * its source: course selection's term needs none. The run is then not
+     * used up, so a later fetch warms the terms that needed it.
+     *
+     * As iOS `AppServiceBridge.warmTerms` (tigerduck-app#890).
+     */
+    suspend fun <A : Any> run(
+        stillSignedIn: () -> Boolean,
+        shared: suspend () -> A?,
+        fetch: suspend (term: String, shared: A?, isCurrent: () -> Boolean) -> Boolean,
+    ) {
         if (started) return
         started = true
+        var asked = false
+        var answers: A? = null
         for (term in terms()) {
-            if (!mayFetch()) return
-            if (term == shownTerm() || isCached(term)) continue
-            val taken = generations[term] ?: 0
-            if (!fetch(term) { (generations[term] ?: 0) == taken }) return
+            if (!mayFetch()) break
+            if (!stillSignedIn()) return
+            if (!wantsFetch(term)) continue
+            // Before anything of the term suspends, the wait for the answers
+            // included: a pick or a fetch of it meanwhile makes this stale.
+            val generation = generations[term] ?: 0
+            val isCurrent = { (generations[term] ?: 0) == generation && stillSignedIn() }
+            if (!asked) {
+                answers = shared()
+                asked = true
+                if (!stillSignedIn()) return
+                if (!isCurrent() || !wantsFetch(term)) continue
+            }
+            if (!fetch(term, answers, isCurrent)) break
         }
+        if (asked && answers == null) started = false
     }
+
+    // Neither on screen, whose own fetch handles it, nor cached already.
+    private suspend fun wantsFetch(term: String): Boolean = term != shownTerm() && !isCached(term)
 
     /** A sign-out: the next account's first fetch warms its terms. */
     fun reset() {

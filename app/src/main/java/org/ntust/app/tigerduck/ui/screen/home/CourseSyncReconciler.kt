@@ -14,6 +14,8 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.SelectionAnswer
+import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseTombstone
@@ -80,7 +82,22 @@ object CourseSyncReconciler {
      * put it on the timetable as a manual course, where a later refresh is
      * required to preserve it. Dropping the row before anything else also
      * keeps it from counting as evidence of presence further down, which
-     * would otherwise un-hide it.
+     * would otherwise un-hide it. So are the rows another device's roster
+     * upload marked `dropped` ([serverDropTimes]), but a course [answer], the
+     * term's latest course selection answer, listed since its drop, fetched at
+     * [fetchedAtMs]: this phone's roster enrolls it again
+     * ([SelectionAnswer.listsSince]).
+     *
+     * A drop never takes a course added by hand: its row stays when the
+     * course was added here ([TranscriptTerms.isAddedHere], or its add is in
+     * [pendingAddNos]) or is a `user_added` row from another device. Nor is a
+     * dropped course hidden: the server still holds it, and a hide would keep
+     * it out once it is enrolled again. It leaves the term instead, through
+     * [SemesterOutcome.left], a merged copy or a course fetched here alike. As
+     * the iPhone's `keptRows`, `unlistedCourses`, `droppedMerges` and
+     * `readTerm` (tigerduck-app#890, #914). So does a course fetched here
+     * that the drop list names: the fetch that dropped it was cut short
+     * before it saved the term.
      *
      * [serverKnownNos] is every course number a snapshot of this term has
      * ever carried, from [DataCache.loadServerKnownNos]. It is what lets a
@@ -121,14 +138,28 @@ object CourseSyncReconciler {
         pendingAddNos: Set<String> = emptySet(),
         selectionDroppedNos: Set<String> = emptySet(),
         restoredNos: Set<String> = emptySet(),
+        answer: SelectionAnswer? = null,
+        fetchedAtMs: Long = 0L,
     ): SemesterOutcome {
         // Misfiled rows are neither a roster nor evidence of presence, and
-        // neither is a course 選課 has dropped.
-        val rows = serverRows.filter {
-            isFiled(it.moodleId, it.courseNo, semester) &&
-                it.courseNo !in selectionDroppedNos
-        }
+        // neither is a dropped course, unless it was added by hand.
+        val filed = serverRows.filter { isFiled(it.moodleId, it.courseNo, semester) }
+        val dropTimes = serverDropTimes(filed, fetchedAtMs)
+        val droppedOnServer = dropTimes.filterNot { (courseNo, at) -> answer?.listsSince(courseNo, at) == true }.keys
+        val droppedNos = selectionDroppedNos + droppedOnServer
+        val addedHereNos = localCourses.filter(TranscriptTerms::isAddedHere).mapTo(mutableSetOf()) { it.courseNo } +
+            pendingAddNos
+        val handAddedNos = addedHereNos + filed.filter { it.isUserAdded }.mapTo(mutableSetOf()) { it.courseNo }
+        val rows = filed.filter { it.courseNo !in droppedNos || it.courseNo in handAddedNos }
         val serverNos = rows.map { it.courseNo }.toSet()
+        // Dropped, not deleted: the server still holds these rows.
+        val skippedNos = filed.mapTo(mutableSetOf()) { it.courseNo } - serverNos
+        // A dropped course leaves the term with no hide, even when the drops
+        // leave the term no row, so the course can come back.
+        val left = localCourses
+            .filter { it.courseNo !in serverNos && it.courseNo !in pendingAddNos }
+            .filter { leaves(it, selectionDroppedNos, droppedOnServer) }
+            .mapTo(mutableSetOf()) { it.courseNo }
 
         var updated = tombstones
 
@@ -164,13 +195,25 @@ object CourseSyncReconciler {
         // "every local course was deleted elsewhere". Only what the
         // tombstones leave visible counts: after a reset the whole roster is
         // tombstoned, and then there is nothing to push.
+        //
+        // A term whose rows a roster dropped is not empty on the server: an
+        // upload without a roster leaves a dropped row dropped, so pushing
+        // the courses again would change nothing, at every sync.
         if (serverNos.isEmpty()) {
             val hidden = CourseTombstoneKeys.hiddenIn(semester, updated)
             return SemesterOutcome(
                 tombstones = updated,
                 merged = emptyList(),
-                toUpload = localCourses.filter { it.courseNo !in hidden },
+                toUpload = if (dropTimes.isNotEmpty()) {
+                    emptyList()
+                } else {
+                    localCourses.filter { it.courseNo !in hidden && it.courseNo !in left }
+                },
                 serverKnownNos = serverKnownNos,
+                left = left,
+                droppedOnServer = dropTimes - selectionDroppedNos,
+                serverDrops = dropTimes,
+                handAddedNos = handAddedNos,
             )
         }
 
@@ -191,6 +234,8 @@ object CourseSyncReconciler {
         for (course in localCourses) {
             if (course.courseNo in serverNos) continue
             if (notOnServerYet(course) || course.courseNo in restoredNos) continue
+            // Dropped, not deleted: a hide would outlast its next enrollment.
+            if (course.courseNo in skippedNos || course.courseNo in left) continue
             if (CourseTombstoneKeys.isHidden(course.courseNo, semester, updated)) continue
             updated = CourseTombstoneKeys.hide(course.courseNo, semester, updated)
         }
@@ -220,8 +265,43 @@ object CourseSyncReconciler {
             tombstones = updated,
             merged = merged,
             serverKnownNos = serverKnownNos + serverNos,
+            left = left,
+            droppedOnServer = dropTimes - selectionDroppedNos,
+            serverDrops = dropTimes,
+            handAddedNos = handAddedNos,
         )
     }
+
+    /**
+     * The courses of [rows] a roster upload dropped on the server, each by
+     * when, in epoch millis. A row without `enrollment_status`, from a
+     * backend before 3.10.1, counts as enrolled.
+     *
+     * The time is the row's `updated_at`, which the drop sets. A later upload
+     * that lists the course moves it on too, which only makes the drop read
+     * newer, so an answer exempts less ([SelectionAnswer.listsSince]); the
+     * next roster from here settles it. A row without one, as no backend
+     * sends, counts from [fetchedAtMs], when the full sync that read it went
+     * out: the drop came no later than that, within the clock margin. Null,
+     * which no answer is newer than, when neither is known. As the iPhone's
+     * `droppedOnServer` (tigerduck-app#914).
+     */
+    fun serverDropTimes(rows: List<ServerCourse>, fetchedAtMs: Long): Map<String, Long?> =
+        rows.filter { it.isDropped }.associate { row ->
+            row.courseNo to (backendInstant(row.updatedAt)?.toEpochMilli() ?: fetchedAtMs.takeIf { it > 0 })
+        }
+
+    /**
+     * Whether [course] leaves its term with no hide, its row dropped: never a
+     * course added here. A merged copy and a course fetched here alike go
+     * when the drop list here ([droppedHere]) or a roster on the server
+     * ([droppedOnServer], but a course course selection here listed since)
+     * dropped it, as the iPhone's `readTerm` takes a dropped course out of the
+     * courses fetched there (tigerduck-app#914). A fetch that only gains
+     * leaves it out from then on (`DataCache.fetchDropsIn`).
+     */
+    private fun leaves(course: Course, droppedHere: Set<String>, droppedOnServer: Set<String>): Boolean =
+        !TranscriptTerms.isAddedHere(course) && (course.courseNo in droppedHere || course.courseNo in droppedOnServer)
 
     /**
      * [tombstones], a sync's read of the hides, without those of
@@ -248,6 +328,22 @@ object CourseSyncReconciler {
      * [newlyHidden], the course numbers whose hide the sync's commit added
      * (`DataCache.commitSyncHides`), go as the pruned do, so the term holds
      * none that such an answer saved back into it since the read.
+     *
+     * [left], the dropped courses ([SemesterOutcome.left]), go with no hide,
+     * each only while it is still dropped as the term stands: on the drop
+     * list now ([droppedHere]) or dropped in the snapshot ([droppedOnServer],
+     * by when) and not listed since that drop by the term's latest course
+     * selection answer as the commit reads it ([answer],
+     * [SelectionAnswer.listsSince]), and not added back by hand since the
+     * read. A roster that listed it again since clears its drop, and the
+     * fetch keeps a merged copy's Moodle ID, so it would otherwise go
+     * regardless. An answer older than the drop keeps nothing: it held off a
+     * newer drop for good.
+     *
+     * Nor does a row of [merged] that [droppedHere] names come down, but one
+     * added by hand ([handAdded], [SemesterOutcome.handAddedNos]): the
+     * reconcile read the drop list before a past term's rebuild recorded its
+     * drops and saved the term, which took that course out.
      */
     fun committedCourses(
         current: List<Course>,
@@ -256,11 +352,23 @@ object CourseSyncReconciler {
         merged: List<Course>,
         hidden: Set<String>,
         newlyHidden: Set<String> = emptySet(),
+        left: Set<String> = emptySet(),
+        droppedHere: Set<String> = emptySet(),
+        droppedOnServer: Map<String, Long?> = emptyMap(),
+        handAdded: Set<String> = emptySet(),
+        answer: SelectionAnswer? = null,
     ): List<Course> {
         val pruned = read.mapTo(mutableSetOf()) { it.courseNo } - kept.mapTo(mutableSetOf()) { it.courseNo } + newlyHidden
-        val held = current.filter { it.courseNo !in pruned || it.courseNo !in hidden }
+        val serverDrops = droppedOnServer.filterNot { (courseNo, at) -> answer?.listsSince(courseNo, at) == true }.keys
+        val held = current.filter {
+            (it.courseNo !in pruned || it.courseNo !in hidden) &&
+                !(it.courseNo in left && leaves(it, droppedHere, serverDrops))
+        }
         val heldNos = held.mapTo(mutableSetOf()) { it.courseNo }
-        return held + merged.filter { it.courseNo !in heldNos && it.courseNo !in hidden }
+        return held + merged.filter {
+            it.courseNo !in heldNos && it.courseNo !in hidden &&
+                (it.courseNo !in droppedHere || it.courseNo in handAdded)
+        }
     }
 
     data class SemesterOutcome(
@@ -274,6 +382,28 @@ object CourseSyncReconciler {
         val toUpload: List<Course> = emptyList(),
         /** Course numbers a snapshot of this term has ever carried. */
         val serverKnownNos: Set<String> = emptySet(),
+        /**
+         * The dropped courses, to take out of the term with no hide (see
+         * [committedCourses]): those but the courses added here that course
+         * selection here or a roster on the server has dropped, merged copies
+         * and courses fetched here alike.
+         */
+        val left: Set<String> = emptySet(),
+        /**
+         * The snapshot's rows of the term a roster dropped, by when ([serverDropTimes]), for the
+         * commit, which reads the term's answer again, but those the drop list here named: the
+         * drop list as the commit finds it decides those, as a roster that took one off it since
+         * is newer than the snapshot.
+         */
+        val droppedOnServer: Map<String, Long?> = emptyMap(),
+        /** Every course of the term's rows a roster dropped on the server, by when, for `DataCache.recordServerDrops`. */
+        val serverDrops: Map<String, Long?> = emptyMap(),
+        /**
+         * The courses added by hand, which no drop takes: added here, or a
+         * `user_added` row from another device. For the commit, which checks
+         * [merged] against the drop list again (see [committedCourses]).
+         */
+        val handAddedNos: Set<String> = emptySet(),
     ) {
         val uploadLocal: Boolean get() = toUpload.isNotEmpty()
     }

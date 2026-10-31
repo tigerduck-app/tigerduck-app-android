@@ -49,9 +49,24 @@ internal fun uploadFingerprint(backend: String, json: String): String =
  * [backend], without force keys (a list with any goes whatever the ledger holds), the courses in
  * course-number order, so the roster as the class table holds it and as a sync holds it, the
  * same courses in another order, are one list. The term is the ledger's key, not part of this.
+ *
+ * [rosterTerms] is part of it: the same courses sent as the term's roster are another list, so
+ * the first fetch after an update that sends rosters sends each term once as one, unchanged or
+ * not, which drops what the student left since. As iOS `PushCoordinator.fingerprint`
+ * (tigerduck-app#914).
  */
-internal fun courseUploadFingerprint(backend: String, courses: List<Course>, semester: String): String =
-    uploadFingerprint(backend, fingerprintGson.toJson(CourseUploadPayload.build(courses.sortedBy { it.courseNo }, semester)))
+internal fun courseUploadFingerprint(
+    backend: String,
+    courses: List<Course>,
+    semester: String,
+    rosterTerms: List<String> = emptyList(),
+): String =
+    uploadFingerprint(
+        backend,
+        fingerprintGson.toJson(
+            CourseUploadPayload.build(courses.sortedBy { it.courseNo }, semester, rosterTerms = rosterTerms.sorted()),
+        ),
+    )
 
 private val fingerprintGson = Gson()
 
@@ -132,7 +147,8 @@ internal class UploadLedger(
      * has just taken off the server, and the upload that follows the reset,
      * usually that same list, would then wait six hours while the server
      * holds the reset's tombstones. It forgets the lists the server turned
-     * away, too, for the same reason.
+     * away, too, for the same reason. So does a roster the server has
+     * dropped a course of since (`PushApiClient.serverDropped`).
      */
     suspend fun <T> holdingUploads(block: suspend () -> T): T = mutex.withLock {
         block().also { refused.clear() }

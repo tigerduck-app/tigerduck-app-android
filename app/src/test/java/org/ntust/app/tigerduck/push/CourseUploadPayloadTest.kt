@@ -96,6 +96,20 @@ class CourseUploadPayloadTest {
         assertEquals(listOf("client:1141:CS101"), forced["force_keys"])
     }
 
+    /**
+     * A term in `roster_terms` is read as the school's whole roster: the backend drops its school
+     * courses the upload leaves out. An upload that is no roster must not carry the key at all,
+     * as a backend reads an empty list the same, and older ones never see it.
+     */
+    @Test
+    fun `roster_terms goes only with an upload that is a roster`() {
+        val plain = CourseUploadPayload.build(listOf(course()), semester = "1141")
+        assertFalse(plain.containsKey("roster_terms"))
+
+        val roster = CourseUploadPayload.build(listOf(course()), semester = "1141", rosterTerms = listOf("1141"))
+        assertEquals(listOf("1141"), roster["roster_terms"])
+    }
+
     /** Instructors are split on all three separators the portal mixes. */
     @Test
     fun `instructors split on ascii, fullwidth and ideographic commas`() {

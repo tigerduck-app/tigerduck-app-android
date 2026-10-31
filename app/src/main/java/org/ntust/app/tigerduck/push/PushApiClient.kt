@@ -115,13 +115,16 @@ class PushApiClient @Inject constructor(
      * session it left, at [base], the backend that issued it, and gives the HTTP status. The
      * sign-out's unregister runs after the tokens are wiped, and a session looked up now could be
      * the next account's, or its sign-in, whose row the DELETE would remove; and the endpoint
-     * setting may name another host by now. Throws [java.io.IOException] when no reply came back.
+     * setting may name another host by now. Throws [java.io.IOException] when no reply came back,
+     * and [UnregisterHeldBack] when [mayDepart], asked right before the request goes, says no.
      */
     suspend fun deleteDevice(
         base: String,
         deviceId: String,
         accessToken: String,
+        mayDepart: () -> Boolean = { true },
     ): Int = withContext(Dispatchers.IO) {
+        if (!mayDepart()) throw UnregisterHeldBack()
         // v3: DELETE /devices/{client_device_id}, scoped to the authed user
         // (matches iOS + the server). `deviceId` is PushIdentity.uuid().
         deletes.at(base).removeDevice("Bearer $accessToken", deviceId, EmptyBody).execute().use { response -> response.code }
@@ -427,6 +430,10 @@ class PushApiClient @Inject constructor(
      * [signIn], when given, pins the request to that sign-in, as
      * [patchAssignmentOverride]'s is.
      *
+     * [rosterTerms] names the terms the list is the school's whole roster
+     * of; see [CourseUpload.of], which decides it. A roster the backend asks
+     * for (`roster_requests`) goes with [resend], past the ledger.
+     *
      * [addedAt], by course number, the time of each add [courses] carries (a
      * [PendingCourseDeletes.stamp]): sent under protocol 2 as `adds`, which the
      * backend applies only when later than the course's last add, hide and
@@ -442,8 +449,9 @@ class PushApiClient @Inject constructor(
         forceKeys: List<String> = emptyList(),
         signIn: Int? = null,
         resend: Boolean = false,
+        rosterTerms: List<String> = emptyList(),
         addedAt: Map<String, Long> = emptyMap(),
-    ): List<String>? = uploadCoursesAnswered(courses, semester, forceKeys, signIn, resend, addedAt)?.settled
+    ): List<String>? = uploadCoursesAnswered(courses, semester, forceKeys, signIn, resend, rosterTerms, addedAt)?.settled
 
     /** [uploadCourses], with the timed adds the backend refused told apart; see [CourseUploadAnswer]. */
     suspend fun uploadCoursesAnswered(
@@ -452,10 +460,11 @@ class PushApiClient @Inject constructor(
         forceKeys: List<String> = emptyList(),
         signIn: Int? = null,
         resend: Boolean = false,
+        rosterTerms: List<String> = emptyList(),
         addedAt: Map<String, Long> = emptyMap(),
     ): CourseUploadAnswer? = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext null
-        val payload = CourseUploadPayload.build(courses, semester, forceKeys)
+        val payload = CourseUploadPayload.build(courses, semester, forceKeys, rosterTerms)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val stampedBody = addedAt.takeIf { it.isNotEmpty() }?.let { stamps ->
             val adds = stamps.map { (courseNo, at) ->
@@ -471,12 +480,19 @@ class PushApiClient @Inject constructor(
         // upload's is; the request's own header is pinned only when the
         // caller pinned it ([signIn]), as before.
         val startedIn = signIn ?: authTokenManager.signInGeneration
+        // What the accepted list enrolled as the term's roster, for serverDropped.
+        val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
         courseUploads(semester).sendIfDue(
-            fingerprint = courseUploadFingerprint(base, courses, semester),
+            fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
             // Recorded under the sign-in lock, so a sign-out's clear cannot
             // fall between the check and the record; see UploadLedger.sendIfDue.
-            ifCurrent = { record -> authTokenManager.runIfSignedIn(startedIn, record) },
+            ifCurrent = { record ->
+                authTokenManager.runIfSignedIn(startedIn) {
+                    record()
+                    prefs.recordCoursesUploadRoster(semester, roster)
+                }
+            },
             always = resend || forceKeys.isNotEmpty(),
             signIn = startedIn,
         ) {
@@ -510,6 +526,22 @@ class PushApiClient @Inject constructor(
             accepted = (if (stampedBody != null) send(stamped = true) else null) ?: send(stamped = false)!!
         }
         accepted
+    }
+
+    /**
+     * A full sync found [courseNos] of [semester] dropped on the server, by another device's
+     * roster. When the term's list the backend last accepted from here went as its roster and
+     * listed one of them, the server no longer holds what it accepted: the ledger forgets it, and
+     * the next roster goes, unchanged or not. Otherwise a course selection answer listing the
+     * course again waited six hours, the course kept here and dropped on the server, without its
+     * reminders. Only a roster's: an upload without one leaves a dropped row dropped, and
+     * forgetting it would send it at every fetch to no effect.
+     */
+    suspend fun serverDropped(semester: String, courseNos: Collection<String>) {
+        fun listsOne() = prefs.coursesUploadRoster(semester)?.any { it in courseNos } == true
+        if (!listsOne()) return
+        // Under the ledger: an upload out now would record its list after the forget.
+        courseUploads(semester).holdingUploads { if (listsOne()) prefs.forgetCourseUploads(semester) }
     }
 
     /**
@@ -628,3 +660,6 @@ private const val DELETE_TIMEOUT_SECONDS = 20L
 data class CourseUploadAnswer(val accepted: List<String>, val refusedAdds: List<String>) {
     val settled: List<String> get() = (accepted + refusedAdds).distinct()
 }
+
+/** A sign-out's device unregister not sent, as its caller said right before it would go. */
+class UnregisterHeldBack : java.io.IOException("unregister held back")

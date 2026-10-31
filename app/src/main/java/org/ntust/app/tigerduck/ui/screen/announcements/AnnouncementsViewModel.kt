@@ -186,12 +186,25 @@ class AnnouncementsViewModel @Inject constructor(
     // Main-thread-only — see nextCursor.
     private var hasLoaded = false
 
+    // Main-thread-only — see nextCursor. Whose list the last load was for.
+    private var loadedFor: ListOwner? = null
+
     fun load() {
+        // A list held since a sign-out or an endpoint move is let go of here too: this view model
+        // outlives a tab switch when its tab is the first, which never leaves the back stack.
+        loadedFor?.let { held ->
+            if (held.generation != repository.generation) forgetTaxonomy()
+            if (!keeps(held)) startOver()
+        }
         if (hasLoaded) return
         hasLoaded = true
+        val owner = listOwner()
+        loadedFor = owner
         viewModelScope.launch {
             val cached = cache.load()
             val fetchedAt = cache.loadFetchedAt()
+            // Read for a list let go of meanwhile: the old account's or backend's.
+            if (droppedAfterLetGo(owner)) return@launch
             _state.update { it.copy(syncedAtMs = fetchedAt) }
             if (cached.isNotEmpty()) {
                 repository.putSummaries(cached)
@@ -289,8 +302,8 @@ class AnnouncementsViewModel @Inject constructor(
             // can't desync the fetch filter from the UI state.
             val includeDeleted = _state.value.showDeleted
             _state.update { it.copy(loadState = LoadState.Loading, isPaginating = false) }
-            // The school account as it is now; a page that arrives for another is dropped.
-            val account = credentials.schoolAccountGeneration
+            // The school account and backend as they are now; a page that arrives for another is dropped.
+            val owner = listOwner()
             try {
                 val response = api.fetchList(
                     cursor = null,
@@ -300,7 +313,7 @@ class AnnouncementsViewModel @Inject constructor(
                 // call: writing nextCursor / items here would overwrite the
                 // newer refresh that triggered our cancellation.
                 coroutineContext.ensureActive()
-                if (droppedAfterSignOut(account)) return@launch
+                if (droppedAfterLetGo(owner)) return@launch
                 // Wall clock, for the "Last synced" row and across restarts;
                 // the session's elapsedRealtime below is neither.
                 val fetchedAt = System.currentTimeMillis()
@@ -317,7 +330,7 @@ class AnnouncementsViewModel @Inject constructor(
                         )
                     )
                 }
-                if (!saveUnlessSignedOut(merged, fetchedAt, account)) return@launch
+                if (!saveUnlessLetGo(merged, fetchedAt, owner)) return@launch
                 repository.listRefreshed(
                     SystemClock.elapsedRealtime(), includeDeleted, response.nextCursor,
                 )
@@ -329,7 +342,7 @@ class AnnouncementsViewModel @Inject constructor(
                     readState.prune(ids)
                     cache.pruneDetails(ids.toSet())
                 } else {
-                    startBackgroundPrefetch(includeDeleted)
+                    startBackgroundPrefetch(includeDeleted, owner)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -352,7 +365,7 @@ class AnnouncementsViewModel @Inject constructor(
     // ensureActive() before each write is what actually keeps the older job
     // from clobbering newer state — don't remove it on the assumption that
     // Main scheduling alone is enough.
-    private fun startBackgroundPrefetch(includeDeleted: Boolean) {
+    private fun startBackgroundPrefetch(includeDeleted: Boolean, owner: ListOwner) {
         prefetch?.cancel()
         prefetch = viewModelScope.launch {
             // Walk the cursor chain in the background so the user doesn't see
@@ -360,7 +373,6 @@ class AnnouncementsViewModel @Inject constructor(
             // legitimately a "load more" tap.
             var pages = 0
             var latest: List<BulletinSummary>? = null
-            val account = credentials.schoolAccountGeneration
             while (pages < 5 && nextCursor != null) {
                 pages++
                 delay(150)
@@ -373,7 +385,7 @@ class AnnouncementsViewModel @Inject constructor(
                     break
                 }
                 coroutineContext.ensureActive()
-                if (droppedAfterSignOut(account)) return@launch
+                if (droppedAfterLetGo(owner)) return@launch
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -391,7 +403,7 @@ class AnnouncementsViewModel @Inject constructor(
             // Persist the final merged snapshot once when the prefetch chain
             // settles, instead of rewriting summaries.json on every page.
             latest?.let {
-                if (saveUnlessSignedOut(it, null, account)) repository.listAdvanced(includeDeleted, nextCursor)
+                if (saveUnlessLetGo(it, null, owner)) repository.listAdvanced(includeDeleted, nextCursor)
             }
         }
     }
@@ -411,11 +423,11 @@ class AnnouncementsViewModel @Inject constructor(
         prefetch?.cancel()
         _state.update { it.copy(isPaginating = true) }
         loadMoreJob = viewModelScope.launch {
-            val account = credentials.schoolAccountGeneration
+            val owner = listOwner()
             try {
                 val response = api.fetchList(cursor = cursor, includeDeleted = s.showDeleted)
                 coroutineContext.ensureActive()
-                if (droppedAfterSignOut(account)) return@launch
+                if (droppedAfterLetGo(owner)) return@launch
                 val merged = sortedUnique(_state.value.items + response.items)
                 nextCursor = response.nextCursor
                 repository.putSummaries(merged)
@@ -428,7 +440,7 @@ class AnnouncementsViewModel @Inject constructor(
                         )
                     )
                 }
-                if (!saveUnlessSignedOut(merged, null, account)) return@launch
+                if (!saveUnlessLetGo(merged, null, owner)) return@launch
                 repository.listAdvanced(s.showDeleted, response.nextCursor)
                 if (response.nextCursor == null) {
                     val ids = merged.map { it.id }
@@ -445,29 +457,59 @@ class AnnouncementsViewModel @Inject constructor(
     }
 
     /**
-     * Whether a school sign-out has come since [account] was read from
-     * [CredentialManager.schoolAccountGeneration], before a fetch. The sign-out clears the cached
-     * list and its date ([org.ntust.app.tigerduck.auth.AuthService.logout]); a page that arrives
-     * after it would write them back, and the departing student's list would be the next one's
-     * first paint. Bulletins are public, but the sign-out is still where the list is let go of.
-     * So the page is dropped and the list starts over: the next visit reads the cleared cache,
-     * then the feed, as on the iPhone. The write to the cache that follows a page let through
-     * asks again, under the cache's lock; see [saveUnlessSignedOut].
+     * Whose list a fetch is for: the school account, read from
+     * [CredentialManager.schoolAccountGeneration], and the backend, by [BulletinRepository.generation],
+     * which each move of the API endpoint to another backend moves -- there and back again too.
+     * A school sign-out and an endpoint move each let go of the cached list and its date
+     * ([org.ntust.app.tigerduck.auth.AuthService.logout],
+     * [org.ntust.app.tigerduck.ui.screen.debug.EndpointChange]).
      */
-    private fun droppedAfterSignOut(account: Int): Boolean {
-        if (credentials.isSchoolAccount(account)) return false
+    private data class ListOwner(val account: Int, val generation: Int)
+
+    private fun listOwner() = ListOwner(credentials.schoolAccountGeneration, repository.generation)
+
+    /** Whether the list [owner] read is still the one kept: no sign-out and no endpoint move since. */
+    private fun keeps(owner: ListOwner): Boolean =
+        credentials.isSchoolAccount(owner.account) && repository.generation == owner.generation
+
+    /**
+     * After an endpoint move: the departments and categories, and the ones this entry selected,
+     * were the old backend's, whose ids the new one need not share. A selection left on would
+     * hide every bulletin of the new backend.
+     */
+    private fun forgetTaxonomy() {
+        savedState.remove<Array<String>>(KEY_SELECTED_ORGS)
+        savedState.remove<Array<String>>(KEY_SELECTED_TAGS)
+        _state.update { applyFilters(it.copy(taxonomy = null, selectedOrgs = emptySet(), selectedTags = emptySet())) }
+    }
+
+    /**
+     * Whether the list [owner] read has been let go of since, before a fetch: by a school
+     * sign-out, or by an API endpoint move. A page that arrives after it would write the list
+     * back -- the departing student's list would be the next one's first paint, and the old
+     * backend's rows would take the new backend's by id. Bulletins are public, but the sign-out
+     * is still where the list is let go of. So the page is dropped and the list starts over: the
+     * next visit reads the cleared cache, then the feed, as on the iPhone. The write to the cache
+     * that follows a page let through asks again, under the cache's lock; see [saveUnlessLetGo].
+     */
+    private fun droppedAfterLetGo(owner: ListOwner): Boolean {
+        if (keeps(owner)) return false
         startOver()
         return true
     }
 
     /**
-     * Writes the list, and its date when given, unless a sign-out has come since [account] was
-     * read -- asked under the cache's lock, which the sign-out's clear takes too, so the check
-     * [droppedAfterSignOut] made a moment earlier cannot be overtaken between it and the write.
+     * Writes the list, and its date when given, unless it has been let go of since [owner] was
+     * read -- asked under the cache's lock, which the sign-out's and the endpoint move's clear
+     * take too, and both move what [keeps] reads before they start it: the check
+     * [droppedAfterLetGo] made a moment earlier cannot be overtaken between it and the write.
      * Refused, the list starts over as there.
      */
-    private suspend fun saveUnlessSignedOut(items: List<BulletinSummary>, fetchedAt: Long?, account: Int): Boolean {
-        if (cache.saveIf(items, fetchedAt) { credentials.isSchoolAccount(account) }) return true
+    private suspend fun saveUnlessLetGo(items: List<BulletinSummary>, fetchedAt: Long?, owner: ListOwner): Boolean {
+        // Asked again once the save is back: a list let go of while it was written is cleared
+        // after it, and what follows the save -- the list session, the pruning, the walk through
+        // older pages -- would act on the old list.
+        if (cache.saveIf(items, fetchedAt) { keeps(owner) } && keeps(owner)) return true
         startOver()
         return false
     }
