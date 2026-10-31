@@ -852,12 +852,20 @@ class NotificationSettingsSyncTest {
          */
         var beforeNextRecord: (() -> Unit)? = null
 
+        /**
+         * Each runs once, just after its section's record is next read, with
+         * what was read already in the reader's hands.
+         */
+        val afterNextRead = mutableMapOf<String, () -> Unit>()
+
         override var liveActivity: String? = null
+            get() = field.also { afterNextRead.remove("live_activity")?.invoke() }
             set(value) {
                 recording(value)
                 field = value
             }
         override var assignments: String? = null
+            get() = field.also { afterNextRead.remove("assignments")?.invoke() }
             set(value) {
                 recording(value)
                 field = value
@@ -3540,6 +3548,79 @@ class NotificationSettingsSyncTest {
             assertNull(section, device.lastSynced.assignments)
             assertNull(section, device.lastSynced.courses)
         }
+    }
+
+    @Test
+    fun `a sign-out while a sign-in starts the record still leaves nothing recorded`() = runTest {
+        val device = Device(backgroundScope)
+        // The start finds the session and nothing recorded; as it stores the
+        // first record, the sign-out runs on another thread.
+        var signOut: Thread? = null
+        device.lastSynced.beforeNextRecord = { signOut = signOutBeside(device) }
+
+        device.signIn("A")
+        val signedOut = checkNotNull(signOut) { "the sign-in started no record" }
+        signedOut.join(10_000)
+
+        assertFalse("the sign-out finished", signedOut.isAlive)
+        assertNull("nothing recorded for the account that left", device.lastSynced.liveActivity)
+        assertNull(device.lastSynced.assignments)
+        assertNull(device.lastSynced.courses)
+    }
+
+    @Test
+    fun `live-activity sync turned on while a catch-up reads the record keeps the turn-on's record`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json(sharedLiveActivity)
+        device.sync.pullNow()
+        device.switchLiveActivitySync(false)
+        runCurrent()
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+
+        // A full sync's catch-up has just read the record when the switch
+        // comes on.
+        device.lastSynced.afterNextRead["live_activity"] = {
+            device.switchLiveActivitySync(true)
+            runCurrent()
+        }
+        device.sync.pushIfUnconfirmed()
+
+        assertEquals(
+            "the catch-up leaves the turn-on's record",
+            1_800,
+            device.recorded("live_activity").get("class_preparing_lead_seconds").asInt,
+        )
+        runQueue()
+        assertTrue("nothing stale is sent", device.server("A").writes.isEmpty())
+        assertEquals("the edit made while it was off gives way", 900L, device.prefs.classPreparingLeadTimeSec)
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    @Test
+    fun `assignment-reminder sync turned on while a catch-up reads the record keeps the turn-on's record`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.sync.pullNow()
+        device.switchAssignmentReminderSync(false)
+        runCurrent()
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+
+        device.lastSynced.afterNextRead["assignments"] = {
+            device.switchAssignmentReminderSync(true)
+            runCurrent()
+        }
+        device.sync.pushIfUnconfirmed()
+
+        assertFalse("the catch-up leaves the turn-on's record", device.recorded("assignments").get("enabled").asBoolean)
+        runQueue()
+        assertTrue("nothing stale is sent", device.server("A").writes.isEmpty())
+        assertTrue("the edit made while it was off gives way", device.assignments.enabled)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
     }
 
     // ── 8b. When the record starts, and what counts as this phone's change ──

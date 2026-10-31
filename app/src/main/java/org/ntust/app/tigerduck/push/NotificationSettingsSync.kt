@@ -1573,28 +1573,49 @@ class NotificationSettingsSync internal constructor(
     private val documentLock = Mutex()
 
     /**
-     * Serializes the record writes ([LastSyncedSections]) that can race each
-     * other. It is held:
+     * Keeps the writers of the records ([LastSyncedSections]) that run on
+     * different threads from landing inside each other. Its holders:
      *
-     * - around a switch restart ([restartRecord]);
-     * - around the two moments of a push that touch the record: reading it
-     *   as the base of its merge, and, once it lands, checking the account
-     *   and the restart count and recording what it sent ([pushNow]);
-     * - around a sign-out's generation bump and record clears
-     *   ([cancelPendingPushes]).
+     * - a sign-in's start ([pushIfUnconfirmed]), from its session check to
+     *   its writes;
+     * - a switch restart ([restartRecord]);
+     * - a push ([pushNow]), once as it reads what it sends, the record it
+     *   merges against and the restart count, and again once it lands, from
+     *   its account and count checks to its record write;
+     * - a sign-out ([cancelPendingPushes]), for its generation bump and
+     *   record clears.
      *
-     * So a landing push records either before a sign-out clears or not at
-     * all, and never over a restart that came while it was on the wire.
-     * Guards [liveActivityRestarts] and [assignmentRestarts].
+     * So a start or a landing push records before a sign-out clears or not
+     * at all: `AuthService.logout()` wipes the session and only then comes
+     * here, so a start that follows the clear finds no session, and a push
+     * that follows it finds the generation moved. And a landing push never
+     * records over a restart that came while it was on the wire. Guards
+     * [liveActivityRestarts] and [assignmentRestarts].
+     *
+     * Two writers stay outside it, and are safe there:
+     *
+     * - A pull ([recordCleanSectionsAsSynced]) runs under [documentLock],
+     *   which keeps a push out, and on `Dispatchers.Main`, with nothing
+     *   suspending between its session check and its writes. A restart runs
+     *   on Main too, and so does every caller of `AuthService.logout()`, so
+     *   neither lands in the middle. A start on another thread only fills a
+     *   record that is missing, with this device's values, which is what the
+     *   pull writes as well.
+     * - The update's step ([startRecordsOnUpdate]) runs in the constructor,
+     *   before the queue and the switch collectors start and before anything
+     *   else can reach this instance.
      *
      * Never held across a suspension, so the restart, which must not wait on
      * [documentLock] (a pull holds that for the whole of its read), waits at
      * most for a few field reads and writes. Nothing done under it takes
      * another lock: [documentLock] is a coroutine Mutex that cannot be taken
-     * without suspending, no change listener is registered on the stores it
-     * writes, and `AuthService.logout()` calls in after its own `accountLock` is
-     * released. The one nesting is a push taking this inside [documentLock],
-     * always in that order.
+     * without suspending, `isLoggedIn` reads the token store without
+     * `AuthTokenManager`'s `signInLock`, and no change listener is registered
+     * on the stores it touches. Nor does anyone come here holding one:
+     * `AuthService.logout()` calls in after its `accountLock` is released,
+     * and every sign-in path calls in from a suspending function. The one
+     * nesting is a push, or a pull leaving a section to one, taking this
+     * inside [documentLock], always in that order.
      */
     private val recordLock = Any()
 
@@ -1904,8 +1925,12 @@ class NotificationSettingsSync internal constructor(
         // Every sign-in path calls this once the session exists: a signed-in
         // account with nothing recorded starts its record from this device's
         // values, so an edit made while signed out gives way to the
-        // account's document (LastSyncedSections).
-        if (isLoggedIn()) startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = false)
+        // account's document (LastSyncedSections). The session check and the
+        // start are one step against a sign-out (recordLock), and the
+        // automatic sign-in runs this off the main thread.
+        synchronized(recordLock) {
+            if (isLoggedIn()) startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = false)
+        }
         if (!liveActivityPreferences.hasUnconfirmedSyncEdit &&
             !assignmentStore.hasUnconfirmedEdit &&
             !classReminderStore.hasUnconfirmedEdit
@@ -2202,23 +2227,27 @@ class NotificationSettingsSync internal constructor(
      * parse) one at its values now; see [LastSyncedSections]. With
      * [sendEveryFieldOfAPendingEdit], the update's step, a section with an
      * unconfirmed edit gets [SENDS_EVERY_FIELD] instead. The caller has
-     * checked that an account is signed in.
+     * checked that an account is signed in, and holds [recordLock] unless it
+     * is the update's step, in the constructor.
+     *
+     * A record that exists is not touched at all: written back, it would take
+     * away whatever replaced it since the read here, a restart's included.
      */
     private fun startRecordsWhereMissing(sendEveryFieldOfAPendingEdit: Boolean) {
-        fun start(text: String?, pending: Boolean, values: () -> JsonObject): String? = when {
-            recordedSection(text) != null -> text
+        fun started(text: String?, pending: Boolean, values: () -> JsonObject): String? = when {
+            recordedSection(text) != null -> null
             sendEveryFieldOfAPendingEdit && pending -> SENDS_EVERY_FIELD
             else -> values().toString()
         }
-        lastSynced.liveActivity = start(lastSynced.liveActivity, liveActivityPreferences.hasUnconfirmedSyncEdit) {
+        started(lastSynced.liveActivity, liveActivityPreferences.hasUnconfirmedSyncEdit) {
             liveActivityPreferences.syncSnapshot().syncedSection()
-        }
-        lastSynced.assignments = start(lastSynced.assignments, assignmentStore.hasUnconfirmedEdit) {
+        }?.let { lastSynced.liveActivity = it }
+        started(lastSynced.assignments, assignmentStore.hasUnconfirmedEdit) {
             assignmentValues().syncedSection()
-        }
-        lastSynced.courses = start(lastSynced.courses, classReminderStore.hasUnconfirmedEdit) {
+        }?.let { lastSynced.assignments = it }
+        started(lastSynced.courses, classReminderStore.hasUnconfirmedEdit) {
             classReminderValues().syncedSection()
-        }
+        }?.let { lastSynced.courses = it }
     }
 
     /**
@@ -2283,11 +2312,12 @@ class NotificationSettingsSync internal constructor(
      * while it was on the wire then differs from that record, and its own
      * push sends it. A switch turned back on while it was on the wire
      * restarted the record ([restartRecord]), and the push leaves that newer
-     * record in place: it reads its section's restart count with the record
-     * it merges against, and records only if the count has not moved, both
-     * under [recordLock], so no restart lands between the check and the
-     * write. Nor does a sign-out: its bump and clears take the same lock, in
-     * every section, courses included.
+     * record in place: it reads what it sends, the record it merges against
+     * and its section's restart count together, and records only if the count
+     * has not moved, both under [recordLock], so no restart lands between
+     * those reads or between the check and the write. Nor does a sign-out:
+     * its bump and clears take the same lock, in every section, courses
+     * included.
      *
      * Returns `true` if any section's push landed (a push whose change the
      * document already held counts as landed), so the retry loop above only
@@ -2300,9 +2330,9 @@ class NotificationSettingsSync internal constructor(
     private suspend fun pushNow(queuedGeneration: Int): Boolean {
         var liveActivitySucceeded = false
         if (liveActivityPreferences.hasUnconfirmedSyncEdit) {
-            val sentLiveActivity = liveActivityPreferences.syncSnapshot()
-            val (liveActivityBase, liveActivityRestartsAtBase) =
-                synchronized(recordLock) { recordedSection(lastSynced.liveActivity) to liveActivityRestarts }
+            val (sentLiveActivity, liveActivityBase, liveActivityRestartsAtBase) = synchronized(recordLock) {
+                Triple(liveActivityPreferences.syncSnapshot(), recordedSection(lastSynced.liveActivity), liveActivityRestarts)
+            }
             liveActivitySucceeded = pushLiveActivitySettings(
                 local = sentLiveActivity,
                 transport = transport,
@@ -2335,9 +2365,9 @@ class NotificationSettingsSync internal constructor(
 
         var assignmentsSucceeded = false
         if (assignmentStore.hasUnconfirmedEdit) {
-            val sentAssignments = AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
-            val (assignmentsBase, assignmentRestartsAtBase) =
-                synchronized(recordLock) { recordedSection(lastSynced.assignments) to assignmentRestarts }
+            val (sentAssignments, assignmentsBase, assignmentRestartsAtBase) = synchronized(recordLock) {
+                Triple(assignmentValues(), recordedSection(lastSynced.assignments), assignmentRestarts)
+            }
             assignmentsSucceeded = pushAssignmentSettings(
                 local = sentAssignments,
                 transport = transport,
