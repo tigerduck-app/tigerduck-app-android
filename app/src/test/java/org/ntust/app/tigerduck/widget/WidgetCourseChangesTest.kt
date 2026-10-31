@@ -218,6 +218,37 @@ class WidgetCourseChangesTest {
     }
 
     @Test
+    fun `a class the school ends early is over on the redraw at its new end`() {
+        val early = thursdayCourse("CC901", "Early", listOf("4"), room = "T1-101")
+        val after = thursdayCourse("CC902", "After", listOf("6"), room = "T1-102")
+        val courses = listOf(early, after)
+        val changes = changes(row(1, "end", periods = listOf("4"), values = mapOf("end" to "11:45"), courseNo = "CC901"))
+
+        // The redraw armed while the class runs comes at its new end, not at 12:10.
+        assertEquals(minute("11:45"), WidgetBoundaryScheduler.nextBoundaryMinuteAfter(courses, 4, minute("11:30"), thursday, changes))
+        assertEquals(listOf("CC901"), state(courses, changes, "11:44").ongoingBlocks.map { it.course.courseNo })
+        // Drawn in that minute or after it, the class is over and the next one is up.
+        for (time in listOf("11:45", "11:45:30", "11:46")) {
+            val now = state(courses, changes, time)
+            assertEquals(time, emptyList<CourseBlock>(), now.ongoingBlocks)
+            assertEquals(time, "CC902", now.nextTodayBlock?.course?.courseNo)
+        }
+    }
+
+    @Test
+    fun `a class is over at its end minute, as on the iPhone`() {
+        val plain = thursdayCourse("CC901", "Plain", listOf("4"), room = "T1-101")
+        val after = thursdayCourse("CC902", "After", listOf("6"), room = "T1-102")
+        val courses = listOf(plain, after)
+
+        assertEquals(minute("12:10"), WidgetBoundaryScheduler.nextBoundaryMinuteAfter(courses, 4, minute("11:30"), thursday, CourseChanges.EMPTY))
+        assertEquals(listOf("CC901"), state(courses, CourseChanges.EMPTY, "12:09").ongoingBlocks.map { it.course.courseNo })
+        val atEnd = state(courses, CourseChanges.EMPTY, "12:10")
+        assertEquals(emptyList<CourseBlock>(), atEnd.ongoingBlocks)
+        assertEquals("CC902", atEnd.nextTodayBlock?.course?.courseNo)
+    }
+
+    @Test
     fun `with no feed every widget shows the timetable as before`() {
         val twice = Course.fromSchedule(
             courseNo = "CC903",

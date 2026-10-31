@@ -156,8 +156,10 @@ object WidgetDataLoader {
             blocksOf(course, weekday, day, changes).firstOrNull { block ->
                 val start = parseHm(block.startTime)
                 val end = parseHm(block.endTime)
-                // Its end minute included, as it has always been here.
-                !block.isCancelled && start != null && end != null && minuteOfDay in start..end
+                // Over from its end minute, as iOS `WidgetTimelineDerivation.derive` has it.
+                // The redraw at a class's end, the school's changed end included, is the
+                // last one before the next boundary, so it must draw the class as over.
+                !block.isCancelled && start != null && end != null && minuteOfDay in start until end
             }
         }
 
