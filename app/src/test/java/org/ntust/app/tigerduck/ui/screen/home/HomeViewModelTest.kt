@@ -143,6 +143,23 @@ class HomeViewModelTest {
         }
     }
 
+    @Test
+    fun `a courses save leaves the assignment reminders armed`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            // The scheduler's own record of what it armed: re-arming rewrites it.
+            val tracker = RuntimeEnvironment.getApplication().getSharedPreferences("notification_tracker", 0)
+            tracker.edit().putStringSet("scheduled_ids", setOf("armed")).commit()
+
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            assertEquals(listOf("CS1001"), homeCourseNos())
+
+            assertEquals(setOf("armed"), tracker.getStringSet("scheduled_ids", null))
+        } finally {
+            home.viewModelScope.cancel()
+        }
+    }
+
     /** Home's courses once its collectors have had the time the cache's IO reads take. */
     private suspend fun homeCourseNos(): List<String> {
         repeat(100) {

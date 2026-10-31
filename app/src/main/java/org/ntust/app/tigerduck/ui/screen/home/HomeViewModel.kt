@@ -963,14 +963,22 @@ class HomeViewModel @Inject constructor(
         val courses = dataCache.loadCourses()
         if (!authService.isStillSignedInAs(account)) return
         TigerDuckTheme.buildCourseColorMap(courses)
-        updateCoursesAndAssignments(courses, _allAssignments.value)
+        updateCoursesAndAssignments(courses, _allAssignments.value, rearmReminders = false)
     }
 
-    private fun updateCoursesAndAssignments(courses: List<Course>, assignments: List<Assignment>) {
+    /**
+     * Shows [courses] and [assignments]. [rearmReminders] is false for a courses-only reload: the
+     * assignments did not change, and re-arming drops a reminder Android is late in delivering.
+     */
+    private fun updateCoursesAndAssignments(
+        courses: List<Course>,
+        assignments: List<Assignment>,
+        rearmReminders: Boolean = true,
+    ) {
         _allCourses.value = courses
         _allAssignments.value = assignments.sortedBy { it.studentDueDate }
 
-        if (prefs.notifyAssignments) {
+        if (rearmReminders && prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(assignments)
         }
 
