@@ -37,6 +37,8 @@ dependencies {
     // LibraryService uses Mutex / Dispatchers / withContext.
     implementation(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
+    // TaipeiClockTest drives minuteTicks() in virtual time.
+    testImplementation(libs.kotlinx.coroutines.test)
     // Hand-made certificates for PinnedTrustManagerTest's local TLS server.
     testImplementation(libs.okhttp.tls)
 }
