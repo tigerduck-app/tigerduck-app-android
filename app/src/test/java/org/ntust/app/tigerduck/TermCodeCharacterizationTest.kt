@@ -258,11 +258,11 @@ class TermCodeCharacterizationTest {
         val dates = listOf(LocalDate.of(2025, 1, 1), LocalDate.of(2025, 9, 1), LocalDate.of(2026, 2, 1), LocalDate.of(2026, 7, 1))
         assertEquals(
             "1141, 1141, 1141, 1142",
-            dates.joinToString { org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler.termOn(calendar, it) },
+            dates.joinToString { SemesterCodes.termOn(calendar, it) },
         )
         assertEquals(
             SemesterCodes.heuristic(),
-            org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler.termOn(AcademicCalendar.EMPTY, dates[0]),
+            SemesterCodes.termOn(AcademicCalendar.EMPTY, dates[0]),
         )
     }
 }

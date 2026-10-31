@@ -1,7 +1,9 @@
 package org.ntust.app.tigerduck.network
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.shared.time.AcademicTerm
+import java.time.LocalDate
 import java.util.Calendar
 
 /**
@@ -37,6 +39,14 @@ object SemesterCodes {
             else -> "${rocYear - 1}1"       // January: still in prior fall semester
         }
     }
+
+    /**
+     * The term the calendar puts [date] in: the one most recently begun, or the month guess
+     * ([heuristic]) while no calendar is known. The one rule for "the current term", so the
+     * course cache, the course service and the class reminders cannot disagree about it.
+     */
+    fun termOn(calendar: AcademicCalendar, date: LocalDate): String =
+        calendar.currentTerm(date)?.code ?: heuristic()
 
     /**
      * The term before [code], or [code] itself when it isn't a regular term.
