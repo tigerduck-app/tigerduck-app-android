@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.pendingIntent
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.time.Instant
@@ -38,6 +39,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         fun academicCalendar(): AcademicCalendarStore
         fun appPreferences(): AppPreferences
         fun courseChanges(): CourseChangeStore
+        fun credentials(): CredentialManager
         fun notificationChannels(): NotificationChannelRegistrar
     }
 
@@ -69,6 +71,14 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         val deps = EntryPointAccessors
             .fromApplication(rawContext.applicationContext, Deps::class.java)
         if (!stillDue(deps.academicCalendar().current(), startDate, intent.getStringExtra(EXTRA_TERM))) return
+        // Signing out cancels the alarms, but one that was already on its way, or that the cancel
+        // missed, must not announce a class to whoever is signed in now, or to nobody.
+        // A read that throws skips the check: it must not lose a signed-in student's reminder.
+        val armedFor = intent.getStringExtra(EXTRA_STUDENT_ID)
+        if (armedFor != null) {
+            val signedIn = runCatching { deps.credentials().ntustStudentId }
+            if (signedIn.isSuccess && !armedForSignedInStudent(armedFor, signedIn.getOrNull())) return
+        }
         // The feed is read only for an alarm that names its class: older alarms carry no id to check.
         val classId = intent.getStringExtra(EXTRA_CLASS_ID)
         if (classId != null && cancelledSince(deps.courseChanges().current(), classId)) return
@@ -105,6 +115,16 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
 
         /** The class's `courseNo_yyyyMMdd_period` id; absent on alarms armed before it was added. */
         const val EXTRA_CLASS_ID = "class_id"
+
+        /** The student ID the reminder was armed under; absent on alarms armed before it was added. */
+        const val EXTRA_STUDENT_ID = "student_id"
+
+        /**
+         * Whether the alarm's student, [armedFor], is the one signed in. An alarm
+         * with no student on it (armed by an older build) goes out.
+         */
+        internal fun armedForSignedInStudent(armedFor: String?, signedIn: String?): Boolean =
+            armedFor == null || armedFor == signedIn
 
         /**
          * Whether the school has cancelled the class [classId] names since its

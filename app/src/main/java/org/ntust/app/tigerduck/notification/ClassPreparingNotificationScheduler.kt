@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -38,13 +39,15 @@ import javax.inject.Singleton
 class ClassPreparingNotificationScheduler internal constructor(
     private val context: Context,
     private val appLanguage: () -> String = { AppLanguageManager.SYSTEM },
+    private val storedStudentId: () -> String? = { null },
     private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
 ) : ClassReminderAlarms {
     @Inject constructor(
         @ApplicationContext context: Context,
         appPreferences: AppPreferences,
         courseChangeStore: CourseChangeStore,
-    ) : this(context, { appPreferences.appLanguage }, courseChangeStore::current)
+        credentials: CredentialManager,
+    ) : this(context, { appPreferences.appLanguage }, { credentials.ntustStudentId }, courseChangeStore::current)
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val trackerPrefs = context.getSharedPreferences(TRACKER_PREFS, Context.MODE_PRIVATE)
@@ -71,13 +74,19 @@ class ClassPreparingNotificationScheduler internal constructor(
         leadTimeSec: Long,
         calendar: AcademicCalendar,
         optedInHolidayIds: Set<Int>,
+        startedFor: String?,
     ): Long? = synchronized(schedulerLock) {
         // Load the persisted slotId→requestCode map BEFORE cancelling so cancel
         // looks up the same code each alarm was originally registered with.
         // Previously we hashed slotId into the requestCode, which could collide
         // across two different slots and silently overwrite the earlier alarm.
+        // Before the cancel: if the account cannot be read, the reminders already armed stay.
+        val armedFor = runCatching { storedStudentId() }.getOrElse { return@synchronized null }
         val codeMap = loadCodeMap()
         cancelAllTrackedLocked(codeMap)
+        // The courses are from the student the refresh began under; if another account is stored
+        // now, they would be armed for someone else, or tagged with the wrong student.
+        if (armedFor != startedFor) return@synchronized null
         if (leadTimeSec <= 0) return@synchronized null
         if (coursesByTerm.values.all { it.isEmpty() }) {
             // No class is left to remind of, so a reminder still up for one goes as its alarm did.
@@ -123,6 +132,7 @@ class ClassPreparingNotificationScheduler internal constructor(
                 )
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_TERM, slot.term)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASS_ID, slot.classId)
+                if (armedFor != null) putExtra(ClassPreparingNotificationReceiver.EXTRA_STUDENT_ID, armedFor)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, slot.startMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_END_MS, slot.endMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_NOTIFICATION_ID, requestCode)

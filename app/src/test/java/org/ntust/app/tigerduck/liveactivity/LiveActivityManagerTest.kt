@@ -16,6 +16,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -69,6 +70,7 @@ class LiveActivityManagerTest {
             leadTimeSec: Long,
             calendar: AcademicCalendar,
             optedInHolidayIds: Set<Int>,
+            startedFor: String?,
         ): Long? {
             armedLeadSec = leadTimeSec
             armedCoursesByTerm = coursesByTerm
@@ -89,6 +91,9 @@ class LiveActivityManagerTest {
     private val alarms = FakeClassReminderAlarms()
     private val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher())
     private var signedIn = true
+    private var storedId: String? = "B00015999"
+    private var demoSession = false
+    private var storedIdRead: () -> String? = { storedId }
 
     private val course = Course(courseNo = "CS3005301", courseName = "Data Structures", scheduleJson = """{"1":["2","3"]}""")
 
@@ -102,6 +107,8 @@ class LiveActivityManagerTest {
         academicCalendar = calendar,
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = scope,
+        storedStudentId = { storedIdRead() },
+        isDemoSession = { demoSession },
     )
 
     private val manager = managerWith(calendar)
@@ -157,6 +164,29 @@ class LiveActivityManagerTest {
 
         assertNull(alarms.armedLeadSec)
         assertTrue(alarms.cancels > 0)
+    }
+
+    @Test
+    fun `signed in with the stored student ID already cleared arms nothing`() {
+        // logout clears the ID a moment before it lowers authState.
+        storedId = null
+        appPrefs.classReminderEnabled = true
+
+        refresh()
+
+        assertNull(alarms.armedLeadSec)
+        assertTrue(alarms.cancels > 0)
+    }
+
+    @Test
+    fun `the demo account, which has no stored student ID, still arms`() {
+        storedId = null
+        demoSession = true
+        appPrefs.classReminderEnabled = true
+
+        refresh()
+
+        assertNotNull(alarms.armedLeadSec)
     }
 
     @Test
@@ -258,6 +288,23 @@ class LiveActivityManagerTest {
         assertTrue("woke at ${wake - at} ms", wake in at + 30 * 60_000L..at + 31 * 60_000L)
     }
 
+    @Test
+    fun `a refresh whose account cannot be read still finishes and leaves the armed reminders alone`() {
+        liveUpdate.isEnabled = true
+        appPrefs.classReminderEnabled = true
+        storedIdRead = { error("keystore unavailable") }
+
+        runBlocking { overTwoTerms(day = 12, hour = 20, month = 10).refreshAndWait() }
+
+        // The Live Update's own wake-up is still set, as in the refresh above.
+        val at = ZonedDateTime.of(2026, 10, 12, 20, 0, 0, 0, AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
+        val wake = refreshWakes().single()
+        assertTrue("woke at ${wake - at} ms", wake in at + 30 * 60_000L..at + 31 * 60_000L)
+        // Neither armed nor cancelled: what is armed stays.
+        assertNull(alarms.armedLeadSec)
+        assertEquals(0, alarms.cancels)
+    }
+
     // The school's course changes, over the iPhone suite's course: CC900 meets on Thursday
     // 2026-11-05, periods 2 to 4 (09:10–12:10) and 7 to 8 (14:20–16:20), in T4-501.
 
@@ -297,6 +344,8 @@ class LiveActivityManagerTest {
             appScope = liveScope,
             courseChanges = { feed.value },
             courseChangesUpdated = feed,
+            // No account: the real scheduler here reads none either.
+            isDemoSession = { true },
         ).also {
             runBlocking { it.refreshAndWait() }
             // Past the feed it starts with, so the next one is a change.
