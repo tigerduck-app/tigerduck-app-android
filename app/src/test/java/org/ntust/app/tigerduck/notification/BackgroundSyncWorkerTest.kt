@@ -12,6 +12,16 @@ import androidx.work.Worker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.WorkManagerTestInitHelper
+import kotlinx.coroutines.test.runTest
+import okhttp3.OkHttpClient
+import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.data.HolidayOverrideApply
+import org.ntust.app.tigerduck.data.HolidayOverrideSender
+import org.ntust.app.tigerduck.data.PendingHolidayOverrides
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.push.CourseOverrideResult
+import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -357,22 +367,22 @@ class BackgroundSyncWorkerTest {
     // The worker cannot be built in a JVM test (a Hilt worker with two dozen
     // collaborators), so these drive the two applies it calls, over a real
     // cache and calendar store, as SyncWiringTest pins that it calls them.
-    private val appPrefs by lazy { org.ntust.app.tigerduck.data.preferences.AppPreferences(context) }
+    private val appPrefs by lazy { AppPreferences(context) }
     private val calendar by lazy {
-        org.ntust.app.tigerduck.academic.AcademicCalendarStore(context, okhttp3.OkHttpClient(), appPrefs)
+        AcademicCalendarStore(context, OkHttpClient(), appPrefs)
     }
-    private val cache by lazy { org.ntust.app.tigerduck.data.cache.DataCache(context, calendar) }
+    private val cache by lazy { DataCache(context, calendar) }
 
     private fun override(courseNo: String, names: Map<String, String>) =
-        org.ntust.app.tigerduck.push.CourseOverrideResult(
+        CourseOverrideResult(
             moodleCourseId = "m-$courseNo", courseNo = courseNo, colorHex = null, customNames = names,
         )
 
     @Test
-    fun `a background sync applies the server's custom course names when name sync is on`() = kotlinx.coroutines.test.runTest {
-        val syncNames = org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.syncsCourseNames(true, emptySet())
+    fun `a background sync applies the server's custom course names when name sync is on`() = runTest {
+        val syncNames = CourseSyncReconciler.syncsCourseNames(true, emptySet())
 
-        org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.applyNameOverrides(
+        CourseSyncReconciler.applyNameOverrides(
             cache, listOf(override("CS1001", mapOf("zh-Hant" to "資結"))), syncNames,
         )
 
@@ -380,34 +390,55 @@ class BackgroundSyncWorkerTest {
     }
 
     @Test
-    fun `a background sync leaves custom names alone when name sync is off`() = kotlinx.coroutines.test.runTest {
-        val off = org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.syncsCourseNames(false, emptySet())
+    fun `a background sync leaves custom names alone when name sync is off`() = runTest {
+        val off = CourseSyncReconciler.syncsCourseNames(false, emptySet())
         // On, but held for the re-enable check the user has yet to answer.
-        val held = org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.syncsCourseNames(true, setOf("course_names"))
+        val held = CourseSyncReconciler.syncsCourseNames(true, setOf("course_names"))
         val names = listOf(override("CS1001", mapOf("zh-Hant" to "資結")))
 
-        org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.applyNameOverrides(cache, names, off)
-        org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.applyNameOverrides(cache, names, held)
+        CourseSyncReconciler.applyNameOverrides(cache, names, off)
+        CourseSyncReconciler.applyNameOverrides(cache, names, held)
 
         assertEquals(emptyMap<String, Map<String, String>>(), cache.loadCourseCustomNames())
     }
 
     @Test
     fun `a background sync applies the server's holiday choices`() {
-        val pending = org.ntust.app.tigerduck.data.PendingHolidayOverrides(
+        val pending = PendingHolidayOverrides(
             prefs = appPrefs,
-            sender = org.ntust.app.tigerduck.data.HolidayOverrideSender { _, _, _ -> true },
+            sender = HolidayOverrideSender { _, _, _ -> true },
             syncs = { true },
             signInGeneration = { 1 },
             runIfSignedIn = { _, _ -> true },
         )
 
-        org.ntust.app.tigerduck.data.HolidayOverrideApply.apply(
+        HolidayOverrideApply.apply(
             snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = 1,
             pending = pending, calendar = calendar,
             runIfSignedIn = { signIn, block -> if (signIn == 1) { block(); true } else false },
         )
 
         assertEquals(setOf(3, 5), appPrefs.holidayNotifyOverrides)
+    }
+
+    @Test
+    fun `a holiday snapshot is left unapplied when a sign-out refuses it`() {
+        appPrefs.holidayNotifyOverrides = setOf(7)
+        val pending = PendingHolidayOverrides(
+            prefs = appPrefs,
+            sender = HolidayOverrideSender { _, _, _ -> true },
+            syncs = { true },
+            signInGeneration = { 2 },
+            runIfSignedIn = { _, _ -> true },
+        )
+
+        HolidayOverrideApply.apply(
+            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = 1,
+            pending = pending, calendar = calendar,
+            // The sign-out moved the generation: the block never runs.
+            runIfSignedIn = { _, _ -> false },
+        )
+
+        assertEquals(setOf(7), appPrefs.holidayNotifyOverrides)
     }
 }

@@ -241,12 +241,17 @@ class BackgroundSyncWorker @AssistedInject constructor(
             }
             // Not gated on the per-category switches, as in Home's sync: a
             // holiday exception is a notification setting. Null is a backend
-            // that does not send the section, so the local set stands.
+            // that does not send the section, so the local set stands. On Main, as
+            // Home's sync runs: the Calendar's toggle handler is there too, so a
+            // toggle made between the merge's check and the write cannot be erased
+            // by the older set (its upload would then send the overwritten value).
             result.holidayOverrides?.let { snapshot ->
-                HolidayOverrideApply.apply(
-                    snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar,
-                    authTokenManager::runIfSignedIn,
-                )
+                withContext(Dispatchers.Main) {
+                    HolidayOverrideApply.apply(
+                        snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar,
+                        authTokenManager::runIfSignedIn,
+                    )
+                }
             }
             if (CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.pendingConflictCategories)) {
                 reconcileCurrentSemester(result, courseSync)

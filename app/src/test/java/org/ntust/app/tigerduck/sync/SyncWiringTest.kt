@@ -230,6 +230,16 @@ class SyncWiringTest {
         )
     }
 
+    /** Calendar's toggle handler runs on Main; an apply off it can erase a toggle made after the merge's check. */
+    @Test
+    fun `the worker applies the holiday snapshot on the main thread`() {
+        val body = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
+        assertTrue(
+            "the worker no longer applies the holiday snapshot inside withContext(Dispatchers.Main)",
+            Regex("""withContext\(Dispatchers\.Main\) \{\s*HolidayOverrideApply\.apply\(""").containsMatchIn(body),
+        )
+    }
+
     /** Names go through the one apply, with the same re-enable hold as colours. */
     @Test
     fun `Home's sync and the worker apply custom names through the one apply, held for the re-enable check`() {
