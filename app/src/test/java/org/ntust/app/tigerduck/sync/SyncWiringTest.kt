@@ -244,10 +244,68 @@ class SyncWiringTest {
     @Test
     fun `Home's sync and the worker apply custom names through the one apply, held for the re-enable check`() {
         assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseOverrides", "CourseSyncReconciler.applyNameOverrides(")
-        assertCalls("notification/BackgroundSyncWorker.kt", "applyCourseOverridesBackground", "CourseSyncReconciler.applyNameOverrides(")
+        assertCalls("notification/BackgroundSyncWorker.kt", "applyCourseOverridesBackground", "BackgroundCourseOverrides.apply(")
+        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "CourseSyncReconciler.applyNameOverrides(")
         assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "CourseSyncReconciler.syncsCourseNames(")
         // The cached courses are what the widgets read.
-        assertCalls("notification/BackgroundSyncWorker.kt", "applyCourseOverridesBackground", "CourseNameOverrides.stamp(")
+        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "CourseNameOverrides.stamp(")
+    }
+
+    /**
+     * Greptile on #615: read and saved apart, the names and the courses lost a rename or a course
+     * added between the read and the save. The update functions' own tests force that
+     * interleaving; these pin that the syncs go through them, held keys read inside.
+     */
+    @Test
+    fun `the syncs apply names and colours as one update of the names and courses as they stand`() {
+        val names = body("ui/screen/home/CourseSyncReconciler.kt", "applyNameOverrides")
+        assertTrue(
+            "the names are no longer merged inside one update, with the held keys read there",
+            Regex("""dataCache\.updateCourseCustomNames \{[^}]*held = held\(\)""").containsMatchIn(names),
+        )
+        for (call in listOf("dataCache.loadCourseCustomNames(", "dataCache.saveCourseCustomNames(")) {
+            assertFalse("applyNameOverrides reads or saves the names outside the update", call in names)
+        }
+        // Read where the names are merged, not before the pass.
+        for ((rel, name) in listOf("ui/screen/home/HomeBackendSync.kt" to "pull", "notification/BackgroundSyncWorker.kt" to "syncOverridesFromBackend")) {
+            assertCalls(rel, name, "{ pendingCourseOverrides.held(result.fetchedAtMs) }")
+        }
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseOverrides", "applyNameOverrides(dataCache, overrides, syncNames, held)")
+
+        assertCalls("notification/BackgroundCourseOverrides.kt", "apply", "dataCache.updateCoursesIfChanged(semester) { cached ->")
+        for ((rel, name) in listOf(
+            "notification/BackgroundCourseOverrides.kt" to "apply",
+            "notification/BackgroundSyncWorker.kt" to "applyCourseOverridesBackground",
+        )) {
+            val body = body(rel, name)
+            for (call in listOf("dataCache.loadCourses(", "dataCache.saveCourses(", "dataCache.loadCourseCustomNames(")) {
+                assertFalse("$rel $name reads or saves outside the update: $call", call in body)
+            }
+        }
+    }
+
+    /** Saved whole from a copy read earlier, a change to the custom names undid one made meanwhile. */
+    @Test
+    fun `every change to the custom names goes through the one locked update`() {
+        for ((rel, name) in listOf(
+            "ui/screen/classtable/ClassTableViewModel.kt" to "setCustomCourseName",
+            "ui/screen/classtable/ClassTableViewModel.kt" to "revertCourseName",
+            "ui/screen/classtable/ClassTableTermReset.kt" to "run",
+        )) {
+            assertCalls(rel, name, "dataCache.updateCourseCustomNames {")
+        }
+        var root: File? = File("").absoluteFile
+        while (root != null && !File(root, "app/src/main/java").isDirectory && !File(root, "src/main/java").isDirectory) {
+            root = root.parentFile
+        }
+        val main = root?.let { listOf(File(it, "app/src/main/java"), File(it, "src/main/java")).first(File::isDirectory) }
+            ?: throw AssertionError("Could not locate app/src/main/java from ${File("").absolutePath}")
+        // Outside DataCache, only a save that replaces them all, Use Server's clear, saves them whole.
+        val saves = main.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" && it.name != "DataCache.kt" }
+            .flatMap { file -> file.readLines().filter { ".saveCourseCustomNames(" in it }.map { "${file.name}: ${it.trim()}" } }
+            .toList()
+        assertEquals(listOf("SettingsViewModel.kt: dataCache.saveCourseCustomNames(emptyMap())"), saves)
     }
 
     /** tigerduck-app-android#404: the switches kept the set they were built with. */

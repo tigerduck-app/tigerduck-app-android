@@ -222,8 +222,9 @@ class HomeBackendSync @Inject constructor(
             val coursesLoaded = if (result.courseOverrides.isNotEmpty() && (syncColors || syncNames)) {
                 // Not over a colour or name this phone has waiting to go up,
                 // or sent since the fetch: the snapshot's is the older.
-                val held = pendingCourseOverrides.held(result.fetchedAtMs)
-                applyCourseOverrides(state, result.courseOverrides, held, syncColors, syncNames)
+                applyCourseOverrides(
+                    state, result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames,
+                )
             } else {
                 state.allCourses.value.isNotEmpty()
             }
@@ -403,20 +404,21 @@ class HomeBackendSync @Inject constructor(
         } else {
             markStep.keepServer(state, result)
             if (result.courseOverrides.isNotEmpty()) {
-                applyCourseOverrides(state, result.courseOverrides, pendingCourseOverrides.held(result.fetchedAtMs))
+                applyCourseOverrides(state, result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) })
             }
         }
     }
 
     /**
      * Returns false when it applied nothing, the course list not having
-     * loaded. [held] is what the snapshot must not overwrite; see
-     * [PendingCourseOverrides.held].
+     * loaded. [held] reads what the snapshot must not overwrite; see
+     * [PendingCourseOverrides.held]. The colours take it at the start, the
+     * names again under their lock (see [CourseSyncReconciler.applyNameOverrides]).
      */
     private suspend fun applyCourseOverrides(
         state: HomeSyncState,
         overrides: List<CourseOverrideResult>,
-        held: Set<String>,
+        held: suspend () -> Set<String>,
         syncColors: Boolean = CourseSyncReconciler.syncsCourseColors(
             prefs.syncCourseColors, prefs.pendingConflictCategories,
         ),
@@ -424,6 +426,8 @@ class HomeBackendSync @Inject constructor(
             prefs.syncCourseNames, prefs.pendingConflictCategories,
         ),
     ): Boolean {
+        // Read before anything is applied, as the colours always took it.
+        val heldColors = held()
         // The early return on an empty course list also skips the custom-name
         // merge below. That coupling predates this refactor and is preserved
         // deliberately: changing it would make names land on a device whose
@@ -437,7 +441,7 @@ class HomeBackendSync @Inject constructor(
             courses = courses,
             overrides = overrides,
             syncColors = syncColors,
-            held = held,
+            held = heldColors,
         )?.let { outcome ->
             val updated = outcome.courses
             Log.i(TAG, "[sync-color] applying ${updated.count { c -> c.customColorHex != null }} custom colors")

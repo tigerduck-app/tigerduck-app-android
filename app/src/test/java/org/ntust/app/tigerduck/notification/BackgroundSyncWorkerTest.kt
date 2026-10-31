@@ -12,7 +12,13 @@ import androidx.work.Worker
 import androidx.work.WorkerFactory
 import androidx.work.WorkerParameters
 import androidx.work.testing.WorkManagerTestInitHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.HolidayOverrideApply
@@ -446,24 +452,95 @@ class BackgroundSyncWorkerTest {
 
     private fun course(no: String, name: String) = Course(courseNo = no, courseName = name)
 
+    private val term = "1151"
+
+    // The worker's pass, as it runs it, over this test's cache.
+    private suspend fun applyNames(
+        courseNo: String,
+        names: Map<String, String>,
+        held: suspend () -> Set<String> = { emptySet() },
+    ) = BackgroundCourseOverrides.apply(
+        cache, term, listOf(override(courseNo, names)), held, syncColors = false, syncNames = true, locale = "zh",
+    )
+
     @Test
     fun `a background sync's names reach the cached courses the widgets read, and a removed name clears`() = runTest {
-        // Each sync stamps the courses the last one cached, as the worker does.
-        suspend fun sync(cached: List<Course>, names: Map<String, String>): List<Course> {
-            CourseSyncReconciler.applyNameOverrides(
-                cache, listOf(override("CS1001", names)), syncNames = true,
-            )
-            return CourseNameOverrides.stamp(cached, cache.loadCourseCustomNames(), "zh")
-        }
+        cache.saveCourses(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), term)
 
-        val named = sync(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), mapOf("zh" to "資結"))
+        applyNames("CS1001", mapOf("zh" to "資結"))
+        val named = cache.loadCourses(term)
         assertEquals("資結", named.first { it.courseNo == "CS1001" }.customCourseName)
         assertEquals("資結", named.first { it.courseNo == "CS1001" }.displayName)
         assertEquals("Algorithms", named.first { it.courseNo == "CS1002" }.displayName)
 
         // The server clears it: an empty name.
-        val cleared = sync(named, mapOf("zh" to ""))
+        applyNames("CS1001", mapOf("zh" to ""))
+        val cleared = cache.loadCourses(term)
         assertNull(cleared.first { it.courseNo == "CS1001" }.customCourseName)
         assertEquals("Data Structures", cleared.first { it.courseNo == "CS1001" }.displayName)
+    }
+
+    @Test
+    fun `a background sync that changes no name or colour writes no course`() = runTest {
+        cache.saveCourses(listOf(course("CS1001", "Data Structures").copy(customCourseName = "資結")), term)
+        cache.saveCourseCustomNames(mapOf("CS1001" to mapOf("zh" to "資結")))
+        val before = cache.coursesVersion.value
+
+        assertNull(applyNames("CS1001", mapOf("zh" to "資結")))
+
+        assertEquals(before, cache.coursesVersion.value)
+    }
+
+    /**
+     * A write another part of the app starts from inside the sync's pass, at the point
+     * where it reads the held keys, and is given [LANDING_MS] to land. It lands at once
+     * unless a lock the pass holds keeps it off until the pass has written.
+     */
+    private fun CoroutineScope.landing(write: suspend () -> Unit): suspend () -> Job {
+        var job: Job? = null
+        return {
+            job ?: launch(start = CoroutineStart.UNDISPATCHED) { write() }.also { started ->
+                job = started
+                withTimeoutOrNull(LANDING_MS) { started.join() }
+            }
+        }
+    }
+
+    /** Greptile on #615: the sync saved the list it read before its name writes, without the course. */
+    @Test
+    fun `a course added while a background sync applies names stays`() = runBlocking {
+        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term)
+        // The class table saves its list with the course added.
+        val add = landing {
+            cache.saveCourses(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), term)
+        }
+
+        applyNames("CS1001", mapOf("zh" to "資結"), held = { add(); emptySet() })
+        add().join()
+
+        assertEquals(listOf("CS1001", "CS1002"), cache.loadCourses(term).map { it.courseNo })
+    }
+
+    /**
+     * Greptile on #615: the sync wrote the names it read before the rename, with the
+     * snapshot's older name, as the held keys it took before the rename did not have it.
+     */
+    @Test
+    fun `a rename saved while a background sync applies names stands over the snapshot's`() = runBlocking {
+        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term)
+        val rename = landing {
+            cache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, "CS1001", "zh", "新名") }
+        }
+
+        // The snapshot's name is the one the rename replaces. The held keys are
+        // read before the rename lands, so they do not have it.
+        applyNames("CS1001", mapOf("zh" to "舊名"), held = { emptySet<String>().also { rename() } })
+        rename().join()
+
+        assertEquals(mapOf("CS1001" to mapOf("zh" to "新名")), cache.loadCourseCustomNames())
+    }
+
+    private companion object {
+        const val LANDING_MS = 300L
     }
 }

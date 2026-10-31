@@ -187,6 +187,22 @@ class DataCache @Inject constructor(
             writeCourses(change(loadCourses(semester), hidden), semester)
         }
 
+    /**
+     * [semester]'s courses as [change] makes them of the list as it stands, with no other save
+     * of a term between the read and the write, as [updateCourses]; but nothing is written when
+     * [change] hands back the list it read. For a pass that may change nothing, such as the
+     * background sync's names and colours: a course added while it runs stays, and a pass that
+     * changed nothing makes no write. Returns the list written, or null when there was none.
+     */
+    suspend fun updateCoursesIfChanged(semester: String, change: suspend (List<Course>) -> List<Course>): List<Course>? =
+        coursesMutex.withLock {
+            val current = loadCourses(semester)
+            val updated = change(current)
+            if (updated == current) return@withLock null
+            writeCourses(updated, semester)
+            updated
+        }
+
     // Every write of a term's courses, one at a time; see updateCourses.
     private val coursesMutex = Mutex()
 
@@ -442,11 +458,32 @@ class DataCache @Inject constructor(
     // entry into Course.customCourseName at load/display time.
 
     suspend fun saveCourseCustomNames(names: Map<String, Map<String, String>>) =
-        saveToUserData(names, "course_custom_names.json")
+        courseNamesLock.withLock { saveToUserData(names, COURSE_CUSTOM_NAMES_FILE) }
+
+    // Held by every save of the custom names, and from the read to the write of every update.
+    // The background sync takes it under the courses' lock, so a change made under it must
+    // never save courses.
+    private val courseNamesLock = Mutex()
+
+    /**
+     * The custom names as [change] makes them of the names stored now, read and written under
+     * one lock that every save of them takes too. A rename and a sync merging the server's
+     * names each change the names as they stand, so neither is undone by the other's older
+     * copy. Nothing is written when [change] hands back what it read. Returns the names as
+     * they stand after.
+     */
+    suspend fun updateCourseCustomNames(
+        change: suspend (Map<String, Map<String, String>>) -> Map<String, Map<String, String>>,
+    ): Map<String, Map<String, String>> = courseNamesLock.withLock {
+        val before = loadCourseCustomNames()
+        val after = change(before)
+        if (after != before) saveToUserData(after, COURSE_CUSTOM_NAMES_FILE)
+        after
+    }
 
     suspend fun loadCourseCustomNames(): Map<String, Map<String, String>> {
         val type = object : TypeToken<Map<String, Map<String, String>>>() {}.type
-        return loadFromUserData(type, "course_custom_names.json") ?: emptyMap()
+        return loadFromUserData(type, COURSE_CUSTOM_NAMES_FILE) ?: emptyMap()
     }
 
     // --- Courses 選課 stopped listing (semester → courseNos) ---
@@ -1804,6 +1841,7 @@ class DataCache @Inject constructor(
         private const val SELECTION_ROSTERS_FILE = "selection_rosters.json"
         private const val SELECTION_ANSWERED_AT_FILE = "selection_answered_at.json"
         private const val SERVER_DROPPED_FILE = "server_dropped.json"
+        private const val COURSE_CUSTOM_NAMES_FILE = "course_custom_names.json"
 
         /** What [atomicWrite] names its temporary file with, after the file it writes. */
         private const val TEMP_SUFFIX = ".tmp"

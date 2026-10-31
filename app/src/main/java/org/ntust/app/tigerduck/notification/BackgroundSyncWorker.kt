@@ -44,7 +44,6 @@ import org.ntust.app.tigerduck.ui.screen.home.sendMovedColors
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.ui.RefreshPolicies
-import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.network.CourseService
@@ -238,7 +237,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // Not over a colour or name this phone has waiting to go up, or
                 // sent since the fetch: the snapshot's is the older.
                 applyCourseOverridesBackground(
-                    result.courseOverrides, pendingCourseOverrides.held(result.fetchedAtMs), syncColors, syncNames,
+                    result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames,
                 )
             }
             // Not gated on the per-category switches, as in Home's sync: a
@@ -409,43 +408,24 @@ class BackgroundSyncWorker @AssistedInject constructor(
     }
 
     /**
-     * Home's colour and name passes ([CourseSyncReconciler.applyColorOverrides],
-     * [CourseSyncReconciler.applyNameOverrides]) over the cached term, [held]
-     * being what the snapshot must not overwrite. With no course cached
-     * nothing is applied, names included, as in Home.
+     * The snapshot's colours and names over the cached term
+     * ([BackgroundCourseOverrides.apply]), [held] reading what the snapshot
+     * must not overwrite; then the widgets, and the colours moved off a
+     * duplicate go up.
      */
     private suspend fun applyCourseOverridesBackground(
         overrides: List<org.ntust.app.tigerduck.push.CourseOverrideResult>,
-        held: Set<String>,
+        held: suspend () -> Set<String>,
         syncColors: Boolean,
         syncNames: Boolean,
     ) {
-        val cached = dataCache.loadCourses().ifEmpty { return }
-        CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, held)
-        // The names reach the cached courses too, which the widgets read: one
-        // load and one save, so the colour pass below builds on them.
-        val courses = if (syncNames) {
-            CourseNameOverrides.stamp(
-                cached, dataCache.loadCourseCustomNames(),
-                AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
-            )
-        } else {
-            cached
-        }
-        val outcome = CourseSyncReconciler.applyColorOverrides(
-            courses = courses,
-            overrides = overrides,
-            syncColors = syncColors,
-            held = held,
-        )
-        val updated = outcome?.courses ?: courses
-        if (updated == cached) return
-        dataCache.saveCourses(updated)
+        val applied = BackgroundCourseOverrides.apply(
+            dataCache, dataCache.currentSemesterCode(), overrides, held, syncColors, syncNames,
+            AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
+        ) ?: return
         widgetUpdater.requestUpdate()
-        outcome?.let {
-            sendMovedColors(updated, it.moved) { moodleId, hex ->
-                pendingCourseOverrides.send(moodleId, colorHex = hex)
-            }
+        sendMovedColors(applied.courses, applied.moved) { moodleId, hex ->
+            pendingCourseOverrides.send(moodleId, colorHex = hex)
         }
     }
 

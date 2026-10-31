@@ -1212,7 +1212,8 @@ class ClassTableViewModel @Inject constructor(
         val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, override)
         viewModelScope.launch {
-            dataCache.saveCourseCustomNames(courseCustomNames)
+            // Onto the names as they stand, not this screen's copy: a sync may have changed others since.
+            dataCache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, courseNo, locale, override) }
             saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
@@ -1244,7 +1245,8 @@ class ClassTableViewModel @Inject constructor(
         val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, null)
         viewModelScope.launch {
-            dataCache.saveCourseCustomNames(courseCustomNames)
+            // As setCustomCourseName: onto the names as they stand.
+            dataCache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, courseNo, locale, null) }
             saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }

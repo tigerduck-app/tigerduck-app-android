@@ -48,8 +48,7 @@ internal class ClassTableTermReset(
         // Custom names are keyed by course number only, as on iOS, so a
         // course retaken in another term loses its name there as well.
         val held = dataCache.loadCourses(semester).mapTo(mutableSetOf()) { it.courseNo }
-        val names = dataCache.loadCourseCustomNames()
-        if (names.keys.any { it in held }) dataCache.saveCourseCustomNames(names - held)
+        dataCache.updateCourseCustomNames { names -> names - held }
         // The term's cache goes too: a reset means "start this term over",
         // and the roster the portal returns next is the whole of it.
         // Load-bearing for sync as well — with the old roster still on disk

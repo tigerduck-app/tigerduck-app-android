@@ -667,19 +667,23 @@ object CourseSyncReconciler {
      * Merges the snapshot's custom names ([mergeCustomNames]) into [dataCache]'s,
      * writing only when something changed. Home's sync and the background
      * worker apply names through this one, so a rule changed here reaches both.
+     *
+     * Merged into the names as they stand, under the lock every change to them
+     * takes ([DataCache.updateCourseCustomNames]), and [held] is read there too:
+     * a rename saved while the sync ran is neither undone by an older copy of
+     * the names nor, once it is held, overwritten by the snapshot's name. Returns
+     * the names as they stand after, or null with name sync off, when none are read.
      */
     internal suspend fun applyNameOverrides(
         dataCache: DataCache,
         overrides: List<CourseOverrideResult>,
         syncNames: Boolean,
-        held: Set<String> = emptySet(),
-    ) {
-        mergeCustomNames(
-            existing = dataCache.loadCourseCustomNames(),
-            overrides = overrides,
-            syncNames = syncNames,
-            held = held,
-        )?.let { dataCache.saveCourseCustomNames(it) }
+        held: suspend () -> Set<String> = { emptySet() },
+    ): Map<String, Map<String, String>>? {
+        if (!syncNames) return null
+        return dataCache.updateCourseCustomNames { current ->
+            mergeCustomNames(current, overrides, syncNames = true, held = held()) ?: current
+        }
     }
 
     /**
