@@ -12,6 +12,7 @@ import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -38,10 +39,14 @@ class PendingCourseAddsTest {
         val semester: String,
         val forceKeys: List<String>,
         val account: Int = 1,
+        val addedAt: Map<String, Long> = emptyMap(),
     )
 
     private val uploads = mutableListOf<Upload>()
     private var answer: suspend () -> List<String>? = { emptyList() }
+
+    // Of what [answer] settles, the timed adds the backend refused, a hide elsewhere being newer.
+    private var refused: List<String> = emptyList()
 
     // AuthTokenManager.signInGeneration, and what happens before the request's header is made.
     private var signIn = 1
@@ -56,11 +61,11 @@ class PendingCourseAddsTest {
         val context = JvmContext()
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         // As PushApiClient.uploadCourses: pinned to a sign-in, the header is that account's or none.
-        adds = PendingCourseAdds(cache, { courses, semester, forceKeys, pinned ->
+        adds = PendingCourseAdds(cache, { courses, semester, forceKeys, pinned, addedAt ->
             beforeHeader()
             if (pinned != signIn) throw NotSignedInException()
-            uploads += Upload(courses.map { it.courseNo }, semester, forceKeys, account = signIn)
-            answer()
+            uploads += Upload(courses.map { it.courseNo }, semester, forceKeys, account = signIn, addedAt = addedAt)
+            answer()?.let { accepted -> CourseUploadAnswer(accepted - refused, refused.filter { it in accepted }) }
         }, signInGeneration = { signIn })
     }
 
@@ -79,6 +84,94 @@ class PendingCourseAddsTest {
 
         assertEquals(Upload(listOf("MA1010002"), term, listOf("client:1151:MA1010002")), uploads.last())
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+    }
+
+    /**
+     * An add goes with the moment it was made, alone (#591): the backend applies it only when
+     * later than the course's last add, hide and reset, and under protocol 2 every other course
+     * of the upload counts as the school's roster. Kept with its add, the moment goes out again
+     * on the next sync's retry, and leaves once the add lands.
+     */
+    @Test
+    fun `an add goes alone with its moment, again on a retry, and the moment leaves with it`() = runTest {
+        cache.saveCourses(listOf(portal, typed), term)
+        answer = { throw IOException("offline") }
+        adds.send(listOf(portal, typed), term, typed.courseNo, addedAt = 5_000L)
+
+        assertEquals(Upload(listOf("MA1010002"), term, listOf("client:1151:MA1010002"), addedAt = mapOf("MA1010002" to 5_000L)), uploads.last())
+        assertEquals(mapOf(term to mapOf("MA1010002" to 5_000L)), cache.loadPendingCourseAddTimes())
+
+        answer = { listOf("MA1010002") }
+        adds.retry()
+
+        assertEquals(mapOf("MA1010002" to 5_000L), uploads.last().addedAt)
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+        assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
+    }
+
+    /**
+     * The course added again while its first add's request is out: that request's answer is to
+     * the older add, and leaves the newer one, with its later moment, to go after it.
+     */
+    @Test
+    fun `an answer to an older add leaves a newer re-add of it waiting`() = runTest {
+        cache.saveCourses(listOf(typed), term)
+        val firstOut = CompletableDeferred<Unit>()
+        val releaseFirst = CompletableDeferred<Unit>()
+        beforeHeader = {
+            beforeHeader = {}
+            firstOut.complete(Unit)
+            releaseFirst.await()
+        }
+        answer = { listOf("MA1010002") }
+
+        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L) }
+        firstOut.await()
+        val second = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 6_000L) }
+        runCurrent()
+        releaseFirst.complete(Unit)
+        first.join()
+        second.join()
+
+        assertEquals(listOf(mapOf("MA1010002" to 5_000L), mapOf("MA1010002" to 6_000L)), uploads.map { it.addedAt })
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+        assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
+    }
+
+    /**
+     * A course this phone typed, whose timed add the backend answered (here, not applied: a hide
+     * elsewhere was newer), is one the server has settled: a snapshot's tombstone may hide it,
+     * as the reconcile never does a course the server has not seen.
+     */
+    @Test
+    fun `a timed add the backend refused counts as one the server knows, one it applied does not`() = runTest {
+        cache.saveCourses(listOf(typed, portal), term)
+        answer = { listOf("MA1010002") }
+        refused = listOf("MA1010002")
+
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L)
+
+        assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+
+        // Applied: a snapshot taken before it landed would read its absence as a delete.
+        answer = { listOf("CS1010001") }
+        refused = emptyList()
+        adds.send(listOf(portal), term, portal.courseNo, addedAt = 6_000L)
+
+        assertEquals(listOf("MA1010002"), cache.loadServerKnownNos()[term])
+    }
+
+    /** One an older install kept has no moment: it goes as it did, unstamped. */
+    @Test
+    fun `an add kept with no moment goes unstamped, as before`() = runTest {
+        cache.saveCourses(listOf(portal, typed), term)
+        cache.savePendingCourseAdds(mapOf(term to listOf("MA1010002")))
+        answer = { listOf("MA1010002") }
+
+        adds.retry()
+
+        assertEquals(Upload(listOf("MA1010002"), term, listOf("client:1151:MA1010002")), uploads.single())
     }
 
     /**

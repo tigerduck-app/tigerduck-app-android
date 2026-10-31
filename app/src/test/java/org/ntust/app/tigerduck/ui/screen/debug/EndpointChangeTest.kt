@@ -21,7 +21,7 @@ class EndpointChangeTest {
     private var mail = false
     private val events = mutableListOf<String>()
 
-    private fun change() = EndpointChange(
+    private fun change(movedBackend: () -> Unit = {}) = EndpointChange(
         stored = { stored },
         store = { stored = it; events += "store $it" },
         holdsSchoolAccount = { school },
@@ -42,6 +42,7 @@ class EndpointChangeTest {
         },
         registerAgain = { events += "register" },
         forgetBackendData = { events += "forget" },
+        movedBackend = movedBackend,
     )
 
     // When it asks
@@ -75,6 +76,16 @@ class EndpointChangeTest {
     }
 
     // What it signs out
+
+    @Test
+    fun `a move to another backend fetches the school's course changes from it, and staying does not`() {
+        var moved = 0
+        change(movedBackend = { moved++; events += "moved" }).apply(OTHER)
+        assertEquals(1, moved)
+        assertTrue("after the endpoint is stored", events.indexOf("moved") > events.indexOf("store $OTHER"))
+        change(movedBackend = { moved++ }).apply(OTHER)
+        assertEquals(1, moved)
+    }
 
     @Test
     fun `a change signs out of every account held before the endpoint is stored`() {

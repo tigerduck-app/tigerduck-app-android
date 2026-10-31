@@ -617,7 +617,11 @@ class HomeBackendSync @Inject constructor(
         }
 
         if (updatedKnown != serverKnown) {
-            dataCache.saveServerKnownNos(updatedKnown)
+            // Added to what is stored now, the numbers only growing: an add answered meanwhile,
+            // or the background run, may have added to it too.
+            dataCache.updateServerKnownNos { current ->
+                current + updatedKnown.mapValues { (semester, nos) -> (current[semester].orEmpty() + nos).distinct().sorted() }
+            }
         }
         if (touchedCurrent) widgetUpdater.requestUpdate()
     }

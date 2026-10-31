@@ -83,6 +83,7 @@ Scopes:
 | prefs | `academic_calendar` | keys | |
 | prefs | `bulletin_read_state` | school | `BulletinReadStateStore.kt` `clear` |
 | prefs | `cjk_centering` | keys | |
+| prefs | `course_changes` | keys | |
 | prefs | `class_preparing_tracker` | keys | |
 | prefs | `debug_clock` | keys | |
 | prefs | `debug_fixture` | keys | |
@@ -257,6 +258,9 @@ into `library_password_refusals` when it opens.
 | academic_calendar | `payload` | device | |
 | cjk_centering | `corrections` | device | |
 | cjk_centering | `key` | device | |
+| course_changes | `endpoint` | device | |
+| course_changes | `etag` | device | |
+| course_changes | `payload` | device | |
 | class_preparing_tracker | `next_request_code` | device | |
 | class_preparing_tracker | `scheduled_ids` | school | `ClassPreparingNotificationScheduler.kt` `cancelAllTrackedLocked` |
 | class_preparing_tracker | `slot_request_codes` | school | `ClassPreparingNotificationScheduler.kt` `cancelAllTrackedLocked` |
@@ -351,6 +355,7 @@ Under `cacheDir/TigerDuckCache/`, `filesDir/TigerDuckData/` and, for the downloa
 | cache | `moodle_files/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `moodle_open/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_adds.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `pending_course_add_times.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_deletes.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_ignores.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_overrides.json` | school | `DataCache.kt` `clearAllUserData` |

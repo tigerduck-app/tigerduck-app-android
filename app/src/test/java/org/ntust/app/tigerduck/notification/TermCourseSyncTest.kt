@@ -75,7 +75,7 @@ class TermCourseSyncTest {
     private lateinit var sync: TermCourseSync
 
     // Only its locks are used here: no add waits.
-    private val adds by lazy { PendingCourseAdds(cache, CourseUploader { _, _, _, _ -> null }, { auth.signInGeneration }) }
+    private val adds by lazy { PendingCourseAdds(cache, CourseUploader { _, _, _, _, _ -> null }, { auth.signInGeneration }) }
 
     @Before
     fun setUp() {
