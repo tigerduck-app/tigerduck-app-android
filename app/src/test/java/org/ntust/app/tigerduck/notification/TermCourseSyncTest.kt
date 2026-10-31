@@ -230,11 +230,17 @@ class TermCourseSyncTest {
      * The background worker checks the account after each phase by student ID, which a sign-in as the
      * same student passes. What keeps the old run's rows out of the new session is the pin of its
      * writes to the sign-in and the cache's generation, so that is what is driven here: the fetch
-     * is held at its lookups, the account signs out (wiping the cache) and signs in as the same
-     * student, who saves a course, and the old run then finishes.
+     * is held at its lookups, the account signs out (wiping the cache, which the test does by
+     * calling clearAllUserData by hand, as the app's sign-out does) and signs in as the same
+     * student, who saves a course, and the old run then finishes. The term is one course selection
+     * does not serve, so the run's rows come from the transcript read before the lookups, and
+     * nothing but the sign-in check in the commit keeps them out: the wipe also takes the
+     * selection answers, which would stop a served term's commit by another road.
      */
     @Test
     fun `a sign-out and sign-in as the same student during a background sync writes nothing from the old run`() = runTest {
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        selectionTerm = OTHER_TERM
         var switched = false
         val switching = object : TermCourseSync.Sources by sources {
             override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? {
