@@ -157,6 +157,7 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `hasUnconfirmedAssignmentSyncEdit` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `assignmentStore.hasUnconfirmedEdit = false` |
 | tigerduck_prefs | `hasUnconfirmedClassReminderSyncEdit` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `classReminderStore.hasUnconfirmedEdit = false` |
 | tigerduck_prefs | `holidayNotifyOverrides` | school | `AppPreferences.kt` `forgetHolidayOverrides` |
+| tigerduck_prefs | `holidayOverrideEditTimes` | school | `AppPreferences.kt` `forgetHolidayOverrides` |
 | tigerduck_prefs | `holidayOverridesAwaitingUpload` | school | `AppPreferences.kt` `forgetHolidayOverrides` |
 | tigerduck_prefs | `homeAssignmentFilter` | device | |
 | tigerduck_prefs | `homeSections` | device | |

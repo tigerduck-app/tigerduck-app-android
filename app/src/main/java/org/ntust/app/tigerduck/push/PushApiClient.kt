@@ -148,20 +148,21 @@ class PushApiClient @Inject constructor(
      * already been written by then, and this call is only about agreement
      * between devices, not about whether the guard works. With [signIn], sent
      * only as that sign-in: see `PendingHolidayOverrides`. Says whether it was
-     * sent, so a skipped PUT is not taken for one that landed.
+     * sent, so a skipped PUT is not taken for one that landed. [madeAtMs] is sent as `hlc`.
      */
-    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: Int? = null): Boolean =
+    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: Int? = null, madeAtMs: Long? = null): Boolean =
         withContext(Dispatchers.IO) {
             if (!isSyncCapable) return@withContext false
             val service = api.at(baseUrl)
-            service.holidayOverride(authHeader(signIn), holidayId, HolidayOverrideRequest(notify)).execute().use { response ->
+            val header = authHeader(signIn)
+            executeStamped(madeAtMs, { isSyncCapable }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
                 if (!response.isSuccessful) {
                     throw PushApiException(
                         "holiday override failed: HTTP ${response.code}"
                     )
                 }
                 true
-            }
+            } ?: false
         }
 
     suspend fun updateDevicePreferences(
@@ -226,21 +227,26 @@ class PushApiClient @Inject constructor(
     /**
      * [signIn], when given, pins the request to that sign-in
      * ([AuthTokenManager.signInGeneration]): after a sign-out it goes without
-     * a token rather than with the next account's.
+     * a token rather than with the next account's. [madeAtMs] is sent as `hlc`.
+     * Says whether it went out: false when the switch stopped it, so the mark waits.
      */
     suspend fun patchAssignmentOverride(
         assignmentId: Int,
         localStatus: String,
         signIn: Int? = null,
-    ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
+        madeAtMs: Long? = null,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val syncs = { isSyncCapable && prefs.syncAssignments }
+        if (!syncs()) return@withContext false
         val payload = mapOf("local_status" to localStatus)
         val service = api.at(baseUrl)
-        service.assignmentOverride(authHeader(signIn), assignmentId, payload).execute().use { response ->
+        val header = authHeader(signIn)
+        executeStamped(madeAtMs, syncs, { hlc -> service.assignmentOverride(header, assignmentId, payload.stampedWith(hlc)) }) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchAssignmentOverride failed: HTTP ${response.code}", response.code)
             }
-        }
+            true
+        } ?: false
     }
 
     /**
@@ -249,7 +255,7 @@ class PushApiClient @Inject constructor(
      * for colours or names, is off, or when [allowed] says no right before
      * the request goes, after the header is made. Throws when the request
      * fails. [signIn], when given, pins the request to that sign-in, as
-     * [patchAssignmentOverride]'s is.
+     * [patchAssignmentOverride]'s is. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseOverride(
         courseId: Any,
@@ -258,26 +264,26 @@ class PushApiClient @Inject constructor(
         locale: String? = null,
         signIn: Int? = null,
         allowed: () -> Boolean = { true },
+        madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext false
-        if (colorHex != null && !prefs.syncCourseColors) return@withContext false
-        if (customName != null && !prefs.syncCourseNames) return@withContext false
-        val payload = mutableMapOf<String, Any?>()
-        if (colorHex != null) payload["color_hex"] = colorHex
-        if (customName != null) payload["custom_name"] = customName
-        if (locale != null) payload["locale"] = locale
+        val switchesOn = { isSyncCapable && (colorHex == null || prefs.syncCourseColors) && (customName == null || prefs.syncCourseNames) }
+        if (!switchesOn()) return@withContext false
+        val payload = listOfNotNull(colorHex?.let { "color_hex" to it }, customName?.let { "custom_name" to it }, locale?.let { "locale" to it })
+            .toMap()
         val service = api.at(baseUrl)
-        val call = service.courseOverride(authHeader(signIn), courseId.toString(), payload)
+        val header = authHeader(signIn)
         // Read once the header is made, which can renew the session and so
         // suspend: a hold the course outbox put on the kind meanwhile must
         // stop the request, which the switches above alone would let through.
         if (!allowed()) return@withContext false
-        call.execute().use { response ->
+        // The resend passes the same gate as the first request: the hold can go on meanwhile.
+        val call = { hlc: Long? -> service.courseOverride(header, courseId.toString(), payload.stampedWith(hlc)) }
+        executeStamped(madeAtMs, { switchesOn() && allowed() }, call) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseOverride failed: HTTP ${response.code}", response.code)
             }
-        }
-        true
+            true
+        } ?: false
     }
 
     /**
@@ -289,20 +295,23 @@ class PushApiClient @Inject constructor(
      * Returns whether the backend stored it: false when the answer has no
      * `ignore_assignments`, as from a backend that predates the field and
      * drops it unread, and null when course or assignment sync is off and
-     * nothing went out. Throws when the request fails.
+     * nothing went out. Throws when the request fails. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseIgnore(
         moodleId: String,
         ignore: Boolean?,
         moodleCourseId: Int?,
+        madeAtMs: Long? = null,
     ): Boolean? = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncAssignments || !prefs.syncCourses) return@withContext null
+        val syncs = { isSyncCapable && prefs.syncAssignments && prefs.syncCourses }
+        if (!syncs()) return@withContext null
         val payload = mutableMapOf<String, Any>()
         if (ignore != null) payload["ignore_assignments"] = ignore
         if (moodleCourseId != null && moodleCourseId >= 1) payload["moodle_course_id"] = moodleCourseId
         if (payload.isEmpty()) return@withContext null
         val service = api.at(baseUrl)
-        service.courseIgnore(authHeader(), moodleId, payload).execute().use { response ->
+        val header = authHeader()
+        executeStamped(madeAtMs, syncs, { hlc -> service.courseIgnore(header, moodleId, payload.stampedWith(hlc)) }) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseIgnore failed: HTTP ${response.code}", response.code)
             }
@@ -570,15 +579,6 @@ class PushApiClient @Inject constructor(
         if (failed == CLOCK_AHEAD) failed = send(null)
         if (failed != null) throw PushApiException("deleteCourse failed: HTTP $failed", failed)
     }
-
-    // The backend's TigerSync clock for a time in epoch ms: whole microseconds since the epoch.
-    private fun clockOf(epochMs: Long): Long = epochMs * 1_000
-
-    // 409 `clock_ahead`: a time more than 5 s ahead of the backend's clock. Peeked, so a caller
-    // that goes on to read the body still can.
-    private fun isClockAhead(response: okhttp3.Response): Boolean = response.code == 409 &&
-        runCatching { JSONObject(response.peekBody(4_096).string()).optString("detail") == "clock_ahead" }
-            .getOrDefault(false)
 
     /**
      * Reset the user's courses on the backend.

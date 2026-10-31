@@ -25,8 +25,12 @@ internal object HolidayOverrideApply {
         runIfSignedIn: (Int, () -> Unit) -> Boolean,
     ) {
         runIfSignedIn(signIn) {
-            pending.merged(snapshot, fetchedAtMs, calendar.optedInHolidayIds)
-                ?.let(calendar::applySyncedOverrides)
+            pending.merged(snapshot, fetchedAtMs, calendar.optedInHolidayIds)?.let { merged ->
+                // A holiday this pull replaces loses its edit time with its value.
+                val before = calendar.optedInHolidayIds
+                pending.forgetEditTimes((merged - before) + (before - merged))
+                calendar.applySyncedOverrides(merged)
+            }
         }
     }
 }

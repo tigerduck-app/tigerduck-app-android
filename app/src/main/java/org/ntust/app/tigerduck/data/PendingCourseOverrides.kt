@@ -27,6 +27,7 @@ internal fun interface CourseOverrideSender {
         locale: String?,
         signIn: Int,
         stillAllowed: () -> Boolean,
+        madeAtMs: Long?,
     ): Boolean
 }
 
@@ -83,9 +84,9 @@ class PendingCourseOverrides internal constructor(
         authTokenManager: AuthTokenManager,
     ) : this(
         dataCache = dataCache,
-        sender = CourseOverrideSender { moodleId, colorHex, customName, locale, signIn, stillAllowed ->
+        sender = CourseOverrideSender { moodleId, colorHex, customName, locale, signIn, stillAllowed, madeAtMs ->
             pushApiClient.patchCourseOverride(
-                moodleId, colorHex = colorHex, customName = customName, locale = locale, signIn = signIn, allowed = stillAllowed,
+                moodleId, colorHex, customName, locale, signIn, stillAllowed, madeAtMs,
             )
         },
         records = { color -> records(prefs, color) },
@@ -257,7 +258,7 @@ class PendingCourseOverrides internal constructor(
             val recorded = LinkedHashMap<String, PendingCourseOverride>()
             for (c in changes) {
                 val entry = PendingCourseOverride(
-                    c.moodleId, c.colorHex, c.customName, c.locale, now, c.semester, c.courseNo, seq = seq,
+                    c.moodleId, c.colorHex, c.customName, c.locale, now, c.semester, c.courseNo, seq = seq, madeAtMs = now,
                 )
                 val key = entry.key ?: continue
                 if (maxOf(waiting[key]?.seq ?: 0L, latestSeq[key] ?: 0L) > seq) continue
@@ -313,7 +314,7 @@ class PendingCourseOverrides internal constructor(
             val current = mutex.withLock { isWaiting(key, change) } && allowed()
             if (!current) return
             try {
-                sender.send(moodleId, change.colorHex, change.customName, change.locale, signIn, allowed)
+                sender.send(moodleId, change.colorHex, change.customName, change.locale, signIn, allowed, change.madeAtMs)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -36,6 +36,10 @@ internal class ScriptedBackend {
         val arrived = CompletableDeferred<Unit>()
         private val reply = CompletableFuture<Int>()
 
+        /** The body the release answers with, in place of the default for its status; set before it. */
+        @Volatile
+        var body: String? = null
+
         fun release(code: Int) {
             reply.complete(code)
         }
@@ -96,6 +100,7 @@ internal class ScriptedBackend {
         }
         val reply = when {
             next is Pair<*, *> -> next.second as String
+            next is Held && next.body != null -> next.body!!
             code !in 200..299 -> """{"detail":"refused"}"""
             endpoint == "POST /auth/login" || endpoint == "POST /auth/refresh" ->
                 """{"access_token":"access-2","refresh_token":"refresh-2","expires_in":900,"device_id":"device-1"}"""

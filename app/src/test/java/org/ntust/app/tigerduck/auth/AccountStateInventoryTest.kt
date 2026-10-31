@@ -34,6 +34,19 @@ class AccountStateInventoryTest {
     }
 
     @Test
+    fun `the holiday sets and edit times are seen as string sets, through the preference helpers`() {
+        val seen = app.keys.getValue("tigerduck_prefs").filter { it.name.startsWith("holiday") }.associate { it.name to it.type }
+        assertEquals(
+            mapOf(
+                "holidayNotifyOverrides" to "StringSet",
+                "holidayOverridesAwaitingUpload" to "StringSet",
+                "holidayOverrideEditTimes" to "StringSet",
+            ),
+            seen,
+        )
+    }
+
+    @Test
     fun `the inventory reads every kind of store`() {
         val stores = app.rows.map { it.store }.toSet()
         assertTrue(stores.containsAll(setOf("prefs", "cache", "database", "tigerduck_prefs", "tigerduck_credentials")))

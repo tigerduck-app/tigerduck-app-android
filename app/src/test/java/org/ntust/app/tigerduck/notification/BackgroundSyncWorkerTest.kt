@@ -414,7 +414,7 @@ class BackgroundSyncWorkerTest {
     fun `a background sync applies the server's holiday choices`() {
         val pending = PendingHolidayOverrides(
             prefs = appPrefs,
-            sender = HolidayOverrideSender { _, _, _ -> true },
+            sender = HolidayOverrideSender { _, _, _, _ -> true },
             syncs = { true },
             signInGeneration = { 1 },
             runIfSignedIn = { _, _ -> true },
@@ -434,7 +434,7 @@ class BackgroundSyncWorkerTest {
         appPrefs.holidayNotifyOverrides = setOf(7)
         val pending = PendingHolidayOverrides(
             prefs = appPrefs,
-            sender = HolidayOverrideSender { _, _, _ -> true },
+            sender = HolidayOverrideSender { _, _, _, _ -> true },
             syncs = { true },
             signInGeneration = { 2 },
             runIfSignedIn = { _, _ -> true },
