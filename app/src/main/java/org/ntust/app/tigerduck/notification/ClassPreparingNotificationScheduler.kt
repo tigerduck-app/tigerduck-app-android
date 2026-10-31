@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -38,13 +39,15 @@ import javax.inject.Singleton
 class ClassPreparingNotificationScheduler internal constructor(
     private val context: Context,
     private val appLanguage: () -> String = { AppLanguageManager.SYSTEM },
+    private val storedStudentId: () -> String? = { null },
     private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
 ) : ClassReminderAlarms {
     @Inject constructor(
         @ApplicationContext context: Context,
         appPreferences: AppPreferences,
         courseChangeStore: CourseChangeStore,
-    ) : this(context, { appPreferences.appLanguage }, courseChangeStore::current)
+        credentials: CredentialManager,
+    ) : this(context, { appPreferences.appLanguage }, { credentials.ntustStudentId }, courseChangeStore::current)
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val trackerPrefs = context.getSharedPreferences(TRACKER_PREFS, Context.MODE_PRIVATE)
@@ -86,6 +89,8 @@ class ClassPreparingNotificationScheduler internal constructor(
         }
 
         val now = AppClock.nowMillis()
+        // Read once for the whole arming: the account the reminders are for.
+        val armedFor = storedStudentId()
         val scheduled = mutableSetOf<String>()
         var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
         var nextClassStart: Long? = null
@@ -123,6 +128,7 @@ class ClassPreparingNotificationScheduler internal constructor(
                 )
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_TERM, slot.term)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_CLASS_ID, slot.classId)
+                if (armedFor != null) putExtra(ClassPreparingNotificationReceiver.EXTRA_STUDENT_ID, armedFor)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_START_MS, slot.startMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_END_MS, slot.endMs)
                 putExtra(ClassPreparingNotificationReceiver.EXTRA_NOTIFICATION_ID, requestCode)
