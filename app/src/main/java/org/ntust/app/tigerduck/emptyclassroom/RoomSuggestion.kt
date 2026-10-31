@@ -1,9 +1,9 @@
 package org.ntust.app.tigerduck.emptyclassroom
 
-import org.ntust.app.tigerduck.coursechanges.ClassSlot
-import org.ntust.app.tigerduck.coursechanges.CourseChange
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.CourseChange
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 

@@ -317,7 +317,7 @@ class ClassTableViewModel @Inject constructor(
     private val _selectedDate = MutableStateFlow<java.time.LocalDate?>(null)
 
     /** The class the detail was opened for, as the Current class card names it; null merges its block. */
-    private val _selectedSlot = MutableStateFlow<org.ntust.app.tigerduck.coursechanges.ClassSlot?>(null)
+    private val _selectedSlot = MutableStateFlow<org.ntust.app.tigerduck.shared.timeline.ClassSlot?>(null)
 
     // The term the selected course belongs to. Not always the picker's: the
     // today carousel shows the live term's courses whatever term the grid
@@ -932,10 +932,10 @@ class ClassTableViewModel @Inject constructor(
         }
 
     /** The selected block on the selected day as the school changed it; null without a day or a change. */
-    val selectedMeeting: org.ntust.app.tigerduck.coursechanges.ClassSlot?
+    val selectedMeeting: org.ntust.app.tigerduck.shared.timeline.ClassSlot?
         get() {
             val course = _selectedCourse.value ?: return null
-            return org.ntust.app.tigerduck.coursechanges.CourseChangeSummary.shownMeeting(
+            return org.ntust.app.tigerduck.shared.timeline.CourseChangeSummary.shownMeeting(
                 course, _selectedSlot.value, _selectedPeriods.value, _selectedDate.value, courseChangeStore.current(),
             )
         }
@@ -945,16 +945,16 @@ class ClassTableViewModel @Inject constructor(
      * cards; none for a detail opened without a day.
      */
     fun selectedChangeRows(
-        shown: org.ntust.app.tigerduck.coursechanges.ClassSlot?,
+        shown: org.ntust.app.tigerduck.shared.timeline.ClassSlot?,
         cancelled: String,
         locale: java.util.Locale,
-    ): List<org.ntust.app.tigerduck.coursechanges.CourseChangeRow> {
+    ): List<org.ntust.app.tigerduck.shared.timeline.CourseChangeRow> {
         val course = _selectedCourse.value ?: return emptyList()
         if (_selectedDate.value == null) return emptyList()
         val changes = courseChangeStore.current()
         val today = AppClock.localDateTime().toLocalDate()
-        return org.ntust.app.tigerduck.coursechanges.CourseChangeSummary.rows(
-            org.ntust.app.tigerduck.coursechanges.CourseMeetings.upcomingChanges(course, today, changes),
+        return org.ntust.app.tigerduck.shared.timeline.CourseChangeSummary.rows(
+            org.ntust.app.tigerduck.shared.timeline.CourseMeetings.upcomingChanges(course, today, changes),
             shown,
             cancelled,
             locale,
@@ -962,7 +962,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     /** The school's course changes, for the today strip to follow. */
-    val courseChanges: StateFlow<org.ntust.app.tigerduck.coursechanges.CourseChanges>
+    val courseChanges: StateFlow<org.ntust.app.tigerduck.shared.timeline.CourseChanges>
         get() = courseChangeStore.changes
 
     /** A today-strip card for [course] now, by the times the school changed it to. */
@@ -975,7 +975,7 @@ class ClassTableViewModel @Inject constructor(
         )
 
     /** The classes going on now as the school changed them; a cancelled one is not. */
-    val ongoingCourses: List<org.ntust.app.tigerduck.coursechanges.ClassSlot>
+    val ongoingCourses: List<org.ntust.app.tigerduck.shared.timeline.ClassSlot>
         get() = ClassTableSelection.ongoingClasses(
             liveCourses,
             AppClock.localDateTime().toLocalDate(),
@@ -1021,7 +1021,7 @@ class ClassTableViewModel @Inject constructor(
         // card's own; null shows none.
         date: java.time.LocalDate? = null,
         // The piece the Current class card or a Home card stands for, whose own changes the detail shows.
-        slot: org.ntust.app.tigerduck.coursechanges.ClassSlot? = null,
+        slot: org.ntust.app.tigerduck.shared.timeline.ClassSlot? = null,
     ) {
         _selectedDate.value = date
         _selectedSlot.value = slot

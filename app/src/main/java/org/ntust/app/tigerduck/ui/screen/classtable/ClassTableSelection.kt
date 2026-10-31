@@ -9,9 +9,9 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.QuietDays
-import org.ntust.app.tigerduck.coursechanges.ClassSlot
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
 import java.time.LocalDate

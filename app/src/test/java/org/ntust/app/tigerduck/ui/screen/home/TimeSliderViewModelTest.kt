@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
