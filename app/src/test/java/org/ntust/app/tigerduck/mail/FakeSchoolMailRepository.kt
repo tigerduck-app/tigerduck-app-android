@@ -581,4 +581,11 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     override fun acquire() {
         acquired++
     }
+
+    /** How many times [downloadNow] was asked for. */
+    var downloadsAsked = 0
+
+    override fun downloadNow() {
+        downloadsAsked++
+    }
 }
