@@ -9,6 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
@@ -149,7 +150,7 @@ class DataCacheSelectionAnswerTest {
         val generation = cache.userDataGeneration
         cache.clearAllUserData()
 
-        cache.recordSelectionRoster(TERM, listOf(CS1), generation)
+        assertEquals(RecordedSelection.Refused, cache.recordSelectionRoster(TERM, listOf(CS1), generation))
         cache.recordServerDrops(TERM, mapOf(CS2 to null), generation)
 
         assertNull(cache.selectionAnswerIn(TERM))

@@ -8,11 +8,11 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
@@ -90,7 +90,7 @@ class DataCacheRosterSignOutTest {
         runBlocking {
             cache.saveCourses(listOf(timed, other), TERM)
             cache.recordSelectionRoster(TERM, listOf("XA0000001", "XB0000002"), answeredAt = 2_000L)
-            assertNull(cache.recordSelectionRoster(TERM, listOf("XA0000001"), answeredAt = 1_000L))
+            assertEquals(RecordedSelection.Refused, cache.recordSelectionRoster(TERM, listOf("XA0000001"), answeredAt = 1_000L))
             assertEquals(SelectionAnswer(setOf("XA0000001", "XB0000002"), 2_000L), cache.selectionAnswerIn(TERM))
             assertFalse("XB0000002" in cache.loadSelectionDroppedNos()[TERM].orEmpty())
         }

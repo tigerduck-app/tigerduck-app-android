@@ -25,3 +25,23 @@ data class SelectionAnswer(val courseNos: Set<String>, val atMs: Long?) {
         const val CLOCK_MARGIN_MS = 2 * 60 * 1000L
     }
 }
+
+/**
+ * What `DataCache.recordSelectionRoster` made of a fetch's non-empty course selection answer:
+ * [Kept], or [Refused]. [answer] is the fetch's version of the term, which
+ * `DataCache.isLatestAnswer` checks before the fetch commits or uploads it.
+ */
+sealed interface RecordedSelection {
+    val answer: SelectionAnswer? get() = null
+
+    /** Kept as the term's latest answer. */
+    data class Kept(override val answer: SelectionAnswer) : RecordedSelection
+
+    /**
+     * Not kept: an answer newer than the fetch's is the term's, or the data was wiped since the
+     * fetch began. The fetch stops, and its roster is committed, uploaded and drawn on by
+     * nothing: the newer answer's fetch saves and sends the term, and a wipe's account has left.
+     * Not a failure to retry.
+     */
+    data object Refused : RecordedSelection
+}

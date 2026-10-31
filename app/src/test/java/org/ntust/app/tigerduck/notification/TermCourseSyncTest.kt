@@ -290,6 +290,23 @@ class TermCourseSyncTest {
     }
 
     /**
+     * A newer fetch's answer, [CS1, CS2], reached the lock first, and this sync's older [CS1]
+     * comes to it after: DataCache refuses it. The sync stops there, as no fetch to retry: its
+     * roster, committed and sent, would drop CS2 here and take it off the backend.
+     */
+    @Test
+    fun `a roster refused for an answer kept newer commits and uploads nothing`() = runTest {
+        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM)
+        cache.recordSelectionRoster(TERM, listOf(CS1, CS2), answeredAt = System.currentTimeMillis() + 3_600_000L)
+        answer = listOf(CS1)
+
+        assertTrue(sync.sync(STUDENT, PASSWORD, TERM))
+
+        assertEquals(listOf(CS1, CS2), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(emptyList<Any>(), uploads())
+    }
+
+    /**
      * A term reset on the class table takes the term off the backend and then this phone's copy
      * of it, a course added here by hand included, while the fetch's lookups run. The fetch
      * commits and uploads after it, onto the term as the reset left it: the list it began from

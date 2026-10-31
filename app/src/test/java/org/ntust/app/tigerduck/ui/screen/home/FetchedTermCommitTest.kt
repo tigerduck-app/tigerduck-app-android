@@ -243,7 +243,7 @@ class FetchedTermCommitTest {
         for (homeMerge in listOf(true, false)) {
             cache = newCache()
             cache.saveCourses(listOf(portal(ENROLLED), portal(DROPPED), portal(JUNK)), TERM)
-            val answer = cache.recordSelectionRoster(TERM, listOf(ENROLLED, DROPPED))!!
+            val answer = cache.recordSelectionRoster(TERM, listOf(ENROLLED, DROPPED))?.answer!!
             // A full sync while the lookups ran, its drops of no known time, which no answer is newer than.
             cache.recordServerDrops(TERM, mapOf(ENROLLED to null))
             cache.saveSelectionDroppedNos(mapOf(TERM to listOf(DROPPED, JUNK)))

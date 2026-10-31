@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseAdds
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -157,7 +158,8 @@ class TermCourseSync internal constructor(
      * account's token would take this roster as that account's and drop its courses.
      *
      * Course selection's answer, replaced by a newer one while the fetch ran, commits and sends
-     * nothing ([DataCache.isLatestAnswer]): it would enroll again what the newer one dropped.
+     * nothing ([DataCache.isLatestAnswer]): it would enroll again what the newer one dropped. Nor
+     * one refused as it is recorded ([RecordedSelection.Refused]), which ends the fetch there.
      */
     suspend fun sync(
         studentId: String,
@@ -199,7 +201,10 @@ class TermCourseSync internal constructor(
 
         // Before the merge below rewrites the cache — see DataCache.recordSelectionRoster. The
         // fetch's version of the term: a newer answer recorded meanwhile supersedes its rows.
-        val answer = selectionNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        val recorded = selectionNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        // A newer answer's fetch, or a wipe, has the term already: nothing to commit or send, and nothing to retry.
+        if (recorded == RecordedSelection.Refused) return true
+        val answer = recorded?.answer
 
         // Names and Moodle IDs only: Moodle lists course sites and keeps
         // a dropped class, so it adds no course to the term.

@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
@@ -482,9 +483,11 @@ class DataCache @Inject constructor(
      * Nothing is written once the data has been wiped since [generation], the
      * fetch's, or else since this call: the answer is the account's that left.
      *
-     * Returns the answer as kept, null when none was: the fetch's version of
-     * the term, which [isLatestAnswer] checks before the fetch commits or
-     * uploads it.
+     * Returns [RecordedSelection.Kept] with the answer as kept, the fetch's
+     * version of the term, which [isLatestAnswer] checks before the fetch
+     * commits or uploads it; or [RecordedSelection.Refused], an answer older
+     * than the one kept or one the wipe overtook, where the fetch stops. Null
+     * for an empty roster, which is no answer.
      */
     suspend fun recordSelectionRoster(
         semester: String,
@@ -492,7 +495,7 @@ class DataCache @Inject constructor(
         generation: Int? = null,
         // Taken as the answer lands, before any wait for the lock, which would make it read newer.
         answeredAt: Long = System.currentTimeMillis(),
-    ): SelectionAnswer? {
+    ): RecordedSelection? {
         val expected = generation ?: writeGeneration()
         if (roster.isEmpty()) return null
         // The answer, the hides it lifts and the drops it records under one hold of the lock: let go
@@ -501,13 +504,13 @@ class DataCache @Inject constructor(
         // later, is no answer at all.
         return selectionDropsMutex.withLock {
             val keptAt = loadSelectionAnsweredAt()[semester]
-            if (keptAt != null && keptAt > answeredAt) return@withLock null
+            if (keptAt != null && keptAt > answeredAt) return@withLock RecordedSelection.Refused
             val kept = saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected) &&
                 recordAnswerLocked(semester, roster, answeredAt, expected)
-            if (!kept) return@withLock null
+            if (!kept) return@withLock RecordedSelection.Refused
             liftHandAddedHides(semester, roster, expected)
             recordDropsLocked(semester, roster, alsoListed = emptyList(), isFinal = false, expected)
-            SelectionAnswer(roster.toSet(), answeredAt)
+            RecordedSelection.Kept(SelectionAnswer(roster.toSet(), answeredAt))
         }
     }
 

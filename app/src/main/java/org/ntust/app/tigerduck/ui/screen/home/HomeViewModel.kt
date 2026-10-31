@@ -46,6 +46,7 @@ import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.PendingCourseAdds
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.SelectionAnswer
@@ -815,7 +816,8 @@ class HomeViewModel @Inject constructor(
      * disk added to the cached ones (see [TranscriptTerms.termFrom]); Moodle
      * gives their names and links, and the assignments' courses.
      * Returns (null, null) for any piece that failed so the caller can fall
-     * back to cached data cleanly, null courses when no source named any, and
+     * back to cached data cleanly, null courses when no source named any or
+     * course selection's answer was refused ([RecordedSelection.Refused]), and
      * null assignments when there was no course to ask Moodle about.
      */
     private suspend fun fetchCoursesAndAssignments(
@@ -872,7 +874,7 @@ class HomeViewModel @Inject constructor(
         // Before anything overwrites the cache: a course that was in the
         // portal roster and is not in this answer was dropped in 加退選, and
         // the backend will keep serving it until someone deletes it by hand.
-        val answer = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
         val moodleEnrolled = moodleEnrolledDef.await()
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
@@ -886,6 +888,8 @@ class HomeViewModel @Inject constructor(
         val term = TranscriptTerms.termFrom(courseNos, dataCache.loadScoreReport(studentId)?.report, semester, cached)
 
         val coursesDef = async {
+            // A newer answer's fetch, or a wipe, has the term already: these rows are none to commit.
+            if (recorded == RecordedSelection.Refused) return@async null
             term ?: return@async null
 
             // A course whose query fails, or brings no rows, keeps its row in
@@ -902,7 +906,7 @@ class HomeViewModel @Inject constructor(
                 TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys),
                 onlyGains = term.onlyGains,
                 semester = semester,
-                answer = answer,
+                answer = recorded?.answer,
             )
         }
 

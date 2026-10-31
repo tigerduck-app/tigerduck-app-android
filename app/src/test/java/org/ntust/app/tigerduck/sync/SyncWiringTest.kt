@@ -462,8 +462,8 @@ class SyncWiringTest {
     fun `Home and the background sync commit an answer only while it is the term's latest, and the sync uploads under the adds lock`() {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments",
-            "val answer = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }",
-            "answer = answer,",
+            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }",
+            "answer = recorded?.answer,",
         )
         assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "remote.onlyGains, remote.answer,")
         val body = body("notification/TermCourseSync.kt", "sync")
@@ -474,6 +474,22 @@ class SyncWiringTest {
         assertTrue("TermCourseSync no longer commits against its answer", "term.onlyGains, answer," in body)
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
         assertTrue("TermCourseSync no longer wires the adds lock", "uploading = { block -> pendingCourseAdds.uploading(block) }" in sync)
+    }
+
+    /**
+     * Home's fetch of a course selection answer DataCache refused, for a newer one kept or a wipe
+     * since the fetch began, looks up and draws no courses, so its fetchData commits and uploads
+     * none: its roster would take off what the newer answer lists. The background sync's stops
+     * as TermCourseSyncTest drives it.
+     */
+    @Test
+    fun `Home's fetch of a refused course selection answer draws no courses to commit`() {
+        val body = body("ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments")
+        val stop = body.indexOf("if (recorded == RecordedSelection.Refused) return@async null")
+        val lookUp = body.indexOf("courseService.lookupOrFallback(")
+        assertTrue("Home's fetch no longer stops on a refused answer before the lookups", stop in 0 until lookUp)
+        assertTrue("Home's fetch no longer stops on a refused answer before it draws the courses", lookUp < body.indexOf("RemoteCourses("))
+        assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "if (remote != null && remote.courses.isNotEmpty()) {")
     }
 
     /**

@@ -37,9 +37,9 @@ import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.data.OutstandingAssignments
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
-import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.sharing.ClassTableShare
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableChange
@@ -1618,7 +1618,7 @@ class ClassTableViewModel @Inject constructor(
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
             // Before the merge below rewrites the cache — see
             // DataCache.recordSelectionRoster. The fetch's version of the term.
-            val answer = dataCache.recordSelectionRoster(semester, selectionNos, generation)
+            val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${
@@ -1659,7 +1659,7 @@ class ClassTableViewModel @Inject constructor(
             // soon as it lands.
             coroutineScope {
                 val coursesJob = launch {
-                    fetchTermCourses(semester, source, moodleByNo, answer, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
+                    fetchTermCourses(semester, source, moodleByNo, recorded, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
                 }
 
                 // Assignments are always "upcoming from now", so they belong
@@ -1743,11 +1743,12 @@ class ClassTableViewModel @Inject constructor(
      * is left as it is when nothing came back, and when [mayCommit] says no
      * under that lock, before the snapshot or again before the upload: a warm
      * whose term was picked, fetched or reset meanwhile has rows older than
-     * what that left — see [ClassTableTermWarm.supersede]. Nor when [answer],
-     * the course selection answer the fetch recorded, was replaced by a newer
+     * what that left — see [ClassTableTermWarm.supersede]. Nor when the
+     * course selection answer the fetch [recorded] was replaced by a newer
      * one, at the snapshot or before the upload ([DataCache.isLatestAnswer]):
      * that answer dropped what it no longer lists, and its fetch saves and
-     * sends the term.
+     * sends the term. One refused as it was recorded is not even looked up
+     * ([RecordedSelection.Refused]).
      *
      * Returns whether every query went through: false when one failed, which
      * [warmTerms] stops on — the Moodle metadata a failed lookup falls back
@@ -1757,11 +1758,14 @@ class ClassTableViewModel @Inject constructor(
         semester: String,
         source: ClassTableTermSource,
         moodleByNo: Map<String, MoodleEnrolledCourse>,
-        answer: SelectionAnswer?,
+        recorded: RecordedSelection?,
         // The page's own fetch is a day of use; a warm of the other terms is not.
         countsAsUse: Boolean = false,
         mayCommit: () -> Boolean = { true },
     ): Boolean {
+        // A newer answer's fetch, or a wipe, has the term already: no failure for the warm to stop on.
+        if (recorded == RecordedSelection.Refused) return true
+        val answer = recorded?.answer
         // Before the lookups: a sign-out while they run drops the rebuild's drops.
         val generation = dataCache.writeGeneration()
         // And the upload: the next account's token would take this roster as its own.
@@ -1930,7 +1934,7 @@ class ClassTableViewModel @Inject constructor(
         } else {
             emptyList()
         }
-        val answer = dataCache.recordSelectionRoster(semester, selectionNos, generation)
+        val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)
         val moodleByNo = CourseRosterMerge.moodleCoursesFor(semester, moodleAll).associateBy { it.courseNo }
         val source = ClassTableTermSource.of(semester, selectionNos, report, servesSelection, cached = latestCourses(semester))
         Log.i("ClassTableVM", "warm: $semester $source")
@@ -1938,7 +1942,7 @@ class ClassTableViewModel @Inject constructor(
         if (source == ClassTableTermSource.Unanswered) return true
         // Not over a reset or a fetch of the term begun since, nor under a
         // reset Settings has latched meanwhile.
-        val answered = fetchTermCourses(semester, source, moodleByNo, answer) {
+        val answered = fetchTermCourses(semester, source, moodleByNo, recorded) {
             isCurrent() && semester !in dataCache.resettingSemesters()
         }
         // The today strip reads the live term off its own copy while the
