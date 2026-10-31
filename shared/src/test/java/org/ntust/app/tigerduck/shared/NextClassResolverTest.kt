@@ -270,4 +270,48 @@ class NextClassResolverTest {
         assertEquals(listOf(14 * 60 + 20, 15 * 60 + 30), today.map { it.startMinute })
         assertEquals(listOf(15 * 60 + 10, 16 * 60), today.map { it.endMinute })
     }
+
+    // ---- a class is over from its end minute (D2: start <= now < end) ----
+
+    private val period4 = course("P4", mapOf(2 to listOf("3", "4")))                  // 10:20-12:10
+    private val afterwards = course("P7", mapOf(2 to listOf("7", "8")))               // 14:20-16:20
+
+    @Test
+    fun `a class is ongoing in its last minute and over at its end minute`() {
+        val courses = listOf(period4, afterwards)
+
+        val last = NextClassResolver.resolve(courses, weekday = 2, minuteOfDay = 12 * 60 + 9)
+        assertTrue(last is NextClassResult.Ongoing)
+        assertEquals("P4", (last as NextClassResult.Ongoing).course.courseNo)
+
+        val over = NextClassResolver.resolve(courses, weekday = 2, minuteOfDay = 12 * 60 + 10)
+        assertTrue(over is NextClassResult.NextToday)
+        assertEquals("P7", (over as NextClassResult.NextToday).course.courseNo)
+    }
+
+    @Test
+    fun `today's list marks a class ended from its end minute`() {
+        fun statusAt(minute: Int) =
+            NextClassResolver.todaysClasses(listOf(period4), weekday = 2, minuteOfDay = minute).single().status
+
+        assertEquals(TodayClassStatus.Ongoing, statusAt(12 * 60 + 9))
+        assertEquals(TodayClassStatus.Ended, statusAt(12 * 60 + 10))
+    }
+
+    @Test
+    fun `a class the school ended early is over at its changed end minute`() {
+        val changed = { courseNo: String, daysAhead: Int ->
+            if (courseNo == "P4" && daysAhead == 0) listOf(WatchClassChange(listOf("3", "4"), end = "11:45")) else emptyList()
+        }
+        val courses = listOf(period4, afterwards)
+
+        assertTrue(NextClassResolver.resolve(courses, 2, 11 * 60 + 44, changed) is NextClassResult.Ongoing)
+        val over = NextClassResolver.resolve(courses, 2, 11 * 60 + 45, changed)
+        assertTrue(over is NextClassResult.NextToday)
+        assertEquals("P7", (over as NextClassResult.NextToday).course.courseNo)
+        assertEquals(
+            TodayClassStatus.Ended,
+            NextClassResolver.todaysClasses(listOf(period4), 2, 11 * 60 + 45) { changed(it, 0) }.single().status,
+        )
+    }
 }

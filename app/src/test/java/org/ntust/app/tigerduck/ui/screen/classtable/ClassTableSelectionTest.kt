@@ -9,8 +9,11 @@ import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.Holiday
 import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.academic.SemesterTerm
+import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
+import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.Calendar
 import java.util.GregorianCalendar
 import java.util.TimeZone
@@ -291,10 +294,11 @@ class ClassTableSelectionTest {
     }
 
     @Test
-    fun `exactly at the end minute is not yet finished`() {
+    fun `exactly at the end minute the class is finished`() {
         val c = course("A", mapOf(1 to listOf("1")))  // ends 09:00
         val atEnd = ClassTableSelection.DayTime(weekday = 1, minuteOfDay = 9 * 60)
-        assertFalse(ClassTableSelection.isFinishedAt(c, atEnd))
+        assertTrue(ClassTableSelection.isFinishedAt(c, atEnd))
+        assertFalse(ClassTableSelection.isFinishedAt(c, ClassTableSelection.DayTime(1, 9 * 60 - 1)))
     }
 
     @Test
@@ -328,6 +332,61 @@ class ClassTableSelectionTest {
         // After both: still the afternoon one, finished.
         assertEquals(listOf("6", "7"), ClassTableSelection.carouselBlock(twiceOnMonday, 1, 18 * 60))
         assertNull(ClassTableSelection.carouselBlock(twiceOnMonday, 2, 7 * 60))
+    }
+
+    // ---- a class is over from its end minute (D2: start <= now < end) ----
+    // CC900 meets on Thursday 2026-11-05, periods 2 to 4 (09:10-12:10) and 7 to 8 (14:20-16:20).
+
+    private fun minute(hhmm: String): Int = LocalTime.parse(hhmm).let { it.hour * 60 + it.minute }
+
+    private fun ongoingAt(hhmm: String, changes: CourseChanges = CourseChanges.EMPTY) =
+        ClassTableSelection.ongoingClasses(listOf(CourseChangeFixture.course()), CourseChangeFixture.thursday, minute(hhmm), changes)
+
+    private fun cardAt(hhmm: String, changes: CourseChanges = CourseChanges.EMPTY) =
+        ClassTableSelection.todayCard(CourseChangeFixture.course(), CourseChangeFixture.thursday, minute(hhmm), changes)
+
+    @Test
+    fun `the class table ends a class at its end minute`() {
+        assertEquals(listOf("2", "3", "4"), ongoingAt("12:09").single().periods)
+        assertEquals(listOf("2", "3", "4"), cardAt("12:09").periods)
+        assertFalse(cardAt("12:09").isFinished)
+
+        assertTrue(ongoingAt("12:10").isEmpty())
+        assertEquals("the card moves on to the next block", listOf("7", "8"), cardAt("12:10").periods)
+        assertEquals(
+            "the carousel moves on to the next block",
+            listOf("7", "8"),
+            ClassTableSelection.carouselBlock(CourseChangeFixture.course(), 4, minute("12:10")),
+        )
+    }
+
+    @Test
+    fun `the class table ends the last class of the day at its end minute`() {
+        assertFalse(cardAt("16:19").isFinished)
+        assertTrue(cardAt("16:20").isFinished)
+        assertTrue(ongoingAt("16:20").isEmpty())
+    }
+
+    @Test
+    fun `the class table ends a class the school ended early at its changed end minute`() {
+        val changes = CourseChangeFixture.changes(
+            CourseChangeFixture.row(1, "end", periods = listOf("2", "3", "4"), values = mapOf("end" to "11:45")),
+        )
+
+        assertEquals(listOf("2", "3", "4"), ongoingAt("11:44", changes).single().periods)
+        assertTrue(ongoingAt("11:45", changes).isEmpty())
+        assertEquals(listOf("7", "8"), cardAt("11:45", changes).periods)
+    }
+
+    @Test
+    fun `the class table finishes a changed class that was the day's last at its changed end minute`() {
+        val changes = CourseChangeFixture.changes(
+            CourseChangeFixture.row(1, "cancelled", periods = listOf("2", "3", "4")),
+            CourseChangeFixture.row(2, "end", periods = listOf("7", "8"), values = mapOf("end" to "15:45")),
+        )
+
+        assertFalse(cardAt("15:44", changes).isFinished)
+        assertTrue(cardAt("15:45", changes).isFinished)
     }
 
     // ---- the block the course detail opens on (tigerduck-app-android#243) ----
