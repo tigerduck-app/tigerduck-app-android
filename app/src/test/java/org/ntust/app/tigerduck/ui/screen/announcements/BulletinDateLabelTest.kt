@@ -31,4 +31,19 @@ class BulletinDateLabelTest {
     fun `unparseable date falls back to the text before the T`() {
         assertEquals("not a date", bulletinDateLabel("not a date"))
     }
+
+    @Test
+    fun `garbage after the T falls back to the date before it`() {
+        assertEquals("2026-10-31", bulletinDateLabel("2026-10-31Tgarbage"))
+    }
+
+    @Test
+    fun `bulletin detail date is shown in Taipei time too`() {
+        assertEquals("2026-11-01", bulletinFullDateLabel("2026-10-31T17:30:00Z"))
+    }
+
+    @Test
+    fun `unparseable detail date falls back to the date before the T`() {
+        assertEquals("2026-10-31", bulletinFullDateLabel("2026-10-31Tgarbage"))
+    }
 }

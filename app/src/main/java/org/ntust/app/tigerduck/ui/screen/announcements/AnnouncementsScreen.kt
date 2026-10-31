@@ -810,6 +810,22 @@ internal fun bulletinDateLabel(raw: String): String {
 }
 
 /**
+ * The full date on a bulletin's detail, in Taipei time like the list's short date. Reading the
+ * UTC date here would show a bulletin posted after midnight in Taipei on the previous day.
+ */
+internal fun bulletinFullDateLabel(raw: String): String {
+    return try {
+        val instant = java.time.Instant.parse(raw)
+        java.time.format.DateTimeFormatter
+            .ofPattern("yyyy-MM-dd")
+            .withZone(AppConstants.TAIPEI_ZONE)
+            .format(instant)
+    } catch (_: Exception) {
+        raw.substringBefore('T')
+    }
+}
+
+/**
  * The id of the last bulletin on screen, which is what asks for the next page.
  *
  * By the item's key, not by where the item sits in the list: a place in the list is not a place
