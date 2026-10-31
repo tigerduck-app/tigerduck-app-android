@@ -139,12 +139,13 @@ class AuthService @Inject constructor(
                 runCatching { pushRegistration.onSignedIn() }
                     .onFailure { e -> android.util.Log.w("AuthService", "registration after auto sign-in failed: ${e.logSummary()}") }
             }
-            // Deliver a live_activity edit that is still unconfirmed: one made
-            // while signed out, or while the v3 JWT had lapsed. With nothing
-            // pending this sends nothing, so this device's values never
-            // overwrite what another device wrote. It must not mark anything
-            // either, because this sign-in can run from inside a pull's own
-            // request — see NotificationSettingsSync.pushIfUnconfirmed.
+            // Deliver an edit that is still unconfirmed, such as one made while
+            // the v3 JWT had lapsed; one made while signed out gives way to the
+            // account's settings. With nothing pending this sends nothing, so
+            // this device's values never overwrite what another device wrote.
+            // It must not mark anything either, because this sign-in can run
+            // from inside a pull's own request — see
+            // NotificationSettingsSync.pushIfUnconfirmed.
             notificationSettingsSync.pushIfUnconfirmed()
         },
     )

@@ -81,7 +81,7 @@ fun SyncContentScreen(
     // 作業到期提醒 gates NotificationSettingsSync's `assignments` section in
     // both directions: while it is off, this device neither pushes its
     // reminder settings nor adopts another device's, and turning it back on
-    // republishes them (its syncAssignmentRemindersChanged collector). The
+    // takes the account's (its syncAssignmentRemindersChanged collector). The
     // PATCH also stores the flag on this device's backend row, which the
     // backend reads only to deliver reminders to iPhone and iPad; Android
     // fires its own. Nor is it content with a server-vs-local conflict prompt

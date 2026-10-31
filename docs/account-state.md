@@ -163,6 +163,9 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `invertSliderDirection` | device | |
 | tigerduck_prefs | `lastSeenCoursesResetAt` | school | `AppPreferences.kt` `clearSyncStamps` |
 | tigerduck_prefs | `lastSeenWhatsNewVersionCode` | device | |
+| tigerduck_prefs | `lastSyncedAssignmentReminderSettings` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `lastSynced.assignments = null` |
+| tigerduck_prefs | `lastSyncedClassReminderSettings` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `lastSynced.courses = null` |
+| tigerduck_prefs | `lastSyncedLiveActivitySettings` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `lastSynced.liveActivity = null` |
 | tigerduck_prefs | `lastUpdatePromptEpoch` | device | |
 | tigerduck_prefs | `lastUpdatePromptVersionCode` | device | |
 | tigerduck_prefs | `legacyNotificationChannelsDeleted` | device | |

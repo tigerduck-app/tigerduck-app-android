@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.AssignmentReminderAlarms
 import org.ntust.app.tigerduck.push.AssignmentReminderSyncStore
 import org.ntust.app.tigerduck.push.ClassReminderSyncStore
+import org.ntust.app.tigerduck.push.LastSyncedSections
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.SettingsDocumentEnvelope
 import org.ntust.app.tigerduck.push.SettingsDocumentTransport
@@ -91,6 +92,13 @@ class ClassReminderSettingsViewModelTest {
             override var hasUnconfirmedEdit: Boolean
                 get() = prefs.hasUnconfirmedClassReminderSyncEdit
                 set(value) { prefs.hasUnconfirmedClassReminderSyncEdit = value }
+        },
+        lastSynced = object : LastSyncedSections {
+            override var liveActivity: String? = null
+            override var assignments: String? = null
+            override var courses: String?
+                get() = prefs.lastSyncedClassReminderSettings
+                set(value) { prefs.lastSyncedClassReminderSettings = value }
         },
         cloudSyncEnabled = { true },
         syncLiveActivity = { false },

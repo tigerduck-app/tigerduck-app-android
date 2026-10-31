@@ -226,8 +226,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     // Flips so NotificationSettingsSync can reconcile: turning this switch
     // back on doesn't itself change notifyAssignments/notifyAssignmentOffsets,
-    // so nothing else would ever notice and (re-)push them. Emitted only on
-    // an actual change, mirroring syncLiveActivityChanged below.
+    // so nothing else would notice that the section has to be taken from the
+    // account's document again. Emitted only on an actual change, mirroring
+    // syncLiveActivityChanged below.
     private val _syncAssignmentRemindersChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -245,8 +246,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     // Flips so NotificationSettingsSync can reconcile: turning this switch
     // back on doesn't itself change any of the five live_activity values,
-    // so nothing else would ever notice and (re-)push them. Emitted only on
-    // an actual change, same as appLanguageChanged above.
+    // so nothing else would notice that the section has to be taken from the
+    // account's document again. Emitted only on an actual change, same as
+    // appLanguageChanged above.
     private val _syncLiveActivityChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -902,6 +904,27 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     var hasUnconfirmedClassReminderSyncEdit: Boolean
         get() = prefs.getBoolean("hasUnconfirmedClassReminderSyncEdit", false)
         set(value) = prefs.edit().putBoolean("hasUnconfirmedClassReminderSyncEdit", value).apply()
+
+    /**
+     * The `notification` document's `live_activity`, `assignments` and
+     * `courses` sections as this phone last synced them, the base of the
+     * field-by-field merge; see `NotificationSettingsSync`'s
+     * `LastSyncedSections`. Cleared at sign-out with the unconfirmed-edit
+     * flags. JSON text the sync parses itself, not a class Gson fills in, so
+     * no field of it can be missing after an upgrade; a build before these
+     * keys wrote none, which the sync reads as nothing recorded.
+     */
+    var lastSyncedLiveActivitySettings: String?
+        get() = prefs.getString("lastSyncedLiveActivitySettings", null)
+        set(value) = prefs.edit().putString("lastSyncedLiveActivitySettings", value).apply()
+
+    var lastSyncedAssignmentReminderSettings: String?
+        get() = prefs.getString("lastSyncedAssignmentReminderSettings", null)
+        set(value) = prefs.edit().putString("lastSyncedAssignmentReminderSettings", value).apply()
+
+    var lastSyncedClassReminderSettings: String?
+        get() = prefs.getString("lastSyncedClassReminderSettings", null)
+        set(value) = prefs.edit().putString("lastSyncedClassReminderSettings", value).apply()
 
     /** Set once [ClassReminders.migrateIfNeeded] has given this install its class reminder settings. */
     var classReminderSettingsMigrated: Boolean
