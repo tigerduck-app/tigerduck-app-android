@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.shared.clock
 
 import org.ntust.app.tigerduck.shared.clock.AppClock.setOverride
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -53,10 +54,10 @@ object AppClock {
 
     fun instant(): Instant = Instant.ofEpochMilli(nowMillis())
 
-    fun localDateTime(zone: ZoneId = ZoneId.of("Asia/Taipei")): LocalDateTime =
+    fun localDateTime(zone: ZoneId = TaipeiClock.zone): LocalDateTime =
         LocalDateTime.ofInstant(instant(), zone)
 
-    fun calendar(tz: TimeZone = TimeZone.getTimeZone("Asia/Taipei")): Calendar {
+    fun calendar(tz: TimeZone = TaipeiClock.timeZone): Calendar {
         val cal = Calendar.getInstance(tz)
         cal.timeInMillis = nowMillis()
         return cal
@@ -91,4 +92,7 @@ object AppClock {
     }
 
     fun currentOverride(): ClockOverride? = override
+
+    /** True while an override holds the clock still, so [nowMillis] only changes when it is set again. */
+    fun isFrozen(): Boolean = override?.frozen == true
 }

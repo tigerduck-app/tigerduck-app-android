@@ -9,6 +9,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -129,6 +130,6 @@ class DebugClockReceiver : BroadcastReceiver() {
         // Matches DebugViewModel: the in-app picker means Taipei local time,
         // and a broadcast that meant something else would silently disagree
         // with the UI it is standing in for.
-        val ZONE: ZoneId = ZoneId.of("Asia/Taipei")
+        val ZONE: ZoneId = TaipeiClock.zone
     }
 }

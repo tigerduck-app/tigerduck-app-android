@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.data.sharing
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode.Term
 import org.ntust.app.tigerduck.network.CourseService
 import java.time.Instant
-import java.time.ZoneOffset
 import java.util.Locale
 import java.util.zip.CRC32
 
@@ -29,7 +28,6 @@ internal object PackedClassTableCode {
     /** Share times are minutes since 2024-01-01 00:00 in Taipei, in 24 bits: to 2055-11-24. */
     private val EPOCH: Instant = Instant.parse("2023-12-31T16:00:00Z")
     private const val TIME_BITS = 24
-    private val TAIPEI: ZoneOffset = ZoneOffset.ofHours(8)
 
     /** A term's last character in a regular term list: `1`, `2` or `H`. */
     private const val KINDS = "12H"
@@ -356,9 +354,9 @@ internal object PackedClassTableCode {
 
     private fun slot(semester: String): Int = year(semester) * 3 + KINDS.indexOf(semester[3])
 
-    /** The ROC academic year of [at] in Taipei, which starts in August. */
+    /** The ROC academic year of [at] in Taipei (August start); no DST since 1979, so +08:00 as before. */
     private fun academicYear(at: Instant): Long {
-        val local = at.atOffset(TAIPEI)
+        val local = at.atZone(org.ntust.app.tigerduck.shared.time.TaipeiClock.zone)
         return local.year - 1911L - if (local.monthValue < 8) 1 else 0
     }
 

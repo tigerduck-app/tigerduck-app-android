@@ -1,15 +1,5 @@
 [
   {
-    "path": "app/src/debug/java/org/ntust/app/tigerduck/debug/DebugClockReceiver.kt",
-    "kind": "taipei-literal",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/AppConstants.kt",
-    "kind": "taipei-literal",
-    "count": 2
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/MainActivity.kt",
     "kind": "long-file",
     "count": 870
@@ -86,7 +76,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/sharing/PackedClassTableCode.kt",
     "kind": "long-file",
-    "count": 486
+    "count": 484
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/sharing/PackedClassTableCode.kt",
@@ -100,19 +90,9 @@
     "count": 1
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/demo/DemoFixture.kt",
-    "kind": "taipei-literal",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/demo/DemoMoodle.kt",
     "kind": "long-file",
     "count": 525
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/demo/DemoMoodle.kt",
-    "kind": "taipei-literal",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/files/Archives.kt",
@@ -172,11 +152,6 @@
     "kind": "long-function",
     "name": "CalendarService.parseICS(String)",
     "lines": 93
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/network/CalendarService.kt",
-    "kind": "taipei-literal",
-    "count": 4
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/CourseService.kt",
@@ -783,11 +758,6 @@
     "lines": 161
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/DebugViewModel.kt",
-    "kind": "taipei-literal",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/MailDevServerDebugScreen.kt",
     "kind": "long-function",
     "name": "MailDevServerDebugScreen(()->Unit)",
@@ -996,11 +966,6 @@
     "lines": 98
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/MailDateFormat.kt",
-    "kind": "taipei-literal",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/MailRecipientTokenField.kt",
     "kind": "long-function",
     "name": "MailRecipientTokenField(String, RecipientField, ((RecipientField)->RecipientField)->RecipientField, Boolean, Modifier, List<MailAddress>)",
@@ -1101,11 +1066,6 @@
     "kind": "long-function",
     "name": "SwipeableMailCard(MailRow, String, Boolean, ()->Unit, ()->Unit, ()->Unit, ()->Unit, Modifier)",
     "lines": 141
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailSettingsViewModel.kt",
-    "kind": "taipei-literal",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/onboarding/OnboardingScreen.kt",
@@ -1373,20 +1333,10 @@
     "count": 525
   },
   {
-    "path": "shared/src/main/java/org/ntust/app/tigerduck/shared/clock/AppClock.kt",
-    "kind": "taipei-literal",
-    "count": 2
-  },
-  {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/WearApp.kt",
     "kind": "long-function",
     "name": "WearApp()",
     "lines": 117
-  },
-  {
-    "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/tile/NextClassTileService.kt",
-    "kind": "taipei-literal",
-    "count": 1
   },
   {
     "path": "wear/src/main/java/org/ntust/app/tigerduck/wear/ui/LibraryQRScreen.kt",
