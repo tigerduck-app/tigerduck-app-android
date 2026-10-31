@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.data.cache
 
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
@@ -82,6 +83,28 @@ class DataCacheFinalRosterTest {
         // The hide was marked: course selection's answer naming the course lifts it.
         cache.recordSelectionRoster(TERM, listOf("XA0000001", "XF0000006"))
         assertFalse("XF0000006" in CourseTombstoneKeys.hiddenIn(TERM, cache.loadDeletedCourseNos()))
+    }
+
+    @Test
+    fun `a rebuild's drops and another term's course selection answer both land, whichever writes last`() {
+        // Both read, change and write the one drop list; on threads of their own, without one
+        // lock over that, the later write can erase the other term's drops.
+        repeat(40) { round ->
+            val roundCache = DataCache(JvmContext(), AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
+            kotlinx.coroutines.runBlocking {
+                roundCache.saveCourses(listOf(junk), TERM)
+                roundCache.saveCourses(listOf(Course.fromSchedule("XK0000011", "Left")), "1142")
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    listOf(
+                        async { roundCache.recordFinalRoster(TERM, roster = emptyList(), alsoListed = emptyList()) },
+                        async { roundCache.recordSelectionRoster("1142", listOf("XL0000012")) },
+                    ).forEach { it.await() }
+                }
+                val drops = roundCache.loadSelectionDroppedNos()
+                assertEquals("round $round", listOf("XC0000003"), drops[TERM])
+                assertEquals("round $round", listOf("XK0000011"), drops["1142"])
+            }
+        }
     }
 
     private companion object {

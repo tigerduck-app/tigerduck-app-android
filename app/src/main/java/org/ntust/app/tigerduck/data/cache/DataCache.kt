@@ -477,7 +477,9 @@ class DataCache @Inject constructor(
      */
     suspend fun recordSelectionRoster(semester: String, roster: List<String>) {
         if (roster.isEmpty()) return
-        saveToUserData(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE)
+        selectionDropsMutex.withLock {
+            saveToUserData(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE)
+        }
         liftHandAddedHides(semester, roster)
         recordDrops(semester, roster, alsoListed = emptyList(), isFinal = false)
     }
@@ -498,8 +500,17 @@ class DataCache @Inject constructor(
     suspend fun recordFinalRoster(semester: String, roster: List<String>, alsoListed: Collection<String>) =
         recordDrops(semester, roster, alsoListed, isFinal = true)
 
+    // Every read, change and write of the drop list and the rosters, one at a time: a past term's
+    // rebuild and another term's course selection answer each rewrite the whole file, and the later
+    // write would erase the other term's drops. Taken before the user data's own lock, never with
+    // the courses' lock after it.
+    private val selectionDropsMutex = Mutex()
+
     // A course added by hand here is a manual row, never in the portal rows diffed against.
-    private suspend fun recordDrops(semester: String, roster: List<String>, alsoListed: Collection<String>, isFinal: Boolean) {
+    private suspend fun recordDrops(semester: String, roster: List<String>, alsoListed: Collection<String>, isFinal: Boolean) =
+        selectionDropsMutex.withLock { recordDropsLocked(semester, roster, alsoListed, isFinal) }
+
+    private suspend fun recordDropsLocked(semester: String, roster: List<String>, alsoListed: Collection<String>, isFinal: Boolean) {
         val stored = loadSelectionDroppedNos()
         val previous = stored[semester].orEmpty().toSet()
         val updated = CourseRosterMerge.selectionDrops(
