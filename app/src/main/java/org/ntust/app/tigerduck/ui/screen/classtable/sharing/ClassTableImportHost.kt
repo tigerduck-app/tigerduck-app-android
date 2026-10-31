@@ -477,4 +477,4 @@ internal fun importConfirmRows(
 }
 
 /** `1151` as `115-1`, as the term picker shows it. */
-private fun semesterLabel(semester: String) = semester.dropLast(1) + "-" + semester.takeLast(1)
+internal fun semesterLabel(semester: String) = semester.dropLast(1) + "-" + semester.takeLast(1)

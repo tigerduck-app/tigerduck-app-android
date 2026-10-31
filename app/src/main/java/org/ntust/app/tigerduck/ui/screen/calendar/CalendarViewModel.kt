@@ -154,9 +154,7 @@ class CalendarViewModel @Inject constructor(
             languageTag = localized.resources.configuration.locales[0].toLanguageTag(),
             startTitle = { localized.getString(R.string.calendar_semester_start, it) },
             endTitle = { localized.getString(R.string.calendar_semester_end, it) },
-            formatCode = { code ->
-                if (code.length == 4) "${code.take(3)}-${code.drop(3)}" else code
-            },
+            formatCode = ::calendarTermLabel,
             zone = org.ntust.app.tigerduck.AppConstants.TAIPEI_ZONE,
         )
     }
@@ -493,3 +491,7 @@ class CalendarViewModel @Inject constructor(
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 }
+
+/** The calendar event title's label for a term code: `1141` reads `114-1`, any other length is kept as is. */
+internal fun calendarTermLabel(code: String): String =
+    if (code.length == 4) "${code.take(3)}-${code.drop(3)}" else code

@@ -781,10 +781,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     /** Format semester code for display, e.g. "1142" → "114-2". */
-    fun displayLabel(code: String): String {
-        if (code.length < 2) return code
-        return code.dropLast(1) + "-" + code.last()
-    }
+    fun displayLabel(code: String): String = semesterDisplayLabel(code)
 
     fun setSemester(code: String) {
         val displayed = _displayed.value
@@ -2079,4 +2076,10 @@ class ClassTableViewModel @Inject constructor(
             }
         }
     }
+}
+
+/** The class table's label for a semester code: all but the last character, a dash, the last. */
+internal fun semesterDisplayLabel(code: String): String {
+    if (code.length < 2) return code
+    return code.dropLast(1) + "-" + code.last()
 }
