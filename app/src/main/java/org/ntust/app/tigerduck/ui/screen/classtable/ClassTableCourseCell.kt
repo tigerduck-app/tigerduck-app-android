@@ -302,11 +302,15 @@ internal fun blockBottomLine(change: ClassSlot?, roomHint: String?, showsRooms: 
         else -> roomHint?.let { BlockLine(it, moved = false, cancelled = false) }
     }
 
-/** A changed block's time as the block shows it: both ends, the start alone, or the end alone. */
+/**
+ * A changed block's time as the block shows it: both ends, the start alone, or the end alone. A
+ * block whose inner meeting moved while its own ends held shows both ends, as neither end alone moved.
+ */
 internal fun changedTimeText(meeting: ClassSlot): String? = when {
     meeting.originalStart != null && meeting.originalEnd != null -> "${hm(meeting.start)}–${hm(meeting.end)}"
     meeting.originalStart != null -> hm(meeting.start)
     meeting.originalEnd != null -> "–${hm(meeting.end)}"
+    meeting.innerTimesChanged -> "${hm(meeting.start)}–${hm(meeting.end)}"
     else -> null
 }
 

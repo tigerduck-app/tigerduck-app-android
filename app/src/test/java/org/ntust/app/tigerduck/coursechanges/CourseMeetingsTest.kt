@@ -270,6 +270,40 @@ class CourseMeetingsTest {
     }
 
     @Test
+    fun `a block over two meetings shows a changed time when an inner end moves`() {
+        // With period 5 hidden, periods 4 and 6 are one block over two meetings.
+        val split = course(periods = listOf("4", "6"))
+        val earlyEnd = changes(row(1, "end", periods = listOf("4"), values = mapOf("end" to "11:45")))
+        val lateStart = changes(row(1, "start", periods = listOf("6"), values = mapOf("start" to "13:40")))
+
+        val block = CourseMeetings.meeting(split, listOf("4", "6"), thursday, earlyEnd)!!
+        assertEquals(listOf("4", "6"), block.periods)
+        assertEquals(time("11:20") to time("14:10"), block.start to block.end)
+        assertEquals(null to null, block.originalStart to block.originalEnd)
+        assertTrue(block.hasChangedTime)
+        assertTrue(CourseMeetings.meeting(split, listOf("4", "6"), thursday, lateStart)!!.hasChangedTime)
+        val alone = CourseMeetings.meeting(split, listOf("4"), thursday, earlyEnd)!!
+        assertEquals(time("12:10"), alone.originalEnd)
+        assertTrue(alone.hasChangedTime)
+        assertFalse("one meeting has no inner time", alone.innerTimesChanged)
+        assertTrue("the time surfaces' fragments", CourseMeetings.buildSlots(listOf(split), thursday, earlyEnd).none { it.innerTimesChanged })
+    }
+
+    @Test
+    fun `a block over two meetings whose outer ends moved has no inner change`() {
+        val split = course(periods = listOf("4", "6"))
+        val changes = changes(
+            row(1, "start", periods = listOf("4"), values = mapOf("start" to "11:00")),
+            row(2, "end", periods = listOf("6"), values = mapOf("end" to "14:30")),
+        )
+
+        val block = CourseMeetings.meeting(split, listOf("4", "6"), thursday, changes)!!
+        assertEquals(time("11:00") to time("14:30"), block.start to block.end)
+        assertEquals(time("11:20") to time("14:10"), block.originalStart to block.originalEnd)
+        assertFalse(block.innerTimesChanged)
+    }
+
+    @Test
     fun `a meeting over periods the course does not have that day is null`() {
         assertNull(CourseMeetings.meeting(course(), listOf("9"), thursday, CourseChanges.EMPTY))
         assertNull(CourseMeetings.meeting(course(), morning, thursday.plusDays(1), CourseChanges.EMPTY))

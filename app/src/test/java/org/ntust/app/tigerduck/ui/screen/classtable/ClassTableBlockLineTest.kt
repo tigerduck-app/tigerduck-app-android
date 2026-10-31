@@ -9,7 +9,7 @@ import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
 import org.ntust.app.tigerduck.coursechanges.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 
-/** A class table block's bottom line under the school's changes, as on iOS. */
+/** A class table block's time and bottom lines under the school's changes, as on iOS. */
 class ClassTableBlockLineTest {
 
     private val roomless: Course = Course.fromSchedule(
@@ -37,5 +37,16 @@ class ClassTableBlockLineTest {
     fun `an unchanged block keeps its room hint`() {
         assertEquals(BlockLine("T4-501", moved = false, cancelled = false), blockBottomLine(null, "T4-501", true, "Cancelled"))
         assertNull(blockBottomLine(null, null, false, "Cancelled"))
+    }
+
+    @Test
+    fun `a block whose inner end moved shows both its ends`() {
+        val split = CourseChangeFixture.course(listOf("4", "6"))
+        val changes = CourseChangeFixture.changes(row(1, "end", periods = listOf("4"), values = mapOf("end" to "11:45")))
+        val block = CourseMeetings.meeting(split, listOf("4", "6"), CourseChangeFixture.thursday, changes)!!
+        val alone = CourseMeetings.meeting(split, listOf("4"), CourseChangeFixture.thursday, changes)!!
+
+        assertEquals("11:20–14:10", changedTimeText(block))
+        assertEquals("–11:45", changedTimeText(alone))
     }
 }

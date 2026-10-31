@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
 import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.Course
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDate
@@ -40,8 +41,11 @@ class ClassTableChangesGridTest {
         ),
     )
 
-    private fun show(thisWeek: ClassTableWeek?, nowMinute: Int? = null) {
-        val courses = listOf(CourseChangeFixture.course())
+    private fun show(
+        thisWeek: ClassTableWeek?,
+        nowMinute: Int? = null,
+        courses: List<Course> = listOf(CourseChangeFixture.course()),
+    ) {
         composeRule.setContent {
             TimetableGrid(
                 courses = courses,
@@ -66,6 +70,16 @@ class ClassTableChangesGridTest {
         assertTrue("the old room is not read as well: $morning", "T4-501" !in morning)
         assertTrue(morning, "09:40 - 12:10" in morning)
         assertTrue(morning, "Midterm" in morning)
+    }
+
+    @Test
+    fun `a block over two meetings tells its time when the inner end moved`() {
+        // Period 5 is hidden, so periods 4 and 6 are one block.
+        val split = CourseChangeFixture.course(periods = listOf("4", "6"))
+        val changes = CourseChangeFixture.changes(row(1, "end", periods = listOf("4"), values = mapOf("end" to "11:45")))
+        show(ClassTableWeek(CourseChangeFixture.thursday, changes), courses = listOf(split))
+        val block = labels().single()
+        assertTrue(block, "11:20 - 14:10" in block)
     }
 
     @Test

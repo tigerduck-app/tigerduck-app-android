@@ -37,7 +37,8 @@ object CourseChangeSummary {
     /**
      * At most [MAX_ROWS] days' changes in a line each, from [days] as
      * [CourseMeetings.upcomingChanges] gives them. The room, time or cancellation of the meeting the
-     * cards show ([shown]) is left to the cards; its notes stay, as the cards have no place for them.
+     * cards show ([shown]) is left to the cards; its notes stay, as the cards have no place for them,
+     * and so does the time of each meeting [shown] spans with others, as the cards show only its ends.
      * [cancelled] is the 停課 word in the app's language, and [locale] picks each note's language.
      */
     fun rows(days: List<ChangedDay>, shown: ClassSlot?, cancelled: String, locale: Locale): List<CourseChangeRow> =
@@ -55,6 +56,11 @@ object CourseChangeSummary {
                 parts += meeting.changes
                     .filter { change -> change.kind == CourseChange.Kind.ROOM && shown.periods.none(change::covers) }
                     .mapNotNull { it.room }
+                // A block over more meetings shows only its outer ends, so this meeting's own time says
+                // which part moved.
+                if (meeting.hasChangedTime && shown.periods.any { it !in meeting.periods }) {
+                    parts += "${hm(meeting.start)} - ${hm(meeting.end)}"
+                }
                 continue
             }
             if (meeting.isCancelled) {

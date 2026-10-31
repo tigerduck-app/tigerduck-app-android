@@ -31,6 +31,11 @@ data class ClassSlot(
     /** The timetable's time, kept only when a change moved it. */
     val originalStart: LocalTime? = null,
     val originalEnd: LocalTime? = null,
+    /**
+     * Whether a time between merged meetings moved, which [start] and [end] cannot show: with
+     * period 5 hidden, periods 4 and 6 are one block, and period 4 may end early.
+     */
+    val innerTimesChanged: Boolean = false,
 ) {
     /** 1 = Monday … 7 = Sunday, as course schedules are keyed. */
     val weekday: Int get() = date.dayOfWeek.value
@@ -45,7 +50,7 @@ data class ClassSlot(
 
     val hasChangedRoom: Boolean get() = changes.any { it.kind == Kind.ROOM }
 
-    val hasChangedTime: Boolean get() = originalStart != null || originalEnd != null
+    val hasChangedTime: Boolean get() = originalStart != null || originalEnd != null || innerTimesChanged
 
     /**
      * The changed room, else the timetable's room for these periods. A merged meeting moved to
@@ -241,7 +246,10 @@ object CourseMeetings {
         }
     }
 
-    /** The meetings as one slot: their own start and end, and cancelled only when every period is. */
+    /**
+     * The meetings as one slot: their own start and end, and cancelled only when every period is.
+     * A moved end between two of them marks the slot's time as changed though its own ends held.
+     */
     private fun merged(meetings: List<Meeting>): ClassSlot? {
         val first = meetings.firstOrNull() ?: return null
         val last = meetings.last()
@@ -260,6 +268,8 @@ object CourseMeetings {
             changes = kept,
             originalStart = first.timetableStart.takeIf { it != first.start },
             originalEnd = last.timetableEnd.takeIf { it != last.end },
+            innerTimesChanged = meetings.dropLast(1).any { it.end != it.timetableEnd } ||
+                meetings.drop(1).any { it.start != it.timetableStart },
         )
     }
 

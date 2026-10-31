@@ -59,6 +59,18 @@ class CourseChangeSummaryTest {
     }
 
     @Test
+    fun `the changes list names an inner meeting's time a block over several meetings cannot show`() {
+        val split = course(periods = listOf("4", "6"))
+        val changes = changes(row(1, "end", periods = listOf("4"), values = mapOf("end" to "11:45")))
+        val days = CourseMeetings.upcomingChanges(split, thursday, changes)
+        val block = CourseChangeSummary.shownMeeting(split, null, listOf("4", "6"), thursday, changes)!!
+        val alone = CourseChangeSummary.shownMeeting(split, null, listOf("4"), thursday, changes)!!
+
+        assertEquals(listOf("11:20 - 11:45"), rows(days, shown = block).map { it.summary })
+        assertTrue("the cards show the meeting's own time", rows(days, shown = alone).isEmpty())
+    }
+
+    @Test
     fun `a tapped class shows its own changes while a timetable block shows its meeting`() {
         val changes = changes(
             row(1, "cancelled", periods = listOf("2")),
