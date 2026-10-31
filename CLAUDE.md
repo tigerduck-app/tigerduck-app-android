@@ -122,6 +122,23 @@ default is silently dropped and the field is null at runtime.
 - **No `Co-Authored-By: Claude` trailer** on commits — per global user
   preference. Applies to every commit in this repo, every workflow.
 
+## Shared homes
+
+Each rule below lives in one place. A second copy fails
+`tools/guardrails/check_guardrails.py` (CI job `guardrails`); its
+`baseline.json` lists today's offenses and may only shrink. Run
+`python3 tools/guardrails/check_guardrails.py --update-baseline` after fixing
+some. The same check fails a new Kotlin file over 400 lines or function over 80.
+
+- `TaipeiClock` (`shared/.../time/TaipeiClock.kt`, coming): the `"Asia/Taipei"`
+  zone and Taipei's day and clock. No other file writes the literal.
+- `AcademicTerm` (`shared/.../time/AcademicTerm.kt`, coming): parsing and
+  ordering of term codes. No other file sorts by a semester or term string.
+- `ClassTimeline` (`shared/.../timeline/`, coming): which class is ongoing or
+  next, with D2's end rule (`start <= now < end`), for every screen.
+- `AppPreferences` reads `BuildConfig` for the `"fdroid"` flavor; no other file
+  compares against the literal.
+
 ## Greptile
 
 `.greptile/rules.md` carries project-specific review rules — both

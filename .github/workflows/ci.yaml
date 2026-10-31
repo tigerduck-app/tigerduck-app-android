@@ -140,3 +140,33 @@ jobs:
 
       - name: Test tools/localization
         run: python3 -m unittest discover -s tools/localization -v
+
+  guardrails:
+    # tools/guardrails/check_guardrails.py fails a new Kotlin file over 400
+    # lines, a new function over 80, and a second copy of a rule that has one
+    # home (the Taipei zone, the flavor name, term-code sorting). Today's
+    # offenses sit in baseline.json, which may only shrink. Stdlib only, on
+    # the Python floor the localization job tests.
+    name: guardrails
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.9"
+
+      - name: Test the checker
+        run: python3 -m unittest discover -s tools/guardrails -v
+
+      - name: Check the tree against the baseline
+        run: python3 tools/guardrails/check_guardrails.py
+
+      # A PR could raise baseline.json to make its own offenses pass, so the
+      # baseline is also held to the target branch's: it may only shrink.
+      - name: Check the baseline against the target branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags --depth=1 origin "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF"
+          python3 tools/guardrails/check_guardrails.py --against-ref "origin/$BASE_REF"
