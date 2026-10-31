@@ -1358,7 +1358,8 @@ internal interface ClassReminderSyncStore {
  * - A push that lands records what it sent. A pull records each section it
  *   finds with no unconfirmed edit at the values it then holds.
  * - A 同步內容 switch turned back on makes that section's values the record,
- *   so what was edited while it was off gives way too.
+ *   so what was edited while it was off gives way too. A push that was
+ *   already on the wire then lands without recording.
  * - The first launch of this build, once per device ([LastSyncedSeed]) and
  *   signed in to the school, records each section with no edit pending at
  *   its values. A section with one gets [SENDS_EVERY_FIELD]: that edit was
@@ -1571,6 +1572,35 @@ class NotificationSettingsSync internal constructor(
     // (NotificationSettingsPushQueue.enqueueReconcile).
     private val documentLock = Mutex()
 
+    /**
+     * Held around a switch restart ([restartRecord]) and around the two
+     * moments of a push that touch the record a restart writes: reading it
+     * as the base of its merge, and recording what it sent once it lands
+     * ([pushNow]). Never across a suspension, so the restart, which must not
+     * wait on [documentLock] (a pull holds that for the whole of its read),
+     * waits at most for a few field reads and writes. Guards
+     * [liveActivityRestarts] and [assignmentRestarts].
+     */
+    private val recordLock = Any()
+
+    /**
+     * How many times a 同步內容 switch turned back on has restarted the
+     * `live_activity` / `assignments` record ([restartRecord]). A push reads
+     * its section's count with the record it merges against, and once it
+     * lands records what it sent only if the count has not moved since. A
+     * restart that came while the push was on the wire made the section's
+     * values at that turn-on the record; an older push putting back what it
+     * sent would make an edit made while the switch was off read as this
+     * device's change, and the next push would send it instead of taking the
+     * account's value. The `courses` section has no switch, so no count.
+     *
+     * In memory only: a count has only to outlast a push that is on the wire,
+     * and a process death ends that push too, before its landing records
+     * anything.
+     */
+    private var liveActivityRestarts = 0
+    private var assignmentRestarts = 0
+
     // How many pushes in a row have failed outright (an exception from
     // pushNow(), never a closed-gate no-op — see the init loop below). The
     // loop bumps and reads it on the application scope's dispatcher, while
@@ -1682,8 +1712,10 @@ class NotificationSettingsSync internal constructor(
      * found nothing changed, sent nothing, and the pull took the edit back.
      * Taken at once, each restart records the values of its own turn-on.
      * The pull still goes through [pullNow], under [documentLock] like every
-     * other pull and push; the restart, as before, does not take the lock,
-     * which a pull holds for the whole of its read.
+     * other pull and push; the restart, as before, does not take that lock,
+     * which a pull holds for the whole of its read. It takes [recordLock]
+     * instead, which no one holds across a round trip, so a push on the wire
+     * cannot put its older record back over it.
      */
     private suspend fun switchChanged(isOn: () -> Boolean, section: String, restart: () -> Unit) {
         val turnedOn = try {
@@ -1727,13 +1759,19 @@ class NotificationSettingsSync internal constructor(
      * An edit made while the switch was off is still unconfirmed, so that
      * pull leaves the section to its push, which now has nothing to send, and
      * runs again once it lands ([takeOwedPull]).
+     *
+     * A push already on the wire when the switch came on read the record
+     * before this restart; when it lands, it leaves this record alone
+     * ([liveActivityRestarts]).
      */
-    private fun restartRecord(liveActivity: Boolean = false, assignments: Boolean = false) {
+    private fun restartRecord(liveActivity: Boolean = false, assignments: Boolean = false) = synchronized(recordLock) {
         fun restartable(text: String?) = recordedSection(text)?.isEmpty == false
         if (liveActivity && restartable(lastSynced.liveActivity)) {
+            liveActivityRestarts++
             lastSynced.liveActivity = liveActivityPreferences.syncSnapshot().syncedSection().toString()
         }
         if (assignments && restartable(lastSynced.assignments)) {
+            assignmentRestarts++
             lastSynced.assignments = assignmentValues().syncedSection().toString()
         }
     }
@@ -2219,7 +2257,12 @@ class NotificationSettingsSync internal constructor(
      * at all when the document already holds them; a push that lands records
      * the values it sent, under the account it was queued for. An edit made
      * while it was on the wire then differs from that record, and its own
-     * push sends it.
+     * push sends it. A switch turned back on while it was on the wire
+     * restarted the record ([restartRecord]), and the push leaves that newer
+     * record in place: it reads its section's restart count with the record
+     * it merges against, and records only if the count has not moved, both
+     * under [recordLock], so no restart lands between the check and the
+     * write.
      *
      * Returns `true` if any section's push landed (a push whose change the
      * document already held counts as landed), so the retry loop above only
@@ -2233,6 +2276,8 @@ class NotificationSettingsSync internal constructor(
         var liveActivitySucceeded = false
         if (liveActivityPreferences.hasUnconfirmedSyncEdit) {
             val sentLiveActivity = liveActivityPreferences.syncSnapshot()
+            val (liveActivityBase, liveActivityRestartsAtBase) =
+                synchronized(recordLock) { recordedSection(lastSynced.liveActivity) to liveActivityRestarts }
             liveActivitySucceeded = pushLiveActivitySettings(
                 local = sentLiveActivity,
                 transport = transport,
@@ -2240,10 +2285,12 @@ class NotificationSettingsSync internal constructor(
                 syncLiveActivity = syncLiveActivity(),
                 isLoggedIn = isLoggedIn(),
                 isCurrentGeneration = { queuedGeneration == generation.get() },
-                lastSynced = recordedSection(lastSynced.liveActivity),
+                lastSynced = liveActivityBase,
             )
-            if (liveActivitySucceeded && queuedGeneration == generation.get()) {
-                lastSynced.liveActivity = sentLiveActivity.syncedSection().toString()
+            if (liveActivitySucceeded) synchronized(recordLock) {
+                if (queuedGeneration == generation.get() && liveActivityRestarts == liveActivityRestartsAtBase) {
+                    lastSynced.liveActivity = sentLiveActivity.syncedSection().toString()
+                }
             }
             // Cleared only by a push that landed, and only if the five
             // values still equal what it sent. A gate-closed `false`, an
@@ -2264,6 +2311,8 @@ class NotificationSettingsSync internal constructor(
         var assignmentsSucceeded = false
         if (assignmentStore.hasUnconfirmedEdit) {
             val sentAssignments = AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
+            val (assignmentsBase, assignmentRestartsAtBase) =
+                synchronized(recordLock) { recordedSection(lastSynced.assignments) to assignmentRestarts }
             assignmentsSucceeded = pushAssignmentSettings(
                 local = sentAssignments,
                 transport = transport,
@@ -2271,10 +2320,12 @@ class NotificationSettingsSync internal constructor(
                 syncAssignmentReminders = syncAssignmentReminders(),
                 isLoggedIn = isLoggedIn(),
                 isCurrentGeneration = { queuedGeneration == generation.get() },
-                lastSynced = recordedSection(lastSynced.assignments),
+                lastSynced = assignmentsBase,
             )
-            if (assignmentsSucceeded && queuedGeneration == generation.get()) {
-                lastSynced.assignments = sentAssignments.syncedSection().toString()
+            if (assignmentsSucceeded) synchronized(recordLock) {
+                if (queuedGeneration == generation.get() && assignmentRestarts == assignmentRestartsAtBase) {
+                    lastSynced.assignments = sentAssignments.syncedSection().toString()
+                }
             }
             val currentAssignments =
                 AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)

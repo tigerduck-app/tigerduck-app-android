@@ -781,6 +781,13 @@ class NotificationSettingsSyncTest {
          * still on the wire while other requests land. One-shot.
          */
         var holdRead: CompletableDeferred<Unit>? = null
+
+        /**
+         * When set, the next write goes out, past its account check, but
+         * lands only once this completes: a push still on the wire while
+         * other things happen on the phone. One-shot.
+         */
+        var holdWrite: CompletableDeferred<Unit>? = null
         var reads = 0
             private set
         val writes = mutableListOf<JsonObject>()
@@ -805,6 +812,10 @@ class NotificationSettingsSyncTest {
         ): SettingsWriteResult<JsonObject> {
             if (!isCurrent()) return SettingsWriteResult.Abandoned
             if (offline) throw SettingsDocumentApiException("write notification: offline")
+            holdWrite?.let { landing ->
+                holdWrite = null
+                landing.await()
+            }
             duringWrite()
             writes += document
             this.document = document
@@ -2983,6 +2994,113 @@ class NotificationSettingsSyncTest {
             device.assignments.offsets,
         )
         assertFalse("while the iPhone's change arrives", device.assignments.enabled)
+        assertFalse(device.assignments.hasUnconfirmedEdit)
+    }
+
+    /** What [Device.lastSynced] records for [section], as JSON. */
+    private fun Device.recorded(section: String): JsonObject = json(
+        checkNotNull(
+            when (section) {
+                "live_activity" -> lastSynced.liveActivity
+                "assignments" -> lastSynced.assignments
+                else -> lastSynced.courses
+            }
+        ) { "nothing recorded for $section" }
+    )
+
+    @Test
+    fun `a live_activity push still on the wire when the switch goes off and on again leaves the turn-on's record`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        device.server("A").document = json(sharedLiveActivity)
+        device.sync.pullNow()
+
+        // An edit's push goes out, and is still on the wire while the switch
+        // goes off, the lead time moves again, and the switch comes back on.
+        val landing = CompletableDeferred<Unit>()
+        device.server("A").holdWrite = landing
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+        device.switchLiveActivitySync(false)
+        runCurrent()
+        device.prefs.classPreparingLeadTimeSec = 3_600
+        device.sync.markUnconfirmedAndPush()
+        device.switchLiveActivitySync(true)
+        runCurrent()
+        assertEquals(
+            "the turn-on records the values it finds",
+            3_600,
+            device.recorded("live_activity").get("class_preparing_lead_seconds").asInt,
+        )
+
+        landing.complete(Unit)
+        runCurrent()
+        assertEquals(
+            "the older push's landing leaves the turn-on's record",
+            3_600,
+            device.recorded("live_activity").get("class_preparing_lead_seconds").asInt,
+        )
+
+        runQueue()
+        assertEquals(
+            "nothing goes up after the push that was on the wire",
+            listOf(1_800),
+            device.server("A").writes.map { it.getAsJsonObject("live_activity").get("class_preparing_lead_seconds").asInt },
+        )
+        assertEquals(
+            "the edit made while the switch was off gives way to the account's value",
+            1_800L,
+            device.prefs.classPreparingLeadTimeSec,
+        )
+        assertFalse(device.prefs.hasUnconfirmedSyncEdit)
+    }
+
+    @Test
+    fun `an assignments push still on the wire when the switch goes off and on again leaves the turn-on's record`() = runTest {
+        val device = Device(backgroundScope)
+        device.syncLiveActivity = false
+        device.signIn("A")
+        device.server("A").document = json(defaultsDocument)
+        device.sync.pullNow()
+
+        // An edit's push goes out, and is still on the wire while the switch
+        // goes off, reminders are turned off here, and the switch comes back on.
+        val landing = CompletableDeferred<Unit>()
+        device.server("A").holdWrite = landing
+        device.assignments.offsets = AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10
+        device.sync.markAssignmentUnconfirmedAndPush()
+        runQueue()
+        device.switchAssignmentReminderSync(false)
+        runCurrent()
+        device.assignments.enabled = false
+        device.sync.markAssignmentUnconfirmedAndPush()
+        device.switchAssignmentReminderSync(true)
+        runCurrent()
+        assertFalse("the turn-on records the values it finds", device.recorded("assignments").get("enabled").asBoolean)
+
+        landing.complete(Unit)
+        runCurrent()
+        assertFalse(
+            "the older push's landing leaves the turn-on's record",
+            device.recorded("assignments").get("enabled").asBoolean,
+        )
+
+        runQueue()
+        assertEquals(
+            "nothing goes up after the push that was on the wire",
+            listOf(true),
+            device.server("A").writes.map { it.getAsJsonObject("assignments").get("enabled").asBoolean },
+        )
+        assertTrue(
+            "the switch-off made while sync was off gives way to the account's value",
+            device.assignments.enabled,
+        )
+        assertEquals(
+            "beside the edit that went up before",
+            AssignmentReminderOffset.DEFAULTS + AssignmentReminderOffset.MIN10,
+            device.assignments.offsets,
+        )
         assertFalse(device.assignments.hasUnconfirmedEdit)
     }
 
