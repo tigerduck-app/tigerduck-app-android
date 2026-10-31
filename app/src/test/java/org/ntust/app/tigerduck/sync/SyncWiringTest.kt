@@ -211,7 +211,7 @@ class SyncWiringTest {
         val body = body("ui/screen/home/HomeBackendSync.kt", "pull")
         val retry = body.indexOf("retryUnsent()")
         val fetch = body.indexOf("syncApiClient.fetchFullSync()")
-        val merged = body.indexOf("pendingHolidayOverrides.merged(")
+        val merged = body.indexOf("HolidayOverrideApply.apply(")
         assertTrue("Home's sync no longer sends the waiting holiday choices before the snapshot", retry in 0 until fetch)
         assertTrue("Home's sync no longer keeps the waiting holiday choices over the snapshot", merged > fetch)
         assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "pendingHolidayOverrides.retry()")
@@ -219,12 +219,23 @@ class SyncWiringTest {
 
     /** tigerduck-app-android#404: applied after the sign-out cleared them, the departing account's choices came back. */
     @Test
-    fun `Home's sync applies the holiday snapshot only under the sign-in it fetched with`() {
-        val body = body("ui/screen/home/HomeBackendSync.kt", "pull")
+    fun `Home's sync and the worker apply the holiday snapshot through the one apply, under the sign-in it fetched with`() {
+        for ((rel, name) in listOf("ui/screen/home/HomeBackendSync.kt" to "pull", "notification/BackgroundSyncWorker.kt" to "syncOverridesFromBackend")) {
+            assertCalls(rel, name, "HolidayOverrideApply.apply(", "signIn, pendingHolidayOverrides, academicCalendar")
+        }
+        val apply = source("data/HolidayOverrideApply.kt").joinToString("\n")
         assertTrue(
-            "the holiday snapshot is no longer applied under authTokenManager.runIfSignedIn(signIn)",
-            Regex("""authTokenManager\.runIfSignedIn\(signIn\) \{\s*(?://[^\n]*\s*)*pendingHolidayOverrides\.merged\(""").containsMatchIn(body),
+            "the holiday snapshot is no longer applied under runIfSignedIn(signIn)",
+            Regex("""runIfSignedIn\(signIn\) \{\s*pending\.merged\(""").containsMatchIn(apply),
         )
+    }
+
+    /** Names go through the one apply, with the same re-enable hold as colours. */
+    @Test
+    fun `Home's sync and the worker apply custom names through the one apply, held for the re-enable check`() {
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseOverrides", "CourseSyncReconciler.applyNameOverrides(")
+        assertCalls("notification/BackgroundSyncWorker.kt", "applyCourseOverridesBackground", "CourseSyncReconciler.applyNameOverrides(")
+        assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "CourseSyncReconciler.syncsCourseNames(")
     }
 
     /** tigerduck-app-android#404: the switches kept the set they were built with. */

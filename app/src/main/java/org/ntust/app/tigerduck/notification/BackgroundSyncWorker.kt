@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
+import org.ntust.app.tigerduck.data.HolidayOverrideApply
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.auth.retryingAfterRelogin
 import org.ntust.app.tigerduck.data.PendingCourseAdds
@@ -227,14 +228,25 @@ class BackgroundSyncWorker @AssistedInject constructor(
             val marksChanged = marks.changed
             courseIgnoreSync.applySnapshot(result, generation)
 
-            // Not over a colours re-enable check still waiting for the user.
-            val syncColors = CourseSyncReconciler.syncsCourseColors(
-                prefs.syncCourseColors, prefs.pendingConflictCategories,
-            )
-            if (syncColors && result.courseOverrides.isNotEmpty()) {
-                // Not over a colour this phone has waiting to go up, or sent
-                // since the fetch: the snapshot's is the older.
-                applyCourseOverridesBackground(result.courseOverrides, pendingCourseOverrides.held(result.fetchedAtMs))
+            // Not over a colours or names re-enable check still waiting for the user.
+            val pending = prefs.pendingConflictCategories
+            val syncColors = CourseSyncReconciler.syncsCourseColors(prefs.syncCourseColors, pending)
+            val syncNames = CourseSyncReconciler.syncsCourseNames(prefs.syncCourseNames, pending)
+            if ((syncColors || syncNames) && result.courseOverrides.isNotEmpty()) {
+                // Not over a colour or name this phone has waiting to go up, or
+                // sent since the fetch: the snapshot's is the older.
+                applyCourseOverridesBackground(
+                    result.courseOverrides, pendingCourseOverrides.held(result.fetchedAtMs), syncColors, syncNames,
+                )
+            }
+            // Not gated on the per-category switches, as in Home's sync: a
+            // holiday exception is a notification setting. Null is a backend
+            // that does not send the section, so the local set stands.
+            result.holidayOverrides?.let { snapshot ->
+                HolidayOverrideApply.apply(
+                    snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar,
+                    authTokenManager::runIfSignedIn,
+                )
             }
             if (CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.pendingConflictCategories)) {
                 reconcileCurrentSemester(result, courseSync)
@@ -390,17 +402,23 @@ class BackgroundSyncWorker @AssistedInject constructor(
     }
 
     /**
-     * Home's colour pass ([CourseSyncReconciler.applyColorOverrides]) over the
-     * cached term, [held] being what the snapshot must not overwrite.
+     * Home's colour and name passes ([CourseSyncReconciler.applyColorOverrides],
+     * [CourseSyncReconciler.applyNameOverrides]) over the cached term, [held]
+     * being what the snapshot must not overwrite. With no course cached
+     * nothing is applied, names included, as in Home.
      */
     private suspend fun applyCourseOverridesBackground(
         overrides: List<org.ntust.app.tigerduck.push.CourseOverrideResult>,
         held: Set<String>,
+        syncColors: Boolean,
+        syncNames: Boolean,
     ) {
+        val courses = dataCache.loadCourses().ifEmpty { return }
+        CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, held)
         val outcome = CourseSyncReconciler.applyColorOverrides(
-            courses = dataCache.loadCourses(),
+            courses = courses,
             overrides = overrides,
-            syncColors = true,
+            syncColors = syncColors,
             held = held,
         ) ?: return
         dataCache.saveCourses(outcome.courses)

@@ -16,6 +16,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.TranscriptTerms
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseTombstone
@@ -660,6 +661,25 @@ object CourseSyncReconciler {
             .mapNotNull { course -> course.customColorHex?.let { course.courseNo to it } }
             .toMap()
         return if (updated == courses && moved.isEmpty()) null else ColorOutcome(updated, moved)
+    }
+
+    /**
+     * Merges the snapshot's custom names ([mergeCustomNames]) into [dataCache]'s,
+     * writing only when something changed. Home's sync and the background
+     * worker apply names through this one, so a rule changed here reaches both.
+     */
+    internal suspend fun applyNameOverrides(
+        dataCache: DataCache,
+        overrides: List<CourseOverrideResult>,
+        syncNames: Boolean,
+        held: Set<String> = emptySet(),
+    ) {
+        mergeCustomNames(
+            existing = dataCache.loadCourseCustomNames(),
+            overrides = overrides,
+            syncNames = syncNames,
+            held = held,
+        )?.let { dataCache.saveCourseCustomNames(it) }
     }
 
     /**

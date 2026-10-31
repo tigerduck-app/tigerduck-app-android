@@ -353,4 +353,61 @@ class BackgroundSyncWorkerTest {
         assertTrue(!BackgroundSyncWorker.firstRunOfTerm("1142", term, java.time.LocalDate.of(2026, 9, 6)))
         assertTrue(!BackgroundSyncWorker.firstRunOfTerm("1142", term = null, today = java.time.LocalDate.of(2026, 9, 7)))
     }
+
+    // The worker cannot be built in a JVM test (a Hilt worker with two dozen
+    // collaborators), so these drive the two applies it calls, over a real
+    // cache and calendar store, as SyncWiringTest pins that it calls them.
+    private val appPrefs by lazy { org.ntust.app.tigerduck.data.preferences.AppPreferences(context) }
+    private val calendar by lazy {
+        org.ntust.app.tigerduck.academic.AcademicCalendarStore(context, okhttp3.OkHttpClient(), appPrefs)
+    }
+    private val cache by lazy { org.ntust.app.tigerduck.data.cache.DataCache(context, calendar) }
+
+    private fun override(courseNo: String, names: Map<String, String>) =
+        org.ntust.app.tigerduck.push.CourseOverrideResult(
+            moodleCourseId = "m-$courseNo", courseNo = courseNo, colorHex = null, customNames = names,
+        )
+
+    @Test
+    fun `a background sync applies the server's custom course names when name sync is on`() = kotlinx.coroutines.test.runTest {
+        val syncNames = org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.syncsCourseNames(true, emptySet())
+
+        org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.applyNameOverrides(
+            cache, listOf(override("CS1001", mapOf("zh-Hant" to "資結"))), syncNames,
+        )
+
+        assertEquals(mapOf("CS1001" to mapOf("zh-Hant" to "資結")), cache.loadCourseCustomNames())
+    }
+
+    @Test
+    fun `a background sync leaves custom names alone when name sync is off`() = kotlinx.coroutines.test.runTest {
+        val off = org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.syncsCourseNames(false, emptySet())
+        // On, but held for the re-enable check the user has yet to answer.
+        val held = org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.syncsCourseNames(true, setOf("course_names"))
+        val names = listOf(override("CS1001", mapOf("zh-Hant" to "資結")))
+
+        org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.applyNameOverrides(cache, names, off)
+        org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler.applyNameOverrides(cache, names, held)
+
+        assertEquals(emptyMap<String, Map<String, String>>(), cache.loadCourseCustomNames())
+    }
+
+    @Test
+    fun `a background sync applies the server's holiday choices`() {
+        val pending = org.ntust.app.tigerduck.data.PendingHolidayOverrides(
+            prefs = appPrefs,
+            sender = org.ntust.app.tigerduck.data.HolidayOverrideSender { _, _, _ -> true },
+            syncs = { true },
+            signInGeneration = { 1 },
+            runIfSignedIn = { _, _ -> true },
+        )
+
+        org.ntust.app.tigerduck.data.HolidayOverrideApply.apply(
+            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = 1,
+            pending = pending, calendar = calendar,
+            runIfSignedIn = { signIn, block -> if (signIn == 1) { block(); true } else false },
+        )
+
+        assertEquals(setOf(3, 5), appPrefs.holidayNotifyOverrides)
+    }
 }

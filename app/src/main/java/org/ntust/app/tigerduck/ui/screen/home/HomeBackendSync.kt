@@ -40,6 +40,7 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.HolidayOverrideApply
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
@@ -235,12 +236,10 @@ class HomeBackendSync @Inject constructor(
             // landed stays as this phone has it, and a snapshot that may
             // predate one is not applied: see PendingHolidayOverrides.merged.
             result.holidayOverrides?.let { snapshot ->
-                authTokenManager.runIfSignedIn(signIn) {
-                    // Under the sign-out's lock: applied after its clear, the
-                    // departing account's choices would come back.
-                    pendingHolidayOverrides.merged(snapshot, result.fetchedAtMs, academicCalendar.optedInHolidayIds)
-                        ?.let(academicCalendar::applySyncedOverrides)
-                }
+                HolidayOverrideApply.apply(
+                    snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar,
+                    authTokenManager::runIfSignedIn,
+                )
             }
             val syncCourses = CourseSyncReconciler.syncsCourseList(
                 switchOn = "courses" in switchedOn,
@@ -432,12 +431,7 @@ class HomeBackendSync @Inject constructor(
         // this commit's business.
         val courses = state.allCourses.value.ifEmpty { return false }
 
-        CourseSyncReconciler.mergeCustomNames(
-            existing = dataCache.loadCourseCustomNames(),
-            overrides = overrides,
-            syncNames = syncNames,
-            held = held,
-        )?.let { dataCache.saveCourseCustomNames(it) }
+        CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, held)
 
         CourseSyncReconciler.applyColorOverrides(
             courses = courses,
