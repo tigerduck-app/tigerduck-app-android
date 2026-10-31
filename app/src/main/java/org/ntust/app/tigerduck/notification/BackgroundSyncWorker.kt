@@ -95,9 +95,17 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // is due, and the consent and flavor gates, are decided inside; a
         // no-op on fdroid.
         fcmBootstrap.retryRegistrationIfDue()
+        // The sign-in is read before the student, so a sign-in between the two reads ends the run.
+        val signIn = authTokenManager.signInGeneration
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
+        // The student alone would pass a sign-out and a sign-in as the same student.
+        val run = BackgroundRunAccount(
+            studentId, signIn,
+            currentStudentId = { authService.storedStudentId },
+            currentSignIn = { authTokenManager.signInGeneration },
+        )
 
         // A triggered run fetches everything: the server asked for it because
         // something changed. What it announced may postdate an answer the
@@ -117,7 +125,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         if (overridesDue) {
             syncOverridesFromBackend()
             // Signed out meanwhile: the stamp went with the account.
-            if (authService.storedStudentId != studentId) return Result.success()
+            if (run.ended()) return Result.success()
             prefs.backgroundOverridesSyncedAtMs = now
         }
 
@@ -146,7 +154,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         } == true
 
         val coursesOk = !coursesDue || syncCourses(studentId, password)
-        if (authService.storedStudentId != studentId) return Result.success()
+        if (run.ended()) return Result.success()
         if (coursesDue && coursesOk) {
             prefs.backgroundCoursesSyncedAtMs = now
             // The term the fetch covered, by the app's clock: see firstRunOfTerm.
@@ -158,7 +166,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             triggered -> moodleService.recheckingSubmissions { syncAssignments() }
             else -> syncAssignments()
         }
-        if (authService.storedStudentId != studentId) return Result.success()
+        if (run.ended()) return Result.success()
 
         // Only after something was fetched: with nothing new in the cache
         // there is nothing for the Live Update, the widgets or the open

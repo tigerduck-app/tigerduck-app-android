@@ -112,6 +112,29 @@ class SyncWiringTest {
         assertCalls("notification/BackgroundSyncWorker.kt", "reconcileCurrentSemester", "if (resetElsewhere) courseSync.supersedeAddsBack()")
     }
 
+    /**
+     * A background run that outlived its sign-in stops, a same-student one included: it asks
+     * [org.ntust.app.tigerduck.notification.BackgroundRunAccount] after each phase, before the
+     * stamps that date the data as fetched, and never compares the student ID alone.
+     */
+    @Test
+    fun `the worker stops a run whose sign-in ended before it stamps or refreshes`() {
+        val rel = "notification/BackgroundSyncWorker.kt"
+        val worker = body(rel, "doWork")
+        assertTrue("the worker no longer captures the sign-in", "authTokenManager.signInGeneration" in worker)
+        assertTrue("the worker compares the student ID alone again", "storedStudentId != studentId" !in worker)
+        for ((stamp, name) in listOf(
+            "prefs.backgroundOverridesSyncedAtMs = now" to "the backend stamp",
+            "prefs.backgroundCoursesSyncedAtMs = now" to "the courses stamp",
+            "liveActivityManager.refreshAndWait()" to "the refreshes",
+        )) {
+            val at = worker.indexOf(stamp)
+            assertTrue("the worker no longer has $name", at >= 0)
+            assertTrue("the worker no longer checks run.ended() before $name", worker.lastIndexOf("run.ended()", at) >= 0)
+        }
+        assertTrue("the worker does not check after the assignments", worker.indexOf("run.ended()", worker.indexOf("syncAssignments()")) >= 0)
+    }
+
     @Test
     fun `Home's sync records only the categories it took`() {
         assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "categoriesTaken(", "categoriesSynced(switchedOn, took, prefs)")
