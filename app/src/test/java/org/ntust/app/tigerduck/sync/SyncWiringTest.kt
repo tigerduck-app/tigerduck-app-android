@@ -38,6 +38,24 @@ class SyncWiringTest {
         return lines.subList(start, end).joinToString("\n")
     }
 
+    /**
+     * Whether [at] lies inside the braces of the nearest [opener] before it: that block (its braces
+     * balanced) is still open there, so an earlier block that has closed does not count.
+     */
+    private fun insideBlock(text: String, opener: String, at: Int): Boolean {
+        val open = text.lastIndexOf(opener, at)
+        if (open < 0) return false
+        var depth = 0
+        for (i in open + opener.length - 1 until at) {
+            when (text[i]) {
+                '{' -> depth++
+                '}' -> depth--
+            }
+            if (depth == 0) return false
+        }
+        return true
+    }
+
     private fun assertCalls(rel: String, name: String, vararg calls: String) {
         val body = body(rel, name)
         for (call in calls) assertTrue("$rel $name no longer calls $call", call in body)
@@ -127,7 +145,7 @@ class SyncWiringTest {
         for (stamp in listOf("prefs.backgroundOverridesSyncedAtMs = now", "prefs.backgroundCoursesSyncedAtMs = now", "prefs.backgroundCoursesTerm = term.code")) {
             val at = worker.indexOf(stamp)
             assertTrue("the worker no longer writes $stamp", at >= 0)
-            assertTrue("the worker writes $stamp outside run.writeIfCurrent", worker.lastIndexOf("run.writeIfCurrent {", at) >= 0)
+            assertTrue("the worker writes $stamp outside run.writeIfCurrent", insideBlock(worker, "run.writeIfCurrent {", at))
         }
         assertTrue("run.writeIfCurrent no longer runs under the sign-in lock", "runIfSignedIn = authTokenManager::runIfSignedIn" in worker)
         // The courses phase ends the run before the assignments, and passes its sign-in to the fetch.
