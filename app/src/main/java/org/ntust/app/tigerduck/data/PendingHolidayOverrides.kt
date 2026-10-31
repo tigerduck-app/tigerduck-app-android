@@ -85,12 +85,12 @@ class PendingHolidayOverrides internal constructor(
      */
     suspend fun send(holidayId: Int) {
         lastChangeAtMs = clock()
+        // Before the sync check: a choice still waiting from before is this one now, and goes up
+        // with this time whenever sync is on again.
+        synchronized(lock) { prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to lastChangeAtMs) }
         if (!syncs()) return
         val signIn = signInGeneration()
-        synchronized(lock) {
-            prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to clock())
-            prefs.holidayOverridesAwaitingUpload = waitingIds + holidayId
-        }
+        synchronized(lock) { prefs.holidayOverridesAwaitingUpload = waitingIds + holidayId }
         trySend(holidayId, signIn)
     }
 

@@ -116,7 +116,7 @@ class CourseIgnoreSync internal constructor(
         onWritten: () -> Unit = {},
     ) {
         val generation = currentGeneration()
-        val change = clock().let { PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, it, madeAtMs = it) }
+        val change = PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, clock())
         val key = CourseIgnores.key(semester, courseNo)
         val written = mutex.withLock {
             val keys = dataCache.loadIgnoredCourses()
@@ -438,7 +438,7 @@ class CourseIgnoreSync internal constructor(
             moodleId = moodleId,
             moodleCourseId = serverRow?.moodleNumericCourseId ?: course?.moodleNumericCourseId,
             ignore = ignore,
-            changedAtMs = now, madeAtMs = now,
+            changedAtMs = now,
         )
     }
 

@@ -146,7 +146,7 @@ class UnsentMarks internal constructor(
      * next account's.
      */
     private suspend fun trySend(tap: UnsentMark, generation: Int, signIn: Int) {
-        val id = tap.assignmentId ?: return
+        val id = tap.assignmentId.orEmpty()
         val status = tap.status ?: return
         val intId = id.toIntOrNull()
         val sent = sendMutex.withLock {

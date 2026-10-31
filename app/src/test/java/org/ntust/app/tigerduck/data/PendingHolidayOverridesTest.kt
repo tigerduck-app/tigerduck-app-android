@@ -117,6 +117,26 @@ class PendingHolidayOverridesTest {
     }
 
     @Test
+    fun `a choice made again while sync is off is sent with the time of the new edit`() = runTest {
+        answer = { _, _ -> throw IOException("offline") }
+        now = 2_000L
+        tap(3, notify = true)
+        assertEquals(setOf(3), holidays.waitingIds)
+
+        // TigerSync off: the flip is this phone's own, but the choice still waiting is now this one.
+        syncs = false
+        answer = { _, _ -> }
+        now = 3_000L
+        tap(3, notify = false)
+        syncs = true
+        now = 4_000L
+        holidays.retry()
+
+        assertEquals(listOf(3 to true, 3 to false), sent)
+        assertEquals(listOf<Long?>(2_000L, 3_000L), stamps)
+    }
+
+    @Test
     fun `a choice waiting from the build before has no time, and goes out without one`() = runTest {
         prefs.holidayNotifyOverrides = setOf(4)
         prefs.holidayOverridesAwaitingUpload = setOf(4)

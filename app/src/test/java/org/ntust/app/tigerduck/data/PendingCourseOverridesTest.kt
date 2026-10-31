@@ -96,7 +96,7 @@ class PendingCourseOverridesTest {
         assertEquals("the row keeps the time it was made", stamps.first(), cache.loadPendingCourseOverrides().single().madeAtMs)
         overrides.retry()
 
-        // Calculus's colour (T1) failed, physics's name (T2) landed, and the retry sent T1 again.
+        // Calculus's color (T1) failed, physics's name (T2) landed, and the retry sent T1 again.
         assertEquals(listOf(calculus, physics, calculus), patches.map { it.moodleId })
         val (first, second, retried) = stamps
         assertTrue("T1 is kept: $stamps", first != null && first < second!!)

@@ -4,7 +4,6 @@ import android.content.Context
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -46,7 +45,7 @@ class EditStampTest {
     private fun bodies(endpoint: String) = backend.received(endpoint).map { JSONObject(it.body) }
 
     @Test
-    fun `a course colour carries the time it was made as hlc`() = runTest {
+    fun `a course color carries the time it was made as hlc`() = runTest {
         api.patchCourseOverride("1151CS1", colorHex = "#FF0000", madeAtMs = madeAtMs)
 
         val body = bodies("PATCH /sync/courses/1151CS1/override").single()
@@ -104,7 +103,7 @@ class EditStampTest {
     @Test
     fun `a clock_ahead reply is resent once without hlc, for every kind`() = runTest {
         val course = "PATCH /sync/courses/1151CS1/override"
-        // The colour's 409, its resend, then the ignore's 409.
+        // The color's 409, its resend, then the ignore's 409.
         backend.answer(course, 409, clockAhead)
         backend.answer(course, 200, """{"color_hex":"#FF0000"}""")
         backend.answer(course, 409, clockAhead)
@@ -136,6 +135,29 @@ class EditStampTest {
             .exceptionOrNull() as PushApiException
         assertEquals(404, missing.statusCode)
         assertEquals(1, backend.received("PATCH /sync/assignments/7/override").size)
-        assertFalse(backend.received("PATCH /sync/assignments/7/override").isEmpty())
+    }
+
+    @Test
+    fun `a 409 that is not clock_ahead is not resent, for every kind`() = runTest {
+        val other = """{"detail":"conflict"}"""
+        val course = "PATCH /sync/courses/1151CS1/override"
+        backend.answer(course, 409, other)
+        backend.answer(course, 409, other)
+        backend.answer("PATCH /sync/assignments/7/override", 409, other)
+        backend.answer("PUT /sync/holiday-overrides/3", 409, other)
+
+        val failures = listOf(
+            runCatching { api.patchCourseOverride("1151CS1", colorHex = "#FF0000", madeAtMs = madeAtMs) },
+            runCatching { api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, madeAtMs = madeAtMs) },
+            runCatching { api.patchAssignmentOverride(7, "ignored", madeAtMs = madeAtMs) },
+            runCatching { api.putHolidayOverride(3, notify = true, madeAtMs = madeAtMs) },
+        ).map { (it.exceptionOrNull() as PushApiException).statusCode }
+
+        // The holiday PUT's refusal carries no status.
+        assertEquals(listOf<Int?>(409, 409, 409, null), failures)
+        assertEquals(2, backend.received(course).size)
+        assertEquals(1, backend.received("PATCH /sync/assignments/7/override").size)
+        assertEquals(1, backend.received("PUT /sync/holiday-overrides/3").size)
+        assertTrue((backend.received(course) + backend.received("PUT /sync/holiday-overrides/3")).all { "hlc" in it.body })
     }
 }

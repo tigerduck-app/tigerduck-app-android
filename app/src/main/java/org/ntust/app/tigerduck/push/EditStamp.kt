@@ -26,17 +26,9 @@ internal fun Map<String, Any>.stampedWith(hlc: Long?): Map<String, Any> =
  */
 internal fun <T> executeStamped(madeAtMs: Long?, call: (hlc: Long?) -> Call, handle: (Response) -> T): T {
     if (madeAtMs != null) {
-        var ahead = false
-        val handled = call(clockOf(madeAtMs)).execute().use { response ->
-            if (isClockAhead(response)) {
-                ahead = true
-                null
-            } else {
-                handle(response)
-            }
-        }
-        @Suppress("UNCHECKED_CAST")
-        if (!ahead) return handled as T
+        val stamped = call(clockOf(madeAtMs)).execute()
+        if (!isClockAhead(stamped)) return stamped.use(handle)
+        stamped.close()
     }
     return call(null).execute().use(handle)
 }

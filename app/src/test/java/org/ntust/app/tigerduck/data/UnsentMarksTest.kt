@@ -3,6 +3,9 @@
 package org.ntust.app.tigerduck.data
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -111,6 +114,47 @@ class UnsentMarksTest {
 
         assertEquals(listOf<Long?>(null), stamps)
         assertEquals(listOf(7 to "ignored"), sent)
+    }
+
+    @Test
+    fun `a stored row without an assignment id is dropped, and the others still go`() = runTest {
+        File(context.filesDir, "TigerDuckData/unsent_marks.json").writeText(
+            """[{"status":"ignored","attempts":0},{"assignmentId":"7","status":"ignored","attempts":0}]""",
+        )
+
+        marks.retry()
+
+        assertEquals(listOf(7 to "ignored"), sent)
+        val file = File(context.filesDir, "TigerDuckData/unsent_marks.json").readText()
+        assertEquals("the damaged row is gone from the file", false, "\"assignmentId\"" !in file && "status" in file)
+        assertEquals(false, """{"status""" in file)
+        assertEquals(emptyList<Any>(), cache.loadUnsentMarks())
+    }
+
+    @Test
+    fun `a second tap of the same status during the first one's request is sent with its own time`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        val arrived = CompletableDeferred<Unit>()
+        answer = { _, _ ->
+            arrived.complete(Unit)
+            gate.await()
+        }
+        now = 2_000L
+        val first = launch { marks.send("7", "ignored") }
+        arrived.await()
+        now = 3_000L
+        val second = launch { marks.send("7", "ignored") }
+        // Until the second tap has replaced the first on disk, before the first one lands.
+        withContext(Dispatchers.Default) {
+            while (cache.loadUnsentMarks().singleOrNull()?.madeAtMs != 3_000L) delay(5)
+        }
+        gate.complete(Unit)
+        first.join()
+        second.join()
+
+        // The first landing does not let go of the newer tap, which goes with its own time.
+        assertEquals(listOf<Long?>(2_000L, 3_000L), stamps)
+        assertEquals(emptySet<String>(), marks.ids())
     }
 
     @Test
