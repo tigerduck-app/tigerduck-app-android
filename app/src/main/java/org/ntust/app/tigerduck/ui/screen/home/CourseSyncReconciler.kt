@@ -203,7 +203,7 @@ object CourseSyncReconciler {
                 },
                 serverKnownNos = serverKnownNos,
                 left = left,
-                droppedOnServer = droppedOnServer,
+                droppedOnServer = droppedOnServer - selectionDroppedNos,
                 handAddedNos = handAddedNos,
             )
         }
@@ -257,7 +257,7 @@ object CourseSyncReconciler {
             merged = merged,
             serverKnownNos = serverKnownNos + serverNos,
             left = left,
-            droppedOnServer = droppedOnServer,
+            droppedOnServer = droppedOnServer - selectionDroppedNos,
             handAddedNos = handAddedNos,
         )
     }
@@ -268,7 +268,8 @@ object CourseSyncReconciler {
      * counts as enrolled. As the iPhone's `droppedOnServer`
      * (tigerduck-app#914), less its exception for a course selection answer
      * that listed the course live since the drop, whose time this phone does
-     * not keep.
+     * not keep: the commit leaves be a merged copy the latest answer lists
+     * ([committedCourses]).
      */
     fun droppedOnServer(rows: List<ServerCourse>): Set<String> =
         rows.filter { it.isDropped }.mapTo(mutableSetOf()) { it.courseNo }
@@ -314,9 +315,11 @@ object CourseSyncReconciler {
      * [left], the dropped courses ([SemesterOutcome.left]), go with no hide,
      * each only while it is still dropped as the term stands: on the drop
      * list now ([droppedHere]) or dropped in the snapshot
-     * ([droppedOnServer]), and not added back by hand since the read. A
-     * roster that listed it again since clears its drop, and the fetch keeps
-     * a merged copy's Moodle ID, so it would otherwise go regardless.
+     * ([droppedOnServer]) and not listed by the term's latest course
+     * selection answer ([listed]), and not added back by hand since the read.
+     * A roster that listed it again since clears its drop, and the fetch keeps
+     * a merged copy's Moodle ID, so it would otherwise go regardless. Such an
+     * answer is newer than the snapshot's drop, or else it left the course out.
      *
      * Nor does a row of [merged] that [droppedHere] names come down, but one
      * added by hand ([handAdded], [SemesterOutcome.handAddedNos]): the
@@ -334,11 +337,13 @@ object CourseSyncReconciler {
         droppedHere: Set<String> = emptySet(),
         droppedOnServer: Set<String> = emptySet(),
         handAdded: Set<String> = emptySet(),
+        listed: Set<String> = emptySet(),
     ): List<Course> {
         val pruned = read.mapTo(mutableSetOf()) { it.courseNo } - kept.mapTo(mutableSetOf()) { it.courseNo } + newlyHidden
+        val serverDrops = droppedOnServer - listed
         val held = current.filter {
             (it.courseNo !in pruned || it.courseNo !in hidden) &&
-                !(it.courseNo in left && leaves(it, droppedHere, droppedOnServer))
+                !(it.courseNo in left && leaves(it, droppedHere, serverDrops))
         }
         val heldNos = held.mapTo(mutableSetOf()) { it.courseNo }
         return held + merged.filter {
@@ -365,7 +370,11 @@ object CourseSyncReconciler {
          * dropped since, and courses fetched here that the drop list names.
          */
         val left: Set<String> = emptySet(),
-        /** The course numbers of the snapshot's rows of the term a roster dropped. */
+        /**
+         * The course numbers of the snapshot's rows of the term a roster dropped, for the commit,
+         * but those the drop list here named: the drop list as the commit finds it decides those,
+         * as a roster that took one off it since is newer than the snapshot.
+         */
         val droppedOnServer: Set<String> = emptySet(),
         /**
          * The courses added by hand, which no drop takes: added here, or a

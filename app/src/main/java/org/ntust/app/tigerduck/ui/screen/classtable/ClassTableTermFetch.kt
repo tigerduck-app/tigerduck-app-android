@@ -187,6 +187,13 @@ internal class ClassTableTermFetch(
      * ([withPendingEdits]); and the fold is made. The term can come on screen
      * during the reads, which is why the list is chosen after them.
      *
+     * The list on screen keeps no course the cache read lacks, but one whose
+     * add's save of the list has not landed ([unsavedAdds], read before the
+     * cache, so such a course is in one or the other): a sync or the
+     * background fetch may have taken it out of the cache, a dropped merged
+     * copy say, before its notice reached the screen, and the fold would
+     * keep it as a hand-added leftover and save it back.
+     *
      * [editGeneration] counts the term's in-place edits, bumped at the tap.
      * Read before the reads and again after them: an edit in between may have
      * reached the cache only after it was read, and the list on screen may
@@ -203,16 +210,19 @@ internal class ClassTableTermFetch(
         cachedCourses: suspend () -> List<Course>,
         storedTombstones: suspend () -> Set<String>,
         shownCourses: () -> List<Course>?,
+        unsavedAdds: () -> Set<String> = { emptySet() },
         withPendingEdits: (Set<String>) -> Set<String>,
         names: () -> CustomNameMap,
         locale: String,
     ): List<Course>? {
         repeat(SNAPSHOT_ATTEMPTS) {
             val generation = editGeneration()
+            val adding = unsavedAdds()
             val cached = cachedCourses()
             val stored = storedTombstones()
             if (editGeneration() != generation) return@repeat
-            val latest = shownCourses() ?: cached
+            val cachedNos = cached.mapTo(mutableSetOf()) { it.courseNo }
+            val latest = shownCourses()?.filter { it.courseNo in cachedNos || it.courseNo in adding } ?: cached
             return fold(answers, latest, names(), locale, CourseTombstoneKeys.hiddenIn(semester, withPendingEdits(stored)))
         }
         return null

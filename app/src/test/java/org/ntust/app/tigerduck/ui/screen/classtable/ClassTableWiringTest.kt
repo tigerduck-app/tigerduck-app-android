@@ -169,6 +169,26 @@ class ClassTableWiringTest {
         assertCalls("fetchTermCourses", "editGeneration = { termEdits[semester] ?: 0 }")
     }
 
+    /**
+     * The background sync can take a dropped course off the term's cache before its notice
+     * reaches the list on screen. The commit folds under the courses' lock onto the cache as it
+     * stands, taking from the screen its edits and the adds whose save has not landed; see
+     * ClassTableTermFetch.foldLatest.
+     */
+    @Test
+    fun `a fetch folds onto the term's cache under the courses' lock, with the adds still on their way`() {
+        val body = body("fetchTermCourses")
+        val locked = body.indexOf("dataCache.updateCourses(semester) { current, _ ->")
+        assertTrue("fetchTermCourses no longer folds under the courses' lock", locked in 0 until body.indexOf("termFetch.foldLatest("))
+        assertCalls("fetchTermCourses", "cachedCourses = { current }", "unsavedAdds = { unsavedAddsIn(semester) }")
+        assertFalse("fetchTermCourses saves the folded term outside the courses' lock", "dataCache.saveCourses(" in body)
+        val add = body("addCourse")
+        val marked = add.indexOf("unsavedAdds[unsaved] = ")
+        val saved = add.indexOf("dataCache.saveCourses(updated, semester)")
+        assertTrue("addCourse no longer marks its add unsaved before launching the save", marked in 0 until add.indexOf("viewModelScope.launch"))
+        assertTrue("addCourse no longer lets go of its add once saved", add.indexOf("unsavedAdds.remove(unsaved)", saved) > saved)
+    }
+
     /** A warm's older rows must not land over a reset of the term, or a fetch the user asked for. */
     @Test
     fun `a warm result superseded by a pick, a fetch or a reset is discarded, its upload included`() {
@@ -190,16 +210,17 @@ class ClassTableWiringTest {
         val body = body("fetchTermCourses")
         val commit = body.indexOf("pendingCourseAdds.uploading {")
         val fold = body.indexOf("termFetch.foldLatest(")
-        val save = body.indexOf("dataCache.saveCourses(")
+        // The fold is saved by the courses' lock it is taken under.
+        val save = body.indexOf("dataCache.updateCourses(semester)")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         val checks = Regex("""if \(!mayCommit\(\)\) return""").findAll(body).map { it.range.first }.toList()
         assertTrue("fetchTermCourses no longer commits under PendingCourseAdds.uploading", commit in 0 until fold)
         assertTrue("fetchTermCourses no longer checks mayCommit under the lock before the snapshot", checks.any { it in commit until fold })
-        assertTrue("fetchTermCourses no longer folds onto a snapshot taken under the lock", fold in commit until save)
-        assertTrue("fetchTermCourses no longer checks mayCommit before the upload", checks.any { it in save until upload })
+        assertTrue("fetchTermCourses no longer folds onto a snapshot taken under the lock", save in commit until fold)
+        assertTrue("fetchTermCourses no longer checks mayCommit before the upload", checks.any { it in fold until upload })
         assertCalls(
             "fetchTermCourses",
-            "cachedCourses = { dataCache.loadCourses(semester) }",
+            "cachedCourses = { current }",
             "storedTombstones = { dataCache.loadDeletedCourseNos() }",
             "shownCourses = { _courses.value.takeIf { coursesSemester == semester } }",
         )
@@ -290,11 +311,11 @@ class ClassTableWiringTest {
         val committed = body.indexOf("termFetch.committed(")
         val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation)")
         val fold = body.indexOf("termFetch.foldLatest(")
-        val save = body.indexOf("dataCache.saveCourses(")
+        val save = body.indexOf("dataCache.updateCourses(semester)")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         assertTrue("fetchTermCourses no longer commits the drawn term under the lock", commit in 0 until committed)
         assertTrue("fetchTermCourses no longer records a rebuild's drops in the commit", record in committed until fold)
-        assertTrue("fetchTermCourses no longer saves, then uploads, the folded term", fold < save && save < upload)
+        assertTrue("fetchTermCourses no longer saves, then uploads, the folded term", record < save && save < fold && fold < upload)
         assertCalls(
             "fetchTermCourses",
             "waitingAdds = { pendingCourseAdds.waitingIn(semester) }",

@@ -622,10 +622,10 @@ class HomeBackendSync @Inject constructor(
  * term's courses, without those it pruned from [localCourses], its own load ([kept] says which
  * stay, null when it pruned none), without the dropped courses it lets go with no hide ([left]),
  * those still dropped as the commit finds the drop list and as [droppedOnServer], the snapshot's
- * rows a roster dropped, says, and with the rows it [merged] down that the drop list, as the commit
- * finds it too, does not name, or that were added by hand ([handAdded]). Each is applied to the
- * store as it stands, so a delete, a fetch or a hide lifted while the sync ran stays. Returns
- * whether it wrote the courses.
+ * rows a roster dropped, says, but those the term's latest course selection answer lists, and with
+ * the rows it [merged] down that the drop list, as the commit finds it too, does not name, or that
+ * were added by hand ([handAdded]). Each is applied to the store as it stands, so a delete, a
+ * fetch or a hide lifted while the sync ran stays. Returns whether it wrote the courses.
  *
  * The hides first: the courses keep out every merged row the store hides when they are written,
  * and a course another device added back has its row merged and its hide lifted by the same
@@ -672,9 +672,10 @@ internal suspend fun commitReconciledTerm(
             val droppedHere = if (left.isEmpty() && merged.isEmpty()) emptySet() else {
                 dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet()
             }
+            val listed = if (left.isEmpty()) emptySet() else dataCache.selectionRosterIn(semester)
             CourseSyncReconciler.committedCourses(
                 current, localCourses, kept ?: localCourses, merged, hidden, newlyHidden, left, droppedHere, droppedOnServer,
-                handAdded,
+                handAdded, listed,
             ).also { committed ->
                 val stays = committed.mapTo(mutableSetOf()) { it.courseNo }
                 removed = current.filter { it.courseNo !in stays }

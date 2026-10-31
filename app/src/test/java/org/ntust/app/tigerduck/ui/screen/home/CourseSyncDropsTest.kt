@@ -371,6 +371,41 @@ class CourseSyncDropsTest {
     }
 
     /**
+     * The snapshot's drop is another device's roster, older than course selection's answer here
+     * that lists the merged copy, which the fetch keeps manual with its Moodle ID: the older
+     * commit took it out all the same. Once an answer leaves it out, the drop takes it.
+     */
+    @Test
+    fun `a merged copy course selection lists stays though the snapshot has it dropped, until an answer leaves it out`() = runTest {
+        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+
+        syncListing(row(ENROLLED), row(MERGED, status = "dropped")) {
+            cache.recordSelectionRoster(TERM, listOf(ENROLLED, MERGED))
+            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+        }
+        assertEquals(listOf(ENROLLED, MERGED), cache.loadCourses(TERM).map { it.courseNo })
+
+        cache.recordSelectionRoster(TERM, listOf(ENROLLED))
+        syncListing(row(ENROLLED), row(MERGED, status = "dropped"))
+        assertEquals(listOf(ENROLLED), cache.loadCourses(TERM).map { it.courseNo })
+        assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
+    }
+
+    /** As above for a past term's rebuild, which keeps no answer but takes the course's drop off. */
+    @Test
+    fun `a merged copy a rebuild lists again while the sync ran stays though the snapshot has it dropped`() = runTest {
+        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+        cache.recordFinalRoster(TERM, listOf(ENROLLED), alsoListed = listOf(MERGED))
+
+        syncListing(row(ENROLLED), row(MERGED, status = "dropped")) {
+            cache.recordFinalRoster(TERM, listOf(ENROLLED, MERGED), alsoListed = emptyList())
+            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+        }
+
+        assertEquals(listOf(ENROLLED, MERGED), cache.loadCourses(TERM).map { it.courseNo })
+    }
+
+    /**
      * [TERM] rebuilt from a transcript that lists only [ENROLLED], as the class table rebuilds an
      * ended term: its classes looked up, its drops recorded, then the term folded and saved.
      * [moodleNos] are the term's Moodle sites, which the rebuild drops.

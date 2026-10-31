@@ -969,6 +969,9 @@ class DataCache @Inject constructor(
             .toMap()
     }
 
+    /** [semester]'s latest non-empty course selection answer, empty when none was kept. */
+    suspend fun selectionRosterIn(semester: String): Set<String> = loadSelectionRosters()[semester].orEmpty().toSet()
+
     /** Each term's latest non-empty course selection answer, by [recordSelectionRoster]. */
     private suspend fun loadSelectionRosters(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String?, List<String?>?>>() {}.type

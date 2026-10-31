@@ -311,6 +311,21 @@ class ClassTableTermFetchTest {
             cached = cached + course
         }
 
+        /** The courses added on screen whose save of the list has not landed. */
+        val unsaved = mutableSetOf<String>()
+
+        /** An add whose save of the list is still to land, with [saved]. */
+        fun addUnsaved(course: Course) {
+            shown = shown?.plus(course)
+            generation++
+            unsaved += course.courseNo
+        }
+
+        fun saved(course: Course) {
+            cached = cached + course
+            unsaved -= course.courseNo
+        }
+
         /** The user picks another term: the list on screen is that term's now. */
         fun switchAway() {
             shown = null
@@ -328,6 +343,7 @@ class ClassTableTermFetchTest {
                 cachedCourses = { snapshot.cacheReads++; val read = snapshot.cached; snapshot.cacheGate.await(); read },
                 storedTombstones = { snapshot.fileGate.await(); snapshot.file },
                 shownCourses = { snapshot.shown },
+                unsavedAdds = { snapshot.unsaved.toSet() },
                 withPendingEdits = snapshot.edits::over,
                 names = { emptyMap() },
                 locale = "zh",
@@ -432,6 +448,53 @@ class ClassTableTermFetchTest {
         advanceUntilIdle()
         assertEquals(1, snapshot.cacheReads)
         assertEquals(listOf("A"), out()!!.map { it.courseNo })
+    }
+
+    /**
+     * The background sync took a dropped merged copy off the term's cache, and the list on screen
+     * holds it until the sync's notice comes. A term only gaining keeps a hand-added leftover, so
+     * the fold onto that list saved the course back. The screen's edits still count.
+     */
+    @Test
+    fun `a course the cache no longer holds is not brought back by the list on screen`() = runTest {
+        val answers = ClassTableTermFetch.Answers(listOf(course("XA0000001")), emptyMap(), answered = true, onlyGains = true)
+        val snapshot = Snapshot().apply {
+            cached = listOf(course("XA0000001"), manual("XF0000006"))
+            shown = listOf(course("XA0000001", color = "#FF0000"), merged("XD0000004"), manual("XF0000006"))
+            cacheGate.complete(Unit)
+            fileGate.complete(Unit)
+        }
+
+        val out = foldLatest(answers, snapshot)
+        advanceUntilIdle()
+
+        assertEquals(listOf("XA0000001", "XF0000006"), out()!!.map { it.courseNo })
+        assertEquals("#FF0000", out()!![0].customColorHex)
+    }
+
+    /**
+     * An add is on screen at the tap and in the cache once its save lands, here while the cache
+     * is read: the adds still on their way are read first, so the course is in one or the other.
+     */
+    @Test
+    fun `a course added on screen whose save lands while the cache is read is kept`() = runTest {
+        val answers = ClassTableTermFetch.Answers(listOf(course("XA0000001")), emptyMap(), answered = true, onlyGains = true)
+        val snapshot = Snapshot().apply {
+            cached = listOf(course("XA0000001"))
+            shown = listOf(course("XA0000001"))
+            fileGate.complete(Unit)
+        }
+        val added = manual("XQ0000017")
+        snapshot.addUnsaved(added)
+
+        val out = foldLatest(answers, snapshot)
+        advanceUntilIdle()
+        snapshot.saved(added)
+        snapshot.cacheGate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(1, snapshot.cacheReads)
+        assertEquals(listOf("XA0000001", "XQ0000017"), out()!!.map { it.courseNo })
     }
 
     @Test

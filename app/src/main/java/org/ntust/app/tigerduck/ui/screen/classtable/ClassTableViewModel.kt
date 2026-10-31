@@ -180,6 +180,14 @@ class ClassTableViewModel @Inject constructor(
         termEdits[semester] = (termEdits[semester] ?: 0) + 1
     }
 
+    // By tap, the term and number of each course added on screen whose save of the list has not
+    // landed, which the term's cache lacks meanwhile; see ClassTableTermFetch.foldLatest.
+    private val unsavedAdds = HashMap<Long, Pair<String, String>>()
+    private var nextUnsavedAdd = 0L
+
+    private fun unsavedAddsIn(semester: String): Set<String> =
+        unsavedAdds.values.filter { it.first == semester }.mapTo(mutableSetOf()) { it.second }
+
     // When each term's courses without a room were last looked up again, on
     // the monotonic clock; see lookUpMissingRooms.
     private val roomLookupsAtMs = HashMap<String, Long>()
@@ -1002,6 +1010,8 @@ class ClassTableViewModel @Inject constructor(
         _courses.value = updated
         val semester = _currentSemester.value
         noteTermEdit(semester)
+        val unsaved = nextUnsavedAdd++
+        unsavedAdds[unsaved] = semester to course.courseNo
         // Ahead of the write below: a fetch folding meanwhile reads the
         // tombstones with this on top, or its filter would drop the course
         // just added back; see ClassTableTombstoneEdits.
@@ -1021,7 +1031,11 @@ class ClassTableViewModel @Inject constructor(
                 } finally {
                     tombstoneEdits.saved(tombstone)
                 }
-                dataCache.saveCourses(updated, semester)
+                try {
+                    dataCache.saveCourses(updated, semester)
+                } finally {
+                    unsavedAdds.remove(unsaved)
+                }
                 // A delete of it still queued goes first, or it could land after
                 // this add and take the course off the server again; as the
                 // iPhone's `discardCourseDeletes` before an add.
@@ -1744,31 +1758,40 @@ class ClassTableViewModel @Inject constructor(
                 droppedNos = { dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet() },
                 recordFinalRoster = { dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation) },
             ) { drawn ->
-                // The reads that suspend first, the list chosen and folded
-                // after them with nothing in between; the order is foldLatest's.
-                termFetch.foldLatest(
-                    drawn, semester,
-                    editGeneration = { termEdits[semester] ?: 0 },
-                    cachedCourses = { dataCache.loadCourses(semester) },
-                    storedTombstones = { dataCache.loadDeletedCourseNos() },
-                    shownCourses = { _courses.value.takeIf { coursesSemester == semester } },
-                    withPendingEdits = tombstoneEdits::over,
-                    names = { courseCustomNames },
-                    locale = currentCourseLocale,
-                )
+                // Folded and saved under the courses' lock, onto the term as its cache holds it: a
+                // sync or the background fetch that took a course out of it lands wholly before.
+                var folded: List<Course>? = null
+                dataCache.updateCourses(semester) { current, _ ->
+                    // The reads that suspend first, the list chosen and folded
+                    // after them with nothing in between; the order is foldLatest's.
+                    folded = termFetch.foldLatest(
+                        drawn, semester,
+                        editGeneration = { termEdits[semester] ?: 0 },
+                        cachedCourses = { current },
+                        storedTombstones = { dataCache.loadDeletedCourseNos() },
+                        shownCourses = { _courses.value.takeIf { coursesSemester == semester } },
+                        unsavedAdds = { unsavedAddsIn(semester) },
+                        withPendingEdits = tombstoneEdits::over,
+                        names = { courseCustomNames },
+                        locale = currentCourseLocale,
+                    )
+                    // Only apply if the user hasn't flipped to a different semester
+                    // mid-flight.
+                    folded?.let { merged ->
+                        if (_currentSemester.value == semester) {
+                            showCourses(merged, semester)
+                            TigerDuckTheme.buildCourseColorMap(merged)
+                        }
+                    }
+                    folded ?: current
+                }
+                folded
             } ?: run {
                 // Nothing to draw, or edited throughout its reads: left as it
                 // is, for the next fetch.
                 Log.w("ClassTableVM", "fetchTermCourses: $semester drew nothing or was edited throughout the snapshot, left as it is")
                 return@uploading
             }
-            // Only apply if the user hasn't flipped to a different semester
-            // mid-flight.
-            if (_currentSemester.value == semester) {
-                showCourses(merged, semester)
-                TigerDuckTheme.buildCourseColorMap(merged)
-            }
-            dataCache.saveCourses(merged, semester)
             // The class table loaded: a day of use towards the Play rating ask
             // (issue #332).
             if (countsAsUse) reviewPrompt.classTableLoaded()
