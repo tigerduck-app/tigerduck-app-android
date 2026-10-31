@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.notification
 
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -10,6 +11,8 @@ import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.coursechanges.CourseChanges
 import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
@@ -26,17 +29,22 @@ import javax.inject.Singleton
  * The classes are the timetable's as the school's [courseChanges] leave them,
  * as iOS's `ScheduleSyncService` sends them to the server: none for a
  * cancelled class, and the rest at their changed start in their changed room.
- * LiveActivityManager arms them again when the feed changes.
+ * LiveActivityManager arms them again when the feed changes, which brings the
+ * reminders already up in step too; see [refreshShownLocked].
+ *
+ * [appLanguage] is the in-app language such a reminder is written in again.
  */
 @Singleton
 class ClassPreparingNotificationScheduler internal constructor(
     private val context: Context,
+    private val appLanguage: () -> String = { AppLanguageManager.SYSTEM },
     private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
 ) : ClassReminderAlarms {
     @Inject constructor(
         @ApplicationContext context: Context,
+        appPreferences: AppPreferences,
         courseChangeStore: CourseChangeStore,
-    ) : this(context, courseChangeStore::current)
+    ) : this(context, { appPreferences.appLanguage }, courseChangeStore::current)
 
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val trackerPrefs = context.getSharedPreferences(TRACKER_PREFS, Context.MODE_PRIVATE)
@@ -76,6 +84,8 @@ class ClassPreparingNotificationScheduler internal constructor(
         val scheduled = mutableSetOf<String>()
         var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
         var nextClassStart: Long? = null
+        // By CourseMeetings' id, which a posted reminder carries.
+        val ahead = mutableMapOf<String, UpcomingSlot>()
 
         for (slot in upcomingSlots(
             coursesByTerm, skippedDates, daysAhead = DAYS_AHEAD,
@@ -84,7 +94,10 @@ class ClassPreparingNotificationScheduler internal constructor(
         )) {
             // Before the trigger check: a class whose reminder has gone off
             // still has its banner up until it begins.
-            if (slot.startMs > now) nextClassStart = minOf(nextClassStart ?: slot.startMs, slot.startMs)
+            if (slot.startMs > now) {
+                nextClassStart = minOf(nextClassStart ?: slot.startMs, slot.startMs)
+                ahead[slot.classId] = slot
+            }
             val triggerTime = slot.startMs - leadTimeSec * 1000
             if (triggerTime <= now) continue
 
@@ -154,7 +167,45 @@ class ClassPreparingNotificationScheduler internal constructor(
             .putString(KEY_CODE_MAP, encodeCodeMap(codeMap))
             .putInt(KEY_NEXT_CODE, nextCode)
             .apply()
+        refreshShownLocked(ahead, leadTimeSec * 1000L, now)
         nextClassStart
+    }
+
+    /**
+     * Brings the reminders already up in step with their classes, [ahead]:
+     * the alarms above cannot, as one that has gone off arms nothing to post
+     * again. A reminder whose class is cancelled, gone or begun goes. One
+     * whose class moved or changed rooms says so without sounding again, and
+     * now expires at the new start; moved past [leadTimeMs], it goes, and the
+     * alarm armed for the new start brings it back then. iOS ends a class's
+     * Live Activity and updates it in place the same ways. A reminder that
+     * names no class is left as it is.
+     */
+    private fun refreshShownLocked(ahead: Map<String, UpcomingSlot>, leadTimeMs: Long, now: Long) {
+        val manager = context.getSystemService(NotificationManager::class.java) ?: return
+        val shown = runCatching { manager.activeNotifications }.getOrNull() ?: return
+        for (sbn in shown) {
+            val posted = sbn.notification
+            if (posted.channelId != ClassPreparingNotificationReceiver.CHANNEL_ID) continue
+            val classId = posted.extras.getString(ClassPreparingNotificationReceiver.EXTRA_POSTED_CLASS_ID) ?: continue
+            val slot = ahead[classId]
+            val unchanged = slot != null &&
+                posted.extras.getLong(ClassPreparingNotificationReceiver.EXTRA_CLASS_START_MS) == slot.startMs &&
+                posted.extras.getLong(ClassPreparingNotificationReceiver.EXTRA_CLASS_END_MS) == slot.endMs &&
+                posted.extras.getString(ClassPreparingNotificationReceiver.EXTRA_CLASS_ROOM) == slot.classroom
+            when {
+                unchanged -> Unit
+                // Through the stack, so its summary goes with the last banner.
+                slot == null || slot.startMs - leadTimeMs > now ->
+                    NotificationGroup.CLASS.cancel(context, sbn.id, sbn.tag)
+                else -> ClassPreparingNotificationReceiver.post(
+                    context, appLanguage(), sbn.id,
+                    slot.course.displayName, slot.classroom, slot.course.instructor,
+                    slot.startMs, slot.endMs, leadTimeMs,
+                    classId = slot.classId, update = true,
+                )
+            }
+        }
     }
 
     override fun cancelAllTracked() = synchronized(schedulerLock) {

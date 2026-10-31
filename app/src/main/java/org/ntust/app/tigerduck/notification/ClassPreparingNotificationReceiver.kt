@@ -85,6 +85,7 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         post(
             rawContext, deps.appPreferences().appLanguage,
             notificationId, courseName, classroom, instructor, startMs, endMs, leadTimeMs,
+            classId = classId,
         )
     }
 
@@ -137,6 +138,16 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
         const val EXTRA_CLASS_START_MS = "org.ntust.app.tigerduck.class_start_ms"
 
         /**
+         * On the posted banner too: its class's [EXTRA_CLASS_ID], end and
+         * room, which ClassPreparingNotificationScheduler checks against the
+         * class as it is now each time it arms the reminders. A banner the
+         * developer menu posts, or one from a build before these, has none.
+         */
+        const val EXTRA_POSTED_CLASS_ID = "org.ntust.app.tigerduck.class_id"
+        const val EXTRA_CLASS_END_MS = "org.ntust.app.tigerduck.class_end_ms"
+        const val EXTRA_CLASS_ROOM = "org.ntust.app.tigerduck.class_room"
+
+        /**
          * The class reminder switch is on, and the app may post
          * notifications. Read when the alarm fires: turning reminders off
          * cancels the alarms already armed, but one armed in a race with that
@@ -159,6 +170,10 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
          * language is resolved here, where no caller can skip it.
          *
          * A tap opens the class table, through `tigerduck://classtable`.
+         *
+         * [classId] names the class on the banner; see [EXTRA_POSTED_CLASS_ID].
+         * [update] is for a banner already up whose class has changed: it is
+         * replaced without sounding again.
          */
         fun post(
             baseContext: Context,
@@ -170,6 +185,8 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
             startMs: Long,
             endMs: Long,
             leadTimeMs: Long,
+            classId: String? = null,
+            update: Boolean = false,
         ) {
             val context = AppLanguageManager.localizedContext(baseContext, appLanguage)
             val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -208,7 +225,19 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
                 .setAutoCancel(true)
                 .setContentIntent(AppLink.ClassTable.pendingIntent(context))
                 .setGroup(NotificationGroup.CLASS.key)
-                .apply { if (startMs > 0L) addExtras(Bundle().apply { putLong(EXTRA_CLASS_START_MS, startMs) }) }
+                // Alerts only when it is not already up, so an update to one
+                // still showing says what changed without a second chime.
+                .setOnlyAlertOnce(update)
+                .addExtras(
+                    Bundle().apply {
+                        if (startMs > 0L) putLong(EXTRA_CLASS_START_MS, startMs)
+                        if (classId != null) {
+                            putString(EXTRA_POSTED_CLASS_ID, classId)
+                            putLong(EXTRA_CLASS_END_MS, endMs)
+                            putString(EXTRA_CLASS_ROOM, classroom)
+                        }
+                    }
+                )
                 .apply { if (timeout > 0L) setTimeoutAfter(timeout) }
                 .build()
 
