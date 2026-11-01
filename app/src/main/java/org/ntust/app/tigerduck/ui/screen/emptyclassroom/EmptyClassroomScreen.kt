@@ -35,7 +35,7 @@ import org.ntust.app.tigerduck.emptyclassroom.RoomPlace
 import org.ntust.app.tigerduck.emptyclassroom.RoomSuggestion
 import org.ntust.app.tigerduck.emptyclassroom.RoomUsage
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
@@ -64,7 +64,7 @@ fun EmptyClassroomScreen(
 
     PageScaffold(
         title = stringResource(R.string.feature_empty_classroom),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = { if (signedIn) RoomSiteSyncDot(state) },
     ) { padding ->
         TigerPullToRefresh(

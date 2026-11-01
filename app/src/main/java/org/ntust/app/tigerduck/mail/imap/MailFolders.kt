@@ -37,15 +37,25 @@ sealed interface FolderSelection {
     /** A folder the server actually has, named exactly as `LIST` reported it. */
     data class Real(val name: String) : FolderSelection
 
-    /** All mail: [MERGED] merged client-side, newest first. Never a folder name. */
+    /** All mail: every folder but Junk and Trash, merged client-side, newest first. Never a folder name. */
     data object AllMail : FolderSelection {
         /**
-         * The only folders All mail merges -- the two that hold real correspondence. Drafts,
-         * junk, trash and user folders stay out on purpose: a merged view is a read view over
-         * mail the student actually exchanged, and sweeping trash or drafts into it would put
-         * those messages one tap from actions whose safety rules are written per folder.
+         * The role folders All mail merges, ahead of the student's own folders ([foldersIn]).
+         * Junk and Trash stay out: the first is the server's spam bin and the second is where
+         * deleted mail waits, and neither is mail the student is reading. Drafts and the
+         * student's own folders are in, as on the iPhone (tigerduck-app#894), which is safe only
+         * because no action here asks which view a row came from: delete, move, mark and open
+         * all read the row's own folder (see `SchoolMailListViewModel.toggleRead`), so a draft
+         * still opens as a draft and a delete still follows its own folder's rule.
          */
-        val MERGED = listOf(SpecialFolder.INBOX, SpecialFolder.SENT)
+        val MERGED = listOf(SpecialFolder.INBOX, SpecialFolder.SENT, SpecialFolder.DRAFTS)
+
+        /**
+         * The server names All mail reads from [folders]: [MERGED]'s that exist, then every folder
+         * with no role, in the order [MailFolders.resolve] sorts them.
+         */
+        fun foldersIn(folders: ResolvedFolders): List<String> =
+            MERGED.mapNotNull { folders.nameOf(it) } + folders.others
     }
 }
 

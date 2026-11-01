@@ -4,7 +4,6 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -202,12 +201,10 @@ class ScrollbarTest {
     }
 
     @Test
-    fun `only the trailing edge takes hold, on whichever side that is`() {
-        assertTrue(isOnTrailingEdge(x = 1070f, width = 1080f, edge = 60f, direction = LayoutDirection.Ltr))
-        assertFalse(isOnTrailingEdge(x = 1000f, width = 1080f, edge = 60f, direction = LayoutDirection.Ltr))
-        assertFalse(isOnTrailingEdge(x = 10f, width = 1080f, edge = 60f, direction = LayoutDirection.Ltr))
-        assertTrue(isOnTrailingEdge(x = 10f, width = 1080f, edge = 60f, direction = LayoutDirection.Rtl))
-        assertFalse(isOnTrailingEdge(x = 1070f, width = 1080f, edge = 60f, direction = LayoutDirection.Rtl))
+    fun `only the right edge takes hold`() {
+        assertTrue(isOnTrailingEdge(x = 1070f, width = 1080f, edge = 60f))
+        assertFalse(isOnTrailingEdge(x = 1000f, width = 1080f, edge = 60f))
+        assertFalse(isOnTrailingEdge(x = 10f, width = 1080f, edge = 60f))
     }
 
     @Test
@@ -244,7 +241,7 @@ class ScrollbarTest {
     @Test
     fun `the exclusion spans the touch zone across and the thumb with room to spare`() {
         val thumb = ThumbSpan(top = 400f, height = 100f)
-        val bounds = thumbExclusionBounds(thumb, width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Ltr)
+        val bounds = thumbExclusionBounds(thumb, width = 1080f, height = 2000f, touchWidth = 120f)
         assertEquals(960f, bounds.left, 0.01f)
         assertEquals(1080f, bounds.right, 0.01f)
         assertEquals(340f, bounds.top, 0.01f)
@@ -252,17 +249,10 @@ class ScrollbarTest {
     }
 
     @Test
-    fun `the exclusion sits on the left edge right to left`() {
-        val bounds = thumbExclusionBounds(ThumbSpan(400f, 100f), width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Rtl)
-        assertEquals(0f, bounds.left, 0.01f)
-        assertEquals(120f, bounds.right, 0.01f)
-    }
-
-    @Test
     fun `the exclusion stays inside the list at either end`() {
-        val atTop = thumbExclusionBounds(ThumbSpan(10f, 100f), width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Ltr)
+        val atTop = thumbExclusionBounds(ThumbSpan(10f, 100f), width = 1080f, height = 2000f, touchWidth = 120f)
         assertEquals(0f, atTop.top, 0.01f)
-        val atBottom = thumbExclusionBounds(ThumbSpan(1890f, 100f), width = 1080f, height = 2000f, touchWidth = 120f, direction = LayoutDirection.Ltr)
+        val atBottom = thumbExclusionBounds(ThumbSpan(1890f, 100f), width = 1080f, height = 2000f, touchWidth = 120f)
         assertEquals(2000f, atBottom.bottom, 0.01f)
     }
 }

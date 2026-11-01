@@ -39,12 +39,9 @@ import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.ObserverModifierNode
 import androidx.compose.ui.node.observeReads
 import androidx.compose.ui.node.requireDensity
-import androidx.compose.ui.node.requireLayoutDirection
 import androidx.compose.ui.node.requireView
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -110,17 +107,16 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
     val look = scrollbarLook(state.isScrollInProgress, fastScrolling)
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val direction = LocalLayoutDirection.current
     return this
-        .pointerInput(state, direction) {
+        .pointerInput(state) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                 if (look.alpha.value <= 0f || state.maxValue <= 0) return@awaitEachGesture
                 val width = size.width.toFloat()
-                if (!isOnTrailingEdge(down.position.x, width, FastScrollTouchWidth.toPx(), direction)) {
+                if (!isOnTrailingEdge(down.position.x, width, FastScrollTouchWidth.toPx())) {
                     return@awaitEachGesture
                 }
-                val onThumb = isOnTrailingEdge(down.position.x, width, ThumbGrabWidth.toPx(), direction) &&
+                val onThumb = isOnTrailingEdge(down.position.x, width, ThumbGrabWidth.toPx()) &&
                     scrollThumb(state, size.height.toFloat()).holds(down.position.y, ThumbGrabSlop.toPx())
                 if (!onThumb && !awaitLongPressInPlace(down)) return@awaitEachGesture
                 fastScrolling = true
@@ -191,7 +187,6 @@ fun Modifier.scrollbar(
     val look = scrollbarLook(state.isScrollInProgress, fastScrolling)
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
-    val direction = LocalLayoutDirection.current
     val sizes = remember(state) { ItemSizes() }
     val latestTopInset by rememberUpdatedState(topInsetPx)
     val latestOnStopped by rememberUpdatedState(onFastScrollStopped)
@@ -208,18 +203,18 @@ fun Modifier.scrollbar(
         return thumbSpan(thumb, latestTopInset().coerceIn(0f, height), height)
     }
     return this
-        .pointerInput(state, direction) {
+        .pointerInput(state) {
             awaitEachGesture {
                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                 if (look.alpha.value <= 0f) return@awaitEachGesture
                 val height = size.height.toFloat()
                 val width = size.width.toFloat()
-                if (!isOnTrailingEdge(down.position.x, width, FastScrollTouchWidth.toPx(), direction)) {
+                if (!isOnTrailingEdge(down.position.x, width, FastScrollTouchWidth.toPx())) {
                     return@awaitEachGesture
                 }
                 if (down.position.y < latestTopInset().coerceIn(0f, height)) return@awaitEachGesture
                 if (!state.canScrollBackward && !state.canScrollForward) return@awaitEachGesture
-                val onThumb = isOnTrailingEdge(down.position.x, width, ThumbGrabWidth.toPx(), direction) &&
+                val onThumb = isOnTrailingEdge(down.position.x, width, ThumbGrabWidth.toPx()) &&
                     thumbOf(height).holds(down.position.y, ThumbGrabSlop.toPx())
                 if (!onThumb && !awaitLongPressInPlace(down)) return@awaitEachGesture
                 // The guess for unseen rows is held for the whole drag: re-averaging on every move
@@ -383,8 +378,7 @@ internal fun fastScrollTarget(fraction: Float, info: LazyListLayoutInfo, sizeOf:
 internal fun ThumbSpan?.holds(y: Float, slop: Float): Boolean =
     this != null && y >= top - slop && y <= top + height + slop
 
-internal fun isOnTrailingEdge(x: Float, width: Float, edge: Float, direction: LayoutDirection): Boolean =
-    if (direction == LayoutDirection.Rtl) x <= edge else x >= width - edge
+internal fun isOnTrailingEdge(x: Float, width: Float, edge: Float): Boolean = x >= width - edge
 
 /**
  * How far a held finger may wander, in touch slops, and still be holding. One slop -- what a tap or
@@ -508,7 +502,7 @@ private fun ContentDrawScope.drawThumb(thumb: ThumbSpan, look: ScrollbarLook) {
     if (alpha <= 0f) return
     val width = look.width.value.toPx()
     val inset = ScrollbarInset.toPx()
-    val x = if (layoutDirection == LayoutDirection.Rtl) inset else size.width - width - inset
+    val x = size.width - width - inset
     drawRoundRect(
         color = look.color.copy(alpha = look.color.alpha * alpha),
         topLeft = Offset(x, thumb.top),
@@ -527,9 +521,8 @@ internal fun thumbExclusionBounds(
     width: Float,
     height: Float,
     touchWidth: Float,
-    direction: LayoutDirection,
 ): Rect {
-    val left = if (direction == LayoutDirection.Rtl) 0f else width - touchWidth
+    val left = width - touchWidth
     val spare = touchWidth / 2f
     return Rect(
         left = left.coerceAtLeast(0f),
@@ -593,7 +586,7 @@ private class ThumbExclusionNode(var thumb: (Float) -> ThumbSpan?) :
         observeReads { span = thumb(height) }
         val local = span?.let {
             val touch = with(requireDensity()) { FastScrollTouchWidth.toPx() }
-            thumbExclusionBounds(it, width, height, touch, requireLayoutDirection())
+            thumbExclusionBounds(it, width, height, touch)
         }
         replace(local?.let { inView(coordinates, it) })
     }

@@ -351,24 +351,24 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/OutlinedAccountIdField.kt",
     "kind": "long-file",
-    "count": 448
+    "count": 444
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/OutlinedAccountIdField.kt",
     "kind": "long-function",
     "name": "OutlinedAccountIdField(String, (String)->Unit, String, Modifier, KeyboardCapitalization, ImeAction, ()->Unit, Boolean, String?, Boolean?)",
-    "lines": 259
+    "lines": 255
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/Scrollbar.kt",
     "kind": "long-file",
-    "count": 623
+    "count": 616
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/Scrollbar.kt",
     "kind": "long-function",
     "name": "Modifier.scrollbar(LazyListState, ()->Float, ()->Unit)",
-    "lines": 94
+    "lines": 93
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/ServerStatusTracker.kt",
@@ -441,7 +441,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsScreen.kt",
     "kind": "long-file",
-    "count": 814
+    "count": 810
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsScreen.kt",
@@ -453,7 +453,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsScreen.kt",
     "kind": "long-function",
     "name": "SwipeableBulletinCard(BulletinSummary, TaxonomyResponse?, Boolean, ()->Unit, ()->Unit, Modifier)",
-    "lines": 122
+    "lines": 120
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsViewModel.kt",
@@ -485,7 +485,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/browser/BrowserSheets.kt",
     "kind": "long-file",
-    "count": 951
+    "count": 948
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/browser/BrowserSheets.kt",
@@ -614,13 +614,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableScreen.kt",
     "kind": "long-file",
-    "count": 992
+    "count": 989
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableScreen.kt",
     "kind": "long-function",
     "name": "ClassTableScreen(ClassTableViewModel, ()->Unit, ()->Unit)",
-    "lines": 722
+    "lines": 719
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
@@ -688,7 +688,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleAssignmentScreen.kt",
     "kind": "long-file",
-    "count": 770
+    "count": 769
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleFileRows.kt",
@@ -698,13 +698,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleForumScreens.kt",
     "kind": "long-file",
-    "count": 534
+    "count": 531
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleForumScreens.kt",
     "kind": "long-function",
     "name": "MoodlePostCard(MoodleThreadEntry, Boolean, MoodleCourseStore, MoodleDiscussion, org.ntust.app.tigerduck.data.moodle.MoodleFileDownloads.Snapshot?, MoodleFileOpener, String)",
-    "lines": 83
+    "lines": 82
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleGradesScreen.kt",
@@ -715,13 +715,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMemberScreen.kt",
     "kind": "long-file",
-    "count": 557
+    "count": 556
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMemberScreen.kt",
     "kind": "long-function",
     "name": "MoodleMemberScreen(Int, ()->Unit, (address:String)->Unit, MoodleCourseViewModel)",
-    "lines": 136
+    "lines": 135
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/coursemoodle/MoodleMembersScreen.kt",
@@ -819,7 +819,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeAssignmentList.kt",
     "kind": "long-function",
     "name": "SwipeableAssignmentRow(Assignment, Course?, Boolean, Boolean, Boolean, Boolean, ()->Unit, ()->Unit, ()->Unit)",
-    "lines": 159
+    "lines": 154
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
@@ -841,7 +841,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-file",
-    "count": 524
+    "count": 511
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
@@ -853,7 +853,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
     "kind": "long-function",
     "name": "HomeScreen(AppState, HomeViewModel, ()->Unit, (Assignment)->Unit, (CourseDetailSelection)->Unit, (AppFeature)->Unit)",
-    "lines": 227
+    "lines": 219
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeSections.kt",
@@ -904,13 +904,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-file",
-    "count": 894
+    "count": 891
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
     "name": "CourseTimeCard(CourseState, (CourseTimeSlot)->Unit)",
-    "lines": 91
+    "lines": 88
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
@@ -1018,7 +1018,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-file",
-    "count": 1022
+    "count": 1017
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
@@ -1042,7 +1042,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
     "kind": "long-function",
     "name": "SwipeableMailCard(MailRow, String, Boolean, ()->Unit, ()->Unit, ()->Unit, ()->Unit, Modifier)",
-    "lines": 141
+    "lines": 138
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/onboarding/OnboardingScreen.kt",
@@ -1233,7 +1233,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/whatsnew/WhatsNewSheet.kt",
     "kind": "long-file",
-    "count": 785
+    "count": 782
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/whatsnew/WhatsNewSheet.kt",
@@ -1244,7 +1244,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/theme/TigerDuckTheme.kt",
     "kind": "long-file",
-    "count": 490
+    "count": 473
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/widget/WidgetScheduleCells.kt",

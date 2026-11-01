@@ -70,7 +70,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -82,7 +81,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import kotlin.math.min
@@ -148,7 +146,6 @@ private fun WhatsNewFlowContent(
     val context = LocalContext.current
     // A Binder call, so read once per sheet rather than per recomposition.
     val animate = remember(context) { animationsEnabled(context) }
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val lastIndex = flow.stepCount - 1
     var index by rememberSaveable { mutableIntStateOf(0) }
     val current = index.coerceIn(0, lastIndex)
@@ -194,9 +191,9 @@ private fun WhatsNewFlowContent(
                 val transform = if (!animate) {
                     fadeIn(tween(150)) togetherWith fadeOut(tween(150))
                 } else {
-                    // Forward slides in from the trailing edge; flip for RTL.
+                    // Forward slides in from the right edge.
                     val forward = targetState > initialState
-                    val sign = (if (forward) 1 else -1) * (if (rtl) -1 else 1)
+                    val sign = if (forward) 1 else -1
                     (slideInHorizontally { width -> sign * width } + fadeIn()) togetherWith
                         (slideOutHorizontally { width -> -sign * width } + fadeOut())
                 }

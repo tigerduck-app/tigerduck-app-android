@@ -1429,7 +1429,7 @@ class ClassTableViewModel @Inject constructor(
         loadJob = viewModelScope.launch {
             loadAssignmentMarks()
             val semester = _currentSemester.value
-            val cached = dataCache.loadCourses(semester)
+            val cached = courseColorStore.loadCourses(semester)
             val cachedA = dataCache.loadAssignments()
             val cachedMoodleIds = dataCache.loadMoodleCourseIds()
             courseCustomNames = dataCache.loadCourseCustomNames()
@@ -1722,7 +1722,7 @@ class ClassTableViewModel @Inject constructor(
             if (moodleAll.isNotEmpty()) {
                 val fresh = MoodleCourseIds.idMap(moodleAll)
                 _moodleCourseIdByIdnumber.value = fresh
-                dataCache.saveMoodleCourseIds(fresh)
+                courseColorStore.saveMoodleIds(fresh, _courses.value)
             }
 
             val moodleForSem = CourseRosterMerge.moodleCoursesFor(semester, moodleAll)

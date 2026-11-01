@@ -214,7 +214,7 @@ class PushApiClient @Inject constructor(
     ) = withContext(Dispatchers.IO) {
         val payload = mapOf(
             "moodle_token" to moodleToken,
-            "moodle_private_token" to moodlePrivateToken,
+            "moodle_private_token" to moodlePrivateToken.takeUnless { resolveAnnouncementEndpoint(prefs).overrideApplied },
         )
         val service = api.at(baseUrl)
         service.credentials(authHeader(), payload).execute().use { response ->

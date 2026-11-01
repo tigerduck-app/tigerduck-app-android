@@ -25,11 +25,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.mail.ComposeMode
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import java.time.ZonedDateTime
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
@@ -66,11 +70,22 @@ class FlipToLibraryEffectTest {
     /** Whether the library session still holds when checked again, as at a flip. */
     private var sessionValid = true
 
+    /** Taipei's time, held still: the flip acts only in the library's hours. */
+    private fun clockAt(day: Int, hour: Int, minute: Int) {
+        val at = ZonedDateTime.of(2026, 11, day, hour, minute, 0, 0, org.ntust.app.tigerduck.shared.time.TaipeiClock.zone)
+        AppClock.setOverride(ClockOverride(at.toInstant().toEpochMilli(), frozen = true, savedAtRealMillis = 0L))
+    }
+
     @Before
     fun setUp() {
+        // A Monday at noon, whatever day the suite runs on.
+        clockAt(day = 2, hour = 12, minute = 0)
         sensor = SensorBuilder.newBuilder().setType(Sensor.TYPE_ROTATION_VECTOR).build()
         shadowOf(sensorManager()).addSensor(sensor)
     }
+
+    @After
+    fun tearDown() = AppClock.setOverride(null)
 
     private fun sensorManager() = composeRule.activity.getSystemService(SensorManager::class.java)
 
@@ -178,6 +193,23 @@ class FlipToLibraryEffectTest {
     }
 
     @Test
+    fun `a flip outside the library's hours does nothing, with no haptic, and the next one inside them works`() {
+        show()
+        focusWindow(true)
+        // 23:30 on a Monday: the end minute does not count.
+        clockAt(day = 2, hour = 23, minute = 30)
+        flip()
+        assertEquals("home", route())
+        assertEquals(0, haptics)
+
+        // 08:30 on a Saturday, the weekend's first minute.
+        clockAt(day = 7, hour = 8, minute = 30)
+        flip()
+        assertEquals(Screen.Library.route, route())
+        assertEquals(1, haptics)
+    }
+
+    @Test
     fun `a flip while something else has the window's focus does nothing, and the next one works`() {
         show()
         // A dialog, a sheet, a menu or the shade: each takes the focus from the app's window.
@@ -258,6 +290,19 @@ class FlipToLibraryEffectTest {
         assertEquals("home", route())
         assertEquals(0, haptics)
         assertFalse(openRequest.take())
+    }
+
+    /** The question comes just before closing time and is answered after it. */
+    @Test
+    fun `a Turn on after closing time opens nothing`() {
+        show(enabled = false, offerUnanswered = { true })
+        focusWindow(true)
+        clockAt(day = 2, hour = 23, minute = 29)
+        flip()
+        clockAt(day = 2, hour = 23, minute = 30)
+        turnOn()
+        assertEquals("home", route())
+        assertEquals(0, haptics)
     }
 
     @Test

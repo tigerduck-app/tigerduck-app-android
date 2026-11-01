@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.ntust.app.tigerduck.library.FlipToLibrarySetting
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.sensor.FlipSensor
 import org.ntust.app.tigerduck.ui.AppState
@@ -30,6 +32,8 @@ import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptController
 import org.ntust.app.tigerduck.ui.firsttrigger.FirstTriggerPromptKey
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
+import java.time.DayOfWeek
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -150,7 +154,7 @@ internal fun FlipToLibraryEffect(
             // DisposableEffect restarts and unregisters the detector. With
             // the switch off, only the question still to ask is listening.
             val enabled = currentFlipEnabled()
-            if (!enabled && !currentOfferUnanswered()) return@onFaceDown
+            if (!FlipToLibraryGate.opensLibrary(AppClock.instant()) || (!enabled && !currentOfferUnanswered())) return@onFaceDown
             if (!currentStillSignedIn()) return@onFaceDown
             // Not over a dialog, a sheet or a mail draft: leaving the page
             // drops what the user was in the middle of. Nothing is consumed,
@@ -192,7 +196,7 @@ internal fun FlipToLibraryEffect(
         val hasPage = navController.currentBackStackEntryAsState().value != null
         LaunchedEffect(requested, hasPage) {
             if (!requested || !hasPage || !openRequest.take()) return@LaunchedEffect
-            if (!currentFlipEnabled() || !currentStillSignedIn()) return@LaunchedEffect
+            if (!currentFlipEnabled() || !currentStillSignedIn() || !FlipToLibraryGate.opensLibrary(AppClock.instant())) return@LaunchedEffect
             if (navigateToLibrary(navController)) currentOnNavigated()
         }
     }
@@ -267,6 +271,22 @@ internal object FlipToLibraryGate {
      */
     fun isArmed(enabled: Boolean, signedInToLibrary: Boolean, offerUnanswered: Boolean): Boolean =
         signedInToLibrary && (enabled || offerUnanswered)
+
+    /**
+     * Whether the library is open at [at], in Taipei time whatever the phone's zone: Monday to
+     * Friday from 08:10 to before 23:30, and Saturday and Sunday from 08:30 to before 21:30. The
+     * start minute counts and the end minute does not, so 23:30:00 no longer opens it.
+     */
+    fun opensLibrary(at: Instant): Boolean {
+        val taipei = at.atZone(TaipeiClock.zone)
+        val weekend = taipei.dayOfWeek == DayOfWeek.SATURDAY || taipei.dayOfWeek == DayOfWeek.SUNDAY
+        val minute = TaipeiClock.minuteOfDay(at)
+        val hours = if (weekend) WEEKEND_HOURS else WEEKDAY_HOURS
+        return minute in hours
+    }
+
+    private val WEEKDAY_HOURS = (8 * 60 + 10) until (23 * 60 + 30)
+    private val WEEKEND_HOURS = (8 * 60 + 30) until (21 * 60 + 30)
 
     fun switchReadsOn(enabled: Boolean, signedInToLibrary: Boolean): Boolean = enabled && signedInToLibrary
 

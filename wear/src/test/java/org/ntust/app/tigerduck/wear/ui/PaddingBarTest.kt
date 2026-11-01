@@ -10,12 +10,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
 import org.junit.Assert.assertEquals
@@ -84,26 +82,6 @@ class PaddingBarTest {
         val end = full.at(0.9f)
         assertTrue("starts red: $start", start.red > start.blue)
         assertTrue("ends blue: $end", end.blue > end.red)
-    }
-
-    @Test
-    fun `in a right-to-left language the bar's gradient keeps to the screen's own sides`() {
-        // Wear's indicator mirrors its whole canvas there; the phone's gradient runs left to right.
-        rule.setContent {
-            CompositionLocalProvider(
-                LocalLayoutDirection provides LayoutDirection.Rtl,
-                LocalAccentColor provides Color(0xFFFF3B30),
-                LocalAccentGradient provides WearAccentGradient(Color(0xFF34C8FF), AccentGradientDirection.LeftToRight),
-            ) {
-                MaterialTheme { PaddingBar(24, minDp = 0, maxDp = 24, modifier = Modifier.size(200.dp, 8.dp).testTag("bar")) }
-            }
-        }
-        rule.waitForIdle()
-        val full = bar()
-        val left = full.at(0.1f)
-        val right = full.at(0.9f)
-        assertTrue("red on the left: $left", left.red > left.blue)
-        assertTrue("blue on the right: $right", right.blue > right.red)
     }
 
     @Test

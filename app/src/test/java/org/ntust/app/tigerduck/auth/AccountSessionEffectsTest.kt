@@ -64,6 +64,7 @@ class AccountSessionEffectsTest {
     private val liveUpdates = mutableListOf<String>()
     private val browserClears = mutableListOf<Boolean>()
     private var clearingOwed = false
+    private var moodleColorsForgotten = 0
 
     /** Holds each browser clearing until it is completed: a slow one, as a real deletion can be. */
     private var clearingGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
@@ -97,6 +98,7 @@ class AccountSessionEffectsTest {
                 clearingGate?.await()
             },
             browserClearingOwed = { clearingOwed },
+            forgetMoodleColors = { moodleColorsForgotten++ },
         ).also { it.start(scope) }
     }
 
@@ -112,6 +114,17 @@ class AccountSessionEffectsTest {
         signedIn.value = true
 
         assertEquals(listOf(WorkInfo.State.ENQUEUED), backgroundSync())
+    }
+
+    @Test
+    fun `a sign-out forgets which courses take Moodle's color, and a sign-in does not`() {
+        effects(startSignedIn = false)
+        signedIn.value = true
+        assertEquals(0, moodleColorsForgotten)
+
+        signedIn.value = false
+
+        assertEquals(1, moodleColorsForgotten)
     }
 
     @Test

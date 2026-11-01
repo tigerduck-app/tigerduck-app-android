@@ -104,4 +104,32 @@ class AcademicTermTest {
         assertTrue(AcademicTerm.compareCodes("114A", "1142") > 0)
         assertTrue(AcademicTerm.compareCodes("114H", "114A") > 0)
     }
+
+    @Test
+    fun `compareStable puts a non-term first and keeps two spellings of one term in string order`() {
+        assertTrue(AcademicTerm.compareStable("99 1", "1141") < 0)
+        assertTrue(AcademicTerm.compareStable("1141", "1142") < 0)
+        assertTrue(AcademicTerm.compareStable("1142", "114H") < 0)
+        assertTrue(AcademicTerm.compareStable("abc", "99 1") < 0)
+        assertTrue(AcademicTerm.compareStable("", "abc") < 0)
+        assertTrue(AcademicTerm.compareStable("11401", "1141") < 0)
+        assertEquals(0, AcademicTerm.compareStable("1141", "1141"))
+    }
+
+    @Test
+    fun `compareStable sorts every odd shape the same way whatever the input order`() {
+        val shapes = listOf("1141", " 1141 ", "114h", "11402", "", "abc", "114A", "99 1", "991", "1131", "114H")
+        val expected = shapes.sortedWith { a, b -> AcademicTerm.compareStable(a, b) }
+
+        repeat(20) { seed ->
+            assertEquals(expected, shapes.shuffled(java.util.Random(seed.toLong())).sortedWith { a, b -> AcademicTerm.compareStable(a, b) })
+        }
+        assertEquals(expected.reversed(), shapes.sortedWith(AcademicTerm.newestFirstStable))
+        // Transitive on every triple, which `compareCodes` is not.
+        for (a in shapes) for (b in shapes) for (c in shapes) {
+            if (AcademicTerm.compareStable(a, b) <= 0 && AcademicTerm.compareStable(b, c) <= 0) {
+                assertTrue("$a $b $c", AcademicTerm.compareStable(a, c) <= 0)
+            }
+        }
+    }
 }

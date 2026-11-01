@@ -108,7 +108,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -123,7 +122,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.R
@@ -264,15 +262,14 @@ internal fun BrowserPagesSheet(
         BackHandler {
             if (pages.size > 1) onBack() else scope.launch { sheetState.hide() }
         }
-        val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
         CompositionLocalProvider(LocalZoomPeek provides zoomPeek) {
         Box(Modifier.fillMaxWidth().testTag(BROWSER_SHEET_TAG)) {
             AnimatedContent(
                 targetState = pages.size to pages.last(),
                 transitionSpec = {
-                    // Onward from the end, back from the start; a quarter of the way, under a fade.
+                    // Onward from the right, back from the left; a quarter of the way, under a fade.
                     val onward = targetState.first > initialState.first
-                    val from = if (onward != rtl) 1 else -1
+                    val from = if (onward) 1 else -1
                     (slideInHorizontally { from * it / 4 } + fadeIn()) togetherWith
                         (slideOutHorizontally { -from * it / 4 } + fadeOut()) using SizeTransform(clip = false)
                 },

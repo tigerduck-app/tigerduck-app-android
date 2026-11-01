@@ -25,21 +25,21 @@ class StoredCourseChangesTest {
 
         assertEquals("1151", changes.term)
         assertEquals(
-            listOf(101, 102, 103, 104),
+            listOf(104, 103, 102, 101),   // newest id first, whatever order the copy lists them in
             changes.changes("CC900", thursday).map { it.id },
         )
         assertEquals(
             listOf(
-                CourseChange.Kind.CANCELLED,
-                CourseChange.Kind.ROOM,
-                CourseChange.Kind.END,
                 CourseChange.Kind.NOTE,
+                CourseChange.Kind.END,
+                CourseChange.Kind.ROOM,
+                CourseChange.Kind.CANCELLED,
             ),
             changes.changes("CC900", thursday).map { it.kind },
         )
-        assertEquals("TR-313", changes.changes("CC900", thursday)[1].room)
-        assertEquals("11:45", changes.changes("CC900", thursday)[2].end)
-        assertEquals("the English note falls back to the Chinese one", "期中考", changes.changes("CC900", thursday)[3].note(Locale.ENGLISH))
+        assertEquals("TR-313", changes.changes("CC900", thursday)[2].room)
+        assertEquals("11:45", changes.changes("CC900", thursday)[1].end)
+        assertEquals("the English note falls back to the Chinese one", "期中考", changes.changes("CC900", thursday)[0].note(Locale.ENGLISH))
         assertEquals(listOf(thursday), changes.days("CC900"))
         assertTrue(changes.changes("CC900", LocalDate.of(2026, 11, 12)).isEmpty())
 

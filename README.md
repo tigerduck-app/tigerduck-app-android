@@ -246,8 +246,8 @@ F-Droid 變體**，也不會出現在 F-Droid 商店上。
 
 翻譯字串放在 [`app-translation/`](https://github.com/tigerduck-app/app-translation) 子模組，與 iOS 共用。
 
-- 翻譯原始檔在 `app-translation/source/`，共 55 份（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、
-  `ar.json` …）
+- 翻譯原始檔在 `app-translation/source/`，共 51 份（`en.json`、`zh-Hant.json`、`ja.json`、`ko.json`、
+  `de.json` …）
 - 每次編譯都會從子模組的 `source/*.json` 產生 Android 字串：`generateAppTranslationStrings`
   （`gradle/app-translation.gradle.kts`，`:app` 與 `:wear` 都會套用）把 `values*/strings.xml` 和手機的
   `xml/locales_config.xml` 寫進 `build/generated/appTranslation/res`。這邊和子模組都不再提交 Android 的字串，

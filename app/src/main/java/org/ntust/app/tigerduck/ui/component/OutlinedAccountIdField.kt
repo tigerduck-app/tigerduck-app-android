@@ -317,11 +317,7 @@ fun OutlinedAccountIdField(
                     val screenWidth = composeView.context.resources.displayMetrics.widthPixels
 
                     val targetScreenY = statusBarHeight + edgePx
-                    val targetScreenX = if (layoutDirection == LayoutDirection.Ltr) {
-                        screenWidth - popupContentSize.width - edgePx
-                    } else {
-                        edgePx
-                    }
+                    val targetScreenX = screenWidth - popupContentSize.width - edgePx
 
                     return IntOffset(
                         targetScreenX - parentLoc[0],

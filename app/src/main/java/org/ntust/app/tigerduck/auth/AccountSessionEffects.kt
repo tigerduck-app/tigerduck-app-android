@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
+import org.ntust.app.tigerduck.data.MoodleColorStore
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.AccountNotifications
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
@@ -39,6 +40,8 @@ class AccountSessionEffects internal constructor(
     private val clearBrowser: suspend () -> Unit,
     /** Whether a clearing a process death cut short is still owed; see [BrowserCleanup]. */
     private val browserClearingOwed: () -> Boolean,
+    /** Forgets which courses take Moodle's color: the next student's courses are new to the app. */
+    private val forgetMoodleColors: suspend () -> Unit = {},
 ) {
     @Inject
     constructor(
@@ -48,6 +51,7 @@ class AccountSessionEffects internal constructor(
         liveActivityManager: LiveActivityManager,
         browserData: BrowserDataCleaner,
         browserCleanup: BrowserCleanup,
+        moodleColors: MoodleColorStore,
     ) : this(
         context = context,
         accountState = authService.accountState,
@@ -57,6 +61,7 @@ class AccountSessionEffects internal constructor(
         stopLiveUpdates = liveActivityManager::stop,
         clearBrowser = browserData::clear,
         browserClearingOwed = browserCleanup::isPending,
+        forgetMoodleColors = moodleColors::forgetAccount,
     )
 
     /** Follows the sign-in state on [scope] for the life of the process. */
@@ -95,6 +100,7 @@ class AccountSessionEffects internal constructor(
         AccountNotifications.cancelAll(context)
         // Moodle's session cookie, the pages and downloads list are the departing student's.
         clearBrowserSoon(scope)
+        scope.launch { forgetMoodleColors() }
     }
 
     /**

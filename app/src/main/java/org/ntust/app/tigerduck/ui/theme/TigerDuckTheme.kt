@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.shared.Course
 import kotlin.random.Random
 
@@ -134,31 +135,14 @@ object TigerDuckTheme {
         return if (idx >= 0) courseColorPaletteDark[idx] else stored
     }
 
+    /**
+     * [courses] laid out from scratch as the widgets lay theirs out ([buildCourseColorAssignments]),
+     * so nothing held for them outlives what it was computed from. Other courses keep their entry:
+     * Home and the class table share the map and show other terms.
+     */
     fun buildCourseColorMap(courses: List<Course>) {
-        val existing = courseColorMapRef.get().toMutableMap()
-
-        val pinnedCourseNos = mutableSetOf<String>()
-        courses.forEach { course ->
-            val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
-            pinnedCourseNos.add(course.courseNo)
-            existing[course.courseNo] = pinned
-        }
-
-        // Evict auto-assigned entries that now conflict with a pinned color
-        val pinnedColors = pinnedCourseNos.mapNotNullTo(mutableSetOf()) { existing[it] }
-        val evict = existing.keys.filter { it !in pinnedCourseNos && existing[it] in pinnedColors }
-        evict.forEach { existing.remove(it) }
-
-        val taken = existing.values.toMutableSet()
-        courses.filter { existing[it.courseNo] == null }
-            .sortedBy { it.courseNo }
-            .forEach { course ->
-                val color = pickFreeCourseColor(course.courseNo, taken)
-                existing[course.courseNo] = color
-                taken.add(color)
-            }
-
-        courseColorMapRef.set(existing)
+        MoodleColorBook.shared.reconcile(courses)
+        courseColorMapRef.set(courseColorMapRef.get() + buildCourseColorAssignments(courses))
     }
 
     fun clearCourseColorMap() {
@@ -188,7 +172,6 @@ object TigerDuckTheme {
         return if (_isDarkMode.value) (lightModeAlpha * 2.3f).coerceAtMost(1f)
         else lightModeAlpha
     }
-
 }
 
 /**
@@ -201,9 +184,9 @@ object TigerDuckTheme {
 fun buildCourseColorAssignments(courses: List<Course>): Map<String, Color> {
     val map = mutableMapOf<String, Color>()
     val taken = mutableSetOf<Color>()
-
+    val moodle = MoodleColorBook.shared.colorsFor(courses)
     courses.forEach { course ->
-        val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
+        val pinned = parseHexOrNull(course.customColorHex) ?: moodle[course.courseNo]?.let { Color(0xFF000000L or it.toLong()) } ?: return@forEach
         map[course.courseNo] = pinned
         taken.add(pinned)
     }
@@ -484,7 +467,7 @@ fun TigerDuckAppTheme(
             LocalUsesDynamicColor provides useDynamicColor,
             LocalAccentBrush provides accentBrush,
             LocalOnAccentBrush provides onAccentBrush,
-            content = content,
+            content = { LeftToRight(content) },
         )
     }
 }

@@ -81,7 +81,7 @@ value class AcademicTerm private constructor(val code: String) : Comparable<Acad
          *
          * Not a general order: it holds only for the shapes its one caller passes (four-character
          * codes of one spelling). Across spellings it can cycle: `1141 < 11402 < 1140A < 1141`. So
-         * the score sorts, which can see the five-character form, must not reuse it.
+         * the score sorts, which can see the five-character form, use [compareStable].
          */
         fun compareCodes(a: String, b: String): Int {
             val x = parse(a)
@@ -89,5 +89,25 @@ value class AcademicTerm private constructor(val code: String) : Comparable<Acad
             val byTerm = if (x != null && y != null) x.compareTo(y) else 0
             return if (byTerm != 0) byTerm else a.compareTo(b)
         }
+
+        /**
+         * Any two stored codes in one fixed order, as iOS `AcademicTerm.precedes`: a code that is
+         * not a term comes before every term, two such codes and two spellings of one term (`99 1`
+         * and `991`, `1141` and `11402`) keep their plain string order, and terms go by year, then
+         * 1 before 2 before H. A real total order, so a sort never cycles whatever the shapes.
+         */
+        fun compareStable(a: String, b: String): Int {
+            val x = parse(a)
+            val y = parse(b)
+            return when {
+                x == null && y == null -> a.compareTo(b)
+                x == null -> -1
+                y == null -> 1
+                else -> x.compareTo(y).takeIf { it != 0 } ?: a.compareTo(b)
+            }
+        }
+
+        /** [compareStable], newest first: a code that is not a term lands at the end. */
+        val newestFirstStable: Comparator<String> = Comparator { a, b -> compareStable(b, a) }
     }
 }

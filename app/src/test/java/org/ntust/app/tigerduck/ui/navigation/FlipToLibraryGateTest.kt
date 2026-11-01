@@ -3,7 +3,11 @@ package org.ntust.app.tigerduck.ui.navigation
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.Instant
+import java.time.ZonedDateTime
+import java.util.TimeZone
 import org.ntust.app.tigerduck.mail.MailRoutes
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 
 /**
  * Flip-to-library while no library account is signed in (tigerduck-app/tigerduck-app#495), and
@@ -77,5 +81,47 @@ class FlipToLibraryGateTest {
     fun `a flip with a mail draft on screen does nothing`() {
         // The iPhone writes mail in a sheet, which the flip already leaves alone.
         assertFalse(FlipToLibraryGate.mayNavigate(windowFocused = true, currentRoute = MailRoutes.COMPOSE))
+    }
+
+    // 2026-11-02 is a Monday, 2026-11-07 a Saturday and 2026-11-08 a Sunday.
+    private fun taipei(day: Int, hour: Int, minute: Int, second: Int = 0): Instant =
+        ZonedDateTime.of(2026, 11, day, hour, minute, second, 0, TaipeiClock.zone).toInstant()
+
+    @Test
+    fun weekdaysOpenFrom0810ToBefore2330() {
+        assertTrue(FlipToLibraryGate.opensLibrary(taipei(2, 8, 10)))
+        assertFalse(FlipToLibraryGate.opensLibrary(taipei(2, 8, 9, 59)))
+        assertTrue(FlipToLibraryGate.opensLibrary(taipei(2, 23, 29, 59)))
+        assertFalse(FlipToLibraryGate.opensLibrary(taipei(2, 23, 30)))
+    }
+
+    @Test
+    fun weekendsOpenFrom0830ToBefore2130() {
+        for (day in listOf(7, 8)) {
+            assertTrue(FlipToLibraryGate.opensLibrary(taipei(day, 8, 30)))
+            assertFalse(FlipToLibraryGate.opensLibrary(taipei(day, 8, 29, 59)))
+            assertTrue(FlipToLibraryGate.opensLibrary(taipei(day, 21, 29, 59)))
+            assertFalse(FlipToLibraryGate.opensLibrary(taipei(day, 21, 30)))
+        }
+    }
+
+    @Test
+    fun hoursAreTaipeisWhateverThePhonesZone() {
+        val saved = TimeZone.getDefault()
+        try {
+            TimeZone.setDefault(TimeZone.getTimeZone("America/Los_Angeles"))
+            // Monday 01:00 UTC is Monday 09:00 in Taipei.
+            assertTrue(FlipToLibraryGate.opensLibrary(Instant.parse("2026-11-02T01:00:00Z")))
+            // Monday 16:00 UTC is Tuesday 00:00 in Taipei.
+            assertFalse(FlipToLibraryGate.opensLibrary(Instant.parse("2026-11-02T16:00:00Z")))
+            // Saturday 14:00 UTC is Saturday 22:00 in Taipei, past the weekend hours.
+            assertFalse(FlipToLibraryGate.opensLibrary(Instant.parse("2026-11-07T14:00:00Z")))
+            // Friday 15:45 UTC is Friday 23:45 in Taipei, past the weekday hours.
+            assertFalse(FlipToLibraryGate.opensLibrary(Instant.parse("2026-11-06T15:45:00Z")))
+            // Saturday 00:15 UTC is Saturday 08:15 in Taipei: before the weekend start, which a weekday would already have passed.
+            assertFalse(FlipToLibraryGate.opensLibrary(Instant.parse("2026-11-07T00:15:00Z")))
+        } finally {
+            TimeZone.setDefault(saved)
+        }
     }
 }

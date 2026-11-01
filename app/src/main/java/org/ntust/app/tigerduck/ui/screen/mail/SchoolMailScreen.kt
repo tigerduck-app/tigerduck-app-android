@@ -95,7 +95,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -109,7 +108,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -130,7 +128,7 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.component.SearchDrawer
@@ -223,7 +221,7 @@ fun SchoolMailScreen(
     if (!signedIn) {
         PageScaffold(
             title = stringResource(R.string.feature_school_mail),
-            headerPosition = PageDefaults.TabHeaderPosition,
+            headerPosition = PageHeaderPosition.InContent,
         ) { padding ->
             Column(
                 modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
@@ -282,7 +280,7 @@ fun SchoolMailScreen(
 
     PageScaffold(
         title = stringResource(R.string.feature_school_mail),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = { SchoolMailSyncDot(state.loadState, authFailed, indexProgress, isLoading, state.fetchedAt) },
         actions = {
             IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
@@ -725,12 +723,10 @@ internal fun SwipeableMailCard(
     // must not carry over to the other mail when the list re-merges.
     val offset = remember(row.key) { Animatable(0f) }
     val scope = rememberCoroutineScope()
-    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    // The drag handler below starts again whenever either changes -- the activity takes a change
-    // of language, and so of layout direction, without being recreated -- and a drag it was in the
+    // The drag handler below starts again whenever `writing` changes, and a drag it was in the
     // middle of ends without its onDragEnd or onDragCancel. So the card is put back at rest here,
     // which also stops a fling-out still running before it acts on a card that no longer offers it.
-    LaunchedEffect(writing, isRtl) { offset.snapTo(0f) }
+    LaunchedEffect(writing) { offset.snapTo(0f) }
     val isRead = message.flags.seen
     val readIcon = readToggleIcon(isRead = isRead)
     val readDescription = stringResource(if (isRead) R.string.school_mail_mark_unread else R.string.school_mail_mark_read)
@@ -778,7 +774,7 @@ internal fun SwipeableMailCard(
             Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offset.value.roundToInt(), 0) }
-                .pointerInput(row.key, writing, isRtl) {
+                .pointerInput(row.key, writing) {
                     if (writing) return@pointerInput
                     detectHorizontalDragGestures(
                         onDragEnd = {
@@ -795,8 +791,7 @@ internal fun SwipeableMailCard(
                         },
                         onDragCancel = { scope.launch { offset.animateTo(0f, spring()) } },
                         onHorizontalDrag = { _, delta ->
-                            val signed = if (isRtl) -delta else delta
-                            scope.launch { offset.snapTo(offset.value + signed * 0.6f) }
+                            scope.launch { offset.snapTo(offset.value + delta * 0.6f) }
                         },
                     )
                 },

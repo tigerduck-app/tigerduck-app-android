@@ -183,7 +183,7 @@ class TermCodeCharacterizationTest {
     }
 
     @Test
-    fun `GpaTrendPoint trendFor lists terms by plain string sort`() {
+    fun `GpaTrendPoint trendFor lists terms in term order, a non-term first and two spellings of a term by string`() {
         val graded = listOf("1141", "1142", "114H", "113H", "1131", "11402", "11401", "abc")
         val report = ScoreReport(
             student = "",
@@ -193,7 +193,7 @@ class TermCodeCharacterizationTest {
             creditSummary = CreditSummary.EMPTY,
         )
         assertEquals(
-            "[1131, 113H, 11401, 11402, 1141, 1142, 114H, abc]",
+            "[abc, 1131, 113H, 11401, 1141, 11402, 1142, 114H]",
             GpaTrendPoint.trendFor(report).map { it.term }.toString(),
         )
     }

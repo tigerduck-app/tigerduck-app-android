@@ -241,7 +241,9 @@ class ClassPreparingNotificationReceiver : BroadcastReceiver() {
                 )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                // The course, room and time stay off a lock screen set to hide sensitive
+                // content, where the system shows its own hidden form instead.
+                .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
                 .setAutoCancel(true)
                 .setContentIntent(AppLink.ClassTable.pendingIntent(context))
                 .setGroup(NotificationGroup.CLASS.key)
