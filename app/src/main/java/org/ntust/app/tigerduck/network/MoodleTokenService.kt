@@ -355,8 +355,7 @@ class MoodleTokenService internal constructor(
             return walkOidc(client, nextHtml, nextUrl, studentId, password, posting, remainingSteps - 1, arrived)
         }
 
-        // SSO login step: we landed on ssoam2.ntust.edu.tw with a form. ssoam's NetIQ page is no
-        // place for the password: its reCAPTCHA takes a person (see HtmlParser.isSSOLoginPage).
+        // SSO login step: ssoam2.ntust.edu.tw's form. ssoam's NetIQ page takes a person (see HtmlParser.isSSOLoginPage).
         if (responseUrl.host.contains("ssoam2.ntust.edu.tw")) {
             val fields = parseSSOLoginFields(html)
             if (fields.antiforgery.isEmpty()) {

@@ -11,8 +11,6 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.auth.postAutomatically
-import org.ntust.app.tigerduck.shared.CredentialPost
-import org.ntust.app.tigerduck.shared.executeCredentialPost
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -94,6 +92,8 @@ class SsoLoginService internal constructor(
         this(sessionManager, passwordLatch, clientFor = { sessionManager.client })
 
     private val client: OkHttpClient get() = clientFor()
+
+    private val pages: SsoPages get() = SsoPages(client)
 
     // One login at a time. A login that meets the SSO wall clears the whole
     // cookie jar (step 4) before it signs in, which pulled the session out
@@ -198,10 +198,10 @@ class SsoLoginService internal constructor(
         val latchGeneration = passwordLatch.generation
 
         // Step 1: Visit service URL
-        var (html, url) = fetchPage(serviceUrl)
+        var (html, url) = pages.fetchPage(serviceUrl)
 
         // Step 2: Resolve OIDC bridge forms
-        val resolved = resolveOIDCBridgeForms(html, url)
+        val resolved = pages.resolveOIDCBridgeForms(html, url)
         html = resolved.first
         url = resolved.second
 
@@ -222,7 +222,7 @@ class SsoLoginService internal constructor(
         // Step 4: Clear cookies and retry
         sessionManager.invalidateSession()
 
-        val fresh = fetchPage(serviceUrl)
+        val fresh = pages.fetchPage(serviceUrl)
         html = fresh.first
         url = fresh.second
 
@@ -231,7 +231,7 @@ class SsoLoginService internal constructor(
             // POST that lands back on the SSO wall means we aren't actually
             // logged in, so we must not mark success — fall through to the
             // credential submission below.
-            val (bridgeHtml, bridgeUrl) = resolveOIDCBridgeForms(html, url)
+            val (bridgeHtml, bridgeUrl) = pages.resolveOIDCBridgeForms(html, url)
             if (!HtmlParser.isSSOLoginPage(bridgeHtml, bridgeUrl)) {
                 sessionManager.markLoginSuccess()
                 return@withContext true
@@ -241,17 +241,7 @@ class SsoLoginService internal constructor(
         }
 
         // Step 5: Submit login form
-        val form = HtmlParser.findFormById(html, "loginForm") ?: run {
-            // ssoam's NetIQ Access Manager page (`id="IDPLogin"`) binds its submit control to an
-            // invisible reCAPTCHA that only a person's click passes, so no password goes there
-            // and nothing was authenticated: this must not read as success, as sign-in and
-            // scrapers need a real session. In the TigerDuck browser the student signs in there
-            // by hand.
-            if (HtmlParser.findFormById(html, "IDPLogin") != null) {
-                throw SsoLoginError.InteractiveLoginRequired()
-            }
-            throw SsoLoginError.LoginFormNotFound()
-        }
+        val form = loginForm(html)
 
         val fields = form.inputs.toMutableList().apply {
             replaceOrAppend("Username", studentId)
@@ -259,7 +249,7 @@ class SsoLoginService internal constructor(
             if (none { it.first == "captcha" }) add("captcha" to "")
         }
 
-        val actionUrl = resolveUrl(form.action, url)
+        val actionUrl = pages.resolveUrl(form.action, url)
         // The credentials go to the school's sign-in host and nowhere else, whatever the page
         // names as the form's action. As on the iPhone (ssoActionHostAllowlist).
         if (!isSignInHost(actionUrl)) throw SsoLoginError.InvalidResponse()
@@ -311,16 +301,28 @@ class SsoLoginService internal constructor(
         val jar = newCookieJar()
         jar.saveFromResponse(SSO_SITE, client.cookieJar.loadForRequest(SSO_SITE).filter { it.domain.equals(SSO_SITE.host, ignoreCase = true) })
         val calls = RunningCalls()
-        val run = client.newBuilder().cookieJar(jar).eventListener(calls).build()
+        val run = SsoPages(client.newBuilder().cookieJar(jar).eventListener(calls).build())
         return awaitApart(calls::cancelAll) {
-            val (html, url) = fetchPage(target, run)
+            val (html, url) = run.fetchPage(target)
             // The site sent the browser through SSO, which signed it in, as against a page that asks for no sign-in.
             val throughSso = HtmlParser.isSsoHost(url.host)
-            val (landedHtml, landed) = resolveOIDCBridgeForms(html, url, client = run)
+            val (landedHtml, landed) = run.resolveOIDCBridgeForms(html, url)
             if (HtmlParser.findFormById(landedHtml, "IDPLogin") != null) throw SsoLoginError.InteractiveLoginRequired()
             if (HtmlParser.isSsoHost(landed.host)) throw SsoLoginError.SessionMissing()
             BrowserSiteSession(jar.setBy(host).filter { it.domain.equals(host, ignoreCase = true) }, signedIn = throughSso)
         }
+    }
+
+    /**
+     * The sign-in form on [html]. ssoam's NetIQ Access Manager page (`id="IDPLogin"`) binds its
+     * submit control to an invisible reCAPTCHA that only a person's click passes, so no password
+     * goes there and nothing was authenticated: this must not read as success, as sign-in and
+     * scrapers need a real session. In the TigerDuck browser the student signs in there by hand.
+     */
+    private fun loginForm(html: String): HtmlParser.FormData {
+        HtmlParser.findFormById(html, "loginForm")?.let { return it }
+        if (HtmlParser.findFormById(html, "IDPLogin") != null) throw SsoLoginError.InteractiveLoginRequired()
+        throw SsoLoginError.LoginFormNotFound()
     }
 
     /**
@@ -332,7 +334,7 @@ class SsoLoginService internal constructor(
         var (html, url) = postLoginForm(actionUrl, fields)
 
         // Step 6: Resolve OIDC bridge forms after login
-        val afterLogin = resolveOIDCBridgeForms(html, url)
+        val afterLogin = pages.resolveOIDCBridgeForms(html, url)
         html = afterLogin.first
         url = afterLogin.second
 
@@ -343,44 +345,6 @@ class SsoLoginService internal constructor(
 
         sessionManager.markLoginSuccess()
         return true
-    }
-
-    private fun fetchPage(url: String, client: OkHttpClient = this.client): Pair<String, HttpUrl> {
-        try {
-            val request = Request.Builder().url(url).get().build()
-            client.newCall(request).execute().use { response ->
-                val body = response.body.string()
-                return body to (response.request.url)
-            }
-        } catch (e: SsoLoginError) {
-            throw e
-        } catch (e: java.io.IOException) {
-            throw SsoLoginError.NetworkError(e)
-        }
-    }
-
-    private fun resolveOIDCBridgeForms(
-        html: String,
-        url: HttpUrl,
-        maxSteps: Int = 3,
-        client: OkHttpClient = this.client,
-    ): Pair<String, HttpUrl> {
-        var currentHtml = html
-        var currentUrl = url
-        repeat(maxSteps) {
-            if (HtmlParser.isSSOLoginPage(currentHtml, currentUrl)) return currentHtml to currentUrl
-            val form =
-                HtmlParser.findOIDCBridgeForm(currentHtml) ?: return currentHtml to currentUrl
-            val actionUrl = resolveUrl(form.action, currentUrl)
-            // What the bridge carries passes the sign-in on, so it goes to the school's hosts over
-            // HTTPS and nowhere else, whatever the page names as the form's action. As on the
-            // iPhone.
-            if (!CredentialPost.isSchoolTarget(actionUrl)) throw SsoLoginError.InvalidResponse()
-            val (newHtml, newUrl) = postForm(actionUrl, form.inputs, client)
-            currentHtml = newHtml
-            currentUrl = newUrl
-        }
-        return currentHtml to currentUrl
     }
 
     /**
@@ -399,45 +363,6 @@ class SsoLoginService internal constructor(
             throw e
         } catch (e: java.io.IOException) {
             throw SsoLoginError.NetworkError(e)
-        }
-    }
-
-    /**
-     * A bridge form's POST, which carries the ID token or the code the school hands the service: no
-     * redirect sends the form on, and one that would ends the sign-in ([executeCredentialPost]).
-     */
-    private fun postForm(url: HttpUrl, fields: List<Pair<String, String>>, client: OkHttpClient = this.client): Pair<String, HttpUrl> {
-        try {
-            val body = FormBody.Builder().apply {
-                fields.forEach { (name, value) -> add(name, value) }
-            }.build()
-
-            val request = Request.Builder()
-                .url(url)
-                .post(body)
-                .build()
-
-            val response = client.executeCredentialPost(request) ?: throw SsoLoginError.InvalidResponse()
-            response.use {
-                val html = it.body.string()
-                return html to it.request.url
-            }
-        } catch (e: SsoLoginError) {
-            throw e
-        } catch (e: java.io.IOException) {
-            throw SsoLoginError.NetworkError(e)
-        }
-    }
-
-    private fun resolveUrl(path: String, base: HttpUrl): HttpUrl {
-        return try {
-            if (path.startsWith("http://") || path.startsWith("https://")) {
-                path.toHttpUrl()
-            } else {
-                base.newBuilder(path)?.build() ?: base
-            }
-        } catch (e: IllegalArgumentException) {
-            base
         }
     }
 
