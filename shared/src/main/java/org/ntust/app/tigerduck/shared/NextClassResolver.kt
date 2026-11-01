@@ -79,8 +79,8 @@ data class TodayClassEntry(
  *  - a quiet day (outside the term, or a holiday the user kept) has no class, and the walk ahead
  *    skips it, which [ClassTimeline] does not know;
  *  - the course going on is left out of what comes next, its other blocks of the day included;
- *  - a block of a course not going on that has started (courses meeting at once) still counts as
- *    starting at each of its later periods, a quirk kept as it was;
+ *  - a block that has started is not next: of courses meeting at once, the one not going on is
+ *    not offered again at its later periods;
  *  - the first course in the list is the one going on, and wins ties.
  */
 object NextClassResolver {
@@ -182,17 +182,6 @@ object NextClassResolver {
         val periods: List<String> get() = slot.periods
         val startMinute: Int get() = slot.start.hour * 60 + slot.start.minute
         val endMinute: Int get() = slot.end.hour * 60 + slot.end.minute
-
-        /**
-         * The minutes it counts as starting at when looking for the next class: each period's
-         * start in a timetable block, as before changes, and a changed class's own start alone.
-         */
-        val starts: List<Int>
-            get() = if (change != null) {
-                listOf(startMinute)
-            } else {
-                periods.mapNotNull { parseHm(PeriodTimes.mapping[it]?.first) }
-            }
     }
 
     /** The classes of [courses] that meet on [day], by start: [ClassTimeline]'s, the cancelled ones left out. */
@@ -220,7 +209,7 @@ object NextClassResolver {
         excluding: (DayClass) -> Boolean = { false },
     ): Pick? = classes
         .filter { !excluding(it) }
-        .flatMap { dayClass -> dayClass.starts.map { Pick(dayClass, it) } }
+        .map { Pick(it, it.startMinute) }
         .filter { after == null || it.startMinute > after }
         .minWithOrNull(compareBy<Pick> { it.startMinute }.thenBy { courseIndex(courses, it.dayClass) }.thenBy { periodOrder(it.dayClass.periods.first()) })
 
