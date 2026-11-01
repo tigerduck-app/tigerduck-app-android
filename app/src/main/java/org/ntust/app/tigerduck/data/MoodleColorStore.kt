@@ -97,8 +97,8 @@ class MoodleColorStore internal constructor(
         } else {
             emptySet()
         }
-        // With courses cached those are the existing ones; with none, the first refresh is.
-        book.load(kept, legacy, upgrading = upgrade && legacy.isEmpty())
+        // Whatever the first refresh brings is existing, whatever the caches kept of the courses.
+        book.load(kept, legacy, upgrading = upgrade)
     }
 
     /** At a school sign-out: the file goes and the next account starts with no course known. */

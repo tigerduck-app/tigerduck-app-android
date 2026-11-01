@@ -177,9 +177,9 @@ class MoodleColorBook {
     }
 
     private fun colorOf(course: Course): Int? {
-        val idnumber = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: return null
-        val id = ids[MoodleCourseIds.normalizedIdnumber(idnumber)] ?: return null
-        return forCourseId(id)
+        // The id map first; the numeric id a Home or background fetch put on the course otherwise.
+        val mapped = course.moodleIdNumber?.takeIf { it.isNotEmpty() }?.let { ids[MoodleCourseIds.normalizedIdnumber(it)] }
+        return (mapped ?: course.moodleNumericCourseId?.takeIf { it > 0 })?.let(::forCourseId)
     }
 
     companion object {

@@ -135,31 +135,14 @@ object TigerDuckTheme {
         return if (idx >= 0) courseColorPaletteDark[idx] else stored
     }
 
+    /**
+     * The colors of [courses], laid out from scratch as the widgets lay theirs out
+     * ([buildCourseColorAssignments]), so nothing the map held before can outlive what it was
+     * computed from: a Moodle transition, another term's course of the same number, a pick removed.
+     */
     fun buildCourseColorMap(courses: List<Course>) {
-        val existing = (if (MoodleColorBook.shared.reconcile(courses)) emptyMap() else courseColorMapRef.get()).toMutableMap()
-        val moodle = MoodleColorBook.shared.colorsFor(courses)
-        val pinnedCourseNos = mutableSetOf<String>()
-        courses.forEach { course ->
-            val pinned = parseHexOrNull(course.customColorHex) ?: moodle[course.courseNo]?.let { Color(0xFF000000L or it.toLong()) } ?: return@forEach
-            pinnedCourseNos.add(course.courseNo)
-            existing[course.courseNo] = pinned
-        }
-
-        // Evict auto-assigned entries that now conflict with a pinned color
-        val pinnedColors = pinnedCourseNos.mapNotNullTo(mutableSetOf()) { existing[it] }
-        val evict = existing.keys.filter { it !in pinnedCourseNos && existing[it] in pinnedColors }
-        evict.forEach { existing.remove(it) }
-
-        val taken = existing.values.toMutableSet()
-        courses.filter { existing[it.courseNo] == null }
-            .sortedBy { it.courseNo }
-            .forEach { course ->
-                val color = pickFreeCourseColor(course.courseNo, taken)
-                existing[course.courseNo] = color
-                taken.add(color)
-            }
-
-        courseColorMapRef.set(existing)
+        MoodleColorBook.shared.reconcile(courses)
+        courseColorMapRef.set(buildCourseColorAssignments(courses))
     }
 
     fun clearCourseColorMap() {

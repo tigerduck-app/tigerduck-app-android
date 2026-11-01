@@ -40,15 +40,15 @@ class MoodleColorStoreTest {
     }
 
     @Test
-    fun `an upgrade keeps the courses already cached and colors the next one from Moodle`() = runBlocking {
-        cache.saveCourses(listOf(course("CS1")), "1151")
+    fun `an upgrade with a hand-added course cached still keeps what the first refresh brings`() = runBlocking {
+        cache.saveCourses(listOf(course("CS9").copy(isManual = true)), "1151")
         cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337))
         val book = MoodleColorBook()
 
         store(book).ensureLoaded()
         book.reconcile(listOf(course("CS1"), course("CS2")))
 
-        assertEquals(mapOf("CS2" to MoodleColorBook.forCourseId(5337)), book.colorsFor(listOf(course("CS1"), course("CS2"))))
+        assertTrue(book.colorsFor(listOf(course("CS1"), course("CS2"))).isEmpty())
     }
 
     @Test

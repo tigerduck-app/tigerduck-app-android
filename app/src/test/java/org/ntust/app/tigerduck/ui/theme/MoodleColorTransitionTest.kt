@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.theme
 
+import androidx.compose.ui.graphics.Color
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -45,5 +46,29 @@ class MoodleColorTransitionTest {
         assertEquals(widgets.getValue("CS1"), TigerDuckTheme.courseColorVibrant("CS1"))
         // It did have to move: the slot it probed to is the one the first course left.
         assertEquals(false, before == TigerDuckTheme.courseColorVibrant("CS12"))
+    }
+
+    @Test
+    fun `a late id that reconciled first still lays the phone out as the widgets do`() {
+        TigerDuckTheme.buildCourseColorMap(courses)
+
+        // CourseColorStore.saveMoodleIds reconciles before it asks for the rebuild.
+        MoodleColorBook.shared.setIds(mapOf("1151CS1" to 4127))
+        MoodleColorBook.shared.reconcile(courses)
+        TigerDuckTheme.buildCourseColorMap(courses)
+
+        assertEquals(buildCourseColorAssignments(courses).getValue("CS12"), TigerDuckTheme.courseColorVibrant("CS12"))
+    }
+
+    @Test
+    fun `another term's course of the same number does not keep the Moodle color of this one`() {
+        MoodleColorBook.shared.setIds(mapOf("1151CS1" to 4127))
+        TigerDuckTheme.buildCourseColorMap(listOf(first))
+        val spring = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1152CS1")
+
+        TigerDuckTheme.buildCourseColorMap(listOf(spring))
+
+        assertEquals(buildCourseColorAssignments(listOf(spring)).getValue("CS1"), TigerDuckTheme.courseColorVibrant("CS1"))
+        assertEquals(false, Color(0xFF000000L or MoodleColorBook.forCourseId(4127).toLong()) == TigerDuckTheme.courseColorVibrant("CS1"))
     }
 }

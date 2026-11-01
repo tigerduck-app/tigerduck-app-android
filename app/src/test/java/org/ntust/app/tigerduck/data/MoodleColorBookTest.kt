@@ -223,6 +223,16 @@ class MoodleColorBookTest {
     }
 
     @Test
+    fun `a new course takes the color of the numeric id on it when the id map lacks it`() {
+        val book = book(known = emptyMap())
+        val numeric = course("CS3").copy(moodleNumericCourseId = 902)
+
+        assertTrue(book.reconcile(listOf(numeric)))
+
+        assertEquals(mapOf("CS3" to MoodleColorBook.forCourseId(902)), book.colorsFor(listOf(numeric)))
+    }
+
+    @Test
     fun `a reset keeps the Moodle color the book remembers or the id on the course, with no id map`() {
         val book = book()
         val remembered = course("CS1")
