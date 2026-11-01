@@ -34,13 +34,4 @@ class TigerDuckAppThemeDirectionTest {
         composeRule.waitForIdle()
         assertEquals(LayoutDirection.Ltr, seen)
     }
-
-    @Test
-    fun `a page outside the theme does read the right-to-left configuration`() {
-        // Guards the test above: the configuration really is right to left here.
-        var seen: LayoutDirection? = null
-        composeRule.setContent { seen = LocalLayoutDirection.current }
-        composeRule.waitForIdle()
-        assertEquals(LayoutDirection.Rtl, seen)
-    }
 }

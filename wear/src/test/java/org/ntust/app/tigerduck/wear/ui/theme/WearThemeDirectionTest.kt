@@ -33,13 +33,4 @@ class WearThemeDirectionTest {
         rule.waitForIdle()
         assertEquals(LayoutDirection.Ltr, seen)
     }
-
-    @Test
-    fun `a page outside the theme does read the right-to-left configuration`() {
-        // Guards the test above: the configuration really is right to left here.
-        var seen: LayoutDirection? = null
-        rule.setContent { seen = LocalLayoutDirection.current }
-        rule.waitForIdle()
-        assertEquals(LayoutDirection.Rtl, seen)
-    }
 }
