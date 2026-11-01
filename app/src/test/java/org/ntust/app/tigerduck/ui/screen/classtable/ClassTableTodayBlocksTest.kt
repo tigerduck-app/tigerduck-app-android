@@ -262,25 +262,25 @@ class ClassTableTodayBlocksTest {
     }
 
     @Test
-    fun `a period with no time beside a timed block comes first in the carousel, and the timed block still runs`() {
-        val c = course("UNK2", listOf("3", "4", "Z"))
+    fun `a period with no time beside a timed block never hides the timed block, before, during or after it`() {
+        val late = moments + "23:00"
+        val over = "carousel=34 ongoing=none card=34/-/true finished=true"
+        val running = "carousel=34 ongoing=UNK2:34 card=34/-/false finished=false"
+        // Z is listed in either order; the timed 3-4 shows at every moment, and stays once it is over.
+        for (periods in listOf(listOf("3", "4", "Z"), listOf("Z", "3", "4"))) {
+            assertEquals(
+                listOf(running, running, running, over, over),
+                lines(course("UNK2", periods), none, late),
+            )
+        }
         assertEquals(
             listOf(
-                "carousel=Z ongoing=UNK2:34 card=Z/-/false finished=false",
-                "carousel=Z ongoing=UNK2:34 card=Z/-/false finished=false",
-                "carousel=Z ongoing=UNK2:34 card=Z/-/false finished=false",
-                "carousel=Z ongoing=none card=Z/-/true finished=true",
+                "carousel=34 ongoing=UNK2:34 card=34/meeting/false finished=false",
+                "carousel=34 ongoing=UNK2:34 card=34/meeting/false finished=false",
+                "carousel=34 ongoing=none card=34/meeting/true finished=false",
+                "carousel=34 ongoing=none card=34/meeting/true finished=true",
             ),
-            lines(c, none),
-        )
-        assertEquals(
-            listOf(
-                "carousel=Z ongoing=UNK2:34 card=34/meeting/false finished=false",
-                "carousel=Z ongoing=UNK2:34 card=34/meeting/false finished=false",
-                "carousel=Z ongoing=none card=34/meeting/true finished=false",
-                "carousel=Z ongoing=none card=34/meeting/true finished=true",
-            ),
-            lines(c, CourseChangeFixture.changes(end1145(listOf("3", "4"), no = "UNK2"))),
+            lines(course("UNK2", listOf("3", "4", "Z")), CourseChangeFixture.changes(end1145(listOf("3", "4"), no = "UNK2"))),
         )
     }
 
