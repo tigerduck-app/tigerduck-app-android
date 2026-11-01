@@ -470,11 +470,6 @@ class PageScaffoldTest {
     }
 
     @Test
-    fun `tab pages' headers scroll with their content for now`() {
-        assertEquals(PageHeaderPosition.InContent, PageDefaults.TabHeaderPosition)
-    }
-
-    @Test
     fun `a page with its header in the content takes no insets, as its host has padded it`() {
         composeRule.setContent {
             assertSame(NoTopBarInsets, PageDefaults.contentWindowInsets(PageHeaderPosition.InContent))

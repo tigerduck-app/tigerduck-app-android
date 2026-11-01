@@ -130,7 +130,7 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.component.SearchDrawer
@@ -223,7 +223,7 @@ fun SchoolMailScreen(
     if (!signedIn) {
         PageScaffold(
             title = stringResource(R.string.feature_school_mail),
-            headerPosition = PageDefaults.TabHeaderPosition,
+            headerPosition = PageHeaderPosition.InContent,
         ) { padding ->
             Column(
                 modifier = Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()),
@@ -282,7 +282,7 @@ fun SchoolMailScreen(
 
     PageScaffold(
         title = stringResource(R.string.feature_school_mail),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = { SchoolMailSyncDot(state.loadState, authFailed, indexProgress, isLoading, state.fetchedAt) },
         actions = {
             IconButton(onClick = { viewModel.setUnreadOnly(!state.unreadOnly) }) {
