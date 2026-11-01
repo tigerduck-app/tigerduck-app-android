@@ -502,7 +502,7 @@ class HomeViewModel @Inject constructor(
             _ignoredCourseKeys.value = dataCache.loadIgnoredCourses()
 
             // Load cached data immediately
-            val cachedCourses = dataCache.loadCourses()
+            val cachedCourses = courseColorStore.loadCourses()
             val cachedAssignments = dataCache.loadAssignments()
             if (cachedCourses.isNotEmpty() || cachedAssignments.isNotEmpty()) {
                 TigerDuckTheme.buildCourseColorMap(cachedCourses)

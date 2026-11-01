@@ -136,10 +136,10 @@ object TigerDuckTheme {
 
     fun buildCourseColorMap(courses: List<Course>) {
         val existing = courseColorMapRef.get().toMutableMap()
-
+        val moodle = org.ntust.app.tigerduck.data.MoodleColorBook.shared.also { it.reconcile(courses) }.colors()
         val pinnedCourseNos = mutableSetOf<String>()
         courses.forEach { course ->
-            val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
+            val pinned = parseHexOrNull(course.customColorHex) ?: moodle[course.courseNo]?.let { Color(0xFF000000L or it.toLong()) } ?: return@forEach
             pinnedCourseNos.add(course.courseNo)
             existing[course.courseNo] = pinned
         }
@@ -201,9 +201,9 @@ object TigerDuckTheme {
 fun buildCourseColorAssignments(courses: List<Course>): Map<String, Color> {
     val map = mutableMapOf<String, Color>()
     val taken = mutableSetOf<Color>()
-
+    val moodle = org.ntust.app.tigerduck.data.MoodleColorBook.shared.colors()
     courses.forEach { course ->
-        val pinned = parseHexOrNull(course.customColorHex) ?: return@forEach
+        val pinned = parseHexOrNull(course.customColorHex) ?: moodle[course.courseNo]?.let { Color(0xFF000000L or it.toLong()) } ?: return@forEach
         map[course.courseNo] = pinned
         taken.add(pinned)
     }

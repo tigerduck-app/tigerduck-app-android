@@ -126,4 +126,26 @@ class CourseColorPickTest {
 
         assertEquals(listOf("CS1" to red), CourseColorPick.assign(courses, "CS1", red, shownBy(courses)).toSync)
     }
+
+    @Test
+    fun `a pick of one of Moodle's colors moves no other course off it`() {
+        val moodle = "#AF8C4C"
+        val courses = listOf(course("CS1", moodle), course("CS2", teal))
+
+        val result = CourseColorPick.assign(courses, "CS2", moodle, shownBy(courses))
+
+        assertEquals(moodle, result.courses.first { it.courseNo == "CS1" }.customColorHex)
+        assertEquals(moodle, result.courses.first { it.courseNo == "CS2" }.customColorHex)
+        assertEquals(mapOf("CS2" to moodle), result.changed)
+    }
+
+    @Test
+    fun `a course that takes Moodle's color shows it among the colors shown`() {
+        val courses = listOf(course("CS1"), course("CS2", teal))
+
+        val shown = CourseColorPick.shownColors(courses, moodleColors = mapOf("CS1" to 0xAF8C4C))
+
+        assertEquals(Color(0xFFAF8C4C), shown("CS1"))
+        assertEquals(color(teal), shown("CS2"))
+    }
 }
