@@ -16,9 +16,13 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.parseHm
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -86,10 +90,12 @@ object WidgetDataLoader {
         // timetable itself, which stays useful on a day off.
         val quietToday = today in quietDays
 
-        val ongoing =
-            if (quietToday) emptyList() else computeOngoingBlocks(courses, weekday, minuteOfDay, today, changes)
+        // The widgets read the clock to the minute, so a class is on from its
+        // start minute and over from its end minute whatever second a redraw lands on.
+        val minute = now.truncatedTo(ChronoUnit.MINUTES).atZone(TaipeiClock.zone).toInstant()
+        val ongoing = if (quietToday) emptyList() else computeOngoingBlocks(courses, minute, changes)
         val nextToday = if (quietToday) null else computeNextTodayBlock(
-            courses, weekday, minuteOfDay, ongoing.map { it.course.courseNo }, today, changes,
+            courses, minute, ongoing.map { it.course.courseNo }, changes,
         )
         val tomorrowFirst = computeTomorrowFirst(courses, today, quietDays, changes)
 
@@ -134,59 +140,37 @@ object WidgetDataLoader {
     }
 
     /**
-     * [course]'s classes on [weekday]: on [day], under the school's [changes],
-     * cancelled ones included; with no day, the timetable's blocks.
-     */
-    private fun blocksOf(course: Course, weekday: Int, day: LocalDate?, changes: CourseChanges): List<CourseBlock> =
-        if (day == null) CourseBlock.allOf(course, weekday) else CourseBlock.on(course, day, changes)
-
-    /**
-     * The block each course is in at [minuteOfDay] on [weekday], for the
-     * courses going on. On [day], whose weekday it is, a class the school
-     * cancelled is not going on, and one it moved runs at its new times.
+     * The block each course is in at [now], for the courses going on, in the
+     * courses' order. A course in two classes at once shows the first. A class
+     * the school cancelled is not going on, and one it moved runs at its new
+     * times. [now] is to the minute, as the widgets draw it.
      */
     internal fun computeOngoingBlocks(
         courses: List<Course>,
-        weekday: Int,
-        minuteOfDay: Int,
-        day: LocalDate? = null,
-        changes: CourseChanges = CourseChanges.EMPTY,
-    ): List<CourseBlock> =
-        courses.mapNotNull { course ->
-            blocksOf(course, weekday, day, changes).firstOrNull { block ->
-                val start = parseHm(block.startTime)
-                val end = parseHm(block.endTime)
-                // Over from its end minute, as iOS `WidgetTimelineDerivation.derive` has it.
-                // The redraw at a class's end, the school's changed end included, is the
-                // last one before the next boundary, so it must draw the class as over.
-                !block.isCancelled && start != null && end != null && minuteOfDay in start until end
-            }
+        now: Instant,
+        changes: CourseChanges,
+    ): List<CourseBlock> {
+        val running = ClassTimeline.ongoing(courses, now, changes)
+        return courses.mapNotNull { course ->
+            running.firstOrNull { it.course === course }?.let(CourseBlock::of)
         }
+    }
 
     /**
-     * The block starting soonest after [minuteOfDay] today, from the courses
-     * not in [ongoingNos]. A block, not a course: after a course's morning
-     * block its afternoon one is next, starting at its own first period. On
-     * [day] a cancelled class is passed over and a moved one starts at its
-     * new start, as iOS `WidgetTimelineDerivation.derive`'s `nextToday`.
+     * The block starting soonest after [now] today, from the courses not in
+     * [ongoingNos]. A block, not a course: after a course's morning block its
+     * afternoon one is next, starting at its own first period. A cancelled
+     * class is passed over and a moved one starts at its new start, as iOS
+     * `WidgetTimelineDerivation.derive`'s `nextToday`.
      */
     internal fun computeNextTodayBlock(
         courses: List<Course>,
-        weekday: Int,
-        minuteOfDay: Int,
+        now: Instant,
         ongoingNos: List<String>,
-        day: LocalDate? = null,
-        changes: CourseChanges = CourseChanges.EMPTY,
+        changes: CourseChanges,
     ): CourseBlock? =
-        courses
-            .filter { it.courseNo !in ongoingNos }
-            .flatMap { blocksOf(it, weekday, day, changes) }
-            .filter { !it.isCancelled }
-            .mapNotNull { block ->
-                parseHm(block.startTime)?.takeIf { it > minuteOfDay }?.let { block to it }
-            }
-            .minByOrNull { it.second }
-            ?.first
+        ClassTimeline.next(courses.filter { it.courseNo !in ongoingNos }, now, changes, daysAhead = 0)
+            ?.let(CourseBlock::of)
 
     /**
      * Scans up to 7 future days for the earliest scheduled class. Mirrors
@@ -208,6 +192,10 @@ object WidgetDataLoader {
         for (offset in 1L..7L) {
             val day = today.plusDays(offset)
             if (day in quietDays) continue
+            // Stays on CourseBlock rather than ClassTimeline: this names a course, weekday and first
+            // period, not a slot with a start, and a course in a period with no known time is still
+            // offered (ClassTimeline's slots drop it), so a day's first is picked by start with
+            // such a course last.
             val pick = courses
                 .mapNotNull { course -> CourseBlock.on(course, day, changes).firstOrNull { !it.isCancelled } }
                 .minByOrNull { parseHm(it.startTime) ?: Int.MAX_VALUE }
