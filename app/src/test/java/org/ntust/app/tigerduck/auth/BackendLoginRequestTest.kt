@@ -51,6 +51,30 @@ class BackendLoginRequestTest {
     }
 
     @Test
+    fun `a sign-in to a backend of the user's own leaves the private token out`() = runTest {
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private")
+
+        val sent = JSONObject(backend.received(LOGIN).single().body)
+        assertEquals("moodle", sent.getString("moodle_token"))
+        assertFalse(sent.has("moodle_private_token"))
+    }
+
+    @Test
+    fun `a sign-in to the default backend carries the private token`() = runTest {
+        val context = JvmContext()
+        val defaults = AppPreferences(context)
+        assertFalse(resolveAnnouncementEndpoint(defaults).overrideApplied)
+        val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-default-test", Context.MODE_PRIVATE))
+        tokens.clear()
+
+        AuthTokenManager(tokens, backend.client, defaults, "device-1")
+            .login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private")
+
+        val sent = JSONObject(backend.received(LOGIN).single().body)
+        assertEquals("private", sent.getString("moodle_private_token"))
+    }
+
+    @Test
     fun `a sign-in without a Moodle token sends nothing`() = runTest {
         val failure = runCatching {
             manager.login("B00000000", moodleToken = "", moodlePrivateToken = null)

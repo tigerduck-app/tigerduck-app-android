@@ -509,7 +509,7 @@ class AuthTokenManager(
         val json = JSONObject().apply {
             put("student_id", studentId)
             put("moodle_token", moodleToken)
-            put("moodle_private_token", moodlePrivateToken)
+            put("moodle_private_token", moodlePrivateToken.takeUnless { resolveAnnouncementEndpoint(prefs).overrideApplied })
             put("device_info", JSONObject().apply {
                 put("client_device_id", deviceUuid)
                 put("platform", platform)
@@ -518,7 +518,6 @@ class AuthTokenManager(
                 put("device_model", currentDeviceModel())
             })
         }
-        // Sent once: a 307 or a 308 would otherwise send the Moodle tokens on to its address.
         val body = json.toString().toRequestBody(jsonType).oneShot()
         return signIns.at(issuer).login(body).execute().use { response ->
             if (!response.isSuccessful) throw AuthException("login failed: ${response.code}", response.code)
