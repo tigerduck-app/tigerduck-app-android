@@ -39,14 +39,16 @@ class MoodleColorBook {
     }
 
     /**
-     * Starts the book from the state kept, or from [legacyCourseNos], the courses already colored
-     * when no state was kept yet (an upgrade, or nothing at all on a fresh sign-in).
+     * Starts the book from the state kept, or from [legacyIdents] (see [identOf]), the courses
+     * already colored when no state was kept yet. [upgrading] is a signed-in student with no state
+     * kept, an upgrade: the first refresh's courses count as existing even where the cache
+     * holding them was evicted.
      */
     @Synchronized
-    fun load(saved: MoodleColorState?, legacyCourseNos: Set<String>) {
-        state = saved ?: MoodleColorState(known = legacyCourseNos.sorted())
+    fun load(saved: MoodleColorState?, legacyIdents: Set<String>, upgrading: Boolean = false) {
+        state = saved ?: MoodleColorState(known = legacyIdents.sorted(), upgrading = upgrading.takeIf { it })
         loaded = true
-        if (saved == null && legacyCourseNos.isNotEmpty()) onChange?.invoke(state)
+        if (saved == null && (legacyIdents.isNotEmpty() || upgrading)) onChange?.invoke(state)
     }
 
     /** Forgets everything, at a sign-out: the next account starts with no course known. */
@@ -67,7 +69,9 @@ class MoodleColorBook {
     /**
      * Gives each course new to the app its Moodle color or a wait, and moves each waiting course
      * whose id is known now. Returns whether any course's Moodle color changed. Does nothing
-     * before [load], when nothing is known of which courses are new.
+     * before [load], when nothing is known of which courses are new. Returns true when a color
+     * moved, and the caller then lays its palette slots out afresh, as the widgets do: a course
+     * leaving the app palette frees the slot another probed past.
      */
     @Synchronized
     fun reconcile(courses: List<Course>): Boolean {
@@ -75,35 +79,51 @@ class MoodleColorBook {
         val known = state.known.orEmpty().toMutableSet()
         val awaiting = state.awaiting.orEmpty().toMutableSet()
         val moodle = state.moodle.orEmpty().toMutableMap()
+        val upgrading = state.upgrading == true
         var colorsChanged = false
         for (course in courses) {
-            val no = course.courseNo
+            val ident = identOf(course)
+            // A course met before it had an idnumber was kept under its number.
+            if (ident != course.courseNo && ident !in known && course.courseNo in awaiting) {
+                known -= course.courseNo
+                awaiting -= course.courseNo
+                known += ident
+                awaiting += ident
+            }
             val color = colorOf(course)?.let(::formatHex)
             when {
-                no !in known -> {
-                    known += no
-                    // A pick came before the first automatic color, so there is none to give.
-                    if (!hasPick(course)) {
+                ident !in known -> {
+                    known += ident
+                    // A pick came before the first automatic color, so there is none to give; so did
+                    // the upgrade, whose courses keep the colors they have.
+                    if (!hasPick(course) && !upgrading) {
                         if (color != null) {
-                            moodle[no] = color
+                            moodle[ident] = color
                             colorsChanged = true
                         } else {
-                            awaiting += no
+                            awaiting += ident
                         }
                     }
                 }
-                no in awaiting -> {
+                ident in awaiting -> {
                     if (hasPick(course)) {
-                        awaiting -= no
+                        awaiting -= ident
                     } else if (color != null) {
-                        awaiting -= no
-                        moodle[no] = color
+                        awaiting -= ident
+                        moodle[ident] = color
                         colorsChanged = true
                     }
                 }
             }
         }
-        val next = MoodleColorState(known.sorted(), awaiting.sorted(), moodle.toSortedMap())
+        // The refresh an upgrade waits for has brought the term's courses, not just hand-added ones.
+        val stillUpgrading = upgrading && courses.none { !it.isManual }
+        val next = state.copy(
+            known = known.sorted(),
+            awaiting = awaiting.sorted(),
+            moodle = moodle.toSortedMap(),
+            upgrading = stillUpgrading.takeIf { it },
+        )
         if (next != state) {
             state = next
             onChange?.invoke(next)
@@ -111,23 +131,43 @@ class MoodleColorBook {
         return colorsChanged
     }
 
-    /** The Moodle color, as RGB, of each course that takes it. */
+    /** The Moodle color, as RGB, of each of [courses] that takes it, by course number. */
     @Synchronized
-    fun colors(): Map<String, Int> = state.moodle.orEmpty().mapNotNull { (no, hex) -> parseHex(hex)?.let { no to it } }.toMap()
+    fun colorsFor(courses: List<Course>): Map<String, Int> {
+        val kept = state.moodle.orEmpty()
+        return courses.mapNotNull { course -> parseHex(kept[identOf(course)])?.let { course.courseNo to it } }.toMap()
+    }
+
+    /** [courses] with the Moodle color of each that has no pick of its own as its `customColorHex`, as the watch is sent them. */
+    @Synchronized
+    fun withColors(courses: List<Course>): List<Course> {
+        val colors = colorsFor(courses)
+        return courses.map { course ->
+            val rgb = colors[course.courseNo]
+            if (rgb == null || hasPick(course)) course else course.copy(customColorHex = formatHex(rgb))
+        }
+    }
 
     /**
-     * A reset: the Moodle color of each of [courses] whose id is known, by course number, and no
-     * course waits any longer. The courses it leaves out are for the caller to give app colors.
+     * A reset: the Moodle color of each of [courses], by course number, from the id map, else
+     * the color the book remembers, else the id on the course itself; and no course waits any
+     * longer. The courses it leaves out are for the caller to give app colors.
      */
     @Synchronized
     fun reset(courses: List<Course>): Map<String, Int> {
-        val fresh = courses.mapNotNull { course -> colorOf(course)?.let { course.courseNo to it } }.toMap()
+        val kept = state.moodle.orEmpty()
+        val fresh = courses.mapNotNull { course ->
+            val color = colorOf(course) ?: parseHex(kept[identOf(course)])
+                ?: course.moodleNumericCourseId?.let(::forCourseId)
+            color?.let { course.courseNo to it }
+        }.toMap()
         if (!loaded) return fresh
-        val nos = courses.map { it.courseNo }.toSet()
-        val next = MoodleColorState(
-            known = (state.known.orEmpty() + nos).distinct().sorted(),
-            awaiting = state.awaiting.orEmpty().filter { it !in nos }.sorted(),
-            moodle = (state.moodle.orEmpty().filterKeys { it !in nos } + fresh.mapValues { formatHex(it.value) }).toSortedMap(),
+        val idents = courses.map(::identOf).toSet()
+        val next = state.copy(
+            known = (state.known.orEmpty() + idents).distinct().sorted(),
+            awaiting = state.awaiting.orEmpty().filter { it !in idents }.sorted(),
+            moodle = (kept.filterKeys { it !in idents } +
+                courses.mapNotNull { c -> fresh[c.courseNo]?.let { identOf(c) to formatHex(it) } }).toSortedMap(),
         )
         if (next != state) {
             state = next
@@ -143,6 +183,14 @@ class MoodleColorBook {
     }
 
     companion object {
+        /**
+         * What a course is to the book: its Moodle idnumber, which carries its term, so a course
+         * number back in another term with another Moodle id is another course; its number while
+         * it has no idnumber.
+         */
+        fun identOf(course: Course): String =
+            course.moodleIdNumber?.takeIf { it.isNotEmpty() }?.let(MoodleCourseIds::normalizedIdnumber) ?: course.courseNo
+
         /** The one book the app reads and the screens share. */
         val shared = MoodleColorBook()
 

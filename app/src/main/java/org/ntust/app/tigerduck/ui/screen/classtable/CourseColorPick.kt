@@ -105,7 +105,7 @@ internal object CourseColorPick {
      */
     fun shownColors(
         courses: List<Course>,
-        moodleColors: Map<String, Int> = MoodleColorBook.shared.colors(),
+        moodleColors: Map<String, Int> = MoodleColorBook.shared.colorsFor(courses),
     ): (String) -> Color {
         val shown = mutableMapOf<String, Color>()
         for (course in courses) {

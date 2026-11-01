@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.shared.Course
 import kotlin.random.Random
 
@@ -135,8 +136,8 @@ object TigerDuckTheme {
     }
 
     fun buildCourseColorMap(courses: List<Course>) {
-        val existing = courseColorMapRef.get().toMutableMap()
-        val moodle = org.ntust.app.tigerduck.data.MoodleColorBook.shared.also { it.reconcile(courses) }.colors()
+        val existing = (if (MoodleColorBook.shared.reconcile(courses)) emptyMap() else courseColorMapRef.get()).toMutableMap()
+        val moodle = MoodleColorBook.shared.colorsFor(courses)
         val pinnedCourseNos = mutableSetOf<String>()
         courses.forEach { course ->
             val pinned = parseHexOrNull(course.customColorHex) ?: moodle[course.courseNo]?.let { Color(0xFF000000L or it.toLong()) } ?: return@forEach
@@ -188,7 +189,6 @@ object TigerDuckTheme {
         return if (_isDarkMode.value) (lightModeAlpha * 2.3f).coerceAtMost(1f)
         else lightModeAlpha
     }
-
 }
 
 /**
@@ -201,7 +201,7 @@ object TigerDuckTheme {
 fun buildCourseColorAssignments(courses: List<Course>): Map<String, Color> {
     val map = mutableMapOf<String, Color>()
     val taken = mutableSetOf<Color>()
-    val moodle = org.ntust.app.tigerduck.data.MoodleColorBook.shared.colors()
+    val moodle = MoodleColorBook.shared.colorsFor(courses)
     courses.forEach { course ->
         val pinned = parseHexOrNull(course.customColorHex) ?: moodle[course.courseNo]?.let { Color(0xFF000000L or it.toLong()) } ?: return@forEach
         map[course.courseNo] = pinned
