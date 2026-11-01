@@ -332,7 +332,8 @@ class SchoolMailListViewModelTest {
         main.dispatcher.scheduler.runCurrent()
 
         assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
-        assertEquals("once more, over All mail's two folders", searched + 2, repo.searchCalls)
+        // The two folders the held search had still to ask, then all four again.
+        assertEquals("once more, over All mail's four folders", searched + 2 + 4, repo.searchCalls)
     }
 
     /** Another query submitted meanwhile read the index after the mail came: no run once more. */
@@ -2070,7 +2071,7 @@ class SchoolMailListViewModelTest {
 
         now = 9_000
         pollOnce()
-        assertEquals(listOf("寄件備份匣"), repo.folderStatusCalls)
+        assertEquals(listOf("寄件備份匣", "草稿匣", "Moodle 課程討論區"), repo.folderStatusCalls)
         assertEquals(9_000L, state.fetchedAt("INBOX"))
         assertEquals(9_000L, state.fetchedAt("寄件備份匣"))
         assertEquals(9_000L, vm.state.value.fetchedAt)
@@ -2531,10 +2532,10 @@ class SchoolMailListViewModelTest {
         advanceUntilIdle()
 
         val prefetched = repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
-        // The real decoded names (see SpecialFolder): DRAFTS, JUNK, TRASH -- everything but the
-        // two folders All mail already merged in (INBOX, SENT).
+        // The real decoded names (see SpecialFolder): JUNK, TRASH -- everything but the folders
+        // All mail already merges in (INBOX, SENT, DRAFTS and the student's own).
         assertEquals(
-            setOf("草稿匣", "廣告信匣", "回收筒"),
+            setOf("廣告信匣", "回收筒"),
             prefetched.map { it.first }.toSet(),
         )
     }
@@ -2566,7 +2567,7 @@ class SchoolMailListViewModelTest {
         // The failure actually happened to every folder in the queue -- proof it was
         // swallowed, not just that prefetch never got a chance to run at all.
         val prefetched = repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
-        assertEquals(setOf("草稿匣", "廣告信匣", "回收筒"), prefetched.map { it.first }.toSet())
+        assertEquals(setOf("廣告信匣", "回收筒"), prefetched.map { it.first }.toSet())
 
         assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
         assertNull(vm.state.value.actionError)
@@ -2579,19 +2580,21 @@ class SchoolMailListViewModelTest {
         advanceUntilIdle()
         val before = repo.pageLimits.size
 
-        vm.selectFolder(FolderSelection.Real("草稿匣"))
+        // The folder the parked warm call is on, so the new queue (which skips what the switch shows)
+        // cannot ask for it again and hide a survivor behind a repeat.
+        vm.selectFolder(FolderSelection.Real("廣告信匣"))
         advanceUntilIdle()
         repo.blockPrefetch = false
         advanceUntilIdle()
 
         // The switch's own load comes first, at full size and never queued behind the warm.
-        assertEquals("草稿匣" to 50, repo.pageLimits[before])
+        assertEquals("廣告信匣" to 50, repo.pageLimits[before])
         // The parked call really was cancelled rather than merely abandoned: it released its slot
         // inside loadPage before the switch's own load entered it, so no two loads were ever open
         // at once. A prefetch left running would have overlapped that load and made this 2.
         assertEquals(1, repo.maxConcurrentLoads)
         // And the cancelled queue did not carry on beside the one the switch starts: it would
-        // have gone on to 廣告信匣 and 回收筒, which the new queue also covers, so a survivor
+        // have gone on to 回收筒, which the new queue also covers, so a survivor
         // shows up as a folder warmed twice.
         val prefetched = repo.pageLimits.filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
         assertEquals(prefetched.size, prefetched.distinct().size)
@@ -2641,19 +2644,22 @@ class SchoolMailListViewModelTest {
     private fun selectAll() = vm.selectFolder(FolderSelection.AllMail)
 
     @Test
-    fun `All mail merges only the inbox and sent folders, newest first`() {
+    fun `All mail merges every folder but junk and trash, newest first`() {
         repo.add("INBOX", mailSummary(1, sentAt = at(300)), mailSummary(2, sentAt = at(100)))
         repo.add(SENT, mailSummary(5, sentAt = at(200)))
-        // The folders the merge deliberately leaves out: drafts, junk, trash, user folders.
-        repo.add("草稿匣", mailSummary(60, sentAt = at(999)))
+        // Drafts and the student's own folders join the merge; junk and trash stay out.
+        repo.add("草稿匣", mailSummary(60, sentAt = at(150)))
         repo.add("廣告信匣", mailSummary(61, sentAt = at(999)))
         repo.add("回收筒", mailSummary(62, sentAt = at(999)))
-        repo.add("Moodle 課程討論區", mailSummary(63, sentAt = at(999)))
+        repo.add("Moodle 課程討論區", mailSummary(63, sentAt = at(50)))
         vm.load()
         selectAll()
 
         val rows = vm.state.value.displayed
-        assertEquals(listOf("INBOX" to 1L, SENT to 5L, "INBOX" to 2L), rows.map { it.folder to it.uid })
+        assertEquals(
+            listOf("INBOX" to 1L, SENT to 5L, "草稿匣" to 60L, "INBOX" to 2L, "Moodle 課程討論區" to 63L),
+            rows.map { it.folder to it.uid },
+        )
     }
 
     @Test
@@ -2856,7 +2862,7 @@ class SchoolMailListViewModelTest {
         // And warming resumed afterwards rather than ending for the view model's life -- the bug
         // that cancelling without restarting would have reintroduced.
         val after = repo.pageLimits.drop(before + 1).filter { it.second == SchoolMailListViewModel.PREFETCH_LIMIT }
-        assertEquals(setOf("草稿匣", "廣告信匣", "回收筒"), after.map { it.first }.toSet())
+        assertEquals(setOf("廣告信匣", "回收筒"), after.map { it.first }.toSet())
     }
 
     @Test
@@ -2871,7 +2877,7 @@ class SchoolMailListViewModelTest {
 
         advanceUntilIdle()
         // And the warm does still happen once the moment has passed.
-        assertEquals(3, repo.pageLimits.count { it.second == SchoolMailListViewModel.PREFETCH_LIMIT })
+        assertEquals(2, repo.pageLimits.count { it.second == SchoolMailListViewModel.PREFETCH_LIMIT })
     }
 
     @Test
@@ -2891,7 +2897,7 @@ class SchoolMailListViewModelTest {
         vm.startPolling()
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS + 1)
         main.dispatcher.scheduler.runCurrent()
-        assertEquals(setOf("草稿匣", "廣告信匣", "回收筒"), warm().map { it.first }.toSet())
+        assertEquals(setOf("廣告信匣", "回收筒"), warm().map { it.first }.toSet())
         vm.stopPolling()
     }
 
@@ -2901,15 +2907,15 @@ class SchoolMailListViewModelTest {
         vm.load()
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS + 1)
         main.dispatcher.scheduler.runCurrent()
-        assertEquals(3, warm().size)
+        assertEquals(2, warm().size)
 
         vm.stopPolling()
         vm.startPolling()
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.PREFETCH_START_DELAY_MS + 1)
         main.dispatcher.scheduler.runCurrent()
 
-        // The queue ran out before the pause, so resuming must not warm the same three again.
-        assertEquals(3, warm().size)
+        // The queue ran out before the pause, so resuming must not warm the same two again.
+        assertEquals(2, warm().size)
         vm.stopPolling()
     }
 

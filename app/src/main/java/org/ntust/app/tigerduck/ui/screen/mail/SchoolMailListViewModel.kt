@@ -90,7 +90,7 @@ class SchoolMailListViewModel @Inject constructor(
          * falls through to the real Inbox folder, same as before All mail existed.
          */
         val selected: FolderSelection = FolderSelection.AllMail,
-        /** The server names of the folders All mail merges. Empty until [load] has resolved them. */
+        /** The server names of the folders All mail merges ([FolderSelection.AllMail.foldersIn]). Empty until [load] has resolved them. */
         val mergedFolders: List<String> = emptyList(),
         val messages: List<MailRow> = emptyList(),
         /**
@@ -128,8 +128,8 @@ class SchoolMailListViewModel @Inject constructor(
         /** A further page of the latest search's matches on its way ([loadMoreSearchResults]). */
         val isPagingSearch: Boolean = false,
         /**
-         * When the folders on screen last had their newest page fetched -- for All mail the older
-         * of its two -- or 0 while one of them never has. For the sync dot's "Last synced" row;
+         * When the folders on screen last had their newest page fetched -- for All mail the oldest
+         * of them -- or 0 while one of them never has. For the sync dot's "Last synced" row;
          * see [MailChecker.fetchedAt].
          */
         val fetchedAt: Long = 0L,
@@ -165,7 +165,7 @@ class SchoolMailListViewModel @Inject constructor(
         /**
          * True whenever the inbox's own mail is genuinely on screen: viewing Inbox directly, or
          * viewing All mail, which always merges Inbox in whenever it exists as a chip at all (see
-         * [FolderSelection.AllMail.MERGED] and the `merged.size > 1` guard in [load]). Everything
+         * [FolderSelection.AllMail.foldersIn] and the `merged.size > 1` guard in [load]). Everything
          * that used to read "only do this for the inbox" -- new-mail polling, moving the
          * notification seen marker -- reads this instead, so defaulting to All mail costs the user
          * none of that.
@@ -554,7 +554,7 @@ class SchoolMailListViewModel @Inject constructor(
                     loadDropped()
                     return@launch
                 }
-                val merged = FolderSelection.AllMail.MERGED.mapNotNull { folders.nameOf(it) }
+                val merged = FolderSelection.AllMail.foldersIn(folders)
                 val real = SpecialFolder.entries.mapNotNull { kind ->
                     folders.nameOf(kind)?.let { FolderChip(FolderSelection.Real(it), kind) }
                 }
@@ -785,7 +785,7 @@ class SchoolMailListViewModel @Inject constructor(
      * The mail leaves its row's folder through the feed ([apply]), and arrives in [target] under a
      * UID only the server knows, which the feed can only mark for a fetch. A move from the mail's
      * own screen is fetched as the list appears again ([loadIfNeeded]); this list is on screen
-     * already, so a [target] it shows -- the other of All mail's two folders -- is fetched now, or
+     * already, so a [target] it shows -- another folder All mail merges -- is fetched now, or
      * the mail would be gone from a list it still belongs on until the next pull.
      */
     fun moveTo(target: String) {
@@ -954,7 +954,7 @@ class SchoolMailListViewModel @Inject constructor(
 
     /**
      * Exactly one page per real folder the selection covers: one round trip for a normal folder,
-     * two for All mail, however far the merged list has already been scrolled. That bound is the
+     * one per merged folder for All mail, however far the merged list has already been scrolled. That bound is the
      * reason the merged view refreshes only the newest page per folder -- Mail2000 caps
      * connections and starts answering "server busy" under load.
      *
@@ -1118,9 +1118,9 @@ class SchoolMailListViewModel @Inject constructor(
 
     /**
      * Per-folder cursors: every folder the selection covers that still has older mail is paged
-     * one page further and the result re-merged. So the merged list runs out only once *both*
-     * folders genuinely have ([UiState.cursors] empty), never merely because the sparser of the
-     * two did -- it never stops short while the server still has mail to give.
+     * one page further and the result re-merged. So the merged list runs out only once *every*
+     * folder genuinely has none ([UiState.cursors] empty), never merely because the sparsest of
+     * them did -- it never stops short while the server still has mail to give.
      *
      * Each page is merged the way [mergeOlderPage] says, not appended: a row the list already
      * holds takes the server's flags, and one inside the page's range the server no longer lists
@@ -1470,8 +1470,8 @@ class SchoolMailListViewModel @Inject constructor(
      * Every other folder on screen -- Sent in All mail, or a folder viewed on its own -- is asked
      * for its STATUS as well, the cheapest round trip there is, and dated when it answers. A
      * check that finds nothing new must still move the "Last synced" row, or a time that stands
-     * still reads as a page that stopped syncing; All mail is dated by the older of its two
-     * folders, so both have to be verified for its row to move. A folder whose check failed keeps
+     * still reads as a page that stopped syncing; All mail is dated by the oldest of its
+     * folders, so every one has to be verified for its row to move. A folder whose check failed keeps
      * its date, and so does one whose rows a failed load left from the cache ([cachePainted]). The
      * background [MailChecker] stays the inbox's alone: it is for notifications.
      */
@@ -1608,8 +1608,8 @@ class SchoolMailListViewModel @Inject constructor(
     private fun loadDropped() = _state.update { if (it.loadState is LoadState.Loading) it.copy(loadState = LoadState.Idle) else it }
 
     /**
-     * The date of the folders on screen: the older of All mail's two, and 0 while one of them has
-     * none, as on the iPhone -- a merged list is only as fresh as its staler half. A folder whose
+     * The date of the folders on screen: the oldest of All mail's folders, and 0 while one of them has
+     * none, as on the iPhone -- a merged list is only as fresh as its stalest folder. A folder whose
      * rows are still the cache's shows the date it had when they were painted ([cachePainted]).
      * Nothing is on screen to date before [load] has resolved the folders.
      */
