@@ -18,6 +18,23 @@ import java.time.LocalDate
  */
 object ClassTimeline {
 
+    /** The class going on and the one after it, from [nowAndNext]. */
+    data class NowAndNext(val current: ClassSlot?, val next: ClassSlot?)
+
+    /**
+     * The class going on at [now] and the one after it, from a day's classes [slots] already
+     * sorted by start and with the cancelled ones left out. As iOS `ClassTimeline.nowAndNext`: the
+     * class going on is the first to have started, and the one after it is the first other class
+     * not yet over. That one need not be a later start: a class that began while the first still
+     * runs (courses meeting at once), or a later block of the same course, is next, shown with its
+     * real start. Of classes starting together, the earlier in [slots] comes first.
+     */
+    fun nowAndNext(slots: List<ClassSlot>, now: Instant): NowAndNext {
+        val current = slots.firstOrNull { it.isOn(now) }
+        val next = slots.firstOrNull { it !== current && it.endsAt > now }
+        return NowAndNext(current, next)
+    }
+
     /** Every class of [courses] on [date], by start; a cancelled one is in the list and marked. */
     fun meetings(courses: List<Course>, date: LocalDate, changes: CourseChanges): List<ClassSlot> =
         CourseMeetings.buildSlots(courses, date, changes)
