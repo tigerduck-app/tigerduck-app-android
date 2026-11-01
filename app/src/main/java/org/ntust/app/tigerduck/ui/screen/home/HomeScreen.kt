@@ -8,22 +8,19 @@ package org.ntust.app.tigerduck.ui.screen.home
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -41,7 +38,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -58,8 +54,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
-import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -67,7 +61,8 @@ import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
@@ -197,7 +192,23 @@ fun HomeScreen(
         { id: String -> viewModel.hasUnfinishedAssignment(id) }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    PageScaffold(
+        title = greetingText(),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = {
+            if (!isEditing) {
+                SyncStatusDot(
+                    servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
+                    isLoading = isLoading,
+                    syncedAtMs = schoolDataSyncedAtMs,
+                )
+            }
+        },
+        actions = {
+            if (isEditing) HomeEditActions(onAdd = { showAddSectionDialog = true }, onDone = editing::finish)
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         HomePage(
             sections = visibleSections,
             isEditing = isEditing,
@@ -210,24 +221,13 @@ fun HomeScreen(
             onMoveWidget = viewModel::moveWidget,
             onAddQuickFeature = { showAddSectionDialog = true },
             listState = listState,
-            header = {
-                PageHeader(title = greetingText()) {
-                    if (isEditing) {
-                        HomeEditActions(onAdd = { showAddSectionDialog = true }, onDone = editing::finish)
-                    } else {
-                        SyncStatusDot(
-                            servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
-                            isLoading = isLoading,
-                            syncedAtMs = schoolDataSyncedAtMs,
-                        )
-                    }
-                }
-            },
+            header = { Header() },
             banner = if (bannerRejection(passwordRejection, signInViewModel.dismissedRejection, signedInForBanner) != null) {
                 { AutoSignInFailedBanner(viewModel = signInViewModel) }
             } else {
                 null
             },
+            modifier = Modifier.padding(padding),
         ) { section ->
             HomeSectionContent(
                 section = section,
@@ -265,8 +265,7 @@ fun HomeScreen(
                 onOpenSignInSettings = onOpenSignInSettings,
             )
         }
-        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
-    } // Box
+    }
 
     if (showAddSectionDialog) {
         AddSectionDialog(

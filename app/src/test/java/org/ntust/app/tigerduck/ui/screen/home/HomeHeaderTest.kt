@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui.screen.home
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
@@ -19,7 +20,8 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.data.model.HomeSection.HomeSectionType
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.TabHeaderChecks.assertHeaderAtTop
 import org.ntust.app.tigerduck.ui.screen.TabHeaderChecks.assertHeaderScrollsAway
@@ -54,28 +56,28 @@ class HomeHeaderTest {
     private fun show(isEditing: Boolean) {
         composeRule.setContent {
             TigerDuckAppTheme(darkTheme = false) {
-                HomePage(
-                    sections = sections,
-                    isEditing = isEditing,
-                    onStartEditing = {},
-                    isRefreshing = false,
-                    onRefresh = {},
-                    onMoveSection = { _, _ -> },
-                    onRemoveSection = {},
-                    onRemoveWidget = { _, _ -> },
-                    onMoveWidget = { _, _, _ -> },
-                    onAddQuickFeature = {},
-                    header = {
-                        PageHeader(title = "Good morning") {
-                            if (isEditing) {
-                                HomeEditActions(onAdd = {}, onDone = {})
-                            } else {
-                                Text("dot")
-                            }
-                        }
-                    },
-                    banner = null,
-                ) { section -> Text(section.title, Modifier.height(200.dp)) }
+                PageScaffold(
+                    title = "Good morning",
+                    headerPosition = PageDefaults.TabHeaderPosition,
+                    syncDot = { if (!isEditing) Text("dot") },
+                    actions = { if (isEditing) HomeEditActions(onAdd = {}, onDone = {}) },
+                ) { padding ->
+                    HomePage(
+                        sections = sections,
+                        isEditing = isEditing,
+                        onStartEditing = {},
+                        isRefreshing = false,
+                        onRefresh = {},
+                        onMoveSection = { _, _ -> },
+                        onRemoveSection = {},
+                        onRemoveWidget = { _, _ -> },
+                        onMoveWidget = { _, _, _ -> },
+                        onAddQuickFeature = {},
+                        header = { Header() },
+                        banner = null,
+                        modifier = Modifier.padding(padding),
+                    ) { section -> Text(section.title, Modifier.height(200.dp)) }
+                }
             }
         }
         composeRule.waitForIdle()
