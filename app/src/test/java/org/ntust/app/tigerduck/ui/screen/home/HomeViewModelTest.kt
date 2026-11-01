@@ -35,7 +35,14 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.ClassReminderAlarms
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.AssignmentFilter
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import java.time.LocalDateTime
+import java.util.Date
+import org.ntust.app.tigerduck.AppConstants
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -157,6 +164,72 @@ class HomeViewModelTest {
 
             assertEquals(setOf("armed"), tracker.getStringSet("scheduled_ids", null))
         } finally {
+            home.viewModelScope.cancel()
+        }
+    }
+
+    /**
+     * A Taipei wall time on a made-up day, as epoch millis. No test reads the real date: the
+     * clock is set to these.
+     */
+    private fun taipei(time: String): Long =
+        LocalDateTime.parse("2026-11-05T$time").atZone(AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
+
+    private fun assignment(id: String, due: Long) = Assignment(
+        assignmentId = id, courseNo = "CS1001", courseName = "Fake course", title = id, dueDate = Date(due),
+    )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun showAssignments(vararg assignments: Assignment) {
+        val all = home.javaClass.getDeclaredField("_allAssignments")
+            .apply { isAccessible = true }.get(home) as MutableStateFlow<List<Assignment>>
+        all.value = assignments.toList()
+    }
+
+    private fun upcomingIds(): List<String> = home.upcomingAssignments.value.map { it.assignmentId }
+
+    /**
+     * A running clock at 11:19:59. An assignment due at 11:20:00 sits first in 全部 while it is
+     * still ahead, and moves behind the later one as soon as the minute turns: Home must redraw
+     * at the boundary, not up to a minute after it.
+     */
+    @Test
+    fun `an assignment falling due is moved to the past at the minute boundary`() = runTest {
+        try {
+            AppClock.setOverride(ClockOverride(taipei("11:19:59"), frozen = false, savedAtRealMillis = System.currentTimeMillis()))
+            home.setAssignmentFilter(AssignmentFilter.ALL)
+            showAssignments(assignment("A", taipei("11:20:00")), assignment("B", taipei("11:30:00")))
+            dispatcher.scheduler.runCurrent()
+            assertEquals(listOf("A", "B"), upcomingIds())
+
+            // The real second the clock needs to cross the boundary; the scheduler's time is virtual.
+            Thread.sleep(1_100)
+            dispatcher.scheduler.advanceTimeBy(1_000)
+            dispatcher.scheduler.runCurrent()
+
+            assertEquals(listOf("B", "A"), upcomingIds())
+        } finally {
+            AppClock.setOverride(null)
+            home.viewModelScope.cancel()
+        }
+    }
+
+    /** A debug clock set to a new time redraws Home at once; a frozen one needs no tick for it. */
+    @Test
+    fun `moving a frozen debug clock across the boundary redraws Home at once`() = runTest {
+        try {
+            AppClock.setOverride(ClockOverride(taipei("11:19:59"), frozen = true, savedAtRealMillis = 0L))
+            home.setAssignmentFilter(AssignmentFilter.ALL)
+            showAssignments(assignment("A", taipei("11:20:00")), assignment("B", taipei("11:30:00")))
+            dispatcher.scheduler.runCurrent()
+            assertEquals(listOf("A", "B"), upcomingIds())
+
+            AppClock.setOverride(ClockOverride(taipei("11:20:01"), frozen = true, savedAtRealMillis = 0L))
+            dispatcher.scheduler.runCurrent()
+
+            assertEquals(listOf("B", "A"), upcomingIds())
+        } finally {
+            AppClock.setOverride(null)
             home.viewModelScope.cancel()
         }
     }

@@ -20,6 +20,9 @@ import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.Calendar
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import org.ntust.app.tigerduck.shared.clock.AppClock
 
 object ClassTableSelection {
 
@@ -86,6 +89,13 @@ object ClassTableSelection {
             minuteOfDay = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE),
         )
     }
+
+    /**
+     * [DayTime] now, and again at each minute boundary of the app's clock, or when the debug clock
+     * is set. It is read when a tick lands, so a tick the system ran late (a phone that slept)
+     * still says the right minute.
+     */
+    fun dayTimes(): Flow<DayTime> = TaipeiClock.minuteTicks().map { dayTimeFrom(AppClock.calendar()) }
 
     /**
      * Today's courses in the order they are taught.

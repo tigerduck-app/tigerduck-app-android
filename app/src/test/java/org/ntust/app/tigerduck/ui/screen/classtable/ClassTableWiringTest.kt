@@ -43,6 +43,14 @@ class ClassTableWiringTest {
         for (call in calls) assertTrue("$name no longer calls $call", call in body)
     }
 
+    /** The clock ticks on the minute: no poll with a delay is left in the view model's init. */
+    @Test
+    fun `the class table follows the minute ticks instead of polling`() {
+        val text = source().joinToString("\n")
+        assertTrue("the init no longer collects ClassTableSelection.dayTimes()", "ClassTableSelection.dayTimes()" in text)
+        assertFalse("a delay() poll is back in the view model", Regex("""\bdelay\(""").containsMatchIn(text))
+    }
+
     /** tigerduck-app-android#241. */
     @Test
     fun `a reset goes through the backend first, and says so when the backend could not take it`() {

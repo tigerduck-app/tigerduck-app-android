@@ -69,6 +69,7 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.review.ReviewPrompt
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.SingleFlight
 import org.ntust.app.tigerduck.util.logSummary
@@ -227,8 +228,8 @@ class HomeViewModel @Inject constructor(
     )
     val ignoredTabPinned: StateFlow<Boolean> = _ignoredTabPinned
 
-    // Re-emits whenever AppClock.setOverride is called AND once per minute as
-    // wall-clock time advances, so the ALL-tab partitioning below
+    // Re-emits whenever AppClock.setOverride is called AND once per minute, on the
+    // minute boundary, as wall-clock time advances, so the ALL-tab partitioning below
     // (overdue-pinned-first vs. future vs. past) re-runs both when the debug
     // clock toggles and as items naturally cross their dueDate. Without the
     // periodic pulse, an assignment that came due while the app stayed open
@@ -240,12 +241,7 @@ class HomeViewModel @Inject constructor(
             trySend(AppClock.version())
             awaitClose { AppClock.removeOverrideListener(listener) }
         },
-        kotlinx.coroutines.flow.flow {
-            while (true) {
-                kotlinx.coroutines.delay(60_000)
-                emit(AppClock.nowMillis())
-            }
-        },
+        TaipeiClock.minuteTicks().map { it.toInstant().toEpochMilli() },
     )
 
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
