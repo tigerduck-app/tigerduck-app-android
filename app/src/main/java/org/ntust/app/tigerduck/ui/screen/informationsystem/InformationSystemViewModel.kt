@@ -97,6 +97,12 @@ class InformationSystemViewModel @Inject constructor(
         val studentId = authService.storedStudentId ?: return
         if (authService.storedPassword == null) return
         if (loadedFor == studentId to useEnglish) return
+        // The other language's names and URLs are not this language's; its load goes with them.
+        if (loadedFor?.second != useEnglish) {
+            accountJob.cancel()
+            accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
+            _state.update { applyFilters(it.copy(items = emptyList(), loadState = LoadState.Idle)) }
+        }
         // Only once there is an account to load for: a visit while signed out must not stop
         // the load that signing in triggers.
         loadedFor = studentId to useEnglish
