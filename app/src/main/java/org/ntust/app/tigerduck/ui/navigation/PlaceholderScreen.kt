@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -16,11 +17,20 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 @Composable
-fun PlaceholderScreen(feature: AppFeature?) {
+fun PlaceholderScreen(feature: AppFeature?, onBack: () -> Unit) {
+    // No title: the feature's name is already the first line of the body.
+    PageScaffold(title = "", onBack = onBack) { padding ->
+        PlaceholderBody(feature, Modifier.padding(padding))
+    }
+}
+
+@Composable
+private fun PlaceholderBody(feature: AppFeature?, modifier: Modifier) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
