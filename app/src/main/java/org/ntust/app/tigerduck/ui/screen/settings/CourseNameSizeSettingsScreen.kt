@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -131,7 +130,7 @@ internal fun CourseNameSizeContent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "A",
-                                fontSize = 13.sp,
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 color = MaterialTheme.colorScheme.onSurface
                                     .copy(alpha = ContentAlpha.SECONDARY),
                             )
@@ -160,7 +159,7 @@ internal fun CourseNameSizeContent(
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "A",
-                                fontSize = 24.sp,
+                                fontSize = MaterialTheme.typography.titleLarge.fontSize,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                                     .copy(alpha = ContentAlpha.SECONDARY),

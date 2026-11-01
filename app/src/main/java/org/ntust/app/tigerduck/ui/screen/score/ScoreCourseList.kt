@@ -50,7 +50,6 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditType
@@ -231,7 +230,6 @@ private fun GradeChip(course: CourseGrade) {
                 text = label,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = color,
-                fontSize = 18.sp
             )
         }
     }
