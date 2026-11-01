@@ -11,7 +11,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.di.MailAccountSession
 import org.ntust.app.tigerduck.mail.imap.MailFolders
 import org.ntust.app.tigerduck.mail.imap.MailSessionFactory
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
@@ -22,6 +25,8 @@ import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,6 +60,11 @@ class MailAccount @Inject constructor(
      * hear it. Absent in tests that are not about it.
      */
     private val searchIndex: MailSearchIndex? = null,
+    /**
+     * The mail session, whose sign-in moves with the account here. The default is a session of
+     * its own, for tests that are not about it.
+     */
+    @param:MailAccountSession private val session: AccountSession = AccountSession(SignInSeries(), scope),
 ) {
     private val _signedIn = MutableStateFlow(credentialsOrNull() != null)
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
@@ -88,9 +98,19 @@ class MailAccount @Inject constructor(
 
     private val generation = AtomicInteger()
 
-    // Held while a sign-in or sign-out changes the account and its generation, and while
-    // [snapshot] reads them, so a reader never pairs one account with the other's generation.
+    // Held while a sign-in or sign-out changes the account and its sign-in, and while [snapshot]
+    // reads them, so a reader never pairs one account with the other's sign-in.
     private val accountLock = Any()
+
+    /**
+     * The next sign-in, under [accountLock]. Ended and opened in one hold: mail has no wipe to
+     * wait for, its cleanup has its own guards, and so its series never stays closed.
+     */
+    private fun moveSignIn() {
+        session.signIns.end()
+        session.open()
+        generation.incrementAndGet()
+    }
 
     /**
      * Runs right before a sign-in or a sign-out waits for the account's lock: a test's way of
@@ -128,15 +148,16 @@ class MailAccount @Inject constructor(
     fun departedAt(address: String): Int? = departures[address.lowercase()]
 
     /**
-     * The signed-in account and its [accountGeneration], read together; null while signed out.
-     * [clears] is the state's [MailStateStore.clears] read with them: a sign-in resets the state in
-     * the same hold that puts its credentials in place ([save]), so the count is always that of
-     * [credentials]' student, never the next one's.
+     * The signed-in account and its sign-in, read together; null while signed out. [clears] is the
+     * state's [MailStateStore.clears] read with them: a sign-in resets the state in the same hold
+     * that puts its credentials in place ([save]), so the count is always that of [credentials]'
+     * student, never the next one's. [generation] is [signIn] as [accountGeneration] counts it.
      */
-    class Snapshot(val generation: Int, val credentials: MailCredentials, val clears: Int)
+    class Snapshot(val signIn: SignIn, val credentials: MailCredentials, val clears: Int, val generation: Int)
 
+    @OptIn(StartsAccountWork::class)
     fun snapshot(): Snapshot? = synchronized(accountLock) {
-        credentialsOrNull()?.let { Snapshot(generation.get(), it, state.clears) }
+        credentialsOrNull()?.let { Snapshot(session.current, it, state.clears, generation.get()) }
     }
 
     /**
@@ -245,10 +266,12 @@ class MailAccount @Inject constructor(
         var leftAt = 0
         val departing = synchronized(accountLock) {
             ownAddress.also {
-                leftAt = generation.incrementAndGet()
+                moveSignIn()
+                leftAt = generation.get()
                 credentials.clearMailCredentials()
             }
         }
+        session.cancelWork()
         state.clear()
         _signedIn.value = false
         _authFailed.value = false
@@ -277,23 +300,28 @@ class MailAccount @Inject constructor(
     }
 
     /**
-     * [onAuthFailure] for a login sent under the sign-in at [generation], unless another sign-in or
-     * a sign-out has come since -- even the same student's with the same password, which the
-     * server has just accepted. Read, marked and the checks cancelled under the lock a sign-in and
-     * a sign-out move the generation under, so neither can come in between: not even to schedule
-     * the next sign-in's checks before this cancels them. Says whether it marked the account.
+     * [onAuthFailure] for a login sent under [signIn], unless it has ended -- even by the same
+     * student's sign-in with the same password, which the server has just accepted. Read, marked
+     * and the checks cancelled under the lock a sign-in and a sign-out move the sign-in under, so
+     * neither can come in between: not even to schedule the next sign-in's checks before this
+     * cancels them. Says whether it marked the account.
      */
+    fun onAuthFailure(signIn: SignIn): Boolean = synchronized(accountLock) {
+        if (!signIn.isCurrent) return@synchronized false
+        onAuthFailure()
+        true
+    }
+
+    /** [onAuthFailure] for a sign-in read as [accountGeneration]. */
     fun onAuthFailure(generation: Int): Boolean = synchronized(accountLock) {
         if (this.generation.get() != generation) return@synchronized false
-        state.authFailed = true
-        _authFailed.value = true
-        scheduler.cancel()
+        onAuthFailure()
         true
     }
 
     /**
      * Puts [creds] in place with the state reset for them ([resetState]) and [fill]ed in, in one hold
-     * of [accountLock] with the generation's move. Resetting first and switching the credentials
+     * of [accountLock] with the sign-in's move. Resetting first and switching the credentials
      * later left a moment when the departing student's credentials stood beside the next one's
      * fresh state, and a write that started then recorded its flagged mail as the next one's
      * ([MailStateStore.setOwnedDeletedIf]); a [snapshot] now holds one student's of both.
@@ -303,10 +331,11 @@ class MailAccount @Inject constructor(
         synchronized(accountLock) {
             resetState(sameStudent)
             fill()
-            generation.incrementAndGet()
+            moveSignIn()
             credentials.mailStudentId = creds.studentId
             credentials.mailPassword = creds.password
         }
+        session.cancelWork()
         state.authFailed = false
         _authFailed.value = false
         _signedIn.value = true

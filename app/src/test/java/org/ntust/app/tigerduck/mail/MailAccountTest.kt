@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.mail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -18,15 +19,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.index.InMemoryMailSearchIndex
 import org.ntust.app.tigerduck.mail.index.MailSearchIndex
 import org.ntust.app.tigerduck.mail.store.HeldSendStore
 import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.mail.store.MailCredentialStore
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
+@OptIn(StartsAccountWork::class)
 class MailAccountTest {
     @get:Rule val tmp = TemporaryFolder()
 
@@ -261,6 +268,99 @@ class MailAccountTest {
 
         account.signOut()
         assertNull(account.snapshot())
+    }
+
+    @Test
+    fun `a sign-out or a sign-in ends the sign-in a snapshot was read under, for good`() = runTest {
+        val account = account()
+        account.signIn("b10000001", "pw")
+        val first = account.snapshot()!!.signIn
+        assertTrue(first.isCurrent)
+
+        account.signIn("b10000001", "pw")
+        val again = account.snapshot()!!.signIn
+        assertFalse("the same student, the same password", first.isCurrent)
+        assertTrue(again.isCurrent)
+
+        account.signOut()
+        assertFalse("a sign-out", again.isCurrent)
+
+        account.signIn("b10000001", "pw")
+        assertFalse("never current again", again.isCurrent)
+    }
+
+    @Test
+    fun `the mail session never stays closed`() = runTest {
+        val session = AccountSession(SignInSeries(), appScope)
+        val account = MailAccount(
+            credentials, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope, session = session,
+        )
+        account.signIn("b10000001", "pw")
+        assertTrue(session.isOpen)
+        account.signOut()
+        assertTrue(session.isOpen)
+    }
+
+    @Test
+    fun `a refusal under a sign-in that has ended marks nothing, and under the current one it does`() = runTest {
+        val account = account()
+        account.signIn("b10000001", "pw")
+        val before = account.snapshot()!!.signIn
+        account.signIn("b10000001", "pw")
+
+        assertFalse(account.onAuthFailure(before))
+        assertFalse(account.authFailed.value)
+        assertEquals(0, scheduler.cancelled)
+
+        assertTrue(account.onAuthFailure(account.snapshot()!!.signIn))
+        assertTrue(account.authFailed.value)
+        assertEquals(1, scheduler.cancelled)
+    }
+
+    /** The credentials go in last under the lock, and a read must wait for all of it. */
+    @Test
+    fun `a snapshot read during a sign-in waits for it, and holds the next sign-in with the next student`() = runTest {
+        var reader: Thread? = null
+        var read: MailAccount.Snapshot? = null
+        var waited = false
+        lateinit var account: MailAccount
+        val atTheLast = object : MailCredentialStore by credentials {
+            override var mailPassword: String?
+                get() = credentials.mailPassword
+                set(value) {
+                    credentials.mailPassword = value
+                    val started = thread(isDaemon = true) { read = account.snapshot() }
+                    reader = started
+                    started.join(200)
+                    waited = started.isAlive
+                }
+        }
+        account = MailAccount(atTheLast, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope)
+
+        account.signIn("b10000001", "pw")
+        reader!!.join(5_000)
+
+        assertTrue("the read went through the sign-in's hold", waited)
+        assertEquals("b10000001", read?.credentials?.studentId)
+        assertTrue(read!!.signIn.isCurrent)
+    }
+
+    @Test
+    fun `work on the mail session goes when its sign-in ends, by a sign-out or a sign-in`() = runTest {
+        val session = AccountSession(SignInSeries(), appScope)
+        val account = MailAccount(
+            credentials, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope, session = session,
+        )
+        account.signIn("b10000001", "pw")
+        val untilTheSignIn = session.launch { awaitCancellation() }
+        account.signIn("b10000001", "pw")
+        withContext(Dispatchers.Default) { withTimeout(5_000) { untilTheSignIn.join() } }
+        assertTrue(untilTheSignIn.isCancelled)
+
+        val untilTheSignOut = session.launch { awaitCancellation() }
+        account.signOut()
+        withContext(Dispatchers.Default) { withTimeout(5_000) { untilTheSignOut.join() } }
+        assertTrue(untilTheSignOut.isCancelled)
     }
 
     /** Signs out and runs [during] before the cleanup the sign-out starts, which then runs to its end. */
