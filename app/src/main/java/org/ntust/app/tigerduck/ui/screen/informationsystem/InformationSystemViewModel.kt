@@ -140,8 +140,11 @@ class InformationSystemViewModel @Inject constructor(
         }
 
         accountScope.launch {
-            if (!networkChecker.isAvailable()) return@launch
             if (!isCurrent(signIn, studentId, useEnglish)) return@launch
+            if (!networkChecker.isAvailable()) {
+                forgetIfNothingLoaded()
+                return@launch
+            }
             // Another run's Loading is not what this one goes back to, which would never end.
             val shown = _state.value.loadState.takeUnless { it is LoadState.Loading } ?: LoadState.Idle
             _state.update { it.copy(loadState = LoadState.Loading) }
@@ -173,9 +176,13 @@ class InformationSystemViewModel @Inject constructor(
                 val after = if (e.isOffline) shown else LoadState.Failed(e.message ?: context.getString(R.string.information_system_load_failed))
                 publish { it.copy(loadState = after) }
             }
-            // Nothing to show: the next visit tries again rather than finding this load done.
-            if (_state.value.items.isEmpty() && isCurrent(signIn, studentId, useEnglish)) loadedFor = null
+            if (isCurrent(signIn, studentId, useEnglish)) forgetIfNothingLoaded()
         }
+    }
+
+    /** Nothing to show: the next visit tries again rather than finding this load done. */
+    private fun forgetIfNothingLoaded() {
+        if (_state.value.items.isEmpty()) loadedFor = null
     }
 
     fun setCategory(category: PortalCategory?) =
