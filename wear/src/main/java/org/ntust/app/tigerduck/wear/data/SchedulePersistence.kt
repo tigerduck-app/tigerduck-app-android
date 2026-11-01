@@ -336,19 +336,11 @@ data class WatchSnapshot(
      * each day's changed classes in place of their blocks, the cancelled ones left out.
      */
     fun nextClass(today: LocalDate, minuteOfDay: Int): NextClassResult =
-        NextClassResolver.resolve(
-            courses,
-            today.dayOfWeek.value,
-            minuteOfDay,
-            changedClasses = { courseNo, daysAhead -> courseChanges.on(courseNo, today.plusDays(daysAhead.toLong())) },
-        ) { daysAhead ->
+        NextClassResolver.resolve(courses, today, minuteOfDay, courseChanges) { daysAhead ->
             today.plusDays(daysAhead.toLong()) in quietDays
         }
 
     /** Today's classes as the school changed them, none when [today] is a quiet day. */
     fun todaysClasses(today: LocalDate, minuteOfDay: Int): List<TodayClassEntry> =
-        NextClassResolver.todaysClasses(
-            courses, today.dayOfWeek.value, minuteOfDay, quietToday = today in quietDays,
-            changedClasses = { courseChanges.on(it, today) },
-        )
+        NextClassResolver.todaysClasses(courses, today, minuteOfDay, quietToday = today in quietDays, changes = courseChanges)
 }
