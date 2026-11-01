@@ -207,6 +207,77 @@ class SchoolMailAllMailFoldersTest {
         assertFalse(repo.searchesSent.any { it == JUNK || it == TRASH })
     }
 
+    // --- one folder failing -------------------------------------------------------------
+
+    @Test
+    fun `one folder failing to load leaves the others on screen and reports the failure`() {
+        seed()
+        repo.folderLoadErrors[USER] = MailError.ServerBusy()
+        vm.load()
+        assertEquals(listOf("INBOX" to 1L, SENT to 2L, DRAFTS to 3L), rows())
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+    }
+
+    @Test
+    fun `a folder that fails on a later load keeps the rows it already had`() {
+        seed()
+        vm.load()
+        repo.folderLoadErrors[USER] = MailError.ServerBusy()
+        vm.refresh()
+        assertEquals(listOf("INBOX" to 1L, SENT to 2L, DRAFTS to 3L, USER to 4L), rows())
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+        // The failed folder is read again, and the load recovers once it answers.
+        repo.folderLoadErrors.clear()
+        vm.refresh()
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+    }
+
+    @Test
+    fun `every folder failing still fails the load`() {
+        seed()
+        repo.loadError = MailError.ServerBusy()
+        vm.load()
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+        assertTrue(vm.state.value.displayed.isEmpty())
+    }
+
+    @Test
+    fun `a rejected password ends the load at once, without asking the folders after it`() {
+        seed()
+        repo.folderLoadErrors[SENT] = MailError.AuthFailed()
+        vm.load()
+        assertFalse(DRAFTS in repo.loadsSent)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
+    }
+
+    @Test
+    fun `the poll still checks and dates the folders after one whose check fails`() {
+        seed()
+        repo.status = FolderStatus(server.uidValidity, 2, 1, 1)
+        vm.load()
+        vm.startPolling()
+        repo.folderStatusCalls.clear()
+        repo.folderStatusErrors[SENT] = MailError.ServerBusy()
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.POLL_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(listOf(SENT, DRAFTS, USER), repo.folderStatusCalls)
+        assertNotNull(vm.state.value.actionError)
+        vm.stopPolling()
+    }
+
+    @Test
+    fun `paging goes on with the folders that answer when one older page fails`() {
+        repo.pageSize = 1
+        repo.add("INBOX", mailSummary(1, sentAt = at(500)), mailSummary(2, sentAt = at(400)))
+        repo.add(USER, mailSummary(4, sentAt = at(300)), mailSummary(3, sentAt = at(200)))
+        vm.load()
+        assertEquals(listOf("INBOX" to 2L, USER to 4L), rows())
+        repo.folderLoadErrors[USER] = MailError.ServerBusy()
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        assertEquals(listOf("INBOX" to 1L, "INBOX" to 2L, USER to 4L), rows())
+        assertTrue(vm.state.value.cursors.containsKey(USER))
+    }
+
     private companion object {
         const val SENT = "寄件備份匣"
         const val DRAFTS = "草稿匣"

@@ -980,27 +980,36 @@ class SchoolMailListViewModel @Inject constructor(
             // that did reach the server. And no request of the batch goes out once the account
             // or the view that asked has gone -- asked with the session held, so a request that
             // waited behind another is not sent under the next account's credentials either.
-            val pages = targets.map { folder ->
-                val page = repository.loadPage(folder, null) { stillCurrent(selection, generation) }
-                dated(folder, generation)
-                folder to page
+            val read = readFolderPages(targets, { dropped(it, generation) }, ::endsServerSearch) { folder ->
+                repository.loadPage(folder, null) { stillCurrent(selection, generation) }.also { dated(folder, generation) }
             }
+            val pages = read.pages
+            if (pages.isEmpty()) read.failure?.let { throw it } // every folder failed: the load did
             if (!stillCurrent(selection, generation)) return false
+            val loaded = pages.map { it.first }
             listGeneration++
             folderValidity = folderValidity + pages.associate { (folder, page) -> folder to page.uidValidity }
-            _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages), loadState = LoadState.Loaded) }
-            lookedAt = clock.now()
+            _state.update { st -> // a folder that did not answer keeps its rows and cursor
+                st.copy(
+                    messages = ordered(selection, rowsOf(selection, pages) + st.messages.filter { it.folder in read.failed }),
+                    cursors = cursorsOf(pages) + st.cursors.filterKeys { it in read.failed },
+                    loadState = LoadState.Loaded,
+                )
+            }
+            lookedAt = clock.now().takeIf { read.failure == null } ?: lookedAt
             // The server's rows are on screen now, so the folders show their own dates again.
-            cachePainted -= targets.toSet()
+            cachePainted -= loaded.toSet()
             showFetchedAt()
             // A mark set before these pages were asked for is answered by them; one set since is not.
-            targets.forEach { folder -> if ((staleFolders[folder] ?: 0) <= since) staleFolders.remove(folder) }
-            refetchIfChangedSince(targets, since)
+            loaded.forEach { folder -> if ((staleFolders[folder] ?: 0) <= since) staleFolders.remove(folder) }
+            refetchIfChangedSince(loaded, since)
             // Was "only for Inbox itself"; All mail shows the inbox's own mail too, so it must
             // move the notification seen marker exactly as viewing Inbox always did.
-            if (_state.value.inboxInView) {
+            if (_state.value.inboxInView && _state.value.inboxFolder.let { it == null || it in loaded }) {
                 runCatching { checker.noteSeenByPage(repository.inboxStatus { account.accountGeneration == generation }, generation) }
             }
+            // Reported as any load's failure is, with the folders that answered shown (as on iOS).
+            read.failure?.let { fail(it, generation); return false }
             return true
         } catch (e: MailError) {
             if (dropped(e, generation)) return false
@@ -1153,10 +1162,12 @@ class SchoolMailListViewModel @Inject constructor(
                 // page, which may since have had a newer flag from another client that no change
                 // tells of, and would only be written over (see [pageWith]).
                 val windows = mutableMapOf<String, Int>()
-                val pages = cursors.entries.sortedBy { it.key }.map { (folder, before) ->
+                val read = readFolderPages(cursors.keys.sorted(), { dropped(it, generation) }, ::endsServerSearch) { folder ->
                     windows[folder] = arrived.size
-                    folder to repository.loadPage(folder, before) { stillCurrent(selection, generation) && list == listGeneration }
+                    repository.loadPage(folder, cursors.getValue(folder)) { stillCurrent(selection, generation) && list == listGeneration }
                 }
+                val pages = read.pages
+                if (pages.isEmpty()) read.failure?.let { throw it }
                 if (!stillCurrent(selection, generation) || list != listGeneration) return
                 // A folder recreated since its first page: the older page's UIDs name other mail
                 // than the list's, so it is not merged, and the list starts again from the top.
@@ -1173,9 +1184,10 @@ class SchoolMailListViewModel @Inject constructor(
                     }
                     st.copy(
                         messages = if (selection is FolderSelection.AllMail) merged.sortedWith(NEWEST_FIRST) else merged.sortedByDescending { it.uid },
-                        cursors = st.cursors - cursors.keys + cursorsOf(pages),
+                        cursors = st.cursors - pages.map { it.first }.toSet() + cursorsOf(pages),
                     )
                 }
+                read.failure?.let { fail(it, generation); return }
                 // A page that adds nothing on screen leaves no new last row to ask for the next one,
                 // so a few more are fetched straight away ([EMPTY_PAGE_WALKBACK]).
                 if (_state.value.displayed.lastOrNull()?.key != end || walkedBack == EMPTY_PAGE_WALKBACK) return
@@ -1497,15 +1509,24 @@ class SchoolMailListViewModel @Inject constructor(
                 }
                 checker.noteSeenByPage(status, generation)
             }
+            var failure: MailError? = null // one folder's failed check is reported after the others'
             for (folder in s.targets) {
                 if (folder == s.inboxFolder) continue
+                if (failure != null && endsServerSearch(failure)) break
                 // Asked only while still on screen -- with the session held, right before the
                 // STATUS goes out, since it can wait there behind another request while the chip
                 // moves on. A folder that left the screen is left alone; the next tick polls
                 // whatever is on screen then.
-                repository.status(folder) { stillCurrent(selection, generation) }
+                try {
+                    repository.status(folder) { stillCurrent(selection, generation) }
+                } catch (e: MailError) {
+                    if (dropped(e, generation)) throw e
+                    if (failure == null || endsServerSearch(e)) failure = e
+                    continue
+                }
                 if (folder !in cachePainted) dated(folder, generation)
             }
+            failure?.let { throw it }
             // Every folder on screen answered: a look as good as a page, for the next return.
             lookedAt = clock.now()
         } catch (e: MailError) {
@@ -1635,27 +1656,6 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private fun ordered(selection: FolderSelection, rows: List<MailRow>): List<MailRow> =
         if (selection is FolderSelection.AllMail) rows.sortedWith(NEWEST_FIRST) else rows
-
-    /**
-     * [page], an older page of [folder], merged into [rows]: every row it lists wins, and a row of
-     * [folder] inside the page's UID range that it does not list was read, moved or deleted
-     * elsewhere and goes. Rows outside that range, and every other folder's, stay.
-     *
-     * The range overlaps rows already listed whenever mail below the cursor was expunged, as the
-     * sequence numbers it was taken from have shifted down since. A single folder's order is the
-     * server's, UID descending, which re-sorting keeps.
-     */
-    private fun mergeOlderPage(rows: List<MailRow>, folder: String, page: MailPage): List<MailRow> {
-        val window = page.windowUids
-            ?: page.messages.takeIf { it.isNotEmpty() }?.let { m -> m.minOf { it.uid }..m.maxOf { it.uid } }
-        val kept = if (window == null) rows else rows.filterNot { it.folder == folder && it.uid in window }
-        val fresh = page.messages.map { MailRow(folder, it, page.uidValidity) }
-        val freshKeys = fresh.mapTo(HashSet()) { it.key }
-        return kept.filterNot { it.key in freshKeys } + fresh
-    }
-
-    private fun cursorsOf(pages: List<Pair<String, MailPage>>): Map<String, Int> =
-        pages.mapNotNull { (folder, page) -> page.nextBeforeSeq?.let { folder to it } }.toMap()
 
     /**
      * A load failed: the page itself has nothing to show, so [LoadState.Failed] is the truth. A

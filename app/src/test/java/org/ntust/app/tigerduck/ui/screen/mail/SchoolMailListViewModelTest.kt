@@ -678,15 +678,15 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `a recreated folder's failed reload leaves a cache that already holds the new mailbox alone`() {
+    fun `a recreated folder's reload that lands while another folder fails shows the new mailbox`() {
         repo.pageSize = 2
         repo.add("INBOX", mailSummary(1, sentAt = at(100)), mailSummary(2, sentAt = at(200)), mailSummary(3, sentAt = at(300)), mailSummary(4, sentAt = at(400)))
         repo.add(SENT, mailSummary(9, sentAt = at(50)))
         vm.load()
         vm.selectFolder(FolderSelection.Real("INBOX"))
-        // The inbox was recreated. A refresh of All mail caches its page under the new UIDVALIDITY
-        // but fails at Sent, so the rows on screen -- and the cursor into them -- stay the old
-        // mailbox's.
+        // The inbox was recreated. A refresh of All mail reads its new page and fails at Sent: the
+        // folders that answered are shown, so the inbox's rows are the new mailbox's, with the
+        // cursor into them, and the page cached under the new validity matches them.
         repo.pageValidity = 2
         repo.loadError = MailError.Network()
         repo.loadErrorFolder = SENT
@@ -694,19 +694,15 @@ class SchoolMailListViewModelTest {
         assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
         assertEquals(2L, runBlocking { repo.cachedPage("INBOX") }!!.uidValidity)
         assertEquals(mapOf("INBOX" to 2), vm.state.value.cursors)
-        // The older page comes down under the new validity, and the connection goes right after.
+        assertEquals(listOf(4L, 3L), vm.state.value.displayed.filter { it.folder == "INBOX" }.map { it.uid })
+        // The older page comes down under the new validity, which the list now holds, and merges.
         repo.olderPage = { _, _ ->
             repo.loadErrorFolder = null
             MailPage(2, 4, listOf(mailSummary(2, sentAt = at(200)), mailSummary(1, sentAt = at(100))), null)
         }
         vm.loadMoreIfNeeded(vm.state.value.displayed.last())
-        // The old rows go, as they must. The page cached under the new validity is the only
-        // offline copy of the new mailbox there is, and it is not what was found obsolete: it stays.
-        assertTrue(vm.state.value.messages.none { it.folder == "INBOX" })
+        assertEquals(listOf(4L, 3L, 2L, 1L), vm.state.value.displayed.filter { it.folder == "INBOX" }.map { it.uid })
         assertEquals(2L, runBlocking { repo.cachedPage("INBOX") }!!.uidValidity)
-        // So the inbox still paints from it while the server is away.
-        vm.selectFolder(FolderSelection.Real("INBOX"))
-        assertEquals(listOf(4L, 3L), vm.state.value.displayed.map { it.uid })
     }
 
     @Test
@@ -1024,15 +1020,15 @@ class SchoolMailListViewModelTest {
     }
 
     @Test
-    fun `a server that cannot search does not match rows of a mailbox generation the server has replaced`() {
+    fun `a server that cannot search matches the rows of the new mailbox a partly failed load showed`() {
         repo.pageSize = 2
         repo.add("INBOX", mailSummary(1, subject = "期中考 1", sentAt = at(100)), mailSummary(2, subject = "期中考 2", sentAt = at(200)))
         repo.add(SENT, mailSummary(9, subject = "other", sentAt = at(50)))
         vm.load()
         vm.selectFolder(FolderSelection.Real("INBOX"))
         // The inbox was recreated, with one mail that reads differently under the same UID. A
-        // refresh of All mail caches its page under the new UIDVALIDITY but fails at Sent, so the
-        // rows on screen stay the old mailbox's.
+        // refresh of All mail reads its page under the new UIDVALIDITY and fails at Sent: the rows
+        // on screen are the new mailbox's, read under the version the list holds.
         repo.mail.getValue("INBOX").clear()
         repo.add("INBOX", mailSummary(1, subject = "期中考 新", sentAt = at(300)))
         repo.pageValidity = 2
@@ -1040,10 +1036,9 @@ class SchoolMailListViewModelTest {
         repo.loadErrorFolder = SENT
         selectAll()
         assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Failed)
-        assertEquals(listOf(2L, 1L, 9L), vm.state.value.displayed.map { it.uid })
+        assertEquals(listOf(1L, 9L), vm.state.value.displayed.map { it.uid })
         assertEquals(2L, runBlocking { repo.cachedPage("INBOX") }!!.uidValidity)
-        // The server cannot search. The repository matched the new mailbox's cached page; the
-        // inbox rows on screen were read under the old UIDVALIDITY and must not stand in for it.
+        // The server cannot search; the inbox rows on screen are the new mailbox's and stand in.
         repo.searchUnsupported = true
         vm.setSearchText("期中")
         vm.submitSearch()
