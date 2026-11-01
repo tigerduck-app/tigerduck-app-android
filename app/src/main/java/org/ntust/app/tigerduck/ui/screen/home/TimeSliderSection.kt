@@ -628,8 +628,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                     val left = segCenterX - segW / 2
 
                     if (left + segW > -50 && left < size.width + 50) {
-                        val isActive =
-                            viewModel.selectedTime >= slot.start && viewModel.selectedTime < slot.end
+                        val isActive = slot.isGoingOn(viewModel.selectedTime)
                         val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
 
                         // 衝堂: lanes meet flush inside the same band, so the
