@@ -196,7 +196,7 @@ internal fun FlipToLibraryEffect(
         val hasPage = navController.currentBackStackEntryAsState().value != null
         LaunchedEffect(requested, hasPage) {
             if (!requested || !hasPage || !openRequest.take()) return@LaunchedEffect
-            if (!currentFlipEnabled() || !currentStillSignedIn()) return@LaunchedEffect
+            if (!currentFlipEnabled() || !currentStillSignedIn() || !FlipToLibraryGate.opensLibrary(AppClock.instant())) return@LaunchedEffect
             if (navigateToLibrary(navController)) currentOnNavigated()
         }
     }

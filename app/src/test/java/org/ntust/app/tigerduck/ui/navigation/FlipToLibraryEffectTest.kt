@@ -292,6 +292,19 @@ class FlipToLibraryEffectTest {
         assertFalse(openRequest.take())
     }
 
+    /** The question comes just before closing time and is answered after it. */
+    @Test
+    fun `a Turn on after closing time opens nothing`() {
+        show(enabled = false, offerUnanswered = { true })
+        focusWindow(true)
+        clockAt(day = 2, hour = 23, minute = 29)
+        flip()
+        clockAt(day = 2, hour = 23, minute = 30)
+        turnOn()
+        assertEquals("home", route())
+        assertEquals(0, haptics)
+    }
+
     @Test
     fun `nothing is asked before a flip`() {
         show(enabled = false, offerUnanswered = { true })
