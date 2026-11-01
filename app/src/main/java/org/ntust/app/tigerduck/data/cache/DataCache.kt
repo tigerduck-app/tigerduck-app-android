@@ -1730,7 +1730,7 @@ class DataCache @Inject constructor(
         dir.listFiles { _, name -> name.endsWith(TEMP_SUFFIX) }?.forEach { it.delete() }
     }
 
-    private suspend fun <T> save(value: T, filename: String) = saveIf(value, filename, writeGeneration()).let {}
+    private suspend fun <T> save(value: T, filename: String) { saveIf(value, filename, writeGeneration()) }
 
     // As saveToUserDataIf, in the cache folder.
     private suspend fun <T> saveIf(value: T, filename: String, generation: Int): Boolean =
@@ -1749,7 +1749,7 @@ class DataCache @Inject constructor(
             withContext(Dispatchers.IO) { readJson<T>(File(cacheDir, filename), type, requireContent) }
         }
 
-    private suspend fun <T> saveToUserData(value: T, filename: String) = saveToUserDataIf(value, filename, writeGeneration()).let {}
+    private suspend fun <T> saveToUserData(value: T, filename: String) { saveToUserDataIf(value, filename, writeGeneration()) }
 
     /**
      * The generation a write made here would carry: the [Generation] of the work this coroutine
