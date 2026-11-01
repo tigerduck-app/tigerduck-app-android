@@ -5,8 +5,13 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.widget.content.todayListBlocks
 import org.ntust.app.tigerduck.widget.content.tomorrowFirstBlock
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalTime
 
 /**
  * A course that meets twice a day, in periods 3–4 in one room and 7–8 in
@@ -29,6 +34,10 @@ class CourseBlockTest {
 
     private fun minute(hhmm: String): Int = hhmm.split(":").let { it[0].toInt() * 60 + it[1].toInt() }
 
+    /** [hhmm] on a Monday, Taipei time, with no feed to change it. */
+    private fun monday(hhmm: String): Instant =
+        LocalDate.of(2026, 11, 2).atTime(LocalTime.parse(hhmm)).atZone(TaipeiClock.zone).toInstant()
+
     private fun mondayState(at: String) = WidgetState(
         courses = listOf(twice, early),
         activeWeekdays = (1..5).toList(),
@@ -37,7 +46,7 @@ class CourseBlockTest {
         currentMinuteOfDay = minute(at),
         isLoggedIn = true,
         isQuietToday = false,
-        ongoingBlocks = WidgetDataLoader.computeOngoingBlocks(listOf(twice, early), 1, minute(at)),
+        ongoingBlocks = WidgetDataLoader.computeOngoingBlocks(listOf(twice, early), monday(at), CourseChanges.EMPTY),
         nextTodayBlock = null,
         tomorrowFirstCourseNo = null,
         tomorrowFirstCourseWeekday = null,
@@ -48,7 +57,7 @@ class CourseBlockTest {
 
     @Test
     fun `the ongoing card shows the morning block's times, periods, room and progress`() {
-        val block = WidgetDataLoader.computeOngoingBlocks(listOf(twice), 1, minute("10:30")).single()
+        val block = WidgetDataLoader.computeOngoingBlocks(listOf(twice), monday("10:30"), CourseChanges.EMPTY).single()
 
         assertEquals("10:20", block.startTime)
         assertEquals("12:10", block.endTime)
@@ -59,7 +68,7 @@ class CourseBlockTest {
 
     @Test
     fun `the afternoon block is ongoing on its own`() {
-        val block = WidgetDataLoader.computeOngoingBlocks(listOf(twice), 1, minute("15:00")).single()
+        val block = WidgetDataLoader.computeOngoingBlocks(listOf(twice), monday("15:00"), CourseChanges.EMPTY).single()
 
         assertEquals("14:20–16:20 7–8", "${block.startTime}–${block.endTime} ${block.periodRange}")
         assertEquals("TR-412", block.classroom)
@@ -67,7 +76,7 @@ class CourseBlockTest {
 
     @Test
     fun `after the morning block the next class starts at the afternoon block`() {
-        val next = WidgetDataLoader.computeNextTodayBlock(listOf(twice), 1, minute("12:30"), emptyList())!!
+        val next = WidgetDataLoader.computeNextTodayBlock(listOf(twice), monday("12:30"), emptyList(), CourseChanges.EMPTY)!!
 
         assertEquals("14:20", next.startTime)
         assertEquals("TR-412", next.classroom)
@@ -106,7 +115,7 @@ class CourseBlockTest {
         val split = Course.fromSchedule("CS3001301", "Networks", schedule = mapOf(1 to listOf("4", "6")))
         val state = mondayState(at = "13:30").copy(
             courses = listOf(split),
-            ongoingBlocks = WidgetDataLoader.computeOngoingBlocks(listOf(split), 1, minute("13:30")),
+            ongoingBlocks = WidgetDataLoader.computeOngoingBlocks(listOf(split), monday("13:30"), CourseChanges.EMPTY),
         )
 
         assertTrue(state.isOngoingTile(split, 1, listOf("4", "6")))

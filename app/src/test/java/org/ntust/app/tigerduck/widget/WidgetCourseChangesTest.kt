@@ -261,16 +261,7 @@ class WidgetCourseChangesTest {
         val courses = listOf(twice, early)
 
         for (time in listOf("07:00", "08:30", "10:30", "12:10", "12:30", "15:00", "20:00")) {
-            val minute = minute(time)
             val now = state(courses, CourseChanges.EMPTY, time)
-            val ongoing = WidgetDataLoader.computeOngoingBlocks(courses, 4, minute)
-
-            assertEquals(time, ongoing, now.ongoingBlocks)
-            assertEquals(
-                time,
-                WidgetDataLoader.computeNextTodayBlock(courses, 4, minute, ongoing.map { it.course.courseNo }),
-                now.nextTodayBlock,
-            )
             assertEquals(time, todayListBlocks(now.copy(today = null)), todayListBlocks(now))
         }
         val eveningBefore = state(courses, CourseChanges.EMPTY, "20:00", thursday.minusDays(1))
