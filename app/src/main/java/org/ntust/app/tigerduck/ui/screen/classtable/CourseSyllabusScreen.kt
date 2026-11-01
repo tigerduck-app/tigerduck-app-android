@@ -24,11 +24,9 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -67,8 +65,8 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.CourseSyllabus
 import org.ntust.app.tigerduck.network.CourseSyllabusBreakdown
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.openLink
-import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleTopBar
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.cardDividerColor
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import java.text.NumberFormat
@@ -150,7 +148,6 @@ class CourseSyllabusViewModel @javax.inject.Inject constructor(
  * A course's syllabus, as the iPhone's (tigerduck-app#885): grading and teaching methods as
  * shares, then the outline, the details a tap opens, and the course's website.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseSyllabusScreen(
     browserPreference: String,
@@ -162,10 +159,7 @@ fun CourseSyllabusScreen(
     // loads again in the new one.
     val locales = LocalConfiguration.current.locales
     LaunchedEffect(locales) { viewModel.followLanguage() }
-    Scaffold(
-        topBar = { MoodleTopBar(title = stringResource(R.string.course_detail_syllabus), onBack = onBack, moodlePath = null) },
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { padding ->
+    PageScaffold(title = stringResource(R.string.course_detail_syllabus), onBack = onBack, oneLineTitle = true) { padding ->
         Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
             when (val current = state) {
                 CourseSyllabusViewModel.State.Loading ->

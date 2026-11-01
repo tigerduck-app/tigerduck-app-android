@@ -54,7 +54,7 @@ import org.ntust.app.tigerduck.mail.MailProbeCredentials
 import org.ntust.app.tigerduck.mail.MailServerConfig
 import org.ntust.app.tigerduck.mail.MailSite
 import org.ntust.app.tigerduck.mail.MailTransportSecurity
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 /**
  * Points School Mail at a mail server that is not the school's, so the whole feature can
@@ -146,7 +146,7 @@ fun MailDevServerDebugScreen(onBack: () -> Unit) {
         }
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "Email",
         onBack = onBack,
     ) { padding ->

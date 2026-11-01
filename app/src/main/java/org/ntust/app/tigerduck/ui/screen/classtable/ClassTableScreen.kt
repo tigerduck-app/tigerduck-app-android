@@ -9,7 +9,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -24,27 +23,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import org.ntust.app.tigerduck.ui.component.CurrentClassCardWidth
 import org.ntust.app.tigerduck.ui.component.CourseCardWidth
@@ -55,7 +46,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -73,7 +63,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -86,6 +75,9 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.sharing.ClassTableShare
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTables
 import org.ntust.app.tigerduck.ui.component.DetentSheet
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageMenu
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.rememberDetentSheetState
 import org.ntust.app.tigerduck.data.sharing.ImportedPerson
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherEntry
@@ -99,7 +91,6 @@ import org.ntust.app.tigerduck.ui.component.ConflictCoursePickerSheet
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.CourseCard
 import org.ntust.app.tigerduck.ui.component.CurrentClassCard
-import org.ntust.app.tigerduck.ui.component.PageHeader
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
@@ -217,7 +208,6 @@ fun ClassTableScreen(
     // Whose class table it is, for the credits label and the exported image: the student ID,
     // or the nickname of someone else's.
     val owner = shownPerson?.nickname ?: viewModel.studentId
-    var showMoreMenu by remember { mutableStateOf(false) }
     var showAddCourse by remember { mutableStateOf(false) }
     var showResetConfirm by remember { mutableStateOf(false) }
     // The term whose reset the backend could not take.
@@ -306,11 +296,70 @@ fun ClassTableScreen(
     }
 
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    PageScaffold(
+        title = stringResource(R.string.feature_class_table),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = {
+            SyncStatusDot(
+                servers = ServerKind.classTableSources,
+                isLoading = isLoading,
+                syncedAtMs = schoolDataSyncedAtMs,
+            )
+        },
+        // Everything that acts on the timetable, behind one ⋮ —
+        // the same shape as a mail message's actions. A third
+        // glyph would have made a row of unlabelled icons, and
+        // export is not something an icon alone can say.
+        menu = PageMenu(
+            label = stringResource(R.string.class_table_more_actions),
+            enabled = showsTable,
+            onOpen = { viewModel.refreshShareTerms() },
+        ) { close ->
+            if (shownPerson != null) {
+                // Someone else's class table is read-only: export and import
+                // as on the user's own, then what applies to the person.
+                PersonClassTableMenuItems(
+                    exportEnabled = hasGrid && !exporting,
+                    onExport = { close(); exporting = true },
+                    onImport = { close(); onRequestImport() },
+                    onRename = {
+                        close()
+                        nicknameDraft = shownPerson.nickname
+                        renamingPerson = shownPerson
+                    },
+                    onDelete = { close(); deletingPerson = shownPerson },
+                )
+            } else {
+                OwnClassTableMenuItems(
+                    onAddCourse = { close(); showAddCourse = true },
+                    // Held off with an export, whose chooser would
+                    // open behind the sheet.
+                    shareEnabled = !exporting && shareTerms.isNotEmpty() &&
+                        ClassTableShare.canName(viewModel.studentId),
+                    onShare = {
+                        close()
+                        val id = viewModel.studentId
+                        if (id != null && shareTerms.isNotEmpty()) {
+                            sharing = ClassTableShare(id, shareTerms)
+                        }
+                    },
+                    onImport = { close(); onRequestImport() },
+                    // Only exportable while the grid below is
+                    // drawn; anything else would export a header
+                    // over nothing. Also off while one is in
+                    // flight.
+                    exportEnabled = hasGrid && !exporting,
+                    onExport = { close(); exporting = true },
+                    onReset = { close(); showResetConfirm = true },
+                )
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         TigerPullToRefresh(
             isRefreshing = if (shownPerson != null) isRefreshingShownPerson else isLoading,
             onRefresh = { viewModel.refresh() },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(padding),
             refreshingMessage = refreshingMessage,
         ) {
             Column(
@@ -320,105 +369,7 @@ fun ClassTableScreen(
                     // The scrolled content, which the grid's rows are measured in.
                     .onGloballyPositioned { scrolledContent[0] = it }
             ) {
-                PageHeader(title = stringResource(R.string.feature_class_table)) {
-                    SyncStatusDot(
-                        servers = ServerKind.classTableSources,
-                        isLoading = isLoading,
-                        syncedAtMs = schoolDataSyncedAtMs,
-                    )
-                    // Everything that acts on the timetable, behind one ⋮ —
-                    // the same shape as a mail message's actions. A third
-                    // glyph would have made a row of unlabelled icons, and
-                    // export is not something an icon alone can say.
-                    Box {
-                        IconButton(
-                            onClick = {
-                                showMoreMenu = true
-                                viewModel.refreshShareTerms()
-                            },
-                            enabled = showsTable
-                        ) {
-                            Icon(
-                                Icons.Filled.MoreVert,
-                                contentDescription = stringResource(R.string.class_table_more_actions),
-                                tint = MaterialTheme.colorScheme.onSurface.copy(
-                                    alpha = if (showsTable) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
-                                )
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = showMoreMenu,
-                            onDismissRequest = { showMoreMenu = false },
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            if (shownPerson != null) {
-                                // Someone else's class table is read-only: export and import
-                                // as on the user's own, then what applies to the person.
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.class_table_export_screenshot)) },
-                                    leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
-                                    onClick = { showMoreMenu = false; exporting = true },
-                                    enabled = hasGrid && !exporting,
-                                )
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.class_table_import)) },
-                                    leadingIcon = { Icon(Icons.Filled.QrCodeScanner, contentDescription = null) },
-                                    onClick = { showMoreMenu = false; onRequestImport() },
-                                )
-                                HorizontalDivider()
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.class_table_rename_title)) },
-                                    leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
-                                    onClick = {
-                                        showMoreMenu = false
-                                        nicknameDraft = shownPerson.nickname
-                                        renamingPerson = shownPerson
-                                    },
-                                )
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            stringResource(R.string.class_table_delete_user),
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Filled.Delete,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.error,
-                                        )
-                                    },
-                                    onClick = { showMoreMenu = false; deletingPerson = shownPerson },
-                                )
-                                return@DropdownMenu
-                            }
-                            OwnClassTableMenuItems(
-                                onAddCourse = { showMoreMenu = false; showAddCourse = true },
-                                // Held off with an export, whose chooser would
-                                // open behind the sheet.
-                                shareEnabled = !exporting && shareTerms.isNotEmpty() &&
-                                    ClassTableShare.canName(viewModel.studentId),
-                                onShare = {
-                                    showMoreMenu = false
-                                    val id = viewModel.studentId
-                                    if (id != null && shareTerms.isNotEmpty()) {
-                                        sharing = ClassTableShare(id, shareTerms)
-                                    }
-                                },
-                                onImport = { showMoreMenu = false; onRequestImport() },
-                                // Only exportable while the grid below is
-                                // drawn; anything else would export a header
-                                // over nothing. Also off while one is in
-                                // flight.
-                                exportEnabled = hasGrid && !exporting,
-                                onExport = { showMoreMenu = false; exporting = true },
-                                onReset = { showMoreMenu = false; showResetConfirm = true },
-                            )
-                        }
-                    }
-                }
+                Header()
                 org.ntust.app.tigerduck.ui.screen.signin.AutoSignInFailedBanner(Modifier.padding(bottom = 8.dp))
 
                 if (!showsTable) {
@@ -685,41 +636,41 @@ fun ClassTableScreen(
             }
 
         }
-        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
 
-        if (exporting) {
-            val semesterLabel = viewModel.displayLabel(shown.semester)
-            // A nickname has no length limit, and a file name past 255 bytes cannot be written.
-            val studentId = owner?.take(40)
-            OffscreenCapture(
-                onCaptured = { bitmap ->
-                    val file = writeClassTableImage(
-                        context,
-                        bitmap,
-                        classTableExportFileName(classTableTitle, semesterLabel, studentId),
-                    )
-                    shareClassTableImage(context, file, exportTitle)
-                    exporting = false
-                },
-                onFailed = {
-                    exporting = false
-                    // In the screen's scope: the capture's own ends with the
-                    // export, and the snackbar outlives it.
-                    scope.launch { snackbarHostState.showSnackbar(exportFailedMessage) }
-                },
-            ) {
-                ClassTableExportCard(
-                    courses = shownCourses,
-                    semesterLabel = semesterLabel,
-                    studentId = studentId,
-                    showRoomHints = showClassroomInClassTable,
-                    weekdays = activeWeekdays,
-                    periods = activePeriods,
-                    outlineRequiredCourses = outlineRequiredCourses,
+    // Beside the page, not in it: it draws nothing on screen, into an image of its own.
+    if (exporting) {
+        val semesterLabel = viewModel.displayLabel(shown.semester)
+        // A nickname has no length limit, and a file name past 255 bytes cannot be written.
+        val studentId = owner?.take(40)
+        OffscreenCapture(
+            onCaptured = { bitmap ->
+                val file = writeClassTableImage(
+                    context,
+                    bitmap,
+                    classTableExportFileName(classTableTitle, semesterLabel, studentId),
                 )
-            }
+                shareClassTableImage(context, file, exportTitle)
+                exporting = false
+            },
+            onFailed = {
+                exporting = false
+                // In the screen's scope: the capture's own ends with the
+                // export, and the snackbar outlives it.
+                scope.launch { snackbarHostState.showSnackbar(exportFailedMessage) }
+            },
+        ) {
+            ClassTableExportCard(
+                courses = shownCourses,
+                semesterLabel = semesterLabel,
+                studentId = studentId,
+                showRoomHints = showClassroomInClassTable,
+                weekdays = activeWeekdays,
+                periods = activePeriods,
+                outlineRequiredCourses = outlineRequiredCourses,
+            )
         }
-    } // Box
+    }
 
     courseToRename?.let { course ->
         CourseRenameDialog(viewModel = viewModel, course = course, onDismiss = { courseToRename = null })

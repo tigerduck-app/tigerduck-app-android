@@ -6,11 +6,9 @@ package org.ntust.app.tigerduck.ui.screen.settings
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,7 +46,8 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.BrowserPreference
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
@@ -221,10 +220,10 @@ fun SettingsScreen(
         }
     }
 
-    Scaffold(
+    PageScaffold(
+        title = stringResource(R.string.feature_settings),
+        headerPosition = PageDefaults.TabHeaderPosition,
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { scaffoldPadding ->
         LazyColumn(
             modifier = Modifier
@@ -232,9 +231,7 @@ fun SettingsScreen(
                 .padding(scaffoldPadding),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            item {
-                PageHeader(title = stringResource(R.string.feature_settings))
-            }
+            item { Header() }
 
             // --- Account section ---
             item { SectionHeader(stringResource(R.string.settings_section_account)) }

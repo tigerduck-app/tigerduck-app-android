@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,7 +41,7 @@ import kotlin.math.roundToInt
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -92,7 +91,7 @@ internal fun CourseNameSizeContent(
     val stepCount = ((CourseNameScale.MAX - CourseNameScale.MIN) / CourseNameScale.STEP)
         .roundToInt() - 1
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_font_size_title),
         onBack = onBack,
     ) { scaffoldPadding ->
@@ -131,7 +130,7 @@ internal fun CourseNameSizeContent(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "A",
-                                fontSize = 13.sp,
+                                fontSize = MaterialTheme.typography.labelSmall.fontSize,
                                 color = MaterialTheme.colorScheme.onSurface
                                     .copy(alpha = ContentAlpha.SECONDARY),
                             )
@@ -160,7 +159,7 @@ internal fun CourseNameSizeContent(
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 "A",
-                                fontSize = 24.sp,
+                                fontSize = MaterialTheme.typography.titleLarge.fontSize,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                                     .copy(alpha = ContentAlpha.SECONDARY),

@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -55,7 +55,7 @@ fun OtherSettingsScreen(
 
     var showResetColorsConfirm by remember { mutableStateOf(false) }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_section_other_settings),
         onBack = onBack,
     ) { scaffoldPadding ->

@@ -892,7 +892,7 @@ fun MainNavigation(
                 arguments = listOf(navArgument("feature") { type = NavType.StringType })
             ) { backStackEntry ->
                 val featureId = backStackEntry.arguments?.getString("feature") ?: ""
-                PlaceholderScreen(AppFeature.fromId(featureId))
+                PlaceholderScreen(AppFeature.fromId(featureId), onBack = { navController.popBackStack() })
             }
         }
     }

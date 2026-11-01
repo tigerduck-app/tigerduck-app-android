@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 /**
  * Full-screen rule editor. Replaces the prior `AlertDialog`-based editor
@@ -71,7 +71,7 @@ fun SubscriptionRuleEditorScreen(
     var mode by remember { mutableStateOf(initial.mode) }
     var enabled by remember { mutableStateOf(initial.enabled) }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(
             if (isNew) R.string.bulletin_rule_add_title
             else R.string.bulletin_rule_edit_title

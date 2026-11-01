@@ -55,7 +55,7 @@ import org.ntust.app.tigerduck.AppUrls
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -209,7 +209,7 @@ fun CloudSyncSettingsScreen(
         )
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.cloud_sync_title),
         onBack = {
             viewModel.checkPendingConflicts()

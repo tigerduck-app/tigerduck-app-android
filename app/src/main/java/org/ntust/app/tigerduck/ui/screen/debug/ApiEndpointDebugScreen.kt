@@ -44,7 +44,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.EndpointHealthCheck
 import org.ntust.app.tigerduck.network.OverrideValidator
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss
 
@@ -105,7 +105,7 @@ fun ApiEndpointDebugScreen(onBack: () -> Unit) {
         )
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_api_endpoint),
         onBack = onBack,
     ) { padding ->

@@ -61,18 +61,10 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.ui.component.SubPageBarHeight
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
 
 internal val SettingRowHeight = 56.dp
-
-/**
- * The bar height of the settings pages that still write their own
- * `TopAppBar`; [SubPageScaffold] owns the value, and this goes once the last
- * of them has moved to it.
- */
-internal val SubSettingsBarHeight = SubPageBarHeight
 
 /**
  * About section row that swaps a chevron for a spinner while a manual

@@ -138,6 +138,8 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   next, with D2's end rule (`start <= now < end`), for every screen.
 - `AppPreferences` reads `BuildConfig` for the `"fdroid"` flavor; no other file
   compares against the literal.
+- `PageScaffold` (`app/.../ui/component/PageScaffold.kt`): every page's shell, with
+  its defaults in `PageDefaults`. No file outside `ui/component` calls a `TopAppBar`.
 
 ## Greptile
 

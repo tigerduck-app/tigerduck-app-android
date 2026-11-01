@@ -35,7 +35,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +47,7 @@ fun DebugScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "Time override",
         onBack = onBack,
     ) { padding ->

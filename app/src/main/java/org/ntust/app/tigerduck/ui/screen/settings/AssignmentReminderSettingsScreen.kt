@@ -28,7 +28,7 @@ import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.util.logSummary
@@ -111,7 +111,7 @@ fun AssignmentReminderSettingsScreen(
     val masterEnabled = viewModel.appState.notifyAssignments
     val selected = viewModel.appState.notifyAssignmentOffsets
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_assignment_due_reminder),
         onBack = onBack,
     ) { scaffoldPadding ->

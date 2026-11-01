@@ -44,7 +44,7 @@ import org.ntust.app.tigerduck.notification.ClassReminders
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
@@ -154,7 +154,7 @@ fun ClassReminderSettingsScreen(
         }
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_class_reminder),
         onBack = onBack,
     ) { scaffoldPadding ->

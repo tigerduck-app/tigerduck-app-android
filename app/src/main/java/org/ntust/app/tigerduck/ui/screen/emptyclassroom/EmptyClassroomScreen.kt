@@ -35,7 +35,8 @@ import org.ntust.app.tigerduck.emptyclassroom.RoomPlace
 import org.ntust.app.tigerduck.emptyclassroom.RoomSuggestion
 import org.ntust.app.tigerduck.emptyclassroom.RoomUsage
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.statusText
@@ -61,30 +62,18 @@ fun EmptyClassroomScreen(
         onStopOrDispose { if (activity?.isChangingConfigurations != true) viewModel.disappear() }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    PageScaffold(
+        title = stringResource(R.string.feature_empty_classroom),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = { if (signedIn) RoomSiteSyncDot(state) },
+    ) { padding ->
         TigerPullToRefresh(
             isRefreshing = state.isRefreshing,
             onRefresh = { if (signedIn) viewModel.refresh() },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(padding),
         ) {
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
-                item {
-                    PageHeader(title = stringResource(R.string.feature_empty_classroom)) {
-                        // The room booking site is a source of its own, which none of the shared
-                        // dot's servers stand for, so the page reports how it last answered.
-                        if (signedIn) {
-                            SyncStatusDot(
-                                status = state.siteStatus,
-                                label = stringResource(R.string.feature_empty_classroom),
-                                icon = Icons.Filled.Business,
-                                text = statusText(state.siteStatus),
-                                isLoading = state.isRefreshing || state.isReloading ||
-                                    state.content == FinderContent.Loading,
-                                syncedAtMs = state.syncedAtMs,
-                            )
-                        }
-                    }
-                }
+                item { Header() }
                 if (!signedIn) {
                     item {
                         EmptyStateView(
@@ -126,6 +115,22 @@ fun EmptyClassroomScreen(
             onDismiss = viewModel::closeRoom,
         )
     }
+}
+
+/**
+ * The room booking site is a source of its own, which none of the shared dot's servers stand for,
+ * so the page reports how it last answered.
+ */
+@Composable
+private fun RoomSiteSyncDot(state: FinderState) {
+    SyncStatusDot(
+        status = state.siteStatus,
+        label = stringResource(R.string.feature_empty_classroom),
+        icon = Icons.Filled.Business,
+        text = statusText(state.siteStatus),
+        isLoading = state.isRefreshing || state.isReloading || state.content == FinderContent.Loading,
+        syncedAtMs = state.syncedAtMs,
+    )
 }
 
 private fun androidx.compose.foundation.lazy.LazyListScope.finderContent(

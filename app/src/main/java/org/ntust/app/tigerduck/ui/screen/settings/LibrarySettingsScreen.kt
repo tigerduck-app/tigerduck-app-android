@@ -19,7 +19,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.sensor.FlipDetector
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.navigation.FlipToLibraryGate
 
 /**
@@ -36,7 +36,7 @@ fun LibrarySettingsScreen(
     val flipSensorSupported = remember(context) { FlipDetector.isSupported(context) }
     val signedIn by viewModel.isLibraryLoggedIn.collectAsStateWithLifecycle()
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_library_related_features),
         onBack = onBack,
     ) { scaffoldPadding ->

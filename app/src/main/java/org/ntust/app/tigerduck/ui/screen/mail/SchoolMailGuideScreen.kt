@@ -28,7 +28,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 
@@ -69,7 +69,7 @@ fun SchoolMailGuideScreen(browserPreference: String, onBack: () -> Unit) {
     // stripped embed that only makes sense inside this screen.
     val publicGuideUrl = GUIDE_URL_PREFIX + "android"
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.school_mail_use_other_app),
         onBack = onBack,
     ) { padding ->

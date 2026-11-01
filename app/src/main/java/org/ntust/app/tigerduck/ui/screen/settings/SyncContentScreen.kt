@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 /**
  * "同步內容" (Synced content) — spec §6's second-level menu nested under
@@ -148,7 +148,7 @@ fun SyncContentScreen(
         )
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.sync_content_nav_label),
         onBack = onBack,
     ) { padding ->

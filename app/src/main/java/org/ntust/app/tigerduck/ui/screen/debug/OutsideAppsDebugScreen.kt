@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.debug.OutsideApp
 import org.ntust.app.tigerduck.debug.PretendMissingApps
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 /** The switches that make the app act as on a phone without some of the apps it hands things to. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,7 +32,7 @@ import org.ntust.app.tigerduck.ui.component.SubPageScaffold
 fun OutsideAppsDebugScreen(onBack: () -> Unit) {
     val missing by PretendMissingApps.missing.collectAsState()
 
-    SubPageScaffold(
+    PageScaffold(
         title = "Missing apps",
         onBack = onBack,
     ) { padding ->

@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -66,5 +67,45 @@ class ClassTableMenuTest {
 
         composeRule.onNodeWithText(string(R.string.class_table_subscribe_clubs)).assertIsNotEnabled()
         composeRule.onNodeWithText(string(R.string.class_table_reset_title)).assertIsEnabled()
+    }
+
+    private fun showPersonMenu(exportEnabled: Boolean = true, picked: MutableList<String> = mutableListOf()) {
+        composeRule.setContent {
+            MaterialTheme {
+                Column {
+                    PersonClassTableMenuItems(
+                        exportEnabled = exportEnabled,
+                        onExport = { picked += "export" },
+                        onImport = { picked += "import" },
+                        onRename = { picked += "rename" },
+                        onDelete = { picked += "delete" },
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `someone else's menu exports and imports, then what applies to the person`() {
+        val picked = mutableListOf<String>()
+        showPersonMenu(picked = picked)
+        val order = listOf(
+            R.string.class_table_export_screenshot,
+            R.string.class_table_import,
+            R.string.class_table_rename_title,
+            R.string.class_table_delete_user,
+        )
+        val items = order.map { composeRule.onNodeWithText(string(it)) }
+        val tops = items.map { it.fetchSemanticsNode().boundsInRoot.top }
+        assertEquals(tops.sorted(), tops)
+
+        items.forEach { it.performClick() }
+        assertEquals(listOf("export", "import", "rename", "delete"), picked)
+    }
+
+    @Test
+    fun `someone else's class table can't be exported with no grid drawn`() {
+        showPersonMenu(exportEnabled = false)
+        composeRule.onNodeWithText(string(R.string.class_table_export_screenshot)).assertIsNotEnabled()
     }
 }

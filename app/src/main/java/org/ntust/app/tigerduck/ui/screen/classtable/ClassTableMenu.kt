@@ -3,6 +3,8 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -68,5 +70,44 @@ internal fun ColumnScope.OwnClassTableMenuItems(
         text = { Text(stringResource(R.string.class_table_reset_title), color = MaterialTheme.colorScheme.error) },
         leadingIcon = { Icon(Icons.Filled.Sync, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
         onClick = onReset,
+    )
+}
+
+/**
+ * The ⋮ menu over someone else's class table, which is read-only: export and import as on the
+ * user's own, then what applies to the person.
+ */
+@Composable
+internal fun ColumnScope.PersonClassTableMenuItems(
+    exportEnabled: Boolean,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_export_screenshot)) },
+        leadingIcon = { Icon(Icons.Filled.Share, contentDescription = null) },
+        onClick = onExport,
+        enabled = exportEnabled,
+    )
+    HorizontalDivider()
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_import)) },
+        leadingIcon = { Icon(Icons.Filled.QrCodeScanner, contentDescription = null) },
+        onClick = onImport,
+    )
+    HorizontalDivider()
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_rename_title)) },
+        leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
+        onClick = onRename,
+    )
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.class_table_delete_user), color = MaterialTheme.colorScheme.error) },
+        leadingIcon = {
+            Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+        },
+        onClick = onDelete,
     )
 }

@@ -104,6 +104,17 @@ class ClassTableImportPageTest {
     }
 
     @Test
+    fun `the bar is 56dp tall, with its title and Close`() {
+        composeRule.setContent {
+            ClassTableImportPage(model, onClose = {}, onFinished = {}, onPickPicture = {})
+        }
+        composeRule.onNodeWithText(app.getString(R.string.class_table_import)).assertExists()
+        val close = composeRule.onNodeWithContentDescription(app.getString(R.string.action_close))
+            .fetchSemanticsNode().boundsInRoot
+        assertEquals(28f * app.resources.displayMetrics.density, close.center.y, 1f)
+    }
+
+    @Test
     fun `a code from a newer app says the app needs an update, under the import's failure title`() {
         composeRule.setContent {
             ClassTableImportPage(model, onClose = {}, onFinished = {}, onPickPicture = {})

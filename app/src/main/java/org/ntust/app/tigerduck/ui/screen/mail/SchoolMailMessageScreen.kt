@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,13 +33,11 @@ import androidx.compose.material.icons.automirrored.filled.Forward
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.ReplyAll
 import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -81,6 +80,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import org.ntust.app.tigerduck.ui.component.PageMenu
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.util.fileProviderAuthority
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -97,7 +98,6 @@ import org.ntust.app.tigerduck.mail.warning.MailWarning
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.scrollbar
@@ -127,7 +127,6 @@ fun SchoolMailMessageScreen(
     val sentCopyNotice by viewModel.sentCopyNotice.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var menuOpen by remember { mutableStateOf(false) }
     var showMove by remember { mutableStateOf(false) }
     var pendingLink by rememberSaveable { mutableStateOf<Int?>(null) }
     // A link tapped in the plain view, by its index in Content.Ready.plainLinks.
@@ -218,7 +217,7 @@ fun SchoolMailMessageScreen(
         viewModel.consumeSaveRequest()
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "",
         onBack = onBack,
         actions = {
@@ -233,25 +232,20 @@ fun SchoolMailMessageScreen(
                     Icon(Icons.AutoMirrored.Filled.Forward, contentDescription = stringResource(R.string.school_mail_forward))
                 }
             }
-            if (state.content !is Content.Loading) {
-                Box {
-                    MessageActionsButton(onClick = { menuOpen = true })
-                    MessageMenu(
-                        expanded = menuOpen,
-                        mode = state.mode,
-                        canFormat = canFormat,
-                        offersLightMode = offersLightMode(isDark, state.mode, canFormat),
-                        viewInLight = viewInLight,
-                        onDismiss = { menuOpen = false },
-                        onMode = { menuOpen = false; viewModel.selectMode(it) },
-                        onViewInLight = { menuOpen = false; viewModel.setViewInLight(!viewInLight) },
-                        seen = ready?.summary?.flags?.seen,
-                        onToggleSeen = { menuOpen = false; viewModel.toggleSeen() },
-                        onMove = { menuOpen = false; showMove = true },
-                        onDelete = { menuOpen = false; viewModel.delete() },
-                    )
-                }
-            }
+        },
+        menu = if (state.content is Content.Loading) null else messageMenu { close ->
+            MessageMenuItems(
+                mode = state.mode,
+                canFormat = canFormat,
+                offersLightMode = offersLightMode(isDark, state.mode, canFormat),
+                viewInLight = viewInLight,
+                onMode = { close(); viewModel.selectMode(it) },
+                onViewInLight = { close(); viewModel.setViewInLight(!viewInLight) },
+                seen = ready?.summary?.flags?.seen,
+                onToggleSeen = { close(); viewModel.toggleSeen() },
+                onMove = { close(); showMove = true },
+                onDelete = { close(); viewModel.delete() },
+            )
         },
     ) { padding ->
         when (val content = state.content) {
@@ -494,25 +488,20 @@ internal fun offersLightMode(isDark: Boolean, mode: ViewMode, canFormat: Boolean
     isDark && canFormat && mode == ViewMode.FORMATTED
 
 /**
- * The ⋮ button that opens [MessageMenu]. Named for every action in it, not
- * only the view modes: it also holds mark unread, move and delete.
+ * The message's ⋮. Named for every action in it, not only the view modes: it also holds mark
+ * unread, move and delete.
  */
 @Composable
-internal fun MessageActionsButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.school_mail_message_actions))
-    }
-}
+internal fun messageMenu(items: @Composable ColumnScope.(close: () -> Unit) -> Unit) =
+    PageMenu(label = stringResource(R.string.school_mail_message_actions), items = items)
 
-/** The message's ⋮ menu. Internal so [MailMessageMenuTest] can open it and read what TalkBack is told. */
+/** What the message's ⋮ holds. Internal so [MailMessageMenuTest] can show it and read what TalkBack is told. */
 @Composable
-internal fun MessageMenu(
-    expanded: Boolean,
+internal fun ColumnScope.MessageMenuItems(
     mode: ViewMode,
     canFormat: Boolean,
     offersLightMode: Boolean,
     viewInLight: Boolean,
-    onDismiss: () -> Unit,
     onMode: (ViewMode) -> Unit,
     onViewInLight: () -> Unit,
     /** Whether the mail is read, which decides Mark unread or Mark read; null, before it has loaded, leaves the item out. */
@@ -521,58 +510,52 @@ internal fun MessageMenu(
     onMove: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        if (canFormat) {
-            ModeItem(stringResource(R.string.school_mail_view_formatted), mode == ViewMode.FORMATTED) { onMode(ViewMode.FORMATTED) }
-        }
-        ModeItem(stringResource(R.string.school_mail_view_plain), mode == ViewMode.PLAIN) { onMode(ViewMode.PLAIN) }
-        ModeItem(stringResource(R.string.school_mail_view_source), mode == ViewMode.SOURCE) { onMode(ViewMode.SOURCE) }
-        // A checkbox item, with the views it changes: on, the HTML is redrawn on white paper;
-        // off, back on the app's surface.
-        if (offersLightMode) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.school_mail_view_light_mode)) },
-                onClick = onViewInLight,
-                // A Checkbox with no onCheckedChange draws its state but exposes none, so the
-                // item itself carries it: TalkBack then reads "checkbox, checked/not checked".
-                modifier = Modifier.semantics {
-                    role = Role.Checkbox
-                    toggleableState = ToggleableState(viewInLight)
-                },
-                leadingIcon = {
-                    Checkbox(
-                        checked = viewInLight,
-                        onCheckedChange = null
-                    )
-                }
-            )
-        }
-        HorizontalDivider()
-        if (seen != null) {
-            DropdownMenuItem(
-                text = { Text(stringResource(if (seen) R.string.school_mail_mark_unread else R.string.school_mail_mark_read)) },
-                onClick = onToggleSeen,
-            )
-        }
-        DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_move_to)) }, onClick = onMove)
-        HorizontalDivider()
-        // Red, like deleting a course from the class table (ClassTableCourseCell) -- the one
-        // entry in this menu that loses mail should read as destructive before it is tapped,
-        // not only once the confirmation dialog is up.
+    if (canFormat) {
+        ModeItem(stringResource(R.string.school_mail_view_formatted), mode == ViewMode.FORMATTED) { onMode(ViewMode.FORMATTED) }
+    }
+    ModeItem(stringResource(R.string.school_mail_view_plain), mode == ViewMode.PLAIN) { onMode(ViewMode.PLAIN) }
+    ModeItem(stringResource(R.string.school_mail_view_source), mode == ViewMode.SOURCE) { onMode(ViewMode.SOURCE) }
+    // A checkbox item, with the views it changes: on, the HTML is redrawn on white paper;
+    // off, back on the app's surface.
+    if (offersLightMode) {
         DropdownMenuItem(
-            text = {
-                Text(
-                    stringResource(R.string.school_mail_delete),
-                    color = MaterialTheme.colorScheme.error,
-                )
+            text = { Text(stringResource(R.string.school_mail_view_light_mode)) },
+            onClick = onViewInLight,
+            // A Checkbox with no onCheckedChange draws its state but exposes none, so the
+            // item itself carries it: TalkBack then reads "checkbox, checked/not checked".
+            modifier = Modifier.semantics {
+                role = Role.Checkbox
+                toggleableState = ToggleableState(viewInLight)
             },
-            onClick = onDelete,
+            leadingIcon = {
+                Checkbox(
+                    checked = viewInLight,
+                    onCheckedChange = null
+                )
+            }
         )
     }
+    HorizontalDivider()
+    if (seen != null) {
+        DropdownMenuItem(
+            text = { Text(stringResource(if (seen) R.string.school_mail_mark_unread else R.string.school_mail_mark_read)) },
+            onClick = onToggleSeen,
+        )
+    }
+    DropdownMenuItem(text = { Text(stringResource(R.string.school_mail_move_to)) }, onClick = onMove)
+    HorizontalDivider()
+    // Red, like deleting a course from the class table (ClassTableCourseCell) -- the one
+    // entry in this menu that loses mail should read as destructive before it is tapped,
+    // not only once the confirmation dialog is up.
+    DropdownMenuItem(
+        text = {
+            Text(
+                stringResource(R.string.school_mail_delete),
+                color = MaterialTheme.colorScheme.error,
+            )
+        },
+        onClick = onDelete,
+    )
 }
 
 @Composable

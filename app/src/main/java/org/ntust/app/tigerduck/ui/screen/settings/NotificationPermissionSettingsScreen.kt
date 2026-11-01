@@ -48,7 +48,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import javax.inject.Inject
@@ -107,7 +107,7 @@ fun NotificationPermissionSettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.notification_permission_settings_nav_title),
         onBack = onBack,
     ) { scaffoldPadding ->

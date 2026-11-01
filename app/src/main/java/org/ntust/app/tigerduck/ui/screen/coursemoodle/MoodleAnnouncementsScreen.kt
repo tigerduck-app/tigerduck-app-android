@@ -30,7 +30,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -66,6 +65,7 @@ import org.ntust.app.tigerduck.data.moodle.MoodleDiscussionPages
 import org.ntust.app.tigerduck.data.moodle.MoodleDiscussions
 import org.ntust.app.tigerduck.data.moodle.MoodlePersonName
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.text.NumberFormat
 
@@ -73,7 +73,6 @@ import java.text.NumberFormat
  * A course's announcements, from its news forum on Moodle: pinned ones first, then newest first,
  * a page of twenty at a time. Loading the list marks nothing read; only opening one does.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleAnnouncementsScreen(
     onBack: () -> Unit,
@@ -84,9 +83,11 @@ fun MoodleAnnouncementsScreen(
     MoodleSignedOutEffect(viewModel, onBack)
     val title = stringResource(R.string.feature_announcements)
     val news = store?.newsForum?.collectAsStateWithLifecycle()?.value
-    Scaffold(
-        topBar = { MoodleTopBar(title, onBack, news?.let { MoodlePage.forum(it.cmid) }) },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = title,
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(news?.let { MoodlePage.forum(it.cmid) }) },
     ) { padding ->
         val current = store
         Box(

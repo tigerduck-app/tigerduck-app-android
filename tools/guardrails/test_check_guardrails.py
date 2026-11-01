@@ -88,6 +88,79 @@ class GuardrailsTest(unittest.TestCase):
         offenses = cg.scan(self.root)
         self.assertNotIn("long-function", {k for (_, k, _) in offenses})
 
+    def top_app_bars(self):
+        return {k[0]: v for k, v in cg.scan(self.root).items() if k[1] == "top-app-bar"}
+
+    def test_top_app_bar_on_a_page_fails(self):
+        self.write(APP + "ui/screen/foo/FooScreen.kt", "val a = { TopAppBar(title = {}) }\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_top_app_bar_in_ui_component_passes(self):
+        self.write(APP + "ui/component/PageScaffold.kt", "val a = { TopAppBar(title = {}) }\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 0)
+
+    def test_top_app_bar_in_a_flavor_counts_outside_ui_component_only(self):
+        play = "app/src/play/java/org/ntust/app/tigerduck/"
+        self.write(play + "ui/component/Bar.kt", "val a = { TopAppBar(title = {}) }\n")
+        self.write(play + "ui/screen/Page.kt", "val a = { TopAppBar(title = {}) }\n")
+        self.assertEqual(self.top_app_bars(), {play + "ui/screen/Page.kt": 1})
+
+    def test_every_material_top_app_bar_counts(self):
+        self.write(APP + "ui/screen/Page.kt", "".join(
+            "val a%d = { %s(title = {}) }\n" % (i, name) for i, name in enumerate((
+                "TopAppBar", "CenterAlignedTopAppBar", "MediumTopAppBar", "LargeTopAppBar",
+                "MediumFlexibleTopAppBar", "LargeFlexibleTopAppBar", "TwoRowsTopAppBar"))))
+        self.assertEqual(self.top_app_bars(), {APP + "ui/screen/Page.kt": 7})
+
+    def test_a_space_before_the_parenthesis_is_still_a_top_app_bar(self):
+        self.write(APP + "ui/screen/Page.kt", "val a = { TopAppBar (title = {}) }\n")
+        self.assertEqual(self.top_app_bars(), {APP + "ui/screen/Page.kt": 1})
+
+    def test_a_renamed_import_of_a_top_app_bar_still_counts(self):
+        self.write(APP + "ui/screen/Page.kt", (
+            "import androidx.compose.material3.TopAppBar as MaterialBar\n"
+            "import androidx.compose.material3.MediumTopAppBar as `Bar2`\n"
+            "val a = { MaterialBar(title = {}) }\n"
+            "val b = { Bar2 (title = {}) }\n"))
+        self.assertEqual(self.top_app_bars(), {APP + "ui/screen/Page.kt": 2})
+
+    def test_a_backticked_top_app_bar_call_counts(self):
+        self.write(APP + "ui/screen/Page.kt", "val a = { `TopAppBar`(title = {}) }\n")
+        self.assertEqual(self.top_app_bars(), {APP + "ui/screen/Page.kt": 1})
+
+    def test_a_renamed_import_in_ui_component_passes(self):
+        self.write(APP + "ui/component/Bar.kt", (
+            "import androidx.compose.material3.TopAppBar as MaterialBar\n"
+            "val a = { MaterialBar(title = {}) }\n"))
+        self.assertEqual(self.top_app_bars(), {})
+
+    def test_an_alias_of_something_else_is_not_a_top_app_bar(self):
+        self.write(APP + "ui/screen/Page.kt", (
+            "import androidx.compose.material3.TopAppBarDefaults as Defaults\n"
+            "import androidx.compose.material3.Text as MaterialText\n"
+            "val a = { MaterialText(\"x\") }\n"
+            "val b = Defaults.windowInsets\n"))
+        self.assertEqual(self.top_app_bars(), {})
+
+    def test_what_only_names_a_top_app_bar_is_not_one(self):
+        self.write(APP + "ui/screen/Page.kt", (
+            "import androidx.compose.material3.TopAppBar\n"
+            "import androidx.compose.material3.TopAppBarDefaults\n"
+            "// TopAppBar(title = {}) in a comment\n"
+            "val a = TopAppBarDefaults.windowInsets\n"
+            "val b = TopAppBarColors(c, c, c, c, c)\n"
+            'val c = "TopAppBar(title = {})"\n'
+            "val d = MyTopAppBarHelper(1)\n"))
+        self.assertEqual(self.top_app_bars(), {})
+
+    def test_a_baseline_entry_cannot_be_added_for_a_top_app_bar(self):
+        self.write(APP + "ui/screen/Page.kt", "val a = { TopAppBar(title = {}) }\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli("--update-baseline"), 1)
+        self.assertEqual(self.read_baseline(), [])
+
     def test_taipei_literal_allowed_in_home_only(self):
         self.write(TAIPEI_HOME, 'val z = ZoneId.of("Asia/Taipei")\n')
         self.write_baseline([])

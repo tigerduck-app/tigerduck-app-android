@@ -65,7 +65,7 @@ import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.screen.settings.rememberAllowNotificationsAction
 
 private data class EditingTarget(
@@ -126,7 +126,7 @@ fun SubscriptionSettingsScreen(
         return
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.bulletin_notifications_title),
         onBack = onBack,
     ) { padding ->

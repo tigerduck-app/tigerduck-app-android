@@ -44,7 +44,7 @@ import org.ntust.app.tigerduck.notification.NotificationChannels
 import org.ntust.app.tigerduck.notification.NotificationGroup
 import org.ntust.app.tigerduck.notification.brandedNotification
 import org.ntust.app.tigerduck.shared.clock.AppClock
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import java.util.Date
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -154,7 +154,7 @@ fun NotificationDebugScreen(onBack: () -> Unit) {
         }
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "Notification",
         onBack = onBack,
     ) { padding ->

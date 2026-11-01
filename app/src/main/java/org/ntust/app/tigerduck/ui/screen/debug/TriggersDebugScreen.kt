@@ -27,7 +27,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.AppState
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.screen.whatsnew.WhatsNewSheet
 import org.ntust.app.tigerduck.update.UpdateChecker
 
@@ -67,7 +67,7 @@ fun TriggersDebugScreen(
     // The prompt offers to turn the switch on, so it is replayed only while it is off.
     val canTriggerFlip = !appState.flipToLibraryEnabled
 
-    SubPageScaffold(
+    PageScaffold(
         title = "Triggers",
         onBack = onBack,
     ) { padding ->
