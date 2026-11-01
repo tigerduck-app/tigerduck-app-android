@@ -164,7 +164,6 @@ fun MoodleMemberScreen(
     PageScaffold(
         title = "",
         onBack = onBack,
-        oneLineTitle = true,
         actions = { OpenInMoodleAction(current?.let { MoodlePage.profile(memberId, it.courseId) }) },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->

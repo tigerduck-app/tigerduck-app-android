@@ -242,7 +242,6 @@ fun MoodleAssignmentScreen(
     PageScaffold(
         title = "",
         onBack = onBack,
-        oneLineTitle = true,
         actions = { OpenInMoodleAction(entry?.let(AssignmentPageRules::moodlePath), willOpenPage = { files?.forgetPendingOpen() }) },
         bottomBar = {
             entry?.let {

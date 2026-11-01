@@ -205,7 +205,7 @@ fun CalendarScreen(
             }
 
         }
-    } // Box
+    }
 }
 
 /**

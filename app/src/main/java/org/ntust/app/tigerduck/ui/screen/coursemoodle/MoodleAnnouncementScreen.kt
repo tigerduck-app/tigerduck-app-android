@@ -98,7 +98,6 @@ fun MoodleAnnouncementScreen(
     PageScaffold(
         title = "",
         onBack = onBack,
-        oneLineTitle = true,
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { openMoodlePage(context, MoodlePage.discussion(discussionId)) },

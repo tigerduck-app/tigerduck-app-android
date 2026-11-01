@@ -251,7 +251,6 @@ fun MoodleDiscussionScreen(
     PageScaffold(
         title = "",
         onBack = onBack,
-        oneLineTitle = true,
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
