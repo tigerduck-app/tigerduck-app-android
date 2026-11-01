@@ -1115,7 +1115,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentColorScreen.kt",
     "kind": "long-file",
-    "count": 427
+    "count": 409
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentColorScreen.kt",
@@ -1130,12 +1130,6 @@
     "lines": 108
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/ClassReminderSettingsScreen.kt",
-    "kind": "long-function",
-    "name": "ClassReminderSettingsScreen(()->Unit, ClassReminderSettingsViewModel)",
-    "lines": 82
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/CloudSyncSettingsScreen.kt",
     "kind": "fdroid-literal",
     "count": 1
@@ -1143,25 +1137,25 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/CloudSyncSettingsScreen.kt",
     "kind": "long-file",
-    "count": 648
+    "count": 634
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/CloudSyncSettingsScreen.kt",
     "kind": "long-function",
     "name": "CloudSyncSettingsScreen(()->Unit, ()->Unit, SettingsViewModel)",
-    "lines": 265
+    "lines": 255
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/CourseNameSizeSettingsScreen.kt",
     "kind": "long-function",
     "name": "CourseNameSizeContent(Float, (Float)->Unit, ()->Unit, ()->Unit)",
-    "lines": 147
+    "lines": 133
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/DisplaySizeSettingsScreen.kt",
     "kind": "long-function",
     "name": "DisplaySizeContent(Map<DisplayScale,Float>, Float, (DisplayScale,Float)->Unit, ()->Unit, ()->Unit, ()->Unit)",
-    "lines": 131
+    "lines": 117
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LanguagePickerScreen.kt",
@@ -1173,7 +1167,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LiveActivitySettingsScreen.kt",
     "kind": "long-function",
     "name": "LiveActivitySettingsScreen(()->Unit, ()->Unit, LiveActivitySettingsViewModel)",
-    "lines": 227
+    "lines": 213
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LoginSheet.kt",
@@ -1246,7 +1240,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SyncContentScreen.kt",
     "kind": "long-function",
     "name": "SyncContentScreen(()->Unit, SettingsViewModel)",
-    "lines": 178
+    "lines": 168
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/TabEditorScreen.kt",
