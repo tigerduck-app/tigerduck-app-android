@@ -517,10 +517,9 @@ class InAppBrowserActivity : AppCompatActivity() {
         // Before the page's own scripts, in each of its frames. Every WebView the browser opens in has
         // this: deleting all browsing data (InAppBrowser.canClearEverything) came long after it.
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            runCatching { WebViewCompat.addDocumentStartJavaScript(this, BrowserPageScripts.TOUCH_PAN, BrowserPageScripts.TOUCH_PAN_ORIGINS) }
-            runCatching { WebViewCompat.addDocumentStartJavaScript(this, BrowserPageScripts.HIDE_LOGOUT, BrowserPageScripts.HIDE_LOGOUT_ORIGINS) }
-            runCatching { WebViewCompat.addDocumentStartJavaScript(this, BrowserPageScripts.HIDE_SCHOOL_LOGOUT, BrowserPageScripts.HIDE_SCHOOL_LOGOUT_ORIGINS) }
-            runCatching { WebViewCompat.addDocumentStartJavaScript(this, BrowserPageScripts.TOUCH_FOCUS, BrowserPageScripts.TOUCH_FOCUS_ORIGINS) }
+            BrowserPageScripts.DOCUMENT_START.forEach { (script, origins) ->
+                runCatching { WebViewCompat.addDocumentStartJavaScript(this, script, origins) }
+            }
         }
     }
 

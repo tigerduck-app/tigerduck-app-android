@@ -162,4 +162,12 @@ object BrowserPageScripts {
 
     /** Where [HIDE_SCHOOL_LOGOUT] goes: every school page, as WebViewCompat.addDocumentStartJavaScript's origin rules. */
     val HIDE_SCHOOL_LOGOUT_ORIGINS: Set<String> = setOf("https://ntust.edu.tw", "https://*.ntust.edu.tw")
+
+    /** What every WebView the browser opens in runs before a page's own scripts, each with its origins. */
+    val DOCUMENT_START: List<Pair<String, Set<String>>> = listOf(
+        TOUCH_PAN to TOUCH_PAN_ORIGINS,
+        HIDE_LOGOUT to HIDE_LOGOUT_ORIGINS,
+        HIDE_SCHOOL_LOGOUT to HIDE_SCHOOL_LOGOUT_ORIGINS,
+        TOUCH_FOCUS to TOUCH_FOCUS_ORIGINS,
+    )
 }
