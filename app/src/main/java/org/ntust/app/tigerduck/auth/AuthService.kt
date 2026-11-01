@@ -179,6 +179,7 @@ class AuthService @Inject constructor(
             ssoLoginService.signIn(SSO_SERVICE_URL, studentId, password)
         },
         signInInteractively = { signIn -> authTokenManager.signInInteractively(signIn) },
+        awaitOpen = authTokenManager.session::awaitOpen,
         signInGeneration = { authTokenManager.signInGeneration },
         accountLock = accountLock,
         storedStudentId = { credentials.ntustStudentId },
@@ -444,17 +445,23 @@ class AuthService @Inject constructor(
         // Without this guarantee, the JSON cache survives logout and bleeds
         // into the next account on the same device.
         appScope.launch {
-            // Only this sign-out empties them: a relogin in the background or a renewed session
-            // keeps the class tables the user imported.
-            runCatching { importedClassTables.clearForSignOut() }
-                .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
-            runCatching { dataCache.clearAllUserData() }
-                .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
-            // Now that the timetable is gone: a widget left alone shows the departing student's
-            // until its next scheduled update, up to half an hour away.
-            runCatching { widgetUpdater.updateAll() }
-                .onFailure { android.util.Log.w("AuthService", "widget update failed on logout: ${it.logSummary()}") }
+            // The next sign-in starts here, whatever the wipe did: it waited for it.
+            try { wipeAccountData() } finally { authTokenManager.session.open() }
         }
+    }
+
+    /** What the sign-out wipes on the app scope, each step on its own so one that throws stops no other. */
+    internal suspend fun wipeAccountData() {
+        // Only this sign-out empties them: a relogin in the background or a renewed session
+        // keeps the class tables the user imported.
+        runCatching { importedClassTables.clearForSignOut() }
+            .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
+        runCatching { dataCache.clearAllUserData() }
+            .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
+        // Now that the timetable is gone: a widget left alone shows the departing student's
+        // until its next scheduled update, up to half an hour away.
+        runCatching { widgetUpdater.updateAll() }
+            .onFailure { android.util.Log.w("AuthService", "widget update failed on logout: ${it.logSummary()}") }
     }
 
     fun clearLoginError() {
@@ -465,25 +472,4 @@ class AuthService @Inject constructor(
         // The service the school sign-in signs in to.
         const val SSO_SERVICE_URL = "https://courseselection.ntust.edu.tw/"
     }
-}
-
-/**
- * What [AuthService.login] does once the school took a typed sign-in, after
- * its backend login, which stored the session if it got one. Apart from
- * AuthService so a test can run it: AuthService needs the Android Keystore.
- *
- * [startSettingsCopy] is the catch-up the automatic sign-in runs too
- * (NotificationSettingsSync.pushIfUnconfirmed), and it goes first, without
- * suspending: it starts the copy of the notification settings a push tells
- * this phone's edits apart by. Only the backend login's own return to the
- * caller comes between the session being stored and this call. [register],
- * the push registration, is a network call, and while it ran first an edit
- * made in its wait found no copy: its push counted nothing as changed, sent
- * nothing, and confirmed the edit as if it had gone up. iOS starts the copy
- * first too, in onV3SignedIn.
- */
-internal suspend fun followTypedSignIn(startSettingsCopy: () -> Unit, register: suspend () -> Unit) {
-    startSettingsCopy()
-    runCatching { register() }
-        .onFailure { e -> if (e is CancellationException) throw e }
 }

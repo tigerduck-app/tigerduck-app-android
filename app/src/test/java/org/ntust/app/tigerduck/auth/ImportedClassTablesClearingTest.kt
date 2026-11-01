@@ -49,11 +49,14 @@ class ImportedClassTablesClearingTest {
         throw AssertionError("`$declaration` has no closing brace")
     }
 
+    /** The sign-out: `logout()`, and the wipe it launches on the app scope. */
+    private fun signOut() = body("fun logout()") + body("suspend fun wipeAccountData()")
+
     private fun String.uses(call: String): Int = Regex("""\bimportedClassTables\.$call""").findAll(this).count()
 
     @Test
     fun `the user's own sign-out empties the imported class tables`() {
-        assertEquals(1, body("fun logout()").uses("""clearForSignOut\(\)"""))
+        assertEquals(1, signOut().uses("""clearForSignOut\(\)"""))
     }
 
     @Test
@@ -66,7 +69,7 @@ class ImportedClassTablesClearingTest {
     @Test
     fun `nothing else in AuthService touches the imported class tables`() {
         val everywhere = source.uses("")
-        assertEquals(everywhere, body("fun logout()").uses("") + body("suspend fun login(").uses(""))
+        assertEquals(everywhere, signOut().uses("") + body("suspend fun login(").uses(""))
     }
 
     @Test

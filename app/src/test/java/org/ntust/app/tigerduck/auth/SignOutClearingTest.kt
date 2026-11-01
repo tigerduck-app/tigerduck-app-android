@@ -49,7 +49,8 @@ class SignOutClearingTest {
     fun `the sign-out runs in this order`() {
         // The order phase 2 keeps while it moves the pieces: the account goes first, and the wipe
         // follows the demo's exit and the bulletins, on the app scope.
-        val logout = body("fun logout()")
+        // The wipe is its own function, which logout() launches last.
+        val logout = body("fun logout()") + body("suspend fun wipeAccountData()")
         val steps = listOf(
             "credentials.signOutSchoolAccount()",
             "authTokenManager.logout()",
@@ -80,6 +81,14 @@ class SignOutClearingTest {
     }
 
     @Test
+    fun `the next sign-in opens in a finally after the wipe, so a wipe that throws still opens it`() {
+        val logout = body("fun logout()")
+        assertTrue(logout, Regex("""try \{ wipeAccountData\(\) \} finally \{ authTokenManager\.session\.open\(\) \}""").containsMatchIn(logout))
+        // The token manager ended the sign-in under its lock; nothing else in logout() does.
+        assertFalse(logout, "signIns.end()" in logout)
+    }
+
+    @Test
     fun `the sign-out forgets the term picked in the class table`() {
         // Left behind, the next student's class table would open on the previous student's term.
         assertEquals(1, Regex("""\bprefs\.classTableSelectedSemester = null\b""").findAll(body("fun logout()")).count())
@@ -94,7 +103,7 @@ class SignOutClearingTest {
     @Test
     fun `the widgets are drawn again once the departing student's timetable is wiped`() {
         // Not before: a widget drawn from the cache still on disk would keep the timetable.
-        val logout = body("fun logout()")
+        val logout = body("fun logout()") + body("suspend fun wipeAccountData()")
         val wiped = logout.indexOf("dataCache.clearAllUserData()")
         val redrawn = logout.indexOf("widgetUpdater.updateAll()")
         assertTrue("logout() wipes the cache", wiped >= 0)

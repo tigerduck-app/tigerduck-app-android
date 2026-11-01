@@ -29,19 +29,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 489
+    "count": 475
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-function",
     "name": "AuthService.login(String, String)",
     "lines": 91
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
-    "kind": "long-function",
-    "name": "AuthService.logout()",
-    "lines": 81
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthTokenManager.kt",
@@ -51,7 +45,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthTokenManager.kt",
     "kind": "long-file",
-    "count": 975
+    "count": 951
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
@@ -202,7 +196,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/demo/DemoMoodle.kt",
     "kind": "long-file",
-    "count": 525
+    "count": 408
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/di/BrowserModule.kt",

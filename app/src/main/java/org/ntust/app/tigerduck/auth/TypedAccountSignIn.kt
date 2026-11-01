@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.auth
 
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The sign-in with credentials the user typed, which [AuthService] runs as its login. Apart from
@@ -31,6 +32,11 @@ internal class TypedAccountSignIn(
     private val signInInteractively: suspend (
         signIn: suspend (signInGeneration: Int) -> SignInAttempt,
     ) -> Boolean,
+    /**
+     * Returns once no sign-out's wipe is under way: a sign-in made during it would store an
+     * account the wipe then takes. A cancelled wait leaves the next sign-in free.
+     */
+    private val awaitOpen: suspend () -> Unit,
     /** [AuthTokenManager.signInGeneration], which a sign-out moves while it holds [accountLock]. */
     private val signInGeneration: () -> Int,
     /** Held by a sign-out while it drops the stored account and moves [signInGeneration]. */
@@ -72,6 +78,7 @@ internal class TypedAccountSignIn(
         prepareSignedIn: suspend () -> Unit,
         afterShown: suspend (signInGeneration: Int, sameStudent: Boolean) -> SignInAttempt,
     ): Outcome {
+        awaitOpen()
         val generation = signInGeneration()
         // Checked before anything goes out, so these credentials never reach NTUST.
         if (isDemoAccount(studentId, password)) {
@@ -126,4 +133,25 @@ internal class TypedAccountSignIn(
         writeAccount(studentId, password)
         latch.clear()
     }
+}
+
+/**
+ * What [AuthService.login] does once the school took a typed sign-in, after
+ * its backend login, which stored the session if it got one. Apart from
+ * AuthService so a test can run it: AuthService needs the Android Keystore.
+ *
+ * [startSettingsCopy] is the catch-up the automatic sign-in runs too
+ * (NotificationSettingsSync.pushIfUnconfirmed), and it goes first, without
+ * suspending: it starts the copy of the notification settings a push tells
+ * this phone's edits apart by. Only the backend login's own return to the
+ * caller comes between the session being stored and this call. [register],
+ * the push registration, is a network call, and while it ran first an edit
+ * made in its wait found no copy: its push counted nothing as changed, sent
+ * nothing, and confirmed the edit as if it had gone up. iOS starts the copy
+ * first too, in onV3SignedIn.
+ */
+internal suspend fun followTypedSignIn(startSettingsCopy: () -> Unit, register: suspend () -> Unit) {
+    startSettingsCopy()
+    runCatching { register() }
+        .onFailure { e -> if (e is CancellationException) throw e }
 }
