@@ -34,7 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -52,7 +51,8 @@ import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
@@ -84,11 +84,22 @@ fun ScoreScreen(
 
     var selectedCourse by remember { mutableStateOf<CourseGrade?>(null) }
 
-    Box(Modifier.fillMaxSize()) {
+    PageScaffold(
+        title = stringResource(R.string.feature_score),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = {
+            SyncStatusDot(
+                servers = ServerKind.transcriptSources,
+                isLoading = isRefreshing,
+                syncedAtMs = syncedAtMs,
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         TigerPullToRefresh(
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.triggerRefresh() },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(padding),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
             Column(
@@ -96,13 +107,7 @@ fun ScoreScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                PageHeader(title = stringResource(R.string.feature_score)) {
-                    SyncStatusDot(
-                        servers = ServerKind.transcriptSources,
-                        isLoading = isRefreshing,
-                        syncedAtMs = syncedAtMs,
-                    )
-                }
+                Header()
                 signInBanner()
 
                 ScoreBody(
@@ -113,7 +118,6 @@ fun ScoreScreen(
                 )
             }
         }
-        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 
     selectedCourse?.let { course ->

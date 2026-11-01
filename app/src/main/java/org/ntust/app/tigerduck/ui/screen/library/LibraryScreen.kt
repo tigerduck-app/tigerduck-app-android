@@ -70,12 +70,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
-import org.ntust.app.tigerduck.ui.component.PageHeader
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.LocalLibrary
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
-import org.ntust.app.tigerduck.ui.component.ServerStatus
-import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.SecureScreen
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -172,95 +169,79 @@ fun LibraryScreen(
     }
     var libPassword by remember { mutableStateOf("") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        PageHeader(title = stringResource(R.string.feature_library)) {
-            // The state used to be a hand-drawn circle with the word beside
-            // it. The word is what the dot's own popup says when you tap it,
-            // and every other page's header spends that space on nothing —
-            // so this now draws the shared mark, which also means it can be
-            // tapped, dims when idle and carries the pull ring like the rest.
-            //
-            // A failed refresh outranks being signed in: the session can be
-            // valid while the pass request is the thing that broke, and the
-            // error banner below says which.
-            SyncStatusDot(
-                status = when {
-                    errorMessage != null -> ServerStatus.FAILED
-                    isLoggedIn -> ServerStatus.OK
-                    else -> ServerStatus.UNKNOWN
-                },
-                label = stringResource(R.string.feature_library),
-                icon = Icons.Outlined.LocalLibrary,
-                text = if (isLoggedIn) stringResource(R.string.library_status_signed_in)
-                else stringResource(R.string.library_status_not_signed_in),
-                isLoading = isLoadingQR,
-                syncedAtMs = syncedAtMs,
-            )
-        }
+    PageScaffold(
+        title = stringResource(R.string.feature_library),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = { LibrarySyncDot(failed = errorMessage != null, isLoggedIn, isLoadingQR, syncedAtMs) },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Header()
 
-        // During the wait after a failed code request the banner also offers
-        // Retry, which asks at once instead of at the backoff's next try. The
-        // countdown row stays hidden meanwhile: the cycle holds it at 0.
-        errorMessage?.let { msg ->
-            Card(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = msg,
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .padding(12.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    if (isWaitingToRetry) {
-                        TextButton(
-                            onClick = viewModel::retryNow,
-                            modifier = Modifier.padding(end = 4.dp),
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            ),
-                        ) {
-                            Text(stringResource(R.string.action_retry))
+            // During the wait after a failed code request the banner also offers
+            // Retry, which asks at once instead of at the backoff's next try. The
+            // countdown row stays hidden meanwhile: the cycle holds it at 0.
+            errorMessage?.let { msg ->
+                Card(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = msg,
+                            modifier = Modifier
+                                .weight(1f, fill = false)
+                                .padding(12.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        if (isWaitingToRetry) {
+                            TextButton(
+                                onClick = viewModel::retryNow,
+                                modifier = Modifier.padding(end = 4.dp),
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                ),
+                            ) {
+                                Text(stringResource(R.string.action_retry))
+                            }
                         }
                     }
                 }
             }
+
+            if (isLoggedIn) {
+                LibraryQRCodeCard(
+                    qrBitmap = qrBitmap,
+                    username = storedUsername,
+                    countdown = countdown,
+                    isLoadingQR = isLoadingQR,
+                )
+            } else {
+                LoginPromptCard(
+                    username = libUsername,
+                    password = libPassword,
+                    isLoggingIn = isLoggingIn,
+                    onUsernameChange = { libUsername = it.filter { ch -> !ch.isWhitespace() } },
+                    // Library credentials are provisioned against an ASCII-only
+                    // backend — strip anything the IME or paste inserts outside
+                    // printable ASCII so silent non-ASCII chars can't poison the
+                    // login attempt.
+                    onPasswordChange = { libPassword = it.filter { ch -> ch.code in 0x20..0x7E } },
+                    onSubmit = { viewModel.loginAndRefresh(libUsername, libPassword) }
+                )
+            }
+
+            // 討論小間 / 圖書館講座 would sit here, but neither has a backing data
+            // source yet. The "即將推出" card row and its FeatureCard composable are
+            // in history — restore them rather than rewriting when the APIs land.
+
+            Spacer(Modifier.height(16.dp))
         }
-
-        if (isLoggedIn) {
-            LibraryQRCodeCard(
-                qrBitmap = qrBitmap,
-                username = storedUsername,
-                countdown = countdown,
-                isLoadingQR = isLoadingQR,
-            )
-        } else {
-            LoginPromptCard(
-                username = libUsername,
-                password = libPassword,
-                isLoggingIn = isLoggingIn,
-                onUsernameChange = { libUsername = it.filter { ch -> !ch.isWhitespace() } },
-                // Library credentials are provisioned against an ASCII-only
-                // backend — strip anything the IME or paste inserts outside
-                // printable ASCII so silent non-ASCII chars can't poison the
-                // login attempt.
-                onPasswordChange = { libPassword = it.filter { ch -> ch.code in 0x20..0x7E } },
-                onSubmit = { viewModel.loginAndRefresh(libUsername, libPassword) }
-            )
-        }
-
-        // 討論小間 / 圖書館講座 would sit here, but neither has a backing data
-        // source yet. The "即將推出" card row and its FeatureCard composable are
-        // in history — restore them rather than rewriting when the APIs land.
-
-        Spacer(Modifier.height(16.dp))
     }
 }
 
