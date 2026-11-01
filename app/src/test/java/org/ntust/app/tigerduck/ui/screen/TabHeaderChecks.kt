@@ -41,12 +41,13 @@ internal object TabHeaderChecks {
         assertTrue("out of order in the row", bounds(first).right <= bounds(second).left + 1f)
     }
 
-    /** One swipe up takes the title with the content, as a pinned bar's would stay. */
+    /** One swipe up takes the title with the content; a pinned bar's would not move. */
     fun ComposeTestRule.assertHeaderScrollsAway(title: String, density: Float) {
+        val before = bounds(title(title)).center.y
         onRoot().performTouchInput { swipeUp() }
         waitForIdle()
-        val left = onAllNodesWithText(title).fetchSemanticsNodes()
-        val atTop = left.any { kotlin.math.abs(it.boundsInRoot.center.y - 40f * density) < 1f }
-        assertTrue("the title stayed put on a swipe", !atTop)
+        val stayed = onAllNodesWithText(title).fetchSemanticsNodes()
+            .any { kotlin.math.abs(it.boundsInRoot.center.y - before) < 1f }
+        assertTrue("the title stayed put on a swipe", !stayed)
     }
 }
