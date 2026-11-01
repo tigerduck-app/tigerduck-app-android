@@ -90,4 +90,22 @@ class SubPageScaffoldTest {
         }
         composeRule.runOnIdle { assertEquals(10.dp, padding!!.calculateBottomPadding()) }
     }
+
+    @Test
+    fun `a snackbar host is shown with the page`() {
+        composeRule.setContent {
+            SubPageScaffold(
+                title = "Mail",
+                onBack = {},
+                snackbarHost = { Text("Message sent") },
+            ) {}
+        }
+        composeRule.onNodeWithText("Message sent").assertIsDisplayed()
+    }
+
+    @Test
+    fun `without a snackbar host nothing extra is shown`() {
+        composeRule.setContent { SubPageScaffold(title = "Mail", onBack = {}) {} }
+        composeRule.onNodeWithText("Message sent").assertDoesNotExist()
+    }
 }

@@ -979,14 +979,9 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeScreen.kt",
-    "kind": "long-file",
-    "count": 413
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeScreen.kt",
     "kind": "long-function",
     "name": "SchoolMailComposeScreen(()->Unit, LeaveGuard, SchoolMailComposeViewModel)",
-    "lines": 255
+    "lines": 240
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeViewModel.kt",
@@ -997,12 +992,6 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeViewModel.kt",
     "kind": "long-function",
     "name": "SchoolMailComposeViewModel.runPrefill(ComposePrefill.Labels)",
-    "lines": 84
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailGuideScreen.kt",
-    "kind": "long-function",
-    "name": "SchoolMailGuideScreen(String, ()->Unit)",
     "lines": 84
   },
   {
@@ -1019,13 +1008,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailMessageScreen.kt",
     "kind": "long-file",
-    "count": 882
+    "count": 867
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailMessageScreen.kt",
     "kind": "long-function",
     "name": "SchoolMailMessageScreen(String, ()->Unit, (mode:ComposeMode,folder:String,uid:Long)->Unit, (folder:String,uid:Long,href:String)->Unit, SchoolMailMessageViewModel)",
-    "lines": 382
+    "lines": 371
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailMessageViewModel.kt",
@@ -1036,7 +1025,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailNotificationSettingsScreen.kt",
     "kind": "long-function",
     "name": "SchoolMailNotificationSettingsScreen(()->Unit, SchoolMailSettingsViewModel)",
-    "lines": 114
+    "lines": 103
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailScreen.kt",
