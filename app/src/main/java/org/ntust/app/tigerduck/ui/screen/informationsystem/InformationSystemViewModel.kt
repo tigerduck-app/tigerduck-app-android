@@ -173,6 +173,8 @@ class InformationSystemViewModel @Inject constructor(
                 val after = if (e.isOffline) shown else LoadState.Failed(e.message ?: context.getString(R.string.information_system_load_failed))
                 publish { it.copy(loadState = after) }
             }
+            // Nothing to show: the next visit tries again rather than finding this load done.
+            if (_state.value.items.isEmpty() && isCurrent(signIn, studentId, useEnglish)) loadedFor = null
         }
     }
 

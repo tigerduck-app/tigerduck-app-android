@@ -11,7 +11,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Lock
@@ -80,7 +82,7 @@ fun InformationSystemScreen(
                             icon = Icons.Filled.Public,
                             title = stringResource(R.string.information_system_load_failed),
                             message = message,
-                            modifier = Modifier.padding(top = 32.dp),
+                            modifier = Modifier.pullable(),
                         )
                     }
 
@@ -95,7 +97,7 @@ fun InformationSystemScreen(
                                 icon = Icons.Filled.Search,
                                 title = stringResource(R.string.information_system_search_empty),
                                 message = null,
-                                modifier = Modifier.padding(top = 32.dp),
+                                modifier = Modifier.pullable(),
                             )
                         } else {
                             // The TigerDuck browser signs each school site in itself (SchoolBrowserSignIn).
@@ -109,6 +111,11 @@ fun InformationSystemScreen(
         }
     }
 }
+
+/** Scrollable with nothing to scroll, so the pull that retries still reaches [TigerPullToRefresh]. */
+@Composable
+private fun Modifier.pullable(): Modifier =
+    fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 32.dp)
 
 @Composable
 private fun SearchField(value: String, onValueChange: (String) -> Unit) {
