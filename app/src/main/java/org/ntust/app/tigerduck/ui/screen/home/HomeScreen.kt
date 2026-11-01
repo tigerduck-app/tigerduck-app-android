@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
@@ -61,10 +60,6 @@ import org.ntust.app.tigerduck.data.model.HomeSection
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
-import org.ntust.app.tigerduck.ui.component.PageDefaults
-import org.ntust.app.tigerduck.ui.component.PageScaffold
-import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.component.PageLeftEffect
@@ -192,21 +187,13 @@ fun HomeScreen(
         { id: String -> viewModel.hasUnfinishedAssignment(id) }
     }
 
-    PageScaffold(
-        title = greetingText(),
-        headerPosition = PageDefaults.TabHeaderPosition,
-        syncDot = {
-            if (!isEditing) {
-                SyncStatusDot(
-                    servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
-                    isLoading = isLoading,
-                    syncedAtMs = schoolDataSyncedAtMs,
-                )
-            }
-        },
-        actions = {
-            if (isEditing) HomeEditActions(onAdd = { showAddSectionDialog = true }, onDone = editing::finish)
-        },
+    HomeShell(
+        greeting = greetingText(),
+        isEditing = isEditing,
+        isLoading = isLoading,
+        syncedAtMs = schoolDataSyncedAtMs,
+        onAdd = { showAddSectionDialog = true },
+        onDone = editing::finish,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         HomePage(
