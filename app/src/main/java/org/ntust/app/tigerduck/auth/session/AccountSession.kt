@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap
  * `tools/guardrails` names them), and every other layer is given the sign-in as a parameter.
  */
 @RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+@Retention(AnnotationRetention.BINARY)
 annotation class StartsAccountWork
 
 /**
@@ -28,6 +29,8 @@ class AccountSession(
     val signIns: SignInSeries,
     private val scope: CoroutineScope,
     private val demo: () -> Boolean = { false },
+    /** The marker a sign-out sets before it ends the sign-in; absent for a session whose wipe is not owed. */
+    private val owed: SignOutOwed? = null,
 ) {
     private val running = ConcurrentHashMap.newKeySet<Job>()
 
@@ -62,8 +65,19 @@ class AccountSession(
         running.forEach { it.cancel() }
     }
 
-    /** Opens the next sign-in once the wipe is done. */
-    fun open() = signIns.open()
+    /** Whether a sign-out's wipe is still owed: a process death cut it short. */
+    val wipeOwed: Boolean get() = owed?.owed == true
+
+    /** Written to disk before the sign-in ends, so a process death during the wipe is not forgotten. */
+    fun markWipeOwed() {
+        owed?.owed = true
+    }
+
+    /** Opens the next sign-in once the wipe is done, and takes the marker off. */
+    fun open() {
+        owed?.owed = false
+        signIns.open()
+    }
 
     /** Returns when a sign-in is open: at once, or when the clearing that follows a sign-out is done. */
     suspend fun awaitOpen() = signIns.awaitOpen()
