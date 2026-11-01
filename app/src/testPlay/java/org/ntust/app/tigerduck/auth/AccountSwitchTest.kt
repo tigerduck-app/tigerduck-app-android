@@ -285,7 +285,7 @@ class AccountSwitchTest {
         assertTrue("the wipe has not run", queued.all { userFile(it).exists() })
         // The next process starts: new objects over the same files, as after a process death.
         val second = world(credentialPrefs)
-        second.auth.finishOwedSignOut()
+        assertTrue("a sign-out was cut short", second.auth.finishOwedSignOut())
         assertTrue("the queued edits are still there to be sent as the next student's", queued.all { userFile(it).exists() })
         assertFalse("the session starts closed while the wipe is owed", second.sessions.school.signIns.isOpen.value)
 
@@ -313,7 +313,7 @@ class AccountSwitchTest {
         assertTrue(w.auth.authState.value)
         assertTrue(userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.apply { writeText("[]") }.exists())
 
-        w.auth.finishOwedSignOut()
+        assertTrue(w.auth.finishOwedSignOut())
 
         // Synchronously, before the wipe: credentials, tokens and the signed-in state.
         assertEquals(null, w.credentials.ntustStudentId)
@@ -334,12 +334,15 @@ class AccountSwitchTest {
         SignOutOwed(prefs("tigerduck_account_wipe")).mark(FIRST)
         val w = world(credentialPrefs)
         userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.writeText("[]")
+        w.credentials.v3Tokens.save("second's-token", "second's-refresh", Long.MAX_VALUE)
+        w.appPrefs.holidayOverridesAwaitingUpload = setOf(7)
 
-        w.auth.finishOwedSignOut()
-        w.auth.finishOwedWipe()
+        assertFalse("nothing to finish", w.auth.finishOwedSignOut())
         delay(300)
 
         assertEquals(SECOND, w.credentials.ntustStudentId)
+        assertEquals("second's-token", w.credentials.v3Tokens.accessToken)
+        assertEquals(setOf(7), w.appPrefs.holidayOverridesAwaitingUpload)
         assertTrue(w.auth.authState.value)
         assertTrue("the second student's file stays", userFile("unsent_marks.json").exists())
         assertTrue(w.sessions.school.signIns.isOpen.value)
@@ -350,12 +353,21 @@ class AccountSwitchTest {
     fun `a start with nothing owed leaves the files and the session alone`() = runBlocking {
         val w = world(signedInAsFirst())
         assertTrue(w.dataCache.saveUnsentMarks(listOf(mark)))
+        w.credentials.v3Tokens.save("first's-token", "first's-refresh", Long.MAX_VALUE)
+        w.appPrefs.holidayOverridesAwaitingUpload = setOf(7)
+        val current = w.sessions.school.signIns.current
 
-        w.auth.finishOwedWipe()
+        assertFalse("nothing to finish", w.auth.finishOwedSignOut())
         delay(200)
 
         assertTrue(userFile("unsent_marks.json").exists())
+        assertEquals(FIRST, w.credentials.ntustStudentId)
+        assertEquals("first's-token", w.credentials.v3Tokens.accessToken)
+        assertEquals(setOf(7), w.appPrefs.holidayOverridesAwaitingUpload)
+        assertTrue(w.auth.authState.value)
         assertTrue(w.sessions.school.signIns.isOpen.value)
+        assertTrue("the same sign-in goes on", current === w.sessions.school.signIns.current && current.isCurrent)
+        assertFalse(SignOutOwed(prefs("tigerduck_account_wipe")).owed)
     }
 
     @Test

@@ -1,30 +1,32 @@
 package org.ntust.app.tigerduck.auth.session
 
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 
 /**
- * The wipe a school sign-out leaves for the application scope, and the session opening after it.
- * Run by the sign-out, and at the next start when a process death cut that run short
- * ([SignOutOwed]): the same block both times.
+ * A school sign-out's hold on the next sign-in, and the wipe it leaves for the application scope.
+ * A sign-out is [begin], the account's clearing, then [finish]. A process death anywhere in that
+ * leaves the marker ([SignOutOwed]), and the next start runs what is left ([recover]).
  *
- * One wipe runs at a time. A sign-out during a wipe queues one more, and the marker clears and
- * the session opens only when none is left, so a sign-in waiting on the first never starts while
- * a second is pending.
+ * All of it is one count under one lock: the sign-outs that have begun and not finished their
+ * wipe. [begin] counts one in and closes the session. The wipe [finish] starts counts it out, and
+ * the last one out takes the marker off and opens the session. So the session opens, and a typed
+ * sign-in waiting on it goes, only when no sign-out is under way, wherever a second one landed.
+ *
+ * Each sign-out has a wipe of its own, started after its own clearing, one running at a time.
+ * Nothing stays running between them, so a sign-out can never wait on a worker that just stopped.
  */
 class SignOutWipe(
-    private val clearing: suspend () -> Unit,
+    private val wipe: suspend () -> Unit,
     private val session: AccountSession,
     private val scope: CoroutineScope,
-    /** The student stored now, or null. */
-    private val storedStudentId: () -> String?,
-    /** Finishes a sign-out the process died in: the credentials, the tokens and the signed-in state. */
-    private val dropStoredAccount: () -> Unit,
 ) {
     constructor(
         importedClassTables: ImportedClassTableStore,
@@ -32,79 +34,72 @@ class SignOutWipe(
         widgetUpdater: WidgetUpdater,
         session: AccountSession,
         scope: CoroutineScope,
-        storedStudentId: () -> String?,
-        dropStoredAccount: () -> Unit,
-    ) : this({ run(importedClassTables, dataCache, widgetUpdater) }, session, scope, storedStudentId, dropStoredAccount)
+    ) : this({ run(importedClassTables, dataCache, widgetUpdater) }, session, scope)
 
     private val lock = Any()
-    private var running = false
-    private var again = false
+    private var unfinished = 0
+
+    // Only keeps the wipes apart; the state is all under [lock].
+    private val oneWipe = Mutex()
 
     /**
-     * Wipes on the application scope, so a coroutine launched from a transient ViewModel scope
-     * can't be cancelled mid-delete when the user backs out of Settings or the activity dies.
-     * Joins the wipe under way by asking it for one more pass.
+     * Before a sign-out clears anything: [departingStudentId] goes on the marker, on disk, and the
+     * session closes, before the clearing moves the sign-in generation a typed sign-in checks.
      */
-    fun start(): Unit = synchronized(lock) {
-        again = true
-        if (running) return
-        running = true
+    fun begin(departingStudentId: String?): Unit = synchronized(lock) {
+        unfinished++
+        session.markWipeOwed(departingStudentId)
+        session.signIns.end()
+    }
+
+    /**
+     * After the clearing: wipes on the application scope, so a coroutine launched from a transient
+     * ViewModel scope can't be canceled mid-delete when the user backs out of Settings or the
+     * activity dies. A wipe that is stopped all the same leaves the session closed and the marker
+     * on, for the next start.
+     */
+    fun finish() {
         scope.launch {
-            try {
-                drain()
-            } finally {
-                synchronized(lock) { running = false }
-            }
-        }
-    }
-
-    // The session opens under the lock that start() takes, so a sign-out cannot ask for another
-    // pass between the last pass and the opening.
-    private suspend fun drain() {
-        while (true) {
-            synchronized(lock) {
-                if (!again) {
-                    session.open()
-                    return
-                }
-                again = false
-            }
-            clearing()
+            oneWipe.withLock { wipe() }
+            synchronized(lock) { if (--unfinished == 0) session.open() }
         }
     }
 
     /**
-     * At process start, before anything reads the account: finishes the sign-out the marker
-     * promised. The stored account goes first and synchronously when it is still the one that
-     * left; a marker of someone else's is dropped.
+     * At process start, before anything acts on the account: when the marker holds a sign-out the
+     * process died in, runs [clearAccount], that sign-out's own clearing, whatever of it already
+     * happened, and says true: the caller then [finish]es it. A marker of someone else's is
+     * dropped, with nothing cleared, and with no marker this costs one read of a boolean.
      */
-    fun finishOwedSignOut() {
-        if (!session.wipeOwed) return
-        when (session.replay(storedStudentId())) {
-            SignOutOwed.Replay.SIGN_OUT_AND_WIPE -> dropStoredAccount()
-            SignOutOwed.Replay.WIPE -> Unit
-            SignOutOwed.Replay.DROP -> session.open()
+    fun recover(storedStudentId: () -> String?, clearAccount: () -> Unit): Boolean {
+        synchronized(lock) {
+            if (!session.wipeOwed) return false
+            if (!session.replays(storedStudentId())) {
+                session.open()
+                return false
+            }
+            unfinished++
         }
-    }
-
-    /** At process start, after [finishOwedSignOut]: runs the wipe a process death cut short. */
-    fun finishOwed() {
-        if (session.wipeOwed) start()
+        // Thrown at every start, this would keep the app from opening at all.
+        runCatching(clearAccount).onFailure { Log.w(TAG, "Recovery's clearing failed: ${it.logSummary()}") }
+        return true
     }
 
     companion object {
+        private const val TAG = "SignOutWipe"
+
         /** Each step on its own, so one that throws stops no other. */
         suspend fun run(importedClassTables: ImportedClassTableStore, dataCache: DataCache, widgetUpdater: WidgetUpdater) {
             // Only this sign-out empties them: a relogin in the background or a renewed session
             // keeps the class tables the user imported.
             runCatching { importedClassTables.clearForSignOut() }
-                .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
+                .onFailure { Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
             runCatching { dataCache.clearAllUserData() }
-                .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
+                .onFailure { Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
             // Now that the timetable is gone: a widget left alone shows the departing student's
             // until its next scheduled update, up to half an hour away.
             runCatching { widgetUpdater.updateAll() }
-                .onFailure { android.util.Log.w("AuthService", "widget update failed on logout: ${it.logSummary()}") }
+                .onFailure { Log.w("AuthService", "widget update failed on logout: ${it.logSummary()}") }
         }
     }
 }

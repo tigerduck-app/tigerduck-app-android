@@ -102,19 +102,8 @@ class AuthService @Inject constructor(
 
     private val loginMutex = Mutex()
 
-    // A sign-out the process died in is finished at start: see SignOutWipe.finishOwedSignOut.
-    private val wipe = SignOutWipe(
-        importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope,
-        storedStudentId = { credentials.ntustStudentId },
-        dropStoredAccount = {
-            val departing = synchronized(accountLock) {
-                credentials.signOutSchoolAccount()
-                authTokenManager.logout()
-            }
-            setSignedIn(false)
-            pushRegistration.unregister(departing)
-        },
-    )
+    // The sign-outs under way, which hold the next sign-in, and the wipe each leaves behind.
+    private val wipe = SignOutWipe(importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope)
 
     private val _signIns = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -377,15 +366,27 @@ class AuthService @Inject constructor(
         }
     }
 
+    /** Signs the school account out: [clearAccount] now, and the wipe it leaves on the application scope. */
     fun logout() {
+        // First, on disk, so what follows is owed even if the process dies at any point of it.
+        wipe.begin(credentials.ntustStudentId)
+        clearAccount()
+        wipe.finish()
+    }
+
+    /**
+     * What a school sign-out clears at once, in one place: run by [logout], and by the next start
+     * when a process death cut that short ([finishOwedSignOut]), which then clears the same, in
+     * the same order, whatever of it was already gone.
+     */
+    private fun clearAccount() {
         // The school account alone: the library account and the school mail stay signed in
         // (decided for Android on 2026-10-22). One step for a sign-in under way, which checks the
         // generation under the same lock before it stores anything. The session it wipes is taken
         // as the generation moves: the unregister below sends its DELETE afterwards.
-        // On disk before the account goes: the browser's clearing and the wipe are owed even if
-        // the process dies before they run.
+        // On disk before the account goes: the browser's clearing is owed even if the process
+        // dies before it runs.
         BrowserCleanup.of(context).markPending()
-        authTokenManager.session.markWipeOwed(credentials.ntustStudentId)
         val departing = synchronized(accountLock) {
             credentials.signOutSchoolAccount()
             authTokenManager.logout()
@@ -437,19 +438,16 @@ class AuthService @Inject constructor(
         // now, so every read and write of it waits for it, as an API endpoint
         // move's clear (BulletinCache.clearIn).
         bulletinCache.clearIn(appScope)
-        // Wipe persisted user data on the application scope so a coroutine
-        // launched from a transient ViewModel scope can't be cancelled mid-
-        // delete when the user backs out of Settings or the activity dies.
-        // Without this guarantee, the JSON cache survives logout and bleeds
-        // into the next account on the same device.
-        wipe.start()
     }
 
-    /** At process start, first: finishes a sign-out a process death cut short, before anything reads the account. */
-    fun finishOwedSignOut() = wipe.finishOwedSignOut()
+    /**
+     * At process start, first, before anything acts on the account: finishes a sign-out a process
+     * death cut short, and says whether there was one. [finishOwedWipe] then runs its wipe.
+     */
+    fun finishOwedSignOut(): Boolean = wipe.recover({ credentials.ntustStudentId }, ::clearAccount)
 
-    /** At process start, then: the wipe that sign-out owes, after which the sign-in opens. */
-    fun finishOwedWipe() = wipe.finishOwed()
+    /** At process start, once [finishOwedSignOut] said so: that sign-out's wipe, after which the sign-in opens. */
+    fun finishOwedWipe() = wipe.finish()
 
     fun clearLoginError() {
         _loginError.value = null

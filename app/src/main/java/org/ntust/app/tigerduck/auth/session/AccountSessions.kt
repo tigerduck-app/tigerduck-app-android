@@ -21,7 +21,7 @@ class AccountSessions @Inject constructor(
     @ApplicationScope scope: CoroutineScope,
     owed: SignOutOwed,
 ) {
-    // Closed from the start when the last sign-out's wipe was cut short; the start finishes it.
+    // Closed from the start when the last sign-out was cut short; the start finishes it.
     val school = AccountSession(
         SignInSeries(closed = owed.owed, demo = fixtures.demoMode), scope, { fixtures.demoMode }, owed,
     )

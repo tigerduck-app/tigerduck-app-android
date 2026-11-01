@@ -88,7 +88,7 @@ class AccountStateInventoryTest {
         val problems = edited("AuthService.kt", "prefs.classTableSelectedSemester = null\n", "").problems()
         assertTrue(
             problems.toString(),
-            "tigerduck_prefs `classTableSelectedSemester`: `logout` in AuthService.kt does not clear it" in problems,
+            "tigerduck_prefs `classTableSelectedSemester`: `clearAccount` in AuthService.kt does not clear it" in problems,
         )
     }
 
@@ -135,7 +135,7 @@ class AccountStateInventoryTest {
     @Test
     fun `an account's row that names nothing that clears it fails`() {
         val problems = listed(
-            "| tigerduck_prefs | `classTableSelectedSemester` | school | `AuthService.kt` `logout` |",
+            "| tigerduck_prefs | `classTableSelectedSemester` | school | `AuthService.kt` `clearAccount` |",
             "| tigerduck_prefs | `classTableSelectedSemester` | school | |",
         ).problems()
         assertTrue(

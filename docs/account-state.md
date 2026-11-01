@@ -3,9 +3,12 @@
 What the phone app keeps on the device, by account, and what clears it when that account signs
 out. The school account, School Mail and the library account each sign in and out on their own
 (decided for Android on 2026-10-22), so a school sign-out leaves the other two. The school
-account's device-side clearing is `AuthService.logout()`, together with
-`AccountSessionEffects.onSignedOut`, which follows every school sign-out wherever it came from.
-School Mail's is `MailAccount.signOut()`, and the library's is `SettingsViewModel.logoutLibrary()`.
+account's device-side clearing is `AuthService.logout()`, which runs `clearAccount` and then the
+wipe in `SignOutWipe`, together with `AccountSessionEffects.onSignedOut`, which follows every
+school sign-out wherever it came from. A sign-out a process death cut short is finished at the
+next start by `AuthService.finishOwedSignOut()`, which runs the same `clearAccount`, so what a
+sign-out clears has one list. School Mail's is `MailAccount.signOut()`, and the library's is
+`SettingsViewModel.logoutLibrary()`.
 
 `AccountStateInventoryTest` reads the tables of stored state below and fails in these cases:
 
@@ -55,21 +58,21 @@ Scopes:
 
 | Store | Cleared by |
 |---|---|
-| The wipe a sign-out owes: `tigerduck_account_wipe` `owed`, set before the sign-in ends, with a hash of the student who left in `who`, and taken off when the session opens after the last wipe. A replay finishes the sign-out when that student is still stored, wipes when nobody is, and drops the marker for anyone else. A process death between the two leaves it set, the school session starts closed, and `SignOutWipe.finishOwed()` runs the wipe at the next start | `SignOutWipe` |
-| The school session's cookies, in memory | `NtustSessionManager.signOut()` in `AuthService.logout()` |
-| Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.logout()` |
-| Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()` in `AuthService.logout()` |
-| Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()` in `AuthService.logout()`; another student's sign-in empties it too (`accountDidSignIn`) |
+| The sign-out a process death may cut short: `tigerduck_account_wipe` `owed`, set before anything is cleared, with a hash of the student who left in `who`, and taken off when the session opens after the last wipe. While it is set the school session stays closed. A start that finds it finishes the sign-out (`clearAccount`, `AccountSessionEffects.onSignedOut` and the wipe) when that student is still stored or nobody is, and drops the marker, clearing nothing, for anyone else | `SignOutWipe` |
+| The school session's cookies, in memory | `NtustSessionManager.signOut()` in `AuthService.clearAccount()` |
+| Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.clearAccount()` |
+| Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()` in `AuthService.clearAccount()` |
+| Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()` in the wipe `AuthService.logout()` starts; another student's sign-in empties it too (`accountDidSignIn`) |
 | Which courses take Moodle's default color, `noBackupFilesDir/moodle_course_colors.json`, and the `.tmp` a write a process death cut short left beside it | `MoodleColorStore.forgetAccount()` in `AccountSessionEffects.onSignedOut`; a sign-out a process death cut short is caught at the next load, which deletes a file whose owner (a hash of the student ID kept in it) is not the student signed in, or any file while signed out (`MoodleColorStore.ensureLoaded()`) |
-| A share link held for a sign-in, in memory | `HeldShareLink.drop()` in `AuthService.logout()` |
-| The demo account | `DemoAccount.exit()` in `AuthService.logout()` |
+| A share link held for a sign-in, in memory | `HeldShareLink.drop()` in `AuthService.clearAccount()` |
+| The demo account | `DemoAccount.exit()` in `AuthService.clearAccount()` |
 | The in-app browser's WebView data, cookies, downloads and photo uploads (`cacheDir/browser_uploads/`) | `BrowserDataCleaner.clear()`, which `AccountSessionEffects` runs after each sign-out and sign-in; `BrowserCleanup` keeps it owed across a process death |
 | Delivered notifications of the school account | `AccountNotifications.cancelAll()` in `AccountSessionEffects.onSignedOut` |
 | Assignment reminders' alarms | `AssignmentNotificationScheduler.cancelAllTracked()` in `AccountSessionEffects.onSignedOut` |
 | Class-preparing alarms and the Live Update | `LiveActivityManager.stop()` in `AccountSessionEffects.onSignedOut` |
 | Background sync work, WorkManager's `homework_refresh_periodic` and `sync_trigger` | `BackgroundSyncWorker.cancel()` in `AccountSessionEffects.onSignedOut` |
-| The backend's device registration | `PushRegistrationService.unregister()` in `AuthService.logout()`, sent with the departing session until it lands: WorkManager's `departing_device_unregister` and the `owed` rows below |
-| Widgets | `WidgetUpdater.updateAll()`, the last step of `AuthService.logout()`'s clearing |
+| The backend's device registration | `PushRegistrationService.unregister()` in `AuthService.clearAccount()`, sent with the departing session until it lands: WorkManager's `departing_device_unregister` and the `owed` rows below |
+| Widgets | `WidgetUpdater.updateAll()`, the last step of the wipe `AuthService.logout()` starts |
 | The watch's schedule | `WearScheduleBridge.publish()`, which `TigerDuckApp` runs at each sign-in and sign-out and which sends no courses while no one is signed in; the library account on the watch follows the library's own sign-out |
 | School Mail's cache (`cacheDir/mail/`), the mail held to send (`noBackupFilesDir/mail_held_sends/`), its checks (WorkManager) and its notifications | `MailAccount.signOut()` |
 | The library's pass code, in memory | `LibrarySession.refresh()`, which `SettingsViewModel.logoutLibrary()` calls |
@@ -139,7 +142,7 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `classReminderEnabled` | device | |
 | tigerduck_prefs | `classReminderLeadMinutes` | device | |
 | tigerduck_prefs | `classReminderSettingsMigrated` | device | |
-| tigerduck_prefs | `classTableSelectedSemester` | school | `AuthService.kt` `logout` |
+| tigerduck_prefs | `classTableSelectedSemester` | school | `AuthService.kt` `clearAccount` |
 | tigerduck_prefs | `classroomMandarinDisplay` | device | |
 | tigerduck_prefs | `cloudSyncEnabled` | device | |
 | tigerduck_prefs | `configuredTabs` | device | |
@@ -183,7 +186,7 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `notifyAssignments` | device | |
 | tigerduck_prefs | `onboardingVersion` | device | |
 | tigerduck_prefs | `outlineRequiredCourses` | device | |
-| tigerduck_prefs | `pendingConflictCategories` | school | `AuthService.kt` `logout` |
+| tigerduck_prefs | `pendingConflictCategories` | school | `AuthService.kt` `clearAccount` |
 | tigerduck_prefs | `pinTodayCoursesOnClassTable` | device | |
 | tigerduck_prefs | `previousDefaultTabsChecked` | device | |
 | tigerduck_prefs | `push.device_uuid` | device | |

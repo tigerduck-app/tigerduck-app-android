@@ -6,7 +6,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.auth.session.SignOutOwed.Replay
 import org.ntust.app.tigerduck.util.JvmContext
 
 class SignOutOwedTest {
@@ -17,9 +16,9 @@ class SignOutOwedTest {
         val owed = SignOutOwed(prefs)
         owed.mark(FIRST)
 
-        assertEquals(Replay.SIGN_OUT_AND_WIPE, owed.replay(FIRST))
-        assertEquals(Replay.WIPE, owed.replay(null))
-        assertEquals("a later student's data is never wiped", Replay.DROP, owed.replay(SECOND))
+        assertTrue(owed.replays(FIRST))
+        assertTrue(owed.replays(null))
+        assertFalse("a later student's data is never wiped", owed.replays(SECOND))
     }
 
     @Test
@@ -27,8 +26,30 @@ class SignOutOwedTest {
         val owed = SignOutOwed(prefs)
         owed.mark(null)
 
-        assertEquals(Replay.WIPE, owed.replay(null))
-        assertEquals(Replay.DROP, owed.replay(SECOND))
+        assertTrue(owed.replays(null))
+        assertFalse(owed.replays(SECOND))
+    }
+
+    @Test
+    fun `a second sign-out with nobody stored keeps the name the first left`() {
+        // The first one's credentials can be gone from memory and not yet from the disk, and that
+        // student must still be taken for the one who left.
+        val owed = SignOutOwed(prefs)
+        owed.mark(FIRST)
+        owed.mark(null)
+
+        assertTrue(owed.replays(FIRST))
+        assertFalse(owed.replays(SECOND))
+    }
+
+    @Test
+    fun `a later sign-out takes the marker over`() {
+        val owed = SignOutOwed(prefs)
+        owed.mark(FIRST)
+        owed.mark(SECOND)
+
+        assertTrue(owed.replays(SECOND))
+        assertFalse(owed.replays(FIRST))
     }
 
     @Test
@@ -81,7 +102,7 @@ class SignOutOwedTest {
         assertFalse(SignOutOwed(flaky).clear())
         assertTrue("the marker is still on disk", owed.owed)
         // And it still names who left, so the stale marker wipes no later student.
-        assertEquals(Replay.DROP, owed.replay(SECOND))
+        assertFalse(owed.replays(SECOND))
     }
 
     private companion object {

@@ -64,8 +64,13 @@ class AccountSessionEffects internal constructor(
         forgetMoodleColors = moodleColors::forgetAccount,
     )
 
-    /** Follows the sign-in state on [scope] for the life of the process. */
-    fun start(scope: CoroutineScope) {
+    /**
+     * Follows the sign-in state on [scope] for the life of the process. [signOutCutShort] says the
+     * start has just finished a sign-out a process death cut short ([AuthService.finishOwedSignOut]):
+     * that is no change from here, or was never one if the account was already gone, so what
+     * follows a sign-out runs now.
+     */
+    fun start(scope: CoroutineScope, signOutCutShort: Boolean = false) {
         // Where it starts is read now, not when the watcher first runs: a sign-out in between is a change.
         var seen = accountState.value
         scope.launch {
@@ -80,8 +85,11 @@ class AccountSessionEffects internal constructor(
         }
         // A student signing in over another never turns authState off and on.
         scope.launch { signIns.collect { clearBrowserSoon(scope) } }
-        // One a process death cut short, or one whose deletions did not all report, goes again.
-        if (browserClearingOwed()) clearBrowserSoon(scope)
+        when {
+            signOutCutShort -> scope.launch { onSignedOut(scope) }
+            // One a process death cut short, or one whose deletions did not all report, goes again.
+            browserClearingOwed() -> clearBrowserSoon(scope)
+        }
     }
 
     private fun onSignedIn(scope: CoroutineScope) {

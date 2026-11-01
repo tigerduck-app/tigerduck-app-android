@@ -47,13 +47,13 @@ class SchoolSignOutKeepsOtherAccountsTest {
 
     @Test
     fun `the school sign-out leaves the school mail signed in`() {
-        val logout = body("fun logout()")
+        val logout = body("fun logout()") + body("private fun clearAccount()")
         assertFalse(Regex("""\bmailAccount\.""").containsMatchIn(logout))
     }
 
     @Test
     fun `the school sign-out leaves the library account signed in`() {
-        val logout = body("fun logout()")
+        val logout = body("fun logout()") + body("private fun clearAccount()")
         assertFalse(Regex("""clearLibraryCredentials|signOutLibrary""").containsMatchIn(logout))
     }
 }

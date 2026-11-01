@@ -146,7 +146,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        authService.finishOwedSignOut() // before anything reads the account
+        val signOutCutShort = authService.finishOwedSignOut() // before anything acts on the account
         // The theme reads it on its first frame: start loading it from disk now.
         preloadKeptCjkCorrections(this)
         // Debug builds: the developer settings' "pretend an app is missing" switches.
@@ -157,8 +157,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // upgrade launch and rebuild caches that a pending migration step then
         // deleted. AppState re-reads the cached outcome for the reset prompt.
         dataMigration.run()
-        // Then its wipe, and the school session opens after it (SignOutOwed).
-        authService.finishOwedWipe()
+        // Then its wipe, after which the school session opens (SignOutWipe).
+        if (signOutCutShort) authService.finishOwedWipe()
         // Next, while the Live Update settings are still as the previous
         // build left them: the class reminder takes its settings from them
         // once, before anything can arm a reminder or pull the settings
@@ -192,7 +192,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
             merge(appPreferences.visualPresetChanged, moodleColorStore.colorsChanged).collect { wearBridge.publish() }
         }
         // The background sync, reminders, notifications and Live Update follow the sign-in from every page.
-        accountSessionEffects.start(appScope)
+        accountSessionEffects.start(appScope, signOutCutShort)
         // A stored password the school or the library refused goes again once its wait is over.
         storedPasswordRetry.start(appScope)
         libraryPasswordRetry.start(appScope)

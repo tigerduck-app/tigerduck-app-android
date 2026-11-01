@@ -49,8 +49,8 @@ class ImportedClassTablesClearingTest {
         throw AssertionError("`$declaration` has no closing brace")
     }
 
-    /** The sign-out: `logout()`, and the wipe it launches on the app scope. */
-    private fun signOut() = body("fun logout()") + wipe
+    /** The sign-out: `logout()`, what it clears at once, and the wipe it starts on the app scope. */
+    private fun signOut() = body("fun logout()") + body("private fun clearAccount()") + wipe
 
     /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
     private val wipe: String =
