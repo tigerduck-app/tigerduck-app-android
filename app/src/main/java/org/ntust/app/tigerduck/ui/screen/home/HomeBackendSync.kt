@@ -181,7 +181,6 @@ class HomeBackendSync @Inject constructor(
         val courseSync = dataCache.beginCourseSync()
         try {
             if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
-            val account = authService.storedStudentId
             // What waits to go up goes first, so the snapshot has it.
             retryUnsent(signIn)
             // Every class-table delete asked before the fetch ranks below it, every later one
@@ -198,7 +197,7 @@ class HomeBackendSync @Inject constructor(
             // fails must not leave the next sync reading an empty server as
             // this phone's first.
             val marksTaken = markStep.pull(state, result, "assignments" in switchedOn, signIn)
-            if (marksTaken && authService.isStillSignedInAs(account)) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
+            if (marksTaken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
             courseIgnoreSync.applySnapshot(result, signIn)?.let { keys -> signIn.ifCurrent { state.ignoredCourseKeys.value = keys } }
             // Course overrides and deletion detection always run regardless
             // of whether this was a first-time migration, but not over a
@@ -215,7 +214,7 @@ class HomeBackendSync @Inject constructor(
             } else {
                 state.allCourses.value.isNotEmpty()
             }
-            applyCourseReset(result, account, beforeFetch, courseSync, signIn)
+            applyCourseReset(result, beforeFetch, courseSync, signIn)
             // Not gated on any of the per-category sync toggles: a holiday
             // exception is a notification setting, not course or assignment
             // data, and the categories the user can turn off do not cover
@@ -243,9 +242,7 @@ class HomeBackendSync @Inject constructor(
                 hasOverrides = result.courseOverrides.isNotEmpty(),
                 coursesLoaded = coursesLoaded,
             )
-            if (authService.isStillSignedInAs(account)) {
-                prefs.school.syncedCategories.run { set(get() + categoriesSynced(switchedOn, took, prefs), signIn) }
-            }
+            prefs.school.syncedCategories.run { set(get() + categoriesSynced(switchedOn, took, prefs), signIn) }
             // Only for the account this sync fetched for: set after a sign-out
             // reset it, the departing account's would stand for the next one.
             signIn.ifCurrent { state.lastKnownRevision = result.currentRevision }
@@ -449,8 +446,8 @@ class HomeBackendSync @Inject constructor(
      * clock — see [CourseSyncReconciler.coursesReset]. The account's first
      * sync here only remembers it, so a fresh install never reads its own
      * absence of history as a reset and deletes courses the user just added.
-     * Remembered for [account] and [signIn] only: after a sign-out it would be
-     * the next session's first sync that skipped a reset.
+     * Remembered for [signIn] only: after a sign-out it would be the next
+     * session's first sync that skipped a reset.
      *
      * The reset brings back the courses this phone hid, so the deletes still
      * waiting to go up from before the fetch ([beforeFetch]) go too: sent on
@@ -460,7 +457,6 @@ class HomeBackendSync @Inject constructor(
      */
     private suspend fun applyCourseReset(
         result: BackendSyncResult,
-        account: String?,
         beforeFetch: Long,
         courseSync: DataCache.CourseSync,
         signIn: SignIn,
@@ -485,9 +481,7 @@ class HomeBackendSync @Inject constructor(
             }
             Log.i(TAG, "[sync] courses reset detected, wiped manual courses")
         }
-        if (authService.isStillSignedInAs(account) && prefs.school.lastSeenCoursesResetAt.set(reset.remember, signIn)) {
-            prefs.forgetLegacyLastCourseSyncAt()
-        }
+        if (prefs.school.lastSeenCoursesResetAt.set(reset.remember, signIn)) prefs.forgetLegacyLastCourseSyncAt()
     }
 
     /**

@@ -99,13 +99,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // is due, and the consent and flavor gates, are decided inside; a
         // no-op on fdroid.
         fcmBootstrap.retryRegistrationIfDue()
-        // The sign-in is read before the student, so a sign-in between the two reads ends the run.
+        // Before the student: a sign-out between the two reads ends the run.
         val signIn = authTokenManager.session.current
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
-        // The student alone would pass a sign-out and a sign-in as the same student.
-        val run = BackgroundRunAccount(studentId, signIn, currentStudentId = { authService.storedStudentId })
 
         // A triggered run fetches everything: the server asked for it because something changed.
         // What it announced may postdate an answer the services are still sharing from a foreground
@@ -126,7 +124,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             syncOverridesFromBackend(signIn)
             // Signed out meanwhile: the stamp went with the account, and a sign-out cannot clear
             // it between the check and the write.
-            if (!run.writeIfCurrent { prefs.school.backgroundOverridesSyncedAtMs.set(now, signIn) }) return Result.success()
+            if (!prefs.school.backgroundOverridesSyncedAtMs.set(now, signIn)) return Result.success()
         }
 
         // The school servers only for data a page asks the worker to keep fresh, and only once it
@@ -152,14 +150,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
         } == true
 
         val coursesOk = !coursesDue || syncCourses(studentId, password, signIn)
-        if (run.ended()) return Result.success()
+        if (!signIn.isCurrent) return Result.success()
         if (coursesDue && coursesOk) {
-            val stamped = run.writeIfCurrent {
+            // Both or neither: a sign-out waits for the step, or comes first.
+            signIn.ifCurrent {
                 prefs.school.backgroundCoursesSyncedAtMs.set(now, signIn)
                 // The term the fetch covered, by the app's clock: see firstRunOfTerm.
                 if (term != null && !today.isBefore(term.start)) prefs.school.backgroundCoursesTerm.set(term.code, signIn)
-            }
-            if (!stamped) return Result.success()
+            } ?: return Result.success()
         }
         val assignmentsOk = when {
             !assignmentsDue -> true
@@ -167,7 +165,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             triggered -> moodleService.recheckingSubmissions { syncAssignments() }
             else -> syncAssignments()
         }
-        if (run.ended()) return Result.success()
+        if (!signIn.isCurrent) return Result.success()
 
         // Only after something was fetched: with nothing new in the cache
         // there is nothing for the Live Update, the widgets or the open
@@ -200,7 +198,6 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // Before anything it sends or fetches, until it is done: see DataCache.beginCourseSync.
         val courseSync = dataCache.beginCourseSync()
         try {
-            val account = authService.storedStudentId
             courseIgnoreSync.retryPending(signIn)
             // Marks, course colours and names and holiday choices whose
             // request failed, and course adds and deletes whose request did,
@@ -224,7 +221,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // or marks the server lacks on the account's first sync here
             // (Home's sync sends those up), the marks stay as they are.
             val marks = BackgroundMarkStep.over(prefs, dataCache, unsentMarks).pull(result, signIn)
-            if (marks.taken && authService.isStillSignedInAs(account)) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
+            if (marks.taken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
             val marksChanged = marks.changed
             courseIgnoreSync.applySnapshot(result, signIn)
 

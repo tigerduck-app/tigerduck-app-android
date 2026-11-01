@@ -22,6 +22,9 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.auth.SignedInState
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -62,6 +65,7 @@ class HomeViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var cache: DataCache
     private lateinit var home: HomeViewModel
+    private val series = SignInSeries()
 
     @Before
     fun setUp() {
@@ -80,10 +84,11 @@ class HomeViewModelTest {
         }
         val colors = bare<CourseColorStore>().also { it.set("changeEvent", MutableSharedFlow<Unit>()) }
         val courses = bare<CourseService>().also { it.set("academicCalendar", calendar) }
+        val tokens = bare<AuthTokenManager>().also { it.set("session", AccountSession(series, CoroutineScope(SupervisorJob()))) }
         home = HomeViewModel(
             bare(), auth, cache, courses, bare(), AssignmentNotificationScheduler(context), prefs, colors, bare(),
             liveActivity(context, prefs, calendar), bare(), bare(),
-            bare(), bare(), bare(), bare(), bare(), LocalEdits(), bare(), bare(), bare(), bare(),
+            bare(), bare(), tokens, bare(), bare(), LocalEdits(), bare(), bare(), bare(), bare(),
         )
     }
 
@@ -132,6 +137,22 @@ class HomeViewModelTest {
             assertEquals(listOf("CS1001"), homeCourseNos())
         } finally {
             // Home's clock ticker never ends, and runTest waits for every coroutine on its scheduler.
+            home.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a sign-in that ended before Home's reload shows nothing of the files`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            series.end()
+
+            // The class table's save, then a round's end: neither may reach Home under an ended sign-in.
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "The account's that left")), testSignIn())
+            cache.notifyBackgroundSyncComplete()
+
+            assertEquals(emptyList<String>(), homeCourseNos())
+        } finally {
             home.viewModelScope.cancel()
         }
     }

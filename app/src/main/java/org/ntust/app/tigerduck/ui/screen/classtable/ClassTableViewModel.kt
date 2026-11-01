@@ -539,13 +539,12 @@ class ClassTableViewModel @Inject constructor(
         viewModelScope.launch {
             dataCache.backgroundSyncVersion.drop(1).collect {
                 if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
+                val signIn = signInNow()
                 val semester = _currentSemester.value
                 val courses = dataCache.loadCourses(semester)
                 val assignments = dataCache.loadAssignments()
-                // Signed out, or in as someone else, while the files were
-                // read: what they held was the departing account's.
-                if (!authService.isStillSignedInAs(account)) return@collect
+                // Signed out while the files were read: what they held was the departing account's.
+                if (!signIn.isCurrent) return@collect
                 // Taken as-is, empty included: a sync can now prune the
                 // whole term (a reset made elsewhere), and holding on to
                 // the old list would keep showing courses that are gone.
@@ -706,15 +705,17 @@ class ClassTableViewModel @Inject constructor(
     }
 
     private suspend fun loadAssignmentMarks() {
-        val account = authService.storedStudentId
+        val signIn = signInNow()
         val readAt = dataCache.assignmentMarksVersion.value
         val ignored = dataCache.loadIgnoredAssignments()
         val marked = dataCache.loadMarkedCompletedAssignments()
         val courseKeys = dataCache.loadIgnoredCourses()
-        if (!authService.isStillSignedInAs(account)) return
-        _ignoredAssignmentIds.value = ignored
-        _markedCompletedIds.value = marked
-        ignoredCourses.reloaded(courseKeys, readAt)
+        if (!authService.authState.value) return
+        signIn.ifCurrent {
+            _ignoredAssignmentIds.value = ignored
+            _markedCompletedIds.value = marked
+            ignoredCourses.reloaded(courseKeys, readAt)
+        }
     }
 
     /** [edit]'s write is done, so the cache decides again; it may hold more by now. */
@@ -821,7 +822,7 @@ class ClassTableViewModel @Inject constructor(
         val shown = _courses.value
         val semesters = _availableSemesters.value
         viewModelScope.launch {
-            val account = authService.storedStudentId
+            val signIn = signInNow()
             val deleted = dataCache.loadDeletedCourseNos()
             val terms = semesters.mapNotNull { semester ->
                 val courses = if (semester == shownSemester) shown else dataCache.loadCourses(semester)
@@ -830,7 +831,7 @@ class ClassTableViewModel @Inject constructor(
                     ?.let { ClassTableShare.Term(semester, it) }
             }
             // Read for an account that has since signed out: none of it is the next one's.
-            _shareTerms.value = if (authService.isStillSignedInAs(account)) terms else emptyList()
+            _shareTerms.value = if (authService.authState.value && signIn.isCurrent) terms else emptyList()
         }
     }
 
@@ -1667,7 +1668,7 @@ class ClassTableViewModel @Inject constructor(
                     scoreService.fetchScoreReport(studentId, password, signIn)
                 },
                 cached = { dataCache.loadScoreReport(studentId)?.report },
-                stillSignedIn = { authService.isStillSignedInAs(studentId) },
+                stillSignedIn = { signIn.isCurrent },
                 record = { ServerStatusTracker.set(it, ServerKind.SCORE_SYSTEM) },
             )
 
@@ -1744,7 +1745,7 @@ class ClassTableViewModel @Inject constructor(
             // soon as it lands.
             coroutineScope {
                 val coursesJob = launch {
-                    fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
+                    fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { signIn.isCurrent }
                 }
 
                 // Assignments are always "upcoming from now", so they belong to the active
@@ -1949,10 +1950,9 @@ class ClassTableViewModel @Inject constructor(
      * [moodleAll], Moodle's one answer for every term, and its [transcript],
      * which the terms' rosters come from: asked for here if the fetch had no
      * need of it. Without one, only the term course selection serves is
-     * warmed, and the rest wait for a later fetch. Both are [studentId]'s,
-     * and reach no term once that account has left. On a job
-     * of its own, not the fetch's: a pull must not wait on the other terms,
-     * and a sign-out cancels it.
+     * warmed, and the rest wait for a later fetch. Both are [studentId]'s, and reach no term
+     * once that account has left. On a job of its own, not the fetch's: a pull must not wait on
+     * the other terms, and a sign-out cancels it.
      */
     private fun warmTerms(
         studentId: String,
@@ -1965,7 +1965,7 @@ class ClassTableViewModel @Inject constructor(
         warmJob = viewModelScope.launch {
             try {
                 termWarm.run(
-                    stillSignedIn = { authService.isStillSignedInAs(studentId) },
+                    stillSignedIn = { signIn.isCurrent },
                     shared = { transcript.fetched() },
                 ) { term, report, isCurrent -> warmTerm(term, isCurrent, studentId, password, moodleAll, report, signIn) }
             } catch (e: CancellationException) {
@@ -2052,14 +2052,14 @@ class ClassTableViewModel @Inject constructor(
         val courseNos = ClassTableCourseMerge.nosWithoutRoom(_courses.value)
         if (courseNos.isEmpty() || !networkChecker.isAvailable()) return
         roomLookupsAtMs[semester] = now
-        val account = authService.storedStudentId
+        val signIn = signInNow()
         viewModelScope.launch {
             val found = courseNos.map { courseNo ->
                 // Without Moodle to fall back on: null for a query that failed
                 // or a course it does not know, which the row then waits out.
                 async { courseNo to courseService.lookupOrFallback(semester, courseNo, moodle = null).course }
             }.awaitAll().mapNotNull { (courseNo, course) -> course?.let { courseNo to it } }.toMap()
-            if (!authService.isStillSignedInAs(account) || coursesSemester != semester) return@launch
+            if (!authService.authState.value || !signIn.isCurrent || coursesSemester != semester) return@launch
             val updated = ClassTableCourseMerge.withRoomsFound(_courses.value, found) ?: return@launch
             val edit = showEdit(updated, semester)
             TigerDuckTheme.buildCourseColorMap(updated)

@@ -101,7 +101,6 @@ class ReenableCheck @Inject constructor(
         }
         val token = resolutions.checkStarting(waits = waitForAnswers) { check(onConflict = onConflict) } ?: return
         Log.i(TAG, "[reenable] checkPendingConflicts start: pending=$pending")
-        val account = authService.storedStudentId
         val signIn = sessions.school.current
         owed.started()
         appScope.launch(Dispatchers.Main) {
@@ -113,9 +112,7 @@ class ReenableCheck @Inject constructor(
                 // An answer given since this check began changed what it
                 // compared, and settles the pending set itself. After a
                 // sign-out the result is the departed account's.
-                val stillApplies = resolutions.isCurrent(token) &&
-                    authService.isStillSignedInAs(account) &&
-                    signIn.isCurrent
+                val stillApplies = resolutions.isCurrent(token) && signIn.isCurrent
                 if (!stillApplies) return@launch
                 verdict = true
                 if (diffs.isNotEmpty()) {

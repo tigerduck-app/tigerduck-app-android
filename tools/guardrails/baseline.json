@@ -19,7 +19,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "account-counter",
-    "count": 4
+    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -29,7 +29,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 460
+    "count": 451
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -327,25 +327,20 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-file",
-    "count": 624
+    "count": 621
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.doWork()",
-    "lines": 88
+    "lines": 86
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.syncOverridesFromBackend(SignIn)",
-    "lines": 107
+    "lines": 106
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",
@@ -714,13 +709,8 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarViewModel.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarViewModel.kt",
     "kind": "long-file",
-    "count": 494
+    "count": 493
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
@@ -800,11 +790,6 @@
     "kind": "long-function",
     "name": "ClassTableScreen(ClassTableViewModel, ()->Unit, ()->Unit)",
     "lines": 719
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
-    "kind": "account-counter",
-    "count": 7
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
@@ -1017,19 +1002,14 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
-    "kind": "account-counter",
-    "count": 3
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-file",
-    "count": 739
+    "count": 733
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-function",
     "name": "HomeBackendSync.pull(HomeSyncState, SignIn, Boolean)",
-    "lines": 156
+    "lines": 153
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
@@ -1070,11 +1050,6 @@
     "kind": "long-function",
     "name": "HomeSectionContent(HomeSection, List<Course>, TimeSliderViewModel, QuietDays, CourseChanges, List<Assignment>, AssignmentFilter, Boolean, Set<String>, Set<String>, Set<String>, Boolean, Boolean, Boolean, (String)->Boolean, Boolean, Boolean, (CourseTimeSlot)->Unit, (Assignment)->Unit, (Assignment)->Unit, (Assignment)->Unit, (AssignmentFilter)->Unit, (AppFeature)->Unit, ()->Unit, ()->Unit)",
     "lines": 129
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
-    "kind": "account-counter",
-    "count": 4
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
@@ -1401,11 +1376,6 @@
     "kind": "long-function",
     "name": "OtherSettingsScreen(()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, SettingsViewModel)",
     "lines": 177
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/ReenableCheck.kt",
-    "kind": "account-counter",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsRows.kt",

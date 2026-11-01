@@ -351,9 +351,9 @@ class ClassTableWiringTest {
      */
     @Test
     fun `answers fetched for an account that left reach no term`() {
-        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { authService.isStillSignedInAs(studentId) }")
-        assertCalls("fetchData", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
-        assertCalls("warmTerms", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { signIn.isCurrent }")
+        assertCalls("fetchData", "stillSignedIn = { signIn.isCurrent }")
+        assertCalls("warmTerms", "stillSignedIn = { signIn.isCurrent }")
     }
 
     /**

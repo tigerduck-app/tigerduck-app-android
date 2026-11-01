@@ -131,9 +131,9 @@ class SyncWiringTest {
     }
 
     /**
-     * A background run that outlived its sign-in stops, a same-student one included: it asks
-     * [org.ntust.app.tigerduck.notification.BackgroundRunAccount] after each phase, before the
-     * stamps that date the data as fetched, and never compares the student ID alone.
+     * A background run that outlived its sign-in stops, a same-student one included: it asks the
+     * sign-in after each phase and before the stamps that date the data as fetched, and never
+     * compares the student ID alone.
      */
     @Test
     fun `the worker stops a run whose sign-in ended before it stamps or refreshes`() {
@@ -142,19 +142,19 @@ class SyncWiringTest {
         assertTrue("the worker no longer captures the sign-in", "authTokenManager.session.current" in worker)
         assertTrue("the worker compares the student ID alone again", "storedStudentId != studentId" !in worker)
         // Each stamp is written in a step a sign-out waits for, so it cannot clear it between the check and the write.
-        for (stamp in listOf("prefs.school.backgroundOverridesSyncedAtMs.set(now, signIn)", "prefs.school.backgroundCoursesSyncedAtMs.set(now, signIn)", "prefs.school.backgroundCoursesTerm.set(term.code, signIn)")) {
+        assertTrue("the worker no longer stops on a refused stamp", "if (!prefs.school.backgroundOverridesSyncedAtMs.set(now, signIn)) return" in worker)
+        for (stamp in listOf("prefs.school.backgroundCoursesSyncedAtMs.set(now, signIn)", "prefs.school.backgroundCoursesTerm.set(term.code, signIn)")) {
             val at = worker.indexOf(stamp)
             assertTrue("the worker no longer writes $stamp", at >= 0)
-            assertTrue("the worker writes $stamp outside run.writeIfCurrent", insideBlock(worker, "run.writeIfCurrent {", at))
+            assertTrue("the worker writes $stamp outside the sign-in's step", insideBlock(worker, "signIn.ifCurrent {", at))
         }
-        assertTrue("the run no longer holds the sign-in it began under", "BackgroundRunAccount(studentId, signIn," in worker)
         // The courses phase ends the run before the assignments, and passes its sign-in to the fetch.
         val fetch = worker.indexOf("syncCourses(studentId, password, signIn)")
         val assignments = worker.indexOf("val assignmentsOk")
         assertTrue("the worker no longer passes its sign-in to the course fetch", fetch >= 0)
-        assertTrue("the worker no longer checks run.ended() right after the course fetch", "run.ended()" in worker.substring(fetch, assignments))
-        assertTrue("the worker does not check after the assignments", worker.indexOf("run.ended()", worker.indexOf("syncAssignments()")) >= 0)
-        assertTrue("the worker no longer checks before the refreshes", worker.lastIndexOf("run.ended()", worker.indexOf("liveActivityManager.refreshAndWait()")) > worker.indexOf("syncAssignments()"))
+        assertTrue("the worker no longer checks right after the course fetch", "!signIn.isCurrent" in worker.substring(fetch, assignments))
+        assertTrue("the worker does not check after the assignments", worker.indexOf("!signIn.isCurrent", worker.indexOf("syncAssignments()")) >= 0)
+        assertTrue("the worker no longer checks before the refreshes", worker.lastIndexOf("!signIn.isCurrent", worker.indexOf("liveActivityManager.refreshAndWait()")) > worker.indexOf("syncAssignments()"))
         assertCalls(rel, "syncCourses", "termCourseSync.sync(studentId, password, courseService.currentSemesterCode(), signIn = signIn)")
     }
 
@@ -527,6 +527,28 @@ class SyncWiringTest {
         val read = copy.indexOf("readJson<List<Course>>(File(cacheDir")
         val write = copy.indexOf("userDataMutex.withLock { atomicWrite(")
         assertTrue("the copy no longer reads and writes under the cache's lock", lock in 0 until read && read < write)
+    }
+
+    /**
+     * A screen reads the cache, which suspends, and shows what it read only while the sign-in it
+     * read it under stands. The student ID would pass the same student signing back in meanwhile.
+     * Signed out with nothing stored, these screens leave their lists as they are, as they did.
+     * Home's is driven in HomeViewModelTest; the class table and the calendar take a screen's
+     * worth of collaborators.
+     */
+    @Test
+    fun `the class table and the calendar show a read only while its sign-in stands`() {
+        val table = "ui/screen/classtable/ClassTableViewModel.kt"
+        assertCalls(table, "loadAssignmentMarks", "val signIn = signInNow()", "if (!authService.authState.value) return", "signIn.ifCurrent {")
+        assertCalls(table, "refreshShareTerms", "val signIn = signInNow()", "if (authService.authState.value && signIn.isCurrent) terms else emptyList()")
+        assertCalls(table, "lookUpMissingRooms", "val signIn = signInNow()", "if (!authService.authState.value || !signIn.isCurrent ||")
+        val tableText = source(table).joinToString("\n")
+        assertTrue("the class table's reload no longer stops on an ended sign-in", "if (!signIn.isCurrent) return@collect" in tableText)
+        val calendar = source("ui/screen/calendar/CalendarViewModel.kt").joinToString("\n")
+        assertTrue(
+            "the calendar's reload no longer asks the sign-in it read under",
+            "signIn.ifCurrent { _events.value = withMoodleRows(_events.value, assignments) }" in calendar,
+        )
     }
 
     /**

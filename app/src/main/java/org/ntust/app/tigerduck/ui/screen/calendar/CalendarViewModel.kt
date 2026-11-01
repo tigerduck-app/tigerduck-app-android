@@ -179,7 +179,6 @@ class CalendarViewModel @Inject constructor(
      * the backend has it, marked as this launch runs up to its first
      * suspension (Main.immediate), so a sync meanwhile keeps it.
      */
-    @OptIn(StartsAccountWork::class)
     fun setNotifyOnHoliday(holidayId: Int, notify: Boolean) {
         if (!academicCalendar.setNotifyOnHoliday(holidayId, notify)) return
         _holidayOverrides.value = academicCalendar.optedInHolidayIds
@@ -188,8 +187,11 @@ class CalendarViewModel @Inject constructor(
         // boundary or 30-minute refresh.
         widgetUpdater.requestUpdate()
         liveActivityManager.refresh()
-        viewModelScope.launch { pendingHolidayOverrides.send(holidayId, sessions.school.current) }
+        viewModelScope.launch { pendingHolidayOverrides.send(holidayId, signInNow()) }
     }
+
+    @OptIn(StartsAccountWork::class)
+    private fun signInNow() = sessions.school.current
 
     /** Replaces the academic rows in [base] with freshly-built ones. */
     private fun withAcademicEvents(base: List<CalendarEvent>): List<CalendarEvent> =
@@ -236,14 +238,12 @@ class CalendarViewModel @Inject constructor(
             // most new assignments reach the calendar.
             dataCache.backgroundSyncVersion.drop(1).collect {
                 if (!authService.authState.value) return@collect
-                val account = authService.storedStudentId
+                val signIn = signInNow()
                 val assignments = dataCache.loadAssignments()
-                // Signed out, or in as someone else, while the file was read:
-                // the rows are the departing account's.
-                if (!authService.isStillSignedInAs(account)) return@collect
-                // The other rows as they are after the read, not before: a
-                // fetch of this screen's own can land while the file is read.
-                _events.value = withMoodleRows(_events.value, assignments)
+                // Signed out while the file was read: the rows are the departing account's.
+                // The other rows as they are after the read, not before: a fetch of this
+                // screen's own can land while the file is read.
+                signIn.ifCurrent { _events.value = withMoodleRows(_events.value, assignments) }
             }
         }
         viewModelScope.launch {
@@ -398,9 +398,8 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
-    @OptIn(StartsAccountWork::class)
     private suspend fun fetchData() {
-        val signIn = sessions.school.current
+        val signIn = signInNow()
         // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
         refreshTriggers.fetchStarted()
         _isLoading.value = true
