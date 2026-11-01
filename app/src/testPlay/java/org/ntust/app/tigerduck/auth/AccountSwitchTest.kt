@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.work.testing.WorkManagerTestInitHelper
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -12,7 +13,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -40,6 +45,9 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.UnsentMark
+import org.ntust.app.tigerduck.library.LibraryQRCache
+import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
@@ -80,6 +88,7 @@ import org.robolectric.annotation.Config
 import java.io.File
 import java.io.IOException
 import java.util.Date
+import kotlin.coroutines.CoroutineContext
 
 /**
  * One student has used the app, keeping what docs/account-state.md gives the school account; the
@@ -204,31 +213,23 @@ class AccountSwitchTest {
             .build()
     }
 
-    @Test
-    fun `signing in as a second student after a first leaves nothing of the first`() = runBlocking {
-        // The first student signed in, with a School Mail and a library account of their own.
-        schoolKeys.groupBy { it.file }.forEach { (file, keys) ->
-            prefs(file).edit().apply { keys.forEach { put(stored(it), sample(it)) } }.commit()
-        }
-        val credentialPrefs = prefs("tigerduck_credentials")
-        credentialPrefs.edit()
-            .putString("ntust_student_id", FIRST)
-            .putString("ntust_password", "first-password")
-            .putString("mail_student_id", FIRST)
-            .putString("mail_password", "mail-password")
-            .putString("library_username", FIRST)
-            .putString("library_password", "library-password")
-            .commit()
-        val othersBefore = credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") }
-        val firstLeft = schoolKeys.associate { (it.file to stored(it)) to prefs(it.file).all[stored(it)] }
-        // The keys of each file the inventory gives the school account, the credentials among them.
-        assertTrue(
-            firstLeft.keys.map { it.first }.toSet()
-                .containsAll(setOf("tigerduck_prefs", "tigerduck_credentials", "tigerduck_auth", "tigerduck_browser_settings")),
-        )
-        assertTrue(firstLeft.values.none { it == null })
-        assertTrue(fillDataCache().all(File::exists))
+    /** What [world] builds: the stores and services a sign-out and a sign-in run over. */
+    private class World(
+        val appPrefs: AppPreferences,
+        val credentials: CredentialManager,
+        val dataCache: DataCache,
+        val bulletinCache: BulletinCache,
+        val imported: ImportedClassTableStore,
+        val tokens: AuthTokenManager,
+        val auth: AuthService,
+        val browserClearings: MutableStateFlow<Int>,
+    )
 
+    /**
+     * The real services over the real stores, as the test below has always built them; the
+     * sign-out's own clearing runs on [appScope].
+     */
+    private fun world(credentialPrefs: SharedPreferences, appScope: CoroutineScope = signOutScope): World {
         val appPrefs = AppPreferences(context)
         val credentials = CredentialManager(credentialPrefs)
         val fixtures = DebugFixtureStore(context)
@@ -298,7 +299,7 @@ class AccountSwitchTest {
                 context, dataCache, WidgetBoundaryScheduler(context, academicCalendar),
                 AnalyticsLogger(context, appPrefs), idleScope, uiLanguage,
             ),
-            appScope = signOutScope,
+            appScope = appScope,
             demoAccount = demoAccount,
             prefs = appPrefs,
             classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
@@ -337,6 +338,41 @@ class AccountSwitchTest {
             clearBrowser = browser::clear,
             browserClearingOwed = { false },
         ).start(effectsScope)
+        return World(appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings)
+    }
+
+    @Test
+    fun `signing in as a second student after a first leaves nothing of the first`() = runBlocking {
+        // The first student signed in, with a School Mail and a library account of their own.
+        schoolKeys.groupBy { it.file }.forEach { (file, keys) ->
+            prefs(file).edit().apply { keys.forEach { put(stored(it), sample(it)) } }.commit()
+        }
+        val credentialPrefs = prefs("tigerduck_credentials")
+        credentialPrefs.edit()
+            .putString("ntust_student_id", FIRST)
+            .putString("ntust_password", "first-password")
+            .putString("mail_student_id", FIRST)
+            .putString("mail_password", "mail-password")
+            .putString("library_username", FIRST)
+            .putString("library_password", "library-password")
+            .commit()
+        val othersBefore = credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") }
+        val firstLeft = schoolKeys.associate { (it.file to stored(it)) to prefs(it.file).all[stored(it)] }
+        // The keys of each file the inventory gives the school account, the credentials among them.
+        assertTrue(
+            firstLeft.keys.map { it.first }.toSet()
+                .containsAll(setOf("tigerduck_prefs", "tigerduck_credentials", "tigerduck_auth", "tigerduck_browser_settings")),
+        )
+        assertTrue(firstLeft.values.none { it == null })
+        assertTrue(fillDataCache().all(File::exists))
+
+        val w = world(credentialPrefs)
+        val credentials = w.credentials
+        val dataCache = w.dataCache
+        val bulletinCache = w.bulletinCache
+        val imported = w.imported
+        val auth = w.auth
+        val browserClearings = w.browserClearings
 
         // What the first student's sessions kept besides: DataCache through its own saves, a
         // bulletin snapshot and an imported class table.
@@ -388,6 +424,128 @@ class AccountSwitchTest {
         assertEquals(SECOND, auth.storedStudentId)
         assertEquals("second-password", credentials.ntustPassword)
         assertNothingOfTheFirstLeft(after = "the second sign-in")
+    }
+
+    // ---- what a sign-out does today, pinned for the refactor (phase 2, T2.2) ----
+
+    /** A scope whose launched work waits until [release], so a test can stand between a sign-out and its wipe. */
+    private class HeldDispatcher : CoroutineDispatcher() {
+        private val held = mutableListOf<Pair<CoroutineContext, Runnable>>()
+        private var open = false
+
+        @Synchronized
+        override fun dispatch(context: CoroutineContext, block: Runnable) {
+            if (open) Dispatchers.IO.dispatch(context, block) else held += context to block
+        }
+
+        @Synchronized
+        fun release() {
+            open = true
+            held.forEach { (context, block) -> Dispatchers.IO.dispatch(context, block) }
+            held.clear()
+        }
+    }
+
+    private fun signedInAsFirst(): SharedPreferences {
+        val credentialPrefs = prefs("tigerduck_credentials")
+        credentialPrefs.edit().clear()
+            .putString("ntust_student_id", FIRST)
+            .putString("ntust_password", "first-password")
+            .commit()
+        return credentialPrefs
+    }
+
+    private fun userFile(name: String) = File(context.filesDir, "TigerDuckData/$name")
+
+    private val mark = UnsentMark("7", "ignored", madeAtMs = 1L)
+
+    @Test
+    fun `a write pinned before the sign-out leaves nothing after the wipe, whether it lands before or after`() = runBlocking {
+        val w = world(signedInAsFirst())
+        val pinned = w.dataCache.writeGeneration()
+
+        // Landing before the wipe: it is on disk, and the wipe takes it.
+        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), pinned))
+        assertTrue(userFile("unsent_marks.json").exists())
+        w.auth.logout()
+        withTimeout(10_000) { signOutJob.children.toList().joinAll() }
+        assertFalse(userFile("unsent_marks.json").exists())
+
+        // Landing after it: the wipe moved the generation, so the write is dropped where it lands.
+        assertFalse(w.dataCache.saveUnsentMarks(listOf(mark), pinned))
+        assertFalse(w.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001")), pinned))
+        withContext(DataCache.Generation(pinned)) {
+            w.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())))
+        }
+        assertEquals(emptyList<UnsentMark>(), w.dataCache.loadUnsentMarks())
+        assertEquals(emptyList<String>(), filesUnder(cacheRoots.getValue("data")))
+        assertEquals(emptyList<Assignment>(), w.dataCache.loadAssignments())
+    }
+
+    @Test
+    fun `work that starts between the sign-in's end and the wipe, and writes after it, leaves nothing`() = runBlocking {
+        val held = HeldDispatcher()
+        val w = world(signedInAsFirst(), CoroutineScope(SupervisorJob() + held))
+
+        w.auth.logout()
+        // The sign-in has ended and the wipe has not run: the gap userDataGeneration closes.
+        assertEquals(null, w.auth.storedStudentId)
+        val startedInTheGap = w.dataCache.writeGeneration()
+        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), startedInTheGap))
+        held.release()
+        withTimeout(10_000) {
+            while (userFile("unsent_marks.json").exists() || w.dataCache.userDataGeneration == startedInTheGap) delay(20)
+        }
+
+        // The work from the gap writes after the wipe: dropped.
+        assertFalse(w.dataCache.saveUnsentMarks(listOf(mark), startedInTheGap))
+        assertFalse(userFile("unsent_marks.json").exists())
+    }
+
+    @Test
+    fun `another student's typed sign-in over a stored one signs nobody out and wipes nothing`() = runBlocking {
+        val credentialPrefs = signedInAsFirst()
+        val w = world(credentialPrefs)
+        userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.writeText("[]")
+        val generationBefore = w.dataCache.userDataGeneration
+        val signedInEmissions = mutableListOf<Boolean>()
+        val watching = effectsScope.launch { w.auth.authState.collect { signedInEmissions += it } }
+        val signIns = effectsScope.async { w.auth.signIns.first() }
+        delay(100)
+
+        assertTrue(w.auth.login(SECOND, "second-password"))
+        withTimeout(10_000) { signIns.await() }
+        watching.cancel()
+
+        assertEquals(SECOND, w.auth.storedStudentId)
+        // Never false in between: no sign-out ran, and so no wipe.
+        assertEquals(listOf(true), signedInEmissions)
+        assertEquals(generationBefore, w.dataCache.userDataGeneration)
+        assertTrue(userFile("unsent_marks.json").exists())
+    }
+
+    @Test
+    fun `the school sign-out leaves the school mail and the library account, stores and credentials`() = runBlocking {
+        val credentialPrefs = signedInAsFirst()
+        credentialPrefs.edit()
+            .putString("mail_student_id", FIRST).putString("mail_password", "mail-password")
+            .putString("library_username", FIRST).putString("library_password", "library-password")
+            .putString("library_token", "library-token")
+            .commit()
+        val mailCache = MailCache(File(context.filesDir, "mail"))
+        mailCache.attachmentsDir.mkdirs()
+        val mailFile = File(mailCache.attachmentsDir, "note.txt").apply { writeText("kept") }
+        val qr = LibraryQRCache<String>().apply { store("payload", null, account = 1, issuedAt = 0L) }
+        val others = credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") }
+        val w = world(credentialPrefs)
+
+        w.auth.logout()
+        withTimeout(10_000) { signOutJob.children.toList().joinAll() }
+
+        assertEquals(null, w.credentials.ntustStudentId)
+        assertEquals(others, credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") })
+        assertTrue(mailFile.exists())
+        assertNotNull(qr.reusable(account = 1, now = 1L))
     }
 
     private companion object {

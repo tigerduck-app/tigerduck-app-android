@@ -46,6 +46,40 @@ class SignOutClearingTest {
     }
 
     @Test
+    fun `the sign-out runs in this order`() {
+        // The order phase 2 keeps while it moves the pieces: the account goes first, and the wipe
+        // follows the demo's exit and the bulletins, on the app scope.
+        val logout = body("fun logout()")
+        val steps = listOf(
+            "credentials.signOutSchoolAccount()",
+            "authTokenManager.logout()",
+            "notificationSettingsSync.cancelPendingPushes()",
+            "courseService.cancelSharedFetches()",
+            "moodleService.cancelSharedFetches()",
+            "sessionManager.signOut()",
+            "prefs.clearSyncStamps()",
+            "setSignedIn(false)",
+            "pushRegistration.unregister(departing)",
+            "demoAccount.exit()",
+            "bulletinCache.clearIn(appScope)",
+            "importedClassTables.clearForSignOut()",
+            "dataCache.clearAllUserData()",
+            "widgetUpdater.updateAll()",
+        )
+        val at = steps.map { step ->
+            logout.indexOf(step).also { assertTrue("logout() calls $step", it >= 0) }
+        }
+        assertEquals("logout() calls its steps in this order", at.sorted(), at)
+        assertEquals(at.size, at.toSet().size)
+        // Between those steps: the read state goes after the session, and the empty-classroom
+        // finder is forgotten before it.
+        assertTrue(logout.indexOf("bulletinReadStateStore.clear()") in at[5]..at[7])
+        assertTrue(logout.indexOf("forgetEmptyClassroom(classroomUsage, prefs)") in at[4]..at[5])
+        // The wipe runs on the app scope, after everything above has been started.
+        assertTrue(logout.indexOf("appScope.launch") in at[10]..at[11])
+    }
+
+    @Test
     fun `the sign-out forgets the term picked in the class table`() {
         // Left behind, the next student's class table would open on the previous student's term.
         assertEquals(1, Regex("""\bprefs\.classTableSelectedSemester = null\b""").findAll(body("fun logout()")).count())
