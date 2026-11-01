@@ -1020,9 +1020,7 @@ class MailRepository @Inject constructor(
 
     override suspend fun writeAttachment(folder: String, uid: Long, partId: String, out: OutputStream) {
         if (account.isDemo) {
-            val bytes = demoList(folder).firstOrNull { it.summary.uid == uid }?.attachmentBytes?.get(partId)
-                ?: "TigerDuck demo attachment".toByteArray()
-            withContext(Dispatchers.IO) { out.write(bytes) }
+            withContext(Dispatchers.IO) { out.write(demoList(folder).firstOrNull { it.summary.uid == uid }?.attachmentBytes?.get(partId) ?: "TigerDuck demo attachment".toByteArray()) }
             return
         }
         withSession { it.writeAttachment(folder, uid, partId, out) }
