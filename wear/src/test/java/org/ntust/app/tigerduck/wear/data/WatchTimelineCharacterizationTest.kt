@@ -292,12 +292,23 @@ class WatchTimelineCharacterizationTest {
     // ---- two classes at once, and ties ----
 
     @Test
-    fun `when two courses overlap the first in the list is on and the other's later period start is next`() {
+    fun `when two courses overlap the first in the list is on and the other, already started, is not next`() {
         val c = course("C", mapOf(2 to listOf("4", "5")), "R-C")             // 11:20-13:10
         assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=C 45 11:20 R-C chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(10, 30)))
-        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=C 45 12:20 R-C chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(11, 30)))
+        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=C 45 11:20 R-C chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(11, 19)))
+        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(11, 30)))
+        assertEquals("ongoing C 45 11:20-13:10 R-C next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(12, 20)))
         assertEquals("ongoing C 45 11:20-13:10 R-C next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(c, p4, p7)), tuesday, at(11, 30)))
         assertEquals("ongoing C 45 11:20-13:10 R-C next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(c, p4, p7)), tuesday, at(12, 15)))
+    }
+
+    @Test
+    fun `with no overlap the next class is the one that starts after, as before`() {
+        val q = course("Q", mapOf(2 to listOf("5", "6")), "R-Q")             // 12:20-14:10
+        val s = snapshot(listOf(p4, q, p7))
+        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=Q 56 12:20 R-Q chg=false", now(s, tuesday, at(11, 19)))
+        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=Q 56 12:20 R-Q chg=false", now(s, tuesday, at(11, 30)))
+        assertEquals("ongoing Q 56 12:20-14:10 R-Q next=P7 78 14:20 TR-2 chg=false", now(s, tuesday, at(12, 20)))
     }
 
     @Test
@@ -307,7 +318,7 @@ class WatchTimelineCharacterizationTest {
         assertEquals("today D1 3 10:20 R-1 chg=false", now(snapshot(listOf(d1, d2)), tuesday, at(9, 0)))
         assertEquals("today D2 34 10:20 R-2 chg=false", now(snapshot(listOf(d2, d1)), tuesday, at(9, 0)))
         assertEquals("ongoing D2 34 10:20-12:10 R-2 next=- chg=false", now(snapshot(listOf(d2, d1)), tuesday, at(10, 20)))
-        assertEquals("ongoing D1 3 10:20-11:10 R-1 next=D2 34 11:20 R-2 chg=false", now(snapshot(listOf(d1, d2)), tuesday, at(10, 20)))
+        assertEquals("ongoing D1 3 10:20-11:10 R-1 next=- chg=false", now(snapshot(listOf(d1, d2)), tuesday, at(10, 20)))
     }
 
     // ---- what the phone sends and the watch stores ----
