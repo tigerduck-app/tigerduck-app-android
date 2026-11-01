@@ -44,6 +44,13 @@ class BackendLoginRequestTest {
     }
 
     @Test
+    fun `a sign-in body is sent once, so a redirect does not send the token on`() = runTest {
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = "private")
+
+        assertTrue(backend.received(LOGIN).single().sentOnce)
+    }
+
+    @Test
     fun `a sign-in without a Moodle token sends nothing`() = runTest {
         val failure = runCatching {
             manager.login("B00000000", moodleToken = "", moodlePrivateToken = null)

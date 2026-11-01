@@ -30,6 +30,8 @@ internal class ScriptedBackend {
         val query: String = "",
         /** The `X-TigerSync-Protocol` header, null without one. */
         val protocol: String? = null,
+        /** Whether the request body is one OkHttp sends only once, so no redirect sends it again. */
+        val sentOnce: Boolean = false,
     )
 
     class Held {
@@ -85,7 +87,7 @@ internal class ScriptedBackend {
         val sent = request.body?.let { Buffer().also(it::writeTo).readUtf8() }.orEmpty()
         received += Received(
             endpoint, request.header("Authorization"), sent, request.url.host, request.url.encodedQuery.orEmpty(),
-            request.header("X-TigerSync-Protocol"),
+            request.header("X-TigerSync-Protocol"), request.body?.isOneShot() == true,
         )
         if (endpoint == "POST /auth/login") onLogin()
         val next = queued[endpoint]?.poll()
