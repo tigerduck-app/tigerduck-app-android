@@ -120,14 +120,6 @@ class MoodleCourseRepository internal constructor(
     /** The demo account's copies, held for the session; never written to the device. */
     private var demoCache = MemoryCachePort()
 
-    /**
-     * Bumped at every sign-out. A store holds the one it was built in, so one left on a page
-     * further down the back stack is not current after signing back in, even as the same account:
-     * its scope was cancelled with the sign-out.
-     */
-    @Volatile
-    private var generation = 0
-
     init {
         appScope.launch {
             authState.collect { signedIn -> if (!signedIn) clear() }
@@ -199,13 +191,17 @@ class MoodleCourseRepository internal constructor(
         liveApi
     }
 
-    /** One per account and sign-in, shared by its stores and its assignments. */
+    /**
+     * One per account and sign-in, shared by its stores and its assignments. A store holds the
+     * sign-in it was built in, so one left on a page further down the back stack is not current
+     * after signing back in, even as the same account: its scope was cancelled with the sign-out.
+     */
     private fun contextLocked(account: String): MoodleCacheContext = contexts.getOrPut(account) {
-        val built = generation
+        val signIn = currentSignIn()
         MoodleCacheContext(
             account = account,
-            cache = if (isDemo()) demoCache else cachePort(account, currentSignIn()),
-            isCurrent = { generation == built && signedIn() && account() == account },
+            cache = if (isDemo()) demoCache else cachePort(account, signIn),
+            isCurrent = { signIn.isCurrent && signedIn() && account() == account },
         )
     }
 
@@ -225,7 +221,6 @@ class MoodleCourseRepository internal constructor(
     }
 
     private suspend fun clear() = lock.withLock {
-        generation++
         downloads?.clear()
         scope.cancel()
         scope = newScope()

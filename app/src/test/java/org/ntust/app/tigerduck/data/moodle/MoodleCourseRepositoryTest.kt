@@ -167,7 +167,9 @@ class MoodleCourseRepositoryTest {
         val repository = repository()
         val before = repository.store(5)!!
 
+        series.end()
         authState.value = false
+        series.open()
         authState.value = true
 
         assertFalse("its fetches were stopped with the sign-out", before.isCurrent())

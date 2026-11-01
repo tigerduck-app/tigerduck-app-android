@@ -3,8 +3,10 @@ package org.ntust.app.tigerduck.network
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.io.InterruptedIOException
-import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Keeps an account's requests out of the session of whoever signs in after
@@ -17,20 +19,13 @@ import java.util.concurrent.atomic.AtomicInteger
  * account's login found that session already signed in and used it without
  * submitting its own credentials.
  *
- * Every call is marked with the account it started under. Once the account
- * has moved on, a call from before is refused its next network hop, and a
- * response that arrives after the move keeps its cookies out of the jar.
+ * Every call is marked with the sign-in it started under. Once that has
+ * ended, a call from before is refused its next network hop, and a response
+ * that arrives after keeps its cookies out of the jar.
  */
-internal class AccountSessionGuard {
+internal class AccountSessionGuard(private val session: AccountSession) {
 
-    private class StartedUnder(val account: Int)
-
-    private val account = AtomicInteger()
-
-    /** Sign-out: every call already running now belongs to the account that left. */
-    fun nextAccount() {
-        account.incrementAndGet()
-    }
+    private class StartedUnder(val signIn: SignIn)
 
     /** Application interceptor: marks a call with the account it starts under. */
     val markCall = Interceptor { chain -> chain.proceed(marked(chain.request())) }
@@ -48,13 +43,14 @@ internal class AccountSessionGuard {
         withoutStaleCookies(request, chain.proceed(request))
     }
 
+    @OptIn(StartsAccountWork::class)
     internal fun marked(request: Request): Request =
         if (request.tag(StartedUnder::class.java) != null) request
-        else request.newBuilder().tag(StartedUnder::class.java, StartedUnder(account.get())).build()
+        else request.newBuilder().tag(StartedUnder::class.java, StartedUnder(session.current)).build()
 
-    /** Whether [request] started under an account that has since signed out. */
+    /** Whether [request] started under a sign-in that has since ended. */
     internal fun isStale(request: Request): Boolean =
-        request.tag(StartedUnder::class.java)?.let { it.account != account.get() } == true
+        request.tag(StartedUnder::class.java)?.let { !it.signIn.isCurrent } == true
 
     internal fun withoutStaleCookies(request: Request, response: Response): Response =
         if (isStale(request)) response.newBuilder().removeHeader("Set-Cookie").build() else response

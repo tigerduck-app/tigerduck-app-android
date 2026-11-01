@@ -100,8 +100,8 @@ class HomeSyncState(
      */
     var pendingResult: BackendSyncResult? = null
 
-    /** Last revision the backend reported; the poller compares against it. */
-    var lastKnownRevision: Long = 0
+    /** Last revision the backend reported for this sign-in; the poller compares against it. */
+    val lastKnownRevision = org.ntust.app.tigerduck.shared.account.SignInBound(0L)
 }
 
 class HomeBackendSync @Inject constructor(
@@ -245,7 +245,7 @@ class HomeBackendSync @Inject constructor(
             prefs.school.syncedCategories.run { set(get() + categoriesSynced(switchedOn, took, prefs), signIn) }
             // Only for the account this sync fetched for: set after a sign-out
             // reset it, the departing account's would stand for the next one.
-            signIn.ifCurrent { state.lastKnownRevision = result.currentRevision }
+            state.lastKnownRevision.set(result.currentRevision, signIn)
             ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.BACKEND)
             widgetUpdater.requestUpdate()

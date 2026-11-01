@@ -29,7 +29,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 451
+    "count": 448
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -115,7 +115,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/CredentialManager.kt",
     "kind": "account-counter",
-    "count": 4
+    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/sharing/ImportedClassTableStore.kt",
@@ -617,7 +617,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsViewModel.kt",
     "kind": "account-counter",
-    "count": 2
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsViewModel.kt",
@@ -951,11 +951,6 @@
     "lines": 162
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/emptyclassroom/EmptyClassroomViewModel.kt",
-    "kind": "account-counter",
-    "count": 4
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/emptyclassroom/FinderEnvironment.kt",
     "kind": "demo-check",
     "count": 4
@@ -1054,7 +1049,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-file",
-    "count": 1195
+    "count": 1191
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",

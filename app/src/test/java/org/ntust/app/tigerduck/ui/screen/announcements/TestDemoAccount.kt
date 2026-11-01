@@ -11,17 +11,16 @@ import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.demo.DemoAccount
 
-/**
- * The school account whose sign-out the bulletin list watches for; see
- * [CredentialManager.schoolAccountGeneration]. Unencrypted, as the tests cannot reach the keystore.
- */
-internal fun testCredentials(context: Application) =
-    CredentialManager(context.getSharedPreferences("credentials-test", Context.MODE_PRIVATE))
+/** The sessions whose school sign-in the bulletin list asks after; see [AccountSessions]. */
+internal fun testSessions(context: Application) = AccountSessions(
+    DebugFixtureStore(context),
+    CoroutineScope(Dispatchers.Unconfined),
+    SignOutOwed(context.getSharedPreferences("account-wipe-test", Context.MODE_PRIVATE)),
+)
 
 /** The demo account the bulletin list consults; signed in when [fixtures] says demo mode is on. */
 internal fun testDemoAccount(
@@ -36,5 +35,5 @@ internal fun testDemoAccount(
     cache,
     prefs,
     ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { null }, Dispatchers.Unconfined),
-    AccountSessions(DebugFixtureStore(context), CoroutineScope(Dispatchers.Unconfined), SignOutOwed(context.getSharedPreferences("account-wipe-test", Context.MODE_PRIVATE))),
+    testSessions(context),
 )

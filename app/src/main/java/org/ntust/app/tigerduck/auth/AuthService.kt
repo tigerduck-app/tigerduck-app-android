@@ -55,7 +55,6 @@ class AuthService @Inject constructor(
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
     private val classroomUsage: org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService,
-    private val heldShareLink: org.ntust.app.tigerduck.HeldShareLink,
 ) {
     /**
      * A demo session presents as signed in, with or without an account: `authState` is what every
@@ -406,8 +405,6 @@ class AuthService @Inject constructor(
         // The term picked in the class table was the departing student's. Cleared, the next
         // student's picker follows the newest term.
         must("class table term") { prefs.school.classTableSelectedSemester.clear() }
-        // A share link held for a sign-in is not one for whoever signs in next.
-        once("held share link") { heldShareLink.drop() }
         // A re-enable check compares this device's data, which is wiped below.
         // Left pending, it would hold the next session's assignment marks and
         // then offer Use Local, sending that emptied data over the server's.

@@ -11,6 +11,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
@@ -19,9 +21,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportModel
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportModel.Prompt
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportViewModel
@@ -228,7 +232,7 @@ class ShareCodeLinkTest {
 
     @Test
     fun `a link before sign-in or during onboarding is held, and opens once both are done`() {
-        val held = HeldShareLink()
+        val held = HeldShareLink(AccountSession(SignInSeries(), CoroutineScope(SupervisorJob())))
 
         assertNull(held.arrived(code, mayOpen = false))
         assertNull("still signed out", held.release(mayOpen = false))
@@ -241,7 +245,8 @@ class ShareCodeLinkTest {
 
     @Test
     fun `a newer link replaces a held one, and a sign-out drops it`() {
-        val held = HeldShareLink()
+        val series = SignInSeries()
+        val held = HeldShareLink(AccountSession(series, CoroutineScope(SupervisorJob())))
 
         held.arrived(code, mayOpen = false)
         held.arrived(otherCode, mayOpen = false)
@@ -252,8 +257,14 @@ class ShareCodeLinkTest {
         assertNull(held.release(mayOpen = true))
 
         held.arrived(code, mayOpen = false)
-        held.drop()
+        series.end()
         assertNull(held.release(mayOpen = true))
+
+        // The same student back, or another: what was held was for the sign-in that ended.
+        series.open()
+        assertNull(held.release(mayOpen = true))
+        held.arrived(code, mayOpen = false)
+        assertEquals("the next sign-in holds its own", code, held.release(mayOpen = true))
     }
 
     @Test
@@ -268,9 +279,8 @@ class ShareCodeLinkTest {
             "released only while started",
             "repeatOnLifecycle(Lifecycle.State.STARTED)" in activity.substring(maxOf(0, release - 600), release),
         )
-        assertTrue(".drop() at sign-out", "heldShareLink.drop()" in source("auth/AuthService.kt"))
         // In memory only: nothing for it to be written with.
-        assertTrue(HeldShareLink::class.java.declaredConstructors.all { it.parameterCount == 0 })
+        assertTrue(HeldShareLink::class.java.declaredConstructors.all { it.parameterTypes.contentEquals(arrayOf(AccountSession::class.java)) })
     }
 
     @Test

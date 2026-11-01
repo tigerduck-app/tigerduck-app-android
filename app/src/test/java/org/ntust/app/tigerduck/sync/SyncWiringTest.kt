@@ -228,7 +228,7 @@ class SyncWiringTest {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "pollRevision",
             "fetchChanges = syncApiClient::fetchChanges", "retryUnsent = backendSync::sendWhatWaits",
-            "setLastKnownRevision = { syncState.lastKnownRevision = it }",
+            "setLastKnownRevision = syncState.lastKnownRevision::set",
         )
         assertCalls(
             "ui/screen/home/HomeBackendSync.kt", "retryUnsent",
@@ -242,14 +242,14 @@ class SyncWiringTest {
     /** tigerduck-app-android#120: the departing account's watermark let the next one's feed read skip its own data. */
     @Test
     fun `the watermark is the signed-in account's alone`() {
-        val home = source("ui/screen/home/HomeViewModel.kt").joinToString("\n")
-        val signedOut = home.indexOf("if (!isAuthed) {")
-        val reset = home.indexOf("syncState.lastKnownRevision = 0", signedOut)
-        assertTrue("Home no longer forgets the watermark at a sign-out", signedOut >= 0 && reset in signedOut until home.indexOf("} else if (signedIn)", signedOut))
+        // A SignInBound reads empty once its sign-in has ended, whoever saw the sign-out or not:
+        // the next account's feed read from the watermark would skip that account's own changes,
+        // and from 0 the poll runs a full sync until one lands for the account that signs in.
+        val state = source("ui/screen/home/HomeBackendSync.kt").joinToString("\n")
+        assertTrue("the watermark no longer goes with its sign-in", "val lastKnownRevision = org.ntust.app.tigerduck.shared.account.SignInBound(0L)" in state)
         assertTrue(
-            "Home's sync no longer sets the watermark only under the sign-in it fetched with",
-            Regex("""signIn\.ifCurrent \{\s*state\.lastKnownRevision = result\.currentRevision""")
-                .containsMatchIn(body("ui/screen/home/HomeBackendSync.kt", "pull")),
+            "Home's sync no longer sets the watermark under the sign-in it fetched with",
+            "state.lastKnownRevision.set(result.currentRevision, signIn)" in body("ui/screen/home/HomeBackendSync.kt", "pull"),
         )
     }
 

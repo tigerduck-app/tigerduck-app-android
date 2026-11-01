@@ -205,7 +205,7 @@ class HomePullAcrossSignInTest {
             "marks synced once" to prefs.school.assignmentMarksSyncedOnce.get(),
             "categories synced" to prefs.school.syncedCategories.get(),
             "course reset read" to prefs.school.lastSeenCoursesResetAt.get(),
-            "watermark" to state.lastKnownRevision,
+            "watermark" to state.lastKnownRevision.value,
             "marks shown" to state.ignoredAssignmentIds.value,
             "ignores shown" to state.ignoredCourseKeys.value,
             "colors shown" to state.allCourses.value.mapNotNull { it.customColorHex },

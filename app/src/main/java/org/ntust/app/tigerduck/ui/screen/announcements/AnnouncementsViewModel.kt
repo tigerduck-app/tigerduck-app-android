@@ -20,12 +20,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.AppReturns
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.cache.BulletinCache
-import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.BulletinApiClient
@@ -97,7 +99,7 @@ class AnnouncementsViewModel @Inject constructor(
     private val repository: BulletinRepository,
     private val readState: BulletinReadStateStore,
     private val demoAccount: DemoAccount,
-    private val credentials: CredentialManager,
+    private val sessions: AccountSessions,
     appReturns: AppReturns,
 ) : ViewModel() {
 
@@ -457,20 +459,18 @@ class AnnouncementsViewModel @Inject constructor(
     }
 
     /**
-     * Whose list a fetch is for: the school account, read from
-     * [CredentialManager.schoolAccountGeneration], and the backend, by [BulletinRepository.generation],
-     * which each move of the API endpoint to another backend moves -- there and back again too.
-     * A school sign-out and an endpoint move each let go of the cached list and its date
-     * ([org.ntust.app.tigerduck.auth.AuthService.logout],
-     * [org.ntust.app.tigerduck.ui.screen.debug.EndpointChange]).
+     * Whose list a fetch is for: the school's sign-in, and the backend, by
+     * [BulletinRepository.generation], which each move of the API endpoint to another backend moves,
+     * there and back again too. A school sign-out and an endpoint move each let go of the cached
+     * list and its date ([org.ntust.app.tigerduck.auth.AuthService.logout], `EndpointChange`).
      */
-    private data class ListOwner(val account: Int, val generation: Int)
+    private data class ListOwner(val signIn: SignIn, val generation: Int)
 
-    private fun listOwner() = ListOwner(credentials.schoolAccountGeneration, repository.generation)
+    @OptIn(StartsAccountWork::class)
+    private fun listOwner() = ListOwner(sessions.school.current, repository.generation)
 
     /** Whether the list [owner] read is still the one kept: no sign-out and no endpoint move since. */
-    private fun keeps(owner: ListOwner): Boolean =
-        credentials.isSchoolAccount(owner.account) && repository.generation == owner.generation
+    private fun keeps(owner: ListOwner) = owner.signIn.isCurrent && repository.generation == owner.generation
 
     /**
      * After an endpoint move: the departments and categories, and the ones this entry selected,

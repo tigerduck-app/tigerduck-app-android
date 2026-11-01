@@ -74,7 +74,7 @@ class BulletinSettingsSignedInTest {
     private fun announcements(signedIn: Boolean) {
         val vm = AnnouncementsViewModel(
             SavedStateHandle(), api(), cache, BulletinRepository(), BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache, DebugFixtureStore(context)), testCredentials(context),
+            testDemoAccount(context, prefs, cache, DebugFixtureStore(context)), testSessions(context),
             AppReturns(now = { 0L }, register = {}),
         )
         composeRule.setContent {

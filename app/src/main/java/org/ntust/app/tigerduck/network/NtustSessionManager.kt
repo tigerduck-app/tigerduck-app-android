@@ -28,8 +28,8 @@ class NtustSessionManager @Inject constructor(
     /** The app's pinned trust; null only in tests, for the platform's. */
     tls: PinnedTls? = null,
     /**
-     * The school's session, which the login stamp is written under. The default is one of its
-     * own, for tests that are not about it.
+     * The school's session, which the login stamp is written under and each call is marked
+     * with. The default is one of its own, for tests that are not about it.
      */
     private val session: AccountSession = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob())),
 ) {
@@ -76,7 +76,7 @@ class NtustSessionManager @Inject constructor(
         maxRequestsPerHost = 20
     }
 
-    private val accountGuard = AccountSessionGuard()
+    private val accountGuard = AccountSessionGuard(session)
 
     val client: OkHttpClient = pinnedClientBuilder(tls)
         // Ahead of the pin-mismatch retry, so a call tried again keeps the account it started
@@ -153,15 +153,10 @@ class NtustSessionManager @Inject constructor(
     }
 
     /**
-     * Sign-out: drops the session, and keeps every request still running for
-     * the departing account out of the next one's — see [AccountSessionGuard].
-     * [invalidateSession] alone is for a login starting over as the same
-     * account.
+     * Sign-out: drops the session. The sign-in ended before this, and that keeps every request
+     * still running for the departing account out of the next one's; see [AccountSessionGuard].
      */
-    fun signOut() {
-        accountGuard.nextAccount()
-        invalidateSession()
-    }
+    fun signOut() = invalidateSession()
 
     /**
      * Drops one service's cookies and keeps the SSO session, so the next request to [host] signs

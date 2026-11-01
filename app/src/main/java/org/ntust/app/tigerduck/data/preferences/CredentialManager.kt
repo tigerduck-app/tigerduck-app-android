@@ -184,29 +184,12 @@ class CredentialManager private constructor(
         }
     }
 
-    // Moved by each school sign-out, under the library account's lock.
-    private var schoolAccount = 0
-
-    /**
-     * Moved by each school sign-out, so work begun for the school account,
-     * such as a bulletin fetch, stores nothing once it has left (see
-     * [isSchoolAccount]). The library account is not touched by it.
-     */
-    val schoolAccountGeneration: Int get() = libraryAccount.atomically { schoolAccount }
-
-    /** Whether no school sign-out has come since [read] was read from [schoolAccountGeneration]. */
-    fun isSchoolAccount(read: Int): Boolean = libraryAccount.atomically { schoolAccount == read }
-
     /**
      * A school sign-out's credentials: the school account goes, and the
      * library account stays, whoever's it is, as each account signs in and
-     * out by itself. Moves [schoolAccountGeneration], under the library's
-     * lock as [isSchoolAccount] reads it.
+     * out by itself.
      */
-    fun signOutSchoolAccount() {
-        clearNtustCredentials()
-        libraryAccount.atomically { schoolAccount++ }
-    }
+    fun signOutSchoolAccount() = clearNtustCredentials()
 
     // ── School mail — its own account, never shared with the NTUST or library one ──
 

@@ -12,7 +12,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertNotNull
-import org.ntust.app.tigerduck.HeldShareLink
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.session.AccountSessions
@@ -180,7 +179,6 @@ internal fun accountWorld(
         demoAccount = demoAccount,
         prefs = appPrefs,
         classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
-        heldShareLink = HeldShareLink(),
     )
     // The in-app browser's WebView storage, counted each time it is cleared.
     val browserClearings = MutableStateFlow(0)

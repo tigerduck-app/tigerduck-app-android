@@ -24,7 +24,7 @@ class EmptyClassroomSignOutTest {
         transport.serve(Pages.page(rows = null, campus = ""))
         transport.serve(Pages.page(viewState = "campus"))
         transport.serve(Pages.page(rows = listOf(Pages.row("IB-508", ".............."))))
-        service.usage(wednesday, false, false, ClassroomUsageService.Credentials("B00000000", "not-a-password"))
+        service.usage(wednesday, false, false, ClassroomUsageService.Credentials("B00000000", "not-a-password"), testSignIn())
         assertNotNull(service.keptUsage(wednesday))
         assertEquals("TR", prefs.school.emptyClassroomBuilding.get())
 

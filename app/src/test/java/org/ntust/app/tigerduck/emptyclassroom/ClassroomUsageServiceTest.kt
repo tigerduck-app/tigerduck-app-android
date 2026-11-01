@@ -18,6 +18,8 @@ import org.ntust.app.tigerduck.emptyclassroom.ClassroomPageFixtures as Pages
 import org.ntust.app.tigerduck.network.lockedUnlessStale
 import java.time.LocalDate
 import kotlin.coroutines.CoroutineContext
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The cour01 client against made-up pages: the sign-in, the campus and date postbacks, the pages
@@ -70,8 +72,17 @@ class ClassroomUsageServiceTest {
 
         fun form(index: Int) = transport.sent[index].fields
 
+        val series = SignInSeries()
+
         suspend fun usage(day: LocalDate, isToday: Boolean = false, force: Boolean = false) =
-            service.usage(day, isToday, force, credentials)
+            service.usage(day, isToday, force, credentials, series.current)
+
+        /** What a sign-out does to the service: the sign-in ends first, then what it read goes. */
+        fun signOut() {
+            series.end()
+            service.forget()
+            series.open()
+        }
     }
 
     private companion object {
@@ -233,7 +244,7 @@ class ClassroomUsageServiceTest {
         val service = ClassroomUsageService(transport, { _, _ -> false }, {}, { null }, { 0L }, Dispatchers.Unconfined)
         transport.serve(Pages.SIGN_IN_PAGE)
 
-        assertThrows<ClassroomUsageError.NotSignedIn> { service.usage(wednesday, false, false, credentials) }
+        assertThrows<ClassroomUsageError.NotSignedIn> { service.usage(wednesday, false, false, credentials, testSignIn()) }
         assertEquals(1, transport.sent.size)
     }
 
@@ -243,7 +254,7 @@ class ClassroomUsageServiceTest {
         harness.serveFirstDay()
         harness.usage(wednesday)
 
-        harness.service.forget()
+        harness.signOut()
 
         assertNull(harness.service.keptUsage(wednesday))
         harness.serveFirstDay()
@@ -262,11 +273,30 @@ class ClassroomUsageServiceTest {
         val read = async { runCatching { harness.usage(wednesday) } }
         runCurrent()
         assertEquals(3, harness.transport.sent.size)
-        harness.service.forget()
+        harness.signOut()
         gate.complete(Unit)
 
         assertTrue(read.await().exceptionOrNull() is ClassroomUsageError.SignedOut)
         assertNull(harness.service.keptUsage(wednesday))
+    }
+
+    @Test
+    fun `an answer the sign-out overtakes as it is kept stays for no one`() = runTest {
+        val series = SignInSeries()
+        val transport = FakeCour01Transport()
+        // The clock is read last, as the answer is dated: past every check of a page.
+        val service = ClassroomUsageService(transport, { _, _ -> true }, {}, { null }, {
+            series.end()
+            0L
+        }, Dispatchers.Unconfined)
+        transport.serve(Pages.page(rows = null, campus = ""))
+        transport.serve(Pages.page(viewState = "campus"))
+        transport.serve(Pages.page(rows = listOf(Pages.row("IB-508", ".............."))))
+
+        val read = runCatching { service.usage(wednesday, false, false, credentials, series.current) }
+
+        assertTrue(read.exceptionOrNull() is ClassroomUsageError.SignedOut)
+        assertNull("nothing of the account that left stays for the next", service.keptUsage(wednesday))
     }
 
     @Test
@@ -278,7 +308,7 @@ class ClassroomUsageServiceTest {
 
         val read = async { runCatching { harness.usage(thursday) } }
         runCurrent()
-        harness.service.forget()
+        harness.signOut()
         gate.complete(Unit)
 
         assertTrue(read.await().exceptionOrNull() is ClassroomUsageError.SignedOut)
@@ -298,7 +328,7 @@ class ClassroomUsageServiceTest {
         val read = async { runCatching { harness.usage(wednesday) } }
         runCurrent()
         assertEquals(1, harness.signInAttempts)
-        harness.service.forget()
+        harness.signOut()
         harness.ssoLock.unlock()
 
         assertTrue(read.await().exceptionOrNull() is ClassroomUsageError.SignedOut)
@@ -348,7 +378,7 @@ class ClassroomUsageServiceTest {
         transport.serve(Pages.page(rows = listOf(Pages.row("IB-508", "..............")), pager = Pages.firstOfTwoPages))
         transport.serve(Pages.page(rows = listOf(Pages.row("TR-617", "..............")), pager = Pages.secondOfTwoPages))
 
-        service.usage(wednesday, false, false, credentials)
+        service.usage(wednesday, false, false, credentials, testSignIn())
 
         assertEquals(4, parsed)
     }
@@ -369,7 +399,7 @@ class ClassroomUsageServiceTest {
         runCurrent()
         val second = async { runCatching { harness.usage(thursday) } }
         runCurrent()
-        harness.service.forget()
+        harness.signOut()
         gate.complete(Unit)
 
         assertTrue(first.await().exceptionOrNull() is ClassroomUsageError.SignedOut)
