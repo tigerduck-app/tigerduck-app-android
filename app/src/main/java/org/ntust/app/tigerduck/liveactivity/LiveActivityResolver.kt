@@ -4,7 +4,7 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
-import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import java.util.Date
@@ -23,7 +23,7 @@ import java.util.Date
  * 3. classPreparing  — next course within `classPreparingLeadTime`
  *
  * Today's classes are the timetable's as the school's course changes leave
- * them ([CourseMeetings.meetingSlots]), as iOS's `CourseTimelineResolver`
+ * them ([ClassTimeline]), as iOS's `CourseTimelineResolver`
  * builds its timeline from them: a cancelled class is passed over like a
  * skipped one, and the rest run at their changed times in their changed
  * rooms.
@@ -41,10 +41,10 @@ class LiveActivityResolver {
     ): LiveActivitySnapshot? {
         if (!preferences.isEnabled) return null
 
-        val todaySlots = classesToday(courses, now, skippedDates, changes)
+        val meeting = coursesMeeting(courses, now, skippedDates)
         // Whether or not the in-class scenario is on: a deadline shown now
         // says whether a class is going on under it.
-        val current = todaySlots.firstOrNull { !now.before(it.start) && now.before(it.end) }
+        val current = ClassTimeline.ongoing(meeting, now.toInstant(), changes).firstOrNull()?.let(::Slot)
 
         if (preferences.showAssignment) {
             val urgent = assignments
@@ -60,9 +60,8 @@ class LiveActivityResolver {
         }
 
         if (preferences.showClassPreparing) {
-            val upcoming = todaySlots
-                .filter { it.start.after(now) }
-                .minByOrNull { it.start }
+            // Today alone: a class tomorrow is not one to get ready for.
+            val upcoming = ClassTimeline.next(meeting, now.toInstant(), changes, daysAhead = 0)?.let(::Slot)
             if (upcoming != null) {
                 val secUntil = (upcoming.start.time - now.time) / 1000
                 if (secUntil <= preferences.classPreparingLeadTimeSec) {
@@ -112,7 +111,7 @@ class LiveActivityResolver {
     /**
      * Today's classes that meet, by start: none the user skipped or the
      * school cancelled. Each piece of a meeting ends at its own end, as iOS
-     * ends a class's activity ([CourseMeetings.hasEnded], #905); one a change
+     * ends a class's activity ([org.ntust.app.tigerduck.shared.timeline.CourseMeetings.hasEnded], #905); one a change
      * dropped is not built at all, so the meeting's other pieces carry on
      * (#904).
      */
@@ -123,12 +122,22 @@ class LiveActivityResolver {
         changes: CourseChanges,
     ): List<Slot> {
         val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
-        return CourseMeetings.meetingSlots(
-            courses, today, changes,
-            // LiveActivityManager hands over no courses on a day classes do not meet.
-            isClassDay = { true },
-            skipped = { course, day -> skippedDates[course.courseNo]?.contains(day.toString()) == true },
-        ).map(::Slot)
+        return ClassTimeline.meetings(coursesMeeting(courses, now, skippedDates), today, changes)
+            .filter { !it.isCancelled }
+            .map(::Slot)
+    }
+
+    /**
+     * The courses not skipped today. The timeline doesn't know skipped dates, so they are left
+     * out here; LiveActivityManager hands over no courses on a day classes do not meet.
+     */
+    private fun coursesMeeting(
+        courses: List<Course>,
+        now: Date,
+        skippedDates: Map<String, List<String>>,
+    ): List<Course> {
+        val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().toString()
+        return courses.filter { skippedDates[it.courseNo]?.contains(today) != true }
     }
 
     private fun inClassSnapshot(slot: Slot, now: Date, accentHex: Int): LiveActivitySnapshot {
