@@ -65,6 +65,9 @@ class AccountSession(
         running.forEach { it.cancel() }
     }
 
+    /** Whether a sign-in is open now. */
+    val isOpen: Boolean get() = signIns.isOpen.value
+
     /** Whether a sign-out's wipe is still owed: a process death cut it short. */
     val wipeOwed: Boolean get() = owed?.owed == true
 

@@ -99,6 +99,7 @@ class TypedAccountSignInTest {
         schoolSignIn = { studentId, password -> school.signIn(SERVICE, studentId, password) },
         signInInteractively = { signIn -> signIn(GENERATION) == SignInAttempt.SIGNED_IN },
         awaitOpen = { session.awaitOpen() },
+        isOpen = { session.isOpen },
         signInGeneration = { generation },
         accountLock = accountLock,
         storedStudentId = { stored?.first },

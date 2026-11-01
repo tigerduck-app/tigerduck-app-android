@@ -33,10 +33,12 @@ internal class TypedAccountSignIn(
         signIn: suspend (signInGeneration: Int) -> SignInAttempt,
     ) -> Boolean,
     /**
-     * Returns once no sign-out's wipe is under way: a sign-in made during it would store an
-     * account the wipe then takes. A cancelled wait leaves the next sign-in free.
+     * Returns once no sign-out is under way: a sign-in made during one would store an account its
+     * wipe then takes. A cancelled wait leaves the next sign-in free.
      */
     private val awaitOpen: suspend () -> Unit,
+    /** Whether no sign-out is under way, read now. A sign-out closes this before it moves [signInGeneration]. */
+    private val isOpen: () -> Boolean,
     /** [AuthTokenManager.signInGeneration], which a sign-out moves while it holds [accountLock]. */
     private val signInGeneration: () -> Int,
     /** Held by a sign-out while it drops the stored account and moves [signInGeneration]. */
@@ -78,8 +80,7 @@ internal class TypedAccountSignIn(
         prepareSignedIn: suspend () -> Unit,
         afterShown: suspend (signInGeneration: Int, sameStudent: Boolean) -> SignInAttempt,
     ): Outcome {
-        awaitOpen()
-        val generation = signInGeneration()
+        val generation = generationOnceOpen()
         // Checked before anything goes out, so these credentials never reach NTUST.
         if (isDemoAccount(studentId, password)) {
             // Demo mode is on disk once it goes on.
@@ -115,6 +116,18 @@ internal class TypedAccountSignIn(
             afterShown(signIn, sameStudent)
         }
         return outcome
+    }
+
+    /**
+     * The generation of a moment with no sign-out under way. A sign-out that landed before it is
+     * read has closed the session, which is then waited out again; one that lands after moves it.
+     */
+    private suspend fun generationOnceOpen(): Int {
+        while (true) {
+            awaitOpen()
+            val generation = signInGeneration()
+            if (isOpen()) return generation
+        }
     }
 
     /** Runs [block] under [accountLock] and says so, unless a sign-out has moved [generation]. */

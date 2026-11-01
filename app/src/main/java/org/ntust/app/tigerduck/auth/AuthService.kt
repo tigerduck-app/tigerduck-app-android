@@ -184,6 +184,7 @@ class AuthService @Inject constructor(
         },
         signInInteractively = { signIn -> authTokenManager.signInInteractively(signIn) },
         awaitOpen = authTokenManager.session::awaitOpen,
+        isOpen = { authTokenManager.session.isOpen },
         signInGeneration = { authTokenManager.signInGeneration },
         accountLock = accountLock,
         storedStudentId = { credentials.ntustStudentId },
@@ -376,10 +377,6 @@ class AuthService @Inject constructor(
         }
     }
 
-    /**
-     * The library sign-in after the school's, unless the library token is still good. [generation]
-     * was read before the sign-in began: a sign-out since leaves none of what it stores.
-     */
     fun logout() {
         // The school account alone: the library account and the school mail stay signed in
         // (decided for Android on 2026-10-22). One step for a sign-in under way, which checks the

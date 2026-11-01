@@ -130,11 +130,12 @@ class AccountSessionTest {
 
     private var stored: Pair<String, String>? = null
 
-    private fun typedSignIn(session: AccountSession) = TypedAccountSignIn(
+    private fun typedSignIn(session: AccountSession, signInGeneration: () -> Int = { 1 }) = TypedAccountSignIn(
         schoolSignIn = { _, _ -> true },
         signInInteractively = { signIn -> signIn(1) == SignInAttempt.SIGNED_IN },
         awaitOpen = session::awaitOpen,
-        signInGeneration = { 1 },
+        isOpen = { session.isOpen },
+        signInGeneration = signInGeneration,
         accountLock = Any(),
         storedStudentId = { stored?.first },
         writeAccount = { studentId, password -> stored = studentId to password },
@@ -161,6 +162,31 @@ class AccountSessionTest {
 
         school.open()
 
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, withTimeout(5_000) { outcome.await() })
+        assertEquals(STUDENT to "made-up-password", stored)
+    }
+
+    @Test
+    fun `a sign-out landing just after the wait is waited out too`() = runBlocking {
+        // The session is open when the sign-in looks, and a sign-out lands before it reads the
+        // generation: read after the move, that generation would never show the sign-out.
+        val school = session()
+        var generation = 1
+        val outcome = scope.async {
+            typedSignIn(school) {
+                if (generation == 1) {
+                    school.signIns.end()
+                    generation = 2
+                }
+                generation
+            }.typed()
+        }
+
+        delay(200)
+        assertNull("stored during the wipe, the account would go with it", stored)
+        assertFalse(outcome.isCompleted)
+
+        school.open()
         assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, withTimeout(5_000) { outcome.await() })
         assertEquals(STUDENT to "made-up-password", stored)
     }
