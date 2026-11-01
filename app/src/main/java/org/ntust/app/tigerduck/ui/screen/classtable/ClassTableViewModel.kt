@@ -52,6 +52,7 @@ import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -280,13 +281,12 @@ class ClassTableViewModel @Inject constructor(
     private val _selectedCourse = MutableStateFlow<Course?>(null)
     val selectedCourse: StateFlow<Course?> = _selectedCourse
 
-    // Cached idnumber → numeric Moodle course id, harvested off the
-    // `fetchEnrolledCourses` response. The course-detail popup uses this
-    // to build the `/course/view.php?id=<N>` deep link — Moodle's web
-    // endpoint requires the numeric id, not the idnumber. Persisted via
-    // [DataCache.saveMoodleCourseIds] so a transient Moodle failure
-    // doesn't make the button vanish; [DataCache.clearAllUserData] wipes
-    // it on logout so a stale map can't survive an account switch.
+    // Cached idnumber → numeric Moodle course id, harvested off the `fetchEnrolledCourses`
+    // response. The course-detail popup uses this to build the `/course/view.php?id=<N>` deep link
+    // — Moodle's web endpoint requires the numeric id, not the idnumber. Persisted via
+    // [DataCache.saveMoodleCourseIds] so a transient Moodle failure doesn't make the button vanish;
+    // [DataCache.clearAllUserData] wipes it on logout so a stale map can't survive an account
+    // switch.
     private val _moodleCourseIdByIdnumber = MutableStateFlow<Map<String, Int>>(emptyMap())
 
     /**
@@ -983,13 +983,12 @@ class ClassTableViewModel @Inject constructor(
             courseChangeStore.current(),
         )
 
-    // coursesAt / cellRole were removed for the same reason hasAssignment was
-    // (below): they read _courses.value, which Compose does not track. The
-    // grid took only the view model and the weekday/period lists, so a course
-    // added into rows and days already on screen left every one of those
-    // inputs equal, Compose skipped the grid, and the new course only showed
-    // up after a restart. TimetableGrid is now handed the collected list and
-    // asks ClassTableCellLayout directly.
+    // coursesAt / cellRole were removed for the same reason hasAssignment was (below): they read
+    // _courses.value, which Compose does not track. The grid took only the view model and the
+    // weekday/period lists, so a course added into rows and days already on screen left every one
+    // of those inputs equal, Compose skipped the grid, and the new course only showed up after a
+    // restart. TimetableGrid is now handed the collected list and asks ClassTableCellLayout
+    // directly.
 
     fun wouldCauseTripleConflict(candidate: Course): TripleConflictError? =
         ClassTableCellLayout.findTripleConflict(_courses.value, candidate)
@@ -1631,10 +1630,9 @@ class ClassTableViewModel @Inject constructor(
         }
         _isLoading.value = true
         try {
-            // Before anything else, so a newly-published term is offered by the
-            // picker and 選課 enrolments are attributed to the term the portal
-            // is actually serving. TTL-throttled, so this costs one request an
-            // hour no matter how often the class table refreshes.
+            // Before anything else, so a newly-published term is offered by the picker and 選課
+            // enrolments are attributed to the term the portal is actually serving. TTL-throttled,
+            // so this costs one request an hour no matter how often the class table refreshes.
             semesterCatalog.refreshIfStale()
             followNewestSemesterIfUnpicked()
             val semester = _currentSemester.value
@@ -1644,12 +1642,10 @@ class ClassTableViewModel @Inject constructor(
             // Assignments are "upcoming from now", so they belong to the term
             // in session.
             val isCurrentSemester = semester == courseService.currentSemesterCode()
-            // 選課 serves exactly one term and its 選課清單 page has no term
-            // marker, so its course numbers belong to whichever term the
-            // catalogue reports as open — not to whatever term is in session.
-            // Keying this off currentSemesterCode() mis-filed 115-1 enrolments
-            // into 114-2 for the weeks between 選課 opening and the month
-            // heuristic rolling over.
+            // 選課 serves exactly one term and its 選課清單 page has no term marker, so its course
+            // numbers belong to whichever term the catalogue reports as open — not to whatever term
+            // is in session. Keying this off currentSemesterCode() mis-filed 115-1 enrolments into
+            // 114-2 for the weeks between 選課 opening and the month heuristic rolling over.
             val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
             Log.i(
                 "ClassTableVM",
@@ -1671,13 +1667,15 @@ class ClassTableViewModel @Inject constructor(
             )
 
             // Kick off the enrollment sources concurrently — they hit different hosts
-            // (courseselection, moodle2 and stuinfosys .ntust.edu.tw). Source 1: course-selection
-            // portal, open term only. Source 2: Moodle enrollment list, all semesters: names,
-            // Moodle IDs and links, and the assignments' courses. It adds no course to a term
-            // (tigerduck-app#890). Source 3: the transcript, once course selection gave nothing:
-            // past terms are built from it, and the open term falls back on it. Before the fetch: a
-            // sign-out while it runs drops its roster.
+            // (courseselection, moodle2 and stuinfosys .ntust.edu.tw).
+            //   Source 1: course-selection portal, open term only.
+            //   Source 2: Moodle enrollment list, all semesters: names, Moodle IDs and links, and
+            //             the assignments' courses. It adds no course to a term (tigerduck-app#890).
+            //   Source 3: the transcript, once course selection gave nothing: past terms are built
+            //             from it, and the open term falls back on it.
+            // Before the fetch: a sign-out while it runs drops its roster.
             val generation = dataCache.writeGeneration()
+            val signIn = signInNow()
             val (selectionNos, moodleAll, report) = coroutineScope {
                 val selectionDef = async {
                     if (servesSelectionSemester) {
@@ -1744,13 +1742,12 @@ class ClassTableViewModel @Inject constructor(
             // soon as it lands.
             coroutineScope {
                 val coursesJob = launch {
-                    fetchTermCourses(semester, source, moodleByNo, recorded, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
+                    fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
                 }
 
-                // Assignments are always "upcoming from now", so they belong
-                // to the active enrolment — fetch only when viewing the
-                // current semester. Uses the Moodle enrolment list we already
-                // fetched above.
+                // Assignments are always "upcoming from now", so they belong to the active
+                // enrolment — fetch only when viewing the current semester. Uses the Moodle
+                // enrolment list we already fetched above.
                 val assignmentsJob = if (isCurrentSemester) {
                     launch {
                         try {
@@ -1758,9 +1755,8 @@ class ClassTableViewModel @Inject constructor(
                                 enrolledCourses = moodleAll,
                                 rosterCourseNos = assignmentNos.toSet()
                             )
-                            // Null keeps the cache: an enrolment fetch that
-                            // failed above left no course to ask about. An
-                            // empty answer replaces it like any other, see
+                            // Null keeps the cache: an enrolment fetch that failed above left no
+                            // course to ask about. An empty answer replaces it like any other, see
                             // CourseRosterMerge.assignmentsToStore.
                             val merged = CourseRosterMerge.assignmentsToStore(
                                 remote = answer?.assignments,
@@ -1789,20 +1785,19 @@ class ClassTableViewModel @Inject constructor(
             _syncCompleteEvent.tryEmit(Unit)
             // The other terms, with Moodle's answer and this fetch's
             // transcript, which their rosters come from.
-            warmTerms(studentId, password, moodleAll, transcript)
+            warmTerms(studentId, password, moodleAll, transcript, signIn)
         } catch (e: CancellationException) {
             // Structured concurrency: viewModelScope cancellation has to keep
             // propagating, or navigating away mid-refresh leaves this coroutine
             // running against a dead screen.
             throw e
         } catch (e: Exception) {
-            // This method had no catch at all. Nothing here is guarded except
-            // the per-course lookups and the assignments job, so anything that
-            // threw in between — a null row in a network payload, a cache row
-            // Gson could not populate — propagated out of viewModelScope. With
-            // no CoroutineExceptionHandler anywhere in the app, that reached
-            // the default uncaught handler and killed the process instead of
-            // failing one refresh. This is the only boundary in that path.
+            // This method had no catch at all. Nothing here is guarded except the per-course
+            // lookups and the assignments job, so anything that threw in between — a null row in a
+            // network payload, a cache row Gson could not populate — propagated out of
+            // viewModelScope. With no CoroutineExceptionHandler anywhere in the app, that reached
+            // the default uncaught handler and killed the process instead of failing one refresh.
+            // This is the only boundary in that path.
             Log.e("ClassTableVM", "fetchData failed: ${e.logSummary()}")
             reviewPrompt.loadFailed()
         } finally {
@@ -1844,6 +1839,8 @@ class ClassTableViewModel @Inject constructor(
         source: ClassTableTermSource,
         moodleByNo: Map<String, MoodleEnrolledCourse>,
         recorded: RecordedSelection?,
+        // Read before the fetch: the next account's token would take this roster as its own.
+        signIn: SignIn,
         // The page's own fetch is a day of use; a warm of the other terms is not.
         countsAsUse: Boolean = false,
         mayCommit: () -> Boolean = { true },
@@ -1853,8 +1850,6 @@ class ClassTableViewModel @Inject constructor(
         val answer = recorded?.answer
         // Before the lookups: a sign-out while they run drops the rebuild's drops.
         val generation = dataCache.writeGeneration()
-        // And the upload: the next account's token would take this roster as its own.
-        val signIn = signInNow()
         val answers = termFetch.lookUp(
             semester, source.rosterNos, moodleByNo, before = latestCourses(semester), atMost = source.lookupsAtOnce,
         )
@@ -1964,6 +1959,7 @@ class ClassTableViewModel @Inject constructor(
         password: String,
         moodleAll: List<MoodleEnrolledCourse>,
         transcript: ClassTableTranscript,
+        signIn: SignIn,
     ) {
         if (warmJob?.isActive == true) return
         warmJob = viewModelScope.launch {
@@ -1971,7 +1967,7 @@ class ClassTableViewModel @Inject constructor(
                 termWarm.run(
                     stillSignedIn = { authService.isStillSignedInAs(studentId) },
                     shared = { transcript.fetched() },
-                ) { term, report, isCurrent -> warmTerm(term, isCurrent, studentId, password, moodleAll, report) }
+                ) { term, report, isCurrent -> warmTerm(term, isCurrent, studentId, password, moodleAll, report, signIn) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -2000,6 +1996,7 @@ class ClassTableViewModel @Inject constructor(
         password: String,
         moodleAll: List<MoodleEnrolledCourse>,
         report: ScoreReport?,
+        signIn: SignIn,
     ): Boolean {
         // A reset in progress wipes the term; a roster saved under it would
         // be the old one, kept. Its own refetch fills the term.
@@ -2027,7 +2024,7 @@ class ClassTableViewModel @Inject constructor(
         if (source == ClassTableTermSource.Unanswered) return true
         // Not over a reset or a fetch of the term begun since, nor under a
         // reset Settings has latched meanwhile.
-        val answered = fetchTermCourses(semester, source, moodleByNo, recorded) {
+        val answered = fetchTermCourses(semester, source, moodleByNo, recorded, signIn) {
             isCurrent() && semester !in dataCache.resettingSemesters()
         }
         // The today strip reads the live term off its own copy while the

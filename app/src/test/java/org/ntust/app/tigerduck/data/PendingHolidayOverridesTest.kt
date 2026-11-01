@@ -313,6 +313,26 @@ class PendingHolidayOverridesTest {
         assertEquals("the departing account's 4 is not written back over the sign-out", emptySet<Int>(), holidays.waitingIds)
     }
 
+    /** The next account's choice reads the same as the one that landed, down to its time. */
+    @Test
+    fun `an old run's answer leaves the next account's same choice waiting`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        answer = { _, _ -> gate.await() }
+        val first = launch { tap(3, notify = true) }
+        testScheduler.runCurrent()
+
+        series.end()
+        prefs.forgetHolidayOverrides()
+        series.open()
+        prefs.holidayNotifyOverrides = setOf(3)
+        prefs.holidayOverrideEditTimes = mapOf(3 to now)
+        prefs.holidayOverridesAwaitingUpload = setOf(3)
+        gate.complete(Unit)
+        first.join()
+
+        assertEquals(setOf(3), holidays.waitingIds)
+    }
+
     @Test
     fun `a snapshot fetched before a PUT landed is not applied`() = runTest {
         answer = { _, _ -> throw IOException("offline") }

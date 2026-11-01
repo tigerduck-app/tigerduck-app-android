@@ -660,9 +660,9 @@ class HomeViewModel @Inject constructor(
         fetchChanges = syncApiClient::fetchChanges,
         lastKnownRevision = { syncState.lastKnownRevision },
         setLastKnownRevision = { syncState.lastKnownRevision = it },
-        signInGeneration = { authTokenManager.signInGeneration },
+        currentSignIn = ::signInNow,
         fullSyncsInFlight = backendPullsInFlight::get,
-        retryUnsent = { backendSync.sendWhatWaits(signInNow()) },
+        retryUnsent = backendSync::sendWhatWaits,
         fullSync = ::syncAndRepublish,
     ).also { outcome ->
         // Reached the server with nothing new: a re-enable check that failed
@@ -693,7 +693,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun pullFromBackend() {
         backendPullsInFlight.incrementAndGet()
         try {
-            backendSync.pull(syncState)
+            backendSync.pull(syncState, signInNow())
         } finally {
             backendPullsInFlight.decrementAndGet()
         }

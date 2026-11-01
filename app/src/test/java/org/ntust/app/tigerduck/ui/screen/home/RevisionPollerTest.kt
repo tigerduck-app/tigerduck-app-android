@@ -14,6 +14,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.push.SyncChange
 import org.ntust.app.tigerduck.push.SyncChangesPage
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.ui.screen.home.RevisionPollOutcome.CHANGED
 import org.ntust.app.tigerduck.ui.screen.home.RevisionPollOutcome.FAILED
 import org.ntust.app.tigerduck.ui.screen.home.RevisionPollOutcome.OFFLINE
@@ -374,9 +376,15 @@ class PollRevisionOnceTest {
     /** The change feed's answer; null as when the read failed or the changes are gone. */
     private var changes: suspend (Long) -> SyncChangesPage? = { null }
     private val feedReads = mutableListOf<Long>()
-    private var generation = 1
+    private val series = SignInSeries()
     private var retries = 0
     private var onRetry: () -> Unit = {}
+    private val retriedUnder = mutableListOf<SignIn>()
+
+    private fun signOutAndBackIn() {
+        series.end()
+        series.open()
+    }
 
     private suspend fun poll() = pollRevisionOnce(
         syncEnabled = { syncOn },
@@ -392,10 +400,11 @@ class PollRevisionOnceTest {
         },
         lastKnownRevision = { lastKnown },
         setLastKnownRevision = { lastKnown = it },
-        signInGeneration = { generation },
+        currentSignIn = { series.current },
         fullSyncsInFlight = { inFlight },
-        retryUnsent = {
+        retryUnsent = { signIn ->
             retries++
+            retriedUnder += signIn
             onRetry()
         },
         fullSync = {
@@ -520,7 +529,7 @@ class PollRevisionOnceTest {
 
         lastKnown = 5
         changes = {
-            generation++
+            signOutAndBackIn()
             page(6L to "assignment", 7L to "assignment")
         }
         assertEquals(CHANGED, poll())
@@ -534,7 +543,7 @@ class PollRevisionOnceTest {
     fun `a sign-out while what waits is sent leaves the watermark alone`() = kotlinx.coroutines.test.runTest {
         serverRevision = { 7L }
         changes = { page(7L to "assignment") }
-        onRetry = { generation++ }
+        onRetry = { signOutAndBackIn() }
 
         assertEquals(CHANGED, poll())
         assertEquals(5L, lastKnown)

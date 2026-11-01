@@ -366,25 +366,20 @@
     "count": 1
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundRunAccount.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "account-counter",
-    "count": 5
+    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-file",
-    "count": 636
+    "count": 630
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.doWork()",
-    "lines": 94
+    "lines": 88
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
@@ -864,18 +859,18 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-file",
-    "count": 2082
+    "count": 2079
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
     "name": "ClassTableViewModel.fetchData()",
-    "lines": 188
+    "lines": 184
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
-    "name": "ClassTableViewModel.fetchTermCourses(String, ClassTableTermSource, Map<String,MoodleEnrolledCourse>, RecordedSelection?, Boolean, ()->Boolean)",
+    "name": "ClassTableViewModel.fetchTermCourses(String, ClassTableTermSource, Map<String,MoodleEnrolledCourse>, RecordedSelection?, SignIn, Boolean, ()->Boolean)",
     "lines": 98
   },
   {
@@ -1078,13 +1073,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-file",
-    "count": 753
+    "count": 749
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-function",
-    "name": "HomeBackendSync.pull(HomeSyncState, Boolean)",
-    "lines": 165
+    "name": "HomeBackendSync.pull(HomeSyncState, SignIn, Boolean)",
+    "lines": 162
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
@@ -1129,7 +1124,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "account-counter",
-    "count": 6
+    "count": 5
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
@@ -1147,11 +1142,6 @@
     "kind": "long-function",
     "name": "HomeViewModel.fetchData(Boolean)",
     "lines": 86
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/RevisionPoller.kt",
-    "kind": "account-counter",
-    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/ShortcutGrid.kt",

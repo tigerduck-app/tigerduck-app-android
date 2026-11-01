@@ -145,9 +145,9 @@ class CalendarViewModel @Inject constructor(
         // picked, not against `Locale.getDefault()` and the injected `@ApplicationContext`. Below
         // API 33 AppCompat applies the in-app language to Activity configurations only, so those
         // two keep reporting the *device* language: on a Taiwanese phone running the app in English
-        // or Japanese every holiday came back as its Chinese name and every term boundary as "115-1
-        // 開始", on a screen that was otherwise correctly translated. The tag comes from the same
-        // context as the titles, so the two cannot disagree.
+        // or Japanese every holiday came back as its Chinese name and every term boundary as
+        // "115-1 開始", on a screen that was otherwise correctly translated. The tag comes from the
+        // same context as the titles, so the two cannot disagree.
         val localized = AppLanguageManager.localizedContext(context, prefs.appLanguage)
         return org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
             calendar = academicCalendar.current(),

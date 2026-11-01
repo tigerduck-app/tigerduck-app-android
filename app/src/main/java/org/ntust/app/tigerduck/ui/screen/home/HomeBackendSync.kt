@@ -35,7 +35,6 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.isSessionRefused
-import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -164,15 +163,15 @@ class HomeBackendSync @Inject constructor(
      * Pull everything from the backend and reconcile it into [state].
      *
      * [retried] guards the 401 path against looping: a relogin that still
-     * produces a 401 gives up rather than recursing.
+     * produces a 401 gives up rather than recursing. [signIn] is the one this sync runs under,
+     * read once where it starts.
      */
-    @OptIn(StartsAccountWork::class)
-    suspend fun pull(state: HomeSyncState, retried: Boolean = false) {
+    suspend fun pull(state: HomeSyncState, signIn: SignIn, retried: Boolean = false) {
         // Pinned to the data this sync began with: once a sign-out wipes it, every cache write
         // below drops, so a sync that outlives one cannot write the departing account's courses,
         // deletions and marks into the files the next account starts from.
         if (currentCoroutineContext()[DataCache.Generation] == null) {
-            return withContext(DataCache.Generation(dataCache.userDataGeneration)) { pull(state, retried) }
+            return withContext(DataCache.Generation(dataCache.userDataGeneration)) { pull(state, signIn, retried) }
         }
         // cloudSyncEnabled already reads false on fdroid at its source
         // (AppPreferences.cloudSyncEnabled), so no separate flavor check
@@ -190,9 +189,6 @@ class HomeBackendSync @Inject constructor(
         try {
             if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
             val account = authService.storedStudentId
-            // The first-sync mark upload is pinned to it: a sign-out and another sign-in
-            // meanwhile must not send these marks as theirs.
-            val signIn = authTokenManager.session.current
             // What waits to go up goes first, so the snapshot has it.
             retryUnsent(signIn)
             // Every class-table delete asked before the fetch ranks below it, every later one
@@ -324,7 +320,7 @@ class HomeBackendSync @Inject constructor(
                 // Moodle token — the backend rejects stale stored tokens with
                 // 401 invalid_token.
                 if (authService.attemptRelogin()) {
-                    pull(state, retried = true)
+                    pull(state, signIn, retried = true)
                 }
             }
             Log.w(TAG, "[Sync] override sync failed: ${e.logSummary()}")
@@ -617,7 +613,7 @@ class HomeBackendSync @Inject constructor(
         if (updatedKnown != serverKnown) {
             // Added to what is stored now, the numbers only growing: an add answered meanwhile,
             // or the background run, may have added to it too.
-            dataCache.updateServerKnownNos { current ->
+            dataCache.updateServerKnownNos(signIn) { current ->
                 current + updatedKnown.mapValues { (semester, nos) -> (current[semester].orEmpty() + nos).distinct().sorted() }
             }
         }

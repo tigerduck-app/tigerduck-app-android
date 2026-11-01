@@ -586,6 +586,18 @@ class CourseIgnoreSyncTest {
     }
 
     @Test
+    fun `a sign-in that has ended sends no numeric Moodle id`() = runTest {
+        cache.saveCourses(
+            listOf(Course(courseNo = "AAA", courseName = "A", moodleIdNumber = "1141AAA", moodleNumericCourseId = 77)),
+            "1141",
+        )
+
+        sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), series.end())
+
+        assertEquals(emptyList<Sent>(), sent)
+    }
+
+    @Test
     fun `a backend row without the numeric Moodle id gets it from this device`() = runTest {
         cache.saveCourses(
             listOf(

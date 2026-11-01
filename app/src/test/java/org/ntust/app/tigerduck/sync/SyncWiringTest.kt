@@ -139,15 +139,15 @@ class SyncWiringTest {
     fun `the worker stops a run whose sign-in ended before it stamps or refreshes`() {
         val rel = "notification/BackgroundSyncWorker.kt"
         val worker = body(rel, "doWork")
-        assertTrue("the worker no longer captures the sign-in", "authTokenManager.signInGeneration" in worker)
+        assertTrue("the worker no longer captures the sign-in", "authTokenManager.session.current" in worker)
         assertTrue("the worker compares the student ID alone again", "storedStudentId != studentId" !in worker)
-        // Each stamp is written inside the sign-in lock, so a sign-out cannot clear it between the check and the write.
+        // Each stamp is written in a step a sign-out waits for, so it cannot clear it between the check and the write.
         for (stamp in listOf("prefs.backgroundOverridesSyncedAtMs = now", "prefs.backgroundCoursesSyncedAtMs = now", "prefs.backgroundCoursesTerm = term.code")) {
             val at = worker.indexOf(stamp)
             assertTrue("the worker no longer writes $stamp", at >= 0)
             assertTrue("the worker writes $stamp outside run.writeIfCurrent", insideBlock(worker, "run.writeIfCurrent {", at))
         }
-        assertTrue("run.writeIfCurrent no longer runs under the sign-in lock", "runIfSignedIn = authTokenManager::runIfSignedIn" in worker)
+        assertTrue("the run no longer holds the sign-in it began under", "BackgroundRunAccount(studentId, signIn," in worker)
         // The courses phase ends the run before the assignments, and passes its sign-in to the fetch.
         val fetch = worker.indexOf("syncCourses(studentId, password, signIn)")
         val assignments = worker.indexOf("val assignmentsOk")
@@ -223,7 +223,7 @@ class SyncWiringTest {
     fun `Home's revision poll reads the change feed and sends what waits before moving the watermark`() {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "pollRevision",
-            "fetchChanges = syncApiClient::fetchChanges", "retryUnsent = { backendSync.sendWhatWaits(signInNow()) }",
+            "fetchChanges = syncApiClient::fetchChanges", "retryUnsent = backendSync::sendWhatWaits",
             "setLastKnownRevision = { syncState.lastKnownRevision = it }",
         )
         assertCalls(

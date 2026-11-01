@@ -2,14 +2,17 @@ package org.ntust.app.tigerduck.notification
 
 import android.content.Context
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -51,12 +54,14 @@ class TermCourseSyncTest {
     private lateinit var api: PushApiClient
     private lateinit var tokens: V3TokenStore
     private lateinit var auth: AuthTokenManager
+    private lateinit var prefs: AppPreferences
 
     /** What course selection answers, or null for a fetch that fails. */
     private var answer: List<String>? = listOf(CS1, CS2)
     private val selectionAsks = mutableListOf<Boolean>()
     private var selectionTerm = TERM
     private var now = 1_800_000_000_000L
+    private var uploadFailures = 0
 
     private val sources = object : TermCourseSync.Sources {
         override fun servesSelection(semester: String) = semester == selectionTerm
@@ -81,7 +86,7 @@ class TermCourseSyncTest {
 
     @Before
     fun setUp() {
-        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
+        prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         // TigerSync is off for good on F-Droid, where no upload goes out at all.
@@ -107,7 +112,7 @@ class TermCourseSyncTest {
         waitingAdds = { emptySet() },
         uploading = uploading,
         courseLocale = { "zh" },
-        uploadFailed = {},
+        uploadFailed = { uploadFailures++ },
         clock = { now },
     )
 
@@ -260,6 +265,37 @@ class TermCourseSyncTest {
         assertTrue(switched)
         assertEquals(listOf(HAND), cache.loadCourses(TERM).map { it.courseNo })
         assertEquals(emptyList<Any>(), uploads())
+    }
+
+    /** Runs a term's sync with its upload held until the same student has signed out and back in. */
+    private suspend fun uploadAcrossSameStudentSignIn(answer: Int) = coroutineScope {
+        val held = backend.hold(UPLOAD)
+        val run = async(Dispatchers.Default) { sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn) }
+        held.arrived.await()
+        auth.logout()
+        cache.clearAllUserData()
+        auth.session.open()
+        tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
+        held.release(answer)
+        run.await()
+    }
+
+    /** What the upload's answer stamps is the old run's: none of it dates the new session's list. */
+    @Test
+    fun `the old run's stamps land nowhere`() = runTest {
+        uploadAcrossSameStudentSignIn(answer = 200)
+
+        assertEquals(1, uploads().size)
+        assertNull(prefs.coursesUploadFingerprint(TERM))
+        assertNull(prefs.coursesUploadRoster(TERM))
+    }
+
+    /** Not the new session's sync state: its own sync has not failed. */
+    @Test
+    fun `an old run's refused upload marks nothing as failed`() = runTest {
+        uploadAcrossSameStudentSignIn(answer = 500)
+
+        assertEquals(0, uploadFailures)
     }
 
     /**

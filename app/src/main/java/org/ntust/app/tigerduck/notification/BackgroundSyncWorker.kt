@@ -102,17 +102,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
         fcmBootstrap.retryRegistrationIfDue()
         // The sign-in is read before the student, so a sign-in between the two reads ends the run.
         val signIn = authTokenManager.session.current
-        val signInCount = authTokenManager.signInGeneration
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
         // The student alone would pass a sign-out and a sign-in as the same student.
-        val run = BackgroundRunAccount(
-            studentId, signInCount,
-            currentStudentId = { authService.storedStudentId },
-            currentSignIn = { authTokenManager.signInGeneration },
-            runIfSignedIn = authTokenManager::runIfSignedIn,
-        )
+        val run = BackgroundRunAccount(studentId, signIn, currentStudentId = { authService.storedStudentId })
 
         // A triggered run fetches everything: the server asked for it because something changed.
         // What it announced may postdate an answer the services are still sharing from a foreground
@@ -390,7 +384,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         }
         if (known != knownHere) {
             // Added to what is stored now: an add answered meanwhile may have added to it too.
-            dataCache.updateServerKnownNos { current ->
+            dataCache.updateServerKnownNos(signIn) { current ->
                 current + (semester to (current[semester].orEmpty() + known).distinct().sorted())
             }
         }
