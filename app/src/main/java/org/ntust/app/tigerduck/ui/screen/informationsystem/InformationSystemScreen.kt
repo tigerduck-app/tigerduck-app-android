@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.informationsystem
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,14 +21,11 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -42,7 +38,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.network.model.PortalCategory
 import org.ntust.app.tigerduck.network.model.PortalLink
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 
 @Composable
@@ -61,16 +57,14 @@ fun InformationSystemScreen(
     val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
     val isLoading = state.loadState is InformationSystemViewModel.LoadState.Loading
 
-    Box(Modifier.fillMaxSize()) {
+    PageScaffold(title = stringResource(R.string.feature_information_system)) { padding ->
         TigerPullToRefresh(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh(useEnglish) },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(padding),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                PageHeader(title = stringResource(R.string.feature_information_system))
-
                 when {
                     !isLoggedIn -> EmptyStateView(
                         icon = Icons.Filled.Lock,
