@@ -5,6 +5,7 @@ import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import java.util.Date
@@ -41,7 +42,7 @@ class LiveActivityResolver {
     ): LiveActivitySnapshot? {
         if (!preferences.isEnabled) return null
 
-        val meeting = coursesMeeting(courses, now, skippedDates)
+        val meeting = unskippedToday(courses, now, skippedDates)
         // Whether or not the in-class scenario is on: a deadline shown now
         // says whether a class is going on under it.
         val current = ClassTimeline.ongoing(meeting, now.toInstant(), changes).firstOrNull()?.let(::Slot)
@@ -111,7 +112,7 @@ class LiveActivityResolver {
     /**
      * Today's classes that meet, by start: none the user skipped or the
      * school cancelled. Each piece of a meeting ends at its own end, as iOS
-     * ends a class's activity ([org.ntust.app.tigerduck.shared.timeline.CourseMeetings.hasEnded], #905); one a change
+     * ends a class's activity ([CourseMeetings.hasEnded], #905); one a change
      * dropped is not built at all, so the meeting's other pieces carry on
      * (#904).
      */
@@ -122,7 +123,7 @@ class LiveActivityResolver {
         changes: CourseChanges,
     ): List<Slot> {
         val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
-        return ClassTimeline.meetings(coursesMeeting(courses, now, skippedDates), today, changes)
+        return ClassTimeline.meetings(unskippedToday(courses, now, skippedDates), today, changes)
             .filter { !it.isCancelled }
             .map(::Slot)
     }
@@ -131,7 +132,7 @@ class LiveActivityResolver {
      * The courses not skipped today. The timeline doesn't know skipped dates, so they are left
      * out here; LiveActivityManager hands over no courses on a day classes do not meet.
      */
-    private fun coursesMeeting(
+    private fun unskippedToday(
         courses: List<Course>,
         now: Date,
         skippedDates: Map<String, List<String>>,

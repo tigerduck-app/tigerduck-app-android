@@ -58,7 +58,7 @@ class ClassReminderTimelineTest {
         day: String,
         time: String,
         coursesByTerm: Map<String, List<Course>>,
-        calendar: AcademicCalendar = AcademicCalendar.EMPTY,
+        calendar: AcademicCalendar = fall,
         skippedDates: Map<String, List<String>> = emptyMap(),
         optedInHolidayIds: Set<Int> = emptySet(),
         changes: CourseChanges = CourseChanges.EMPTY,
@@ -101,7 +101,18 @@ class ClassReminderTimelineTest {
     }
 
     private val cc900 = CourseChangeFixture.course()
-    private val noCalendarTerm = org.ntust.app.tigerduck.network.SemesterCodes.termOn(AcademicCalendar.EMPTY, LocalDate.now())
+    /**
+     * One term for every case that isn't about the missing calendar: with no calendar the term is
+     * the month guess, which reads the real wall clock and moves in February.
+     */
+    private val fall = AcademicCalendar(
+        revision = 1L,
+        terms = listOf(SemesterTerm("1151", LocalDate.of(2026, 9, 7), LocalDate.of(2027, 1, 15))),
+        holidays = emptyList(),
+    )
+
+    /** The term the no-calendar case arms under, from the same guess the scheduler makes. */
+    private val noCalendarTerm get() = org.ntust.app.tigerduck.network.SemesterCodes.heuristic()
 
     private val endedEarly = changes(row(1, "end", periods = listOf("2", "3", "4"), values = mapOf("end" to "11:45")))
 
@@ -120,13 +131,13 @@ CC900@2026-11-05#7-8,CC900@2026-11-12#2-4,CC900@2026-11-12#7-8"""
 
     @Test
     fun `the four moments on the timetable's end`() {
-        val out = moments.map { arm("2026-11-05", it, mapOf(noCalendarTerm to listOf(cc900))).show() }
+        val out = moments.map { arm("2026-11-05", it, mapOf("1151" to listOf(cc900))).show() }
         assertEquals(List(4) { thursdayAlarms }, out)
     }
 
     @Test
     fun `the four moments on the changed end at 11_45`() {
-        val out = moments.map { arm("2026-11-05", it, mapOf(noCalendarTerm to listOf(cc900)), changes = endedEarly).show() }
+        val out = moments.map { arm("2026-11-05", it, mapOf("1151" to listOf(cc900)), changes = endedEarly).show() }
         assertEquals(List(4) { thursdayAlarms }, out)
     }
 
@@ -189,18 +200,18 @@ CC100@2026-10-12#3-3,CC100@2026-10-13#3-3,CC100@2026-10-15#3-3""", armed.show())
 
     @Test
     fun `no calendar arms every class day of the ten`() {
-        val armed = arm("2026-10-12", "07:00", mapOf(noCalendarTerm to listOf(oldTermCourse)))
+        val armed = arm("2026-10-12", "07:00", mapOf(noCalendarTerm to listOf(oldTermCourse)), calendar = AcademicCalendar.EMPTY)
         assertEquals("""next=2026-10-12T10:20
-fires 2026-10-12T10:05 | Old Term | 2026-10-12T10:20..11:10 |  | CC100_20261012_3 | term 1151 | code 1
-fires 2026-10-13T10:05 | Old Term | 2026-10-13T10:20..11:10 |  | CC100_20261013_3 | term 1151 | code 2
-fires 2026-10-14T10:05 | Old Term | 2026-10-14T10:20..11:10 |  | CC100_20261014_3 | term 1151 | code 3
-fires 2026-10-15T10:05 | Old Term | 2026-10-15T10:20..11:10 |  | CC100_20261015_3 | term 1151 | code 4
-fires 2026-10-16T10:05 | Old Term | 2026-10-16T10:20..11:10 |  | CC100_20261016_3 | term 1151 | code 5
-fires 2026-10-19T10:05 | Old Term | 2026-10-19T10:20..11:10 |  | CC100_20261019_3 | term 1151 | code 6
-fires 2026-10-20T10:05 | Old Term | 2026-10-20T10:20..11:10 |  | CC100_20261020_3 | term 1151 | code 7
-fires 2026-10-21T10:05 | Old Term | 2026-10-21T10:20..11:10 |  | CC100_20261021_3 | term 1151 | code 8
+fires 2026-10-12T10:05 | Old Term | 2026-10-12T10:20..11:10 |  | CC100_20261012_3 | term TERM | code 1
+fires 2026-10-13T10:05 | Old Term | 2026-10-13T10:20..11:10 |  | CC100_20261013_3 | term TERM | code 2
+fires 2026-10-14T10:05 | Old Term | 2026-10-14T10:20..11:10 |  | CC100_20261014_3 | term TERM | code 3
+fires 2026-10-15T10:05 | Old Term | 2026-10-15T10:20..11:10 |  | CC100_20261015_3 | term TERM | code 4
+fires 2026-10-16T10:05 | Old Term | 2026-10-16T10:20..11:10 |  | CC100_20261016_3 | term TERM | code 5
+fires 2026-10-19T10:05 | Old Term | 2026-10-19T10:20..11:10 |  | CC100_20261019_3 | term TERM | code 6
+fires 2026-10-20T10:05 | Old Term | 2026-10-20T10:20..11:10 |  | CC100_20261020_3 | term TERM | code 7
+fires 2026-10-21T10:05 | Old Term | 2026-10-21T10:20..11:10 |  | CC100_20261021_3 | term TERM | code 8
 CC100@2026-10-12#3-3=1;CC100@2026-10-13#3-3=2;CC100@2026-10-14#3-3=3;CC100@2026-10-15#3-3=4;CC100@2026-10-16#3-3=5;CC100@2026-10-19#3-3=6;CC100@2026-10-20#3-3=7;CC100@2026-10-21#3-3=8
-CC100@2026-10-12#3-3,CC100@2026-10-13#3-3,CC100@2026-10-14#3-3,CC100@2026-10-15#3-3,CC100@2026-10-16#3-3,CC100@2026-10-19#3-3,CC100@2026-10-20#3-3,CC100@2026-10-21#3-3""", armed.show())
+CC100@2026-10-12#3-3,CC100@2026-10-13#3-3,CC100@2026-10-14#3-3,CC100@2026-10-15#3-3,CC100@2026-10-16#3-3,CC100@2026-10-19#3-3,CC100@2026-10-20#3-3,CC100@2026-10-21#3-3""".replace("TERM", noCalendarTerm), armed.show())
     }
 
     @Test
@@ -210,7 +221,7 @@ CC100@2026-10-12#3-3,CC100@2026-10-13#3-3,CC100@2026-10-14#3-3,CC100@2026-10-15#
             row(2, "start", periods = listOf("2", "3", "4"), values = mapOf("start" to "10:00")),
             row(3, "room", periods = listOf("4"), values = mapOf("room" to "TR-313")),
         )
-        val armed = arm("2026-11-04", "07:00", mapOf(noCalendarTerm to listOf(cc900)), changes = feed)
+        val armed = arm("2026-11-04", "07:00", mapOf("1151" to listOf(cc900)), changes = feed)
         assertEquals("""next=2026-11-05T10:00
 fires 2026-11-05T09:45 | Compilers | 2026-11-05T10:00..11:10 | T4-501 | CC900_20261105_2 | term 1151 | code 1
 fires 2026-11-05T11:05 | Compilers | 2026-11-05T11:20..12:10 | TR-313 | CC900_20261105_4 | term 1151 | code 2
@@ -222,7 +233,7 @@ CC900@2026-11-05#2-3,CC900@2026-11-05#4-4,CC900@2026-11-12#2-4,CC900@2026-11-12#
 
     @Test
     fun `contiguous periods are one id`() {
-        val armed = arm("2026-11-04", "07:00", mapOf(noCalendarTerm to listOf(CourseChangeFixture.course(listOf("3", "4")))))
+        val armed = arm("2026-11-04", "07:00", mapOf("1151" to listOf(CourseChangeFixture.course(listOf("3", "4")))))
         assertEquals("""next=2026-11-05T10:20
 fires 2026-11-05T10:05 | Compilers | 2026-11-05T10:20..12:10 | T4-501 | CC900_20261105_3 | term 1151 | code 1
 fires 2026-11-12T10:05 | Compilers | 2026-11-12T10:20..12:10 | T4-501 | CC900_20261112_3 | term 1151 | code 2
@@ -232,7 +243,7 @@ CC900@2026-11-05#3-4,CC900@2026-11-12#3-4""", armed.show())
 
     @Test
     fun `a gap between periods makes two ids`() {
-        val armed = arm("2026-11-04", "07:00", mapOf(noCalendarTerm to listOf(CourseChangeFixture.course(listOf("3", "5")))))
+        val armed = arm("2026-11-04", "07:00", mapOf("1151" to listOf(CourseChangeFixture.course(listOf("3", "5")))))
         assertEquals("""next=2026-11-05T10:20
 fires 2026-11-05T10:05 | Compilers | 2026-11-05T10:20..11:10 | T4-501 | CC900_20261105_3 | term 1151 | code 1
 fires 2026-11-05T12:05 | Compilers | 2026-11-05T12:20..13:10 | T4-501 | CC900_20261105_5 | term 1151 | code 2
@@ -244,7 +255,7 @@ CC900@2026-11-05#3-3,CC900@2026-11-05#5-5,CC900@2026-11-12#3-3,CC900@2026-11-12#
 
     @Test
     fun `a course with only a period of no known time arms nothing`() {
-        val armed = arm("2026-11-04", "07:00", mapOf(noCalendarTerm to listOf(CourseChangeFixture.course(listOf("E")))))
+        val armed = arm("2026-11-04", "07:00", mapOf("1151" to listOf(CourseChangeFixture.course(listOf("E")))))
         assertEquals("""next=null
 
 """, armed.show())
@@ -252,7 +263,7 @@ CC900@2026-11-05#3-3,CC900@2026-11-05#5-5,CC900@2026-11-12#3-3,CC900@2026-11-12#
 
     @Test
     fun `a period with no known time is left out and its course's other period is armed`() {
-        val armed = arm("2026-11-04", "07:00", mapOf(noCalendarTerm to listOf(CourseChangeFixture.course(listOf("4", "E")))))
+        val armed = arm("2026-11-04", "07:00", mapOf("1151" to listOf(CourseChangeFixture.course(listOf("4", "E")))))
         assertEquals("""next=2026-11-05T11:20
 fires 2026-11-05T11:05 | Compilers | 2026-11-05T11:20..12:10 | T4-501 | CC900_20261105_4 | term 1151 | code 1
 fires 2026-11-12T11:05 | Compilers | 2026-11-12T11:20..12:10 | T4-501 | CC900_20261112_4 | term 1151 | code 2
