@@ -130,11 +130,11 @@ fun TimeSliderSection(
         viewModel.configure(courses, changes = courseChanges, isQuietDay = quietDays::contains)
     }
 
-    // Tick every second
+    // Tick every second, on the second: the thumb moves with the time, a second at a time.
     LaunchedEffect(Unit) {
         while (true) {
             viewModel.tick(Date(AppClock.nowMillis()))
-            kotlinx.coroutines.delay(1000)
+            kotlinx.coroutines.delay(millisToNextSecond(AppClock.nowMillis()))
         }
     }
 

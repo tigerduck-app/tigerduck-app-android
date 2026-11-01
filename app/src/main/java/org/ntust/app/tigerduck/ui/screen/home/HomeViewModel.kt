@@ -69,6 +69,7 @@ import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.review.ReviewPrompt
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.SingleFlight
 import org.ntust.app.tigerduck.util.logSummary
@@ -227,26 +228,22 @@ class HomeViewModel @Inject constructor(
     )
     val ignoredTabPinned: StateFlow<Boolean> = _ignoredTabPinned
 
-    // Re-emits whenever AppClock.setOverride is called AND once per minute as
-    // wall-clock time advances, so the ALL-tab partitioning below
-    // (overdue-pinned-first vs. future vs. past) re-runs both when the debug
-    // clock toggles and as items naturally cross their dueDate. Without the
-    // periodic pulse, an assignment that came due while the app stayed open
-    // would never move into the overdue bucket.
-    private val appClockChanges: Flow<Long> = merge(
-        callbackFlow {
-            val listener: (Long) -> Unit = { trySend(it) }
-            AppClock.addOverrideListener(listener)
-            trySend(AppClock.version())
-            awaitClose { AppClock.removeOverrideListener(listener) }
-        },
-        kotlinx.coroutines.flow.flow {
-            while (true) {
-                kotlinx.coroutines.delay(60_000)
-                emit(AppClock.nowMillis())
-            }
-        },
-    )
+    /** The app's clock; a test ties it to its own scheduler. Read when the flows below are collected. */
+    internal var minuteClock: () -> Long = AppClock::nowMillis
+
+    // Each page resume restarts the minute ticks below: their wait does not count a phone's deep sleep.
+    private val clockRestarts = MutableStateFlow(0)
+
+    /** Says the time at once and waits afresh for the next minute. Fetches nothing. */
+    fun realignClock() = clockRestarts.update { it + 1 }
+
+    // Re-emits when AppClock.setOverride is called (minuteTicks starts over on it) AND once per
+    // minute, on the boundary, as wall-clock time advances, so the ALL-tab partitioning below
+    // (overdue-pinned-first vs. future vs. past) re-runs both when the debug clock toggles and as
+    // items naturally cross their dueDate. Without the periodic pulse, an assignment that came due
+    // while the app stayed open would never move into the overdue bucket.
+    private val appClockChanges: Flow<Long> =
+        TaipeiClock.minuteTicksRestartedBy(clockRestarts, { minuteClock() }).map { it.toInstant().toEpochMilli() }
 
     val upcomingAssignments: StateFlow<List<Assignment>> = combine(
         _allAssignments,
@@ -257,7 +254,7 @@ class HomeViewModel @Inject constructor(
     ) { all, (ignored, courseKeys), marked, filter, _ ->
         HomeAssignmentFilters.visible(
             all, ignoredIncludingCourses(all, ignored, courseKeys), marked, filter,
-            Date(AppClock.nowMillis()),
+            Date(minuteClock()),
         )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -561,6 +558,7 @@ class HomeViewModel @Inject constructor(
      * launch, to whether it is still on screen and resumed.
      */
     fun onPageResumed(pageResumed: () -> Boolean) {
+        realignClock() // First, whatever the prompt decides.
         reviewPrompt.calmMoment(pageResumed)
     }
 
