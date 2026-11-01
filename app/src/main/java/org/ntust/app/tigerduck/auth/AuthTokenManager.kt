@@ -480,20 +480,20 @@ class AuthTokenManager(
         platform: String = "android",
         signInGeneration: Int = this.signInGeneration,
     ): LoginResult = loginQueue.withLock {
-        // One at a time, the automatic and the interactive alike: the backend keeps only the
-        // session of the login it took last, which is then the pair stored last. One that a
-        // sign-out overtook while it waited sends nothing.
+        // One at a time, automatic and interactive alike: the backend keeps only the last login's
+        // session, which is then the pair stored last. One a sign-out overtook sends nothing.
         if (signInGeneration != this.signInGeneration) throw AuthException("signed out before login")
         val replacing = currentCoroutineContext()[Replacing]
-        // Read once: the debt the login may end and the pair it stores are this backend's.
-        val issuer = baseUrl
+        // Read once: the debt it may end, the pair it stores and what it sends are this backend's.
+        val endpoint = resolveAnnouncementEndpoint(prefs)
+        val issuer = endpoint.url.trimEnd('/')
+        val privateToken = moodlePrivateToken.takeUnless { endpoint.overrideApplied }
         signingIn(studentId, issuer) {
             // Asked last, past the thread hop and the owed unregister's lock: a refresh that stored
-            // a pair while those waited would otherwise see its session ended. One storing in the
-            // moment after is answered by its requests' 401s, whose relogin then finds this
-            // login's pair unrefused and retries with it (signInAgain).
+            // a pair meanwhile would see its session ended. One storing just after is answered by
+            // its 401s, whose relogin finds this login's pair unrefused and retries (signInAgain).
             if (replacing != null && replacedSince(replacing.refreshToken)) throw SessionReplacedException()
-            postLogin(issuer, studentId, moodleToken, moodlePrivateToken, platform, signInGeneration)
+            postLogin(issuer, studentId, moodleToken, privateToken, platform, signInGeneration)
         }
     }
 
@@ -509,7 +509,7 @@ class AuthTokenManager(
         val json = JSONObject().apply {
             put("student_id", studentId)
             put("moodle_token", moodleToken)
-            put("moodle_private_token", moodlePrivateToken.takeUnless { resolveAnnouncementEndpoint(prefs).overrideApplied })
+            put("moodle_private_token", moodlePrivateToken)
             put("device_info", JSONObject().apply {
                 put("client_device_id", deviceUuid)
                 put("platform", platform)
