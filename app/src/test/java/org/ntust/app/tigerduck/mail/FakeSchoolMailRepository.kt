@@ -108,6 +108,9 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     /** Thrown by [loadPage] for that folder alone, where [loadError] fails every folder. */
     val folderLoadErrors = mutableMapOf<String, MailError>()
 
+    /** Runs just before a [folderLoadErrors] entry throws: a test acts here while that request is out. */
+    var beforeFolderLoadError: (suspend () -> Unit)? = null
+
     /** Thrown by [status] for that folder -- the poll's check of a folder on screen other than the inbox. */
     val folderStatusErrors = mutableMapOf<String, MailError>()
     val folderStatusCalls = mutableListOf<String>()
@@ -298,7 +301,10 @@ class FakeSchoolMailRepository : SchoolMailRepository {
                 }
             }
             loadError?.takeIf { loadErrorFolder == null || loadErrorFolder == folder }?.let { throw it }
-            folderLoadErrors[folder]?.let { throw it }
+            folderLoadErrors[folder]?.let {
+                beforeFolderLoadError?.invoke()
+                throw it
+            }
             if (beforeSeq != null) olderPageGate?.await()
             if (beforeSeq != null) olderPage?.invoke(folder, beforeSeq)?.let { return it }
             val all = sorted(folder)

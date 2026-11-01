@@ -984,8 +984,8 @@ class SchoolMailListViewModel @Inject constructor(
                 repository.loadPage(folder, null) { stillCurrent(selection, generation) }.also { dated(folder, generation) }
             }
             val pages = read.pages
-            if (pages.isEmpty()) read.failure?.let { throw it } // every folder failed: the load did
             if (!stillCurrent(selection, generation)) return false
+            if (pages.isEmpty()) read.failure?.let { throw it } // every folder failed: the load did
             val loaded = pages.map { it.first }
             listGeneration++
             folderValidity = folderValidity + pages.associate { (folder, page) -> folder to page.uidValidity }

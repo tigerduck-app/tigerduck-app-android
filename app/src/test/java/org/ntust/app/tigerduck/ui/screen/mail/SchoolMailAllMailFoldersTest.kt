@@ -10,6 +10,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -310,6 +311,20 @@ class SchoolMailAllMailFoldersTest {
         vm.selectFolder(FolderSelection.Real(SENT))
         gate.complete(Unit)
         assertEquals(FolderSelection.Real(SENT), vm.state.value.selected)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+    }
+
+    @Test
+    fun `a load that failed everywhere after the student left the folder is not shown`() {
+        seed()
+        repo.folderLoadErrors["INBOX"] = MailError.Network()
+        // The first page is out when the student switches, and it fails after that.
+        repo.beforeFolderLoadError = {
+            vm.selectFolder(FolderSelection.Real(JUNK))
+            yield() // the new folder's load finishes first
+        }
+        vm.load()
+        assertEquals(FolderSelection.Real(JUNK), vm.state.value.selected)
         assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
     }
 
