@@ -61,21 +61,19 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.SubPageBarHeight
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.tigerDuckSwitchColors
 
 internal val SettingRowHeight = 56.dp
 
 /**
- * Height of a sub-screen's top bar, below M3's 64dp default so a settings
- * page leads with its content rather than its chrome.
- *
- * It was 48dp while every one of these bars was also paying the status-bar
- * inset a second time (see [org.ntust.app.tigerduck.ui.component.NoTopBarInsets]),
- * which padded the title out to something taller than the number said.
- * With the double inset gone, 48 read as cramped.
+ * The bar height of the settings pages that still write their own
+ * `TopAppBar`; [SubPageScaffold] owns the value, and this goes once the last
+ * of them has moved to it.
  */
-internal val SubSettingsBarHeight = 56.dp
+internal val SubSettingsBarHeight = SubPageBarHeight
+
 /**
  * About section row that swaps a chevron for a spinner while a manual
  * "Check for updates" call is in flight. Disabled while checking so a
