@@ -49,4 +49,18 @@ class WatchCourseChangesTest {
         assertTrue(changes.toCourseChanges(listOf(course)).changes("CC900", day.plusDays(7)).isEmpty())
         assertTrue(changes.toCourseChanges(listOf(course)).changes("OTHER", day).isEmpty())
     }
+
+    @Test
+    fun `the same courses convert once and another list converts afresh`() {
+        val changes = WatchCourseChanges(mapOf("CC900" to mapOf(day to listOf(WatchClassChange(listOf("2"), cancelled = true)))))
+        val courses = listOf(course)
+        val first = changes.toCourseChanges(courses)
+        assertTrue(first === changes.toCourseChanges(courses))
+        val other = listOf(course)
+        val second = changes.toCourseChanges(other)
+        assertTrue(first !== second)
+        assertEquals(first, second)
+        assertTrue(second === changes.toCourseChanges(other))
+        assertEquals(WatchCourseChanges(changes.byCourse), changes)
+    }
 }

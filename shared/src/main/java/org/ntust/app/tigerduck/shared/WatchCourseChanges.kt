@@ -43,6 +43,18 @@ data class WatchCourseChanges(val byCourse: Map<String, Map<LocalDate, List<Watc
      * and what is stored stay as [WearProtocol.Schedule] writes and reads them.
      */
     fun toCourseChanges(courses: List<Course>): CourseChanges {
+        // Kept for the courses it was made for, as a snapshot's screens and tile ask again and
+        // again with the same list. One holder, read once: a rebuild racing another is harmless.
+        val kept = memo
+        if (kept != null && kept.first === courses) return kept.second
+        return build(courses).also { memo = courses to it }
+    }
+
+    // Not part of equals, hashCode or any encoding.
+    @Volatile
+    private var memo: Pair<List<Course>, CourseChanges>? = null
+
+    private fun build(courses: List<Course>): CourseChanges {
         if (byCourse.isEmpty()) return CourseChanges.EMPTY
         var id = 0
         val rows = ArrayList<Pair<LocalDate, CourseChange>>()
