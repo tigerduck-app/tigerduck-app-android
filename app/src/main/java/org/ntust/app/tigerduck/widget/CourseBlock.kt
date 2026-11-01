@@ -1,9 +1,9 @@
 package org.ntust.app.tigerduck.widget
 
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.coursechanges.ClassSlot
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.blockClassroom
 import org.ntust.app.tigerduck.shared.contiguousPeriodRuns

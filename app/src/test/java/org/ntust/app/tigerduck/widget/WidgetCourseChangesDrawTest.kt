@@ -40,10 +40,10 @@ import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.analytics.testAnalyticsLogger
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.thursday
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor

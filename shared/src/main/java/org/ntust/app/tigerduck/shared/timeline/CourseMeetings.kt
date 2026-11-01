@@ -1,10 +1,11 @@
-package org.ntust.app.tigerduck.coursechanges
+package org.ntust.app.tigerduck.shared.timeline
 
-import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.coursechanges.CourseChange.Kind
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.PeriodTimes
 import org.ntust.app.tigerduck.shared.blockClassroom
 import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
+import org.ntust.app.tigerduck.shared.timeline.CourseChange.Kind
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -40,9 +41,9 @@ data class ClassSlot(
     /** 1 = Monday … 7 = Sunday, as course schedules are keyed. */
     val weekday: Int get() = date.dayOfWeek.value
 
-    val startsAt: Instant get() = date.atTime(start).atZone(AppConstants.TAIPEI_ZONE).toInstant()
+    val startsAt: Instant get() = date.atTime(start).atZone(TaipeiClock.zone).toInstant()
 
-    val endsAt: Instant get() = date.atTime(end).atZone(AppConstants.TAIPEI_ZONE).toInstant()
+    val endsAt: Instant get() = date.atTime(end).atZone(TaipeiClock.zone).toInstant()
 
     val isCancelled: Boolean get() = changes.any { it.kind == Kind.CANCELLED }
 
@@ -154,11 +155,6 @@ object CourseMeetings {
             if (own != null) own.endsAt <= now else running.all { it.endsAt <= now }
         }
     }
-
-    /** The classes running at [now] as the school changed them; a cancelled one is not running. */
-    fun ongoingClasses(courses: List<Course>, now: Instant, changes: CourseChanges): List<ClassSlot> =
-        buildSlots(courses, now.atZone(AppConstants.TAIPEI_ZONE).toLocalDate(), changes)
-            .filter { !it.isCancelled && it.startsAt <= now && now < it.endsAt }
 
     private class Meeting(
         val course: Course,
@@ -274,7 +270,7 @@ object CourseMeetings {
     }
 
     private fun periodTime(period: String, end: Boolean): LocalTime? {
-        val times = AppConstants.PeriodTimes.mapping[period] ?: return null
+        val times = PeriodTimes.mapping[period] ?: return null
         return time(if (end) times.second else times.first)
     }
 

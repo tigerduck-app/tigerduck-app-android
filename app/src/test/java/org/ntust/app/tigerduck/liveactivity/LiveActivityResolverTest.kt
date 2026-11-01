@@ -6,10 +6,10 @@ import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.AppLink
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.OutstandingAssignments
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course

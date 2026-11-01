@@ -54,7 +54,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.coursechanges.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.courseChangeInk
 import org.ntust.app.tigerduck.ui.component.isEnglishUiLanguage

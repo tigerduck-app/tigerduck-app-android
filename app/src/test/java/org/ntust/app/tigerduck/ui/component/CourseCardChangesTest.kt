@@ -12,11 +12,11 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.course
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.thursday
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.course
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 

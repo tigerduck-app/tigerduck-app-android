@@ -1,4 +1,4 @@
-package org.ntust.app.tigerduck.coursechanges
+package org.ntust.app.tigerduck.shared.timeline
 
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -6,15 +6,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.at
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.course
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.feed
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.slots
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.thursday
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.time
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.timetable
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.at
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.course
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.feed
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.slots
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.time
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.timetable
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 
@@ -385,17 +385,17 @@ class CourseMeetingsTest {
             row(2, "cancelled", periods = listOf("7", "8")),
         )
 
-        val now = CourseMeetings.ongoingClasses(listOf(course()), at("10:30"), changes).first()
+        val now = ClassTimeline.ongoing(listOf(course()), at("10:30"), changes).first()
         assertEquals(morning to "TR-313", now.periods to now.room)
         val partly = changes(row(1, "room", periods = listOf("4"), values = mapOf("room" to "TR-313")))
-        val piece = CourseMeetings.ongoingClasses(listOf(course()), at("10:30"), partly).first()
+        val piece = ClassTimeline.ongoing(listOf(course()), at("10:30"), partly).first()
         assertEquals(listOf("2", "3"), piece.periods)
         assertNull(
             "the running piece has no change of its own, so the detail shows none",
             CourseChangeSummary.shownMeeting(course(), piece, piece.periods, piece.date, partly),
         )
-        assertTrue(CourseMeetings.ongoingClasses(listOf(course()), at("14:30"), changes).isEmpty())
-        assertEquals(1, CourseMeetings.ongoingClasses(listOf(course()), at("14:30"), CourseChanges.EMPTY).size)
+        assertTrue(ClassTimeline.ongoing(listOf(course()), at("14:30"), changes).isEmpty())
+        assertEquals(1, ClassTimeline.ongoing(listOf(course()), at("14:30"), CourseChanges.EMPTY).size)
     }
 
     @Test
@@ -406,10 +406,10 @@ class CourseMeetingsTest {
         )
         val courses = listOf(course())
 
-        assertTrue(CourseMeetings.ongoingClasses(courses, at("09:30"), changes).isEmpty())
-        assertEquals(1, CourseMeetings.ongoingClasses(courses, at("09:40"), changes).size)
-        assertTrue(CourseMeetings.ongoingClasses(courses, at("11:50"), changes).isEmpty())
-        assertTrue("another day's changes do not apply", CourseMeetings.ongoingClasses(courses, at("09:30", thursday.plusWeeks(1)), changes).isNotEmpty())
+        assertTrue(ClassTimeline.ongoing(courses, at("09:30"), changes).isEmpty())
+        assertEquals(1, ClassTimeline.ongoing(courses, at("09:40"), changes).size)
+        assertTrue(ClassTimeline.ongoing(courses, at("11:50"), changes).isEmpty())
+        assertTrue("another day's changes do not apply", ClassTimeline.ongoing(courses, at("09:30", thursday.plusWeeks(1)), changes).isNotEmpty())
     }
 
     // Slots and their ids (tigerduck-app `CourseTimeSlotTests`)

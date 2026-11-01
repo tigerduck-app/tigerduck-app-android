@@ -7,12 +7,12 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.at
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.course
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.thursday
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.at
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.course
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
@@ -117,12 +117,12 @@ class TimeSliderCourseChangesTest {
 
     @Test
     fun `a Home card opens the detail on its own piece of the meeting`() {
-        val changes = org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.changes(
-            org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.row(1, "cancelled", periods = listOf("2")),
+        val changes = org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes(
+            org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row(1, "cancelled", periods = listOf("2")),
         )
-        val day = java.util.Date.from(org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.at("08:00"))
+        val day = java.util.Date.from(org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.at("08:00"))
         val slots = CourseTimeSlot.buildSlots(
-            listOf(org.ntust.app.tigerduck.coursechanges.CourseChangeFixture.course()), 4, on = day, changes = changes,
+            listOf(org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.course()), 4, on = day, changes = changes,
         )
         val cancelled = slots.first { it.isCancelled }.detailSelection
         assertEquals(listOf("2"), cancelled.slot?.periods)

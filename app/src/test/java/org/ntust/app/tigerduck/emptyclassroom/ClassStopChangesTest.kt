@@ -3,9 +3,9 @@ package org.ntust.app.tigerduck.emptyclassroom
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.ntust.app.tigerduck.coursechanges.CourseChangeFixture
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 

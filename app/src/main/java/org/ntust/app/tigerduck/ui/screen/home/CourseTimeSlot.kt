@@ -1,8 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.AppConstants
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
-import org.ntust.app.tigerduck.coursechanges.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 import java.util.Calendar
@@ -24,7 +24,7 @@ data class CourseTimeSlot(
     /** Whether the school cancelled this class. A cancelled class stays on the slider, struck through. */
     val isCancelled: Boolean = false,
     /** The class as the school changed it, for the course detail; null for one built without the feed. */
-    val classSlot: org.ntust.app.tigerduck.coursechanges.ClassSlot? = null,
+    val classSlot: org.ntust.app.tigerduck.shared.timeline.ClassSlot? = null,
     /** The room the school moved this class to; null keeps the timetable's. */
     val movedRoom: String? = null,
     /** Whether the school moved this class's start or end off the timetable's. */
@@ -112,7 +112,7 @@ data class CourseDetailSelection(
     val periodId: String,
     val date: java.time.LocalDate? = null,
     /** The piece of the meeting the card stands for, whose changes the detail shows. */
-    val slot: org.ntust.app.tigerduck.coursechanges.ClassSlot? = null,
+    val slot: org.ntust.app.tigerduck.shared.timeline.ClassSlot? = null,
 )
 
 /** This slot's course on its own day and first period, so the detail shows this slot's room, time and changes. */

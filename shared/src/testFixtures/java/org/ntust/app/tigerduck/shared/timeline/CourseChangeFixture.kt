@@ -1,9 +1,10 @@
-package org.ntust.app.tigerduck.coursechanges
+package org.ntust.app.tigerduck.shared.timeline
 
 import org.json.JSONArray
 import org.json.JSONObject
-import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.PeriodTimes
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -12,13 +13,13 @@ import java.time.LocalTime
  * The iPhone suite's fixture (`CourseChangesTests`): CC900 meets on Thursday 2026-11-05 in two
  * meetings, periods 2 to 4 and 7 to 8, in T4-501. Course numbers and rooms are made up.
  */
-internal object CourseChangeFixture {
+object CourseChangeFixture {
     val thursday: LocalDate = LocalDate.of(2026, 11, 5)
 
     fun time(text: String): LocalTime = LocalTime.parse(text)
 
     fun at(text: String, day: LocalDate = thursday): Instant =
-        day.atTime(time(text)).atZone(AppConstants.TAIPEI_ZONE).toInstant()
+        day.atTime(time(text)).atZone(TaipeiClock.zone).toInstant()
 
     fun course(periods: List<String> = listOf("2", "3", "4", "7", "8")): Course =
         Course.fromSchedule(courseNo = "CC900", courseName = "Compilers", classroom = "T4-501", schedule = mapOf(4 to periods))
@@ -61,7 +62,7 @@ internal object CourseChangeFixture {
 
     /** The timetable time of [period]'s start or end. */
     fun timetable(period: String, end: Boolean): LocalTime {
-        val times = AppConstants.PeriodTimes.mapping.getValue(period)
+        val times = PeriodTimes.mapping.getValue(period)
         return time(if (end) times.second else times.first)
     }
 }

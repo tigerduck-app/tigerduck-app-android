@@ -2,7 +2,7 @@ package org.ntust.app.tigerduck.wear
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import org.ntust.app.tigerduck.coursechanges.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResolver
 import org.ntust.app.tigerduck.shared.TodayClassEntry
