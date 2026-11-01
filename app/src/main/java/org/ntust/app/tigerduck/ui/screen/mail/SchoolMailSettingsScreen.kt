@@ -22,7 +22,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.screen.settings.SettingsLinkRow
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -58,7 +58,7 @@ fun SchoolMailSettingsScreen(
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val signedIn by viewModel.signedIn.collectAsStateWithLifecycle()
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.school_mail_account_title),
         onBack = onBack,
     ) { padding ->

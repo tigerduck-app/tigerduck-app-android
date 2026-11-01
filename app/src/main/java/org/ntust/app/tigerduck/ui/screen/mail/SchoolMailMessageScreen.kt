@@ -81,6 +81,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.util.fileProviderAuthority
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -97,7 +98,6 @@ import org.ntust.app.tigerduck.mail.warning.MailWarning
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.scrollbar
@@ -218,7 +218,7 @@ fun SchoolMailMessageScreen(
         viewModel.consumeSaveRequest()
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "",
         onBack = onBack,
         actions = {

@@ -62,7 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.MailError
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.navigation.AskBeforeLeaving
 import org.ntust.app.tigerduck.ui.navigation.HeldMove
@@ -179,7 +179,7 @@ fun SchoolMailComposeScreen(
     val pickPhotos = rememberPhotoPicker(viewModel::addPicked)
     val fieldsEnabled = !state.sending && !state.loading
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(
             when (viewModel.mode) {
                 ComposeMode.REPLY -> R.string.school_mail_reply

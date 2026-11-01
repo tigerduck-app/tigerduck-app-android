@@ -46,7 +46,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.browser.AllowlistEntry
 import org.ntust.app.tigerduck.browser.BrowserAllowlist
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
 
 /**
@@ -92,7 +92,7 @@ fun BrowserAllowlistDebugScreen(
         }
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "Browser allowlist",
         onBack = onBack,
     ) { padding ->

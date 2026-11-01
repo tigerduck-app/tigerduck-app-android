@@ -46,7 +46,7 @@ import androidx.compose.ui.zIndex
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.ui.AppState
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.navigation.icon
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.SectionHeader
@@ -79,7 +79,7 @@ fun TabEditorScreen(
     var itemHeightPx by remember { mutableFloatStateOf(0f) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.tab_editor_title),
         onBack = onBack,
         actions = {

@@ -53,7 +53,7 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.xmlpull.v1.XmlPullParser
@@ -143,7 +143,7 @@ fun LanguagePickerScreen(
 
     val scrollState = rememberScrollState()
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_language),
         onBack = onBack,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

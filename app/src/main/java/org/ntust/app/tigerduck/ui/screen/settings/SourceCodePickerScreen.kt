@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -88,7 +88,7 @@ fun SourceCodePickerScreen(
     val context = LocalContext.current
     val browserPreference = viewModel.appState.browserPreference
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_view_source_code),
         onBack = onBack,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

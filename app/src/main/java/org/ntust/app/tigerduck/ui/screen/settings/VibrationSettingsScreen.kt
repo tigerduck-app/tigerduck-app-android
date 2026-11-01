@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 
@@ -61,7 +61,7 @@ fun VibrationSettingsScreen(
     val context = LocalContext.current
     val appState = viewModel.appState
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.vibration_settings_title),
         onBack = onBack,
     ) { padding ->

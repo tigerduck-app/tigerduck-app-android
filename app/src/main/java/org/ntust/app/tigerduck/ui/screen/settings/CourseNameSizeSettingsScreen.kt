@@ -42,7 +42,7 @@ import kotlin.math.roundToInt
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.CourseNameScale
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -92,7 +92,7 @@ internal fun CourseNameSizeContent(
     val stepCount = ((CourseNameScale.MAX - CourseNameScale.MIN) / CourseNameScale.STEP)
         .roundToInt() - 1
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_font_size_title),
         onBack = onBack,
     ) { scaffoldPadding ->

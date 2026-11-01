@@ -49,7 +49,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.DisplayScale
 import org.ntust.app.tigerduck.ui.AppScale
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -110,7 +110,7 @@ internal fun DisplaySizeContent(
         onFinished = { onCommit(scale, current(scale)) },
     )
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_display_size_title),
         onBack = onBack,
     ) { scaffoldPadding ->

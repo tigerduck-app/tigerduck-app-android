@@ -54,7 +54,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -90,7 +90,7 @@ fun LiveActivitySettingsScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.live_activity_channel_name),
         onBack = onBack,
     ) { scaffoldPadding ->

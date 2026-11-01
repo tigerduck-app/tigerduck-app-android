@@ -37,7 +37,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -50,7 +50,7 @@ fun ServerFailureDebugScreen(onBack: () -> Unit) {
     val failures by ServerFailureSimulator.failures.collectAsState()
     val statuses by ServerStatusTracker.statuses.collectAsState()
 
-    SubPageScaffold(
+    PageScaffold(
         title = "Server failure simulation",
         onBack = onBack,
     ) { padding ->

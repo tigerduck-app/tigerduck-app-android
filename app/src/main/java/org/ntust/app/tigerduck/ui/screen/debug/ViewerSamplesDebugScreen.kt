@@ -41,7 +41,7 @@ import org.ntust.app.tigerduck.debug.ViewerSample
 import org.ntust.app.tigerduck.debug.ViewerSamples
 import org.ntust.app.tigerduck.files.FileOpening
 import org.ntust.app.tigerduck.files.FileViewing
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.launchMoodleFile
 import java.io.File
 
@@ -78,7 +78,7 @@ fun ViewerSamplesDebugScreen(onBack: () -> Unit) {
         if (uri != null) open { context.copyPicked(uri) }
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "File viewer samples",
         onBack = onBack,
     ) { padding ->

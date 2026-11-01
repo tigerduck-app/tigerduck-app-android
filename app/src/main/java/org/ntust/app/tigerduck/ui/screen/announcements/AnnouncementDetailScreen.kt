@@ -48,7 +48,7 @@ import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.network.model.localizedTagLabel
 import org.ntust.app.tigerduck.network.model.orgLabel
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.openLink
 
@@ -72,7 +72,7 @@ fun AnnouncementDetailScreen(
         is AnnouncementDetailViewModel.State.Loading -> null
     }
 
-    SubPageScaffold(
+    PageScaffold(
         title = "",
         onBack = onBack,
         floatingActionButton = {

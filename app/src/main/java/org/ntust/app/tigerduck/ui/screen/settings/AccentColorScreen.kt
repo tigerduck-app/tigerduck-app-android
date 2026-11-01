@@ -57,7 +57,7 @@ import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -71,7 +71,7 @@ fun AccentColorScreen(
     onBack: () -> Unit,
 ) {
     val appState = viewModel.appState
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_accent_color),
         onBack = onBack,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),

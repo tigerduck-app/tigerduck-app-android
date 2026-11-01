@@ -37,7 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.storage.AppStorage.Kind
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.SubPageScaffold
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -72,7 +72,7 @@ fun StorageScreen(
     val total = sizes?.values?.sum()
     val downloadedTotal = sizes?.filterKeys { it.downloaded }?.values?.sum()
 
-    SubPageScaffold(
+    PageScaffold(
         title = stringResource(R.string.settings_storage_title),
         onBack = onBack,
     ) { scaffoldPadding ->
