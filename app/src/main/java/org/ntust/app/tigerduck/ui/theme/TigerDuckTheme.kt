@@ -21,9 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import org.ntust.app.tigerduck.shared.Course
 import kotlin.random.Random
@@ -482,14 +480,11 @@ fun TigerDuckAppTheme(
         typography = rememberCjkCenteredTypography(TigerDuckTypography),
     ) {
         CompositionLocalProvider(
-            // No right-to-left locale ships, but a phone set to Arabic or Hebrew still has a
-            // right-to-left configuration, which Compose would mirror every screen by.
-            LocalLayoutDirection provides LayoutDirection.Ltr,
             LocalVisualStylePolicy provides VisualStylePolicy(visualPreset),
             LocalUsesDynamicColor provides useDynamicColor,
             LocalAccentBrush provides accentBrush,
             LocalOnAccentBrush provides onAccentBrush,
-            content = content,
+            content = { LeftToRight(content) },
         )
     }
 }
