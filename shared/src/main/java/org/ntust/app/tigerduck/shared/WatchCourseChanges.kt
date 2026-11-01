@@ -33,31 +33,40 @@ data class WatchCourseChanges(val byCourse: Map<String, Map<LocalDate, List<Watc
     fun on(courseNo: String, day: LocalDate): List<WatchClassChange> = byCourse[courseNo]?.get(day).orEmpty()
 
     /**
-     * These classes as the rows of the school's feed, for [org.ntust.app.tigerduck.shared.timeline.ClassTimeline]
-     * to read: a cancelled class cancels its periods, and a room, start or end it carries is a
-     * room, start or end change over them. In memory only; what is sent and what is stored
-     * stay as [WearProtocol.Schedule] writes and reads them.
+     * What [ClassTimeline][org.ntust.app.tigerduck.shared.timeline.ClassTimeline] needs to lay these
+     * classes over [courses]' timetable, as the feed's rows: a cancelled class cancels its periods,
+     * and a room, start or end it carries is a room, start or end change over them. The phone sends
+     * the classes a meeting splits into, and leaves out a piece that a change made empty, which
+     * the timetable would bring back; a period of a meeting that no sent class covers is
+     * therefore cancelled here, as the watch has always left it out. A class whose first period is
+     * in none of a course's blocks that day is ignored, as before. In memory only: what is sent
+     * and what is stored stay as [WearProtocol.Schedule] writes and reads them.
      */
-    fun toCourseChanges(): CourseChanges = asRows
-
-    // Made once, as the watch asks for it on every screen and tile refresh.
-    private val asRows: CourseChanges by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    fun toCourseChanges(courses: List<Course>): CourseChanges {
+        if (byCourse.isEmpty()) return CourseChanges.EMPTY
         var id = 0
         val rows = ArrayList<Pair<LocalDate, CourseChange>>()
-        for ((courseNo, days) in byCourse) {
+        for (course in courses) {
+            val days = byCourse[course.courseNo] ?: continue
             for ((day, classes) in days) {
-                for (change in classes) {
-                    fun row(kind: CourseChange.Kind, room: String? = null, start: String? = null, end: String? = null) {
-                        rows += day to CourseChange(++id, courseNo, kind, change.periods, room, start, end, null, null)
+                for (block in contiguousPeriodRuns(course.schedule[day.dayOfWeek.value].orEmpty())) {
+                    val inBlock = classes.filter { it.periods.firstOrNull() in block }
+                    if (inBlock.isEmpty()) continue
+                    fun row(kind: CourseChange.Kind, periods: List<String>, room: String? = null, start: String? = null, end: String? = null) {
+                        rows += day to CourseChange(++id, course.courseNo, kind, periods, room, start, end, null, null)
                     }
-                    if (change.cancelled) row(CourseChange.Kind.CANCELLED)
-                    change.room?.let { row(CourseChange.Kind.ROOM, room = it) }
-                    change.start?.let { row(CourseChange.Kind.START, start = it) }
-                    change.end?.let { row(CourseChange.Kind.END, end = it) }
+                    for (change in inBlock) {
+                        if (change.cancelled) row(CourseChange.Kind.CANCELLED, change.periods)
+                        change.room?.let { row(CourseChange.Kind.ROOM, change.periods, room = it) }
+                        change.start?.let { row(CourseChange.Kind.START, change.periods, start = it) }
+                        change.end?.let { row(CourseChange.Kind.END, change.periods, end = it) }
+                    }
+                    val left = block.filter { period -> inBlock.none { period in it.periods } }
+                    if (left.isNotEmpty()) row(CourseChange.Kind.CANCELLED, left)
                 }
             }
         }
-        CourseChanges.of(rows)
+        return CourseChanges.of(rows)
     }
 
     companion object {

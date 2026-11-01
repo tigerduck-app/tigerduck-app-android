@@ -359,4 +359,73 @@ class WatchTimelineCharacterizationTest {
             assertEquals(raw, plainToday, now(s, thursday, at(9, 30)))
         }
     }
+
+    // ---- pieces the phone left out: a piece the change made empty is not sent, and stays gone ----
+
+    private val pieceA = course("A", mapOf(2 to listOf("1", "2", "3")), "T-1")   // 08:10-11:10
+    private val pieceB = course("B", mapOf(2 to listOf("7")), "T-2")             // 14:20-15:10
+
+    /** [wire] is what the phone sends for A on Tuesday, read by the watch's own decoder. */
+    private fun sentForA(wire: String, vararg more: Course): WatchSnapshot {
+        val sent = WearProtocol.Schedule.decodeCourseChanges("""{"A":{"2026-11-03":$wire}}""")
+        return snapshot(listOf(pieceA, pieceB) + more, sent.byCourse)
+    }
+
+    @Test
+    fun `a cancelled first period with a later start leaves the rest of the meeting at that start`() {
+        val s = sentForA("""[{"periods":["2","3"],"cancelled":false}]""")
+        assertEquals("today A 23 09:10 T-1 chg=true", now(s, tuesday, at(8, 30)))
+        assertEquals(
+            listOf("A 23 09:10-11:10 T-1 Upcoming chg=true", "B 7 14:20-15:10 T-2 Upcoming chg=false"),
+            today(s, tuesday, at(8, 30)),
+        )
+        assertEquals("ongoing A 23 09:10-11:10 T-1 next=B 7 14:20 T-2 chg=true", now(s, tuesday, at(9, 15)))
+    }
+
+    @Test
+    fun `a cancelled last period with an earlier end leaves the rest of the meeting ending there`() {
+        val s = sentForA("""[{"periods":["1","2"],"cancelled":false}]""")
+        assertEquals("ongoing A 12 08:10-10:00 T-1 next=B 7 14:20 T-2 chg=true", now(s, tuesday, at(9, 30)))
+        assertEquals("today B 7 14:20 T-2 chg=false", now(s, tuesday, at(10, 30)))
+        assertEquals(
+            listOf("A 12 08:10-10:00 T-1 Ended chg=true", "B 7 14:20-15:10 T-2 Upcoming chg=false"),
+            today(s, tuesday, at(10, 30)),
+        )
+    }
+
+    @Test
+    fun `a room moved on a first period with an earlier end leaves only that period`() {
+        val s = sentForA("""[{"periods":["1"],"cancelled":false,"room":"NEW"}]""")
+        assertEquals("ongoing A 1 08:10-09:00 NEW next=B 7 14:20 T-2 chg=true", now(s, tuesday, at(8, 30)))
+        assertEquals("today B 7 14:20 T-2 chg=false", now(s, tuesday, at(9, 30)))
+        assertEquals(
+            listOf("A 1 08:10-09:00 NEW Ended chg=true", "B 7 14:20-15:10 T-2 Upcoming chg=false"),
+            today(s, tuesday, at(9, 30)),
+        )
+    }
+
+    @Test
+    fun `a cancelled first period with a start after the second one begins`() {
+        val s = sentForA("""[{"periods":["2","3"],"cancelled":false,"start":"09:30"}]""")
+        assertEquals("today A 23 09:30 T-1 chg=true", now(s, tuesday, at(8, 0)))
+        assertEquals("today A 23 09:30 T-1 chg=true", now(s, tuesday, at(9, 15)))
+        assertEquals("ongoing A 23 09:30-11:10 T-1 next=B 7 14:20 T-2 chg=true", now(s, tuesday, at(9, 30)))
+    }
+
+    @Test
+    fun `a cancelled last period with an end after the second one finishes`() {
+        val s = sentForA("""[{"periods":["1","2"],"cancelled":false,"end":"10:10"}]""")
+        assertEquals("ongoing A 12 08:10-10:10 T-1 next=B 7 14:20 T-2 chg=true", now(s, tuesday, at(10, 5)))
+        assertEquals("today B 7 14:20 T-2 chg=false", now(s, tuesday, at(10, 15)))
+    }
+
+    @Test
+    fun `a course's two blocks going on at once, the earlier block is the one shown`() {
+        val d = course("D", mapOf(2 to listOf("1", "3")), "T-D")   // 08:10-09:00 and 10:20-11:10
+        val sent = WearProtocol.Schedule.decodeCourseChanges(
+            """{"D":{"2026-11-03":[{"periods":["1"],"cancelled":false,"start":"10:25","end":"11:00"}]}}""",
+        )
+        val s = snapshot(listOf(d), sent.byCourse)
+        assertEquals("ongoing D 1 10:25-11:00 T-D next=- chg=true", now(s, tuesday, at(10, 30)))
+    }
 }

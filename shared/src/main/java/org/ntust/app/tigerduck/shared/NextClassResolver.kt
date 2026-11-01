@@ -106,14 +106,14 @@ object NextClassResolver {
         changes: WatchCourseChanges = WatchCourseChanges.EMPTY,
         isQuietDay: (daysAhead: Int) -> Boolean = { false },
     ): NextClassResult {
-        val timeline = changes.toCourseChanges()
+        val timeline = changes.toCourseChanges(courses)
         val weekday = today.dayOfWeek.value
         val todaysCourses = if (isQuietDay(0)) emptyList() else courses
         val todays = classesOn(todaysCourses, today, changes, timeline)
         val now = today.atTime(minuteOfDay / 60, minuteOfDay % 60).atZone(TaipeiClock.zone).toInstant()
-        val ongoing = ClassTimeline.ongoing(todaysCourses, now, timeline)
-            .map { slot -> todays.first { it.slot.id == slot.id } }
-            .minByOrNull { courseIndex(todaysCourses, it) }
+        // The first course in the list; of one course's classes going on at once, the earlier block.
+        val ongoing = todays.filter { it.slot.isOn(now) }
+            .minWithOrNull(compareBy<DayClass> { courseIndex(todaysCourses, it) }.thenBy { periodOrder(it.periods.first()) })
         if (ongoing != null) {
             // The course going on is left out of what comes next, as before changes; but a meeting
             // the school split runs as its classes, so only the one going on is left out of it.
@@ -164,7 +164,7 @@ object NextClassResolver {
         changes: WatchCourseChanges = WatchCourseChanges.EMPTY,
     ): List<TodayClassEntry> {
         if (quietToday) return emptyList()
-        return classesOn(courses, today, changes, changes.toCourseChanges()).map { dayClass ->
+        return classesOn(courses, today, changes, changes.toCourseChanges(courses)).map { dayClass ->
             val status = when {
                 minuteOfDay >= dayClass.endMinute -> TodayClassStatus.Ended
                 minuteOfDay >= dayClass.startMinute -> TodayClassStatus.Ongoing
