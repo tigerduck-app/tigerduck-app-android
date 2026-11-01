@@ -110,17 +110,23 @@ object ClassTableSelection {
      * Sorted by the chronological index of each course's *first* period today
      * rather than by period id, because period ids are not lexicographically
      * ordered — "10" sorts before "2", and the lunch and evening periods are
-     * lettered. A course with no resolvable period sinks to the end instead
-     * of throwing off the whole ordering.
+     * lettered. As iOS does, only the periods with a time count: a course
+     * meeting today only in periods the school gave no time (an id this build
+     * does not know) is no class today and is left out, and such a period in
+     * a course that also has a timed one does not move it.
      */
     fun coursesOn(courses: List<Course>, weekday: Int): List<Course> = courses
-        .filter { it.schedule.containsKey(weekday) }
-        .sortedBy { course ->
-            course.schedule[weekday]
-                ?.minByOrNull { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                ?.let { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-                ?: Int.MAX_VALUE
+        .mapNotNull { course ->
+            timedPeriodsInOrder(course.schedule[weekday].orEmpty()).firstOrNull()
+                ?.let { course to AppConstants.Periods.chronologicalOrder.indexOf(it) }
         }
+        .sortedBy { it.second }
+        .map { it.first }
+
+    /** [periods] that have a time, in the order they are taught. */
+    private fun timedPeriodsInOrder(periods: List<String>): List<String> =
+        periods.filter { it in AppConstants.PeriodTimes.mapping }
+            .sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
 
     /**
      * The today carousel's courses: [coursesOn] for [today], or none on a
@@ -133,18 +139,18 @@ object ClassTableSelection {
 
     /**
      * "09:10 - 12:00" for the tapped day, spanning the course's first to last
-     * period on it. Null when the course does not meet that day, or when a
-     * period has no time mapping — better a missing line than a wrong one.
+     * period on it that has a time, as iOS does: a period the school gave no
+     * time is left out of the range rather than hiding it. Null when the course
+     * does not meet that day, or meets only in periods with no time.
      */
     fun timeRange(course: Course, weekday: Int): String? =
         course.schedule[weekday]?.let(::timeRange)
 
-    /** "10:20 - 12:10" from the first of [periods] to the last, in the order they are taught. */
+    /** "10:20 - 12:10" from the first of [periods] to the last, in the order they are taught, those with a time. */
     fun timeRange(periods: List<String>): String? {
-        val sorted = periods.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-        if (sorted.isEmpty()) return null
-        val first = AppConstants.PeriodTimes.mapping[sorted.first()] ?: return null
-        val last = AppConstants.PeriodTimes.mapping[sorted.last()] ?: return null
+        val timed = timedPeriodsInOrder(periods)
+        val first = AppConstants.PeriodTimes.mapping[timed.firstOrNull() ?: return null] ?: return null
+        val last = AppConstants.PeriodTimes.mapping[timed.last()] ?: return null
         return "${first.first} - ${last.second}"
     }
 
@@ -264,15 +270,14 @@ object ClassTableSelection {
      * True once the course's last period today has ended, from its end minute.
      *
      * False whenever that cannot be established — the course does not meet
-     * today, or a period is missing a time mapping. Used to grey out finished
+     * today, or none of its periods today has a time; a period with no time
+     * is not the last one. Used to grey out finished
      * classes, so guessing "finished" would hide a class that is still on.
      * Timetable only, with no date to read `ClassTimeline` with, and it reads
      * the last period, not the changed end; [todayCard] covers a changed day.
      */
     fun isFinishedAt(course: Course, dayTime: DayTime): Boolean {
-        val lastPeriodId = course.schedule[dayTime.weekday]
-            ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
-            ?.lastOrNull() ?: return false
+        val lastPeriodId = timedPeriodsInOrder(course.schedule[dayTime.weekday].orEmpty()).lastOrNull() ?: return false
         val endMinutes = parseHm(
             AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
         ) ?: return false
