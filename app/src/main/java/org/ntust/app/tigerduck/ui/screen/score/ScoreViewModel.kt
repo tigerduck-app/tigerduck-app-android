@@ -32,6 +32,7 @@ import org.ntust.app.tigerduck.network.NtustScoreError
 import org.ntust.app.tigerduck.network.NtustScoreService
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -125,7 +126,7 @@ class ScoreViewModel internal constructor(
         get() = _report.value.courses
             .groupBy { it.term }
             .map { (term, list) -> term to list.sortedBy { it.index ?: 0 } }
-            .sortedByDescending { it.first }
+            .sortedWith { a, b -> AcademicTerm.newestFirstStable.compare(a.first, b.first) }
 
     val hasContent: Boolean
         get() = _report.value.courses.isNotEmpty() || _report.value.rankings.isNotEmpty()
@@ -255,7 +256,7 @@ class ScoreViewModel internal constructor(
     /** Collapse every term except the most recent the first time data lands. */
     private fun applyDefaultCollapseRule() {
         val terms = _report.value.courses.map { it.term }.toSet()
-        val latest = terms.maxOrNull() ?: return
+        val latest = terms.maxWithOrNull(AcademicTerm::compareStable) ?: return
         if (!hasSeededCollapse) {
             _collapsedTerms.value = terms.filter { it != latest }.toSet()
             hasSeededCollapse = true
