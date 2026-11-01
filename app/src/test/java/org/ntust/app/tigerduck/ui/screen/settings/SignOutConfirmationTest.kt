@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss.IMPORTED_CLASS_TABLES
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss.UNSYNCED_DATA
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Signing out deletes what exists only on the phone, so it asks first and says what goes: the
@@ -194,7 +195,7 @@ class SignOutConfirmationTest {
         dataCache.saveServerKnownNos(mapOf("1141" to listOf("XX0000001")))
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
-        dataCache.savePendingCourseAdds(mapOf("1141" to listOf("XX0000001")))
+        dataCache.savePendingCourseAdds(mapOf("1141" to listOf("XX0000001")), testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
 
         // An add whose course has left this phone is not sent again, and nothing of it is lost.
@@ -209,6 +210,7 @@ class SignOutConfirmationTest {
 
         dataCache.savePendingCourseIgnores(
             listOf(PendingCourseIgnore("1141", "CS1001301", "1141CS1001301", null, ignore = true, changedAtMs = 1L)),
+            testSignIn(),
         )
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
@@ -221,7 +223,7 @@ class SignOutConfirmationTest {
 
         // Marked done offline: the mark waits in unsent_marks.json for the next sync, and the
         // sign-out would delete it before the server ever had it.
-        dataCache.saveUnsentMarks(listOf(UnsentMark("a1", "locally_completed")))
+        dataCache.saveUnsentMarks(listOf(UnsentMark("a1", "locally_completed")), testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
@@ -265,7 +267,7 @@ class SignOutConfirmationTest {
     @Test
     fun `an ignored course is asked about while courses do not sync`() = runTest {
         syncOn()
-        dataCache.saveIgnoredCourses(setOf("1141CS1001301"))
+        dataCache.saveIgnoredCourses(setOf("1141CS1001301"), testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         prefs.syncCourses = false
@@ -281,6 +283,7 @@ class SignOutConfirmationTest {
         // Set offline: the colour waits in PendingCourseOverrides, which the sign-out wipes.
         dataCache.savePendingCourseOverrides(
             listOf(PendingCourseOverride("1141CS1001301", "#FF0000", null, null, changedAtMs = 1L)),
+            testSignIn(),
         )
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
@@ -337,7 +340,7 @@ class SignOutConfirmationTest {
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         // Its DELETE waits in PendingCourseDeletes: lost, the course comes back at the next sign-in.
-        dataCache.savePendingCourseDeletes(mapOf("1141" to mapOf("CS1001301" to 1L)))
+        dataCache.savePendingCourseDeletes(mapOf("1141" to mapOf("CS1001301" to 1L)), testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }

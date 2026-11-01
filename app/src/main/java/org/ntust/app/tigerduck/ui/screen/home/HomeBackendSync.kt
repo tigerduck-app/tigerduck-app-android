@@ -35,6 +35,7 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.isSessionRefused
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -55,6 +56,7 @@ import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -136,13 +138,13 @@ class HomeBackendSync @Inject constructor(
      * deletes, course colours and names, and holiday choices. A full sync
      * starts with this.
      */
-    suspend fun retryUnsent() {
-        courseIgnoreSync.retryPending()
-        unsentMarks.retry()
-        pendingCourseAdds.retry()
-        pendingCourseDeletes.retry()
-        pendingCourseOverrides.retry()
-        pendingHolidayOverrides.retry()
+    suspend fun retryUnsent(signIn: SignIn) {
+        courseIgnoreSync.retryPending(signIn)
+        unsentMarks.retry(signIn)
+        pendingCourseAdds.retry(signIn)
+        pendingCourseDeletes.retry(signIn)
+        pendingCourseOverrides.retry(signIn)
+        pendingHolidayOverrides.retry(signIn)
     }
 
     /**
@@ -153,8 +155,8 @@ class HomeBackendSync @Inject constructor(
      * proves a session and a network as a full sync does. As the iPhone's
      * `retryUnsentEdits`.
      */
-    suspend fun sendWhatWaits() {
-        retryUnsent()
+    suspend fun sendWhatWaits(signIn: SignIn) {
+        retryUnsent(signIn)
         notificationSettingsSync.pushIfUnconfirmed()
     }
 
@@ -164,6 +166,7 @@ class HomeBackendSync @Inject constructor(
      * [retried] guards the 401 path against looping: a relogin that still
      * produces a 401 gives up rather than recursing.
      */
+    @OptIn(StartsAccountWork::class)
     suspend fun pull(state: HomeSyncState, retried: Boolean = false) {
         // Pinned to the data this sync began with: once a sign-out wipes it, every cache write
         // below drops, so a sync that outlives one cannot write the departing account's courses,
@@ -187,32 +190,29 @@ class HomeBackendSync @Inject constructor(
         try {
             if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
             val account = authService.storedStudentId
-            val generation = courseIgnoreSync.currentGeneration()
+            // The first-sync mark upload is pinned to it: a sign-out and another sign-in
+            // meanwhile must not send these marks as theirs.
+            val signIn = authTokenManager.session.current
             // What waits to go up goes first, so the snapshot has it.
-            retryUnsent()
+            retryUnsent(signIn)
             // Every class-table delete asked before the fetch ranks below it, every later one
             // above: a course reset the snapshot reads lets go of the first only; see applyCourseReset.
             val beforeFetch = pendingCourseDeletes.stamp()
             // An add back made from here on is newer than a course reset the snapshot reads.
             courseSync.fetching()
-            // The first-sync mark upload is pinned to the sign-in read here:
-            // a sign-out and another sign-in meanwhile must not send these
-            // marks as theirs.
-            val (result, signIn) = fetchPinned({ authTokenManager.signInGeneration }) {
-                syncApiClient.fetchFullSync()
-            }
-            pendingCourseAdds.listed(result.serverCourses)
+            val result = syncApiClient.fetchFullSync()
+            pendingCourseAdds.listed(result.serverCourses, signIn)
             // One reading of the switches, for the steps below and for what
             // this sync records as synced: one flipped meanwhile counts from the next.
             val switchedOn = categoriesSwitchedOn(prefs)
             // Recorded at once, for this account only: a later step that
             // fails must not leave the next sync reading an empty server as
             // this phone's first.
-            val marksTaken = markStep.pull(state, result, "assignments" in switchedOn, signIn, generation)
+            val marksTaken = markStep.pull(state, result, "assignments" in switchedOn, signIn)
             if (marksTaken && authService.isStillSignedInAs(account)) {
                 prefs.assignmentMarksSyncedOnce = true
             }
-            courseIgnoreSync.applySnapshot(result, generation)?.let { state.ignoredCourseKeys.value = it }
+            courseIgnoreSync.applySnapshot(result, signIn)?.let { state.ignoredCourseKeys.value = it }
             // Course overrides and deletion detection always run regardless
             // of whether this was a first-time migration, but not over a
             // re-enable check still waiting for the user's answer.
@@ -223,12 +223,12 @@ class HomeBackendSync @Inject constructor(
                 // Not over a colour or name this phone has waiting to go up,
                 // or sent since the fetch: the snapshot's is the older.
                 applyCourseOverrides(
-                    state, result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames,
+                    state, result.courseOverrides, signIn, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames,
                 )
             } else {
                 state.allCourses.value.isNotEmpty()
             }
-            applyCourseReset(result, account, beforeFetch, courseSync)
+            applyCourseReset(result, account, beforeFetch, courseSync, signIn)
             // Not gated on any of the per-category sync toggles: a holiday
             // exception is a notification setting, not course or assignment
             // data, and the categories the user can turn off do not cover
@@ -237,16 +237,13 @@ class HomeBackendSync @Inject constructor(
             // landed stays as this phone has it, and a snapshot that may
             // predate one is not applied: see PendingHolidayOverrides.merged.
             result.holidayOverrides?.let { snapshot ->
-                HolidayOverrideApply.apply(
-                    snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar,
-                    authTokenManager::runIfSignedIn,
-                )
+                HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
             }
             val syncCourses = CourseSyncReconciler.syncsCourseList(
                 switchOn = "courses" in switchedOn,
                 pendingConflictCategories = prefs.pendingConflictCategories,
             )
-            syncCourseList(result, syncCourses, courseSync)
+            syncCourseList(result, syncCourses, courseSync, signIn)
             if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)
             // Only what this sync took, and only for the account it was for:
             // recorded after a sign-out, it would mark the next account's
@@ -262,7 +259,7 @@ class HomeBackendSync @Inject constructor(
             if (authService.isStillSignedInAs(account)) prefs.syncedCategories += categoriesSynced(switchedOn, took, prefs)
             // Only for the account this sync fetched for: set after a sign-out
             // reset it, the departing account's would stand for the next one.
-            authTokenManager.runIfSignedIn(signIn) { state.lastKnownRevision = result.currentRevision }
+            signIn.ifCurrent { state.lastKnownRevision = result.currentRevision }
             ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.BACKEND)
             widgetUpdater.requestUpdate()
@@ -343,7 +340,7 @@ class HomeBackendSync @Inject constructor(
      * pinned to the data this sync began with, so a sign-out meanwhile drops what it writes, and
      * to [signIn], the sign-in the snapshot was fetched as, whose token alone the roster goes with.
      */
-    private suspend fun answerRosterRequests(requests: List<String>, signIn: Int) {
+    private suspend fun answerRosterRequests(requests: List<String>, signIn: SignIn) {
         if (requests.isEmpty()) return
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
@@ -395,6 +392,7 @@ class HomeBackendSync @Inject constructor(
         result: BackendSyncResult,
         conflicts: List<AssignmentSyncConflict>,
         keepLocal: Boolean,
+        signIn: SignIn,
     ) {
         if (keepLocal) {
             for (c in conflicts) {
@@ -404,7 +402,7 @@ class HomeBackendSync @Inject constructor(
         } else {
             markStep.keepServer(state, result)
             if (result.courseOverrides.isNotEmpty()) {
-                applyCourseOverrides(state, result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) })
+                applyCourseOverrides(state, result.courseOverrides, signIn, { pendingCourseOverrides.held(result.fetchedAtMs) })
             }
         }
     }
@@ -418,6 +416,7 @@ class HomeBackendSync @Inject constructor(
     private suspend fun applyCourseOverrides(
         state: HomeSyncState,
         overrides: List<CourseOverrideResult>,
+        signIn: SignIn,
         held: suspend () -> Set<String>,
         syncColors: Boolean = CourseSyncReconciler.syncsCourseColors(
             prefs.syncCourseColors, prefs.pendingConflictCategories,
@@ -450,7 +449,7 @@ class HomeBackendSync @Inject constructor(
             dataCache.saveCourses(updated)
             widgetUpdater.requestUpdate()
             sendMovedColors(updated, outcome.moved) { moodleId, hex ->
-                pendingCourseOverrides.send(moodleId, colorHex = hex)
+                pendingCourseOverrides.send(moodleId, colorHex = hex, signIn = signIn)
             }
         }
         return true
@@ -477,6 +476,7 @@ class HomeBackendSync @Inject constructor(
         account: String?,
         beforeFetch: Long,
         courseSync: DataCache.CourseSync,
+        signIn: SignIn,
     ) {
         val reset = CourseSyncReconciler.coursesReset(
             result.coursesResetAt, prefs.lastSeenCoursesResetAt, prefs.legacyLastCourseSyncAtMs,
@@ -484,17 +484,17 @@ class HomeBackendSync @Inject constructor(
         if (reset.apply) {
             val allCourses = dataCache.loadCourses().toMutableList()
             // Their waiting colours and names go with them; see PendingCourseOverrides.forget.
-            pendingCourseOverrides.forget(allCourses.filter { it.isManual }.mapNotNull { it.moodleIdNumber })
+            pendingCourseOverrides.forget(allCourses.filter { it.isManual }.mapNotNull { it.moodleIdNumber }, signIn = signIn)
             allCourses.removeAll { it.isManual }
             dataCache.saveCourses(allCourses)
             dataCache.saveDeletedCourseNos(emptySet())
             // In every term: the reconcile would keep a course whose add waits.
-            pendingCourseAdds.forgetAll()
+            pendingCourseAdds.forgetAll(signIn)
             courseSync.supersedeAddsBack()
             // Under the adds lock, as a term reset's forgetTerm: a retry waiting behind it then
             // finds them gone. One asked since the fetch is newer than the reset, and stays.
             pendingCourseAdds.removing {
-                pendingCourseDeletes.forgetAskedBefore(beforeFetch)
+                pendingCourseDeletes.forgetAskedBefore(beforeFetch, signIn)
             }
             Log.i(TAG, "[sync] courses reset detected, wiped manual courses")
         }
@@ -521,7 +521,7 @@ class HomeBackendSync @Inject constructor(
      * Each term's commit leaves be what was put back in it since [courseSync]
      * began; see [commitReconciledTerm].
      */
-    private suspend fun syncCourseList(result: BackendSyncResult, syncCourses: Boolean, courseSync: DataCache.CourseSync) {
+    private suspend fun syncCourseList(result: BackendSyncResult, syncCourses: Boolean, courseSync: DataCache.CourseSync, signIn: SignIn) {
         if (!syncCourses) return
 
         val resetAt = dataCache.loadSemesterResetAt()
@@ -588,7 +588,7 @@ class HomeBackendSync @Inject constructor(
             }
             if (commitReconciledTerm(
                     dataCache, courseSync, semester, read, tombstones, tombstoneNos, localCourses, pruned, outcome.left,
-                    outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides,
+                    outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn,
                 ) &&
                 semester == currentSemester
             ) {
@@ -701,6 +701,7 @@ internal suspend fun commitReconciledTerm(
     merged: List<Course>,
     handAdded: Set<String>,
     overrides: PendingCourseOverrides,
+    signIn: SignIn,
 ): Boolean {
     val newlyHidden = dataCache.commitSyncHides(semester, read, hides, tombstoneNos, courseSync)
     if (kept == null && left.isEmpty() && merged.isEmpty() && newlyHidden.isEmpty()) return false
@@ -722,7 +723,7 @@ internal suspend fun commitReconciledTerm(
                 removed = current.filter { it.courseNo !in stays }
             }
         }
-        overrides.forget(removed.mapNotNull { it.moodleIdNumber }, madeBefore = before)
+        overrides.forget(removed.mapNotNull { it.moodleIdNumber }, madeBefore = before, signIn = signIn)
     }
     return true
 }
@@ -749,21 +750,4 @@ internal suspend fun sendMovedColors(
             Log.w("HomeViewModel", "[sync-color] moved colour PATCH failed: ${e.logSummary()}")
         }
     }
-}
-
-/** A full sync's snapshot, and the sign-in its first-sync mark upload is pinned to. */
-internal data class PinnedSnapshot(val result: BackendSyncResult, val signIn: Int)
-
-/**
- * [fetch]es a full sync's snapshot, with the sign-in
- * (`AuthTokenManager.signInGeneration`) read before it: read after, a
- * sign-out and another sign-in while the fetch was out would pin this
- * account's first-sync mark upload to the next account's session.
- */
-internal suspend fun fetchPinned(
-    signInGeneration: () -> Int,
-    fetch: suspend () -> BackendSyncResult,
-): PinnedSnapshot {
-    val signIn = signInGeneration()
-    return PinnedSnapshot(fetch(), signIn)
 }

@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -37,6 +38,7 @@ internal class PushCourseSyncBackend(
     private val api: PushApiClient,
     private val prefs: AppPreferences,
     private val overrides: PendingCourseOverrides,
+    private val signIn: SignIn,
 ) : CourseSyncBackend {
     private fun ensureSends() {
         if (!prefs.cloudSyncEnabled || !prefs.syncCourses) throw CourseSyncOffException()
@@ -62,7 +64,7 @@ internal class PushCourseSyncBackend(
         ensureSends()
         // Through the outbox: kept until it lands, and in place of an older
         // name of the course still waiting, which would land over this one.
-        overrides.send(moodleId, customName = name, locale = locale)
+        overrides.send(moodleId, customName = name, locale = locale, signIn = signIn)
     }
 }
 

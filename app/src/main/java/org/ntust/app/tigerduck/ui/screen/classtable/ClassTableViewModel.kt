@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseIgnores
@@ -1120,10 +1121,10 @@ class ClassTableViewModel @Inject constructor(
         // just added back; see ClassTableTombstoneEdits.
         val tombstone = tombstoneEdits.edit { CourseTombstoneKeys.unhide(course.courseNo, semester, it) }
         viewModelScope.launch {
-            // First, before the writes below: a removal asked after this add
-            // must read as the newer action however long they take. The
-            // launch runs here, on this thread, up to its first suspension
-            // (Main.immediate), so the stamp is the tap's.
+            // First, before the writes below: a removal asked after this add must read as the newer
+            // action however long they take. The launch runs here, on this thread, up to its first
+            // suspension (Main.immediate), so the stamp is the tap's.
+            val signIn = signInNow()
             val reAddedAt = pendingCourseDeletes.stamp()
             try {
                 try {
@@ -1138,10 +1139,10 @@ class ClassTableViewModel @Inject constructor(
                 // A delete of it still queued goes first, or it could land after
                 // this add and take the course off the server again; as the
                 // iPhone's `discardCourseDeletes` before an add.
-                pendingCourseDeletes.forget(semester, course.courseNo, reAddedAt)
+                pendingCourseDeletes.forget(semester, course.courseNo, reAddedAt, signIn)
                 // Kept until it lands: in a term the server already has, no
                 // sync would send it again otherwise.
-                pendingCourseAdds.send(updated, semester, course.courseNo, addedAt = reAddedAt)
+                pendingCourseAdds.send(updated, semester, course.courseNo, addedAt = reAddedAt, signIn = signIn)
             } finally {
                 dataCache.courseAddSent(course.courseNo, semester)
             }
@@ -1275,7 +1276,7 @@ class ClassTableViewModel @Inject constructor(
             try {
                 // Done with the write, not the PATCH: a slow request must not
                 // hold the tap over a change made meanwhile, such as Use Server.
-                courseIgnoreSync.setIgnored(semester, course.courseNo, moodleId, moodleCourseId, ignore) {
+                courseIgnoreSync.setIgnored(semester, course.courseNo, moodleId, moodleCourseId, ignore, signInNow()) {
                     ignoredCoursesSaved(edit)
                 }
             } finally {
@@ -1302,9 +1303,10 @@ class ClassTableViewModel @Inject constructor(
         val listEdit = showEdit(updated, semester)
         val ignoreKey = CourseIgnores.key(semester, courseNo)
         val edit = ignoredCourses.edit { it - ignoreKey }
+        val signIn = signInNow()
         appScope.launch {
             try {
-                courseIgnoreSync.forget { it == ignoreKey }
+                courseIgnoreSync.forget(signIn) { it == ignoreKey }
             } finally {
                 ignoredCoursesSaved(edit)
             }
@@ -1326,7 +1328,7 @@ class ClassTableViewModel @Inject constructor(
                     // Kept before the mark, which a course selection answer
                     // lifts only once no DELETE of the course is waiting; see
                     // DataCache.hideDeletedCourse.
-                    pendingCourseDeletes.keep(semester, courseNo, queuedAt)
+                    pendingCourseDeletes.keep(semester, courseNo, queuedAt, signIn)
                     dataCache.hideDeletedCourse(courseNo, semester, deletedCourse)
                 } finally {
                     tombstoneEdits.saved(tombstoneEdit)
@@ -1335,18 +1337,17 @@ class ClassTableViewModel @Inject constructor(
             saveEdit(updated, semester, listEdit)
             // A colour or name of it still waiting to go up goes with it; see
             // PendingCourseOverrides.forget.
-            pendingCourseOverrides.forget(listOfNotNull(moodleId))
+            pendingCourseOverrides.forget(listOfNotNull(moodleId), signIn = signIn)
             widgetUpdater.requestUpdate()
-            // Kept and sent again by every full sync until it lands, which
-            // keeps the course out of the term meanwhile, and sent after an
-            // add of it already under way, which landing later would bring it
-            // back: the outbox takes PendingCourseAdds.removing itself, so it
-            // is not taken here. See PendingCourseDeletes. One kept above
-            // goes as kept: a full sync's retry may have sent it already.
+            // Kept and sent again by every full sync until it lands, which keeps the course out of
+            // the term meanwhile, and sent after an add of it already under way, which landing
+            // later would bring it back: the outbox takes PendingCourseAdds.removing itself, so it
+            // is not taken here. See PendingCourseDeletes. One kept above goes as kept: a full
+            // sync's retry may have sent it already.
             if (tombstoneEdit != null) {
-                pendingCourseDeletes.sendKept(semester, courseNo)
+                pendingCourseDeletes.sendKept(semester, courseNo, signIn)
             } else {
-                pendingCourseDeletes.send(semester, courseNo, queuedAt)
+                pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn)
             }
             runCatching { pushApiClient.uploadCourses(updated, semester) }
                 .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed: ${e.logSummary()}") }
@@ -1384,6 +1385,9 @@ class ClassTableViewModel @Inject constructor(
         localEdits.noteEdit()
     }
 
+    @OptIn(StartsAccountWork::class)
+    private fun signInNow() = authTokenManager.session.current
+
     /**
      * Sends [course]'s colour or name to the backend, keyed by that course's
      * own term. Kept in [PendingCourseOverrides] until the backend confirms
@@ -1410,6 +1414,7 @@ class ClassTableViewModel @Inject constructor(
                 locale = locale,
                 semester = semester,
                 courseNo = course.courseNo,
+                signIn = signInNow(),
             )
         }
     }
@@ -1558,6 +1563,7 @@ class ClassTableViewModel @Inject constructor(
     private suspend fun wipeTerm(semester: String): Boolean {
         // Read before the wipe takes the term's cache: the colours and names
         // still waiting to go up for its courses go with it below.
+        val signIn = signInNow()
         val moodleIds = dataCache.loadCourses(semester).mapNotNull { it.moodleIdNumber }
         // With no course add sent between the DELETE and the wipe; see PendingCourseAdds.removing.
         val held = pendingCourseAdds.removing {
@@ -1565,16 +1571,16 @@ class ClassTableViewModel @Inject constructor(
                 // The wipe took the term's rows, queued single deletes included.
                 // Before the lock goes: a retry waiting behind the wipe would
                 // otherwise send one after the refetch re-uploads the roster.
-                ?.also { pendingCourseDeletes.forgetTerm(semester) }
+                ?.also { pendingCourseDeletes.forgetTerm(semester, signIn) }
         } ?: return false
         if (_currentSemester.value == semester) _courses.value = emptyList()
         // Their names went from the file with the term.
         courseCustomNames = courseCustomNames - held
-        pendingCourseOverrides.forget(moodleIds)
+        pendingCourseOverrides.forget(moodleIds, signIn = signIn)
         val inTerm = { key: String -> CourseIgnores.semesterOf(key) == semester }
         val edit = ignoredCourses.edit { keys -> keys.filterNotTo(mutableSetOf(), inTerm) }
         try {
-            courseIgnoreSync.forget(inTerm)
+            courseIgnoreSync.forget(signIn, inTerm)
         } finally {
             ignoredCoursesSaved(edit)
         }
@@ -1664,17 +1670,13 @@ class ClassTableViewModel @Inject constructor(
                 record = { ServerStatusTracker.set(it, ServerKind.SCORE_SYSTEM) },
             )
 
-            // Kick off the enrollment sources concurrently — they hit
-            // different hosts (courseselection, moodle2 and stuinfosys
-            // .ntust.edu.tw).
-            //   Source 1: course-selection portal, open term only.
-            //   Source 2: Moodle enrollment list, all semesters: names, Moodle
-            //             IDs and links, and the assignments' courses. It adds
-            //             no course to a term (tigerduck-app#890).
-            //   Source 3: the transcript, once course selection gave nothing:
-            //             past terms are built from it, and the open term
-            //             falls back on it.
-            // Before the fetch: a sign-out while it runs drops its roster.
+            // Kick off the enrollment sources concurrently — they hit different hosts
+            // (courseselection, moodle2 and stuinfosys .ntust.edu.tw). Source 1: course-selection
+            // portal, open term only. Source 2: Moodle enrollment list, all semesters: names,
+            // Moodle IDs and links, and the assignments' courses. It adds no course to a term
+            // (tigerduck-app#890). Source 3: the transcript, once course selection gave nothing:
+            // past terms are built from it, and the open term falls back on it. Before the fetch: a
+            // sign-out while it runs drops its roster.
             val generation = dataCache.writeGeneration()
             val (selectionNos, moodleAll, report) = coroutineScope {
                 val selectionDef = async {
@@ -1710,15 +1712,13 @@ class ClassTableViewModel @Inject constructor(
                     moodleAll.take(5).map { it.idnumber }
                 } semesters=${moodleAll.map { it.semesterCode }.distinct()}"
             )
-            // Build the idnumber → numeric-id map across ALL semesters
-            // (not just the one currently displayed) so the detail popup's
-            // Moodle button works for historical semesters too, keyed on
-            // every code a course answers to so a 合開 course reached through
-            // its second department's code still resolves — see
-            // MoodleCourseIds.idMap. Only overwrite when Moodle returned
-            // something so a transient failure keeps the previously cached
-            // mapping live; account switches still reset it because logout
-            // wipes the cache file via DataCache.clearAllUserData.
+            // Build the idnumber → numeric-id map across ALL semesters (not just the one currently
+            // displayed) so the detail popup's Moodle button works for historical semesters too,
+            // keyed on every code a course answers to so a 合開 course reached through its second
+            // department's code still resolves — see MoodleCourseIds.idMap. Only overwrite when
+            // Moodle returned something so a transient failure keeps the previously cached mapping
+            // live; account switches still reset it because logout wipes the cache file via
+            // DataCache.clearAllUserData.
             if (moodleAll.isNotEmpty()) {
                 val fresh = MoodleCourseIds.idMap(moodleAll)
                 _moodleCourseIdByIdnumber.value = fresh
@@ -1854,7 +1854,7 @@ class ClassTableViewModel @Inject constructor(
         // Before the lookups: a sign-out while they run drops the rebuild's drops.
         val generation = dataCache.writeGeneration()
         // And the upload: the next account's token would take this roster as its own.
-        val signIn = authTokenManager.signInGeneration
+        val signIn = signInNow()
         val answers = termFetch.lookUp(
             semester, source.rosterNos, moodleByNo, before = latestCourses(semester), atMost = source.lookupsAtOnce,
         )

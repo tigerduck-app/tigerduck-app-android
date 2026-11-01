@@ -34,6 +34,7 @@ import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.model.SyncConflict
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.util.logSummary
@@ -648,18 +649,18 @@ class DataCache @Inject constructor(
     /**
      * The server-known numbers changed by [change], read and written under one lock, so writers
      * that each add to them -- a sync's snapshot, an add the backend answered -- never undo one
-     * another's. With [generation], nothing is written once the data was wiped since; says
-     * whether it wrote, or had nothing to write.
+     * another's. With [signIn], nothing is written once it has ended; says whether it wrote, or
+     * had nothing to write.
      */
     suspend fun updateServerKnownNos(
-        generation: Int? = null,
+        signIn: SignIn? = null,
         change: (Map<String, List<String>>) -> Map<String, List<String>>,
     ): Boolean = serverKnownLock.withLock {
         val before = loadServerKnownNos()
         val after = change(before)
         when {
             after == before -> true
-            generation != null -> saveToUserDataIf(after, "server_known_courses.json", generation)
+            signIn != null -> saveToUserDataUnder(after, "server_known_courses.json", signIn)
             else -> {
                 saveServerKnownNos(after)
                 true
@@ -1220,11 +1221,9 @@ class DataCache @Inject constructor(
     // Every assignment of these courses counts as ignored. In filesDir with
     // the per-assignment list it extends.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun saveIgnoredCourses(keys: Set<String>, generation: Int? = null): Boolean {
-        if (!saveToUserDataIf(keys.sorted(), "ignored_courses.json", generation ?: writeGeneration())) {
-            return false
-        }
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveIgnoredCourses(keys: Set<String>, signIn: SignIn): Boolean {
+        if (!saveToUserDataUnder(keys.sorted(), "ignored_courses.json", signIn)) return false
         _assignmentMarksVersion.update { it + 1 }
         return true
     }
@@ -1238,11 +1237,9 @@ class DataCache @Inject constructor(
     // Changes to the set above the backend has not confirmed; see
     // CourseIgnoreSync, the only writer of both files.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun savePendingCourseIgnores(
-        changes: List<PendingCourseIgnore>,
-        generation: Int? = null,
-    ): Boolean = saveToUserDataIf(changes, "pending_course_ignores.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun savePendingCourseIgnores(changes: List<PendingCourseIgnore>, signIn: SignIn): Boolean =
+        saveToUserDataUnder(changes, "pending_course_ignores.json", signIn)
 
     /** Rows without a usable [PendingCourseIgnore.key] are left out. */
     suspend fun loadPendingCourseIgnores(): List<PendingCourseIgnore> {
@@ -1257,9 +1254,9 @@ class DataCache @Inject constructor(
     // The rows the last full sync that took the course ignores listed; see
     // CourseIgnoreReconciler.recreated. CourseIgnoreSync is the only writer.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun saveCourseRowsSeen(rows: Map<String, Long>, generation: Int? = null): Boolean =
-        saveToUserDataIf(rows, "course_rows_seen.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveCourseRowsSeen(rows: Map<String, Long>, signIn: SignIn): Boolean =
+        saveToUserDataUnder(rows, "course_rows_seen.json", signIn)
 
     suspend fun loadCourseRowsSeen(): Map<String, Long> {
         val type = object : TypeToken<Map<String, Long?>>() {}.type
@@ -1290,9 +1287,9 @@ class DataCache @Inject constructor(
     // Marks tapped here whose PATCH the backend has not confirmed; see
     // UnsentMarks, the only writer. In filesDir with the marks themselves.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun saveUnsentMarks(marks: List<UnsentMark>, generation: Int? = null): Boolean =
-        saveToUserDataIf(marks, "unsent_marks.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveUnsentMarks(marks: List<UnsentMark>, signIn: SignIn): Boolean =
+        saveToUserDataUnder(marks, "unsent_marks.json", signIn)
 
     /** Rows without an id or a status are left out. */
     suspend fun loadUnsentMarks(): List<UnsentMark> {
@@ -1308,9 +1305,9 @@ class DataCache @Inject constructor(
     // PendingCourseAdds, the only writer. A new file, so an older install
     // simply has none; read tolerantly all the same.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun savePendingCourseAdds(pending: Map<String, List<String>>, generation: Int? = null): Boolean =
-        saveToUserDataIf(pending, "pending_course_adds.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun savePendingCourseAdds(pending: Map<String, List<String>>, signIn: SignIn): Boolean =
+        saveToUserDataUnder(pending, "pending_course_adds.json", signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseAdds(): Map<String, List<String>> {
@@ -1329,9 +1326,9 @@ class DataCache @Inject constructor(
     // the shape older installs wrote; an add with no time here, one an older
     // install queued, goes unstamped. See PendingCourseAdds, the only writer.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun savePendingCourseAddTimes(times: Map<String, Map<String, Long>>, generation: Int? = null): Boolean =
-        saveToUserDataIf(times, "pending_course_add_times.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun savePendingCourseAddTimes(times: Map<String, Map<String, Long>>, signIn: SignIn): Boolean =
+        saveToUserDataUnder(times, "pending_course_add_times.json", signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseAddTimes(): Map<String, Map<String, Long>> {
@@ -1353,9 +1350,9 @@ class DataCache @Inject constructor(
     // see PendingCourseDeletes, the only writer. A new file, so an older
     // install simply has none; read tolerantly all the same.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun savePendingCourseDeletes(pending: Map<String, Map<String, Long>>, generation: Int? = null): Boolean =
-        saveToUserDataIf(pending, "pending_course_deletes.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun savePendingCourseDeletes(pending: Map<String, Map<String, Long>>, signIn: SignIn): Boolean =
+        saveToUserDataUnder(pending, "pending_course_deletes.json", signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseDeletes(): Map<String, Map<String, Long>> {
@@ -1376,9 +1373,9 @@ class DataCache @Inject constructor(
     // not confirmed; see PendingCourseOverrides, the only writer. A new file,
     // so an older install simply has none; read tolerantly all the same.
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun savePendingCourseOverrides(pending: List<PendingCourseOverride>, generation: Int? = null): Boolean =
-        saveToUserDataIf(pending, "pending_course_overrides.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun savePendingCourseOverrides(pending: List<PendingCourseOverride>, signIn: SignIn): Boolean =
+        saveToUserDataUnder(pending, "pending_course_overrides.json", signIn)
 
     /** Rows too damaged to send ([PendingCourseOverride.key] null) are left out. */
     suspend fun loadPendingCourseOverrides(): List<PendingCourseOverride> {
@@ -1733,17 +1730,13 @@ class DataCache @Inject constructor(
         dir.listFiles { _, name -> name.endsWith(TEMP_SUFFIX) }?.forEach { it.delete() }
     }
 
-    private suspend fun <T> save(value: T, filename: String) {
-        saveIf(value, filename, writeGeneration())
-    }
+    private suspend fun <T> save(value: T, filename: String) = saveIf(value, filename, writeGeneration()).let {}
 
     // As saveToUserDataIf, in the cache folder.
     private suspend fun <T> saveIf(value: T, filename: String, generation: Int): Boolean =
         cacheMutex.withLock {
             if (generation != userDataGeneration) return@withLock false
-            withContext(Dispatchers.IO) {
-                atomicWrite(File(cacheDir, filename), gson.toJson(value))
-            }
+            withContext(Dispatchers.IO) { atomicWrite(File(cacheDir, filename), gson.toJson(value)) }
             true
         }
 
@@ -1756,9 +1749,7 @@ class DataCache @Inject constructor(
             withContext(Dispatchers.IO) { readJson<T>(File(cacheDir, filename), type, requireContent) }
         }
 
-    private suspend fun <T> saveToUserData(value: T, filename: String) {
-        saveToUserDataIf(value, filename, writeGeneration())
-    }
+    private suspend fun <T> saveToUserData(value: T, filename: String) = saveToUserDataIf(value, filename, writeGeneration()).let {}
 
     /**
      * The generation a write made here would carry: the [Generation] of the work this coroutine
@@ -1773,9 +1764,16 @@ class DataCache @Inject constructor(
     private suspend fun <T> saveToUserDataIf(value: T, filename: String, generation: Int): Boolean =
         userDataMutex.withLock {
             if (generation != userDataGeneration) return@withLock false
-            withContext(Dispatchers.IO) {
-                atomicWrite(File(userDataDir, filename), gson.toJson(value))
-            }
+            withContext(Dispatchers.IO) { atomicWrite(File(userDataDir, filename), gson.toJson(value)) }
+            true
+        }
+
+    // As saveToUserDataIf, for a write that carries its sign-in. A sign-out ends the sign-in before
+    // the wipe takes the folder's lock, so a write past this check is done before the wipe starts.
+    private suspend fun <T> saveToUserDataUnder(value: T, filename: String, signIn: SignIn): Boolean =
+        userDataMutex.withLock {
+            if (!signIn.isCurrent) return@withLock false
+            withContext(Dispatchers.IO) { atomicWrite(File(userDataDir, filename), gson.toJson(value)) }
             true
         }
 

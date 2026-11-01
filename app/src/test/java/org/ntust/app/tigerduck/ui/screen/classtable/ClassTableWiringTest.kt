@@ -77,7 +77,7 @@ class ClassTableWiringTest {
     @Test
     fun `a delete and a reset reach the backend with no course add being sent`() {
         val delete = body("deleteCourse")
-        assertTrue("deleteCourse no longer deletes through the outbox", "pendingCourseDeletes.send(semester, courseNo, queuedAt)" in delete)
+        assertTrue("deleteCourse no longer deletes through the outbox", "pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn)" in delete)
         assertTrue("deleteCourse takes the adds lock the outbox takes itself", "pendingCourseAdds.removing {" !in delete)
 
         val wipe = body("wipeTerm")
@@ -94,7 +94,7 @@ class ClassTableWiringTest {
     fun `a reset drops the term's queued deletes before letting the adds lock go`() {
         val wipe = body("wipeTerm")
         val reset = wipe.indexOf("termReset.run(semester)")
-        val forgot = wipe.indexOf("pendingCourseDeletes.forgetTerm(semester)")
+        val forgot = wipe.indexOf("pendingCourseDeletes.forgetTerm(semester, signIn)")
         val released = wipe.indexOf("?: return false")
         assertTrue("wipeTerm forgets the term's queued deletes after the reset lands", forgot > reset)
         assertTrue("wipeTerm forgets them inside the adds lock", forgot < released)
@@ -411,7 +411,7 @@ class ClassTableWiringTest {
     @Test
     fun `a fetch uploads as the sign-in its lookups began under`() {
         val body = body("fetchTermCourses")
-        val pinned = body.indexOf("val signIn = authTokenManager.signInGeneration")
+        val pinned = body.indexOf("val signIn = signInNow()")
         assertTrue("fetchTermCourses no longer reads the sign-in before its lookups", pinned in 0 until body.indexOf("termFetch.lookUp("))
         assertCalls("fetchTermCourses", "signIn = signIn")
     }

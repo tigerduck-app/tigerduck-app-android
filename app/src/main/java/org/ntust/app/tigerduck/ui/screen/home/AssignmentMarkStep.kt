@@ -5,6 +5,7 @@ import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
  * The assignment-mark step of Home's full sync ([HomeBackendSync.pull]), and
@@ -22,7 +23,7 @@ internal class AssignmentMarkStep(
     private val pendingConflicts: () -> Set<String>,
     private val syncedBefore: () -> Boolean,
     private val store: MarkStore,
-    private val send: suspend (assignmentId: Int, status: String, signIn: Int) -> Unit,
+    private val send: suspend (assignmentId: Int, status: String, signIn: SignIn) -> Unit,
     /**
      * Marks tapped here whose PATCH has not landed (`UnsentMarks`): kept at
      * this phone's value like a PATCH still in flight, since the server has
@@ -30,7 +31,7 @@ internal class AssignmentMarkStep(
      */
     private val unsent: suspend () -> Set<String>,
     /** `UnsentMarks.keep`: a first-sync mark that did not land waits there. */
-    private val keepUnsent: suspend (assignmentId: String, status: String, generation: Int) -> Unit,
+    private val keepUnsent: suspend (assignmentId: String, status: String, signIn: SignIn) -> Unit,
 ) {
     /** This phone's marks on disk. */
     interface MarkStore {
@@ -45,16 +46,14 @@ internal class AssignmentMarkStep(
      * one sent up as the first sync — which the caller records in
      * `AppPreferences.assignmentMarksSyncedOnce`. [syncsMarks] is the switch
      * as the sync read it with the other categories; [signIn] the sign-in it
-     * began under (`AuthTokenManager.signInGeneration`), which the first-sync
-     * upload is pinned to; [generation] the data generation it began under,
-     * which a first-sync mark that did not land is kept for.
+     * began under, which the first-sync upload is pinned to and a first-sync
+     * mark that did not land is kept for.
      */
     suspend fun pull(
         state: HomeSyncState,
         result: BackendSyncResult,
         syncsMarks: Boolean,
-        signIn: Int,
-        generation: Int,
+        signIn: SignIn,
     ): Boolean {
         if (!syncsMarks) {
             Log.i(TAG, "[Sync] leaving assignment marks alone: Assignments sync is off")
@@ -80,7 +79,7 @@ internal class AssignmentMarkStep(
                     // Only while it is still this phone's mark: a tap made
                     // while the PATCH was out is newer, and goes up itself.
                     if (id !in state.pendingOverrides && statusOn(state, id) == status) {
-                        keepUnsent(id, status, generation)
+                        keepUnsent(id, status, signIn)
                     }
                 },
             ) { id, status -> send(id, status, signIn) }
@@ -152,7 +151,7 @@ internal class AssignmentMarkStep(
             prefs: AppPreferences,
             dataCache: DataCache,
             unsentMarks: UnsentMarks,
-            send: suspend (assignmentId: Int, status: String, signIn: Int) -> Unit,
+            send: suspend (assignmentId: Int, status: String, signIn: SignIn) -> Unit,
         ) = AssignmentMarkStep(
             switchOn = { prefs.syncAssignments },
             pendingConflicts = { prefs.pendingConflictCategories },

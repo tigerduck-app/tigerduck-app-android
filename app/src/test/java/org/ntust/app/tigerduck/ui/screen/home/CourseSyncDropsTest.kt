@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermFetch
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermSource
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The sync merge's handling of dropped courses: the ones this phone's course selection, or a
@@ -344,7 +345,6 @@ class CourseSyncDropsTest {
             { _, _, _, _, _, _, _ -> false },
             records = { true },
             sends = { false },
-            signInGeneration = { 0 },
         )
     }
 
@@ -376,7 +376,7 @@ class CourseSyncDropsTest {
             val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
             commitReconciledTerm(
                 cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left,
-                outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides,
+                outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn(),
             )
         } finally {
             cache.endCourseSync(courseSync)
@@ -444,7 +444,7 @@ class CourseSyncDropsTest {
     fun `a merged copy listed again while the sync ran stays, with the color waiting for it`() = runTest {
         cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
         cache.recordFinalRoster(TERM, listOf(ENROLLED), alsoListed = listOf(MERGED))
-        overrides.send(moodleId = "$TERM$MERGED", colorHex = "#2E7D32", semester = TERM, courseNo = MERGED)
+        overrides.send(moodleId = "$TERM$MERGED", colorHex = "#2E7D32", semester = TERM, courseNo = MERGED, signIn = testSignIn())
 
         syncListing(row(ENROLLED), row(MERGED)) {
             cache.recordFinalRoster(TERM, listOf(ENROLLED, MERGED), alsoListed = emptyList())

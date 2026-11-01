@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -106,7 +107,8 @@ class AssignmentRescheduleFromCacheTest {
         dataCache.saveIgnoredAssignments(setOf("ignored"))
         dataCache.saveMarkedCompletedAssignments(setOf("marked"))
         dataCache.saveIgnoredCourses(
-            setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED"))
+            setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")),
+            testSignIn(),
         )
 
         scheduler.rescheduleFromCache(dataCache, prefs)

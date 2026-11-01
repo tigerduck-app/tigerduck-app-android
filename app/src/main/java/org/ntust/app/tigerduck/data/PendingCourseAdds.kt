@@ -4,12 +4,12 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,7 +23,7 @@ internal fun interface CourseUploader {
         courses: List<Course>,
         semester: String,
         forceKeys: List<String>,
-        signIn: Int,
+        signIn: SignIn,
         addedAt: Map<String, Long>,
     ): CourseUploadAnswer?
 }
@@ -41,7 +41,7 @@ internal fun interface CourseUploader {
  * [UnsentMarks] does for marks. It goes once an upload's answer accepts the
  * course or a snapshot lists it as enrolled ([listed]), or once the course has left this phone's
  * cache or been deleted (by hand, a reset, Use Server). Account-scoped: sent
- * only as the account that kept it, and wiped with the user data at sign-out.
+ * only under the sign-in that kept it, and wiped with the user data at sign-out.
  * Meanwhile the reconcile keeps the course ([waitingIn]), past a tombstone or
  * the server's silence, and the sign-out warning counts it.
  *
@@ -51,14 +51,12 @@ internal fun interface CourseUploader {
 class PendingCourseAdds internal constructor(
     private val dataCache: DataCache,
     private val uploader: CourseUploader,
-    private val signInGeneration: () -> Int,
 ) {
-    @Inject constructor(dataCache: DataCache, pushApiClient: PushApiClient, authTokenManager: AuthTokenManager) : this(
+    @Inject constructor(dataCache: DataCache, pushApiClient: PushApiClient) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
             pushApiClient.uploadCoursesAnswered(courses, semester, forceKeys, signIn, addedAt = addedAt)
         },
-        signInGeneration = { authTokenManager.signInGeneration },
     )
 
     private val mutex = Mutex()
@@ -77,16 +75,14 @@ class PendingCourseAdds internal constructor(
      * because course sync is off: the re-enable check answers for the courses
      * when it comes back on.
      */
-    suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: Long? = null) {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
+    suspend fun send(courses: List<Course>, semester: String, courseNo: String, addedAt: Long? = null, signIn: SignIn) {
         val kept = edit(
-            generation,
+            signIn,
             change = { it.with(semester, listOf(courseNo)) },
             changeTimes = { times -> if (addedAt != null) times.withTime(semester, courseNo, addedAt) else times.withoutTimes(semester, listOf(courseNo)) },
         )
         if (!kept) return
-        trySend(semester, listOf(courseNo), generation, signIn, courses)
+        trySend(semester, listOf(courseNo), signIn, courses)
     }
 
     /**
@@ -94,11 +90,9 @@ class PendingCourseAdds internal constructor(
      * now; each full sync starts with this, so the snapshot it fetches has
      * them. An add whose course this phone no longer holds is let go unsent.
      */
-    suspend fun retry() {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
+    suspend fun retry(signIn: SignIn) {
         for ((semester, nos) in waiting()) {
-            if (!trySend(semester, nos, generation, signIn)) return
+            if (!trySend(semester, nos, signIn)) return
         }
     }
 
@@ -130,8 +124,7 @@ class PendingCourseAdds internal constructor(
      * list, unless added by hand: the next roster drops it unless the add lands first. Taken as
      * the add, either let it go unsent, the course left out on every other device.
      */
-    suspend fun listed(serverCourses: List<ServerCourse>) {
-        val generation = dataCache.writeGeneration()
+    suspend fun listed(serverCourses: List<ServerCourse>, signIn: SignIn) {
         val waiting = waiting()
         if (waiting.isEmpty()) return
         val droppedHere = dataCache.loadSelectionDroppedNos()
@@ -140,7 +133,7 @@ class PendingCourseAdds internal constructor(
             .groupBy({ it.semester }, { it.courseNo })
         if (waiting.none { (semester, nos) -> listed[semester].orEmpty().any { it in nos } }) return
         edit(
-            generation,
+            signIn,
             change = { pending -> listed.entries.fold(pending) { acc, (semester, nos) -> acc.without(semester, nos) } },
             changeTimes = { times -> listed.entries.fold(times) { acc, (semester, nos) -> acc.withoutTimes(semester, nos) } },
         )
@@ -148,22 +141,20 @@ class PendingCourseAdds internal constructor(
 
     /**
      * Sends [courseNos]' adds in [semester], [courses] going up (or the
-     * courses themselves as this phone holds them), for the account whose
-     * data [generation] and sign-in [signIn] were read with. Checked under the
-     * send lock, right before the request: an add whose course has left this
-     * phone's cache or been deleted since is let go unsent, and a sign-out
-     * since stops the send, false. The request itself carries [signIn], so a
-     * sign-out after the check sends it without a token rather than with the
-     * next account's.
+     * courses themselves as this phone holds them), under the sign-in
+     * [signIn] they were read with. Checked under the send lock, right before
+     * the request: an add whose course has left this phone's cache or been
+     * deleted since is let go unsent, and a sign-out since stops the send,
+     * false. The request itself carries [signIn], so a sign-out after the
+     * check sends it without a token rather than with the next account's.
      */
     private suspend fun trySend(
         semester: String,
         courseNos: List<String>,
-        generation: Int,
-        signIn: Int,
+        signIn: SignIn,
         courses: List<Course>? = null,
     ): Boolean = sendMutex.withLock {
-        if (generation != dataCache.userDataGeneration || signIn != signInGeneration()) return@withLock false
+        if (!signIn.isCurrent) return@withLock false
         // Only adds still waiting: one an upload ahead of this one retired meanwhile must not go
         // again, its force key lifting a delete made since. Read with their moments in one
         // step, under the lock they change under: a timed add read without its moment would go
@@ -193,7 +184,7 @@ class PendingCourseAdds internal constructor(
         // this phone typed and the server has not seen. Not one it applied: a snapshot taken
         // before the add landed would then read its absence as a delete.
         if (stamped.refused.isNotEmpty()) {
-            dataCache.updateServerKnownNos(generation) { known ->
+            dataCache.updateServerKnownNos(signIn) { known ->
                 known + (semester to (known[semester].orEmpty() + stamped.refused).distinct().sorted())
             }
         }
@@ -201,7 +192,7 @@ class PendingCourseAdds internal constructor(
         if (done.isNotEmpty()) {
             // Only an add still as it was sent: one added again meanwhile has a newer moment,
             // which this answer, to the older add, does not settle.
-            edit(generation) { pending, current ->
+            edit(signIn) { pending, current ->
                 val same = done.filter { current[semester]?.get(it) == times[it] }
                 pending.without(semester, same) to current.withoutTimes(semester, same)
             }
@@ -222,7 +213,7 @@ class PendingCourseAdds internal constructor(
         courses: List<Course>,
         semester: String,
         courseNos: List<String>,
-        signIn: Int,
+        signIn: SignIn,
         addedAt: Map<String, Long>,
     ): Taken =
         try {
@@ -246,8 +237,8 @@ class PendingCourseAdds internal constructor(
      * taken the hand-added courses (`HomeBackendSync.applyCourseReset`), and an
      * add kept past it would put its course back on every device.
      */
-    suspend fun forgetAll() {
-        edit(dataCache.writeGeneration(), change = { emptyMap() }, changeTimes = { emptyMap() })
+    suspend fun forgetAll(signIn: SignIn) {
+        edit(signIn, change = { emptyMap() }, changeTimes = { emptyMap() })
     }
 
     /** The course numbers whose add in [semester] is still waiting, for the reconcile to keep. */
@@ -269,25 +260,25 @@ class PendingCourseAdds internal constructor(
 
     // [edit] with each file changed on its own.
     private suspend fun edit(
-        generation: Int,
+        signIn: SignIn,
         change: (Map<String, List<String>>) -> Map<String, List<String>>,
         changeTimes: (Map<String, Map<String, Long>>) -> Map<String, Map<String, Long>> = { it },
-    ): Boolean = edit(generation) { pending, times -> change(pending) to changeTimes(times) }
+    ): Boolean = edit(signIn) { pending, times -> change(pending) to changeTimes(times) }
 
     // The adds and their moments, changed together under one lock. False, and nothing written,
-    // once the data was wiped since [generation]. A moment is written before its add and goes
+    // once [signIn] has ended. A moment is written before its add and goes
     // after it, so an add with a moment is never read without it: sent unstamped, it would
     // count from when it arrives and win over a hide made after it elsewhere.
     private suspend fun edit(
-        generation: Int,
+        signIn: SignIn,
         change: (Map<String, List<String>>, Map<String, Map<String, Long>>) -> Pair<Map<String, List<String>>, Map<String, Map<String, Long>>>,
     ): Boolean = mutex.withLock {
         val before = waiting()
         val timesBefore = waitingTimes()
         val (after, timesAfter) = change(before, timesBefore)
         val added = after.any { (semester, nos) -> nos.any { it !in before[semester].orEmpty() } }
-        suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, generation)
-        suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, generation)
+        suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, signIn)
+        suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, signIn)
         if (added) saveTimes() && saveAdds() else saveAdds() && saveTimes()
     }
 

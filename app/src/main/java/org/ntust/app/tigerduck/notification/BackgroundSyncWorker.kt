@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.academic.SemesterTerm
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.HolidayOverrideApply
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
@@ -49,6 +50,7 @@ import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.SemesterCatalog
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -91,6 +93,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     var lastSyncSource: SyncSource = SyncSource.NONE
         private set
 
+    @OptIn(StartsAccountWork::class)
     override suspend fun doWork(): Result {
         // Before the credentials check, so every run can retry a device
         // registration that failed while the process stayed warm. Whether one
@@ -98,21 +101,22 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // no-op on fdroid.
         fcmBootstrap.retryRegistrationIfDue()
         // The sign-in is read before the student, so a sign-in between the two reads ends the run.
-        val signIn = authTokenManager.signInGeneration
+        val signIn = authTokenManager.session.current
+        val signInCount = authTokenManager.signInGeneration
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId.isNullOrBlank() || password.isNullOrBlank()) return Result.success()
         // The student alone would pass a sign-out and a sign-in as the same student.
         val run = BackgroundRunAccount(
-            studentId, signIn,
+            studentId, signInCount,
             currentStudentId = { authService.storedStudentId },
             currentSignIn = { authTokenManager.signInGeneration },
             runIfSignedIn = authTokenManager::runIfSignedIn,
         )
 
-        // A triggered run fetches everything: the server asked for it because
-        // something changed. What it announced may postdate an answer the
-        // services are still sharing from a foreground fetch a moment ago.
+        // A triggered run fetches everything: the server asked for it because something changed.
+        // What it announced may postdate an answer the services are still sharing from a foreground
+        // fetch a moment ago.
         val triggered = inputData.getBoolean(KEY_TRIGGERED, false)
         if (triggered) {
             moodleService.expireSharedResults()
@@ -126,23 +130,21 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val overridesDue = triggered ||
             RefreshPolicy.hasPassed(prefs.backgroundOverridesSyncedAtMs, now, OVERRIDES_EVERY)
         if (overridesDue) {
-            syncOverridesFromBackend()
+            syncOverridesFromBackend(signIn)
             // Signed out meanwhile: the stamp went with the account, and a sign-out cannot clear
             // it between the check and the write.
             if (!run.writeIfCurrent { prefs.backgroundOverridesSyncedAtMs = now }) return Result.success()
         }
 
-        // The school servers only for data a page asks the worker to keep
-        // fresh, and only once it is older than that page allows — see
-        // RefreshPolicies. For assignments the age is the shared stamp, so a
-        // fetch made in the foreground minutes ago is not repeated here; the
-        // run used to redo the whole pipeline every hour regardless, which
-        // over a day made it the app's largest source of traffic.
+        // The school servers only for data a page asks the worker to keep fresh, and only once it
+        // is older than that page allows — see RefreshPolicies. For assignments the age is the
+        // shared stamp, so a fetch made in the foreground minutes ago is not repeated here; the run
+        // used to redo the whole pipeline every hour regardless, which over a day made it the app's
+        // largest source of traffic.
         //
-        // Except on a retry. Only the school data fails a run, and the fetch
-        // dates the data before the run stores it, so a run that failed after
-        // its fetch left a fresh stamp over nothing stored; its retry would
-        // otherwise skip the fetch and report success.
+        // Except on a retry. Only the school data fails a run, and the fetch dates the data before
+        // the run stores it, so a run that failed after its fetch left a fresh stamp over nothing
+        // stored; its retry would otherwise skip the fetch and report success.
         val retry = runAttemptCount > 0
         // And once a term, whatever the pages ask: see firstRunOfTerm.
         val today = AppClock.localDateTime().toLocalDate()
@@ -187,11 +189,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
         return resultForFailedSync(triggered, runAttemptCount, passwordRejected = storedPasswordLatch.postMustWait())
     }
 
-    private suspend fun syncOverridesFromBackend() {
+    private suspend fun syncOverridesFromBackend(signIn: SignIn) {
         // Pinned to the data this sync began with, as Home's is: once a sign-out wipes it, every
         // cache write below drops rather than land in the files the next account starts from.
         if (currentCoroutineContext()[DataCache.Generation] == null) {
-            return withContext(DataCache.Generation(dataCache.userDataGeneration)) { syncOverridesFromBackend() }
+            return withContext(DataCache.Generation(dataCache.userDataGeneration)) { syncOverridesFromBackend(signIn) }
         }
         // cloudSyncEnabled already reads false on fdroid at its source
         // (AppPreferences.cloudSyncEnabled), so no separate flavor check
@@ -211,18 +213,15 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val courseSync = dataCache.beginCourseSync()
         try {
             val account = authService.storedStudentId
-            val generation = courseIgnoreSync.currentGeneration()
-            courseIgnoreSync.retryPending()
+            courseIgnoreSync.retryPending(signIn)
             // Marks, course colours and names and holiday choices whose
             // request failed, and course adds and deletes whose request did,
             // go first, so the snapshot has them.
-            unsentMarks.retry()
-            pendingCourseAdds.retry()
-            pendingCourseDeletes.retry()
-            pendingCourseOverrides.retry()
-            pendingHolidayOverrides.retry()
-            // The sign-in the snapshot is fetched as, which its roster requests are answered as.
-            val signIn = authTokenManager.signInGeneration
+            unsentMarks.retry(signIn)
+            pendingCourseAdds.retry(signIn)
+            pendingCourseDeletes.retry(signIn)
+            pendingCourseOverrides.retry(signIn)
+            pendingHolidayOverrides.retry(signIn)
             // A session the backend ended before its access token ran out
             // draws a 401 until a sign-in, and the uploads below would draw
             // one too; as Home's full sync, this signs in again once.
@@ -232,14 +231,14 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 courseSync.fetching()
                 syncApiClient.fetchFullSync()
             }
-            pendingCourseAdds.listed(result.serverCourses)
+            pendingCourseAdds.listed(result.serverCourses, signIn)
             // With the Assignments switch off, the re-enable check pending,
             // or marks the server lacks on the account's first sync here
             // (Home's sync sends those up), the marks stay as they are.
             val marks = BackgroundMarkStep.over(prefs, dataCache, unsentMarks).pull(result)
             if (marks.taken && authService.isStillSignedInAs(account)) prefs.assignmentMarksSyncedOnce = true
             val marksChanged = marks.changed
-            courseIgnoreSync.applySnapshot(result, generation)
+            courseIgnoreSync.applySnapshot(result, signIn)
 
             // Not over a colours or names re-enable check still waiting for the user.
             val pending = prefs.pendingConflictCategories
@@ -249,7 +248,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 // Not over a colour or name this phone has waiting to go up, or
                 // sent since the fetch: the snapshot's is the older.
                 applyCourseOverridesBackground(
-                    result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames,
+                    result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames, signIn,
                 )
             }
             // Not gated on the per-category switches, as in Home's sync: a
@@ -260,14 +259,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // by the older set (its upload would then send the overwritten value).
             result.holidayOverrides?.let { snapshot ->
                 withContext(Dispatchers.Main) {
-                    HolidayOverrideApply.apply(
-                        snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar,
-                        authTokenManager::runIfSignedIn,
-                    )
+                    HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
                 }
             }
             if (CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.pendingConflictCategories)) {
-                reconcileCurrentSemester(result, courseSync)
+                reconcileCurrentSemester(result, courseSync, signIn)
                 answerRosterRequests(result.rosterRequests, signIn)
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
@@ -325,7 +321,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
      * did, and the cache prune below ignores bare entries rather than
      * delete a retaken course on the strength of one.
      */
-    private suspend fun reconcileCurrentSemester(result: BackendSyncResult, courseSync: DataCache.CourseSync) {
+    private suspend fun reconcileCurrentSemester(result: BackendSyncResult, courseSync: DataCache.CourseSync, signIn: SignIn) {
         val semester = courseService.currentSemesterCode()
         // Mid-reset, or a snapshot fetched before this device reset the
         // term — see CourseSyncReconciler.termsResetAfter.
@@ -381,7 +377,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // A course it takes out goes with its waiting colour and name.
         commitReconciledTerm(
             dataCache, courseSync, semester, stored, outcome.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
-            outcome.droppedOnServer, emptyList(), outcome.handAddedNos, pendingCourseOverrides,
+            outcome.droppedOnServer, emptyList(), outcome.handAddedNos, pendingCourseOverrides, signIn,
         )
         var known = outcome.serverKnownNos
         if (outcome.uploadLocal) {
@@ -406,7 +402,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
      * failed sync: the backend asks again until a roster arrives. As [signIn], the sign-in the
      * snapshot was fetched as.
      */
-    private suspend fun answerRosterRequests(requests: List<String>, signIn: Int) {
+    private suspend fun answerRosterRequests(requests: List<String>, signIn: SignIn) {
         if (requests.isEmpty()) return
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
@@ -430,6 +426,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         held: suspend () -> Set<String>,
         syncColors: Boolean,
         syncNames: Boolean,
+        signIn: SignIn,
     ) {
         val applied = BackgroundCourseOverrides.apply(
             dataCache, dataCache.currentSemesterCode(), overrides, held, syncColors, syncNames,
@@ -437,12 +434,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
         ) ?: return
         widgetUpdater.requestUpdate()
         sendMovedColors(applied.courses, applied.moved) { moodleId, hex ->
-            pendingCourseOverrides.send(moodleId, colorHex = hex)
+            pendingCourseOverrides.send(moodleId, colorHex = hex, signIn = signIn)
         }
     }
 
     /** As [signIn], the sign-in the run began under: a sync that outlived it fetches and writes nothing. */
-    private suspend fun syncCourses(studentId: String, password: String, signIn: Int): Boolean {
+    private suspend fun syncCourses(studentId: String, password: String, signIn: SignIn): Boolean {
         return try {
             // TTL-throttled; resolved before the term, which depends on it.
             semesterCatalog.refreshIfStale()

@@ -45,7 +45,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthTokenManager.kt",
     "kind": "long-file",
-    "count": 951
+    "count": 946
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
@@ -79,53 +79,18 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/CourseIgnoreSync.kt",
-    "kind": "account-counter",
-    "count": 16
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/CourseIgnoreSync.kt",
     "kind": "long-file",
-    "count": 511
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/HolidayOverrideApply.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/PendingCourseAdds.kt",
-    "kind": "account-counter",
-    "count": 15
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/PendingCourseDeletes.kt",
-    "kind": "account-counter",
-    "count": 16
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/PendingCourseOverrides.kt",
-    "kind": "account-counter",
-    "count": 15
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/PendingHolidayOverrides.kt",
-    "kind": "account-counter",
-    "count": 7
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/UnsentMarks.kt",
-    "kind": "account-counter",
-    "count": 13
+    "count": 506
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
     "kind": "account-counter",
-    "count": 53
+    "count": 36
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
     "kind": "long-file",
-    "count": 1905
+    "count": 1903
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/AssignmentStatusLedger.kt",
@@ -408,24 +373,24 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "account-counter",
-    "count": 9
+    "count": 5
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-file",
-    "count": 639
+    "count": 636
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.doWork()",
-    "lines": 95
+    "lines": 94
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
-    "name": "BackgroundSyncWorker.syncOverridesFromBackend()",
-    "lines": 118
+    "name": "BackgroundSyncWorker.syncOverridesFromBackend(SignIn)",
+    "lines": 112
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",
@@ -447,12 +412,12 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/TermCourseSync.kt",
     "kind": "account-counter",
-    "count": 11
+    "count": 2
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/TermCourseSync.kt",
     "kind": "long-function",
-    "name": "TermCourseSync.sync(String, String, String, Boolean, Int)",
+    "name": "TermCourseSync.sync(String, String, String, Boolean, SignIn)",
     "lines": 122
   },
   {
@@ -475,7 +440,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "account-counter",
-    "count": 9
+    "count": 2
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
@@ -485,7 +450,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "long-file",
-    "count": 665
+    "count": 664
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
@@ -810,7 +775,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/calendar/CalendarViewModel.kt",
     "kind": "long-file",
-    "count": 495
+    "count": 494
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/AddCourseSheet.kt",
@@ -894,7 +859,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "account-counter",
-    "count": 11
+    "count": 10
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
@@ -905,7 +870,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
     "name": "ClassTableViewModel.fetchData()",
-    "lines": 194
+    "lines": 188
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
@@ -1089,11 +1054,6 @@
     "lines": 106
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/AssignmentMarkStep.kt",
-    "kind": "account-counter",
-    "count": 5
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/CourseSyncReconciler.kt",
     "kind": "long-file",
     "count": 740
@@ -1113,23 +1073,23 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "account-counter",
-    "count": 12
+    "count": 6
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-file",
-    "count": 769
+    "count": 753
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-function",
     "name": "HomeBackendSync.pull(HomeSyncState, Boolean)",
-    "lines": 171
+    "lines": 165
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-function",
-    "name": "HomeBackendSync.syncCourseList(BackendSyncResult, Boolean, DataCache.CourseSync)",
+    "name": "HomeBackendSync.syncCourseList(BackendSyncResult, Boolean, DataCache.CourseSync, SignIn)",
     "lines": 102
   },
   {
@@ -1186,7 +1146,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-function",
     "name": "HomeViewModel.fetchData(Boolean)",
-    "lines": 88
+    "lines": 86
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/RevisionPoller.kt",
@@ -1505,7 +1465,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/ReenableCheck.kt",
     "kind": "account-counter",
-    "count": 3
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsRows.kt",
@@ -1537,7 +1497,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "account-counter",
-    "count": 6
+    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
@@ -1552,8 +1512,8 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "long-function",
-    "name": "SettingsViewModel.resolve(ReenableConflict, Boolean, Int, UseLocalLatch?)",
-    "lines": 133
+    "name": "SettingsViewModel.resolve(ReenableConflict, Boolean, SignIn, UseLocalLatch?)",
+    "lines": 132
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/StorageScreen.kt",
