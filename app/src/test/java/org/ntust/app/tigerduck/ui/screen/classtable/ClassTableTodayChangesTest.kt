@@ -11,7 +11,6 @@ import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -87,14 +86,26 @@ class ClassTableTodayChangesTest {
     fun `with no changes the running classes are the timetable's`() {
         val twiceOnThursday = Course.fromSchedule(courseNo = "CC918", courseName = "Test", classroom = "TR-313", schedule = mapOf(4 to listOf("3", "4", "7", "8")))
         val courses = listOf(course(), twiceOnThursday)
-        for (at in listOf("08:00", "09:10", "10:30", "12:10", "12:11", "14:20", "15:10", "16:20", "20:00")) {
-            val expected = computeOngoingCourses(courses, 4, minute(at))
-                .map { listOf(it.course.courseNo, it.periods, it.startMinute, it.endMinute) }
-                .sortedBy { it[0] as String }
+        // What runs each minute of that Thursday, written out: a block is on from its first period's
+        // start and over at its last period's end, and a course meeting in two blocks is on in one at a time.
+        val morningBoth = listOf(listOf("CC900", morning, 550, 730), listOf("CC918", listOf("3", "4"), 620, 730))
+        val afternoonBoth = listOf(listOf("CC900", listOf("7", "8"), 860, 980), listOf("CC918", listOf("7", "8"), 860, 980))
+        val expected = mapOf(
+            "08:00" to emptyList(),
+            "09:10" to listOf(listOf("CC900", morning, 550, 730)),
+            "10:30" to morningBoth,
+            "12:10" to emptyList(),
+            "12:11" to emptyList(),
+            "14:20" to afternoonBoth,
+            "15:10" to afternoonBoth,
+            "16:20" to emptyList(),
+            "20:00" to emptyList(),
+        )
+        for ((at, wanted) in expected) {
             val actual = ongoing(CourseChanges.EMPTY, at, courses)
                 .map { listOf(it.course.courseNo, it.periods, it.start.hour * 60 + it.start.minute, it.end.hour * 60 + it.end.minute) }
                 .sortedBy { it[0] as String }
-            assertEquals(at, expected, actual)
+            assertEquals(at, wanted, actual)
         }
     }
 

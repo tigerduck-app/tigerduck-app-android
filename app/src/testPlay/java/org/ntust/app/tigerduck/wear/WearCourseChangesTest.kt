@@ -29,7 +29,7 @@ class WearCourseChangesTest {
         val changes = WearProtocol.Schedule.decodeCourseChanges(sent)
         val date = LocalDate.parse(day)
         return NextClassResolver.todaysClasses(
-            listOf(course), date.dayOfWeek.value, minuteOfDay = 0, changedClasses = { changes.on(it, date) },
+            listOf(course), date, minuteOfDay = 0, changes = changes,
         )
     }
 

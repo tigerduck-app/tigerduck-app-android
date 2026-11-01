@@ -59,45 +59,6 @@ fun Course.blockClassroomFrom(weekday: Int, periodId: String): String {
     return if (run != null) blockClassroom(weekday, run) else classroom(weekday)
 }
 
-data class OngoingCourseInfo(
-    val course: Course,
-    val weekday: Int,
-    val firstPeriodId: String,
-    val startMinute: Int,
-    val endMinute: Int,
-    /** Every period of the block going on, in order; starts with [firstPeriodId]. */
-    val periods: List<String>,
-)
-
-fun computeOngoingCourses(
-    courses: List<Course>,
-    weekday: Int,
-    minuteOfDay: Int,
-): List<OngoingCourseInfo> {
-    val results = mutableListOf<OngoingCourseInfo>()
-    for (course in courses) {
-        val periods = course.schedule[weekday] ?: continue
-        for (block in contiguousPeriodRuns(periods)) {
-            val startMin = parseHm(PeriodTimes.mapping[block.first()]?.first)
-            val endMin = parseHm(PeriodTimes.mapping[block.last()]?.second)
-            if (startMin != null && endMin != null && minuteOfDay in startMin until endMin) {
-                results.add(
-                    OngoingCourseInfo(
-                        course = course,
-                        weekday = weekday,
-                        firstPeriodId = block.first(),
-                        startMinute = startMin,
-                        endMinute = endMin,
-                        periods = block,
-                    )
-                )
-                break
-            }
-        }
-    }
-    return results
-}
-
 fun parseHm(hhmm: String?): Int? {
     hhmm ?: return null
     val parts = hhmm.split(":")
