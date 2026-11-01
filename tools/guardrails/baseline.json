@@ -659,7 +659,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/sharing/ClassTableImportHost.kt",
     "kind": "long-file",
-    "count": 479
+    "count": 478
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/sharing/ClassTableImportHost.kt",
@@ -887,7 +887,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-file",
-    "count": 1197
+    "count": 1195
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
@@ -916,7 +916,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-file",
-    "count": 895
+    "count": 894
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
@@ -928,7 +928,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
     "kind": "long-function",
     "name": "FluidTrack(TimeSliderViewModel, Boolean)",
-    "lines": 192
+    "lines": 191
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/TimeSliderSection.kt",
@@ -1167,7 +1167,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LanguagePickerScreen.kt",
     "kind": "long-function",
     "name": "LanguagePickerScreen(SettingsViewModel, ()->Unit)",
-    "lines": 136
+    "lines": 122
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LiveActivitySettingsScreen.kt",
@@ -1185,7 +1185,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/NotificationPermissionSettingsScreen.kt",
     "kind": "long-function",
     "name": "NotificationPermissionSettingsScreen(()->Unit, NotificationPermissionSettingsViewModel)",
-    "lines": 102
+    "lines": 88
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/OpenSourceLicensesScreen.kt",
@@ -1196,12 +1196,12 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/OtherSettingsScreen.kt",
     "kind": "long-function",
     "name": "OtherSettingsScreen(()->Unit, ()->Unit, ()->Unit, ()->Unit, ()->Unit, SettingsViewModel)",
-    "lines": 191
+    "lines": 177
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsRows.kt",
     "kind": "long-file",
-    "count": 468
+    "count": 466
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsRows.kt",
@@ -1240,7 +1240,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/StorageScreen.kt",
     "kind": "long-function",
     "name": "StorageScreen(()->Unit, StorageViewModel)",
-    "lines": 150
+    "lines": 139
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SyncContentScreen.kt",
@@ -1252,7 +1252,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/TabEditorScreen.kt",
     "kind": "long-function",
     "name": "TabEditorScreen(AppState, ()->Unit)",
-    "lines": 208
+    "lines": 195
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/VibrationSettingsScreen.kt",
