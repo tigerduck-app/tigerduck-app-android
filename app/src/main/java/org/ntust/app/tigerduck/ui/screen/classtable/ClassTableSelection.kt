@@ -10,10 +10,13 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.contiguousPeriodRuns
+import org.ntust.app.tigerduck.shared.parseHm
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.Calendar
@@ -164,11 +167,16 @@ object ClassTableSelection {
      * The block of [course] on [weekday] a today-carousel card stands for at [minuteOfDay]: the
      * first not yet over (a class is over from its end minute), or the last once all are. A course meeting twice a day shows the
      * afternoon block's times and room once the morning one ends. Null when it does not meet.
+     *
+     * This keeps its own pass over the timetable rather than reading `ClassTimeline`: it has no
+     * date to ask with, and a block whose period has no time is never over here, where the timeline
+     * drops that meeting, which would pass the card on to the next block and grey out a class that
+     * may be on.
      */
     fun carouselBlock(course: Course, weekday: Int, minuteOfDay: Int): List<String>? {
         val runs = contiguousPeriodRuns(course.schedule[weekday].orEmpty())
         return runs.firstOrNull { run ->
-            val end = AppConstants.PeriodTimes.mapping[run.last()]?.second?.let(::minuteOfDay)
+            val end = AppConstants.PeriodTimes.mapping[run.last()]?.second?.let(::parseHm)
             end == null || minuteOfDay < end
         } ?: runs.lastOrNull()
     }
@@ -176,12 +184,11 @@ object ClassTableSelection {
     /**
      * The classes of [courses] running at [minuteOfDay] on [today] as the school changed them, at
      * most one a course: a cancelled class is not running, and a moved one has its own room and
-     * times. A class is over from its end minute (start <= now < end). As iOS
-     * `ongoingCourses(at:changes:)`.
+     * times. A class is over from its end minute (start <= now < end), which `ClassTimeline`
+     * holds; [minuteOfDay] is Taipei's, within the day. As iOS `ongoingCourses(at:changes:)`.
      */
     fun ongoingClasses(courses: List<Course>, today: LocalDate, minuteOfDay: Int, changes: CourseChanges): List<ClassSlot> =
-        CourseMeetings.buildSlots(courses, today, changes)
-            .filter { !it.isCancelled && minuteOfDay in minuteOf(it.start) until minuteOf(it.end) }
+        ClassTimeline.ongoing(courses, today.atStartOfDay(TaipeiClock.zone).plusMinutes(minuteOfDay.toLong()).toInstant(), changes)
             .distinctBy { it.course.courseNo }
 
     /**
@@ -193,7 +200,9 @@ object ClassTableSelection {
     /**
      * The today-strip card of [course] at [minuteOfDay] on [today]: [carouselBlock] and
      * [isFinishedAt] by the changed times, so a class moved later is not over at its timetable end.
-     * The block is merged back whole, as the class table shows it.
+     * The block is merged back whole, as the class table shows it, so a changed day reads
+     * `CourseMeetings.meeting` rather than `ClassTimeline`, whose classes are the pieces a
+     * cancelled or moved period splits a meeting into.
      */
     fun todayCard(course: Course, today: LocalDate, minuteOfDay: Int, changes: CourseChanges): TodayCard {
         val weekday = today.dayOfWeek.value
@@ -238,22 +247,16 @@ object ClassTableSelection {
      * False whenever that cannot be established — the course does not meet
      * today, or a period is missing a time mapping. Used to grey out finished
      * classes, so guessing "finished" would hide a class that is still on.
+     * Timetable only, with no date to read `ClassTimeline` with, and it reads
+     * the last period, not the changed end; [todayCard] covers a changed day.
      */
     fun isFinishedAt(course: Course, dayTime: DayTime): Boolean {
         val lastPeriodId = course.schedule[dayTime.weekday]
             ?.sortedBy { AppConstants.Periods.chronologicalOrder.indexOf(it) }
             ?.lastOrNull() ?: return false
-        val endMinutes = minuteOfDay(
+        val endMinutes = parseHm(
             AppConstants.PeriodTimes.mapping[lastPeriodId]?.second ?: return false
         ) ?: return false
         return dayTime.minuteOfDay >= endMinutes
-    }
-
-    /** "14:20" -> 860. Null on anything that is not HH:MM. */
-    private fun minuteOfDay(clockTime: String): Int? {
-        val parts = clockTime.split(":")
-        val hours = parts.getOrNull(0)?.toIntOrNull() ?: return null
-        val minutes = parts.getOrNull(1)?.toIntOrNull() ?: return null
-        return hours * 60 + minutes
     }
 }
