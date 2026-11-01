@@ -7,8 +7,9 @@ account's device-side clearing is `AuthService.logout()`, which runs `clearAccou
 wipe in `SignOutWipe`, together with `AccountSessionEffects.onSignedOut`, which follows every
 school sign-out wherever it came from. A sign-out a process death cut short is finished at the
 next start by `AuthService.finishOwedSignOut()`, which runs the same `clearAccount`, so what a
-sign-out clears has one list. School Mail's is `MailAccount.signOut()`, and the library's is
-`SettingsViewModel.logoutLibrary()`.
+sign-out clears has one list. A typed sign-in as another student runs that sign-out once the school
+accepts, and stores nothing until its wipe is done. School Mail's is `MailAccount.signOut()`, and
+the library's is `SettingsViewModel.logoutLibrary()`.
 
 `AccountStateInventoryTest` reads the tables of stored state below and fails in these cases:
 
