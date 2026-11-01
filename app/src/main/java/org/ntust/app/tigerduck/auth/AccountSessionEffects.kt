@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.auth
 
 import android.content.Context
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -8,10 +9,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
+import org.ntust.app.tigerduck.data.cache.PortalLinksCache
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.notification.AccountNotifications
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
+import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,6 +42,8 @@ class AccountSessionEffects internal constructor(
     private val clearBrowser: suspend () -> Unit,
     /** Whether a clearing a process death cut short is still owed; see [BrowserCleanup]. */
     private val browserClearingOwed: () -> Boolean,
+    /** Clears the information system's links: the portal shows the account its own. */
+    private val clearPortalLinks: suspend () -> Unit,
 ) {
     @Inject
     constructor(
@@ -48,6 +53,7 @@ class AccountSessionEffects internal constructor(
         liveActivityManager: LiveActivityManager,
         browserData: BrowserDataCleaner,
         browserCleanup: BrowserCleanup,
+        portalLinks: PortalLinksCache,
     ) : this(
         context = context,
         accountState = authService.accountState,
@@ -57,6 +63,7 @@ class AccountSessionEffects internal constructor(
         stopLiveUpdates = liveActivityManager::stop,
         clearBrowser = browserData::clear,
         browserClearingOwed = browserCleanup::isPending,
+        clearPortalLinks = portalLinks::clear,
     )
 
     /** Follows the sign-in state on [scope] for the life of the process. */
@@ -95,6 +102,11 @@ class AccountSessionEffects internal constructor(
         AccountNotifications.cancelAll(context)
         // Moodle's session cookie, the pages and downloads list are the departing student's.
         clearBrowserSoon(scope)
+        // The portal shows the account's own student record, grades and financial-aid links.
+        scope.launch {
+            runCatching { clearPortalLinks() }
+                .onFailure { Log.w("AccountSessionEffects", "clearPortalLinks failed on sign-out: ${it.logSummary()}") }
+        }
     }
 
     /**

@@ -15,7 +15,6 @@ import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.cache.PortalLinksCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -48,7 +47,6 @@ class AuthService @Inject constructor(
     private val moodleService: MoodleService,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
-    private val portalLinksCache: PortalLinksCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     private val importedClassTables: ImportedClassTableStore,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
@@ -452,11 +450,6 @@ class AuthService @Inject constructor(
                 .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
             runCatching { dataCache.clearAllUserData() }
                 .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
-            // The information-system portal shows the account's own student
-            // record / grades / financial-aid links — user-scoped, must not
-            // bleed into the next account on this device.
-            runCatching { portalLinksCache.clear() }
-                .onFailure { android.util.Log.w("AuthService", "portalLinksCache.clear failed on logout: ${it.logSummary()}") }
             // Now that the timetable is gone: a widget left alone shows the departing student's
             // until its next scheduled update, up to half an hour away.
             runCatching { widgetUpdater.updateAll() }
