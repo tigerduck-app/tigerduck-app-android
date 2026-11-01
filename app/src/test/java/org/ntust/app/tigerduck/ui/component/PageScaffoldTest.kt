@@ -20,7 +20,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
@@ -373,6 +375,21 @@ class PageScaffoldTest {
         assertEquals(16f * density, title.left, 1f)
         // 16dp of padding, then a row at least 48dp tall with the title centered in it.
         assertEquals(40f * density, title.center.y, 1f)
+    }
+
+    @Test
+    fun `a header in the content reads what surrounds it there, as the dot does its pull`() {
+        val pull = compositionLocalOf { "no pull" }
+        composeRule.setContent {
+            PageScaffold(
+                title = "Calendar",
+                headerPosition = PageHeaderPosition.InContent,
+                syncDot = { Text(pull.current) },
+            ) {
+                CompositionLocalProvider(pull provides "pulling") { Header() }
+            }
+        }
+        composeRule.onNodeWithText("pulling").assertIsDisplayed()
     }
 
     @Test
