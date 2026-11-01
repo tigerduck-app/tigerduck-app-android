@@ -20,6 +20,9 @@ import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.LocalDate
 import java.time.LocalTime
 import java.util.Calendar
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import org.ntust.app.tigerduck.shared.clock.AppClock
 
 object ClassTableSelection {
 
@@ -85,6 +88,20 @@ object ClassTableSelection {
             weekday = AppConstants.weekdayIndex(calendar.get(Calendar.DAY_OF_WEEK)),
             minuteOfDay = calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE),
         )
+    }
+
+    /**
+     * [DayTime] now, and again at each minute boundary of the app's clock, or when the debug clock
+     * is set. Each time [restarts] emits it says the time at once and waits afresh: a phone's
+     * deep sleep is not counted by the wait, so the screen restarts it on coming back. The time
+     * is the tick's own, so a tick the system ran late still says the right minute.
+     */
+    fun dayTimes(
+        restarts: Flow<*>,
+        nowMillis: () -> Long = AppClock::nowMillis,
+        isFrozen: () -> Boolean = AppClock::isFrozen,
+    ): Flow<DayTime> = TaipeiClock.minuteTicksRestartedBy(restarts, nowMillis, isFrozen).map {
+        dayTimeFrom(Calendar.getInstance(TaipeiClock.timeZone).apply { timeInMillis = it.toInstant().toEpochMilli() })
     }
 
     /**

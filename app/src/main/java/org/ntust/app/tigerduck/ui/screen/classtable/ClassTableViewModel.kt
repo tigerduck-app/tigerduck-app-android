@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.AppConstants
@@ -366,6 +367,8 @@ class ClassTableViewModel @Inject constructor(
     val availableSemesters: StateFlow<List<String>> = _availableSemesters
 
     private val _currentDayTime = MutableStateFlow(currentDayTime())
+    // Each page resume restarts the minute ticks: their wait does not count a phone's deep sleep.
+    private val clockRestarts = MutableStateFlow(0)
     val currentMinute: StateFlow<Int> = _currentDayTime
         .map { it.minuteOfDay }
         .stateIn(
@@ -508,16 +511,9 @@ class ClassTableViewModel @Inject constructor(
             importedTables.collect(::followShownTable)
         }
         viewModelScope.launch {
-            // Tick at 5s so transitions land within at most a few seconds of
-            // the wall-clock minute boundary (e.g., the "現在課程" card appears
-            // ~5s after a class starts, not up to a minute later). The
-            // _currentDayTime MutableStateFlow dedupes by structural equality,
-            // so emissions only propagate when minuteOfDay actually changes —
-            // downstream collectors aren't woken on every poll.
-            while (true) {
-                kotlinx.coroutines.delay(5_000)
-                _currentDayTime.value = currentDayTime()
-            }
+            // Each minute boundary, so a class shows as ongoing the moment it starts. The first tick
+            // is at once; the field dedupes by equality, so only a changed minute wakes collectors.
+            ClassTableSelection.dayTimes(clockRestarts).collect { _currentDayTime.value = it }
         }
         viewModelScope.launch {
             // Reload course state whenever Settings resets tile colors so
@@ -631,6 +627,9 @@ class ClassTableViewModel @Inject constructor(
             }
         }
     }
+
+    /** Says the time at once and waits afresh for the next minute. Fetches nothing. */
+    fun realignClock() = clockRestarts.update { it + 1 }
 
     private fun currentDayTime(): ClassTableSelection.DayTime =
         ClassTableSelection.dayTimeFrom(AppClock.calendar())
@@ -1496,6 +1495,7 @@ class ClassTableViewModel @Inject constructor(
      * launch, to whether it is still on screen and resumed.
      */
     fun onPageResumed(pageResumed: () -> Boolean) {
+        realignClock() // First, whatever the prompt decides.
         if (_selectedCourse.value != null) return
         reviewPrompt.calmMoment(pageResumed)
     }

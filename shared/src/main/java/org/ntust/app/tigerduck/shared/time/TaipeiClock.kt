@@ -1,8 +1,10 @@
 package org.ntust.app.tigerduck.shared.time
 
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.withTimeoutOrNull
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.time.Instant
@@ -40,8 +42,22 @@ object TaipeiClock {
      */
     fun minuteTicks(): Flow<ZonedDateTime> = minuteTicks(AppClock::nowMillis, AppClock::isFrozen)
 
-    /** The seam for tests: the clock and its frozen state are passed in. */
-    internal fun minuteTicks(nowMillis: () -> Long, isFrozen: () -> Boolean): Flow<ZonedDateTime> = channelFlow {
+    /**
+     * [minuteTicks] that starts over each time [restarts] emits: the new run emits at once and
+     * waits for the next boundary afresh. A coroutine wait does not count the time a phone spends
+     * in deep sleep, so a screen sends a restart when it comes back to the front, and its state is
+     * right at once instead of up to a minute late. [restarts] should emit when collected, as a
+     * `StateFlow` does, which starts the first run.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun minuteTicksRestartedBy(
+        restarts: Flow<*>,
+        nowMillis: () -> Long = AppClock::nowMillis,
+        isFrozen: () -> Boolean = AppClock::isFrozen,
+    ): Flow<ZonedDateTime> = restarts.flatMapLatest { minuteTicks(nowMillis, isFrozen) }
+
+    /** The clock and its frozen state are passed in, so a test can tie them to its own scheduler. */
+    fun minuteTicks(nowMillis: () -> Long, isFrozen: () -> Boolean): Flow<ZonedDateTime> = channelFlow {
         val changed = Channel<Unit>(Channel.CONFLATED)
         val listener: (Long) -> Unit = { changed.trySend(Unit) }
         // Registered before the first emit, so a change right after it is not lost.

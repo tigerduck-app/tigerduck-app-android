@@ -120,4 +120,27 @@ class TaipeiClockTest {
         assertEquals(3, seen.size)
         job.cancel()
     }
+
+    @Test
+    fun `a restart emits at once and awaits the next boundary afresh`() = runTest(UnconfinedTestDispatcher()) {
+        val base = Instant.parse("2026-11-01T02:30:30Z").toEpochMilli()
+        var slept = 0L
+        val restarts = kotlinx.coroutines.flow.MutableStateFlow(0)
+        val seen = mutableListOf<ZonedDateTime>()
+        val job = launch {
+            TaipeiClock.minuteTicksRestartedBy(restarts, { base + testScheduler.currentTime + slept }, { false }).toList(seen)
+        }
+        assertEquals(1, seen.size)
+
+        slept = 45_000L // 10:31:15 with no virtual time passed
+        restarts.value = 1
+        assertEquals(2, seen.size)
+        assertEquals(10 * 60 + 31, seen[1].hour * 60 + seen[1].minute)
+
+        testScheduler.advanceTimeBy(45_000L) // 10:32:00
+        testScheduler.runCurrent()
+        assertEquals(3, seen.size)
+        assertEquals(10 * 60 + 32, seen[2].hour * 60 + seen[2].minute)
+        job.cancel()
+    }
 }
