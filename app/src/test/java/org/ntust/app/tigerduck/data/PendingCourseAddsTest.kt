@@ -400,6 +400,20 @@ class PendingCourseAddsTest {
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 
+    @Test
+    fun `an add refused as its account signs out leaves the next account's known numbers alone`() = runTest {
+        cache.saveCourses(listOf(typed), term)
+        refused = listOf("MA1010002")
+        answer = {
+            signOut()
+            listOf("MA1010002")
+        }
+
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = 1L, signIn = signIn)
+
+        assertEquals(emptyMap<String, List<String>>(), cache.loadServerKnownNos())
+    }
+
     /** The gap between the sign-in's end and the wipe: the entry is still on disk, and stays as it is. */
     @Test
     fun `an add read under an ended sign-in is neither sent nor rewritten`() = runTest {

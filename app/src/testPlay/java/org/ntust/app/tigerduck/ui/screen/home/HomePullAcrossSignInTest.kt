@@ -174,6 +174,9 @@ class HomePullAcrossSignInTest {
                 JSONObject().put("moodle_id", MOODLE_ID).put("course_no", COURSE).put("color_hex", "#123456")
                     .put("semester", TERM).put("ignore_assignments", true)
                     .put("ignore_assignments_updated_at", "2026-10-13T00:00:00Z"),
+            ).put(
+                JSONObject().put("moodle_id", "$TERM$ADDED").put("course_no", ADDED).put("semester", TERM)
+                    .put("ignore_assignments", true).put("ignore_assignments_updated_at", "2026-10-13T00:00:00Z"),
             ),
         )
         .put("courses_reset_at", "2026-10-13T00:00:00Z")
