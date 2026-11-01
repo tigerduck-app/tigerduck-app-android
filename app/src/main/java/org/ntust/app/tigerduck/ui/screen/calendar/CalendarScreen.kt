@@ -36,8 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -62,17 +60,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.compose.material3.Switch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.JumpToNowChip
-import org.ntust.app.tigerduck.ui.component.PageHeader
-import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.SyncStatusDot
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.component.PageLeftEffect
@@ -118,11 +113,17 @@ fun CalendarScreen(
     }
 
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    PageScaffold(
+        title = stringResource(R.string.feature_calendar),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = { CalendarSyncDot(isLoading, schoolDataSyncedAtMs) },
+        actions = { CalendarTodayChip(onClick = { viewModel.goToToday() }) },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         TigerPullToRefresh(
             isRefreshing = isLoading,
             onRefresh = { viewModel.refresh() },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(padding),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
             val listState = rememberLazyListState()
@@ -131,22 +132,7 @@ fun CalendarScreen(
                 modifier = Modifier.fillMaxSize().scrollbar(listState),
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
-                item {
-                    PageHeader(title = stringResource(R.string.feature_calendar)) {
-                        SyncStatusDot(
-                            // The TigerDuck backend publishes the semester
-                            // boundaries and holidays this screen now shows,
-                            // so it belongs in the source list beside Moodle.
-                            servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
-                            isLoading = isLoading,
-                            syncedAtMs = schoolDataSyncedAtMs,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        JumpToNowChip(
-                            label = stringResource(R.string.calendar_today),
-                            onClick = { viewModel.goToToday() })
-                    }
-                }
+                item { Header() }
 
                 if (!isLoggedIn) {
                     item {
@@ -219,7 +205,6 @@ fun CalendarScreen(
             }
 
         }
-        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     } // Box
 }
 

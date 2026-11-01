@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -19,8 +20,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
@@ -31,6 +38,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
@@ -431,9 +439,50 @@ class PageScaffoldTest {
     fun `a page with its header in the content takes no insets, as its host has padded it`() {
         composeRule.setContent {
             assertSame(NoTopBarInsets, PageDefaults.contentWindowInsets(PageHeaderPosition.InContent))
-            assertSame(ScaffoldDefaults.contentWindowInsets, PageDefaults.contentWindowInsets(PageHeaderPosition.Pinned))
+            assertEquals(ScaffoldDefaults.contentWindowInsets, PageDefaults.contentWindowInsets(PageHeaderPosition.Pinned))
         }
         composeRule.waitForIdle()
+    }
+
+    @Test
+    fun `a new size doesn't compose the page again, as a BoxWithConstraints would`() {
+        var compositions = 0
+        var heightPx by mutableIntStateOf(800)
+        composeRule.setContent {
+            // Read while measuring, so only the constraints change, not the composition above.
+            Box(
+                Modifier.layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints.copy(maxHeight = heightPx))
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                },
+            ) {
+                PageScaffold(title = "Bulletins", headerPosition = PageHeaderPosition.InContent) {
+                    SideEffect { compositions++ }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+        val first = compositions
+        heightPx = 600
+        composeRule.waitForIdle()
+        assertEquals(first, compositions)
+    }
+
+    @Test
+    fun `a snackbar sits at the bottom middle of a tab page, as one in a Box did`() {
+        composeRule.setContent {
+            Box(Modifier.fillMaxSize().testTag("page")) {
+                PageScaffold(
+                    title = "Calendar",
+                    headerPosition = PageHeaderPosition.InContent,
+                    snackbarHost = { Box(Modifier.size(100.dp, 50.dp).testTag("snackbar")) },
+                ) {}
+            }
+        }
+        val page = composeRule.onNodeWithTag("page").fetchSemanticsNode().boundsInRoot
+        val snackbar = composeRule.onNodeWithTag("snackbar").fetchSemanticsNode().boundsInRoot
+        assertEquals(page.center.x, snackbar.center.x, 1f)
+        assertEquals(page.bottom, snackbar.bottom, 1f)
     }
 
     @Test
