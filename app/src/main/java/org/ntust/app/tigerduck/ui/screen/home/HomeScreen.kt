@@ -213,18 +213,7 @@ fun HomeScreen(
             header = {
                 PageHeader(title = greetingText()) {
                     if (isEditing) {
-                        IconButton(onClick = { showAddSectionDialog = true }) {
-                            Icon(
-                                Icons.Filled.Add,
-                                contentDescription = stringResource(R.string.home_add_section_title)
-                            )
-                        }
-                        TextButton(onClick = editing::finish) {
-                            Text(
-                                stringResource(R.string.action_done),
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        HomeEditActions(onAdd = { showAddSectionDialog = true }, onDone = editing::finish)
                     } else {
                         SyncStatusDot(
                             servers = listOf(ServerKind.MOODLE, ServerKind.BACKEND),
