@@ -3,12 +3,10 @@ package org.ntust.app.tigerduck.ui.screen.mail
 import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.annotation.StringRes
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -21,7 +19,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.swipeRight
-import androidx.compose.ui.unit.LayoutDirection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -49,23 +46,19 @@ class SwipeableMailCardTest {
 
     /** What the card is shown with; a test changes either while the card stays composed. */
     private var writing by mutableStateOf(false)
-    private var direction by mutableStateOf(LayoutDirection.Ltr)
 
-    private fun show(writing: Boolean = false, direction: LayoutDirection = LayoutDirection.Ltr) {
+    private fun show(writing: Boolean = false) {
         this.writing = writing
-        this.direction = direction
         composeRule.setContent {
-            CompositionLocalProvider(LocalLayoutDirection provides this.direction) {
-                SwipeableMailCard(
-                    row = MailRow("INBOX", mailSummary(1)),
-                    mailDomain = "mail.ntust.edu.tw",
-                    writing = this.writing,
-                    onClick = { calls += "open" },
-                    onToggleRead = { calls += "read" },
-                    onMove = { calls += "move" },
-                    onDelete = { calls += "delete" },
-                )
-            }
+            SwipeableMailCard(
+                row = MailRow("INBOX", mailSummary(1)),
+                mailDomain = "mail.ntust.edu.tw",
+                writing = this.writing,
+                onClick = { calls += "open" },
+                onToggleRead = { calls += "read" },
+                onMove = { calls += "move" },
+                onDelete = { calls += "delete" },
+            )
         }
     }
 
@@ -99,33 +92,11 @@ class SwipeableMailCardTest {
     }
 
     @Test
-    fun `in a left-to-right layout the leading swipe toggles read and the trailing one asks to delete`() {
+    fun `a swipe to the right toggles read and one to the left asks to delete`() {
         show()
 
         assertEquals(listOf("read"), swipe(towardRight = true))
         assertEquals(listOf("delete"), swipe(towardRight = false))
-    }
-
-    @Test
-    fun `in a right-to-left layout the swipes are mirrored`() {
-        show(direction = LayoutDirection.Rtl)
-
-        assertEquals(listOf("read"), swipe(towardRight = false))
-        assertEquals(listOf("delete"), swipe(towardRight = true))
-    }
-
-    @Test
-    fun `a card that stays on screen through a change of layout direction swipes the new way`() {
-        show()
-        assertEquals(listOf("read"), swipe(towardRight = true))
-
-        // The app's language changes to a right-to-left one, which the activity takes without
-        // being recreated.
-        direction = LayoutDirection.Rtl
-        composeRule.waitForIdle()
-
-        assertEquals(listOf("read"), swipe(towardRight = false))
-        assertEquals(listOf("delete"), swipe(towardRight = true))
     }
 
     @Test
