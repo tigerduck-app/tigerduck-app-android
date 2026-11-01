@@ -14,6 +14,11 @@ object AppLanguageManager {
     private const val SIMPLIFIED_CHINESE = "zh-Hans"
     private const val TRADITIONAL_CHINESE = "zh-Hant"
 
+    // Languages an earlier build offered and this one does not ship: Arabic, Persian, Hebrew
+    // (also as its old code "iw") and Urdu. A pick of one, with or without a region or script,
+    // reads as "Follow system"; the stored value is left alone.
+    private val DROPPED_LANGUAGE_CODES = setOf("ar", "fa", "he", "iw", "ur")
+
     fun normalize(language: String): String {
         if (language == SYSTEM) return SYSTEM
 
@@ -21,7 +26,8 @@ object AppLanguageManager {
         // ships a large set of Android resource alias directories (values-*)
         // and we don't want to maintain a hard-coded allowlist in Kotlin.
         val parsed = Locale.forLanguageTag(language)
-        return if (parsed.language.isNullOrBlank() || parsed.language == "und") SYSTEM else language
+        if (parsed.language.isNullOrBlank() || parsed.language == "und") return SYSTEM
+        return if (parsed.language.lowercase() in DROPPED_LANGUAGE_CODES) SYSTEM else language
     }
 
     /**
