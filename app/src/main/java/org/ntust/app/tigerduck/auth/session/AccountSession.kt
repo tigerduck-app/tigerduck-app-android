@@ -68,14 +68,20 @@ class AccountSession(
     /** Whether a sign-out's wipe is still owed: a process death cut it short. */
     val wipeOwed: Boolean get() = owed?.owed == true
 
+    /** What a start does with the marker, given the student stored now. */
+    fun replay(storedStudentId: String?): SignOutOwed.Replay = owed?.replay(storedStudentId) ?: SignOutOwed.Replay.DROP
+
     /** Written to disk before the sign-in ends, so a process death during the wipe is not forgotten. */
-    fun markWipeOwed() {
-        owed?.owed = true
+    fun markWipeOwed(departingStudentId: String?) {
+        owed?.mark(departingStudentId)
     }
 
-    /** Opens the next sign-in once the wipe is done, and takes the marker off. */
+    /**
+     * Opens the next sign-in once the last wipe is done, and takes the marker off. A marker the
+     * disk would not release is harmless: it names who left, and a replay wipes nobody else.
+     */
     fun open() {
-        owed?.owed = false
+        owed?.clear()
         signIns.open()
     }
 

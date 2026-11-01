@@ -544,6 +544,7 @@ class AccountSwitchTest {
         assertTrue("the wipe has not run", queued.all { userFile(it).exists() })
         // The next process starts: new objects over the same files, as after a process death.
         val second = world(credentialPrefs)
+        second.auth.finishOwedSignOut()
         assertTrue("the queued edits are still there to be sent as the next student's", queued.all { userFile(it).exists() })
         assertFalse("the session starts closed while the wipe is owed", second.sessions.school.signIns.isOpen.value)
 
@@ -558,6 +559,50 @@ class AccountSwitchTest {
         assertFalse(SignOutOwed(prefs("tigerduck_account_wipe")).owed)
         assertTrue(second.auth.login(SECOND, "second-password"))
         assertEquals(SECOND, second.auth.storedStudentId)
+    }
+
+    @Test
+    fun `a start that finds the sign-out promised signs the account out before the wipe`() = runBlocking {
+        // The process died after the marker was written and before the credentials went.
+        val credentialPrefs = signedInAsFirst()
+        credentialPrefs.edit().putString("moodle_token", "made-up-token").commit()
+        SignOutOwed(prefs("tigerduck_account_wipe")).mark(FIRST)
+        val w = world(credentialPrefs)
+        w.tokens.let { w.credentials.v3Tokens.save("access-a", "refresh-a", Long.MAX_VALUE) }
+        assertTrue(w.auth.authState.value)
+        assertTrue(userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.apply { writeText("[]") }.exists())
+
+        w.auth.finishOwedSignOut()
+
+        // Synchronously, before the wipe: credentials, tokens and the signed-in state.
+        assertEquals(null, w.credentials.ntustStudentId)
+        assertEquals(null, w.credentials.v3Tokens.accessToken)
+        assertFalse(w.auth.authState.value)
+        assertFalse(w.sessions.school.signIns.isOpen.value)
+
+        w.auth.finishOwedWipe()
+        withTimeout(10_000) { w.sessions.school.awaitOpen() }
+        assertFalse(userFile("unsent_marks.json").exists())
+        assertFalse(SignOutOwed(prefs("tigerduck_account_wipe")).owed)
+    }
+
+    @Test
+    fun `a stale marker wipes nothing of the student stored now, and opens the session`() = runBlocking {
+        val credentialPrefs = prefs("tigerduck_credentials")
+        credentialPrefs.edit().clear().putString("ntust_student_id", SECOND).putString("ntust_password", "second-password").commit()
+        SignOutOwed(prefs("tigerduck_account_wipe")).mark(FIRST)
+        val w = world(credentialPrefs)
+        userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.writeText("[]")
+
+        w.auth.finishOwedSignOut()
+        w.auth.finishOwedWipe()
+        delay(300)
+
+        assertEquals(SECOND, w.credentials.ntustStudentId)
+        assertTrue(w.auth.authState.value)
+        assertTrue("the second student's file stays", userFile("unsent_marks.json").exists())
+        assertTrue(w.sessions.school.signIns.isOpen.value)
+        assertFalse(SignOutOwed(prefs("tigerduck_account_wipe")).owed)
     }
 
     @Test

@@ -58,22 +58,11 @@ class AuthService @Inject constructor(
     private val heldShareLink: org.ntust.app.tigerduck.HeldShareLink,
 ) {
     /**
-     * A demo session presents as signed in, with or without an account.
-     *
-     * `authState` is what every screen asks, so a device that skipped the
-     * wizard replaced its whole content with "not signed in" and no fixture
-     * could put anything on it -- the fake timetable was on disk, and nothing
-     * would draw it. Reporting true here is what lets a clean install be
-     * photographed at all.
-     *
-     * Safe only because demo mode also refuses every request
-     * ([org.ntust.app.tigerduck.debug.DemoModeInterceptor]): nothing tries to
-     * use the credentials that are not there, and the screens take the
-     * no-network path they already had. Nothing lowers the flag behind our
-     * back either -- `logout()` is reached from the settings entry and the
-     * full reset, both of which are the user saying so.
-     *
-     * Sampled once, at process start, like the rest of demo mode.
+     * A demo session presents as signed in, with or without an account: `authState` is what every
+     * screen asks, and a clean install could not otherwise be photographed. Safe only because demo
+     * mode also refuses every request ([org.ntust.app.tigerduck.debug.DemoModeInterceptor]), and
+     * nothing lowers the flag but `logout()`, which the user asks for. Sampled once, at process
+     * start, like the rest of demo mode.
      */
     private val demoMode = demoAccount.isActive
 
@@ -113,7 +102,19 @@ class AuthService @Inject constructor(
 
     private val loginMutex = Mutex()
 
-    private val wipe = SignOutWipe(importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope)
+    // A sign-out the process died in is finished at start: see SignOutWipe.finishOwedSignOut.
+    private val wipe = SignOutWipe(
+        importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope,
+        storedStudentId = { credentials.ntustStudentId },
+        dropStoredAccount = {
+            val departing = synchronized(accountLock) {
+                credentials.signOutSchoolAccount()
+                authTokenManager.logout()
+            }
+            setSignedIn(false)
+            pushRegistration.unregister(departing)
+        },
+    )
 
     private val _signIns = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -380,18 +381,14 @@ class AuthService @Inject constructor(
      * was read before the sign-in began: a sign-out since leaves none of what it stores.
      */
     fun logout() {
-        // The school account alone: the library account and the school mail stay signed in, each
-        // signed out of by itself (decided for Android on 2026-10-22).
-        // One step for a sign-in under way, which checks the generation under the same lock
-        // before it stores anything: it either stores before this clears, or stores nothing.
-        // The session it wipes, taken as it moves the generation: the
-        // pushRegistration.unregister() below sends its DELETE afterwards, until
-        // the server has it, and without the departing session it would find
-        // none to go out with, and leak the device row.
-        // On disk before the account goes: the in-app browser's clearing is owed even if the
-        // process dies before it runs.
+        // The school account alone: the library account and the school mail stay signed in
+        // (decided for Android on 2026-10-22). One step for a sign-in under way, which checks the
+        // generation under the same lock before it stores anything. The session it wipes is taken
+        // as the generation moves: the unregister below sends its DELETE afterwards.
+        // On disk before the account goes: the browser's clearing and the wipe are owed even if
+        // the process dies before they run.
         BrowserCleanup.of(context).markPending()
-        authTokenManager.session.markWipeOwed()
+        authTokenManager.session.markWipeOwed(credentials.ntustStudentId)
         val departing = synchronized(accountLock) {
             credentials.signOutSchoolAccount()
             authTokenManager.logout()
@@ -451,7 +448,10 @@ class AuthService @Inject constructor(
         wipe.start()
     }
 
-    /** At process start: finishes a wipe a process death cut short, then opens the sign-in. */
+    /** At process start, first: finishes a sign-out a process death cut short, before anything reads the account. */
+    fun finishOwedSignOut() = wipe.finishOwedSignOut()
+
+    /** At process start, then: the wipe that sign-out owes, after which the sign-in opens. */
     fun finishOwedWipe() = wipe.finishOwed()
 
     fun clearLoginError() {

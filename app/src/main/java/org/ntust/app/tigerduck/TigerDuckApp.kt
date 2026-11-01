@@ -146,6 +146,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        authService.finishOwedSignOut() // before anything reads the account
         // The theme reads it on its first frame: start loading it from disk now.
         preloadKeptCjkCorrections(this)
         // Debug builds: the developer settings' "pretend an app is missing" switches.
@@ -156,8 +157,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // upgrade launch and rebuild caches that a pending migration step then
         // deleted. AppState re-reads the cached outcome for the reset prompt.
         dataMigration.run()
-        // Still before anything reads the account's files: a wipe a process death cut short runs
-        // now, and the school session opens after it (SignOutOwed).
+        // Then its wipe, and the school session opens after it (SignOutOwed).
         authService.finishOwedWipe()
         // Next, while the Live Update settings are still as the previous
         // build left them: the class reminder takes its settings from them

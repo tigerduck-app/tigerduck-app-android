@@ -48,7 +48,7 @@ class SignOutClearingTest {
     /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
     private fun wipeBody(): String {
         val wipe = File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
-        val start = wipe.indexOf("suspend fun run()")
+        val start = wipe.indexOf("suspend fun run(")
         return wipe.substring(wipe.indexOf('{', start))
     }
 
@@ -88,9 +88,9 @@ class SignOutClearingTest {
     }
 
     @Test
-    fun `the next sign-in opens in a finally after the wipe, so a wipe that throws still opens it`() {
+    fun `the next sign-in opens only from the wipe's last pass, never from logout`() {
         val wipe = File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
-        assertTrue(wipe, Regex("""try \{ run\(\) \} finally \{ session\.open\(\) \}""").containsMatchIn(wipe))
+        assertEquals(wipe, 1, Regex("""session\.open\(\)""").findAll(wipe.substringBefore("/**\n     * At process start, before")).count())
         // logout() starts it, and nothing in logout() ends or opens the sign-in itself.
         val logout = body("fun logout()")
         assertTrue(logout, "wipe.start()" in logout)
