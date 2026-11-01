@@ -263,6 +263,17 @@ class SyncWiringTest {
         )
     }
 
+    /**
+     * A re-enable check and Use Local run on the application scope, past the Settings screen that
+     * began them. Each stops at the sign-out, which the student ID alone would not see for the same
+     * student. Read from the source: both take a screen's worth of collaborators.
+     */
+    @Test
+    fun `the re-enable check and Use Local stop when their sign-in ends`() {
+        assertCalls("ui/screen/settings/ReenableCheck.kt", "check", "val signIn = sessions.school.current", "signIn.isCurrent")
+        assertCalls("ui/screen/settings/SettingsViewModel.kt", "sendLocalCourses", "isCurrent = { signIn.isCurrent }")
+    }
+
     /** tigerduck-app-android#404. */
     @Test
     fun `a holiday choice whose PUT failed is kept, and Home's sync sends what waits first and keeps it over the snapshot`() {
