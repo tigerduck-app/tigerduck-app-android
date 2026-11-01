@@ -90,7 +90,7 @@ android {
             // resolver, which defaults to localhost). 10.0.2.2 is the Android
             // emulator's host-loopback (the Mac running the backend); physical
             // devices override `pushBaseUrl` in local.properties with the Mac's
-            // LAN IP. Cleartext to this host is permitted in network_security_config.
+            // LAN IP. Cleartext to this host is permitted by the debug network_security_config.
             buildConfigField(
                 "String",
                 "PUSH_BASE_URL",
