@@ -58,6 +58,30 @@ class SignOutOwedTest {
         assertTrue(prefs.all.values.none { it.toString().contains(FIRST) })
     }
 
+    @Test
+    fun `a clearing that failed may be tried again, three tries in all`() {
+        val owed = SignOutOwed(prefs)
+        owed.mark(FIRST)
+
+        assertTrue(owed.triesAgain())
+        assertTrue(owed.triesAgain())
+        assertFalse("the third failure ends it", owed.triesAgain())
+        assertFalse(SignOutOwed(prefs).triesAgain())
+    }
+
+    @Test
+    fun `taking the marker off starts the tries over`() {
+        val owed = SignOutOwed(prefs)
+        owed.mark(FIRST)
+        owed.triesAgain()
+        owed.triesAgain()
+
+        assertTrue(owed.clear())
+        owed.mark(FIRST)
+
+        assertTrue(owed.triesAgain())
+    }
+
     /** Preferences whose commit fails [failures] times before it works. */
     private class Flaky(private val inner: SharedPreferences, var failures: Int) : SharedPreferences by inner {
         var commits = 0
@@ -65,6 +89,7 @@ class SignOutOwedTest {
             val real = inner.edit()
             return object : SharedPreferences.Editor by real {
                 override fun putBoolean(key: String, value: Boolean) = apply { real.putBoolean(key, value) }
+                override fun putInt(key: String, value: Int) = apply { real.putInt(key, value) }
                 override fun putString(key: String, value: String?) = apply { real.putString(key, value) }
                 override fun remove(key: String) = apply { real.remove(key) }
                 override fun commit(): Boolean {
@@ -103,6 +128,14 @@ class SignOutOwedTest {
         assertTrue("the marker is still on disk", owed.owed)
         // And it still names who left, so the stale marker wipes no later student.
         assertFalse(owed.replays(SECOND))
+    }
+
+    @Test
+    fun `a count the disk will not take allows no more tries`() {
+        SignOutOwed(prefs).mark(FIRST)
+        val flaky = Flaky(prefs, failures = 2)
+
+        assertFalse("with no count on disk, nothing would ever end the retries", SignOutOwed(flaky).triesAgain())
     }
 
     private companion object {

@@ -347,6 +347,101 @@ class SignOutRecoveryTest {
         assertFalse(owed.replays(FIRST))
     }
 
+    /** The app's context with one key's writes refused, as a store that went bad would. */
+    private fun refusing(key: String) = OnDisk(
+        Disk().apply {
+            counting = true
+            onWrite = { what -> if (key in what) throw IllegalStateException("made-up failure") }
+        },
+    )
+
+    private fun worldOver(context: Context) =
+        accountWorld(context, context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE), appScope, idleScope)
+
+    private suspend fun wipesDone() = withTimeout(10_000) { appJob.children.toList().joinAll() }
+
+    @Test
+    fun `a browser step that throws takes nothing after it down, and holds nothing back`() = runBlocking {
+        firstStudentOnTheDevice()
+        // What the review found: the request is read as a number, and this is not one.
+        prefs("tigerduck_browser_cleanup").edit().putString("request", "not a number").commit()
+        owed.mark(FIRST)
+        val w = worldOver(context)
+
+        assertTrue(w.auth.finishOwedSignOut())
+        w.auth.finishOwedWipe()
+        withTimeout(10_000) { w.sessions.school.awaitOpen() }
+
+        assertNull(w.credentials.ntustStudentId)
+        assertNull(w.credentials.v3Tokens.accessToken)
+        assertFalse(w.auth.authState.value)
+        assertFalse(owed.owed)
+    }
+
+    @Test
+    fun `a credentials step that fails skips nothing after it, and the next start tries again`() = runBlocking {
+        firstStudentOnTheDevice()
+        owed.mark(FIRST)
+        val w = worldOver(refusing("ntust_student_id"))
+
+        assertTrue(w.auth.finishOwedSignOut())
+        w.auth.finishOwedWipe()
+        wipesDone()
+
+        assertEquals("the step that failed", FIRST, w.credentials.ntustStudentId)
+        assertNull("the next one went all the same", w.credentials.v3Tokens.accessToken)
+        assertTrue(w.appPrefs.holidayOverridesAwaitingUpload.isEmpty())
+        assertFalse(w.auth.authState.value)
+        assertEquals("and the wipe", emptyList<String>(), listOf("cache", "data").flatMap { account.filesUnder(account.cacheRoots.getValue(it)) })
+        assertTrue("the marker stays for the next start", owed.owed)
+        assertFalse("and the next sign-in waits for it", w.sessions.school.isOpen)
+
+        val (next, signOutCutShort) = nextStart()
+
+        assertTrue(signOutCutShort)
+        withTimeout(10_000) { next.sessions.school.awaitOpen() }
+        assertNull(next.credentials.ntustStudentId)
+        assertFalse(next.auth.authState.value)
+        assertFalse(owed.owed)
+    }
+
+    @Test
+    fun `a step that keeps failing holds the next sign-in for three tries and no more`() = runBlocking {
+        firstStudentOnTheDevice()
+        owed.mark(FIRST)
+
+        repeat(3) { start ->
+            val w = worldOver(refusing("ntust_student_id"))
+            assertTrue(w.auth.finishOwedSignOut())
+            w.auth.finishOwedWipe()
+            wipesDone()
+
+            val last = start == 2
+            assertEquals("try ${start + 1}", last, w.sessions.school.isOpen)
+            assertEquals("try ${start + 1}", !last, owed.owed)
+        }
+    }
+
+    @Test
+    fun `a sign-out with a step that fails is not over until a later start finishes it`() = runBlocking {
+        firstStudentOnTheDevice()
+        val w = worldOver(refusing("ntust_student_id"))
+
+        w.auth.logout()
+        wipesDone()
+
+        assertNull(w.credentials.v3Tokens.accessToken)
+        assertTrue(owed.owed)
+        assertFalse(w.sessions.school.isOpen)
+
+        val (next, signOutCutShort) = nextStart()
+
+        assertTrue(signOutCutShort)
+        withTimeout(10_000) { next.sessions.school.awaitOpen() }
+        assertNull(next.credentials.ntustStudentId)
+        assertFalse(owed.owed)
+    }
+
     /** A scope whose work waits until [release], so a test can stand before a wipe. */
     private class HeldDispatcher : CoroutineDispatcher() {
         private val held = mutableListOf<Pair<CoroutineContext, Runnable>>()

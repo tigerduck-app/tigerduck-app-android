@@ -85,6 +85,7 @@ class SignOutWipeTest {
                 wipe.recover({ null }) {
                     at(Stage.BEGUN)
                     cleared++
+                    true
                 },
             )
             at(Stage.CLEARED)
@@ -251,6 +252,11 @@ class SignOutWipeTest {
     private var clearings = 0
     private var wipes = 0
 
+    private fun clearing(): Boolean {
+        clearings++
+        return true
+    }
+
     private fun recoverable(session: AccountSession) = SignOutWipe(
         wipe = { wipes++ },
         session = session,
@@ -268,7 +274,7 @@ class SignOutWipeTest {
             recoverable(session).recover({
                 askedWhoIsStored.incrementAndGet()
                 STUDENT
-            }) { clearings++ },
+            }, ::clearing),
         )
 
         assertEquals(0, askedWhoIsStored.get())
@@ -285,7 +291,7 @@ class SignOutWipeTest {
         val session = AccountSession(SignInSeries(closed = true), scope, owed = owed)
         val wipe = recoverable(session)
 
-        assertTrue(wipe.recover({ STUDENT }) { clearings++ })
+        assertTrue(wipe.recover({ STUDENT }, ::clearing))
 
         assertEquals(1, clearings)
         assertFalse("closed until the wipe, which the caller starts after the migration", session.isOpen)
@@ -304,7 +310,7 @@ class SignOutWipeTest {
         owed.mark(STUDENT)
         val session = AccountSession(SignInSeries(closed = true), scope, owed = owed)
 
-        assertTrue(recoverable(session).recover({ null }) { clearings++ })
+        assertTrue(recoverable(session).recover({ null }, ::clearing))
 
         assertEquals(1, clearings)
     }
@@ -314,7 +320,7 @@ class SignOutWipeTest {
         owed.mark(STUDENT)
         val session = AccountSession(SignInSeries(closed = true), scope, owed = owed)
 
-        assertFalse(recoverable(session).recover({ LATER_STUDENT }) { clearings++ })
+        assertFalse(recoverable(session).recover({ LATER_STUDENT }, ::clearing))
 
         assertEquals(0, clearings)
         assertEquals(0, wipes)
@@ -322,17 +328,63 @@ class SignOutWipeTest {
         assertFalse(owed.owed)
     }
 
-    @Test
-    fun `a clearing that throws at the start does not stop the app, and the sign-out still finishes`() {
-        owed.mark(STUDENT)
-        val session = AccountSession(SignInSeries(closed = true), scope, owed = owed)
+    /** One start over the marker on disk, whose clearing answers [cleared]. */
+    private fun start(cleared: Boolean): AccountSession {
+        val session = AccountSession(SignInSeries(closed = owed.owed), scope, owed = owed)
         val wipe = recoverable(session)
-
-        assertTrue(wipe.recover({ STUDENT }) { throw IllegalStateException("made-up failure") })
+        assertTrue(wipe.recover({ STUDENT }) { cleared })
         wipe.finish()
+        return session
+    }
+
+    @Test
+    fun `a recovery whose clearing failed wipes, and leaves the marker and the sign-in for the next start`() {
+        owed.mark(STUDENT)
+
+        val session = start(cleared = false)
 
         assertEquals(1, wipes)
+        assertFalse(session.isOpen)
+        assertTrue(owed.owed)
+    }
+
+    @Test
+    fun `the next start finishes what a failed clearing left`() {
+        owed.mark(STUDENT)
+        start(cleared = false)
+
+        val session = start(cleared = true)
+
         assertTrue(session.isOpen)
+        assertFalse(owed.owed)
+    }
+
+    @Test
+    fun `a clearing that keeps failing holds the sign-in for two starts, and the third opens it`() {
+        owed.mark(STUDENT)
+
+        assertFalse(start(cleared = false).isOpen)
+        assertFalse(start(cleared = false).isOpen)
+        val third = start(cleared = false)
+
+        assertTrue(third.isOpen)
+        assertFalse(owed.owed)
+    }
+
+    @Test
+    fun `a sign-out whose clearing failed holds the same way, and a later one that went pays for it`() {
+        val session = AccountSession(SignInSeries(), scope, owed = owed)
+        val wipe = recoverable(session)
+
+        wipe.begin(STUDENT)
+        wipe.finish(cleared = false)
+        assertFalse(session.isOpen)
+        assertTrue(owed.owed)
+
+        wipe.begin(null)
+        wipe.finish()
+        assertTrue(session.isOpen)
+        assertFalse(owed.owed)
     }
 
     private companion object {

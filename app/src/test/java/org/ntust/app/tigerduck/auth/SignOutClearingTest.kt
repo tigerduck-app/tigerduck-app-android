@@ -92,7 +92,7 @@ class SignOutClearingTest {
     @Test
     fun `a sign-out counts itself in before anything is cleared, and starts its wipe after`() {
         val logout = body("fun logout()")
-        val at = listOf("synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }", "clearAccount()", "wipe.finish()").map { step ->
+        val at = listOf("synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }", "wipe.finish(cleared = clearAccount())").map { step ->
             logout.indexOf(step).also { assertTrue("logout() calls $step", it >= 0) }
         }
         assertEquals(at.sorted(), at)
@@ -133,7 +133,7 @@ class SignOutClearingTest {
         assertEquals(wipe, 1, Regex("""session\.open\(\)""").findAll(wipe.substringBefore("/**\n     * At process start, before")).count())
         // logout() starts it, and nothing in logout() ends or opens the sign-in itself.
         val logout = body("fun logout()") + clearing()
-        assertTrue(logout, "wipe.finish()" in logout)
+        assertTrue(logout, "wipe.finish(" in logout)
         assertFalse(logout, "signIns.end()" in logout || "session.open()" in logout)
     }
 
@@ -166,10 +166,28 @@ class SignOutClearingTest {
         // credentials go, under the lock a sign-in under way checks the generation with.
         val logout = clearing()
         val takenAsItDrops = Regex(
-            """val departing = synchronized\(accountLock\) \{\s*credentials\.signOutSchoolAccount\(\)\s*authTokenManager\.logout\(\)\s*\}""",
+            """synchronized\(accountLock\) \{\s*must\("credentials"\) \{ credentials\.signOutSchoolAccount\(\) \}""" +
+                """\s*must\("tokens"\) \{ departing = authTokenManager\.logout\(\) \}\s*\}""",
         )
         assertTrue(logout, takenAsItDrops.containsMatchIn(logout))
         assertFalse(logout, "departingSession()" in logout)
+    }
+
+    @Test
+    fun `everything the clearing does is a step, so a throw in one skips no other`() {
+        val bare = clearing().lines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("//") }
+        val notAStep = bare.filterNot {
+            Regex("""^(must|once)\("[^"]+"\) \{ .* \}$""").matches(it) ||
+                it in listOf(
+                    "var departing: DepartingSession? = null",
+                    "synchronized(accountLock) {",
+                    "}",
+                    // Only sets a flow's value, and the function's answer.
+                    "_loginError.value = null",
+                    "cleared",
+                )
+        }
+        assertEquals(emptyList<String>(), notAStep)
     }
 
     @Test

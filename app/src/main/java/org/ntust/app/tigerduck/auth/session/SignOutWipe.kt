@@ -22,6 +22,10 @@ import org.ntust.app.tigerduck.widget.WidgetUpdater
  *
  * Each sign-out has a wipe of its own, started after its own clearing, one running at a time.
  * Nothing stays running between them, so a sign-out can never wait on a worker that just stopped.
+ *
+ * A clearing with a step that failed still wipes, but that sign-out is not over: the last one out
+ * leaves the marker on and the session closed, and the next start tries again, as often as
+ * [SignOutOwed.triesAgain] allows.
  */
 class SignOutWipe(
     private val wipe: suspend () -> Unit,
@@ -38,6 +42,9 @@ class SignOutWipe(
 
     private val lock = Any()
     private var unfinished = 0
+
+    // A clearing failed, and the next start tries again.
+    private var tryingAgain = false
 
     // Only keeps the wipes apart; the state is all under [lock].
     private val oneWipe = Mutex()
@@ -57,22 +64,31 @@ class SignOutWipe(
      * After the clearing: wipes on the application scope, so a coroutine launched from a transient
      * ViewModel scope can't be canceled mid-delete when the user backs out of Settings or the
      * activity dies. A wipe that is stopped all the same leaves the session closed and the marker
-     * on, for the next start.
+     * on, for the next start. [cleared] says whether the clearing's steps all went.
      */
-    fun finish() {
+    fun finish(cleared: Boolean = true) {
+        if (!cleared) clearingFailed()
         scope.launch {
             oneWipe.withLock { wipe() }
-            synchronized(lock) { if (--unfinished == 0) session.open() }
+            synchronized(lock) {
+                if (--unfinished == 0) {
+                    if (!tryingAgain) session.open()
+                    tryingAgain = false
+                }
+            }
         }
     }
+
+    private fun clearingFailed() = synchronized(lock) { if (session.triesAgain()) tryingAgain = true }
 
     /**
      * At process start, before anything acts on the account: when the marker holds a sign-out the
      * process died in, runs [clearAccount], that sign-out's own clearing, whatever of it already
-     * happened, and says true: the caller then [finish]es it. A marker of someone else's is
-     * dropped, with nothing cleared, and with no marker this costs one read of a boolean.
+     * happened, and says true: the caller then [finish]es it. [clearAccount] answers whether its
+     * steps all went. A marker of someone else's is dropped, with nothing cleared, and with no
+     * marker this costs one read of a boolean.
      */
-    fun recover(storedStudentId: () -> String?, clearAccount: () -> Unit): Boolean {
+    fun recover(storedStudentId: () -> String?, clearAccount: () -> Boolean): Boolean {
         synchronized(lock) {
             if (!session.wipeOwed) return false
             if (!session.replays(storedStudentId())) {
@@ -81,14 +97,11 @@ class SignOutWipe(
             }
             unfinished++
         }
-        // Thrown at every start, this would keep the app from opening at all.
-        runCatching(clearAccount).onFailure { Log.w(TAG, "Recovery's clearing failed: ${it.logSummary()}") }
+        if (!clearAccount()) clearingFailed()
         return true
     }
 
     companion object {
-        private const val TAG = "SignOutWipe"
-
         /** Each step on its own, so one that throws stops no other. */
         suspend fun run(importedClassTables: ImportedClassTableStore, dataCache: DataCache, widgetUpdater: WidgetUpdater) {
             // Only this sign-out empties them: a relogin in the background or a renewed session

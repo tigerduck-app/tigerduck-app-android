@@ -370,74 +370,74 @@ class AuthService @Inject constructor(
         // First, on disk, so what follows is owed wherever the process dies. Under the lock a
         // sign-in stores with: one that came first is on the marker, and a later one stores nothing.
         synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }
-        clearAccount()
-        wipe.finish()
+        wipe.finish(cleared = clearAccount())
     }
 
     /**
      * What a school sign-out clears at once, in one place: run by [logout], and by the next start
-     * when a process death cut that short ([finishOwedSignOut]), which then clears the same, in
-     * the same order, whatever of it was already gone.
+     * when a process death cut that short ([finishOwedSignOut]), in the same order, whatever of it
+     * was already gone. Every step is tried; false means the next start tries them all again.
      */
-    private fun clearAccount() {
+    private fun clearAccount(): Boolean = with(ClearingSteps()) {
         // The school account alone: the library account and the school mail stay signed in
         // (decided for Android on 2026-10-22). One step for a sign-in under way, which checks the
         // generation under the same lock before it stores anything. The session it wipes is taken
         // as the generation moves: the unregister below sends its DELETE afterwards.
-        // On disk before the account goes: the browser's clearing is owed even if the process
-        // dies before it runs.
-        BrowserCleanup.of(context).markPending()
-        val departing = synchronized(accountLock) {
-            credentials.signOutSchoolAccount()
-            authTokenManager.logout()
+        // On disk before the account goes: the browser's clearing is owed if the process dies.
+        once("browser") { BrowserCleanup.of(context).markPending() }
+        var departing: DepartingSession? = null
+        synchronized(accountLock) {
+            must("credentials") { credentials.signOutSchoolAccount() }
+            must("tokens") { departing = authTokenManager.logout() }
         }
         // A queued live_activity push, and an edit still waiting to be
         // confirmed, both belong to the account that is leaving. Neither may
         // reach whoever signs in next.
-        notificationSettingsSync.cancelPendingPushes()
+        must("pushes") { notificationSettingsSync.cancelPendingPushes() }
         // Before the session goes: a 選課清單 fetch still running would
         // otherwise log the departing account back in, and the next one to
         // sign in would find its session warm and read its roster.
-        courseService.cancelSharedFetches()
-        moodleService.cancelSharedFetches()
+        once("course fetches") { courseService.cancelSharedFetches() }
+        once("Moodle fetches") { moodleService.cancelSharedFetches() }
         // Likewise the empty-classroom finder: its kept days came from this session, and a read
         // still queued for it must not sign the departing account in again. The next account
         // opens on its own building.
-        org.ntust.app.tigerduck.emptyclassroom.forgetEmptyClassroom(classroomUsage, prefs)
-        sessionManager.signOut()
-        bulletinReadStateStore.clear()
+        must("empty classrooms") { org.ntust.app.tigerduck.emptyclassroom.forgetEmptyClassroom(classroomUsage, prefs) }
+        once("school session") { sessionManager.signOut() }
+        must("bulletin read state") { bulletinReadStateStore.clear() }
         // The cache they dated is wiped below; left behind, they would date
         // the next account's data, and hold its first background sync off.
-        prefs.clearSyncStamps()
+        must("sync stamps") { prefs.clearSyncStamps() }
         // The departing student's holiday choices, and those still waiting to go up: left
         // behind, the next student would inherit the quiet days and send the waiting ones as
         // theirs. Any PUT still queued is pinned to the sign-in that just ended.
-        prefs.forgetHolidayOverrides()
+        must("holiday overrides") { prefs.forgetHolidayOverrides() }
         // The term picked in the class table was the departing student's. Cleared, the next
         // student's picker follows the newest term.
-        prefs.classTableSelectedSemester = null
+        must("class table term") { prefs.classTableSelectedSemester = null }
         // A share link held for a sign-in is not one for whoever signs in next.
-        heldShareLink.drop()
+        once("held share link") { heldShareLink.drop() }
         // A re-enable check compares this device's data, which is wiped below.
         // Left pending, it would hold the next session's assignment marks and
         // then offer Use Local, sending that emptied data over the server's.
-        prefs.pendingConflictCategories = emptySet()
+        must("re-enable check") { prefs.pendingConflictCategories = emptySet() }
         // A refusal belongs to the password leaving with the account; and an
         // automatic sign-in of that account still waiting for its answer
         // latches nothing for the next one.
-        storedPasswordLatch.clear()
+        must("stored password latch") { storedPasswordLatch.clear() }
         _loginError.value = null
-        setSignedIn(false)
-        pushRegistration.unregister(departing)
+        once("signed-in state") { setSignedIn(false) }
+        once("device unregister") { pushRegistration.unregister(departing) }
         // Last, so everything above still sees the demo account and keeps
         // its requests on the device.
-        demoAccount.exit()
+        must("demo") { demoAccount.exit() }
         // Bulletins are school-wide rather than private, but the read-state
         // store is already cleared above — clear the content snapshot too
         // so the next session starts coherent instead of half-stale. Started
         // now, so every read and write of it waits for it, as an API endpoint
         // move's clear (BulletinCache.clearIn).
-        bulletinCache.clearIn(appScope)
+        once("bulletins") { bulletinCache.clearIn(appScope) }
+        cleared
     }
 
     /**

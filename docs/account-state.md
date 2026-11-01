@@ -58,7 +58,7 @@ Scopes:
 
 | Store | Cleared by |
 |---|---|
-| The sign-out a process death may cut short: `tigerduck_account_wipe` `owed`, set before anything is cleared, with a hash of the student who left in `who`, and taken off when the session opens after the last wipe. While it is set the school session stays closed. A start that finds it finishes the sign-out (`clearAccount`, `AccountSessionEffects.onSignedOut` and the wipe) when that student is still stored or nobody is, and drops the marker, clearing nothing, for anyone else | `SignOutWipe` |
+| The sign-out a process death may cut short: `tigerduck_account_wipe` `owed`, set before anything is cleared, with a hash of the student who left in `who`, and taken off when the session opens after the last wipe. While it is set the school session stays closed. A start that finds it finishes the sign-out (`clearAccount`, `AccountSessionEffects.onSignedOut` and the wipe) when that student is still stored or nobody is, and drops the marker, clearing nothing, for anyone else. A clearing with a step that failed still wipes, but leaves the marker on and the session closed for the next start to try again; `tries` counts those, and the third failure ends the sign-out as far as it got and opens the session | `SignOutWipe` |
 | The school session's cookies, in memory | `NtustSessionManager.signOut()` in `AuthService.clearAccount()` |
 | Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.clearAccount()` |
 | Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()` in `AuthService.clearAccount()` |
@@ -302,6 +302,7 @@ into `library_password_refusals` when it opens.
 | server_push | `seen_ids` | device | |
 | server_push_intent | `token` | device | |
 | tigerduck_account_wipe | `owed` | device | |
+| tigerduck_account_wipe | `tries` | device | |
 | tigerduck_account_wipe | `who` | device | |
 | tigerduck_auth | `stored_password_refusals` | school | `StoredPasswordLatch.kt` `forget` |
 | tigerduck_auth | `stored_password_refused_at` | school | `StoredPasswordLatch.kt` `forget` |

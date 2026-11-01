@@ -35,7 +35,20 @@ class SignOutOwed(private val prefs: SharedPreferences) {
     }
 
     /** Takes the marker off. False when the disk would not take it, after one more try. */
-    fun clear(): Boolean = commit { it.remove(KEY_OWED).remove(KEY_WHO) }
+    fun clear(): Boolean = commit { it.remove(KEY_OWED).remove(KEY_WHO).remove(KEY_TRIES) }
+
+    /**
+     * Counts a clearing that failed, on disk, and says whether the marker stays for the next start
+     * to try again. What bounds that: [MAX_TRIES] tries in all, at most one a start, and no more
+     * once the count cannot be written. The sign-out then ends as far as it got, so a step that
+     * never goes cannot hold the next sign-in for good.
+     */
+    fun triesAgain(): Boolean {
+        val tries = prefs.getInt(KEY_TRIES, 0) + 1
+        val again = tries < MAX_TRIES && commit { it.putInt(KEY_TRIES, tries) }
+        if (!again) Log.w(TAG, "Giving up on a sign-out's clearing after $tries tries")
+        return again
+    }
 
     /**
      * Whether a start finishes the sign-out on the marker, given the student stored now: when that
@@ -66,5 +79,7 @@ class SignOutOwed(private val prefs: SharedPreferences) {
         const val PREFS_FILE = "tigerduck_account_wipe"
         const val KEY_OWED = "owed"
         const val KEY_WHO = "who"
+        const val KEY_TRIES = "tries"
+        const val MAX_TRIES = 3
     }
 }

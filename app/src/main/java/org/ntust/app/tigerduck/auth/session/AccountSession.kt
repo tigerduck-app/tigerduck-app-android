@@ -74,6 +74,9 @@ class AccountSession(
     /** Whether a start finishes the sign-out on the marker, given the student stored now. */
     fun replays(storedStudentId: String?): Boolean = owed?.replays(storedStudentId) == true
 
+    /** Counts a clearing that failed, and says whether the marker stays for the next start. */
+    fun triesAgain(): Boolean = owed?.triesAgain() == true
+
     /** Written to disk before anything is cleared, so a process death is not forgotten. */
     fun markWipeOwed(departingStudentId: String?) {
         owed?.mark(departingStudentId)

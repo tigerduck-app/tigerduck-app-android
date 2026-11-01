@@ -85,7 +85,7 @@ class AccountStateInventoryTest {
 
     @Test
     fun `a school key the sign-out stops clearing fails`() {
-        val problems = edited("AuthService.kt", "prefs.classTableSelectedSemester = null\n", "").problems()
+        val problems = edited("AuthService.kt", "prefs.classTableSelectedSemester = null", "").problems()
         assertTrue(
             problems.toString(),
             "tigerduck_prefs `classTableSelectedSemester`: `clearAccount` in AuthService.kt does not clear it" in problems,
