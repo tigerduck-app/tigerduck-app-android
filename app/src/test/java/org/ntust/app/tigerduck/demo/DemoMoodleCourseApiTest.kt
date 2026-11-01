@@ -113,4 +113,63 @@ class DemoMoodleCourseApiTest {
         assertTrue(org.ntust.app.tigerduck.network.moodle.MoodleCourseApi.CONTENTS_FUNCTION in api.functions())
         assertTrue("another course has none", api.materials(-1).sections.isEmpty())
     }
+
+    @Test
+    fun `every file of the demo account downloads with the entry's name, bytes and size`() = runTest {
+        val api = DemoMoodleCourseApi(moodle, readIds = { emptySet() }, markRead = {})
+        val dir = java.nio.file.Files.createTempDirectory("demo-files").toFile()
+        try {
+            val listed = allFiles(moodle).distinctBy { it.url }
+            val inJson = entriesWithContent(com.google.gson.JsonParser.parseString(File("src/main/assets/demo.json").readText()))
+            assertEquals("every file entry in the file carries content", 16, inJson.size)
+
+            val downloaded = listed.map { file ->
+                val target = File(dir, "${file.url.hashCode()}-${file.name}")
+                api.download(file, target, Long.MAX_VALUE) {}
+                assertEquals("${file.name}: the listed size is the size of the bytes", file.size, target.length())
+                Triple(file.name, file.size, target.readBytes().toList())
+            }
+            val expected = inJson.map { (name, bytes) -> Triple(name, bytes.size.toLong(), bytes.toList()) }
+            assertEquals(expected.toSet(), downloaded.toSet())
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `a demo file without content still fails to download`() = runTest {
+        val api = DemoMoodleCourseApi(moodle, readIds = { emptySet() }, markRead = {})
+        val stranger = org.ntust.app.tigerduck.network.model.moodle.MoodleFile(
+            name = "none.pdf", size = 1, url = "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/0/x/none.pdf",
+            mimeType = "application/pdf", modified = null, path = "/",
+        )
+        val target = File.createTempFile("demo-none", ".pdf")
+        try {
+            val failure = runCatching { api.download(stranger, target, Long.MAX_VALUE) {} }.exceptionOrNull()
+            assertTrue(failure is java.io.IOException)
+        } finally {
+            target.delete()
+        }
+    }
+
+    private fun allFiles(m: DemoMoodle): List<org.ntust.app.tigerduck.network.model.moodle.MoodleFile> =
+        m.courses.flatMap { c ->
+            c.announcements.flatMap { it.attachments } +
+                c.assignments.flatMap { it.attachments + it.submission?.files.orEmpty() } +
+                c.forums.flatMap { f -> f.posts.values.flatMap { posts -> posts.flatMap { it.attachments } } } +
+                c.materials.sections.flatMap { s -> s.materials.flatMap { it.files } }
+        }
+
+    /** Every JSON object with a `name` and a `base64`, as (name, decoded bytes). */
+    private fun entriesWithContent(e: com.google.gson.JsonElement): List<Pair<String, ByteArray>> = when {
+        e.isJsonObject -> {
+            val o = e.asJsonObject
+            val here = if (o.has("base64") && o.get("name")?.isJsonPrimitive == true) {
+                listOf(o.get("name").asString to java.util.Base64.getDecoder().decode(o.get("base64").asString))
+            } else emptyList()
+            here + o.entrySet().flatMap { entriesWithContent(it.value) }
+        }
+        e.isJsonArray -> e.asJsonArray.flatMap { entriesWithContent(it) }
+        else -> emptyList()
+    }
 }
