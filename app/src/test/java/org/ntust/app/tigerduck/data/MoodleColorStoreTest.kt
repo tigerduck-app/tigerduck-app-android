@@ -64,12 +64,13 @@ class MoodleColorStoreTest {
 
     @Test
     fun `a color given is written, and read back by the next process`() = runBlocking {
-        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337))
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1152CS2" to 5337))
+        val later = Course(courseNo = "CS2", courseName = "CS2", moodleIdNumber = "1152CS2")
         val first = MoodleColorBook()
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
-        // The upgrade's refresh is absorbed; a later course is new.
-        first.reconcile(listOf(course("CS1"), course("CS2")))
+        // The upgrade's term is absorbed; a later term's course is new.
+        first.reconcile(listOf(course("CS1"), later))
         waitForFile()
         assertTrue(file.exists())
 
@@ -78,7 +79,7 @@ class MoodleColorStoreTest {
 
         assertEquals(
             mapOf("CS2" to MoodleColorBook.forCourseId(5337)),
-            second.colorsFor(listOf(course("CS1"), course("CS2"))),
+            second.colorsFor(listOf(course("CS1"), later)),
         )
     }
 
@@ -144,5 +145,29 @@ class MoodleColorStoreTest {
         store(MoodleColorBook()).ensureLoaded()
 
         assertFalse(file.exists())
+    }
+
+    @Test
+    fun `after another student signs in over the first, the file is the new student's`() = runBlocking {
+        cache.saveMoodleCourseIds(mapOf("1151CS1" to 4127, "1151CS2" to 5337, "1152CS3" to 902))
+        val book = MoodleColorBook()
+        val store = store(book)
+        store.ensureLoaded()
+        book.reconcile(listOf(course("CS1")))
+
+        student = "B00015998"
+        store.ensureLoaded()
+        // The ids came back from the cache, and the new student's courses are new.
+        val spring = Course(courseNo = "CS3", courseName = "CS3", moodleIdNumber = "1152CS3")
+        assertTrue(book.reconcile(listOf(course("CS1"), spring)))
+        waitForFile()
+
+        student = "B00015998"
+        val next = MoodleColorBook()
+        store(next).ensureLoaded()
+        assertEquals(
+            mapOf("CS1" to MoodleColorBook.forCourseId(4127), "CS3" to MoodleColorBook.forCourseId(902)),
+            next.colorsFor(listOf(course("CS1"), spring)),
+        )
     }
 }

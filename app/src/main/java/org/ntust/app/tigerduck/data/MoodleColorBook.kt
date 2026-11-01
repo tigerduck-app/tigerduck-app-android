@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.data
 import org.ntust.app.tigerduck.data.model.MoodleColorState
 import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import kotlin.math.abs
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -40,15 +41,14 @@ class MoodleColorBook {
 
     /**
      * Starts the book from the state kept, or from [legacyIdents] (see [identOf]), the courses
-     * already colored when no state was kept yet. [upgrading] is a signed-in student with no state
-     * kept, an upgrade: the first refresh's courses count as existing even where the cache
-     * holding them was evicted.
+     * already colored when no state was kept yet. [upgradeTerm] is set for a signed-in student
+     * with no state kept, an upgrade: see [MoodleColorState.upgradeTerm].
      */
     @Synchronized
-    fun load(saved: MoodleColorState?, legacyIdents: Set<String>, upgrading: Boolean = false) {
-        state = saved ?: MoodleColorState(known = legacyIdents.sorted(), upgrading = upgrading.takeIf { it })
+    fun load(saved: MoodleColorState?, legacyIdents: Set<String>, upgradeTerm: String? = null) {
+        state = saved ?: MoodleColorState(known = legacyIdents.sorted(), upgradeTerm = upgradeTerm)
         loaded = true
-        if (saved == null && (legacyIdents.isNotEmpty() || upgrading)) onChange?.invoke(state)
+        if (saved == null && (legacyIdents.isNotEmpty() || upgradeTerm != null)) onChange?.invoke(state)
     }
 
     /** Forgets everything, at a sign-out: the next account starts with no course known. */
@@ -79,7 +79,7 @@ class MoodleColorBook {
         val known = state.known.orEmpty().toMutableSet()
         val awaiting = state.awaiting.orEmpty().toMutableSet()
         val moodle = state.moodle.orEmpty().toMutableMap()
-        val upgrading = state.upgrading == true
+        val upgradeTerm = state.upgradeTerm?.let(AcademicTerm::parse)
         var colorsChanged = false
         for (course in courses) {
             val ident = identOf(course)
@@ -96,7 +96,7 @@ class MoodleColorBook {
                     known += ident
                     // A pick came before the first automatic color, so there is none to give; so did
                     // the upgrade, whose courses keep the colors they have.
-                    if (!hasPick(course) && !upgrading) {
+                    if (!hasPick(course) && !existedAtUpgrade(course, upgradeTerm)) {
                         if (color != null) {
                             moodle[ident] = color
                             colorsChanged = true
@@ -116,13 +116,10 @@ class MoodleColorBook {
                 }
             }
         }
-        // The refresh an upgrade waits for has brought the term's courses, not just hand-added ones.
-        val stillUpgrading = upgrading && courses.none { !it.isManual }
         val next = state.copy(
             known = known.sorted(),
             awaiting = awaiting.sorted(),
             moodle = moodle.toSortedMap(),
-            upgrading = stillUpgrading.takeIf { it },
         )
         if (next != state) {
             state = next
@@ -174,6 +171,13 @@ class MoodleColorBook {
             onChange?.invoke(next)
         }
         return fresh
+    }
+
+    // A course of the upgrade's term or an earlier one, or one with no idnumber to name its term.
+    private fun existedAtUpgrade(course: Course, upgradeTerm: AcademicTerm?): Boolean {
+        if (upgradeTerm == null) return false
+        val term = course.moodleIdNumber?.let(MoodleCourseIds::semesterPrefix)?.let(AcademicTerm::parse)
+        return term == null || term <= upgradeTerm
     }
 
     private fun colorOf(course: Course): Int? {

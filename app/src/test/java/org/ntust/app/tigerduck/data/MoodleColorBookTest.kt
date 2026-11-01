@@ -31,10 +31,10 @@ class MoodleColorBookTest {
         saved: MoodleColorState? = null,
         legacy: Set<String> = emptySet(),
         known: Map<String, Int> = ids,
-        upgrading: Boolean = false,
+        upgradeTerm: String? = null,
     ) = MoodleColorBook().apply {
         setIds(known)
-        load(saved, legacy, upgrading)
+        load(saved, legacy, upgradeTerm)
     }
 
     @Test
@@ -201,25 +201,15 @@ class MoodleColorBookTest {
     }
 
     @Test
-    fun `an upgrade with nothing cached keeps whatever the first refresh brings`() {
-        val book = book(saved = null, legacy = emptySet(), upgrading = true)
+    fun `an upgrade keeps every course of its term and the earlier ones, and only a later term's are new`() {
+        val book = book(saved = null, legacy = emptySet(), upgradeTerm = "1151", known = ids + mapOf("1152CS3" to 902, "1142CS4" to 17))
+        val spring = Course(courseNo = "CS3", courseName = "CS3", moodleIdNumber = "1152CS3")
+        val past = Course(courseNo = "CS4", courseName = "CS4", moodleIdNumber = "1142CS4")
 
-        assertFalse(book.reconcile(listOf(course("CS1"), course("CS2"))))
-        assertTrue(book.colorsFor(ALL).isEmpty())
-        // The first refresh has come: a course added afterwards is new.
-        assertTrue(book.reconcile(listOf(course("CS1"), course("CS2"), course("CS3"))))
-        assertEquals(setOf("CS3"), book.colorsFor(ALL).keys)
-    }
+        // A past term rebuilt later is existing too, as is a course with no idnumber to name a term.
+        assertTrue(book.reconcile(listOf(course("CS1"), course("CS2"), past, course("CS5", moodle = false), spring)))
 
-    @Test
-    fun `a list of hand-added courses alone does not end the upgrade`() {
-        val book = book(saved = null, legacy = emptySet(), upgrading = true)
-        val hand = course("CS9").copy(isManual = true)
-
-        book.reconcile(listOf(hand))
-        book.reconcile(listOf(hand, course("CS1")))
-
-        assertTrue(book.colorsFor(ALL).isEmpty())
+        assertEquals(setOf("CS3"), book.colorsFor(listOf(course("CS1"), course("CS2"), past, spring)).keys)
     }
 
     @Test

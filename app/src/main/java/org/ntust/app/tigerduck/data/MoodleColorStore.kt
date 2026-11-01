@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.MoodleColorState
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.MoodleCourseIds
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.File
 import java.security.MessageDigest
@@ -78,27 +79,37 @@ class MoodleColorStore internal constructor(
         start()
         val now = studentId()?.let(::hash)
         if (book.isLoaded()) {
-            if (owner != null && owner != now) forget() else if (owner == null) owner = now
+            if (owner != null && owner != now) {
+                // Another student: the book starts clean, and what forget() cleared comes back.
+                forget()
+                book.setIds(cachedIds())
+            }
+            owner = now
             return@withLock
         }
         val saved = withContext(Dispatchers.IO) { read() }
         val foreign = saved != null && (now == null || saved.owner != now)
         if (foreign) deleteFiles()
         owner = now
-        book.setIds(dataCache.loadMoodleCourseIds().mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) })
+        val cachedIds = cachedIds()
+        book.setIds(cachedIds)
         val kept = saved.takeUnless { foreign }
         // No state yet: an install from before this existed. Every course it has colored already
         // keeps its color, so none of them is new to the book, nor is whatever its first refresh
         // brings when the cache was evicted. A signed-out phone, or one whose file was another
         // student's, starts clean: the courses its next sign-in brings are new.
         val upgrade = kept == null && !foreign && now != null
-        val legacy = if (upgrade) {
-            dataCache.loadEveryTermCourses().values.flatten().mapTo(mutableSetOf(), MoodleColorBook::identOf)
+        val cached = if (upgrade) dataCache.loadEveryTermCourses() else emptyMap()
+        val legacy = cached.values.flatten().mapTo(mutableSetOf(), MoodleColorBook::identOf)
+        // Courses of the newest term the phone knows (cached, or the current one), or any earlier, are existing however late they are
+        // fetched again; only a later term's are new.
+        val upgradeTerm = if (upgrade) {
+            (cached.keys + dataCache.currentSemesterCode())
+                .mapNotNull(AcademicTerm::parse).maxOrNull()?.code
         } else {
-            emptySet()
+            null
         }
-        // Whatever the first refresh brings is existing, whatever the caches kept of the courses.
-        book.load(kept, legacy, upgrading = upgrade)
+        book.load(kept, legacy, upgradeTerm)
     }
 
     /** At a school sign-out: the file goes and the next account starts with no course known. */
@@ -107,6 +118,9 @@ class MoodleColorStore internal constructor(
         start()
         forget()
     }
+
+    private suspend fun cachedIds(): Map<String, Int> =
+        dataCache.loadMoodleCourseIds().mapKeys { MoodleCourseIds.normalizedIdnumber(it.key) }
 
     private fun forget() {
         epoch++

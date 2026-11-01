@@ -17,8 +17,12 @@ data class MoodleColorState(
     val awaiting: List<String>? = null,
     /** Courses that take Moodle's color, with it as `#RRGGBB`. */
     val moodle: Map<String, String>? = null,
-    /** True while the first refresh after an upgrade is still to come: whatever it brings is existing, not new. */
-    val upgrading: Boolean? = null,
+    /**
+     * The newest term known when this was added to an install that already had courses: a course
+     * of this term or an earlier one with no record is existing, however late it is fetched again.
+     * Only a later term's courses are new.
+     */
+    val upgradeTerm: String? = null,
     /** A hash of the student this belongs to, so a file a sign-out cut short is not the next student's. */
     val owner: String? = null,
 )
