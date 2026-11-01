@@ -78,7 +78,7 @@ class ReenableCheck @Inject constructor(
 
     /** After a full sync or a revision poll reached the server: runs the check if it is owed. */
     fun runIfOwed() {
-        if (!owed.due(prefs.pendingConflictCategories, prefs.cloudSyncEnabled)) return
+        if (!owed.due(prefs.school.pendingConflictCategories.get(), prefs.cloudSyncEnabled)) return
         Log.i(TAG, "[reenable] running the owed check")
         // Not while an answer is applied: that one settles the hold itself,
         // and a Settings screen's check waiting for it must stay the one
@@ -94,7 +94,7 @@ class ReenableCheck @Inject constructor(
      */
     @OptIn(StartsAccountWork::class)
     fun check(waitForAnswers: Boolean = true, onConflict: (SettingsViewModel.ReenableConflict) -> Unit) {
-        val pending = prefs.pendingConflictCategories
+        val pending = prefs.school.pendingConflictCategories.get()
         if (pending.isEmpty()) {
             Log.d(TAG, "[reenable] checkPendingConflicts skip: pending is empty")
             return
@@ -129,7 +129,7 @@ class ReenableCheck @Inject constructor(
                 } else {
                     // Only what this check compared: one started later may
                     // still hold "assignments" for its own dialog.
-                    prefs.pendingConflictCategories = prefs.pendingConflictCategories - pending
+                    prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() - pending, signIn)
                     // The course ignores it held go out now, not at the next sync.
                     if ("assignments" in pending) courseIgnoreSync.retryPending(signIn)
                 }

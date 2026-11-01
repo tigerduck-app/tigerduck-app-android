@@ -159,8 +159,8 @@ internal class AssignmentMarkStep(
             send: suspend (assignmentId: Int, status: String, signIn: SignIn) -> Unit,
         ) = AssignmentMarkStep(
             switchOn = { prefs.syncAssignments },
-            pendingConflicts = { prefs.pendingConflictCategories },
-            syncedBefore = { prefs.assignmentMarksSyncedOnce },
+            pendingConflicts = { prefs.school.pendingConflictCategories.get() },
+            syncedBefore = { prefs.school.assignmentMarksSyncedOnce.get() },
             store = object : MarkStore {
                 override suspend fun ignored() = dataCache.loadIgnoredAssignments()
                 override suspend fun completed() = dataCache.loadMarkedCompletedAssignments()

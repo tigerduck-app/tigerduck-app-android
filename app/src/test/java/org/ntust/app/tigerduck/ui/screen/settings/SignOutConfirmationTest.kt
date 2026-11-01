@@ -174,7 +174,7 @@ class SignOutConfirmationTest {
         // F-Droid has no TigerSync, where every edit is asked about anyway.
         assumeTrue(prefs.cloudSyncEnabled)
         // And a full sync on this phone has taken every kind.
-        prefs.syncedCategories = REENABLE_CATEGORIES
+        prefs.school.syncedCategories.set(REENABLE_CATEGORIES, testSignIn())
     }
 
     @Test
@@ -235,7 +235,7 @@ class SignOutConfirmationTest {
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
         // The sign-out clears the hold, and the colours it held back never reach the server.
-        prefs.pendingConflictCategories = setOf("course_colors")
+        prefs.school.pendingConflictCategories.set(setOf("course_colors"), testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
@@ -246,7 +246,7 @@ class SignOutConfirmationTest {
         dataCache.saveCourses(listOf(course("CS1001301").copy(customColorHex = "#FF0000")), "1141", testSignIn())
         assertEquals(emptySet<SignOutLoss>(), check.losses())
 
-        prefs.syncedCategories = REENABLE_CATEGORIES - "course_colors"
+        prefs.school.syncedCategories.set(REENABLE_CATEGORIES - "course_colors", testSignIn())
 
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
     }
@@ -254,12 +254,12 @@ class SignOutConfirmationTest {
     @Test
     fun `marks a background sync has taken are kept, before any sync from Home`() = runTest {
         syncOn()
-        prefs.syncedCategories = emptySet()
+        prefs.school.syncedCategories.set(emptySet(), testSignIn())
         dataCache.saveMarkedCompletedAssignments(setOf("a1"), testSignIn())
         assertEquals(setOf(UNSYNCED_DATA), check.losses())
 
         // BackgroundSyncWorker took the account's marks, which records only this.
-        prefs.assignmentMarksSyncedOnce = true
+        prefs.school.assignmentMarksSyncedOnce.set(true, testSignIn())
 
         assertEquals(emptySet<SignOutLoss>(), check.losses())
     }

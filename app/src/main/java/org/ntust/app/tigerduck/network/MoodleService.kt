@@ -187,11 +187,11 @@ class MoodleService @Inject constructor(
      * dropped courses are excluded), else fall back to semesterCode filtering
      * on first launch when the roster cache is still empty.
      *
-     * Null when no course was left to ask about, which the callers answer
-     * by keeping the assignments they have, as iOS does. Any
-     * list is Moodle's answer, and an empty one replaces them like any
-     * other: see [requestAssignments], which throws for everything else.
+     * Null when no course was left to ask about, which the callers answer by keeping the
+     * assignments they have, as iOS does. Any list is Moodle's answer, and an empty one replaces
+     * them like any other: see [requestAssignments], which throws for everything else.
      */
+    @OptIn(StartsAccountWork::class)
     suspend fun fetchAssignments(
         enrolledCourses: List<MoodleEnrolledCourse>,
         rosterCourseNos: Set<String>? = null,
@@ -217,7 +217,7 @@ class MoodleService @Inject constructor(
             // "Last synced" row would never move. No courses at all is not
             // dated: it is also what an upstream failing quietly looks like,
             // and what the class table passes when its enrolment fetch fails.
-            if (enrolledCourses.isNotEmpty()) markSynced(askedWith = token)
+            if (enrolledCourses.isNotEmpty()) markSynced(askedWith = token, sessions.school.current)
             return@withContext null
         }
         val localCourseNos = rosterNos + cachedCourseNos
@@ -337,7 +337,7 @@ class MoodleService @Inject constructor(
             // for a round that got an answer to every status call: a failed
             // one reads as "not submitted", and a stamp would keep the next
             // automatic fetch from correcting it.
-            if (round.statuses.size == asked) markSynced(askedWith)
+            if (round.statuses.size == asked) markSynced(askedWith, signIn)
             round
         }
 
@@ -345,9 +345,9 @@ class MoodleService @Inject constructor(
      * Dates the school data as of now, if the wstoken that asked is still the account's: an answer
      * that outlived a sign-out cannot vouch for whoever signs in next.
      */
-    private fun markSynced(askedWith: String?) {
+    private fun markSynced(askedWith: String?, signIn: SignIn) {
         if (askedWith != null && tokenService.currentToken() == askedWith) {
-            prefs.markSchoolDataSynced(System.currentTimeMillis())
+            prefs.school.schoolDataSyncedAtMs.set(System.currentTimeMillis(), signIn)
         }
     }
 

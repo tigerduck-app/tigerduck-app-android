@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,7 +24,7 @@ class AssignmentStatusWriter internal constructor(
     private val ledger: AssignmentStatusLedger,
     private val dataCache: DataCache,
     /** Told the list as written, when the write changed it: Home, the Live Update, the reminders and their upload. */
-    private val published: suspend (List<Assignment>) -> Unit,
+    private val published: suspend (List<Assignment>, SignIn) -> Unit,
 ) {
     @Inject
     constructor(
@@ -36,14 +37,14 @@ class AssignmentStatusWriter internal constructor(
     ) : this(
         ledger = moodleService.statusLedger,
         dataCache = dataCache,
-        published = { assignments ->
+        published = { assignments, signIn ->
             // As the calendar's and the class table's rounds publish theirs: the reminders and
             // the Live Update follow the cache, and Home reads it again. The upload is what the
             // backend builds the reminders of other devices from, and goes only with TigerSync on.
             notificationScheduler.rescheduleFromCache(dataCache, prefs)
             liveActivityManager.refresh()
             dataCache.notifyBackgroundSyncComplete()
-            runCatching { pushApiClient.uploadAssignments(assignments) }
+            runCatching { pushApiClient.uploadAssignments(assignments, signIn) }
         },
     )
 
@@ -54,7 +55,7 @@ class AssignmentStatusWriter internal constructor(
      */
     suspend fun take(answer: SubmissionStatusAnswer): Boolean {
         val written = write(answer) as? StatusWrite.Written ?: return false
-        published(written.assignments)
+        published(written.assignments, answer.signIn)
         return true
     }
 

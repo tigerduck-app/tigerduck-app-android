@@ -48,16 +48,10 @@ class UploadRecordLockTest {
         val recordUnderWay = CountDownLatch(1)
         val recordMayEnd = CountDownLatch(1)
         val recordTimedOut = AtomicBoolean(false)
-        // The courses ledger's store as PushApiClient wires it, with a pause inside the record.
+        // The courses ledger's store as PushApiClient wires it.
         val store = object : UploadLedgerStore {
             override val fingerprint: String? get() = prefs.coursesUploadFingerprint("1151")
             override val acceptedAtMs: Long get() = prefs.coursesUploadedAtMs("1151")
-            override fun record(fingerprint: String, atMs: Long) {
-                recordUnderWay.countDown()
-                // Bounded, so a failed test cannot hang on it; the test lets it go well before.
-                if (!recordMayEnd.await(10, TimeUnit.SECONDS)) recordTimedOut.set(true)
-                prefs.recordCoursesUpload("1151", fingerprint, atMs)
-            }
         }
         val ledger = UploadLedger(store, System::currentTimeMillis)
         // Read before the record holds the sign-in lock: the read takes that lock too, and under
@@ -65,7 +59,15 @@ class UploadRecordLockTest {
         val signIn = tokenManager.signInGeneration
         val upload = thread(name = "upload") {
             runBlocking {
-                ledger.sendIfDue("list-a", ifCurrent = { record -> tokenManager.runIfSignedIn(signIn, record) }) {}
+                // As PushApiClient wires it, with a pause inside the record.
+                ledger.sendIfDue("list-a", record = { fingerprint, atMs ->
+                    tokenManager.runIfSignedIn(signIn) {
+                        recordUnderWay.countDown()
+                        // Bounded, so a failed test cannot hang on it; the test lets it go well before.
+                        if (!recordMayEnd.await(10, TimeUnit.SECONDS)) recordTimedOut.set(true)
+                        prefs.recordCoursesUpload("1151", fingerprint, atMs)
+                    }
+                }) {}
             }
         }
         val signOut = thread(start = false, name = "sign-out") { tokenManager.logout() }
@@ -91,6 +93,6 @@ class UploadRecordLockTest {
         prefs.clearSyncStamps()
 
         assertNull(prefs.coursesUploadFingerprint("1151"))
-        assertTrue(runBlocking { ledger.sendIfDue("list-a", ifCurrent = { it() }) {} })
+        assertTrue(runBlocking { ledger.sendIfDue("list-a", record = { _, _ -> }) {} })
     }
 }

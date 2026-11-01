@@ -203,9 +203,9 @@ class SettingsViewModel @Inject constructor(
     private val _reenableConflict = MutableStateFlow<ReenableConflict?>(null)
     val reenableConflict: StateFlow<ReenableConflict?> = _reenableConflict
 
-    fun markCategoryReenabled(category: String) {
-        markForReenableCheck(prefs, category, signedIn = authService.authState.value)
-    }
+    @OptIn(StartsAccountWork::class)
+    fun markCategoryReenabled(category: String) =
+        markForReenableCheck(prefs, category, signedIn = authService.authState.value, sessions.school.current)
 
     /** See [ReenableCheck.check]; a difference is asked about on this screen. */
     fun checkPendingConflicts() {
@@ -224,7 +224,7 @@ class SettingsViewModel @Inject constructor(
         // leaving Settings cannot strand it, and tied to this account: a sign-out ends it, and
         // drops any write still on its way.
         val held = heldUntilAnswered(conflict.categories)
-        val left = unanswered(prefs.pendingConflictCategories, conflict.categories)
+        val left = unanswered(prefs.school.pendingConflictCategories.get(), conflict.categories)
         val holdsCourseIgnores = "assignments" in held
         // Use Local's terms are latched before the courses check lets the course list go: a sync in
         // between would un-hide a course deleted here before Use Local sends its delete.
@@ -233,7 +233,7 @@ class SettingsViewModel @Inject constructor(
             semesters = semesterCatalog::availableSemesters,
             host = useLocalHost(signIn),
         ) {
-            prefs.pendingConflictCategories = held + left
+            prefs.school.pendingConflictCategories.set(held + left, signIn)
         }
         reenableCheck.resolutions.start()
         // What the dialog did not cover is checked from this screen once the answer has been
@@ -256,7 +256,7 @@ class SettingsViewModel @Inject constructor(
                 // Each Settings screen has its own view model, and an answer
                 // given on one is still being applied when the next one checks.
                 if (reenableCheck.resolutions.finish()) {
-                    prefs.pendingConflictCategories = prefs.pendingConflictCategories - held
+                    prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() - held, signIn)
                 }
             }
             if (holdsCourseIgnores) courseIgnoreSync.retryPending(signIn)

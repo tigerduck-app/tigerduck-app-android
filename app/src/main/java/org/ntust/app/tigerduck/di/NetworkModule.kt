@@ -8,6 +8,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -86,6 +87,10 @@ object NetworkModule {
      */
     internal fun libraryInterceptors(demoMode: Interceptor, debug: Boolean): List<Interceptor> =
         listOfNotNull(demoMode, if (debug) ServerFailureInterceptor(ServerKind.LIBRARY) else null)
+
+    /** The school's: mail and library sessions are handed out by name, from [AccountSessions]. */
+    @Provides
+    fun provideSchoolSession(sessions: AccountSessions): AccountSession = sessions.school
 
     @Provides
     @Singleton

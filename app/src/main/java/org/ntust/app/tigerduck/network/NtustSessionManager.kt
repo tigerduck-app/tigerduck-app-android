@@ -5,9 +5,14 @@ import okhttp3.CookieJar
 import okhttp3.Dispatcher
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.tls.PinnedTls
 import org.ntust.app.tigerduck.shared.tls.pinnedClientBuilder
 import java.util.concurrent.ConcurrentHashMap
@@ -22,6 +27,11 @@ class NtustSessionManager @Inject constructor(
     private val demoMode: DemoModeInterceptor,
     /** The app's pinned trust; null only in tests, for the platform's. */
     tls: PinnedTls? = null,
+    /**
+     * The school's session, which the login stamp is written under. The default is one of its
+     * own, for tests that are not about it.
+     */
+    private val session: AccountSession = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob())),
 ) {
     private val cookieStore = ConcurrentHashMap<String, CopyOnWriteArrayList<Cookie>>()
 
@@ -35,7 +45,7 @@ class NtustSessionManager @Inject constructor(
         // SSO cookies and AuthService.ensureAuthenticated() rebuilds them from
         // stored credentials on demand. It is NOT a signal that the user is
         // signed out: that is AuthService.authState, which is durable.
-        if (prefs.ssoLoginTimestamp > 0L) {
+        if (prefs.school.ssoLoginTimestamp.get() > 0L) {
             prefs.clearSsoTimestamp()
         }
     }
@@ -129,16 +139,17 @@ class NtustSessionManager @Inject constructor(
      */
     val cookiesValid: Boolean
         get() {
-            val ts = prefs.ssoLoginTimestamp
+            val ts = prefs.school.ssoLoginTimestamp.get()
             return ts > 0L && System.currentTimeMillis() - ts < COOKIE_TTL_MS && cookieStore.isNotEmpty()
         }
 
-    val loginTimestampMs: Long get() = prefs.ssoLoginTimestamp
+    val loginTimestampMs: Long get() = prefs.school.ssoLoginTimestamp.get()
 
-    val cookieExpiryMs: Long get() = prefs.ssoLoginTimestamp + COOKIE_TTL_MS
+    val cookieExpiryMs: Long get() = prefs.school.ssoLoginTimestamp.get() + COOKIE_TTL_MS
 
+    @OptIn(StartsAccountWork::class)
     fun markLoginSuccess() {
-        prefs.ssoLoginTimestamp = System.currentTimeMillis()
+        prefs.school.ssoLoginTimestamp.set(System.currentTimeMillis(), session.current)
     }
 
     /**

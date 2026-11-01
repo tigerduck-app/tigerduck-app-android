@@ -31,7 +31,7 @@ class AssignmentStatusWriterTest {
         val context = JvmContext()
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
         ledger = AssignmentStatusLedger()
-        writer = AssignmentStatusWriter(ledger, cache) { published += it }
+        writer = AssignmentStatusWriter(ledger, cache) { assignments, _ -> published += assignments }
     }
 
     private fun row(id: String, completed: Boolean = false) = Assignment(

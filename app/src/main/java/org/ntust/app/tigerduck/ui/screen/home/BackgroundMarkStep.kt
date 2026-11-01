@@ -55,8 +55,8 @@ internal class BackgroundMarkStep(
         /** The step over this phone's preferences and files, as the background worker runs it. */
         fun over(prefs: AppPreferences, dataCache: DataCache, unsentMarks: UnsentMarks) = BackgroundMarkStep(
             switchOn = { prefs.syncAssignments },
-            pendingConflicts = { prefs.pendingConflictCategories },
-            syncedBefore = { prefs.assignmentMarksSyncedOnce },
+            pendingConflicts = { prefs.school.pendingConflictCategories.get() },
+            syncedBefore = { prefs.school.assignmentMarksSyncedOnce.get() },
             marksVersion = { dataCache.assignmentMarksVersion.value },
             store = object : AssignmentMarkStep.MarkStore {
                 override suspend fun ignored() = dataCache.loadIgnoredAssignments()

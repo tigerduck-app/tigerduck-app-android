@@ -92,7 +92,7 @@ class HomeMarkSyncTest {
 
     @Test
     fun `a mark tapped while its PATCH fails outlives the next sync and goes up after it`() = runTest {
-        prefs.assignmentMarksSyncedOnce = true
+        prefs.school.assignmentMarksSyncedOnce.set(true, testSignIn())
         backendUp = false
         // What HomeViewModel.toggleOverride does for a tap.
         cache.saveMarkedCompletedAssignments(setOf("3"), testSignIn())

@@ -202,9 +202,9 @@ class HomePullAcrossSignInTest {
 
         val prefs = w.appPrefs
         val landed = mapOf(
-            "marks synced once" to prefs.assignmentMarksSyncedOnce,
-            "categories synced" to prefs.syncedCategories,
-            "course reset read" to prefs.lastSeenCoursesResetAt,
+            "marks synced once" to prefs.school.assignmentMarksSyncedOnce.get(),
+            "categories synced" to prefs.school.syncedCategories.get(),
+            "course reset read" to prefs.school.lastSeenCoursesResetAt.get(),
             "watermark" to state.lastKnownRevision,
             "marks shown" to state.ignoredAssignmentIds.value,
             "ignores shown" to state.ignoredCourseKeys.value,

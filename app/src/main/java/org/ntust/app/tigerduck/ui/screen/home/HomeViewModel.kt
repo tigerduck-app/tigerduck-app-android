@@ -768,10 +768,10 @@ class HomeViewModel @Inject constructor(
                     val written = remoteAssignments?.let {
                         moodleService.storeAssignments(it.assignments, it.answer)
                     }
-                    if (written != null) {
+                    if (written != null && remoteAssignments != null) {
                         assignments = written
                         try {
-                            pushApiClient.uploadAssignments(written)
+                            pushApiClient.uploadAssignments(written, remoteAssignments.answer.signIn)
                         } catch (e: CancellationException) {
                             // A sign-out cancels this fetch: taken for a failed upload, the
                             // fetch would go on to show the departing account's lists again.

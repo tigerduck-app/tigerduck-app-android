@@ -82,7 +82,7 @@ class AssignmentReminderCheckTest {
         fixtures = DebugFixtureStore(context)
         ledger = AssignmentStatusLedger()
         // The pages' writer, which tells no one here: what the check itself tells is what is tested.
-        writer = AssignmentStatusWriter(ledger, dataCache) {}
+        writer = AssignmentStatusWriter(ledger, dataCache) { _, _ -> }
         check = AssignmentReminderCheck(
             dataCache, scheduler, SubmissionStatusProbe({ storedToken }, client), fixtures, AppPreferences(context),
             writer,

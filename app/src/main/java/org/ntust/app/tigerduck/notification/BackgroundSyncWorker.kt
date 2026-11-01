@@ -121,12 +121,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // more frequent for assignments: it is TigerDuck's own server, and
         // the foreground and pushes keep it current in between.
         val overridesDue = triggered ||
-            RefreshPolicy.hasPassed(prefs.backgroundOverridesSyncedAtMs, now, OVERRIDES_EVERY)
+            RefreshPolicy.hasPassed(prefs.school.backgroundOverridesSyncedAtMs.get(), now, OVERRIDES_EVERY)
         if (overridesDue) {
             syncOverridesFromBackend(signIn)
             // Signed out meanwhile: the stamp went with the account, and a sign-out cannot clear
             // it between the check and the write.
-            if (!run.writeIfCurrent { prefs.backgroundOverridesSyncedAtMs = now }) return Result.success()
+            if (!run.writeIfCurrent { prefs.school.backgroundOverridesSyncedAtMs.set(now, signIn) }) return Result.success()
         }
 
         // The school servers only for data a page asks the worker to keep fresh, and only once it
@@ -143,9 +143,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
         val today = AppClock.localDateTime().toLocalDate()
         val term = academicCalendar.current().currentTerm(today)
         val coursesDue = triggered || retry ||
-            firstRunOfTerm(prefs.backgroundCoursesTerm, term, today) ||
+            firstRunOfTerm(prefs.school.backgroundCoursesTerm.get(), term, today) ||
             RefreshPolicies.coursesEvery?.let {
-                RefreshPolicy.hasPassed(prefs.backgroundCoursesSyncedAtMs, now, it)
+                RefreshPolicy.hasPassed(prefs.school.backgroundCoursesSyncedAtMs.get(), now, it)
             } == true
         val assignmentsDue = triggered || retry || RefreshPolicies.assignmentsEvery?.let {
             RefreshPolicy.hasPassed(prefs.schoolDataSyncedAtMs.value, now, it)
@@ -155,9 +155,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
         if (run.ended()) return Result.success()
         if (coursesDue && coursesOk) {
             val stamped = run.writeIfCurrent {
-                prefs.backgroundCoursesSyncedAtMs = now
+                prefs.school.backgroundCoursesSyncedAtMs.set(now, signIn)
                 // The term the fetch covered, by the app's clock: see firstRunOfTerm.
-                if (term != null && !today.isBefore(term.start)) prefs.backgroundCoursesTerm = term.code
+                if (term != null && !today.isBefore(term.start)) prefs.school.backgroundCoursesTerm.set(term.code, signIn)
             }
             if (!stamped) return Result.success()
         }
@@ -224,12 +224,12 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // or marks the server lacks on the account's first sync here
             // (Home's sync sends those up), the marks stay as they are.
             val marks = BackgroundMarkStep.over(prefs, dataCache, unsentMarks).pull(result, signIn)
-            if (marks.taken && authService.isStillSignedInAs(account)) signIn.ifCurrent { prefs.assignmentMarksSyncedOnce = true }
+            if (marks.taken && authService.isStillSignedInAs(account)) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
             val marksChanged = marks.changed
             courseIgnoreSync.applySnapshot(result, signIn)
 
             // Not over a colours or names re-enable check still waiting for the user.
-            val pending = prefs.pendingConflictCategories
+            val pending = prefs.school.pendingConflictCategories.get()
             val syncColors = CourseSyncReconciler.syncsCourseColors(prefs.syncCourseColors, pending)
             val syncNames = CourseSyncReconciler.syncsCourseNames(prefs.syncCourseNames, pending)
             if ((syncColors || syncNames) && result.courseOverrides.isNotEmpty()) {
@@ -250,7 +250,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
                     HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
                 }
             }
-            if (CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.pendingConflictCategories)) {
+            if (CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.school.pendingConflictCategories.get())) {
                 reconcileCurrentSemester(result, courseSync, signIn)
                 answerRosterRequests(result.rosterRequests, signIn)
             }
@@ -328,7 +328,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // Home's sync (HomeBackendSync.applyCourseReset): it wipes the
         // hand-added courses and their waiting adds, so none is kept here.
         val resetElsewhere = CourseSyncReconciler.coursesReset(
-            result.coursesResetAt, prefs.lastSeenCoursesResetAt, prefs.legacyLastCourseSyncAtMs,
+            result.coursesResetAt, prefs.school.lastSeenCoursesResetAt.get(), prefs.legacyLastCourseSyncAtMs,
         ).apply
         // Nor one whose add back is under way; see DataCache.CourseSync.supersedeAddsBack.
         if (resetElsewhere) courseSync.supersedeAddsBack()
@@ -452,7 +452,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // Uploaded as written: the write reconciles the list against
             // newer answers, and nothing is uploaded when it was refused.
             val written = moodleService.storeAssignments(merged, answer) ?: return true
-            runCatching { pushApiClient.uploadAssignments(written) }
+            runCatching { pushApiClient.uploadAssignments(written, answer.signIn) }
                 .onFailure {
                     prefs.setLastSyncSource(SyncSource.LOCAL)
                     Log.w(TAG, "uploadAssignments failed (non-fatal): ${it.logSummary()}")

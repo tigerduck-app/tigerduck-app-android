@@ -198,12 +198,12 @@ class HomeBackendSync @Inject constructor(
             // fails must not leave the next sync reading an empty server as
             // this phone's first.
             val marksTaken = markStep.pull(state, result, "assignments" in switchedOn, signIn)
-            if (marksTaken && authService.isStillSignedInAs(account)) signIn.ifCurrent { prefs.assignmentMarksSyncedOnce = true }
+            if (marksTaken && authService.isStillSignedInAs(account)) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
             courseIgnoreSync.applySnapshot(result, signIn)?.let { keys -> signIn.ifCurrent { state.ignoredCourseKeys.value = keys } }
             // Course overrides and deletion detection always run regardless
             // of whether this was a first-time migration, but not over a
             // re-enable check still waiting for the user's answer.
-            val pending = prefs.pendingConflictCategories
+            val pending = prefs.school.pendingConflictCategories.get()
             val syncColors = CourseSyncReconciler.syncsCourseColors("course_colors" in switchedOn, pending)
             val syncNames = CourseSyncReconciler.syncsCourseNames("course_names" in switchedOn, pending)
             val coursesLoaded = if (result.courseOverrides.isNotEmpty() && (syncColors || syncNames)) {
@@ -228,7 +228,7 @@ class HomeBackendSync @Inject constructor(
             }
             val syncCourses = CourseSyncReconciler.syncsCourseList(
                 switchOn = "courses" in switchedOn,
-                pendingConflictCategories = prefs.pendingConflictCategories,
+                pendingConflictCategories = prefs.school.pendingConflictCategories.get(),
             )
             syncCourseList(result, syncCourses, courseSync, signIn)
             if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)
@@ -244,7 +244,7 @@ class HomeBackendSync @Inject constructor(
                 coursesLoaded = coursesLoaded,
             )
             if (authService.isStillSignedInAs(account)) {
-                signIn.ifCurrent { prefs.syncedCategories += categoriesSynced(switchedOn, took, prefs) }
+                prefs.school.syncedCategories.run { set(get() + categoriesSynced(switchedOn, took, prefs), signIn) }
             }
             // Only for the account this sync fetched for: set after a sign-out
             // reset it, the departing account's would stand for the next one.
@@ -407,10 +407,10 @@ class HomeBackendSync @Inject constructor(
         signIn: SignIn,
         held: suspend () -> Set<String>,
         syncColors: Boolean = CourseSyncReconciler.syncsCourseColors(
-            prefs.syncCourseColors, prefs.pendingConflictCategories,
+            prefs.syncCourseColors, prefs.school.pendingConflictCategories.get(),
         ),
         syncNames: Boolean = CourseSyncReconciler.syncsCourseNames(
-            prefs.syncCourseNames, prefs.pendingConflictCategories,
+            prefs.syncCourseNames, prefs.school.pendingConflictCategories.get(),
         ),
     ): Boolean {
         // Read before anything is applied, as the colours always took it.
@@ -466,7 +466,7 @@ class HomeBackendSync @Inject constructor(
         signIn: SignIn,
     ) {
         val reset = CourseSyncReconciler.coursesReset(
-            result.coursesResetAt, prefs.lastSeenCoursesResetAt, prefs.legacyLastCourseSyncAtMs,
+            result.coursesResetAt, prefs.school.lastSeenCoursesResetAt.get(), prefs.legacyLastCourseSyncAtMs,
         )
         if (reset.apply) {
             val allCourses = dataCache.loadCourses().toMutableList()
@@ -485,8 +485,7 @@ class HomeBackendSync @Inject constructor(
             }
             Log.i(TAG, "[sync] courses reset detected, wiped manual courses")
         }
-        if (authService.isStillSignedInAs(account)) signIn.ifCurrent {
-            prefs.lastSeenCoursesResetAt = reset.remember
+        if (authService.isStillSignedInAs(account) && prefs.school.lastSeenCoursesResetAt.set(reset.remember, signIn)) {
             prefs.forgetLegacyLastCourseSyncAt()
         }
     }

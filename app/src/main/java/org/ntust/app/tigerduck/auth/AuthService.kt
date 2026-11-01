@@ -414,13 +414,13 @@ class AuthService @Inject constructor(
         must("holiday overrides") { prefs.forgetHolidayOverrides() }
         // The term picked in the class table was the departing student's. Cleared, the next
         // student's picker follows the newest term.
-        must("class table term") { prefs.classTableSelectedSemester = null }
+        must("class table term") { prefs.school.classTableSelectedSemester.clear() }
         // A share link held for a sign-in is not one for whoever signs in next.
         once("held share link") { heldShareLink.drop() }
         // A re-enable check compares this device's data, which is wiped below.
         // Left pending, it would hold the next session's assignment marks and
         // then offer Use Local, sending that emptied data over the server's.
-        must("re-enable check") { prefs.pendingConflictCategories = emptySet() }
+        must("re-enable check") { prefs.school.pendingConflictCategories.clear() }
         // A refusal belongs to the password leaving with the account; and an
         // automatic sign-in of that account still waiting for its answer
         // latches nothing for the next one.

@@ -140,7 +140,7 @@ class SignOutClearingTest {
     @Test
     fun `the sign-out forgets the term picked in the class table`() {
         // Left behind, the next student's class table would open on the previous student's term.
-        assertEquals(1, Regex("""\bprefs\.classTableSelectedSemester = null\b""").findAll(clearing()).count())
+        assertEquals(1, Regex("""\bprefs\.school\.classTableSelectedSemester\.clear\(\)""").findAll(clearing()).count())
     }
 
     @Test

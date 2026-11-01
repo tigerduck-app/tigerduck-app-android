@@ -9,6 +9,8 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
@@ -90,6 +92,7 @@ class AppFinderEnvironment @Inject constructor(
     private val networkChecker: NetworkChecker,
     private val demoAccount: DemoAccount,
     private val courseChangeStore: CourseChangeStore,
+    private val sessions: AccountSessions,
 ) : FinderEnvironment {
     override fun now(): LocalDateTime = AppClock.localDateTime(AppConstants.TAIPEI_ZONE)
 
@@ -121,9 +124,10 @@ class AppFinderEnvironment @Inject constructor(
         authService.authState.value && authService.storedStudentId.orEmpty() == credentials.studentId
 
     override var pickedBuilding: String?
-        get() = prefs.emptyClassroomBuilding
+        get() = prefs.school.emptyClassroomBuilding.get()
+        @OptIn(StartsAccountWork::class)
         set(value) {
-            prefs.emptyClassroomBuilding = value
+            prefs.school.emptyClassroomBuilding.set(value, sessions.school.current)
         }
 
     override fun courseChanges(): CourseChanges = courseChangeStore.current()

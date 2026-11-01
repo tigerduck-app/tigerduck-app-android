@@ -113,7 +113,7 @@ internal fun accountWorld(
     val bulletinCache = BulletinCache(context)
     val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
     val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions)
-    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures))
+    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)
     val latch = PersistedStoredPasswordLatch(context, credentials)
     val sso = SsoLoginService(sessionManager, latch) { school }
     val tokens = AuthTokenManager(credentials.v3Tokens, refusing, appPrefs, "device-1", session = sessions.school)

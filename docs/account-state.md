@@ -21,8 +21,9 @@ sign-out clears has one list. School Mail's is `MailAccount.signOut()`, and the 
   `keys`), so a key of an account added to it later gets a row of its own;
 - a row of an account names nothing that clears it, or the function it names no longer clears
   it:
-  - a key is cleared by a `remove` of it or by setting it to an empty value, named directly,
-    through a constant that holds it, or through a function or property declared with it;
+  - a key is cleared by a `remove` of it, by setting it to an empty value, or by the `clear()` of
+    its `AccountKey`, named directly, through a constant that holds it, or through a function or
+    property declared with it;
   - a DataCache file is cleared by a statement that names it and deletes;
   - a file an account owns whole is cleared by a function of a source that opens it, which
     clears the file or removes each of its keys;
@@ -117,8 +118,9 @@ A file listed with an account's scope is cleared whole, and its keys have no row
 
 ## Keys of `tigerduck_prefs`
 
-`AppPreferences`, with the display sizes `DisplayScale` names and the device ID `PushIdentity`
-keeps through `getOrCreateString`.
+`AppPreferences`, with the school account's keys in `SchoolKeys`, which write only with a `SignIn`,
+the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps through
+`getOrCreateString`.
 
 | Store | Name | Scope | Cleared in |
 |---|---|---|---|

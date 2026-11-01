@@ -142,7 +142,7 @@ class SyncWiringTest {
         assertTrue("the worker no longer captures the sign-in", "authTokenManager.session.current" in worker)
         assertTrue("the worker compares the student ID alone again", "storedStudentId != studentId" !in worker)
         // Each stamp is written in a step a sign-out waits for, so it cannot clear it between the check and the write.
-        for (stamp in listOf("prefs.backgroundOverridesSyncedAtMs = now", "prefs.backgroundCoursesSyncedAtMs = now", "prefs.backgroundCoursesTerm = term.code")) {
+        for (stamp in listOf("prefs.school.backgroundOverridesSyncedAtMs.set(now, signIn)", "prefs.school.backgroundCoursesSyncedAtMs.set(now, signIn)", "prefs.school.backgroundCoursesTerm.set(term.code, signIn)")) {
             val at = worker.indexOf(stamp)
             assertTrue("the worker no longer writes $stamp", at >= 0)
             assertTrue("the worker writes $stamp outside run.writeIfCurrent", insideBlock(worker, "run.writeIfCurrent {", at))
@@ -167,7 +167,7 @@ class SyncWiringTest {
     fun `an answered re-enable dialog holds colours and names until applied`() {
         assertCalls(
             "ui/screen/settings/SettingsViewModel.kt", "resolveReenableConflict",
-            "heldUntilAnswered(", "prefs.pendingConflictCategories = held", "prefs.pendingConflictCategories - held",
+            "heldUntilAnswered(", "prefs.school.pendingConflictCategories.set(held", "prefs.school.pendingConflictCategories.get() - held",
         )
     }
 
@@ -175,8 +175,8 @@ class SyncWiringTest {
     fun `an answered re-enable dialog keeps what it did not cover pending and checks it after`() {
         assertCalls(
             "ui/screen/settings/SettingsViewModel.kt", "resolveReenableConflict",
-            "unanswered(prefs.pendingConflictCategories, conflict.categories)",
-            "prefs.pendingConflictCategories = held + left",
+            "unanswered(prefs.school.pendingConflictCategories.get(), conflict.categories)",
+            "prefs.school.pendingConflictCategories.set(held + left, signIn)",
             "if (left.isNotEmpty()) checkPendingConflicts()",
         )
     }
@@ -193,6 +193,10 @@ class SyncWiringTest {
     @Test
     fun `the assignment upload goes through the ledger`() {
         assertCalls("push/PushApiClient.kt", "uploadAssignments", "assignmentUploads.sendIfDue(")
+        // The fingerprint and its time in one step a sign-out waits for: a clear between the two
+        // would leave half a record for the next account's upload to read.
+        val upload = body("push/PushApiClient.kt", "uploadAssignments")
+        assertTrue("the upload's record is no longer one step", Regex("""signIn\.ifCurrent \{\s*prefs\.school\.assignmentsUploadFingerprint\.set""").containsMatchIn(upload))
     }
 
     @Test
@@ -259,7 +263,7 @@ class SyncWiringTest {
         val body = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
         assertTrue(
             "the worker no longer records the marks under its sign-in",
-            Regex("""signIn\.ifCurrent \{\s*prefs\.assignmentMarksSyncedOnce = true""").containsMatchIn(body),
+            "prefs.school.assignmentMarksSyncedOnce.set(true, signIn)" in body,
         )
     }
 
@@ -481,7 +485,7 @@ class SyncWiringTest {
     fun `Use Server drops the waiting colours and names of its categories, and Use Local sends its own once the hold is lifted`() {
         assertCalls("ui/screen/settings/SettingsViewModel.kt", "resolve", "pendingCourseOverrides.adoptServer(conflict.categories, signIn)")
         val body = body("ui/screen/settings/SettingsViewModel.kt", "resolveReenableConflict")
-        val lifted = body.indexOf("prefs.pendingConflictCategories - held")
+        val lifted = body.indexOf("prefs.school.pendingConflictCategories.get() - held")
         val retry = body.indexOf("pendingCourseOverrides.retry(signIn)")
         assertTrue("resolveReenableConflict no longer sends the queued colours and names once the hold is lifted", retry > lifted && lifted >= 0)
     }
@@ -552,7 +556,7 @@ class SyncWiringTest {
     @Test
     fun `Home's fetch lets a sign-out's cancellation through its assignment upload`() {
         val body = body("ui/screen/home/HomeViewModel.kt", "fetchData")
-        assertTrue("fetchData no longer uploads the assignments", "pushApiClient.uploadAssignments(written)" in body)
+        assertTrue("fetchData no longer uploads the assignments", "pushApiClient.uploadAssignments(written, remoteAssignments.answer.signIn)" in body)
         assertTrue("fetchData catches the upload's cancellation", "runCatching { pushApiClient.uploadAssignments" !in body)
     }
 

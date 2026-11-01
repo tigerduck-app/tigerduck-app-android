@@ -341,7 +341,7 @@ class ClassTableViewModel @Inject constructor(
     // The catalogue can land after construction on a cold launch, so
     // followNewestSemesterIfUnpicked re-applies the rule once it does.
     private val _currentSemester = MutableStateFlow(
-        semesterCatalog.selectedSemester(appPreferences.classTableSelectedSemester)
+        semesterCatalog.selectedSemester(appPreferences.school.classTableSelectedSemester.get())
     )
     val currentSemester: StateFlow<String> = _currentSemester
 
@@ -769,7 +769,7 @@ class ClassTableViewModel @Inject constructor(
      * to be newest at first launch.
      */
     private suspend fun followNewestSemesterIfUnpicked() {
-        if (appPreferences.classTableSelectedSemester != null) return
+        if (appPreferences.school.classTableSelectedSemester.get() != null) return
         val newest = semesterCatalog.availableSemesters().firstOrNull() ?: return
         if (newest == _currentSemester.value) return
         _currentSemester.value = newest
@@ -795,7 +795,7 @@ class ClassTableViewModel @Inject constructor(
             return
         }
         if (code == _currentSemester.value) return
-        appPreferences.classTableSelectedSemester = code
+        appPreferences.school.classTableSelectedSemester.set(code, signInNow())
         _currentSemester.value = code
         // A warm of this term in flight is overtaken by the fetch below.
         termWarm.supersede(code)
