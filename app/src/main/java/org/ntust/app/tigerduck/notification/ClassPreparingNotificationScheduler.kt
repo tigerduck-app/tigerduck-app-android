@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
+import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -293,6 +294,7 @@ class ClassPreparingNotificationScheduler internal constructor(
     ): List<UpcomingSlot> {
         val today = AppClock.localDateTime().toLocalDate()
         val results = mutableListOf<UpcomingSlot>()
+        val skipped = CourseMeetings.skipsFrom(skippedDates)
         for (dayOffset in 0 until daysAhead) {
             val date = today.plusDays(dayOffset.toLong())
             // No 即將上課 alarms outside the term. The timetable is populated
@@ -314,7 +316,7 @@ class ClassPreparingNotificationScheduler internal constructor(
             val isoDate = date.toString()
             // A meeting the school split arms each class of it that still
             // meets, from its own start.
-            val meeting = courses.filter { skippedDates[it.courseNo]?.contains(isoDate) != true }
+            val meeting = courses.filterNot { skipped(it, date) }
             for (slot in ClassTimeline.meetings(meeting, date, changes).filter { !it.isCancelled }) {
                 results += UpcomingSlot(
                     course = slot.course,
