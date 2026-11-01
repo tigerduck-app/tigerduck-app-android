@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.Text
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -60,18 +62,19 @@ class SubPageScaffoldTest {
     @Test
     fun `without actions the bar has only the back arrow and title`() {
         composeRule.setContent { SubPageScaffold(title = "Storage", onBack = {}) {} }
-        composeRule.onNodeWithText("Reset").assertDoesNotExist()
+        composeRule.onNodeWithText("Storage").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(backLabel()).assertIsDisplayed()
+        composeRule.onAllNodes(hasClickAction()).assertCountEquals(1)
     }
 
     @Test
-    fun `the content is padded by the compact bar height and no status bar inset`() {
+    fun `the content starts below the compact bar`() {
         var padding: PaddingValues? = null
         composeRule.setContent {
             SubPageScaffold(title = "Storage", onBack = {}) { padding = it }
         }
         composeRule.runOnIdle {
             assertEquals(56.dp, padding!!.calculateTopPadding())
-            assertEquals(56.dp, SubPageBarHeight)
         }
     }
 
