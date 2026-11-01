@@ -11,7 +11,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material3.MaterialTheme
 import org.ntust.app.tigerduck.shared.AccentGradientDirection
@@ -128,6 +130,9 @@ fun WearTheme(
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
+        // No right-to-left locale ships, but a watch set to Arabic or Hebrew still has a
+        // right-to-left configuration, which Compose would mirror every screen by.
+        LocalLayoutDirection provides LayoutDirection.Ltr,
         LocalAccentColor provides accent,
         LocalAccentGradient provides accentGradient,
         LocalScreenPadding provides paddingDp.dp,
