@@ -5,11 +5,13 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATUS_IGNORED
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.testSignIn
 import java.io.IOException
 
@@ -186,12 +188,27 @@ class AssignmentMarkStepTest {
         assertNotNull(state.pendingResult)
     }
 
+    /** What Home shows belongs to the session on screen: the old run's marks and questions are not its own. */
+    @Test
+    fun `a run whose sign-in has ended shows nothing of its snapshot and asks nothing`() = runTest {
+        syncedBefore = true
+        completed = setOf("1")
+        state.markedCompletedIds.value = setOf("1")
+
+        step.pull(state, server(ignored = setOf("1", "2")), syncsMarks = true, signIn = SignInSeries().end())
+
+        assertEquals(emptySet<String>(), state.ignoredAssignmentIds.value)
+        assertEquals(setOf("1"), state.markedCompletedIds.value)
+        assertEquals(emptyList<String>(), state.conflicts.value.map { it.id })
+        assertNull(state.pendingResult)
+    }
+
     @Test
     fun `keeping the server's marks after the switch went off writes nothing`() = runTest {
         switchOn = false
         completed = setOf("1")
 
-        step.keepServer(state, server(ignored = setOf("1")))
+        step.keepServer(state, server(ignored = setOf("1")), pinned)
 
         assertEquals(0, writes)
         assertEquals(setOf("1"), completed)
@@ -201,7 +218,7 @@ class AssignmentMarkStepTest {
     fun `keeping the server's marks takes them`() = runTest {
         completed = setOf("1")
 
-        step.keepServer(state, server(ignored = setOf("1")))
+        step.keepServer(state, server(ignored = setOf("1")), pinned)
 
         assertEquals(setOf("1"), ignored)
         assertEquals(emptySet<String>(), completed)
@@ -228,7 +245,7 @@ class AssignmentMarkStepTest {
         state.ignoredAssignmentIds.value = setOf("1")
         unsent = setOf("1")
 
-        step.keepServer(state, server(completed = setOf("2")))
+        step.keepServer(state, server(completed = setOf("2")), pinned)
 
         assertEquals(setOf("1"), ignored)
         assertEquals(setOf("2"), completed)

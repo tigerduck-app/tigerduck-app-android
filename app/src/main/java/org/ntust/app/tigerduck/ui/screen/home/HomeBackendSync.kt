@@ -201,14 +201,12 @@ class HomeBackendSync @Inject constructor(
             // One reading of the switches, for the steps below and for what
             // this sync records as synced: one flipped meanwhile counts from the next.
             val switchedOn = categoriesSwitchedOn(prefs)
-            // Recorded at once, for this account only: a later step that
+            // Recorded at once, for this sign-in only: a later step that
             // fails must not leave the next sync reading an empty server as
             // this phone's first.
             val marksTaken = markStep.pull(state, result, "assignments" in switchedOn, signIn)
-            if (marksTaken && authService.isStillSignedInAs(account)) {
-                prefs.assignmentMarksSyncedOnce = true
-            }
-            courseIgnoreSync.applySnapshot(result, signIn)?.let { state.ignoredCourseKeys.value = it }
+            if (marksTaken && authService.isStillSignedInAs(account)) signIn.ifCurrent { prefs.assignmentMarksSyncedOnce = true }
+            courseIgnoreSync.applySnapshot(result, signIn)?.let { keys -> signIn.ifCurrent { state.ignoredCourseKeys.value = keys } }
             // Course overrides and deletion detection always run regardless
             // of whether this was a first-time migration, but not over a
             // re-enable check still waiting for the user's answer.
@@ -241,8 +239,8 @@ class HomeBackendSync @Inject constructor(
             )
             syncCourseList(result, syncCourses, courseSync, signIn)
             if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)
-            // Only what this sync took, and only for the account it was for:
-            // recorded after a sign-out, it would mark the next account's
+            // Only what this sync took, and only for the sign-in it was for:
+            // recorded after a sign-out, it would mark the next session's
             // categories before their first sync.
             val took = categoriesTaken(
                 marksTaken = marksTaken,
@@ -252,7 +250,9 @@ class HomeBackendSync @Inject constructor(
                 hasOverrides = result.courseOverrides.isNotEmpty(),
                 coursesLoaded = coursesLoaded,
             )
-            if (authService.isStillSignedInAs(account)) prefs.syncedCategories += categoriesSynced(switchedOn, took, prefs)
+            if (authService.isStillSignedInAs(account)) {
+                signIn.ifCurrent { prefs.syncedCategories += categoriesSynced(switchedOn, took, prefs) }
+            }
             // Only for the account this sync fetched for: set after a sign-out
             // reset it, the departing account's would stand for the next one.
             signIn.ifCurrent { state.lastKnownRevision = result.currentRevision }
@@ -396,7 +396,7 @@ class HomeBackendSync @Inject constructor(
                 runCatching { pushApiClient.patchAssignmentOverride(mid, c.localStatus) }
             }
         } else {
-            markStep.keepServer(state, result)
+            markStep.keepServer(state, result, signIn)
             if (result.courseOverrides.isNotEmpty()) {
                 applyCourseOverrides(state, result.courseOverrides, signIn, { pendingCourseOverrides.held(result.fetchedAtMs) })
             }
@@ -440,8 +440,7 @@ class HomeBackendSync @Inject constructor(
         )?.let { outcome ->
             val updated = outcome.courses
             Log.i(TAG, "[sync-color] applying ${updated.count { c -> c.customColorHex != null }} custom colors")
-            state.allCourses.value = updated
-            TigerDuckTheme.buildCourseColorMap(updated)
+            if (signIn.ifCurrent { state.allCourses.value = updated } != null) TigerDuckTheme.buildCourseColorMap(updated)
             dataCache.saveCourses(updated)
             widgetUpdater.requestUpdate()
             sendMovedColors(updated, outcome.moved) { moodleId, hex ->
@@ -458,8 +457,8 @@ class HomeBackendSync @Inject constructor(
      * clock — see [CourseSyncReconciler.coursesReset]. The account's first
      * sync here only remembers it, so a fresh install never reads its own
      * absence of history as a reset and deletes courses the user just added.
-     * Remembered for [account] only: after a sign-out it would be the next
-     * account's first sync that skipped a reset.
+     * Remembered for [account] and [signIn] only: after a sign-out it would be
+     * the next session's first sync that skipped a reset.
      *
      * The reset brings back the courses this phone hid, so the deletes still
      * waiting to go up from before the fetch ([beforeFetch]) go too: sent on
@@ -494,7 +493,7 @@ class HomeBackendSync @Inject constructor(
             }
             Log.i(TAG, "[sync] courses reset detected, wiped manual courses")
         }
-        if (authService.isStillSignedInAs(account)) {
+        if (authService.isStillSignedInAs(account)) signIn.ifCurrent {
             prefs.lastSeenCoursesResetAt = reset.remember
             prefs.forgetLegacyLastCourseSyncAt()
         }

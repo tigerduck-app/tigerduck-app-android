@@ -17,8 +17,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -65,6 +63,9 @@ class HomePullAcrossSignInTest {
     private lateinit var ignores: CourseIgnoreSync
     private lateinit var sync: HomeBackendSync
 
+    /** What follows a write of the ignored courses: a test stands a sign-out there. */
+    private var ignoresChanged: suspend () -> Unit = {}
+
     private val state = HomeSyncState(
         ignoredAssignmentIds = MutableStateFlow(emptySet()),
         markedCompletedIds = MutableStateFlow(emptySet()),
@@ -89,7 +90,7 @@ class HomePullAcrossSignInTest {
         ignores = CourseIgnoreSync(
             w.dataCache,
             sender = { _, _, _, _ -> true },
-            effects = {},
+            effects = { ignoresChanged() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,
         )
@@ -192,6 +193,48 @@ class HomePullAcrossSignInTest {
         fetch.body = body
         fetch.release(200)
         withTimeout(10_000) { pulling.await() }
+    }
+
+    @Test
+    fun `a same-student sign-in during Home's pull writes nothing from the old run`() = runBlocking {
+        pullAcross { signOutAndBackIn() }
+
+        val prefs = w.appPrefs
+        val landed = mapOf(
+            "marks synced once" to prefs.assignmentMarksSyncedOnce,
+            "categories synced" to prefs.syncedCategories,
+            "course reset read" to prefs.lastSeenCoursesResetAt,
+            "watermark" to state.lastKnownRevision,
+            "marks shown" to state.ignoredAssignmentIds.value,
+            "ignores shown" to state.ignoredCourseKeys.value,
+            "colors shown" to state.allCourses.value.mapNotNull { it.customColorHex },
+        )
+        val nothing = mapOf(
+            "marks synced once" to false,
+            "categories synced" to emptySet<String>(),
+            "course reset read" to null,
+            "watermark" to 0L,
+            "marks shown" to emptySet<String>(),
+            "ignores shown" to emptySet<String>(),
+            "colors shown" to emptyList<String>(),
+        )
+        assertEquals(nothing, landed)
+        assertEquals(emptySet<String>(), w.dataCache.loadIgnoredAssignments())
+        assertEquals(emptySet<String>(), w.dataCache.loadIgnoredCourses())
+        assertEquals(emptyMap<String, List<String>>(), w.dataCache.loadServerKnownNos())
+    }
+
+    /** Past the write: what the file took, a sign-out took with it, and Home shows none of it. */
+    @Test
+    fun `a sign-out as the ignores land leaves what Home shows alone`() = runBlocking {
+        ignoresChanged = {
+            ignoresChanged = {}
+            signOutAndBackIn()
+        }
+
+        pullAcross {}
+
+        assertEquals(emptySet<String>(), state.ignoredCourseKeys.value)
     }
 
     @Test

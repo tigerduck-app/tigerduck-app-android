@@ -108,16 +108,18 @@ internal class AssignmentMarkStep(
         )
         // Read again: switched off since, the marks are this phone's own.
         if (!switchOn()) return false
-        commit(state, outcome)
+        commit(state, outcome, signIn)
         if (outcome.conflicts.isNotEmpty()) {
-            state.pendingResult = result
-            state.conflicts.value = outcome.conflicts
+            signIn.ifCurrent {
+                state.pendingResult = result
+                state.conflicts.value = outcome.conflicts
+            }
         }
         return true
     }
 
     /** Takes the server's marks of [result], the user having picked them in the conflict dialog. */
-    suspend fun keepServer(state: HomeSyncState, result: BackendSyncResult) {
+    suspend fun keepServer(state: HomeSyncState, result: BackendSyncResult, signIn: SignIn) {
         // Switched off since the dialog opened, the marks are this phone's own.
         if (!switchOn()) return
         val outcome = AssignmentOverrideReconciler.serverWins(
@@ -127,7 +129,7 @@ internal class AssignmentMarkStep(
             inFlightCompleted = state.markedCompletedIds.value,
             pendingOverrides = state.pendingOverrides + unsent(),
         )
-        commit(state, outcome)
+        commit(state, outcome, signIn)
     }
 
     // The mark Home shows for [id] now; taps change these at once.
@@ -137,10 +139,13 @@ internal class AssignmentMarkStep(
         else -> AssignmentOverrideReconciler.STATUS_NONE
     }
 
-    private suspend fun commit(state: HomeSyncState, outcome: AssignmentOverrideReconciler.Outcome) {
+    // What Home shows is the session's on screen: a run past its sign-in changes none of it.
+    private suspend fun commit(state: HomeSyncState, outcome: AssignmentOverrideReconciler.Outcome, signIn: SignIn) {
         store.replace(outcome.ignored, outcome.completed)
-        state.ignoredAssignmentIds.value = outcome.ignored
-        state.markedCompletedIds.value = outcome.completed
+        signIn.ifCurrent {
+            state.ignoredAssignmentIds.value = outcome.ignored
+            state.markedCompletedIds.value = outcome.completed
+        }
     }
 
     companion object {

@@ -230,7 +230,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // or marks the server lacks on the account's first sync here
             // (Home's sync sends those up), the marks stay as they are.
             val marks = BackgroundMarkStep.over(prefs, dataCache, unsentMarks).pull(result)
-            if (marks.taken && authService.isStillSignedInAs(account)) prefs.assignmentMarksSyncedOnce = true
+            if (marks.taken && authService.isStillSignedInAs(account)) signIn.ifCurrent { prefs.assignmentMarksSyncedOnce = true }
             val marksChanged = marks.changed
             courseIgnoreSync.applySnapshot(result, signIn)
 

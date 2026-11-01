@@ -249,6 +249,20 @@ class SyncWiringTest {
         )
     }
 
+    /**
+     * The student ID passes a sign-out and a sign-in as the same student, so a run that outlived
+     * its sign-in would mark the new session's marks as synced, which then reads an empty server
+     * as the truth. Home's is driven in `HomePullAcrossSignInTest`; the worker cannot be built here.
+     */
+    @Test
+    fun `the worker records marks taken only under the sign-in it began with`() {
+        val body = body("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend")
+        assertTrue(
+            "the worker no longer records the marks under its sign-in",
+            Regex("""signIn\.ifCurrent \{\s*prefs\.assignmentMarksSyncedOnce = true""").containsMatchIn(body),
+        )
+    }
+
     /** tigerduck-app-android#404. */
     @Test
     fun `a holiday choice whose PUT failed is kept, and Home's sync sends what waits first and keeps it over the snapshot`() {
