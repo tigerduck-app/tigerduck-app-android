@@ -420,6 +420,133 @@ class GuardrailsTest(unittest.TestCase):
         self.assertEqual(self.read_baseline(),
                          [{"path": APP + "A.kt", "kind": "taipei-literal", "count": 1}])
 
+    # --- ratchets that start non-empty
+
+    def counts(self, kind):
+        return {k[0]: n for k, n in cg.scan(self.root).items() if k[1] == kind}
+
+    def test_introduce_records_a_new_kind_and_refuses_one_with_entries(self):
+        self.write(APP + "A.kt", "val x = signInGeneration\nval y = 1\nval z = accountEpoch\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli("--introduce", "account-counter"), 0)
+        self.assertEqual(self.read_baseline(),
+                         [{"path": APP + "A.kt", "kind": "account-counter", "count": 2}])
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.run_cli("--introduce", "account-counter"), 1)
+        self.assertEqual(self.run_cli("--introduce", "taipei-literal"), 1)
+
+    def test_introduce_keeps_the_other_kinds_entries(self):
+        self.write(APP + "A.kt", 'val a = "Asia/Taipei"\nval b = isDemo\n')
+        self.write_baseline([{"path": APP + "A.kt", "kind": "taipei-literal", "count": 1}])
+        self.assertEqual(self.run_cli("--introduce", "demo-check"), 0)
+        self.assertEqual(len(self.read_baseline()), 2)
+
+    def test_a_kind_cannot_be_raised_once_it_has_entries(self):
+        self.write(APP + "A.kt", "val x = signInGeneration\n")
+        self.write_baseline([{"path": APP + "A.kt", "kind": "account-counter", "count": 1}])
+        self.write(APP + "A.kt", "val x = signInGeneration\nval y = signInGeneration\n")
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--update-baseline"), 1)
+
+    def commit_checker(self, text):
+        """Commits a stand-in check_guardrails.py and the baseline as branch base."""
+        rel = "tools/guardrails/baseline.json"
+        self.baseline = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(self.baseline), exist_ok=True)
+        self.write("tools/guardrails/check_guardrails.py", text)
+
+    def test_against_ref_skips_a_kind_the_ref_checker_does_not_name(self):
+        self.write(APP + "A.kt", "val x = signInGeneration\n")
+        self.commit_checker('KINDS = ("taipei-literal",)\n')
+        self.write_baseline([])
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("branch", "base")
+        self.write_baseline([{"path": APP + "A.kt", "kind": "account-counter", "count": 1}])
+        self.assertEqual(self.run_cli("--against-ref", "base"), 0)
+        # Once the ref's checker names the kind, the same entry is a raise.
+        self.write("tools/guardrails/check_guardrails.py", 'KINDS = ("account-counter",)\n')
+        self.write_baseline([])
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "names it")
+        self.write_baseline([{"path": APP + "A.kt", "kind": "account-counter", "count": 1}])
+        self.assertEqual(self.run_cli("--against-ref", "HEAD"), 1)
+
+    def long_pull(self, header, lines=85):
+        body = "".join("    println(1)\n" for _ in range(lines))
+        return header + " {\n" + body + "}\n"
+
+    def test_a_changed_parameter_list_is_the_same_function(self):
+        key = {"path": APP + "S.kt", "kind": "long-function", "name": "pull(String)", "lines": 87}
+        self.write_baseline([key])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String, b: Boolean)"))
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(self.run_cli("--update-baseline"), 0)
+        self.assertEqual(self.read_baseline()[0]["name"], "pull(String, Boolean)")
+
+    def test_a_changed_parameter_list_may_not_grow_the_function(self):
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 80}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String, b: Boolean)"))
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_overloads_still_match_on_the_full_name(self):
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 87}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)") + self.long_pull("fun pull(a: Int)"))
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_a_changed_parameter_list_in_another_file_is_new(self):
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 87}])
+        self.write(APP + "T.kt", self.long_pull("fun pull(a: String, b: Int)"))
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_account_counter_hits_a_use_and_misses_a_comment(self):
+        self.write(APP + "A.kt",
+                   "// signInGeneration\nval a = \"accountEpoch\"\nfun f(generation: Int) {}\n"
+                   "val c = DataCache.Generation\nval d = tokens.signInGeneration\n"
+                   "val e = 1 // userDataGeneration\n")
+        self.assertEqual(self.counts("account-counter"), {APP + "A.kt": 3})
+
+    def test_account_counter_needs_a_word_boundary(self):
+        self.write(APP + "A.kt", "val a = mySignInGenerationLabel\nval b = generation: Long\n")
+        self.assertEqual(self.counts("account-counter"), {})
+
+    def test_demo_check_hits_a_use_and_honors_its_homes(self):
+        line = "val a = if (isDemo) 1 else demoAccount.isActive\n"
+        self.write(APP + "ui/Screen.kt", line)
+        self.write(APP + "demo/Thing.kt", line)
+        self.write(APP + "auth/session/AccountSession.kt", line)
+        self.write(APP + "debug/DemoModeInterceptor.kt", line)
+        self.write(APP + "mail/MailDemo.kt", line)
+        self.write("app/src/play/java/org/ntust/app/tigerduck/demo/Play.kt", line)
+        self.write(APP + "ui/Quiet.kt", "// isDemo\nval s = \"fixtures.demoMode\"\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/Screen.kt": 1})
+
+    def test_demo_check_sees_the_fixture_store_forms(self):
+        self.write(APP + "ui/A.kt", "val a = store.demoMode\nval b = fixtures.demoMode\nval c = demo.isActive\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/A.kt": 3})
+
+    def test_sign_in_read_honors_its_homes_and_takes_no_baseline(self):
+        line = "@OptIn(StartsAccountWork::class)\nfun f() {}\n"
+        for home in ("auth/AuthService.kt", "ui/screen/Home.kt", "ui/AppState.kt", "TigerDuckApp.kt",
+                     "demo/D.kt", "liveactivity/L.kt", "notification/ClassWorker.kt",
+                     "notification/BootReceiver.kt", "push/PushRegistrationService.kt",
+                     "mail/MailAccount.kt", "mail/sync/MailChecker.kt", "data/moodle/M.kt",
+                     "data/DataMigration.kt", "network/MoodleService.kt", "network/moodle/N.kt",
+                     "network/AccountSessionGuard.kt", "network/NtustSessionManager.kt"):
+            self.write(APP + home, line)
+        self.assertEqual(self.counts("sign-in-read"), {})
+        self.write(APP + "data/cache/DataCache.kt", "import x.StartsAccountWork\n" + line)
+        self.write(APP + "notification/Helper.kt", line)
+        self.assertEqual(self.counts("sign-in-read"),
+                         {APP + "data/cache/DataCache.kt": 1, APP + "notification/Helper.kt": 1})
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "sign-in-read"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
