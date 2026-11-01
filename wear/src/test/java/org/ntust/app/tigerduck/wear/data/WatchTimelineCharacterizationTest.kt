@@ -246,14 +246,14 @@ class WatchTimelineCharacterizationTest {
     // ---- blocks ----
 
     @Test
-    fun `a course with a morning and an afternoon block leaves its other block out of what is next`() {
+    fun `a course's afternoon block is next while its morning block is on, as on iOS`() {
         val m = course(
             "M", mapOf(2 to listOf("1", "2", "6", "7")), "R",
             mapOf("2-1" to "R-AM", "2-2" to "R-AM", "2-6" to "R-PM", "2-7" to "R-PM"),
         )
         val z = course("Z", mapOf(2 to listOf("9")), "T-9")   // 16:30-17:20
         val alone = snapshot(listOf(m))
-        assertEquals("ongoing M 12 08:10-10:00 R-AM next=- chg=false", now(alone, tuesday, at(8, 30)))
+        assertEquals("ongoing M 12 08:10-10:00 R-AM next=M 67 13:20 R-PM chg=false", now(alone, tuesday, at(8, 30)))
         assertEquals("today M 67 13:20 R-PM chg=false", now(alone, tuesday, at(10, 30)))
         assertEquals("ongoing M 67 13:20-15:10 R-PM next=- chg=false", now(alone, tuesday, at(14, 0)))
         assertEquals("+7 M 12 08:10 wd=2 R-AM chg=false", now(alone, tuesday, at(16, 0)))
@@ -263,7 +263,7 @@ class WatchTimelineCharacterizationTest {
         )
         assertEquals("10:00,13:20,15:10", tile(alone, tuesday, at(9, 0)))
         val withZ = snapshot(listOf(m, z))
-        assertEquals("ongoing M 12 08:10-10:00 R-AM next=Z 9 16:30 T-9 chg=false", now(withZ, tuesday, at(8, 30)))
+        assertEquals("ongoing M 12 08:10-10:00 R-AM next=M 67 13:20 R-PM chg=false", now(withZ, tuesday, at(8, 30)))
     }
 
     @Test
@@ -272,7 +272,7 @@ class WatchTimelineCharacterizationTest {
         assertEquals("ongoing T3 123 08:10-11:10 R-3 next=- chg=false", now(snapshot(listOf(three)), tuesday, at(10, 5)))
         val gap = course("GP", mapOf(2 to listOf("3", "4", "6")), "R-G")       // 10:20-12:10 and 13:20-14:10
         val g = snapshot(listOf(gap))
-        assertEquals("ongoing GP 34 10:20-12:10 R-G next=- chg=false", now(g, tuesday, at(10, 30)))
+        assertEquals("ongoing GP 34 10:20-12:10 R-G next=GP 6 13:20 R-G chg=false", now(g, tuesday, at(10, 30)))
         assertEquals("today GP 6 13:20 R-G chg=false", now(g, tuesday, at(12, 30)))
     }
 
@@ -292,13 +292,13 @@ class WatchTimelineCharacterizationTest {
     // ---- two classes at once, and ties ----
 
     @Test
-    fun `when two courses overlap the first in the list is on and the other, already started, is not next`() {
+    fun `when two courses overlap the earlier start is on and the other, already started, is next at its real start`() {
         val c = course("C", mapOf(2 to listOf("4", "5")), "R-C")             // 11:20-13:10
         assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=C 45 11:20 R-C chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(10, 30)))
         assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=C 45 11:20 R-C chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(11, 19)))
-        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(11, 30)))
+        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=C 45 11:20 R-C chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(11, 30)))
         assertEquals("ongoing C 45 11:20-13:10 R-C next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(p4, c, p7)), tuesday, at(12, 20)))
-        assertEquals("ongoing C 45 11:20-13:10 R-C next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(c, p4, p7)), tuesday, at(11, 30)))
+        assertEquals("ongoing P4 34 10:20-12:10 TR-1 next=C 45 11:20 R-C chg=false", now(snapshot(listOf(c, p4, p7)), tuesday, at(11, 30)))
         assertEquals("ongoing C 45 11:20-13:10 R-C next=P7 78 14:20 TR-2 chg=false", now(snapshot(listOf(c, p4, p7)), tuesday, at(12, 15)))
     }
 
@@ -317,8 +317,8 @@ class WatchTimelineCharacterizationTest {
         val d2 = course("D2", mapOf(2 to listOf("3", "4")), "R-2")
         assertEquals("today D1 3 10:20 R-1 chg=false", now(snapshot(listOf(d1, d2)), tuesday, at(9, 0)))
         assertEquals("today D2 34 10:20 R-2 chg=false", now(snapshot(listOf(d2, d1)), tuesday, at(9, 0)))
-        assertEquals("ongoing D2 34 10:20-12:10 R-2 next=- chg=false", now(snapshot(listOf(d2, d1)), tuesday, at(10, 20)))
-        assertEquals("ongoing D1 3 10:20-11:10 R-1 next=- chg=false", now(snapshot(listOf(d1, d2)), tuesday, at(10, 20)))
+        assertEquals("ongoing D2 34 10:20-12:10 R-2 next=D1 3 10:20 R-1 chg=false", now(snapshot(listOf(d2, d1)), tuesday, at(10, 20)))
+        assertEquals("ongoing D1 3 10:20-11:10 R-1 next=D2 34 10:20 R-2 chg=false", now(snapshot(listOf(d1, d2)), tuesday, at(10, 20)))
     }
 
     // ---- what the phone sends and the watch stores ----
@@ -362,7 +362,7 @@ class WatchTimelineCharacterizationTest {
 
     @Test
     fun `a stale, missing or malformed course changes item leaves the timetable`() {
-        val plainToday = "ongoing CC900 23 09:10-11:10 TR-313 next=- chg=false"
+        val plainToday = "ongoing CC900 23 09:10-11:10 TR-313 next=CC900 7 14:20 TR-313 chg=false"
         // A phone that predates the item sends none; an item for another week or course changes nothing today.
         val stale = """{"CC900":{"2026-10-01":[{"periods":["2"],"cancelled":true}]},"OTHER":{"2026-11-05":[{"periods":["2"],"cancelled":true}]}}"""
         for (raw in listOf(null, "", "{}", stale, "[1,2]", """{"CC900":{"2026-11-05":"moved"}}""", "{\"CC900\":")) {
@@ -431,34 +431,34 @@ class WatchTimelineCharacterizationTest {
     }
 
     @Test
-    fun `a course's two blocks going on at once, the earlier block is the one shown`() {
+    fun `a course's two blocks going on at once, the earlier start is shown and the other is next`() {
         val d = course("D", mapOf(2 to listOf("1", "3")), "T-D")   // 08:10-09:00 and 10:20-11:10
         val sent = WearProtocol.Schedule.decodeCourseChanges(
             """{"D":{"2026-11-03":[{"periods":["1"],"cancelled":false,"start":"10:25","end":"11:00"}]}}""",
         )
         val s = snapshot(listOf(d), sent.byCourse)
-        assertEquals("ongoing D 1 10:25-11:00 T-D next=- chg=true", now(s, tuesday, at(10, 30)))
+        assertEquals("ongoing D 3 10:20-11:10 T-D next=D 1 10:25 T-D chg=false", now(s, tuesday, at(10, 30)))
     }
 
     @Test
-    fun `two classes of one course starting together, the earlier block is next with its change`() {
+    fun `two classes starting together, the one listed first is on and the other is next at its real start`() {
         val f = course("F", mapOf(2 to listOf("5", "6", "7")), "R-F")
         val e = course("E", mapOf(2 to listOf("1", "5", "6")), "R-E")
         val sent = WearProtocol.Schedule.decodeCourseChanges(
             """{"E":{"2026-11-03":[{"periods":["1"],"cancelled":false,"room":"R-X","start":"13:20","end":"13:50"}]}}""",
         )
         val s = snapshot(listOf(f, e), sent.byCourse)
-        assertEquals("ongoing F 567 12:20-15:10 R-F next=E 1 13:20 R-X chg=false", now(s, tuesday, at(12, 30)))
+        assertEquals("ongoing F 567 12:20-15:10 R-F next=E 56 12:20 R-E chg=false", now(s, tuesday, at(12, 30)))
     }
 
     @Test
-    fun `a moved class and a later period of a block going on start together, the moved class is next`() {
+    fun `a block that starts now is next ahead of a moved class later on`() {
         val c0 = course("C0", mapOf(2 to listOf("5", "6", "8", "9")), "R-0")
         val c1 = course("C1", mapOf(2 to listOf("3", "6", "7")), "R-1")
         val sent = WearProtocol.Schedule.decodeCourseChanges(
             """{"C1":{"2026-11-03":[{"periods":["3"],"cancelled":false,"room":"R-Y","start":"14:20","end":"15:10"}]}}""",
         )
         val s = snapshot(listOf(c0, c1), sent.byCourse)
-        assertEquals("ongoing C0 56 12:20-14:10 R-0 next=C1 3 14:20 R-Y chg=false", now(s, tuesday, at(13, 20)))
+        assertEquals("ongoing C0 56 12:20-14:10 R-0 next=C1 67 13:20 R-1 chg=false", now(s, tuesday, at(13, 20)))
     }
 }

@@ -35,4 +35,13 @@ class NextClassTileServiceTest {
         val changed = WatchCourseChanges(mapOf("P4" to mapOf(tuesday to listOf(WatchClassChange(listOf("3", "4"), end = "11:45")))))
         assertEquals(listOf(11 * 60 + 45, 14 * 60 + 20, 16 * 60 + 20), transitions(11 * 60, changed))
     }
+
+    @Test
+    fun `overlapping classes keep every boundary, earliest first`() {
+        // Afternoon, moved to 11:20-13:10, overlaps Period four's 10:20-12:10.
+        val moved = WatchCourseChanges(
+            mapOf("P7" to mapOf(tuesday to listOf(WatchClassChange(listOf("7", "8"), start = "11:20", end = "13:10")))),
+        )
+        assertEquals(listOf(11 * 60 + 20, 12 * 60 + 10, 13 * 60 + 10), transitions(11 * 60 + 19, moved))
+    }
 }

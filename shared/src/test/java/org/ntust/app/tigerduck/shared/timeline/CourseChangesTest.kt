@@ -36,8 +36,8 @@ class CourseChangesTest {
 
         val thatDay = changes.changes("CC900", thursday)
         assertEquals("1151", changes.term)
-        assertEquals(listOf(42, 45), thatDay.map { it.id })
-        assertEquals("an English note falls back to the Chinese one", "期中考", thatDay.last().noteEn)
+        assertEquals("newest id first", listOf(45, 42), thatDay.map { it.id })
+        assertEquals("an English note falls back to the Chinese one", "期中考", thatDay.first().noteEn)
         assertEquals(listOf(46), changes.changes("CC900", LocalDate.of(2026, 11, 12)).map { it.id })
         assertTrue(changes.changes("CC901", thursday).isEmpty())
         assertEquals(listOf("CC900_20261105_2", "CC900_20261105_7"), slots(changes).map { it.id })
@@ -90,7 +90,7 @@ class CourseChangesTest {
             row(1, "cancelled"),
             row(2, "room", periods = listOf("3", "4"), values = mapOf("room" to "TR-313")),
         )
-        val (all, some) = changes.changes("CC900", thursday)
+        val (some, all) = changes.changes("CC900", thursday)   // newest id first
 
         assertTrue(all.covers("2") && all.covers("D"))
         assertTrue(some.covers("3") && some.covers("4"))
@@ -106,7 +106,7 @@ class CourseChangesTest {
             row(2, "note", values = mapOf("note_zh" to "期中考")),
             row(3, "note", values = mapOf("note_zh" to "小考", "note_en" to "")),
         )
-        val (both, zhOnly, emptyEn) = changes.changes("CC900", thursday)
+        val (emptyEn, zhOnly, both) = changes.changes("CC900", thursday)   // newest id first
 
         for (locale in listOf(Locale.TRADITIONAL_CHINESE, Locale.SIMPLIFIED_CHINESE, Locale.forLanguageTag("zh-Hant-TW"), Locale.forLanguageTag("zh-Hans"))) {
             assertEquals(locale.toLanguageTag(), "帶筆電", both.note(locale))
@@ -133,5 +133,31 @@ class CourseChangesTest {
         assertEquals(first.hashCode(), changes(row(1, "room", values = mapOf("room" to "TR-313"))).hashCode())
         assertNotEquals(first, changes(row(1, "room", values = mapOf("room" to "TR-314"))))
         assertNotEquals(first, CourseChanges.decode(feed(listOf(row(1, "room", values = mapOf("room" to "TR-313"))), term = "1152")))
+    }
+
+    // Two rows of one kind on one day: the newest wins, whatever order the feed lists them in
+
+    private fun ofKind(kind: String, vararg rows: JSONObject): List<Int> =
+        changes(*rows).changes("CC900", thursday).filter { it.kind.wire == kind }.map { it.id }
+
+    @Test
+    fun `of two rows of a kind the higher id is read first, in either feed order`() {
+        val low = row(3, "room", values = mapOf("room" to "TR-301"))
+        val high = row(8, "room", values = mapOf("room" to "TR-808"))
+
+        assertEquals(listOf(8, 3), ofKind("room", low, high))
+        assertEquals(listOf(8, 3), ofKind("room", high, low))
+        assertEquals("TR-808", slots(changes(low, high)).first().room)
+        assertEquals("TR-808", slots(changes(high, low)).first().room)
+    }
+
+    @Test
+    fun `a row that starts on a later day beats a higher id that starts earlier, as the backend orders them`() {
+        // The backend reads rows by first day, then id, and the last one of a kind wins.
+        val earlier = row(9, "start", values = mapOf("start" to "09:30")).put("mode", "range").put("from", "2026-11-02")
+        val later = row(4, "start", values = mapOf("start" to "09:40")).put("mode", "range").put("from", "2026-11-04")
+
+        assertEquals(listOf(4, 9), ofKind("start", earlier, later))
+        assertEquals(listOf(4, 9), ofKind("start", later, earlier))
     }
 }
