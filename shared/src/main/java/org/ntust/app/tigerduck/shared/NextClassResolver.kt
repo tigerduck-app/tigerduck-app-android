@@ -222,7 +222,7 @@ object NextClassResolver {
         .filter { !excluding(it) }
         .flatMap { dayClass -> dayClass.starts.map { Pick(dayClass, it) } }
         .filter { after == null || it.startMinute > after }
-        .minWithOrNull(compareBy<Pick> { it.startMinute }.thenBy { courseIndex(courses, it.dayClass) })
+        .minWithOrNull(compareBy<Pick> { it.startMinute }.thenBy { courseIndex(courses, it.dayClass) }.thenBy { periodOrder(it.dayClass.periods.first()) })
 
     /** A class picked up at [startMinute]. */
     private class Pick(val dayClass: DayClass, val startMinute: Int)

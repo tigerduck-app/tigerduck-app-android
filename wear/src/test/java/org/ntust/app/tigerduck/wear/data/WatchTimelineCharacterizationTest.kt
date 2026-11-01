@@ -428,4 +428,26 @@ class WatchTimelineCharacterizationTest {
         val s = snapshot(listOf(d), sent.byCourse)
         assertEquals("ongoing D 1 10:25-11:00 T-D next=- chg=true", now(s, tuesday, at(10, 30)))
     }
+
+    @Test
+    fun `two classes of one course starting together, the earlier block is next with its change`() {
+        val f = course("F", mapOf(2 to listOf("5", "6", "7")), "R-F")
+        val e = course("E", mapOf(2 to listOf("1", "5", "6")), "R-E")
+        val sent = WearProtocol.Schedule.decodeCourseChanges(
+            """{"E":{"2026-11-03":[{"periods":["1"],"cancelled":false,"room":"R-X","start":"13:20","end":"13:50"}]}}""",
+        )
+        val s = snapshot(listOf(f, e), sent.byCourse)
+        assertEquals("ongoing F 567 12:20-15:10 R-F next=E 1 13:20 R-X chg=false", now(s, tuesday, at(12, 30)))
+    }
+
+    @Test
+    fun `a moved class and a later period of a block going on start together, the moved class is next`() {
+        val c0 = course("C0", mapOf(2 to listOf("5", "6", "8", "9")), "R-0")
+        val c1 = course("C1", mapOf(2 to listOf("3", "6", "7")), "R-1")
+        val sent = WearProtocol.Schedule.decodeCourseChanges(
+            """{"C1":{"2026-11-03":[{"periods":["3"],"cancelled":false,"room":"R-Y","start":"14:20","end":"15:10"}]}}""",
+        )
+        val s = snapshot(listOf(c0, c1), sent.byCourse)
+        assertEquals("ongoing C0 56 12:20-14:10 R-0 next=C1 3 14:20 R-Y chg=false", now(s, tuesday, at(13, 20)))
+    }
 }
