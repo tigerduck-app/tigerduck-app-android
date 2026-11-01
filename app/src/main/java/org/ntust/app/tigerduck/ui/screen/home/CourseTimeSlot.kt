@@ -24,8 +24,8 @@ data class CourseTimeSlot(
     val date: Date,
     /** Whether the school cancelled this class. A cancelled class stays on the slider, struck through. */
     val isCancelled: Boolean = false,
-    /** The class as the school changed it, for the course detail; null for one built without the feed. */
-    val classSlot: org.ntust.app.tigerduck.shared.timeline.ClassSlot? = null,
+    /** The class as the school changed it, for the course detail. */
+    val classSlot: org.ntust.app.tigerduck.shared.timeline.ClassSlot,
     /** The room the school moved this class to; null keeps the timetable's. */
     val movedRoom: String? = null,
     /** Whether the school moved this class's start or end off the timetable's. */
@@ -85,7 +85,7 @@ data class CourseTimeSlot(
 
     /** Whether [at] is within this class, by the one end rule: from its start, over from its end. */
     fun isGoingOn(at: Date): Boolean =
-        classSlot?.isOn(at.toInstant()) ?: (at >= start && at < end)
+        classSlot.isOn(at.toInstant())
 }
 
 /** This slot's day, in Taipei tz. */

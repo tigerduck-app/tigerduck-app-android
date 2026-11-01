@@ -41,9 +41,14 @@ data class ClassSlot(
     /** 1 = Monday … 7 = Sunday, as course schedules are keyed. */
     val weekday: Int get() = date.dayOfWeek.value
 
-    val startsAt: Instant get() = date.atTime(start).atZone(TaipeiClock.zone).toInstant()
+    // Kept once made: the slider asks for these per class on every frame of a drag.
+    val startsAt: Instant by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        date.atTime(start).atZone(TaipeiClock.zone).toInstant()
+    }
 
-    val endsAt: Instant get() = date.atTime(end).atZone(TaipeiClock.zone).toInstant()
+    val endsAt: Instant by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        date.atTime(end).atZone(TaipeiClock.zone).toInstant()
+    }
 
     val isCancelled: Boolean get() = changes.any { it.kind == Kind.CANCELLED }
 
