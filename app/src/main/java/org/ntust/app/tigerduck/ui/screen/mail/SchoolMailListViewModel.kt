@@ -90,7 +90,7 @@ class SchoolMailListViewModel @Inject constructor(
          * falls through to the real Inbox folder, same as before All mail existed.
          */
         val selected: FolderSelection = FolderSelection.AllMail,
-        /** The server names of the folders All mail merges. Empty until [load] has resolved them. */
+        /** The server names of the folders All mail merges ([FolderSelection.AllMail.foldersIn]). Empty until [load] has resolved them. */
         val mergedFolders: List<String> = emptyList(),
         val messages: List<MailRow> = emptyList(),
         /**
@@ -128,8 +128,8 @@ class SchoolMailListViewModel @Inject constructor(
         /** A further page of the latest search's matches on its way ([loadMoreSearchResults]). */
         val isPagingSearch: Boolean = false,
         /**
-         * When the folders on screen last had their newest page fetched -- for All mail the older
-         * of its two -- or 0 while one of them never has. For the sync dot's "Last synced" row;
+         * When the folders on screen last had their newest page fetched -- for All mail the oldest
+         * of them -- or 0 while one of them never has. For the sync dot's "Last synced" row;
          * see [MailChecker.fetchedAt].
          */
         val fetchedAt: Long = 0L,
@@ -165,7 +165,7 @@ class SchoolMailListViewModel @Inject constructor(
         /**
          * True whenever the inbox's own mail is genuinely on screen: viewing Inbox directly, or
          * viewing All mail, which always merges Inbox in whenever it exists as a chip at all (see
-         * [FolderSelection.AllMail.MERGED] and the `merged.size > 1` guard in [load]). Everything
+         * [FolderSelection.AllMail.foldersIn] and the `merged.size > 1` guard in [load]). Everything
          * that used to read "only do this for the inbox" -- new-mail polling, moving the
          * notification seen marker -- reads this instead, so defaulting to All mail costs the user
          * none of that.
@@ -554,7 +554,7 @@ class SchoolMailListViewModel @Inject constructor(
                     loadDropped()
                     return@launch
                 }
-                val merged = FolderSelection.AllMail.MERGED.mapNotNull { folders.nameOf(it) }
+                val merged = FolderSelection.AllMail.foldersIn(folders)
                 val real = SpecialFolder.entries.mapNotNull { kind ->
                     folders.nameOf(kind)?.let { FolderChip(FolderSelection.Real(it), kind) }
                 }
@@ -785,7 +785,7 @@ class SchoolMailListViewModel @Inject constructor(
      * The mail leaves its row's folder through the feed ([apply]), and arrives in [target] under a
      * UID only the server knows, which the feed can only mark for a fetch. A move from the mail's
      * own screen is fetched as the list appears again ([loadIfNeeded]); this list is on screen
-     * already, so a [target] it shows -- the other of All mail's two folders -- is fetched now, or
+     * already, so a [target] it shows -- another folder All mail merges -- is fetched now, or
      * the mail would be gone from a list it still belongs on until the next pull.
      */
     fun moveTo(target: String) {
@@ -954,14 +954,14 @@ class SchoolMailListViewModel @Inject constructor(
 
     /**
      * Exactly one page per real folder the selection covers: one round trip for a normal folder,
-     * two for All mail, however far the merged list has already been scrolled. That bound is the
+     * one per merged folder for All mail, however far the merged list has already been scrolled. That bound is the
      * reason the merged view refreshes only the newest page per folder -- Mail2000 caps
      * connections and starts answering "server busy" under load.
      *
      * True once the server's first page is on screen; false when the fetch failed, or when the
      * selection changed before it landed and the page was dropped.
      */
-    private suspend fun fetchFirstPage(): Boolean {
+    private suspend fun fetchFirstPage(discard: Set<String> = emptySet()): Boolean {
         val selection = _state.value.selected
         val targets = _state.value.targets
         if (targets.isEmpty()) {
@@ -980,27 +980,36 @@ class SchoolMailListViewModel @Inject constructor(
             // that did reach the server. And no request of the batch goes out once the account
             // or the view that asked has gone -- asked with the session held, so a request that
             // waited behind another is not sent under the next account's credentials either.
-            val pages = targets.map { folder ->
-                val page = repository.loadPage(folder, null) { stillCurrent(selection, generation) }
-                dated(folder, generation)
-                folder to page
+            val read = readFolderPages(targets, { dropped(it, generation) }, ::endsServerSearch) { folder ->
+                repository.loadPage(folder, null) { stillCurrent(selection, generation) }.also { dated(folder, generation) }
             }
+            val pages = read.pages
+            if (pages.isEmpty()) read.failure?.let { throw it } // every folder failed: the load did
             if (!stillCurrent(selection, generation)) return false
+            val loaded = pages.map { it.first }
             listGeneration++
             folderValidity = folderValidity + pages.associate { (folder, page) -> folder to page.uidValidity }
-            _state.update { it.copy(messages = rowsOf(selection, pages), cursors = cursorsOf(pages), loadState = LoadState.Loaded) }
-            lookedAt = clock.now()
+            val kept = read.failed - discard // a folder that did not answer keeps its rows, unless recreated
+            _state.update { st ->
+                st.copy(
+                    messages = ordered(selection, rowsOf(selection, pages) + st.messages.filter { it.folder in kept }),
+                    cursors = cursorsOf(pages) + st.cursors.filterKeys { it in kept }, loadState = LoadState.Loaded,
+                )
+            }
+            lookedAt = clock.now().takeIf { read.failure == null } ?: lookedAt
             // The server's rows are on screen now, so the folders show their own dates again.
-            cachePainted -= targets.toSet()
+            cachePainted -= loaded.toSet()
             showFetchedAt()
             // A mark set before these pages were asked for is answered by them; one set since is not.
-            targets.forEach { folder -> if ((staleFolders[folder] ?: 0) <= since) staleFolders.remove(folder) }
-            refetchIfChangedSince(targets, since)
+            loaded.forEach { folder -> if ((staleFolders[folder] ?: 0) <= since) staleFolders.remove(folder) }
+            refetchIfChangedSince(loaded, since)
             // Was "only for Inbox itself"; All mail shows the inbox's own mail too, so it must
             // move the notification seen marker exactly as viewing Inbox always did.
-            if (_state.value.inboxInView) {
+            if (_state.value.inboxInView && _state.value.inboxFolder.let { it == null || it in loaded }) {
                 runCatching { checker.noteSeenByPage(repository.inboxStatus { account.accountGeneration == generation }, generation) }
             }
+            // Reported as a load's failure is (as on iOS), unless the view or account moved on meanwhile.
+            read.failure?.let { if (stillCurrent(selection, generation)) fail(it, generation); return false }
             return true
         } catch (e: MailError) {
             if (dropped(e, generation)) return false
@@ -1036,7 +1045,7 @@ class SchoolMailListViewModel @Inject constructor(
         // the folder recreated -- starts none for it: [fetchFirstPage] would otherwise take the new
         // selection and account for its own and send, cache and date a load on their behalf.
         if (!stillCurrent(selection, generation) || list != listGeneration) return false
-        if (fetch && fetchFirstPage()) return true
+        if (fetch && fetchFirstPage(discard = folders.keys)) return true
         // Only while this is still the list that was found stale: a newer one owns its rows.
         if (stillCurrent(selection, generation) && list == listGeneration) {
             _state.update { st -> st.copy(messages = st.messages.filterNot { it.folder in folders }, cursors = st.cursors - folders.keys) }
@@ -1118,9 +1127,9 @@ class SchoolMailListViewModel @Inject constructor(
 
     /**
      * Per-folder cursors: every folder the selection covers that still has older mail is paged
-     * one page further and the result re-merged. So the merged list runs out only once *both*
-     * folders genuinely have ([UiState.cursors] empty), never merely because the sparser of the
-     * two did -- it never stops short while the server still has mail to give.
+     * one page further and the result re-merged. So the merged list runs out only once *every*
+     * folder genuinely has none ([UiState.cursors] empty), never merely because the sparsest of
+     * them did -- it never stops short while the server still has mail to give.
      *
      * Each page is merged the way [mergeOlderPage] says, not appended: a row the list already
      * holds takes the server's flags, and one inside the page's range the server no longer lists
@@ -1153,10 +1162,12 @@ class SchoolMailListViewModel @Inject constructor(
                 // page, which may since have had a newer flag from another client that no change
                 // tells of, and would only be written over (see [pageWith]).
                 val windows = mutableMapOf<String, Int>()
-                val pages = cursors.entries.sortedBy { it.key }.map { (folder, before) ->
+                val read = readFolderPages(cursors.keys.sorted(), { dropped(it, generation) }, ::endsServerSearch) { folder ->
                     windows[folder] = arrived.size
-                    folder to repository.loadPage(folder, before) { stillCurrent(selection, generation) && list == listGeneration }
+                    repository.loadPage(folder, cursors.getValue(folder)) { stillCurrent(selection, generation) && list == listGeneration }
                 }
+                val pages = read.pages
+                if (pages.isEmpty()) read.failure?.let { throw it }
                 if (!stillCurrent(selection, generation) || list != listGeneration) return
                 // A folder recreated since its first page: the older page's UIDs name other mail
                 // than the list's, so it is not merged, and the list starts again from the top.
@@ -1173,9 +1184,10 @@ class SchoolMailListViewModel @Inject constructor(
                     }
                     st.copy(
                         messages = if (selection is FolderSelection.AllMail) merged.sortedWith(NEWEST_FIRST) else merged.sortedByDescending { it.uid },
-                        cursors = st.cursors - cursors.keys + cursorsOf(pages),
+                        cursors = st.cursors - pages.map { it.first }.toSet() + cursorsOf(pages),
                     )
                 }
+                read.failure?.let { fail(it, generation); return }
                 // A page that adds nothing on screen leaves no new last row to ask for the next one,
                 // so a few more are fetched straight away ([EMPTY_PAGE_WALKBACK]).
                 if (_state.value.displayed.lastOrNull()?.key != end || walkedBack == EMPTY_PAGE_WALKBACK) return
@@ -1470,8 +1482,8 @@ class SchoolMailListViewModel @Inject constructor(
      * Every other folder on screen -- Sent in All mail, or a folder viewed on its own -- is asked
      * for its STATUS as well, the cheapest round trip there is, and dated when it answers. A
      * check that finds nothing new must still move the "Last synced" row, or a time that stands
-     * still reads as a page that stopped syncing; All mail is dated by the older of its two
-     * folders, so both have to be verified for its row to move. A folder whose check failed keeps
+     * still reads as a page that stopped syncing; All mail is dated by the oldest of its
+     * folders, so every one has to be verified for its row to move. A folder whose check failed keeps
      * its date, and so does one whose rows a failed load left from the cache ([cachePainted]). The
      * background [MailChecker] stays the inbox's alone: it is for notifications.
      */
@@ -1497,15 +1509,24 @@ class SchoolMailListViewModel @Inject constructor(
                 }
                 checker.noteSeenByPage(status, generation)
             }
+            var failure: MailError? = null // one folder's failed check is reported after the others'
             for (folder in s.targets) {
                 if (folder == s.inboxFolder) continue
+                if (failure != null && endsServerSearch(failure)) break
                 // Asked only while still on screen -- with the session held, right before the
                 // STATUS goes out, since it can wait there behind another request while the chip
                 // moves on. A folder that left the screen is left alone; the next tick polls
                 // whatever is on screen then.
-                repository.status(folder) { stillCurrent(selection, generation) }
+                try {
+                    repository.status(folder) { stillCurrent(selection, generation) }
+                } catch (e: MailError) {
+                    if (dropped(e, generation)) throw e
+                    if (failure == null || endsServerSearch(e)) failure = e
+                    continue
+                }
                 if (folder !in cachePainted) dated(folder, generation)
             }
+            failure?.let { throw it }
             // Every folder on screen answered: a look as good as a page, for the next return.
             lookedAt = clock.now()
         } catch (e: MailError) {
@@ -1608,8 +1629,8 @@ class SchoolMailListViewModel @Inject constructor(
     private fun loadDropped() = _state.update { if (it.loadState is LoadState.Loading) it.copy(loadState = LoadState.Idle) else it }
 
     /**
-     * The date of the folders on screen: the older of All mail's two, and 0 while one of them has
-     * none, as on the iPhone -- a merged list is only as fresh as its staler half. A folder whose
+     * The date of the folders on screen: the oldest of All mail's folders, and 0 while one of them has
+     * none, as on the iPhone -- a merged list is only as fresh as its stalest folder. A folder whose
      * rows are still the cache's shows the date it had when they were painted ([cachePainted]).
      * Nothing is on screen to date before [load] has resolved the folders.
      */
@@ -1635,27 +1656,6 @@ class SchoolMailListViewModel @Inject constructor(
      */
     private fun ordered(selection: FolderSelection, rows: List<MailRow>): List<MailRow> =
         if (selection is FolderSelection.AllMail) rows.sortedWith(NEWEST_FIRST) else rows
-
-    /**
-     * [page], an older page of [folder], merged into [rows]: every row it lists wins, and a row of
-     * [folder] inside the page's UID range that it does not list was read, moved or deleted
-     * elsewhere and goes. Rows outside that range, and every other folder's, stay.
-     *
-     * The range overlaps rows already listed whenever mail below the cursor was expunged, as the
-     * sequence numbers it was taken from have shifted down since. A single folder's order is the
-     * server's, UID descending, which re-sorting keeps.
-     */
-    private fun mergeOlderPage(rows: List<MailRow>, folder: String, page: MailPage): List<MailRow> {
-        val window = page.windowUids
-            ?: page.messages.takeIf { it.isNotEmpty() }?.let { m -> m.minOf { it.uid }..m.maxOf { it.uid } }
-        val kept = if (window == null) rows else rows.filterNot { it.folder == folder && it.uid in window }
-        val fresh = page.messages.map { MailRow(folder, it, page.uidValidity) }
-        val freshKeys = fresh.mapTo(HashSet()) { it.key }
-        return kept.filterNot { it.key in freshKeys } + fresh
-    }
-
-    private fun cursorsOf(pages: List<Pair<String, MailPage>>): Map<String, Int> =
-        pages.mapNotNull { (folder, page) -> page.nextBeforeSeq?.let { folder to it } }.toMap()
 
     /**
      * A load failed: the page itself has nothing to show, so [LoadState.Failed] is the truth. A
