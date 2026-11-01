@@ -30,7 +30,14 @@ class MoodleColorStoreTest {
 
     private fun store(book: MoodleColorBook = MoodleColorBook()) = MoodleColorStore(file, cache, book) { student }
 
-    private fun waitForFile() = repeat(100) { if (!file.exists()) Thread.sleep(20) }
+    /** Writes are queued, and an earlier state can land first, so a test names what it's waiting for. */
+    private fun waitForFile(containing: String = "") {
+        val deadline = System.currentTimeMillis() + 10_000
+        while (!file.exists() || containing !in file.readText()) {
+            assertTrue("no file holding \"$containing\" yet", System.currentTimeMillis() < deadline)
+            Thread.sleep(20)
+        }
+    }
 
     @Before
     fun setUp() {
@@ -71,7 +78,7 @@ class MoodleColorStoreTest {
         first.reconcile(listOf(course("CS1")))
         // The upgrade's term is absorbed; a later term's course is new.
         first.reconcile(listOf(course("CS1"), later))
-        waitForFile()
+        waitForFile(containing = "CS2")
         assertTrue(file.exists())
 
         val second = MoodleColorBook()
@@ -122,7 +129,7 @@ class MoodleColorStoreTest {
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
         first.reconcile(listOf(course("CS1"), course("CS2")))
-        waitForFile()
+        waitForFile(containing = "CS2")
 
         student = "B00015998"
         val second = MoodleColorBook()
@@ -160,7 +167,7 @@ class MoodleColorStoreTest {
         // The ids came back from the cache, and the new student's courses are new.
         val spring = Course(courseNo = "CS3", courseName = "CS3", moodleIdNumber = "1152CS3")
         assertTrue(book.reconcile(listOf(course("CS1"), spring)))
-        waitForFile()
+        waitForFile(containing = "CS3")
 
         student = "B00015998"
         val next = MoodleColorBook()
