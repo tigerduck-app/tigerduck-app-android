@@ -57,7 +57,7 @@ fun SubPageScaffold(
         topBar = {
             TopAppBar(
                 windowInsets = NoTopBarInsets,
-                title = { Text(title) },
+                title = { if (title.isNotEmpty()) Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(

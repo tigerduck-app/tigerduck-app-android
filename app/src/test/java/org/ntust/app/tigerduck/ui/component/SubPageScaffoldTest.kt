@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -65,6 +66,13 @@ class SubPageScaffoldTest {
         composeRule.onNodeWithText("Storage").assertIsDisplayed()
         composeRule.onNodeWithContentDescription(backLabel()).assertIsDisplayed()
         composeRule.onAllNodes(hasClickAction()).assertCountEquals(1)
+    }
+
+    @Test
+    fun `an empty title leaves the title slot empty`() {
+        composeRule.setContent { SubPageScaffold(title = "", onBack = {}) {} }
+        composeRule.onNodeWithContentDescription(backLabel()).assertIsDisplayed()
+        composeRule.onAllNodes(hasText("")).assertCountEquals(0)
     }
 
     @Test
