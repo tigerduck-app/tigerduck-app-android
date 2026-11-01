@@ -2,9 +2,12 @@ package org.ntust.app.tigerduck.ui.screen.announcements
 
 import android.app.Application
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -33,4 +36,5 @@ internal fun testDemoAccount(
     cache,
     prefs,
     ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { null }, Dispatchers.Unconfined),
+    AccountSessions(DebugFixtureStore(context), CoroutineScope(Dispatchers.Unconfined), SignOutOwed(context.getSharedPreferences("account-wipe-test", Context.MODE_PRIVATE))),
 )

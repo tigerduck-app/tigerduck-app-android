@@ -43,6 +43,7 @@ import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import java.time.LocalDateTime
 import java.util.Date
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -126,7 +127,7 @@ class HomeViewModelTest {
             dispatcher.scheduler.runCurrent()
 
             // What the class table does for an add: its edit is saved, with no sync round after it.
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
 
             assertEquals(listOf("CS1001"), homeCourseNos())
         } finally {
@@ -142,7 +143,7 @@ class HomeViewModelTest {
             // A swipe still on its way to disk: Home holds the id, the file does not.
             home.markedCompletedIds.let { (it as MutableStateFlow<Set<String>>).value = setOf("7") }
 
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
             assertEquals(listOf("CS1001"), homeCourseNos())
 
             assertEquals(setOf("7"), home.markedCompletedIds.value)
@@ -159,7 +160,7 @@ class HomeViewModelTest {
             val tracker = RuntimeEnvironment.getApplication().getSharedPreferences("notification_tracker", 0)
             tracker.edit().putStringSet("scheduled_ids", setOf("armed")).commit()
 
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
             assertEquals(listOf("CS1001"), homeCourseNos())
 
             assertEquals(setOf("armed"), tracker.getStringSet("scheduled_ids", null))

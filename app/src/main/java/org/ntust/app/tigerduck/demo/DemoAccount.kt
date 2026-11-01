@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.core.os.ConfigurationCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -47,6 +49,7 @@ class DemoAccount @Inject constructor(
     private val bulletinCache: BulletinCache,
     private val appPreferences: AppPreferences,
     private val importedClassTables: ImportedClassTableStore,
+    private val sessions: AccountSessions,
 ) {
     /** Whether the demo account is signed in. Read live: sign-in flips it without a restart. */
     val isActive: Boolean
@@ -146,8 +149,10 @@ class DemoAccount @Inject constructor(
         )
     }
 
+    @OptIn(StartsAccountWork::class)
     private suspend fun write(fixture: DemoFixture) {
-        fixture.courses?.let { dataCache.saveCourses(it) }
+        val signIn = sessions.school.current
+        fixture.courses?.let { dataCache.saveCourses(it, signIn) }
         // The ids the course detail finds the demo courses' Moodle content under. A course has
         // no idnumber of its own, so it is looked up as `<term><courseNo>`, as one added by hand.
         fixture.moodle?.let { moodle ->
@@ -155,15 +160,15 @@ class DemoAccount @Inject constructor(
             val ids = moodle.courses.associate {
                 MoodleCourseIds.normalizedIdnumber(term + it.courseNo) to it.moodleId
             }
-            dataCache.saveMoodleCourseIds(dataCache.loadMoodleCourseIds() + ids)
+            dataCache.saveMoodleCourseIds(dataCache.loadMoodleCourseIds() + ids, signIn)
         }
-        fixture.assignments?.let { dataCache.saveAssignments(it) }
+        fixture.assignments?.let { dataCache.saveAssignments(it, signIn) }
         // The assignments' pages read these, as a round would have kept them.
-        fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty())) }
+        fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty()), signIn) }
         // Only while still the demo account, asked under the cache's lock: a sign-out exits it
         // before its clear, which a write let through earlier lands before.
         fixture.bulletins?.let { bulletins -> bulletinCache.saveIf(bulletins, fetchedAt = null) { isActive } }
-        fixture.calendar?.let { dataCache.saveCalendarEvents(it) }
+        fixture.calendar?.let { dataCache.saveCalendarEvents(it, signIn) }
     }
 
     /**

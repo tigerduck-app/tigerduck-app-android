@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /** Course ignores over real files, with the backend faked. */
@@ -483,7 +484,7 @@ class CourseIgnoreSyncTest {
 
     @Test
     fun `a course another device added back and ignores takes its setting in that same sync`() = runTest {
-        cache.saveDeletedCourseNos(setOf(CourseTombstoneKeys.key("1141", "BBB")))
+        cache.saveDeletedCourseNos(setOf(CourseTombstoneKeys.key("1141", "BBB")), testSignIn())
 
         sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "BBB" to true), signIn)
 
@@ -492,7 +493,7 @@ class CourseIgnoreSyncTest {
 
     @Test
     fun `a term reset after the snapshot was fetched is left out of it`() = runTest {
-        cache.saveSemesterResetAt("1141", 6_000)
+        cache.saveSemesterResetAt("1141", 6_000, testSignIn())
 
         sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), signIn)
 
@@ -590,6 +591,7 @@ class CourseIgnoreSyncTest {
         cache.saveCourses(
             listOf(Course(courseNo = "AAA", courseName = "A", moodleIdNumber = "1141AAA", moodleNumericCourseId = 77)),
             "1141",
+            testSignIn(),
         )
 
         sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), series.end())
@@ -609,6 +611,7 @@ class CourseIgnoreSyncTest {
                 )
             ),
             "1141",
+            testSignIn(),
         )
 
         sync.applySnapshot(snapshot(fetchedAtMs = 5_000, "AAA" to true), signIn)
@@ -622,7 +625,7 @@ class CourseIgnoreSyncTest {
         // server again and fell back to the check's older snapshot, which
         // would leave 1141 out as a term reset after it.
         cache.saveIgnoredCourses(setOf("1141:AAA"), signIn)
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
 
         sync.pushLocal(snapshot(fetchedAtMs = 1_000L), signIn)
 
@@ -632,7 +635,7 @@ class CourseIgnoreSyncTest {
     // ---- Use Local's clears in the terms it reset (tigerduck-app-android#307) ----
 
     private suspend fun cacheTerm(vararg courseNos: String) =
-        cache.saveCourses(courseNos.map { Course(courseNo = it, courseName = it, moodleIdNumber = "1141$it") }, "1141")
+        cache.saveCourses(courseNos.map { Course(courseNo = it, courseName = it, moodleIdNumber = "1141$it") }, "1141", testSignIn())
 
     @Test
     fun `Use Local clears a course only the check's snapshot ignored in a term it reset`() = runTest {
@@ -640,7 +643,7 @@ class CourseIgnoreSyncTest {
         // took that override with it, and the server read after it has none:
         // without a clear, another device's resend would bring it back.
         cacheTerm("AAA", "BBB")
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
 
         sync.pushLocal(
             snapshot(fetchedAtMs = 3_000L),
@@ -655,7 +658,7 @@ class CourseIgnoreSyncTest {
     @Test
     fun `the clear goes out too when Use Local falls back to the check's snapshot`() = runTest {
         cacheTerm("AAA", "BBB")
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
         val checked = snapshot(fetchedAtMs = 1_000L, "BBB" to true)
 
         sync.pushLocal(checked, signIn, resetTerms = setOf("1141"), checked = checked)
@@ -669,7 +672,7 @@ class CourseIgnoreSyncTest {
         // the upload, so there is no row to clear.
         cacheTerm("AAA")
         cache.saveIgnoredCourses(setOf("1141:AAA"), signIn)
-        cache.saveSemesterResetAt("1141", 2_000L)
+        cache.saveSemesterResetAt("1141", 2_000L, testSignIn())
 
         sync.pushLocal(
             snapshot(fetchedAtMs = 3_000L),

@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -244,7 +245,7 @@ class HomePullAcrossSignInTest {
             // The new session's first edits, made while the old run's fetch is still out.
             val course = Course(courseNo = COURSE, courseName = "New session's", isManual = true)
             val added = Course(courseNo = ADDED, courseName = "New session's", isManual = true)
-            w.dataCache.saveCourses(listOf(course, added), TERM)
+            w.dataCache.saveCourses(listOf(course, added), TERM, testSignIn())
             val signIn = w.sessions.school.signIns.current
             marks.keep("8", "locally_completed", signIn)
             ignores.setIgnored(TERM, COURSE, MOODLE_ID, null, ignore = true, signIn = signIn)
@@ -264,7 +265,7 @@ class HomePullAcrossSignInTest {
         pullAcross(body = """{"assignments":[],"current_revision":42}""") {
             signOutAndBackIn()
             // This phone's marks with an empty server: the old run takes them for a first sync.
-            w.dataCache.saveIgnoredAssignments(setOf("7"))
+            w.dataCache.saveIgnoredAssignments(setOf("7"), testSignIn())
             state.ignoredAssignmentIds.value = setOf("7")
         }
 

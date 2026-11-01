@@ -82,7 +82,7 @@ class HomeMarkSyncTest {
         // tigerduck-app-android#209: the switch keeps this phone's marks
         // apart from the server's, as on iOS.
         prefs.syncAssignments = false
-        cache.saveMarkedCompletedAssignments(setOf("1"))
+        cache.saveMarkedCompletedAssignments(setOf("1"), testSignIn())
 
         fullSync(server(ignored = setOf("2")))
 
@@ -95,7 +95,7 @@ class HomeMarkSyncTest {
         prefs.assignmentMarksSyncedOnce = true
         backendUp = false
         // What HomeViewModel.toggleOverride does for a tap.
-        cache.saveMarkedCompletedAssignments(setOf("3"))
+        cache.saveMarkedCompletedAssignments(setOf("3"), testSignIn())
         state.markedCompletedIds.value = setOf("3")
         unsent.send("3", STATUS_COMPLETED, testSignIn())
 

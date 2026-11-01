@@ -19,6 +19,8 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleGradeItem
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.lang.reflect.Type
 
 /** One store per account and course, dropped at sign-out, on the demo account's Moodle in demo mode. */
@@ -49,6 +51,8 @@ class MoodleCourseRepositoryTest {
     private var demoGrade = "demo"
     private val languageChanges = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     private val cachedFor = mutableListOf<String>()
+    private val series = SignInSeries()
+    private val cachedUnder = mutableListOf<SignIn>()
 
     private val noCache = object : MoodleCachePort {
         override suspend fun <T> load(type: Type, name: String): Pair<T, Long>? = null
@@ -62,7 +66,7 @@ class MoodleCourseRepositoryTest {
         liveApi = liveApi,
         demoApi = { Api(demoGrade) },
         idMap = { mapOf("1151CS3005301" to 5) },
-        cachePort = { account -> cachedFor += account; noCache },
+        cachePort = { account, signIn -> cachedFor += account; cachedUnder += signIn; noCache },
         picturesDir = { null },
         downloads = null,
         downloadsDir = { null },
@@ -71,7 +75,25 @@ class MoodleCourseRepositoryTest {
         appScope = backgroundScope,
         newScope = { kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.SupervisorJob()) },
         languageChanges = languageChanges,
+        currentSignIn = { series.current },
     )
+
+    @Test
+    fun `a store's copies are kept under the sign-in it was built in, and the next one's under its own`() = runTest(UnconfinedTestDispatcher()) {
+        val repository = repository()
+        repository.store(5)
+        val first = series.current
+
+        series.end()
+        authState.value = false
+        series.open()
+        authState.value = true
+        repository.store(5)
+
+        assertEquals(listOf(first, series.current), cachedUnder)
+        assertFalse(first.isCurrent)
+        assertTrue(cachedUnder.last().isCurrent)
+    }
 
     @Test
     fun `one store per account and course`() = runTest(UnconfinedTestDispatcher()) {
@@ -194,7 +216,7 @@ class MoodleCourseRepositoryTest {
             liveApi = live,
             demoApi = { null },
             idMap = { emptyMap() },
-            cachePort = { noCache },
+            cachePort = { _, _ -> noCache },
             picturesDir = { null },
             downloads = downloads,
             downloadsDir = { java.io.File(tmp.root, "account") },
@@ -237,7 +259,7 @@ class MoodleCourseRepositoryTest {
             liveApi = live,
             demoApi = { null },
             idMap = { emptyMap() },
-            cachePort = { noCache },
+            cachePort = { _, _ -> noCache },
             picturesDir = { null },
             downloads = downloads,
             downloadsDir = { java.io.File(tmp.root, "account") },

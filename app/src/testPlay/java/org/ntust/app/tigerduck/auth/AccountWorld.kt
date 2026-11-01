@@ -112,7 +112,7 @@ internal fun accountWorld(
     val dataCache = DataCache(context, academicCalendar)
     val bulletinCache = BulletinCache(context)
     val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
-    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported)
+    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions)
     val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures))
     val latch = PersistedStoredPasswordLatch(context, credentials)
     val sso = SsoLoginService(sessionManager, latch) { school }
@@ -140,7 +140,7 @@ internal fun accountWorld(
         scope = idleScope,
         now = System::currentTimeMillis,
     )
-    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, idleScope)
+    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, sessions, idleScope)
     val uiLanguage = UiLanguageMonitor(appPrefs)
     val pushApi = PushApiClient(backend ?: refusing, appPrefs, tokens)
     val liveUpdate = LiveActivityPreferences(context)
@@ -169,7 +169,7 @@ internal fun accountWorld(
         courseService = courseService,
         moodleService = MoodleService(
             sessionManager, moodleTokens, courseService, dataCache, appPrefs,
-            MoodleWebservice(sessionManager, moodleTokens), idleScope,
+            MoodleWebservice(sessionManager, moodleTokens), sessions, idleScope,
         ),
         dataCache = dataCache,
         bulletinCache = bulletinCache,

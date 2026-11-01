@@ -23,7 +23,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.academic.SemesterTerm
@@ -184,11 +183,6 @@ class BackgroundSyncWorker @AssistedInject constructor(
     }
 
     private suspend fun syncOverridesFromBackend(signIn: SignIn) {
-        // Pinned to the data this sync began with, as Home's is: once a sign-out wipes it, every
-        // cache write below drops rather than land in the files the next account starts from.
-        if (currentCoroutineContext()[DataCache.Generation] == null) {
-            return withContext(DataCache.Generation(dataCache.userDataGeneration)) { syncOverridesFromBackend(signIn) }
-        }
         // cloudSyncEnabled already reads false on fdroid at its source
         // (AppPreferences.cloudSyncEnabled), so no separate flavor check
         // is needed here.
@@ -229,7 +223,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // With the Assignments switch off, the re-enable check pending,
             // or marks the server lacks on the account's first sync here
             // (Home's sync sends those up), the marks stay as they are.
-            val marks = BackgroundMarkStep.over(prefs, dataCache, unsentMarks).pull(result)
+            val marks = BackgroundMarkStep.over(prefs, dataCache, unsentMarks).pull(result, signIn)
             if (marks.taken && authService.isStillSignedInAs(account)) signIn.ifCurrent { prefs.assignmentMarksSyncedOnce = true }
             val marksChanged = marks.changed
             courseIgnoreSync.applySnapshot(result, signIn)
@@ -320,7 +314,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // Mid-reset, or a snapshot fetched before this device reset the
         // term — see CourseSyncReconciler.termsResetAfter.
         val resetAt = dataCache.loadSemesterResetAt()
-        dataCache.clearSemesterResetAt(CourseSyncReconciler.resetStampsOutlived(result.fetchedAtMs, resetAt))
+        dataCache.clearSemesterResetAt(CourseSyncReconciler.resetStampsOutlived(result.fetchedAtMs, resetAt), signIn)
         val stale = CourseSyncReconciler.termsResetAfter(
             result.fetchedAtMs, resetAt, dataCache.resettingSemesters(),
         )
@@ -358,11 +352,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
             fetchedAtMs = result.fetchedAtMs,
         )
         // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
-        dataCache.recordServerDrops(semester, outcome.serverDrops)
+        dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)
         // A roster from here that listed one goes again, unchanged or not.
         pushApiClient.serverDropped(semester, outcome.serverDrops.keys)
         dataCache.restoredCoursesListed(
-            semester, result.serverCourses.filter { it.semester == semester }.map { it.courseNo }, result.fetchedAtMs,
+            semester, result.serverCourses.filter { it.semester == semester }.map { it.courseNo }, result.fetchedAtMs, signIn,
         )
         // Unconditional: a course hidden by an earlier build and left in
         // the cache is pruned on the first run, not the next change.
@@ -424,7 +418,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
     ) {
         val applied = BackgroundCourseOverrides.apply(
             dataCache, dataCache.currentSemesterCode(), overrides, held, syncColors, syncNames,
-            AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage),
+            AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage), signIn,
         ) ?: return
         widgetUpdater.requestUpdate()
         sendMovedColors(applied.courses, applied.moved) { moodleId, hex ->

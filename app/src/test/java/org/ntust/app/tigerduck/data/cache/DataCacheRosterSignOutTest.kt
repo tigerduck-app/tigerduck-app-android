@@ -16,7 +16,9 @@ import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
@@ -31,6 +33,7 @@ class DataCacheRosterSignOutTest {
 
     private val context = JvmContext()
     private lateinit var cache: DataCache
+    private val series = SignInSeries()
 
     private val timed = Course.fromSchedule("XA0000001", "Timed", schedule = mapOf(2 to listOf("3")))
     private val junk = Course.fromSchedule("XC0000003", "Junk", moodleIdNumber = "${TERM}XC0000003")
@@ -43,12 +46,13 @@ class DataCacheRosterSignOutTest {
     @Test
     fun `a course selection answer recorded across a sign-out leaves the next account no drops or rosters`() {
         runBlocking {
-            cache.saveCourses(listOf(timed, junk), TERM)
-            cache.recordSelectionRoster(TERM, listOf("XA0000001"))
+            cache.saveCourses(listOf(timed, junk), TERM, testSignIn())
+            cache.recordSelectionRoster(TERM, listOf("XA0000001"), testSignIn())
         }
 
-        recordAcross(clear = { cache.clearAllUserData() }) {
-            cache.recordSelectionRoster(TERM, listOf("XA0000001", "XD0000004"))
+        val signIn = series.current
+        recordAcross(clear = { signOutThen { cache.clearAllUserData() } }) {
+            cache.recordSelectionRoster(TERM, listOf("XA0000001", "XD0000004"), signIn)
         }
 
         assertNothingLeft()
@@ -57,12 +61,13 @@ class DataCacheRosterSignOutTest {
     @Test
     fun `a rebuild's drops recorded across a sign-out are not the next account's`() {
         runBlocking {
-            cache.saveCourses(listOf(timed, junk), TERM)
-            cache.saveSelectionDroppedNos(mapOf(TERM to listOf("XD0000004")))
+            cache.saveCourses(listOf(timed, junk), TERM, testSignIn())
+            cache.saveSelectionDroppedNos(mapOf(TERM to listOf("XD0000004")), testSignIn())
         }
 
-        recordAcross(clear = { cache.clearAllUserData() }) {
-            cache.recordFinalRoster(TERM, roster = listOf("XA0000001"), alsoListed = listOf("XN0000015"))
+        val signIn = series.current
+        recordAcross(clear = { signOutThen { cache.clearAllUserData() } }) {
+            cache.recordFinalRoster(TERM, roster = listOf("XA0000001"), alsoListed = listOf("XN0000015"), signIn)
         }
 
         assertNothingLeft()
@@ -71,12 +76,13 @@ class DataCacheRosterSignOutTest {
     @Test
     fun `a rebuild's drops recorded across a full reset are not kept`() {
         runBlocking {
-            cache.saveCourses(listOf(timed, junk), TERM)
-            cache.saveSelectionDroppedNos(mapOf(TERM to listOf("XD0000004")))
+            cache.saveCourses(listOf(timed, junk), TERM, testSignIn())
+            cache.saveSelectionDroppedNos(mapOf(TERM to listOf("XD0000004")), testSignIn())
         }
 
-        recordAcross(clear = { cache.clearEverything() }) {
-            cache.recordFinalRoster(TERM, roster = listOf("XA0000001"), alsoListed = listOf("XN0000015"))
+        val signIn = series.current
+        recordAcross(clear = { signOutThen { cache.clearEverything() } }) {
+            cache.recordFinalRoster(TERM, roster = listOf("XA0000001"), alsoListed = listOf("XN0000015"), signIn)
         }
 
         assertNothingLeft()
@@ -88,12 +94,18 @@ class DataCacheRosterSignOutTest {
         // older must neither replace the newer answer nor drop what the newer lists.
         val other = Course.fromSchedule("XB0000002", "Other", schedule = mapOf(3 to listOf("4")))
         runBlocking {
-            cache.saveCourses(listOf(timed, other), TERM)
-            cache.recordSelectionRoster(TERM, listOf("XA0000001", "XB0000002"), answeredAt = 2_000L)
-            assertEquals(RecordedSelection.Refused, cache.recordSelectionRoster(TERM, listOf("XA0000001"), answeredAt = 1_000L))
+            cache.saveCourses(listOf(timed, other), TERM, testSignIn())
+            cache.recordSelectionRoster(TERM, listOf("XA0000001", "XB0000002"), testSignIn(), answeredAt = 2_000L)
+            assertEquals(RecordedSelection.Refused, cache.recordSelectionRoster(TERM, listOf("XA0000001"), testSignIn(), answeredAt = 1_000L))
             assertEquals(SelectionAnswer(setOf("XA0000001", "XB0000002"), 2_000L), cache.selectionAnswerIn(TERM))
             assertFalse("XB0000002" in cache.loadSelectionDroppedNos()[TERM].orEmpty())
         }
+    }
+
+    // A sign-out ends the sign-in before it wipes anything, a full reset's included.
+    private suspend fun signOutThen(wipe: suspend () -> Unit) {
+        series.end()
+        wipe()
     }
 
     private fun assertNothingLeft() {

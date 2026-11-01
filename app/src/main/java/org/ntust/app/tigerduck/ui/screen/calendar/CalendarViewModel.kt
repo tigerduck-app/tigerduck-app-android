@@ -125,12 +125,10 @@ class CalendarViewModel @Inject constructor(
     // construction.
     private val fetchFlight = SingleFlight(viewModelScope)
 
-    private val refreshTriggers =
-        RefreshTriggers(CalendarRefreshPolicy, SystemClock::elapsedRealtime)
+    private val refreshTriggers = RefreshTriggers(CalendarRefreshPolicy, SystemClock::elapsedRealtime)
 
     /**
-     * Semester boundaries and school holidays, from the published academic
-     * calendar.
+     * Semester boundaries and school holidays, from the published academic calendar.
      *
      * Rebuilt on every read rather than cached because the holiday name is
      * locale-dependent and the app language can change under us. Cheap —
@@ -400,7 +398,9 @@ class CalendarViewModel @Inject constructor(
         }
     }
 
+    @OptIn(StartsAccountWork::class)
     private suspend fun fetchData() {
+        val signIn = sessions.school.current
         // Whatever asked for it, a pull included — see RefreshPolicy.minInterval.
         refreshTriggers.fetchStarted()
         _isLoading.value = true
@@ -420,7 +420,7 @@ class CalendarViewModel @Inject constructor(
             }
             if (schoolEvents.isNotEmpty() || assignments.isNotEmpty() || hadMoodleRows) {
                 _events.value = withAcademicEvents(current)
-                dataCache.saveCalendarEvents(current)
+                dataCache.saveCalendarEvents(current, signIn)
                 _syncCompleteEvent.tryEmit(Unit)
             }
         } catch (e: Exception) {

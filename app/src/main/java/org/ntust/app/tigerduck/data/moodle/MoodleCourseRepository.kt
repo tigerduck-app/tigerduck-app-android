@@ -15,6 +15,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
@@ -25,6 +27,8 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterial
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.io.File
 import java.lang.reflect.Type
 import javax.inject.Inject
@@ -46,7 +50,8 @@ class MoodleCourseRepository internal constructor(
     private val liveApi: MoodleCourseApi,
     private val demoApi: () -> MoodleCourseApi?,
     private val idMap: suspend () -> Map<String, Int>,
-    private val cachePort: (account: String) -> MoodleCachePort,
+    /** The account's copies on the device, written under [SignIn], the sign-in they were fetched in. */
+    private val cachePort: (account: String, signIn: SignIn) -> MoodleCachePort,
     private val picturesDir: (account: String) -> File?,
     /** The files downloaded on the device; null downloads nothing. */
     private val downloads: MoodleFileDownloads?,
@@ -64,10 +69,11 @@ class MoodleCourseRepository internal constructor(
     private val listedAssignments: () -> Flow<List<Assignment>> = { kotlinx.coroutines.flow.emptyFlow() },
     /** Where a page's submission status goes, for the cached list; see [AssignmentStatusWriter]. */
     private val takeStatus: suspend (SubmissionStatusAnswer) -> Unit = {},
-    /** The cache's generation now, which a page's request goes out under. */
-    private val cacheGeneration: () -> Int = { 0 },
+    /** The sign-in now, which a page's request goes out under. */
+    private val currentSignIn: () -> SignIn = SignInSeries().let { series -> { series.current } },
     private val monotonicNowMs: () -> Long = SystemClock::elapsedRealtime,
 ) {
+    @OptIn(StartsAccountWork::class)
     @Inject
     constructor(
         live: LiveMoodleCourseApi,
@@ -77,6 +83,7 @@ class MoodleCourseRepository internal constructor(
         authService: AuthService,
         uiLanguage: UiLanguageMonitor,
         statusWriter: AssignmentStatusWriter,
+        sessions: AccountSessions,
         @ApplicationScope appScope: CoroutineScope,
     ) : this(
         signedIn = { authService.authState.value },
@@ -90,7 +97,7 @@ class MoodleCourseRepository internal constructor(
         liveApi = live,
         demoApi = demoAccount::moodleApi,
         idMap = dataCache::loadMoodleCourseIds,
-        cachePort = { account -> DataCachePort(dataCache, account) },
+        cachePort = { account, signIn -> DataCachePort(dataCache, account, signIn) },
         picturesDir = { account -> File(dataCache.moodleFilesDir(account), "pictures") },
         downloads = downloads,
         downloadsDir = dataCache::moodleDownloadsDir,
@@ -101,7 +108,7 @@ class MoodleCourseRepository internal constructor(
         assignmentRecords = { dataCache.assignmentRecordsVersion.map { dataCache.loadAssignmentRecords() } },
         listedAssignments = { dataCache.assignmentsVersion.map { dataCache.loadAssignments() } },
         takeStatus = { answer -> statusWriter.take(answer) },
-        cacheGeneration = { dataCache.userDataGeneration },
+        currentSignIn = { sessions.school.current },
     )
 
     private val lock = Mutex()
@@ -180,7 +187,7 @@ class MoodleCourseRepository internal constructor(
                 records = assignmentRecords(),
                 listed = listedAssignments(),
                 takeStatus = takeStatus,
-                generation = cacheGeneration,
+                currentSignIn = currentSignIn,
                 monotonicNowMs = monotonicNowMs,
             )
         }
@@ -197,7 +204,7 @@ class MoodleCourseRepository internal constructor(
         val built = generation
         MoodleCacheContext(
             account = account,
-            cache = if (isDemo()) demoCache else cachePort(account),
+            cache = if (isDemo()) demoCache else cachePort(account, currentSignIn()),
             isCurrent = { generation == built && signedIn() && account() == account },
         )
     }
@@ -272,12 +279,16 @@ class MoodleCourseRepository internal constructor(
         }
     }
 
-    private class DataCachePort(private val dataCache: DataCache, private val account: String) : MoodleCachePort {
+    private class DataCachePort(
+        private val dataCache: DataCache,
+        private val account: String,
+        private val signIn: SignIn,
+    ) : MoodleCachePort {
         override suspend fun <T> load(type: Type, name: String): Pair<T, Long>? =
             dataCache.loadMoodleData<T>(type, name, account)?.let { it.value to it.fetchedAtMs }
 
         override suspend fun save(value: Any, fetchedAtMs: Long, name: String) =
-            dataCache.saveMoodleData(value, fetchedAtMs, name, account)
+            dataCache.saveMoodleData(value, fetchedAtMs, name, account, signIn)
     }
 
     private companion object {

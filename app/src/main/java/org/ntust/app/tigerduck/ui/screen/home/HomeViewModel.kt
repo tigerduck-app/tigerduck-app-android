@@ -56,6 +56,7 @@ import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentFilter
@@ -271,8 +272,9 @@ class HomeViewModel @Inject constructor(
         HomeAssignmentFilters.hasIgnored(all, ignoredIncludingCourses(all, ignored, courseKeys))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    private val saveIgnoredChannel = Channel<Set<String>>(Channel.CONFLATED)
-    private val saveMarkedCompletedChannel = Channel<Set<String>>(Channel.CONFLATED)
+    // Each with the sign-in the tap was made in, which the save holds on to.
+    private val saveIgnoredChannel = Channel<Pair<Set<String>, SignIn>>(Channel.CONFLATED)
+    private val saveMarkedCompletedChannel = Channel<Pair<Set<String>, SignIn>>(Channel.CONFLATED)
 
     // Swipes on Home, counted on the main thread; see reloadAdoptedMarks.
     private var markTaps = 0
@@ -340,13 +342,13 @@ class HomeViewModel @Inject constructor(
         //     }
         // }
         viewModelScope.launch {
-            for (ids in saveIgnoredChannel) {
-                dataCache.saveIgnoredAssignments(ids)
+            for ((ids, signIn) in saveIgnoredChannel) {
+                dataCache.saveIgnoredAssignments(ids, signIn)
             }
         }
         viewModelScope.launch {
-            for (ids in saveMarkedCompletedChannel) {
-                dataCache.saveMarkedCompletedAssignments(ids)
+            for ((ids, signIn) in saveMarkedCompletedChannel) {
+                dataCache.saveMarkedCompletedAssignments(ids, signIn)
             }
         }
         viewModelScope.launch {
@@ -459,7 +461,7 @@ class HomeViewModel @Inject constructor(
                 )
                 if (relabeled != _allCourses.value) {
                     updateCoursesAndAssignments(relabeled, _allAssignments.value)
-                    dataCache.saveCourses(relabeled)
+                    dataCache.saveCourses(relabeled, signInNow())
                 }
             }
         }
@@ -738,7 +740,7 @@ class HomeViewModel @Inject constructor(
                         val names = dataCache.loadCourseCustomNames()
                         val locale = AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage)
                         courses = commitFetchedTerm(
-                            dataCache, remote.semester, remote.courses, remote.onlyGains, remote.answer,
+                            dataCache, remote.semester, remote.courses, remote.onlyGains, remote.answer, remote.signIn,
                             waitingAdds = { pendingCourseAdds.waitingIn(remote.semester) },
                         ) { fetched, current, hidden ->
                             HomeCourseMerge.mergeRemote(
@@ -801,9 +803,9 @@ class HomeViewModel @Inject constructor(
     /**
      * A fetch's courses of [semester], and whether the term only gains them; see
      * [HomeCourseMerge.mergeRemote]. [answer] is the course selection answer they come from, as
-     * recorded; see [commitFetchedTerm].
+     * recorded, and [signIn] the sign-in the fetch began under; see [commitFetchedTerm].
      */
-    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String, val answer: SelectionAnswer?)
+    private class RemoteCourses(val courses: List<Course>, val onlyGains: Boolean, val semester: String, val answer: SelectionAnswer?, val signIn: SignIn)
 
     /**
      * One network round of the two enrolment sources (NTUST course-selection
@@ -821,6 +823,8 @@ class HomeViewModel @Inject constructor(
         studentId: String,
         password: String,
     ): Pair<RemoteCourses?, AssignmentsToStore?> = coroutineScope {
+        // Before the fetch: a sign-out while it runs drops what it brings.
+        val signIn = signInNow()
         // TTL-throttled, so this costs one request an hour however often Home
         // refreshes. Resolved before the gate below, which depends on it.
         semesterCatalog.refreshIfStale()
@@ -831,8 +835,6 @@ class HomeViewModel @Inject constructor(
         // 選課 for the next term opens weeks before it starts — importing them
         // here would file the *next* term's enrolments into this term's cache.
         val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
-        // Before the fetch: a sign-out while it runs drops its roster.
-        val generation = dataCache.writeGeneration()
 
         // Moodle webservice calls auth with a long-lived wstoken, so they
         // don't need the NTUST SSO cookies that ensureAuthenticated refreshes.
@@ -871,7 +873,7 @@ class HomeViewModel @Inject constructor(
         // Before anything overwrites the cache: a course that was in the
         // portal roster and is not in this answer was dropped in 加退選, and
         // the backend will keep serving it until someone deletes it by hand.
-        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }
         val moodleEnrolled = moodleEnrolledDef.await()
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
@@ -903,7 +905,7 @@ class HomeViewModel @Inject constructor(
                 TranscriptTerms.drawnCourses(looked, fromSelection = term.roster != null, cached = cachedByNo.keys),
                 onlyGains = term.onlyGains,
                 semester = semester,
-                answer = recorded?.answer,
+                answer = recorded?.answer, signIn = signIn,
             )
         }
 
@@ -932,10 +934,7 @@ class HomeViewModel @Inject constructor(
         coursesDef.await() to assignmentsDef.await()
     }
 
-    /**
-     * Reads the courses, assignments and marks off the cache and shows them, for a sync round that
-     * has ended.
-     */
+    /** Reads the courses, assignments and marks off the cache and shows them, for a sync round that has ended. */
     private suspend fun reloadFromCache() {
         if (!authService.authState.value) return
         val account = authService.storedStudentId
@@ -1068,20 +1067,21 @@ class HomeViewModel @Inject constructor(
     private fun toggleOverride(
         assignment: Assignment,
         primary: MutableStateFlow<Set<String>>,
-        primaryChannel: Channel<Set<String>>,
+        primaryChannel: Channel<Pair<Set<String>, SignIn>>,
         secondary: MutableStateFlow<Set<String>>,
-        secondaryChannel: Channel<Set<String>>,
+        secondaryChannel: Channel<Pair<Set<String>, SignIn>>,
         statusWhenSet: String,
     ) {
+        val signIn = signInNow()
         val id = assignment.assignmentId
         markTaps++
         val wasSet = id in primary.value
         primary.update { if (wasSet) it - id else it + id }
         if (!wasSet) {
             secondary.update { it - id }
-            secondaryChannel.trySend(secondary.value)
+            secondaryChannel.trySend(secondary.value to signIn)
         }
-        primaryChannel.trySend(primary.value)
+        primaryChannel.trySend(primary.value to signIn)
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
@@ -1091,7 +1091,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Kept on disk until it lands; a failure is logged there.
-                unsentMarks.send(id, status, signInNow())
+                unsentMarks.send(id, status, signIn)
             } finally {
                 // Always release the in-flight lock: from here on a PATCH
                 // that failed is protected by UnsentMarks, which lets the id

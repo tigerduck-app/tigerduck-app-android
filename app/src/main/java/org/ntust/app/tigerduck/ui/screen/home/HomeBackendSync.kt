@@ -27,7 +27,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -167,12 +166,6 @@ class HomeBackendSync @Inject constructor(
      * read once where it starts.
      */
     suspend fun pull(state: HomeSyncState, signIn: SignIn, retried: Boolean = false) {
-        // Pinned to the data this sync began with: once a sign-out wipes it, every cache write
-        // below drops, so a sync that outlives one cannot write the departing account's courses,
-        // deletions and marks into the files the next account starts from.
-        if (currentCoroutineContext()[DataCache.Generation] == null) {
-            return withContext(DataCache.Generation(dataCache.userDataGeneration)) { pull(state, signIn, retried) }
-        }
         // cloudSyncEnabled already reads false on fdroid at its source
         // (AppPreferences.cloudSyncEnabled), so no separate flavor check
         // is needed here.
@@ -333,15 +326,14 @@ class HomeBackendSync @Inject constructor(
      * The terms the snapshot asks this account's roster of (`roster_requests`), answered from
      * course selection; see [TermCourseSync.answerRosterRequests]. Launched, never awaited: the
      * sync this refresh shows is done, and the school takes seconds. On the application scope,
-     * pinned to the data this sync began with, so a sign-out meanwhile drops what it writes, and
-     * to [signIn], the sign-in the snapshot was fetched as, whose token alone the roster goes with.
+     * pinned to [signIn], the sign-in the snapshot was fetched as, so a sign-out meanwhile drops
+     * what it writes, and its token alone is what the roster goes with.
      */
     private suspend fun answerRosterRequests(requests: List<String>, signIn: SignIn) {
         if (requests.isEmpty()) return
         val studentId = authService.storedStudentId ?: return
         val password = authService.storedPassword ?: return
-        val pinned = currentCoroutineContext()[DataCache.Generation] ?: return
-        appScope.launch(pinned) {
+        appScope.launch {
             runCatching { termCourseSync.answerRosterRequests(requests, studentId, password, signIn) }
                 .onSuccess { asked ->
                     // The open screens and the widget read the term again, as after the worker's sync.
@@ -430,7 +422,7 @@ class HomeBackendSync @Inject constructor(
         // this commit's business.
         val courses = state.allCourses.value.ifEmpty { return false }
 
-        CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, held)
+        CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, signIn, held)
 
         CourseSyncReconciler.applyColorOverrides(
             courses = courses,
@@ -441,7 +433,7 @@ class HomeBackendSync @Inject constructor(
             val updated = outcome.courses
             Log.i(TAG, "[sync-color] applying ${updated.count { c -> c.customColorHex != null }} custom colors")
             if (signIn.ifCurrent { state.allCourses.value = updated } != null) TigerDuckTheme.buildCourseColorMap(updated)
-            dataCache.saveCourses(updated)
+            dataCache.saveCourses(updated, signIn)
             widgetUpdater.requestUpdate()
             sendMovedColors(updated, outcome.moved) { moodleId, hex ->
                 pendingCourseOverrides.send(moodleId, colorHex = hex, signIn = signIn)
@@ -481,8 +473,8 @@ class HomeBackendSync @Inject constructor(
             // Their waiting colours and names go with them; see PendingCourseOverrides.forget.
             pendingCourseOverrides.forget(allCourses.filter { it.isManual }.mapNotNull { it.moodleIdNumber }, signIn = signIn)
             allCourses.removeAll { it.isManual }
-            dataCache.saveCourses(allCourses)
-            dataCache.saveDeletedCourseNos(emptySet())
+            dataCache.saveCourses(allCourses, signIn)
+            dataCache.saveDeletedCourseNos(emptySet(), signIn)
             // In every term: the reconcile would keep a course whose add waits.
             pendingCourseAdds.forgetAll(signIn)
             courseSync.supersedeAddsBack()
@@ -528,12 +520,12 @@ class HomeBackendSync @Inject constructor(
                 result.fetchedAtMs, resetAt, dataCache.resettingSemesters(),
             ),
         )
-        dataCache.clearSemesterResetAt(CourseSyncReconciler.resetStampsOutlived(result.fetchedAtMs, resetAt))
+        dataCache.clearSemesterResetAt(CourseSyncReconciler.resetStampsOutlived(result.fetchedAtMs, resetAt), signIn)
         val rowsBySemester = result.serverCourses.groupBy { it.semester }
         val selectionDropped = dataCache.loadSelectionDroppedNos()
         val serverKnown = dataCache.loadServerKnownNos()
         val updatedKnown = serverKnown.toMutableMap()
-        var tombstones = migratedTombstones(semesters)
+        var tombstones = migratedTombstones(semesters, signIn)
         val currentSemester = courseService.currentSemesterCode()
         var touchedCurrent = false
 
@@ -562,10 +554,10 @@ class HomeBackendSync @Inject constructor(
                 fetchedAtMs = result.fetchedAtMs,
             )
             // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
-            dataCache.recordServerDrops(semester, outcome.serverDrops)
+            dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)
             // A roster from here that listed one goes again, unchanged or not.
             pushApiClient.serverDropped(semester, outcome.serverDrops.keys)
-            dataCache.restoredCoursesListed(semester, rowsBySemester[semester].orEmpty().map { it.courseNo }, result.fetchedAtMs)
+            dataCache.restoredCoursesListed(semester, rowsBySemester[semester].orEmpty().map { it.courseNo }, result.fetchedAtMs, signIn)
             tombstones = outcome.tombstones
             if (outcome.serverKnownNos.isNotEmpty()) {
                 updatedKnown[semester] = outcome.serverKnownNos.sorted()
@@ -630,14 +622,14 @@ class HomeBackendSync @Inject constructor(
      * [CourseTombstoneKeys.migrateLegacyEntries], which leaves anything no
      * roster knows bare rather than guessing.
      */
-    private suspend fun migratedTombstones(semesters: List<String>): Set<String> {
+    private suspend fun migratedTombstones(semesters: List<String>, signIn: SignIn): Set<String> {
         val stored = dataCache.loadDeletedCourseNos()
         if (stored.none { ':' !in it }) return stored
         val rosters = semesters.associateWith { semester ->
             dataCache.loadCourses(semester).map { it.courseNo }.toSet()
         }
         // Under the hides lock: a bare one lifted while the rosters were read stays lifted.
-        val migrated = dataCache.pinLegacyCourseHides(stored, rosters)
+        val migrated = dataCache.pinLegacyCourseHides(stored, rosters, signIn)
         val bare = migrated.count { ':' !in it }
         if (bare < stored.count { ':' !in it }) {
             Log.i(TAG, "[Sync] pinned ${stored.count { ':' !in it } - bare} legacy tombstones to their terms")
@@ -698,12 +690,12 @@ internal suspend fun commitReconciledTerm(
     overrides: PendingCourseOverrides,
     signIn: SignIn,
 ): Boolean {
-    val newlyHidden = dataCache.commitSyncHides(semester, read, hides, tombstoneNos, courseSync)
+    val newlyHidden = dataCache.commitSyncHides(semester, read, hides, tombstoneNos, courseSync, signIn)
     if (kept == null && left.isEmpty() && merged.isEmpty() && newlyHidden.isEmpty()) return false
     withContext(NonCancellable) {
         val before = overrides.reserveVersion()
         var removed = emptyList<Course>()
-        dataCache.updateCourses(semester) { current, hidden ->
+        dataCache.updateCourses(semester, signIn) { current, hidden ->
             // Read with the term's courses: a fetch records its roster before it saves them, so
             // a rebuild that saved since the reconcile has its drops in this read.
             val droppedHere = if (left.isEmpty() && merged.isEmpty()) emptySet() else {

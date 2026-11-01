@@ -84,28 +84,8 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
-    "kind": "account-counter",
-    "count": 36
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
     "kind": "long-file",
-    "count": 1903
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/AssignmentStatusLedger.kt",
-    "kind": "account-counter",
-    "count": 5
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/AssignmentStatusWriter.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseRepository.kt",
-    "kind": "account-counter",
-    "count": 3
+    "count": 1859
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseRepository.kt",
@@ -295,12 +275,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/CourseService.kt",
     "kind": "long-file",
-    "count": 716
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleService.kt",
-    "kind": "account-counter",
-    "count": 4
+    "count": 702
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/MoodleService.kt",
@@ -325,11 +300,6 @@
     "lines": 108
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/network/NtustScoreService.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/SsoLoginService.kt",
     "kind": "long-function",
     "name": "SsoLoginService.logIn(String, String, String, Boolean, (()->Unit)?)",
@@ -351,16 +321,6 @@
     "count": 436
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/AssignmentNotificationScheduler.kt",
-    "kind": "account-counter",
-    "count": 4
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/AssignmentReminderCheck.kt",
-    "kind": "account-counter",
-    "count": 2
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/AssignmentReminderCheck.kt",
     "kind": "demo-check",
     "count": 1
@@ -368,12 +328,12 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "account-counter",
-    "count": 3
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-file",
-    "count": 630
+    "count": 624
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
@@ -385,7 +345,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.syncOverridesFromBackend(SignIn)",
-    "lines": 112
+    "lines": 107
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",
@@ -406,14 +366,9 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/TermCourseSync.kt",
-    "kind": "account-counter",
-    "count": 2
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/notification/TermCourseSync.kt",
     "kind": "long-function",
     "name": "TermCourseSync.sync(String, String, String, Boolean, SignIn)",
-    "lines": 122
+    "lines": 120
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/NotificationSettingsSync.kt",
@@ -467,11 +422,6 @@
     "kind": "long-function",
     "name": "PushRegistrationService.registerWith(String?)",
     "lines": 91
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/RosterRequests.kt",
-    "kind": "account-counter",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/SyncApiClient.kt",
@@ -854,24 +804,24 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "account-counter",
-    "count": 10
+    "count": 7
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-file",
-    "count": 2079
+    "count": 2077
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
     "name": "ClassTableViewModel.fetchData()",
-    "lines": 184
+    "lines": 183
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
     "name": "ClassTableViewModel.fetchTermCourses(String, ClassTableTermSource, Map<String,MoodleEnrolledCourse>, RecordedSelection?, SignIn, Boolean, ()->Boolean)",
-    "lines": 98
+    "lines": 96
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/CourseDetailSheetPage.kt",
@@ -1068,18 +1018,18 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "account-counter",
-    "count": 6
+    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-file",
-    "count": 748
+    "count": 740
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "long-function",
     "name": "HomeBackendSync.pull(HomeSyncState, SignIn, Boolean)",
-    "lines": 162
+    "lines": 156
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
@@ -1124,7 +1074,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "account-counter",
-    "count": 5
+    "count": 4
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
@@ -1487,7 +1437,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "account-counter",
-    "count": 3
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
@@ -1497,7 +1447,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "long-file",
-    "count": 565
+    "count": 564
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
