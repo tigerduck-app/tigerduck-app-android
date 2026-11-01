@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.at
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.thursday
@@ -261,14 +262,13 @@ class WidgetCourseChangesTest {
         val courses = listOf(twice, early)
 
         for (time in listOf("07:00", "08:30", "10:30", "12:10", "12:30", "15:00", "20:00")) {
-            val minute = minute(time)
             val now = state(courses, CourseChanges.EMPTY, time)
-            val ongoing = WidgetDataLoader.computeOngoingBlocks(courses, 4, minute)
+            val ongoing = WidgetDataLoader.computeOngoingBlocks(courses, at(time), CourseChanges.EMPTY)
 
             assertEquals(time, ongoing, now.ongoingBlocks)
             assertEquals(
                 time,
-                WidgetDataLoader.computeNextTodayBlock(courses, 4, minute, ongoing.map { it.course.courseNo }),
+                WidgetDataLoader.computeNextTodayBlock(courses, at(time), ongoing.map { it.course.courseNo }, CourseChanges.EMPTY),
                 now.nextTodayBlock,
             )
             assertEquals(time, todayListBlocks(now.copy(today = null)), todayListBlocks(now))
