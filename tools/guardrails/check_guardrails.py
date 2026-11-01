@@ -668,6 +668,33 @@ def same_function(path, name, found, baseline):
     return theirs[0] if len(ours) == 1 and len(theirs) == 1 else None
 
 
+def overloads_at_ref(root, ref, path, name):
+    """How many functions called name the file held at REF; 0 when it wasn't there."""
+    shown = subprocess.run(["git", "-C", root, "show", "%s:%s" % (ref, path)],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if shown.returncode != 0:
+        return 0
+    text = shown.stdout
+    names = (SIGNATURE.match(n) for n, _ in long_functions(text, lex(text)))
+    return sum(1 for m in names if m and m.group(1) == name)
+
+
+def borrowed(found, baseline, root, ref):
+    """Long functions matched by name alone in a file that held overloads of that name at REF.
+
+    The baseline names only long functions, so a deleted overload's allowance would
+    pass to a short one that grew. Only the old source can tell the two apart.
+    """
+    bad = []
+    for key, lines in sorted(found.items()):
+        if key[1] != "long-function" or key in baseline:
+            continue
+        renamed = same_function(key[0], key[2], found, baseline)
+        if renamed and overloads_at_ref(root, ref, key[0], SIGNATURE.match(key[2]).group(1)) > 1:
+            bad.append((key, lines, 0))
+    return bad
+
+
 def worse(found, baseline, skip_kinds=()):
     """Offenses above the baseline: new entries and counts that grew."""
     bad = []
@@ -776,6 +803,12 @@ def main(argv=None):
                 report(raised)
                 print("The baseline is above %s's: it may only shrink." % args.against_ref)
                 status = 1
+        overloads = borrowed(found, baseline or {}, args.root, args.against_ref)
+        if where == "ok":
+            overloads += borrowed(baseline or {}, theirs, args.root, args.against_ref)
+        if overloads:
+            report(overloads)
+            status = 1
 
     if status == 0:
         print("Guardrails ok: %d baselined offenses, none new." % len(found))

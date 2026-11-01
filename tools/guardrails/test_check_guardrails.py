@@ -501,6 +501,37 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "S.kt", self.long_pull("fun pull(a: Int)"))
         self.assertEqual(self.run_cli(), 0)
 
+    def test_a_deleted_overload_lends_nothing_to_the_one_that_grew(self):
+        rel = "tools/guardrails/baseline.json"
+        self.baseline = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(self.baseline))
+        key = {"path": APP + "S.kt", "kind": "long-function", "name": "pull(String)", "lines": 100}
+        self.write_baseline([key])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)", 98) + self.long_pull("fun pull(a: Int)", 10))
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("branch", "base")
+        # pull(String) goes and pull(Int) grows, under what looks like one function changing.
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: Int)", 88))
+        self.assertEqual(self.run_cli("--against-ref", "base"), 1)
+        # Regenerating the baseline hides nothing.
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function", "name": "pull(Int)", "lines": 90}])
+        self.assertEqual(self.run_cli("--against-ref", "base"), 1)
+
+    def test_a_lone_function_keeps_its_allowance_against_the_target(self):
+        rel = "tools/guardrails/baseline.json"
+        self.baseline = os.path.join(self.root, rel)
+        os.makedirs(os.path.dirname(self.baseline))
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function", "name": "pull(String)", "lines": 100}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)", 98))
+        self.git("init", "-q")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("branch", "base")
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: Int)", 90))
+        self.assertEqual(self.run_cli("--against-ref", "base"), 0)
+
     def test_overloads_still_match_on_the_full_name(self):
         self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
                               "name": "pull(String)", "lines": 87}])
