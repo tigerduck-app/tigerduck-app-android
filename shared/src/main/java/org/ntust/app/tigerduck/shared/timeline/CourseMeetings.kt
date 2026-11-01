@@ -93,6 +93,14 @@ object CourseMeetings {
     /** No class skipped by the user. */
     val NO_SKIPS: (Course, LocalDate) -> Boolean = { _, _ -> false }
 
+    /**
+     * The skip rule for the user's [skippedDates]: course number to the days (`yyyy-MM-dd`, as
+     * [LocalDate.toString] writes them) it is skipped on. One rule for every screen that asks, so
+     * the Live Activity, the reminders and the slider cannot disagree about a skipped course.
+     */
+    fun skipsFrom(skippedDates: Map<String, List<String>>): (Course, LocalDate) -> Boolean =
+        { course, date -> skippedDates[course.courseNo]?.contains(date.toString()) == true }
+
     /** Every class of [courses] on [date], fragments included, by start. */
     fun buildSlots(courses: List<Course>, date: LocalDate, changes: CourseChanges): List<ClassSlot> =
         courses

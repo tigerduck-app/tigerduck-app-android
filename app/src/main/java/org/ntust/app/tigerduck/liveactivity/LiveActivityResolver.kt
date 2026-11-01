@@ -137,8 +137,9 @@ class LiveActivityResolver {
         now: Date,
         skippedDates: Map<String, List<String>>,
     ): List<Course> {
-        val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate().toString()
-        return courses.filter { skippedDates[it.courseNo]?.contains(today) != true }
+        val today = now.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+        val skipped = CourseMeetings.skipsFrom(skippedDates)
+        return courses.filterNot { skipped(it, today) }
     }
 
     private fun inClassSnapshot(slot: Slot, now: Date, accentHex: Int): LiveActivitySnapshot {

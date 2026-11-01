@@ -229,11 +229,8 @@ private fun CourseTimeCard(
     // onSkipCourse: (Course, Date) -> Unit,
     onSelect: (CourseTimeSlot) -> Unit
 ) {
-    // val isoFmt = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
-    // val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot ->
-    //     val dateKey = isoFmt.format(slot.date)
-    //     skippedDates[slot.course.courseNo]?.contains(dateKey) == true
-    // }
+    // val skipped = CourseMeetings.skipsFrom(skippedDates)
+    // val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot -> skipped(slot.course, slot.localDate) }
 
     // Pin the card area to the tallest height seen this session so the slider
     // track below doesn't bob up and down as the user scrubs across states
