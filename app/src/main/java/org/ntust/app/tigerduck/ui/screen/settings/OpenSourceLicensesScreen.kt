@@ -16,17 +16,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -48,7 +43,7 @@ import kotlinx.coroutines.flow.stateIn
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.openLink
@@ -371,7 +366,6 @@ private fun LazyListScope.linkedLicense(license: LicenseText, open: (String) -> 
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LicenseScaffold(
     title: String,
@@ -382,24 +376,7 @@ private fun LicenseScaffold(
     selectable: Boolean = false,
     content: LazyListScope.() -> Unit,
 ) {
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-                expandedHeight = SubSettingsBarHeight,
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-    ) { scaffoldPadding ->
+    PageScaffold(title = title, onBack = onBack, oneLineTitle = true) { scaffoldPadding ->
         SelectableWhen(selectable) {
             val listState = rememberLazyListState()
             LazyColumn(

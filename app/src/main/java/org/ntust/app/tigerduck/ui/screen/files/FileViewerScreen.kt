@@ -13,19 +13,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,13 +37,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.files.ViewerKind
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 /**
  * A downloaded file, shown by its kind's viewer under a bar with Share or Save and Open in
  * another app. A file its viewer can't read says so, and why when the viewer knows, then the
  * error it failed on, with Open in another app beside it.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun FileViewerScreen(
     file: ViewedFile,
@@ -70,28 +67,23 @@ internal fun FileViewerScreen(
         failed = true
     }
     val fail: (ViewerFailure) -> Unit = ::failWith
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(file.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onShare) {
-                        Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.school_mail_attachment_share))
-                    }
-                    IconButton(onClick = onOpenElsewhere) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.OpenInNew,
-                            contentDescription = stringResource(R.string.file_viewer_open_elsewhere),
-                        )
-                    }
-                },
-            )
+    PageScaffold(
+        title = file.name,
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = {
+            IconButton(onClick = onShare) {
+                Icon(Icons.Filled.Share, contentDescription = stringResource(R.string.school_mail_attachment_share))
+            }
+            IconButton(onClick = onOpenElsewhere) {
+                Icon(
+                    Icons.AutoMirrored.Filled.OpenInNew,
+                    contentDescription = stringResource(R.string.file_viewer_open_elsewhere),
+                )
+            }
         },
+        // An activity of its own, so no host has padded the page.
+        barWindowInsets = PageDefaults.systemBarWindowInsets,
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             if (failed) {
