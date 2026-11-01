@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.auth
 
 import android.content.Context
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
@@ -20,6 +22,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
@@ -66,6 +70,9 @@ class TypedAccountSignInTest {
     private val accountLock = Any()
     private var signedIn = false
 
+    /** The school session whose wipe a sign-in waits for. */
+    private val session = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob()))
+
     /** What AuthService.logout does to what the sign-in reads and writes. */
     private fun signOut() {
         synchronized(accountLock) {
@@ -91,6 +98,8 @@ class TypedAccountSignInTest {
     private fun typedSignIn() = TypedAccountSignIn(
         schoolSignIn = { studentId, password -> school.signIn(SERVICE, studentId, password) },
         signInInteractively = { signIn -> signIn(GENERATION) == SignInAttempt.SIGNED_IN },
+        awaitOpen = { session.awaitOpen() },
+        isOpen = { session.isOpen },
         signInGeneration = { generation },
         accountLock = accountLock,
         storedStudentId = { stored?.first },
@@ -186,6 +195,26 @@ class TypedAccountSignInTest {
     }
 
     @Test
+    fun `another student's sign-in over a stored one signs nobody out and keeps the generation`() = runTest {
+        // Today's result, which T2.10 changes: the stored account is overwritten in place.
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        signedIn = true
+        var sameStudentSeen: Boolean? = null
+
+        val outcome = typedSignIn().signIn(STUDENT, NEW_PASSWORD, prepareSignedIn = { steps += "prepare" }) { _, sameStudent ->
+            sameStudentSeen = sameStudent
+            SignInAttempt.SIGNED_IN
+        }
+
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, outcome)
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+        assertEquals("no sign-out ran", 0, generation)
+        assertTrue("the account stayed shown", signedIn)
+        assertEquals(false, sameStudentSeen)
+        assertEquals(listOf("owed", "store", "prepare", "shown"), steps)
+    }
+
+    @Test
     fun `the demo account signs in on the device, and its store lifts the refusal too`() = runTest {
         val outcome = signIn(password = DEMO_PASSWORD)
 
@@ -254,6 +283,7 @@ class TypedAccountSignInTest {
 
     private companion object {
         const val STUDENT = "B00000000"
+        const val OTHER_STUDENT = "B00000001"
         const val OLD_PASSWORD = "old-password"
         const val NEW_PASSWORD = "new-password"
         const val DEMO_PASSWORD = "made-up-demo-password"

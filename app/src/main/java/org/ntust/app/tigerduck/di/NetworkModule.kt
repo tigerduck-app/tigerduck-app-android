@@ -8,6 +8,7 @@ import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
@@ -94,11 +95,13 @@ object NetworkModule {
         identity: PushIdentity,
         prefs: AppPreferences,
         owedUnregister: OwedUnregister,
+        sessions: AccountSessions,
     ): AuthTokenManager = AuthTokenManager(
         tokens = credentials.v3Tokens,
         httpClient = httpClient,
         prefs = prefs,
         deviceUuid = identity.uuid(),
         owedUnregister = owedUnregister,
+        session = sessions.school,
     )
 }

@@ -25,6 +25,15 @@ Offense kinds (counts in the baseline):
   top-app-bar     a call to one of Material's top app bars outside ui/component.
                   A page's bar is PageScaffold's. The baseline has no entries of
                   this kind and takes none.
+  account-counter lines that compare an account by a hand-kept number: a
+                  generation or epoch counter, DataCache.Generation, or a
+                  "generation: Int" or "signIn: Int" parameter. The sign-in
+                  type replaces them.
+  demo-check      lines that ask whether the app is in the demo, outside the
+                  demo's own homes. One place answers it.
+  sign-in-read    lines that name StartsAccountWork outside the layers that may
+                  start account work. Every other layer is handed the sign-in.
+                  The baseline has no entries of this kind and takes none.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -36,6 +45,16 @@ Stdlib only, and it must run on Python 3.9.
 --against-ref REF also fails when the working baseline has an entry that
 REF's baseline lacks or a count above REF's, so a PR cannot raise its own
 limit. A REF with no baseline file (the PR that adds it) skips that check.
+A kind that REF's check_guardrails.py does not name is skipped too: it is the
+PR that introduces the kind, and from the next PR on it is held like the rest.
+
+--introduce KIND records today's counts for a kind the baseline has no entries
+of, so a new ratchet can land with offenses already in the tree. It refuses a
+kind that already has entries; --update-baseline stays downward only.
+
+A baselined function whose parameter types changed is still the same function
+when its file holds one function of that name on each side; its lines may not
+grow.
 """
 import argparse
 import json
@@ -76,6 +95,49 @@ def top_app_bar_calls(code):
     for alias in TOP_APP_BAR_ALIAS.findall(code):
         count += len(re.findall(r"(?<![\w.])`?" + re.escape(alias) + r"`?\s*\(", code))
     return count
+
+
+ACCOUNT_COUNTER = re.compile(
+    r"\b(?:signInGeneration|userDataGeneration|writeGeneration|accountGeneration"
+    r"|libraryAccountGeneration|schoolAccountGeneration|currentGeneration"
+    r"|cacheGeneration|accountEpoch|isStillSignedInAs)\b"
+    r"|DataCache\.Generation|\b(?:generation|signIn): Int\b")
+DEMO_CHECK = re.compile(
+    r"\b(?:isDemo|isDemoSession|appDemoActive|demoMailbox)\b"
+    r"|\b(?:demoAccount|demo)\.isActive\b|\b(?:store|fixtures)\.demoMode\b")
+STARTS_ACCOUNT_WORK = re.compile(r"\bStartsAccountWork\b")
+APP_PACKAGE = "/org/ntust/app/tigerduck/"
+
+# Homes are regexes on the path under the app's package. A file inside one is
+# where that rule is allowed to live.
+DEMO_HOMES = re.compile(
+    r"(?:demo/|auth/session/|shared/account/|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
+    r"|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
+SIGN_IN_HOMES = re.compile(
+    r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|demo/|liveactivity/"
+    r"|notification/.*(?:Worker|Receiver)\.kt$|push/PushRegistrationService\.kt$"
+    r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/sync/MailChecker\.kt$"
+    r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/moodle/"
+    r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
+# Kinds that are counts of lines and, apart from these, take no baseline entry
+# the flag cannot record.
+INTRODUCIBLE = ("account-counter", "demo-check")
+
+
+def in_home(rel, homes):
+    """True when rel sits under the app package at a path the homes allow."""
+    at = rel.find(APP_PACKAGE)
+    return at >= 0 and homes.match(rel[at + len(APP_PACKAGE):]) is not None
+
+
+def matching_lines(code, pattern):
+    return sum(1 for line in code.split("\n") if pattern.search(line))
+
+
+def sign_in_reads(code):
+    """Lines that name StartsAccountWork, apart from the import."""
+    return sum(1 for line in code.split("\n")
+               if STARTS_ACCOUNT_WORK.search(line) and not line.lstrip().startswith("import "))
 
 
 # By directory rather than whole path, so the check still holds once ui/component
@@ -469,6 +531,10 @@ def term_sorts(code):
 
 # ---------------------------------------------------------------- scan
 
+KINDS = ("long-file", "long-function", "taipei-literal", "fdroid-literal", "term-sort",
+         "top-app-bar", "account-counter", "demo-check", "sign-in-read")
+
+
 def is_test_set(name):
     return name.startswith(("test", "androidTest"))
 
@@ -488,13 +554,21 @@ def source_files(root):
                         yield os.path.relpath(full, root).replace(os.sep, "/"), full
 
 
+class Found(dict):
+    """The offenses, and how many functions of each name each file holds (names), long or not."""
+
+    def __init__(self):
+        super().__init__()
+        self.names = {}
+
+
 def scan(root):
     """Returns {(path, kind, name): n} for every offense under root.
 
     n is a count, a file's line count (long-file) or a function's line count
     (long-function, the only kind with a name).
     """
-    found = {}
+    found = Found()
 
     def add(path, kind, count, name=""):
         if count > 0:
@@ -509,12 +583,20 @@ def scan(root):
 
         code = lex(text)
         for name, lines in long_functions(text, code):
+            base = SIGNATURE.match(name)
+            if base:
+                found.names[(rel, base.group(1))] = found.names.get((rel, base.group(1)), 0) + 1
             if lines > MAX_FUNCTION_LINES:
                 add(rel, "long-function", lines, name)
         if rel != TERM_HOME:
             add(rel, "term-sort", term_sorts(code))
         if SHARED_UI not in rel:
             add(rel, "top-app-bar", top_app_bar_calls(code))
+        add(rel, "account-counter", matching_lines(code, ACCOUNT_COUNTER))
+        if not in_home(rel, DEMO_HOMES):
+            add(rel, "demo-check", matching_lines(code, DEMO_CHECK))
+        if not in_home(rel, SIGN_IN_HOMES):
+            add(rel, "sign-in-read", sign_in_reads(code))
 
         # Literals are matched with strings kept and comments blanked, so a
         # KDoc that mentions the zone does not count.
@@ -553,10 +635,89 @@ def write_baseline(path, counts):
         f.write("\n")
 
 
-def worse(found, baseline):
+SIGNATURE = re.compile(r"^(.*?)\((.*)\)(#\d+)?$")
+
+
+def without_parameters(name):
+    """A function's identity minus its parameter types, or None for a non-function."""
+    m = SIGNATURE.match(name)
+    return (m.group(1) + (m.group(3) or "")) if m else None
+
+
+def same_function(path, name, found, baseline):
+    """The baseline's key for a function whose parameter types changed, or None.
+
+    It matches only when the file holds one function of that name on each side,
+    long or short, so overloads still tell each other apart: a short overload
+    beside a new long one stops the long one inheriting the old allowance.
+    """
+    bare = without_parameters(name)
+    if bare is None:
+        return None
+    names = getattr(found, "names", None)
+    if names is not None:
+        if names.get((path, SIGNATURE.match(name).group(1)), 0) != 1:
+            return None
+        ours = [k for k in found if k[0] == path and k[1] == "long-function"
+                and without_parameters(k[2]) == bare]
+    else:
+        ours = [k for k in found if k[0] == path and k[1] == "long-function"
+                and without_parameters(k[2]) == bare]
+    theirs = [k for k in baseline if k[0] == path and k[1] == "long-function"
+              and without_parameters(k[2]) == bare]
+    return theirs[0] if len(ours) == 1 and len(theirs) == 1 else None
+
+
+def overloads_at_ref(root, ref, path, name):
+    """How many functions called name the file held at REF; 0 when it wasn't there."""
+    shown = subprocess.run(["git", "-C", root, "show", "%s:%s" % (ref, path)],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if shown.returncode != 0:
+        return 0
+    text = shown.stdout
+    names = (SIGNATURE.match(n) for n, _ in long_functions(text, lex(text)))
+    return sum(1 for m in names if m and m.group(1) == name)
+
+
+def borrowed(found, baseline, root, ref):
+    """Long functions matched by name alone in a file that held overloads of that name at REF.
+
+    The baseline names only long functions, so a deleted overload's allowance would
+    pass to a short one that grew. Only the old source can tell the two apart.
+    """
+    bad = []
+    for key, lines in sorted(found.items()):
+        if key[1] != "long-function" or key in baseline:
+            continue
+        renamed = same_function(key[0], key[2], found, baseline)
+        if renamed and overloads_at_ref(root, ref, key[0], SIGNATURE.match(key[2]).group(1)) > 1:
+            bad.append((key, lines, 0))
+    return bad
+
+
+def worse(found, baseline, skip_kinds=()):
     """Offenses above the baseline: new entries and counts that grew."""
-    return [(key, count, baseline.get(key, 0))
-            for key, count in sorted(found.items()) if count > baseline.get(key, 0)]
+    bad = []
+    for key, count in sorted(found.items()):
+        if key[1] in skip_kinds:
+            continue
+        allowed = baseline.get(key)
+        if allowed is None and key[1] == "long-function":
+            renamed = same_function(key[0], key[2], found, baseline)
+            allowed = baseline.get(renamed) if renamed else None
+        allowed = allowed or 0
+        if count > allowed:
+            bad.append((key, count, allowed))
+    return bad
+
+
+def kinds_ref_lacks(root, ref):
+    """Kinds that REF's check_guardrails.py does not name; none when it has no script."""
+    shown = subprocess.run(["git", "-C", root, "show", "%s:tools/guardrails/check_guardrails.py" % ref],
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    if shown.returncode != 0:
+        return ()
+    return tuple(k for k in KINDS if '"%s"' % k not in shown.stdout)
 
 
 def baseline_at_ref(root, ref):
@@ -583,6 +744,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--update-baseline", action="store_true",
                         help="rewrite the baseline downward; never adds or raises an entry")
+    parser.add_argument("--introduce", metavar="KIND",
+                        help="record today's counts for a kind the baseline has no entries of")
     parser.add_argument("--against-ref", metavar="REF",
                         help="also fail when the baseline is above REF's baseline")
     parser.add_argument("--root", default=DEFAULT_ROOT)
@@ -591,6 +754,20 @@ def main(argv=None):
 
     found = scan(args.root)
     baseline = load_baseline(args.baseline)
+
+    if args.introduce:
+        kind = args.introduce
+        if kind not in INTRODUCIBLE:
+            print("Cannot introduce %s: only %s." % (kind, ", ".join(INTRODUCIBLE)))
+            return 1
+        if any(k[1] == kind for k in (baseline or {})):
+            print("The baseline already has %s entries; --update-baseline lowers them." % kind)
+            return 1
+        merged = dict(baseline or {})
+        merged.update({k: n for k, n in found.items() if k[1] == kind})
+        write_baseline(args.baseline, merged)
+        print("Recorded %d %s entries." % (len(merged) - len(baseline or {}), kind))
+        return 0
 
     if args.update_baseline:
         if baseline is None:
@@ -621,11 +798,17 @@ def main(argv=None):
         if where == "no-file":
             print("%s has no baseline; skipping the comparison." % args.against_ref)
         else:
-            raised = worse(baseline or {}, theirs)
+            raised = worse(baseline or {}, theirs, kinds_ref_lacks(args.root, args.against_ref))
             if raised:
                 report(raised)
                 print("The baseline is above %s's: it may only shrink." % args.against_ref)
                 status = 1
+        overloads = borrowed(found, baseline or {}, args.root, args.against_ref)
+        if where == "ok":
+            overloads += borrowed(baseline or {}, theirs, args.root, args.against_ref)
+        if overloads:
+            report(overloads)
+            status = 1
 
     if status == 0:
         print("Guardrails ok: %d baselined offenses, none new." % len(found))

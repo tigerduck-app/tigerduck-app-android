@@ -5,6 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,18 +14,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.Call
-import okhttp3.EventListener
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
-import okio.BufferedSink
 import org.json.JSONObject
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.BackendServices
@@ -32,12 +30,11 @@ import org.ntust.app.tigerduck.network.canonicalBackend
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.OwedUnregister
 import org.ntust.app.tigerduck.push.currentDeviceModel
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.IOException
 import java.net.ConnectException
-import java.net.InetSocketAddress
 import java.net.NoRouteToHostException
-import java.net.Proxy
 import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.AbstractCoroutineContextElement
@@ -64,6 +61,11 @@ class AuthTokenManager(
     // How long a departing refresh waits for a session refresh of its token on its way.
     private val departingWaitMs: Long = REFRESH_TIMEOUT_SECONDS * 1000,
     signInCallTimeoutMs: Long = SIGN_IN_CALL_TIMEOUT_SECONDS * 1_000,
+    /**
+     * The school session whose sign-in [logout] ends. The default is a session of its own, for
+     * tests that are not about it, as other stores here take an absent collaborator.
+     */
+    val session: AccountSession = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob())),
 ) {
     private val refreshMutex = Mutex()
 
@@ -564,7 +566,12 @@ class AuthTokenManager(
             signInUnderWay = null
             signInFailedAt = null
             _lastSignInFailed.value = false
+            // Under the lock, with the count it will replace: work that began before this point
+            // writes nothing once the lock is released.
+            session.signIns.end()
         }
+        // After the lock is released: a cancellation handler never takes a lock held here.
+        session.cancelWork()
         return departing
     }
 
@@ -859,37 +866,6 @@ class AuthTokenManager(
     // call's SendProgress saw it fail before writing the request.
     private fun IOException.wasNeverSent(): Boolean =
         this is UnknownHostException || this is ConnectException || this is NoRouteToHostException
-
-    /**
-     * What a refresh call got to before it failed. One that began to connect
-     * and failed before writing the request never sent the token: a connect
-     * timeout, to a host that drops the packets, raises the same
-     * SocketTimeoutException as a reply that never came.
-     */
-    private class SendProgress : EventListener() {
-        @Volatile private var connecting = false
-        @Volatile private var writing = false
-
-        val failedBeforeWriting: Boolean get() = connecting && !writing
-
-        override fun connectStart(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy) {
-            connecting = true
-        }
-
-        override fun requestHeadersStart(call: Call) {
-            writing = true
-        }
-    }
-
-    // OkHttp sends a request again after some replies, whatever
-    // retryOnConnectionFailure says: a 503 with Retry-After: 0, and a 307 or a
-    // 308 with its body. It sends none whose body is one-shot.
-    private fun RequestBody.oneShot(): RequestBody = object : RequestBody() {
-        override fun contentType() = this@oneShot.contentType()
-        override fun contentLength() = this@oneShot.contentLength()
-        override fun writeTo(sink: BufferedSink) = this@oneShot.writeTo(sink)
-        override fun isOneShot() = true
-    }
 
     private sealed interface RefreshOutcome {
         // Not a data class, whose toString() would print the token.

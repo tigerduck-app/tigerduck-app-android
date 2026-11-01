@@ -128,8 +128,25 @@ class TigerDuckApp : Application(), Configuration.Provider {
             .setWorkerFactory(workerFactory)
             .build()
 
+    private fun startTlsPins() {
+        // TLS pins (TLS pins spec, A5, A6 and A8): TigerSync's document on coming to the
+        // foreground and every 6 hours while the app stays there; the watch told of every new
+        // document and acceptance; and after a Continue, a sync, as after a network error.
+        appScope.launch(Dispatchers.Main) {
+            ProcessLifecycleOwner.get().lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { pinManager.keepFresh() }
+        }
+        appScope.launch { wearBridge.publishTlsPins() }
+        appScope.launch { pinManager.changes.collect { wearBridge.publishTlsPins() } }
+        appScope.launch {
+            pinManager.accepted.collect {
+                withContext(Dispatchers.IO) { BackgroundSyncWorker.requestSync(this@TigerDuckApp) }
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
+        val signOutCutShort = authService.finishOwedSignOut() // before anything acts on the account
         // The theme reads it on its first frame: start loading it from disk now.
         preloadKeptCjkCorrections(this)
         // Debug builds: the developer settings' "pretend an app is missing" switches.
@@ -140,6 +157,8 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // upgrade launch and rebuild caches that a pending migration step then
         // deleted. AppState re-reads the cached outcome for the reset prompt.
         dataMigration.run()
+        // Then its wipe, after which the school session opens (SignOutWipe).
+        if (signOutCutShort) authService.finishOwedWipe()
         // Next, while the Live Update settings are still as the previous
         // build left them: the class reminder takes its settings from them
         // once, before anything can arm a reminder or pull the settings
@@ -158,19 +177,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         fcmBootstrap.start()
         warnIfPinsNearExpiry()
 
-        // TLS pins (TLS pins spec, A5, A6 and A8): TigerSync's document on coming to the
-        // foreground and every 6 hours while the app stays there; the watch told of every new
-        // document and acceptance; and after a Continue, a sync, as after a network error.
-        appScope.launch(Dispatchers.Main) {
-            ProcessLifecycleOwner.get().lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) { pinManager.keepFresh() }
-        }
-        appScope.launch { wearBridge.publishTlsPins() }
-        appScope.launch { pinManager.changes.collect { wearBridge.publishTlsPins() } }
-        appScope.launch {
-            pinManager.accepted.collect {
-                withContext(Dispatchers.IO) { BackgroundSyncWorker.requestSync(this@TigerDuckApp) }
-            }
-        }
+        startTlsPins()
 
         // Wear OS bridge — publish to paired watch on schedule/auth/accent changes.
         // On fdroid the bridge is a no-op stub; these calls are still safe.
@@ -185,7 +192,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
             merge(appPreferences.visualPresetChanged, moodleColorStore.colorsChanged).collect { wearBridge.publish() }
         }
         // The background sync, reminders, notifications and Live Update follow the sign-in from every page.
-        accountSessionEffects.start(appScope)
+        accountSessionEffects.start(appScope, signOutCutShort)
         // A stored password the school or the library refused goes again once its wait is over.
         storedPasswordRetry.start(appScope)
         libraryPasswordRetry.start(appScope)

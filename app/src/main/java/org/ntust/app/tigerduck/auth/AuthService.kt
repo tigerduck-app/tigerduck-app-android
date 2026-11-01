@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.auth.session.SignOutWipe
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
@@ -57,22 +58,11 @@ class AuthService @Inject constructor(
     private val heldShareLink: org.ntust.app.tigerduck.HeldShareLink,
 ) {
     /**
-     * A demo session presents as signed in, with or without an account.
-     *
-     * `authState` is what every screen asks, so a device that skipped the
-     * wizard replaced its whole content with "not signed in" and no fixture
-     * could put anything on it -- the fake timetable was on disk, and nothing
-     * would draw it. Reporting true here is what lets a clean install be
-     * photographed at all.
-     *
-     * Safe only because demo mode also refuses every request
-     * ([org.ntust.app.tigerduck.debug.DemoModeInterceptor]): nothing tries to
-     * use the credentials that are not there, and the screens take the
-     * no-network path they already had. Nothing lowers the flag behind our
-     * back either -- `logout()` is reached from the settings entry and the
-     * full reset, both of which are the user saying so.
-     *
-     * Sampled once, at process start, like the rest of demo mode.
+     * A demo session presents as signed in, with or without an account: `authState` is what every
+     * screen asks, and a clean install could not otherwise be photographed. Safe only because demo
+     * mode also refuses every request ([org.ntust.app.tigerduck.debug.DemoModeInterceptor]), and
+     * nothing lowers the flag but `logout()`, which the user asks for. Sampled once, at process
+     * start, like the rest of demo mode.
      */
     private val demoMode = demoAccount.isActive
 
@@ -112,6 +102,9 @@ class AuthService @Inject constructor(
 
     private val loginMutex = Mutex()
 
+    // The sign-outs under way, which hold the next sign-in, and the wipe each leaves behind.
+    private val wipe = SignOutWipe(importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope)
+
     private val _signIns = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     /**
@@ -121,9 +114,8 @@ class AuthService @Inject constructor(
      */
     val signIns: SharedFlow<Unit> = _signIns.asSharedFlow()
 
-    // Held by a sign-out while it drops the stored account and moves the sign-in generation, and
-    // by a sign-in while it checks that generation and stores what it got: one that started
-    // before a sign-out then keeps nothing.
+    // Held by a sign-out as it closes the session and while it drops the stored account and moves
+    // the sign-in generation, and by a sign-in while it checks both and stores what it got.
     private val accountLock = Any()
 
     // The automatic backend sign-in, after a refused refresh and whenever
@@ -179,6 +171,8 @@ class AuthService @Inject constructor(
             ssoLoginService.signIn(SSO_SERVICE_URL, studentId, password)
         },
         signInInteractively = { signIn -> authTokenManager.signInInteractively(signIn) },
+        awaitOpen = authTokenManager.session::awaitOpen,
+        isOpen = { authTokenManager.session.isOpen },
         signInGeneration = { authTokenManager.signInGeneration },
         accountLock = accountLock,
         storedStudentId = { credentials.ntustStudentId },
@@ -371,91 +365,89 @@ class AuthService @Inject constructor(
         }
     }
 
-    /**
-     * The library sign-in after the school's, unless the library token is still good. [generation]
-     * was read before the sign-in began: a sign-out since leaves none of what it stores.
-     */
+    /** Signs the school account out: [clearAccount] now, and the wipe it leaves on the application scope. */
     fun logout() {
-        // The school account alone: the library account and the school mail stay signed in, each
-        // signed out of by itself (decided for Android on 2026-10-22).
-        // One step for a sign-in under way, which checks the generation under the same lock
-        // before it stores anything: it either stores before this clears, or stores nothing.
-        // The session it wipes, taken as it moves the generation: the
-        // pushRegistration.unregister() below sends its DELETE afterwards, until
-        // the server has it, and without the departing session it would find
-        // none to go out with, and leak the device row.
-        // On disk before the account goes: the in-app browser's clearing is owed even if the
-        // process dies before it runs.
-        BrowserCleanup.of(context).markPending()
-        val departing = synchronized(accountLock) {
-            credentials.signOutSchoolAccount()
-            authTokenManager.logout()
+        // First, on disk, so what follows is owed wherever the process dies. Under the lock a
+        // sign-in stores with: one that came first is on the marker, and a later one stores nothing.
+        synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }
+        wipe.finish(cleared = clearAccount())
+    }
+
+    /**
+     * What a school sign-out clears at once, in one place: run by [logout], and by the next start
+     * when a process death cut that short ([finishOwedSignOut]), in the same order, whatever of it
+     * was already gone. Every step is tried; false means the next start tries them all again.
+     */
+    private fun clearAccount(): Boolean = with(ClearingSteps()) {
+        // The school account alone: the library account and the school mail stay signed in
+        // (decided for Android on 2026-10-22). One step for a sign-in under way, which checks the
+        // generation under the same lock before it stores anything. The session it wipes is taken
+        // as the generation moves: the unregister below sends its DELETE afterwards.
+        // On disk before the account goes: the browser's clearing is owed if the process dies.
+        once("browser") { BrowserCleanup.of(context).markPending() }
+        var departing: DepartingSession? = null
+        synchronized(accountLock) {
+            must("credentials") { credentials.signOutSchoolAccount() }
+            must("tokens") { departing = authTokenManager.logout() }
         }
         // A queued live_activity push, and an edit still waiting to be
         // confirmed, both belong to the account that is leaving. Neither may
         // reach whoever signs in next.
-        notificationSettingsSync.cancelPendingPushes()
+        must("pushes") { notificationSettingsSync.cancelPendingPushes() }
         // Before the session goes: a 選課清單 fetch still running would
         // otherwise log the departing account back in, and the next one to
         // sign in would find its session warm and read its roster.
-        courseService.cancelSharedFetches()
-        moodleService.cancelSharedFetches()
+        once("course fetches") { courseService.cancelSharedFetches() }
+        once("Moodle fetches") { moodleService.cancelSharedFetches() }
         // Likewise the empty-classroom finder: its kept days came from this session, and a read
         // still queued for it must not sign the departing account in again. The next account
         // opens on its own building.
-        org.ntust.app.tigerduck.emptyclassroom.forgetEmptyClassroom(classroomUsage, prefs)
-        sessionManager.signOut()
-        bulletinReadStateStore.clear()
+        must("empty classrooms") { org.ntust.app.tigerduck.emptyclassroom.forgetEmptyClassroom(classroomUsage, prefs) }
+        once("school session") { sessionManager.signOut() }
+        must("bulletin read state") { bulletinReadStateStore.clear() }
         // The cache they dated is wiped below; left behind, they would date
         // the next account's data, and hold its first background sync off.
-        prefs.clearSyncStamps()
+        must("sync stamps") { prefs.clearSyncStamps() }
         // The departing student's holiday choices, and those still waiting to go up: left
         // behind, the next student would inherit the quiet days and send the waiting ones as
         // theirs. Any PUT still queued is pinned to the sign-in that just ended.
-        prefs.forgetHolidayOverrides()
+        must("holiday overrides") { prefs.forgetHolidayOverrides() }
         // The term picked in the class table was the departing student's. Cleared, the next
         // student's picker follows the newest term.
-        prefs.classTableSelectedSemester = null
+        must("class table term") { prefs.classTableSelectedSemester = null }
         // A share link held for a sign-in is not one for whoever signs in next.
-        heldShareLink.drop()
+        once("held share link") { heldShareLink.drop() }
         // A re-enable check compares this device's data, which is wiped below.
         // Left pending, it would hold the next session's assignment marks and
         // then offer Use Local, sending that emptied data over the server's.
-        prefs.pendingConflictCategories = emptySet()
+        must("re-enable check") { prefs.pendingConflictCategories = emptySet() }
         // A refusal belongs to the password leaving with the account; and an
         // automatic sign-in of that account still waiting for its answer
         // latches nothing for the next one.
-        storedPasswordLatch.clear()
+        must("stored password latch") { storedPasswordLatch.clear() }
         _loginError.value = null
-        setSignedIn(false)
-        pushRegistration.unregister(departing)
+        once("signed-in state") { setSignedIn(false) }
+        once("device unregister") { pushRegistration.unregister(departing) }
         // Last, so everything above still sees the demo account and keeps
         // its requests on the device.
-        demoAccount.exit()
+        must("demo") { demoAccount.exit() }
         // Bulletins are school-wide rather than private, but the read-state
         // store is already cleared above — clear the content snapshot too
         // so the next session starts coherent instead of half-stale. Started
         // now, so every read and write of it waits for it, as an API endpoint
         // move's clear (BulletinCache.clearIn).
-        bulletinCache.clearIn(appScope)
-        // Wipe persisted user data on the application scope so a coroutine
-        // launched from a transient ViewModel scope can't be cancelled mid-
-        // delete when the user backs out of Settings or the activity dies.
-        // Without this guarantee, the JSON cache survives logout and bleeds
-        // into the next account on the same device.
-        appScope.launch {
-            // Only this sign-out empties them: a relogin in the background or a renewed session
-            // keeps the class tables the user imported.
-            runCatching { importedClassTables.clearForSignOut() }
-                .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
-            runCatching { dataCache.clearAllUserData() }
-                .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
-            // Now that the timetable is gone: a widget left alone shows the departing student's
-            // until its next scheduled update, up to half an hour away.
-            runCatching { widgetUpdater.updateAll() }
-                .onFailure { android.util.Log.w("AuthService", "widget update failed on logout: ${it.logSummary()}") }
-        }
+        once("bulletins") { bulletinCache.clearIn(appScope) }
+        cleared
     }
+
+    /**
+     * At process start, first, before anything acts on the account: finishes a sign-out a process
+     * death cut short, and says whether there was one. [finishOwedWipe] then runs its wipe.
+     */
+    fun finishOwedSignOut(): Boolean = wipe.recover({ credentials.ntustStudentId }, ::clearAccount)
+
+    /** At process start, once [finishOwedSignOut] said so: that sign-out's wipe, after which the sign-in opens. */
+    fun finishOwedWipe() = wipe.finish()
 
     fun clearLoginError() {
         _loginError.value = null
@@ -465,25 +457,4 @@ class AuthService @Inject constructor(
         // The service the school sign-in signs in to.
         const val SSO_SERVICE_URL = "https://courseselection.ntust.edu.tw/"
     }
-}
-
-/**
- * What [AuthService.login] does once the school took a typed sign-in, after
- * its backend login, which stored the session if it got one. Apart from
- * AuthService so a test can run it: AuthService needs the Android Keystore.
- *
- * [startSettingsCopy] is the catch-up the automatic sign-in runs too
- * (NotificationSettingsSync.pushIfUnconfirmed), and it goes first, without
- * suspending: it starts the copy of the notification settings a push tells
- * this phone's edits apart by. Only the backend login's own return to the
- * caller comes between the session being stored and this call. [register],
- * the push registration, is a network call, and while it ran first an edit
- * made in its wait found no copy: its push counted nothing as changed, sent
- * nothing, and confirmed the edit as if it had gone up. iOS starts the copy
- * first too, in onV3SignedIn.
- */
-internal suspend fun followTypedSignIn(startSettingsCopy: () -> Unit, register: suspend () -> Unit) {
-    startSettingsCopy()
-    runCatching { register() }
-        .onFailure { e -> if (e is CancellationException) throw e }
 }
