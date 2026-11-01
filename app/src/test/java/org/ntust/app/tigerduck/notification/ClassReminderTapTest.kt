@@ -48,6 +48,27 @@ class ClassReminderTapTest {
     }
 
     @Test
+    fun `a class reminder is private on the lock screen, so a hidden-content setting redacts it`() {
+        val now = System.currentTimeMillis()
+        ClassPreparingNotificationReceiver.post(
+            context,
+            appLanguage = "system",
+            notificationId = 9,
+            courseName = "Data Structures",
+            classroom = "TR-412",
+            instructor = "",
+            startMs = now + 10 * 60_000L,
+            endMs = now + 60 * 60_000L,
+            leadTimeMs = 10 * 60_000L,
+        )
+
+        val posted = shadowOf(context.getSystemService(NotificationManager::class.java)).getNotification(9)
+        assertEquals(Notification.VISIBILITY_PRIVATE, posted.visibility)
+        // No text of its own to show in its place: the system's own hidden form stands in.
+        assertEquals(null, posted.publicVersion)
+    }
+
+    @Test
     @Config(qualifiers = "zh-rTW")
     fun `a class reminder is in the app's language, not the phone's`() {
         val now = System.currentTimeMillis()

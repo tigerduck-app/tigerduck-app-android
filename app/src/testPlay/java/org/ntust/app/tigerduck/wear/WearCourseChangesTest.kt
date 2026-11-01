@@ -169,12 +169,12 @@ class WearCourseChangesTest {
     }
 
     @Test
-    fun `a course's two blocks on at once show the earlier block`() {
+    fun `a course's two blocks on at once show the one that began first`() {
         val d = Course.fromSchedule("D", "Course D", classroom = "T-D", schedule = mapOf(2 to listOf("1", "3")))
         val rows = arrayOf(
             row(1, "start", listOf("1"), "start" to "10:25", courseNo = "D"),
             row(2, "end", listOf("1"), "end" to "11:00", courseNo = "D"),
         )
-        assertEquals("ongoing D 1 10:25-11:00", watch(listOf(d), 10 * 60 + 30, *rows))
+        assertEquals("ongoing D 3 10:20-11:10", watch(listOf(d), 10 * 60 + 30, *rows))
     }
 }

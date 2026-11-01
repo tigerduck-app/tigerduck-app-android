@@ -102,8 +102,7 @@ enum class NotificationGroup(
             .setContentIntent(contentIntent)
             // It says nothing but the stack's name. A private summary on a
             // lock screen that hides sensitive content stands in, redacted,
-            // for the whole stack, hiding members that are public themselves,
-            // such as class reminders.
+            // for the whole stack, hiding members that would show as they are.
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
         if (label != null) builder.setSubText(name)
         val timeout = if (timeoutAfterMs > 0L) longestTimeLeft(context, timeoutAfterMs) else 0L

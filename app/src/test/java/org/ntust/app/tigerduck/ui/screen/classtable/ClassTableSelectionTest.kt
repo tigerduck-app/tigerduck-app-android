@@ -189,6 +189,23 @@ class ClassTableSelectionTest {
         )
     }
 
+    @Test
+    fun `a course only on periods with no time is no class today, as on iOS`() {
+        val untimed = course("UNTIMED", mapOf(1 to listOf("E")))
+        val mixed = course("MIXED", mapOf(1 to listOf("E", "2", "1")))
+        val timed = course("TIMED", mapOf(1 to listOf("3")))
+
+        assertEquals(listOf("MIXED", "TIMED"), ClassTableSelection.coursesOn(listOf(untimed, timed, mixed), weekday = 1).map { it.courseNo })
+    }
+
+    @Test
+    fun `a period with no time does not move a course ahead of one that starts earlier`() {
+        val unknownFirst = course("UNK", mapOf(1 to listOf("E", "4")))
+        val early = course("EARLY", mapOf(1 to listOf("2")))
+
+        assertEquals(listOf("EARLY", "UNK"), ClassTableSelection.coursesOn(listOf(unknownFirst, early), weekday = 1).map { it.courseNo })
+    }
+
     // --- todayCourses ------------------------------------------------------
 
     private val autumnTerm = AcademicCalendar(
@@ -250,6 +267,22 @@ class ClassTableSelectionTest {
     fun `a single period still yields a range`() {
         val c = course("A", mapOf(1 to listOf("3")))
         assertEquals("10:20 - 11:10", ClassTableSelection.timeRange(c, weekday = 1))
+    }
+
+    @Test
+    fun `time range runs over the periods with a time and skips the others`() {
+        val mixed = course("A", mapOf(1 to listOf("E", "2", "1")))
+        val untimed = course("B", mapOf(1 to listOf("E")))
+        assertEquals("08:10 - 10:00", ClassTableSelection.timeRange(mixed, weekday = 1))
+        assertEquals("08:10 - 10:00", ClassTableSelection.timeRange(listOf("1", "2", "E")))
+        assertNull(ClassTableSelection.timeRange(untimed, weekday = 1))
+    }
+
+    @Test
+    fun `a course is finished by the last period with a time, whatever unknown one is listed`() {
+        val mixed = course("A", mapOf(1 to listOf("1", "E", "2")))
+        assertFalse(ClassTableSelection.isFinishedAt(mixed, ClassTableSelection.DayTime(1, 9 * 60 + 59)))
+        assertTrue(ClassTableSelection.isFinishedAt(mixed, ClassTableSelection.DayTime(1, 10 * 60)))
     }
 
     @Test

@@ -21,12 +21,19 @@ object FileViewer {
      * [mimeType], in the viewer if it can; [elsewhere] otherwise. Returns whether something opened.
      */
     fun open(context: Context, uri: Uri, mimeType: String, name: String, elsewhere: () -> Boolean): Boolean {
-        val opening = FileViewing.opening(mimeType, name)
-        if (opening !is FileOpening.InApp) return elsewhere()
-        val viewer = intent(context, uri, mimeType, name, opening.kind)
-        // From outside a screen, the viewer needs a task of its own to start in.
-        if (context.findActivity() == null) viewer.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        return runCatching { context.startActivity(viewer) }.isSuccess || elsewhere()
+        return when (val opening = FileViewing.opening(mimeType, name)) {
+            // A web page or an XML file would run in whatever browser or app took it, so every
+            // caller sends it to the share sheet, never to [elsewhere].
+            FileOpening.ShareOnly -> start(context, shareIntent(uri, mimeType, name))
+            is FileOpening.InApp -> start(context, intent(context, uri, mimeType, name, opening.kind)) || elsewhere()
+            FileOpening.OtherApp -> elsewhere()
+        }
+    }
+
+    /** Starts [intent]; from outside a screen it needs a task of its own to start in. */
+    private fun start(context: Context, intent: Intent): Boolean {
+        if (context.findActivity() == null) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return runCatching { context.startActivity(intent) }.isSuccess
     }
 
     fun intent(context: Context, uri: Uri, mimeType: String, name: String, kind: ViewerKind): Intent =

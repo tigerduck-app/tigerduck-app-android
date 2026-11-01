@@ -70,7 +70,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.OutlinedAccountIdField
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PasswordTrailingIcons
 import org.ntust.app.tigerduck.ui.component.SecureScreen
@@ -171,7 +171,7 @@ fun LibraryScreen(
 
     PageScaffold(
         title = stringResource(R.string.feature_library),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = { LibrarySyncDot(failed = errorMessage != null, isLoggedIn, isLoadingQR, syncedAtMs) },
     ) { padding ->
         Column(

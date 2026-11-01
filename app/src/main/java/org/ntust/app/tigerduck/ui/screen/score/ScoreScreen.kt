@@ -51,7 +51,7 @@ import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
@@ -86,7 +86,7 @@ fun ScoreScreen(
 
     PageScaffold(
         title = stringResource(R.string.feature_score),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = {
             SyncStatusDot(
                 servers = ServerKind.transcriptSources,

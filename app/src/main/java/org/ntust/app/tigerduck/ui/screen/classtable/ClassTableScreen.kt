@@ -75,7 +75,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.sharing.ClassTableShare
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTables
 import org.ntust.app.tigerduck.ui.component.DetentSheet
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageMenu
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.rememberDetentSheetState
@@ -298,7 +298,7 @@ fun ClassTableScreen(
 
     PageScaffold(
         title = stringResource(R.string.feature_class_table),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = {
             SyncStatusDot(
                 servers = ServerKind.classTableSources,
