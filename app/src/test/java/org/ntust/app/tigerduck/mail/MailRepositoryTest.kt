@@ -2327,6 +2327,37 @@ class MailRepositoryTest {
     }
 
     @Test
+    fun `the shipped demo mailbox's attachment downloads as a real PDF of its listed size`() = runTest {
+        demo.box = DemoMailFixture.parse(java.io.File("src/main/assets/demo.json").readText(), "en")!!
+        val repo = TestSetup(backgroundScope).signedIn(demo.box.studentId!!, demo.box.password!!)
+        val mail = demo.box.messages.single { it.body.attachments.isNotEmpty() }
+        val attachment = mail.body.attachments.single()
+
+        val out = java.io.ByteArrayOutputStream()
+        repo.writeAttachment("INBOX", mail.summary.uid, attachment.partId, out)
+
+        val bytes = out.toByteArray()
+        assertTrue("starts with the PDF magic", String(bytes, 0, minOf(5, bytes.size), Charsets.ISO_8859_1) == "%PDF-")
+        assertEquals(attachment.sizeBytes, bytes.size.toLong())
+        assertEquals(0, server.opens)
+    }
+
+    @Test
+    fun `a demo attachment without content keeps the placeholder`() = runTest {
+        val json = """{"mail":{"studentId":"B10000099","password":"demo","messages":[{"from":{"address":"a@x.tw"},
+            "subject":"s","date":"2026-09-15T14:30:00+08:00","plain":"p",
+            "attachments":[{"name":"a.pdf","type":"application/pdf","size":10}]}]}}"""
+        demo.box = DemoMailFixture.parse(json, "en")!!
+        val repo = TestSetup(backgroundScope).signedIn("B10000099", "demo")
+        val mail = demo.box.messages.single()
+
+        val out = java.io.ByteArrayOutputStream()
+        repo.writeAttachment("INBOX", mail.summary.uid, mail.body.attachments.single().partId, out)
+
+        assertEquals("TigerDuck demo attachment", out.toString())
+    }
+
+    @Test
     fun `discardDraft is a no-op in demo mode`() = runTest {
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn("B10000099", "demo")
