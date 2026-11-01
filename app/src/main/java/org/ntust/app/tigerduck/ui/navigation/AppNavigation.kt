@@ -61,7 +61,6 @@ import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.ui.openLink
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementDetailScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.AnnouncementsScreen
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsScreen
@@ -75,7 +74,6 @@ import org.ntust.app.tigerduck.ui.component.PermissionWarningDialogHost
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
-import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarScreen
 import org.ntust.app.tigerduck.ui.screen.calendar.CalendarViewModel
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableScreen
@@ -87,14 +85,11 @@ import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableSwitcherMe
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportViewModel
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAssignmentScreen
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleRoutes
-import org.ntust.app.tigerduck.ui.screen.emptyclassroom.EmptyClassroomScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeScreen
 import org.ntust.app.tigerduck.ui.screen.home.HomeViewModel
-import org.ntust.app.tigerduck.ui.screen.informationsystem.InformationSystemScreen
 import org.ntust.app.tigerduck.ui.screen.library.LibraryScreen
 import org.ntust.app.tigerduck.ui.screen.more.MoreScreen
 import org.ntust.app.tigerduck.ui.screen.onboarding.OnboardingScreen
-import org.ntust.app.tigerduck.ui.screen.score.ScoreScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AboutOthersScreen
 import org.ntust.app.tigerduck.ui.screen.settings.AccentColorScreen
 import org.ntust.app.tigerduck.ui.screen.settings.LanguagePickerScreen
@@ -669,22 +664,7 @@ fun MainNavigation(
                     leaveGuard = leaveGuard,
                 )
             }
-            page(Screen.Score.route) {
-                ScoreScreen(onOpenSignInSettings = openSignInSettings)
-            }
-            page(Screen.InformationSystem.route) {
-                InformationSystemScreen(
-                    // In the TigerDuck browser, which signs each school site in; elsewhere as any link
-                    // when it cannot open.
-                    onOpenLink = { _, url ->
-                        if (!InAppBrowser.open(context, url)) openLink(context, url, appState.browserPreference)
-                    },
-                    onOpenSignInSettings = openSignInSettings,
-                )
-            }
-            page(Screen.EmptyClassroom.route) {
-                EmptyClassroomScreen(onOpenSignInSettings = openSignInSettings)
-            }
+            schoolAccountPages(browserPreference = { appState.browserPreference }, onOpenSignInSettings = openSignInSettings)
             page(Screen.More.route) { MoreScreen(navController) }
             page(Screen.Settings.route) {
                 SettingsScreen(
