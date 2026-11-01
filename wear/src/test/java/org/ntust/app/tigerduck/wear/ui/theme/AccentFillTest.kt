@@ -66,14 +66,6 @@ class AccentFillTest {
     }
 
     @Test
-    fun `a mirrored fill puts the gradient's ends the other way round`() {
-        // For a canvas the indicator mirrors, so the ends land on the screen's own sides.
-        val fill = draw(accentFill(orange, WearAccentGradient(purple, AccentGradientDirection.LeftToRight), mirrored = true))
-        val left = Color(fill.getPixel(2, 10))
-        assertTrue("purple first: $left", left.blue > left.red)
-    }
-
-    @Test
     fun `the text reads on both ends of the gradient`() {
         val gradient = WearAccentGradient(purple, AccentGradientDirection.LeftToRight)
         val fill = accentFill(orange, gradient)

@@ -21,23 +21,18 @@ class AccentFill(val brush: Brush, val text: Color)
  * a single color as it is, a gradient at stops along it, both ends among them,
  * since two ends that read can mix in sRGB to a middle that doesn't. The text
  * is black or white, whichever reads better where it reads worst.
- *
- * [mirrored] is for a canvas that is flipped left to right before it shows, as
- * Wear's progress indicator flips its own in a right-to-left language: the
- * gradient is laid the other way round, so it lands on the screen's own sides.
  */
-fun accentFill(accent: Color, gradient: WearAccentGradient?, mirrored: Boolean = false): AccentFill {
+fun accentFill(accent: Color, gradient: WearAccentGradient?): AccentFill {
     if (gradient == null) {
         val color = readableOnBlack(accent)
         return AccentFill(SolidColor(color), textOn(color))
     }
     val stops = List(GRADIENT_STOPS) { readableOnBlack(lerp(accent, gradient.end, it / (GRADIENT_STOPS - 1f))) }
     val direction = gradient.direction
-    fun x(fraction: Float) = if (mirrored) 1f - fraction else fraction
     val brush = object : ShaderBrush() {
         override fun createShader(size: Size): Shader = LinearGradientShader(
-            from = Offset(x(direction.startX) * size.width, direction.startY * size.height),
-            to = Offset(x(direction.endX) * size.width, direction.endY * size.height),
+            from = Offset(direction.startX * size.width, direction.startY * size.height),
+            to = Offset(direction.endX * size.width, direction.endY * size.height),
             colors = stops,
         )
     }
