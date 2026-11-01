@@ -119,7 +119,7 @@ private fun SearchField(value: String, onValueChange: (String) -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        placeholder = { Text(stringResource(R.string.information_system_search_hint)) },
+        placeholder = { Text(stringResource(R.string.information_system_search_prompt)) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
     )

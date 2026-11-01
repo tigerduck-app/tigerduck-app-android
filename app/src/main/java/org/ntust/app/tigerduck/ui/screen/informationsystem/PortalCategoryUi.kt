@@ -8,7 +8,7 @@ import org.ntust.app.tigerduck.network.model.PortalCategory
 val PortalCategory.displayNameRes: Int
     get() = when (this) {
         PortalCategory.CURRICULUM -> R.string.information_system_category_curriculum
-        PortalCategory.PERSON_INFO -> R.string.information_system_category_person_info
+        PortalCategory.PERSON_INFO -> R.string.information_system_category_personal_info
         PortalCategory.CAMPUS_LIFE -> R.string.information_system_category_campus_life
         PortalCategory.FINANCIAL_SUPPORT -> R.string.information_system_category_financial_support
         PortalCategory.ACTIVITIES -> R.string.information_system_category_activities
@@ -19,7 +19,7 @@ val PortalCategory.displayNameRes: Int
 val PortalCategory.descriptionRes: Int
     get() = when (this) {
         PortalCategory.CURRICULUM -> R.string.information_system_category_curriculum_description
-        PortalCategory.PERSON_INFO -> R.string.information_system_category_person_info_description
+        PortalCategory.PERSON_INFO -> R.string.information_system_category_personal_info_description
         PortalCategory.CAMPUS_LIFE -> R.string.information_system_category_campus_life_description
         PortalCategory.FINANCIAL_SUPPORT -> R.string.information_system_category_financial_support_description
         PortalCategory.ACTIVITIES -> R.string.information_system_category_activities_description
