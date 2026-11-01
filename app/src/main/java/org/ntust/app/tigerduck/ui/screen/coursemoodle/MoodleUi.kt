@@ -15,12 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,7 +26,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -53,7 +50,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -78,8 +74,6 @@ import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
 import org.ntust.app.tigerduck.data.moodle.MoodleRefreshSchedule
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.moodle.MoodleHtmlText
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
-import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.util.replaceIosArg
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -132,43 +126,19 @@ internal fun <T : Any> MoodleSignedOutEffect(
 }
 
 /**
- * The bar of a pushed Moodle screen: back, the title, and "Open in Moodle" for [moodlePath] when
- * the screen has a page on the site.
+ * "Open in Moodle" in a pushed Moodle screen's bar, for [moodlePath] when the screen has a page on
+ * the site.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun MoodleTopBar(
-    title: String,
-    onBack: () -> Unit,
-    moodlePath: String?,
-    actions: @Composable () -> Unit = {},
-    willOpenPage: () -> Unit = {},
-) {
+internal fun OpenInMoodleAction(moodlePath: String?, willOpenPage: () -> Unit = {}) {
+    if (moodlePath == null) return
     val context = LocalContext.current
-    TopAppBar(
-        windowInsets = NoTopBarInsets,
-        title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-            }
-        },
-        actions = {
-            actions()
-            if (moodlePath != null) {
-                IconButton(onClick = {
-                    willOpenPage()
-                    openMoodlePage(context, moodlePath)
-                }) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = stringResource(R.string.action_open_in_moodle),
-                    )
-                }
-            }
-        },
-        expandedHeight = SubSettingsBarHeight,
-    )
+    IconButton(onClick = {
+        willOpenPage()
+        openMoodlePage(context, moodlePath)
+    }) {
+        Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = stringResource(R.string.action_open_in_moodle))
+    }
 }
 
 /**

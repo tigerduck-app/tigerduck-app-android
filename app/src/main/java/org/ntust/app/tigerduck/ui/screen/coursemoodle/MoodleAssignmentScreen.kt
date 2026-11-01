@@ -26,11 +26,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -68,6 +66,7 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleSubmissionComment
 import org.ntust.app.tigerduck.network.moodle.MoodleFileUrls
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import java.util.Locale
@@ -215,7 +214,6 @@ internal object AssignmentPageStatus {
  * app submits nothing, so the button at the foot opens the assignment on Moodle. The page fetches
  * the submission when it opens and on each return to the app, and shows the last copy meanwhile.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleAssignmentScreen(
     browserPreference: String,
@@ -241,15 +239,11 @@ fun MoodleAssignmentScreen(
     // One for the whole page, so of every file tapped only the latest opens, and a page opened
     // on Moodle stops a file still downloading from opening over it.
     val files = store?.let { rememberMoodleFileOpener(it, browserPreference) }
-    Scaffold(
-        topBar = {
-            MoodleTopBar(
-                title = "",
-                onBack = onBack,
-                moodlePath = entry?.let(AssignmentPageRules::moodlePath),
-                willOpenPage = { files?.forgetPendingOpen() },
-            )
-        },
+    PageScaffold(
+        title = "",
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(entry?.let(AssignmentPageRules::moodlePath), willOpenPage = { files?.forgetPendingOpen() }) },
         bottomBar = {
             entry?.let {
                 AssignmentSubmitButton(it, onOpen = {
@@ -258,7 +252,6 @@ fun MoodleAssignmentScreen(
                 })
             }
         },
-        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Box(
             Modifier

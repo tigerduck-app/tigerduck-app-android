@@ -32,11 +32,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -76,6 +74,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
 import org.ntust.app.tigerduck.data.moodle.MoodleLookup
 import org.ntust.app.tigerduck.data.moodle.MoodleMemberPlacement
@@ -91,7 +90,6 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
  * their email opening a new School Mail message where the account has School Mail, else the
  * system's mail app. A long press on the address copies it.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleMemberScreen(
     memberId: Int,
@@ -163,16 +161,12 @@ fun MoodleMemberScreen(
         },
     )
 
-    Scaffold(
-        topBar = {
-            MoodleTopBar(
-                title = "",
-                onBack = onBack,
-                moodlePath = current?.let { MoodlePage.profile(memberId, it.courseId) },
-            )
-        },
+    PageScaffold(
+        title = "",
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(current?.let { MoodlePage.profile(memberId, it.courseId) }) },
         snackbarHost = { SnackbarHost(snackbar) },
-        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Box(
             Modifier

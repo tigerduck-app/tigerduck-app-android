@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -54,6 +53,7 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseMaterials
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMaterialSection
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -64,7 +64,6 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
  * tap and opens in another app; opening a file or link logs a view on Moodle. The bar's "Open in
  * Moodle" opens the course page. Ported from iOS `MoodleMaterialsView`.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleMaterialsScreen(
     browserPreference: String,
@@ -74,16 +73,11 @@ fun MoodleMaterialsScreen(
     val store by viewModel.store.collectAsStateWithLifecycle()
     MoodleSignedOutEffect(viewModel, onBack)
     val files = store?.let { rememberMoodleFileOpener(it, browserPreference) }
-    Scaffold(
-        topBar = {
-            MoodleTopBar(
-                title = stringResource(R.string.course_detail_files_label),
-                onBack = onBack,
-                moodlePath = store?.let { MoodlePage.course(it.courseId) },
-                willOpenPage = { files?.forgetPendingOpen() },
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = stringResource(R.string.course_detail_files_label),
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(store?.let { MoodlePage.course(it.courseId) }, willOpenPage = { files?.forgetPendingOpen() }) },
     ) { padding ->
         Box(
             Modifier

@@ -10,19 +10,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +50,7 @@ import org.ntust.app.tigerduck.data.moodle.MoodleFileRef
 import org.ntust.app.tigerduck.data.moodle.MoodleLookup
 import org.ntust.app.tigerduck.data.moodle.MoodlePersonName
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
@@ -60,7 +58,6 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
  * attachments, and a button to open it in Moodle. Its content came with the list, so it has
  * nothing to load. Opening it tells Moodle once that it was read.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleAnnouncementScreen(
     discussionId: Int,
@@ -98,8 +95,10 @@ fun MoodleAnnouncementScreen(
         }
     }
 
-    Scaffold(
-        topBar = { MoodleTopBar(title = "", onBack = onBack, moodlePath = null) },
+    PageScaffold(
+        title = "",
+        onBack = onBack,
+        oneLineTitle = true,
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { openMoodlePage(context, MoodlePage.discussion(discussionId)) },
@@ -107,7 +106,6 @@ fun MoodleAnnouncementScreen(
                 text = { Text(stringResource(R.string.action_open_in_moodle)) },
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Box(
             Modifier

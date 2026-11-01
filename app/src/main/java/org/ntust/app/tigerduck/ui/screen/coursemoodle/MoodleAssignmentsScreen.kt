@@ -17,7 +17,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +39,7 @@ import org.ntust.app.tigerduck.data.model.AssignmentStatus
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentEntry
 import org.ntust.app.tigerduck.data.moodle.MoodleAssignmentLists
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.rememberAppClockVersion
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
@@ -65,15 +65,11 @@ fun MoodleAssignmentsScreen(
     val clockVersion by rememberAppClockVersion()
     val rows = remember(entries, clockVersion) { MoodleAssignmentLists.rows(entries, AppClock.nowMillis()) }
 
-    Scaffold(
-        topBar = {
-            MoodleTopBar(
-                title = stringResource(R.string.course_detail_assignments_label),
-                onBack = onBack,
-                moodlePath = current?.let { MoodlePage.assignments(it.courseId) },
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = stringResource(R.string.course_detail_assignments_label),
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(current?.let { MoodlePage.assignments(it.courseId) }) },
     ) { padding ->
         Box(
             Modifier
