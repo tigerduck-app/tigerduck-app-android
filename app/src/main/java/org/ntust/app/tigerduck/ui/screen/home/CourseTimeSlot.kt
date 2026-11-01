@@ -2,7 +2,8 @@ package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
-import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.shared.Course
 import java.time.LocalDate
 import java.util.Calendar
@@ -23,8 +24,8 @@ data class CourseTimeSlot(
     val date: Date,
     /** Whether the school cancelled this class. A cancelled class stays on the slider, struck through. */
     val isCancelled: Boolean = false,
-    /** The class as the school changed it, for the course detail; null for one built without the feed. */
-    val classSlot: org.ntust.app.tigerduck.shared.timeline.ClassSlot? = null,
+    /** The class as the school changed it, for the course detail. */
+    val classSlot: org.ntust.app.tigerduck.shared.timeline.ClassSlot,
     /** The room the school moved this class to; null keeps the timetable's. */
     val movedRoom: String? = null,
     /** Whether the school moved this class's start or end off the timetable's. */
@@ -45,45 +46,46 @@ data class CourseTimeSlot(
             changes: CourseChanges = CourseChanges.EMPTY,
         ): List<CourseTimeSlot> {
             val day = on.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
-            return CourseMeetings.buildSlots(courses, day, changes).map { slot ->
-                CourseTimeSlot(
-                    id = slot.id,
-                    course = slot.course,
-                    periods = slot.periods,
-                    start = Date.from(slot.startsAt),
-                    end = Date.from(slot.endsAt),
-                    date = on,
-                    isCancelled = slot.isCancelled,
-                    movedRoom = slot.room.takeIf { slot.hasChangedRoom },
-                    hasChangedTime = slot.hasChangedTime,
-                    classSlot = slot,
-                )
-            }
+            return ClassTimeline.meetings(courses, day, changes).map { of(it, on) }
         }
 
+        private fun of(slot: ClassSlot, on: Date) = CourseTimeSlot(
+            id = slot.id,
+            course = slot.course,
+            periods = slot.periods,
+            start = Date.from(slot.startsAt),
+            end = Date.from(slot.endsAt),
+            date = on,
+            isCancelled = slot.isCancelled,
+            movedRoom = slot.room.takeIf { slot.hasChangedRoom },
+            hasChangedTime = slot.hasChangedTime,
+            classSlot = slot,
+        )
+
+        /**
+         * Every day's classes from [dayRadius] days before [centerDate]'s Taipei day to [dayRadius]
+         * after it, by start. A cancelled class stays, to be shown as one.
+         */
         fun buildMultiDaySlots(
             courses: List<Course>,
             centerDate: Date,
             dayRadius: Int = 28,
             changes: CourseChanges = CourseChanges.EMPTY,
         ): List<CourseTimeSlot> {
-            val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
-            val allSlots = mutableListOf<CourseTimeSlot>()
-
-            for (offset in -dayRadius..dayRadius) {
-                cal.time = centerDate
-                cal.set(Calendar.HOUR_OF_DAY, 0)
-                cal.set(Calendar.MINUTE, 0)
-                cal.set(Calendar.SECOND, 0)
-                cal.set(Calendar.MILLISECOND, 0)
-                cal.add(Calendar.DAY_OF_YEAR, offset)
-                val date = cal.time
-
-                allSlots.addAll(buildSlots(courses, AppConstants.weekdayIndex(cal.get(Calendar.DAY_OF_WEEK)), date, changes))
-            }
-            return allSlots.sortedBy { it.start }
+            val center = centerDate.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+            return (-dayRadius..dayRadius)
+                .flatMap { offset ->
+                    val day = center.plusDays(offset.toLong())
+                    val midnight = Date.from(day.atStartOfDay(AppConstants.TAIPEI_ZONE).toInstant())
+                    ClassTimeline.meetings(courses, day, changes).map { of(it, midnight) }
+                }
+                .sortedBy { it.start }
         }
     }
+
+    /** Whether [at] is within this class, by the one end rule: from its start, over from its end. */
+    fun isGoingOn(at: Date): Boolean =
+        classSlot.isOn(at.toInstant())
 }
 
 /** This slot's day, in Taipei tz. */

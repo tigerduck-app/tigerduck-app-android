@@ -222,7 +222,7 @@ class TimeSliderViewModel {
         // Collect every slot currently containing `at` so 衝堂 overlaps
         // surface all active courses, not just the first match. timeSlots
         // is sorted by start, so the resulting list mirrors lane order.
-        val active = timeSlots.filter { at >= it.start && at < it.end }
+        val active = timeSlots.filter { it.isGoingOn(at) }
         if (active.isNotEmpty()) {
             return CourseState.InClass(active)
         }

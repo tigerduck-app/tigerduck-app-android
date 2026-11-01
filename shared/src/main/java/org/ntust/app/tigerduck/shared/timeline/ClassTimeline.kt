@@ -25,7 +25,7 @@ object ClassTimeline {
     /** The classes running at [now], by start. */
     fun ongoing(courses: List<Course>, now: Instant, changes: CourseChanges): List<ClassSlot> =
         meetings(courses, now.atZone(TaipeiClock.zone).toLocalDate(), changes)
-            .filter { !it.isCancelled && it.startsAt <= now && now < it.endsAt }
+            .filter { !it.isCancelled && it.isOn(now) }
 
     /**
      * The first class that starts after [now]: today's, or else the earliest of the next days, up
