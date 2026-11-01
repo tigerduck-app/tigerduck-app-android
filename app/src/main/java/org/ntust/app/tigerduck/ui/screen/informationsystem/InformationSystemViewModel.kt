@@ -66,40 +66,57 @@ class InformationSystemViewModel @Inject constructor(
     private var accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
     private val accountScope get() = viewModelScope + accountJob
 
-    private var hasLoaded = false
+    // Which student and language the shown links are for, null while nothing is loaded for any.
+    private var loadedFor: Pair<String, Boolean>? = null
     private var lastUseEnglish: Boolean? = null
+
+    // Moves with every account change, so a result can tell it started for another one.
+    private var accountGeneration = 0
 
     init {
         // This screen can be a retained tab that outlives a sign-out, so it has to forget the
-        // previous account itself. drop(1): the current value is where this ViewModel starts,
-        // not a change.
-        viewModelScope.launch {
-            authService.authState.drop(1).collect { signedIn ->
-                accountJob.cancel()
-                accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
-                hasLoaded = false
-                _state.value = State()
-                if (signedIn) lastUseEnglish?.let(::load)
-            }
-        }
+        // previous account itself. Both flows are followed: a sign-out and sign-in that land
+        // together leave authState unchanged, but the counted state still moves, and a student
+        // signing in over another moves neither, only signIns. drop(1): the current value is
+        // where this ViewModel starts, not a change.
+        viewModelScope.launch { authService.accountState.drop(1).collect { accountChanged() } }
+        viewModelScope.launch { authService.signIns.collect { accountChanged() } }
+    }
+
+    private fun accountChanged() {
+        accountJob.cancel()
+        accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
+        accountGeneration++
+        loadedFor = null
+        _state.value = State()
+        if (authService.authState.value) lastUseEnglish?.let(::load)
     }
 
     fun load(useEnglish: Boolean) {
         lastUseEnglish = useEnglish
-        if (hasLoaded) return
         val studentId = authService.storedStudentId ?: return
         if (authService.storedPassword == null) return
+        if (loadedFor == studentId to useEnglish) return
         // Only once there is an account to load for: a visit while signed out must not stop
         // the load that signing in triggers.
-        hasLoaded = true
+        loadedFor = studentId to useEnglish
 
+        val generation = accountGeneration
         accountScope.launch {
             portalService.cachedPortalLinks(studentId, useEnglish)?.let { cached ->
-                _state.update { applyFilters(it.copy(items = cached, loadState = LoadState.Loaded)) }
+                if (isCurrent(generation, studentId, useEnglish)) {
+                    _state.update { applyFilters(it.copy(items = cached, loadState = LoadState.Loaded)) }
+                }
             }
             refresh(useEnglish)
         }
     }
+
+    // Whether a result for [studentId] in this language is still the one the page is for.
+    private fun isCurrent(generation: Int, studentId: String, useEnglish: Boolean) =
+        generation == accountGeneration &&
+            authService.storedStudentId == studentId &&
+            (lastUseEnglish ?: useEnglish) == useEnglish
 
     fun refresh(useEnglish: Boolean) {
         val studentId = authService.storedStudentId
@@ -112,16 +129,22 @@ class InformationSystemViewModel @Inject constructor(
         // leave whatever's on screen (nothing) rather than reporting a failure.
         if (demoAccount.isActive) return
 
+        val generation = accountGeneration
         accountScope.launch {
             if (!networkChecker.isAvailable()) return@launch
+            if (!isCurrent(generation, studentId, useEnglish)) return@launch
             _state.update { it.copy(loadState = LoadState.Loading) }
+            // A result is published only if the account and language it started for still hold.
+            fun publish(change: (State) -> State) {
+                if (isCurrent(generation, studentId, useEnglish)) _state.update(change)
+            }
             try {
                 val links = portalService.fetchPortalLinks(studentId, password, useEnglish)
-                _state.update { applyFilters(it.copy(items = links, loadState = LoadState.Loaded)) }
+                publish { applyFilters(it.copy(items = links, loadState = LoadState.Loaded)) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: NtustPortalError) {
-                _state.update {
+                publish {
                     it.copy(
                         loadState = LoadState.Failed(
                             when (e) {
@@ -134,7 +157,7 @@ class InformationSystemViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(loadState = LoadState.Failed(e.message ?: context.getString(R.string.information_system_load_failed))) }
+                publish { it.copy(loadState = LoadState.Failed(e.message ?: context.getString(R.string.information_system_load_failed))) }
             }
         }
     }
