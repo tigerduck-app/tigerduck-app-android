@@ -71,4 +71,16 @@ class MoodleColorTransitionTest {
         assertEquals(buildCourseColorAssignments(listOf(spring)).getValue("CS1"), TigerDuckTheme.courseColorVibrant("CS1"))
         assertEquals(false, Color(0xFF000000L or MoodleColorBook.forCourseId(4127).toLong()) == TigerDuckTheme.courseColorVibrant("CS1"))
     }
+
+    @Test
+    fun `building one term's colors leaves the other courses' colors as they were`() {
+        MoodleColorBook.shared.setIds(mapOf("1151CS1" to 4127))
+        TigerDuckTheme.buildCourseColorMap(listOf(first, second))
+        val before = TigerDuckTheme.courseColorVibrant("CS1")
+        val other = Course(courseNo = "MA7", courseName = "MA7", moodleIdNumber = "1142MA7", customColorHex = "#123456")
+
+        TigerDuckTheme.buildCourseColorMap(listOf(other))
+
+        assertEquals(before, TigerDuckTheme.courseColorVibrant("CS1"))
+    }
 }

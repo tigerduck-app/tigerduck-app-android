@@ -136,13 +136,13 @@ object TigerDuckTheme {
     }
 
     /**
-     * The colors of [courses], laid out from scratch as the widgets lay theirs out
-     * ([buildCourseColorAssignments]), so nothing the map held before can outlive what it was
-     * computed from: a Moodle transition, another term's course of the same number, a pick removed.
+     * [courses] laid out from scratch as the widgets lay theirs out ([buildCourseColorAssignments]),
+     * so nothing held for them outlives what it was computed from. Other courses keep their entry:
+     * Home and the class table share the map and show other terms.
      */
     fun buildCourseColorMap(courses: List<Course>) {
         MoodleColorBook.shared.reconcile(courses)
-        courseColorMapRef.set(buildCourseColorAssignments(courses))
+        courseColorMapRef.set(courseColorMapRef.get() + buildCourseColorAssignments(courses))
     }
 
     fun clearCourseColorMap() {
