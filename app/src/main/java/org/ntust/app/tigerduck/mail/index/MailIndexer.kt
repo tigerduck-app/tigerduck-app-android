@@ -14,7 +14,15 @@ internal interface MailSessionRunner {
  * How far a download into the search index has come: [done] of the [total] mails it lacked, or
  * [COUNTING] while it lists every folder to find that total.
  */
-data class MailIndexProgress(val done: Int, val total: Int?) {
+data class MailIndexProgress(
+    val done: Int,
+    val total: Int?,
+    /**
+     * Whether the download is under way. False for one that stopped short -- the network, a
+     * folder recreated meanwhile -- and left mail out of search, until one gets through.
+     */
+    val running: Boolean = true,
+) {
     companion object {
         /** Under way, with no total yet: every folder listed, planned and its flags asked for first. */
         val COUNTING = MailIndexProgress(0, null)

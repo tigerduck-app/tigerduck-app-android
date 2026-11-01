@@ -138,10 +138,13 @@ data class MoodleCourseSummary(
     /** The summary as one line of text. */
     val text: String,
     val names: List<String>,
+    /** The course format, such as `weeks` or `topics`, and its start date, which find the current week. */
+    val format: String?,
+    val startDate: Long?,
 ) {
     companion object {
         /** A course without a summary, or on a site that does not allow the call. */
-        val EMPTY = MoodleCourseSummary("", "", emptyList())
+        val EMPTY = MoodleCourseSummary("", "", emptyList(), null, null)
     }
 }
 
@@ -293,6 +296,8 @@ data class MoodleMaterialSection(
     /** Plain text; empty for a section with no name, such as the course's first. */
     val name: String,
     val materials: List<MoodleMaterial>,
+    /** Moodle's section number, 0 for the general section. */
+    val number: Int?,
 )
 
 /** A file, a folder of files or a link on a course's page. */

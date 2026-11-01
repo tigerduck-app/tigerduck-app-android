@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.shared.Course
 
 /**
@@ -55,6 +56,28 @@ class ClassTableCourseMergeTest {
     }
 
     @Test
+    fun `a course added here stays added here when the school also lists it`() {
+        // Its Moodle identity stays the one it was added with, none, as a lookup again keeps it:
+        // with the school's, it would read as merged, and a past term's rebuild could drop it.
+        val out = merge(
+            fetched = listOf(course("A").copy(moodleIdNumber = "1141A", moodleNumericCourseId = 42)),
+            cached = listOf(course("A", manual = true)),
+        ).single()
+        assertTrue(out.isManual)
+        assertNull(out.moodleIdNumber)
+        assertNull(out.moodleNumericCourseId)
+    }
+
+    @Test
+    fun `a merged course takes the school's Moodle identity`() {
+        val out = merge(
+            fetched = listOf(course("A").copy(moodleIdNumber = "1141A")),
+            cached = listOf(course("A", manual = true).copy(moodleIdNumber = "1141A-old")),
+        ).single()
+        assertEquals("1141A", out.moodleIdNumber)
+    }
+
+    @Test
     fun `a course only the user knows about is kept`() {
         val out = merge(
             fetched = listOf(course("A")),
@@ -70,6 +93,25 @@ class ClassTableCourseMergeTest {
             cached = listOf(course("A"), course("STALE")),
         )
         assertEquals(listOf("A"), out.map { it.courseNo })
+    }
+
+    /**
+     * A fetch that only gains from the transcript removes nothing: a school course it does not
+     * list, saved by another fetch while its lookups ran, stays, renamed as any other, and a
+     * course deleted meanwhile is still taken off (tigerduck-app#890).
+     */
+    @Test
+    fun `a school course the fetch does not list stays when the merge is told to keep it, but not one deleted`() {
+        val out = ClassTableCourseMerge.mergeFetched(
+            fetched = listOf(course("A")),
+            cached = listOf(course("A"), course("B"), course("GONE"), course("STALE")),
+            names = CourseNameOverrides.withOverride(emptyMap(), "B", "zh", "Renamed"),
+            locale = "zh",
+            deletedNos = setOf("GONE"),
+            alsoKeeps = { it.courseNo != "STALE" },
+        )
+        assertEquals(listOf("A", "B"), out.map { it.courseNo })
+        assertEquals("Renamed", out[1].displayName)
     }
 
     @Test
@@ -187,6 +229,25 @@ class ClassTableCourseMergeTest {
         assertEquals("MINE", out.courseNo)
         assertEquals("1151MINE", out.moodleIdNumber)
         assertEquals(77, out.moodleNumericCourseId)
+    }
+
+    /**
+     * As the iPhone's `filledHandAddKeepsNoMoodleId` (tigerduck-app#890). The iPhone fills a
+     * hand-added course's empty schedule from its server row; here a lookup fills it, and the sync
+     * merge never does. Either way the course keeps having no Moodle ID, so a drop still passes it.
+     */
+    @Test
+    fun `a course added here filled in from a lookup keeps having no Moodle ID`() {
+        val added = Course.fromSchedule("XB0000002", "Added here", isManual = true)
+        val looked = Course.fromSchedule(
+            "XB0000002", "Added here", schedule = mapOf(2 to listOf("3", "4")), moodleIdNumber = "1141XB0000002",
+        )
+
+        val filled = ClassTableCourseMerge.refreshed(added, looked)
+
+        assertEquals(mapOf(2 to listOf("3", "4")), filled.schedule)
+        assertNull(filled.moodleIdNumber)
+        assertTrue(TranscriptTerms.isAddedHere(filled))
     }
 
     @Test

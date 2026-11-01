@@ -1,5 +1,11 @@
 package org.ntust.app.tigerduck.shared
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonElement
+import com.google.gson.JsonNull
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import java.time.LocalDate
 
 /**
@@ -61,6 +67,86 @@ object WearProtocol {
          */
         fun decodeQuietDays(raw: Collection<String>?): Set<LocalDate> =
             raw.orEmpty().mapNotNullTo(HashSet()) { runCatching { LocalDate.parse(it) }.getOrNull() }
+
+        // The classes the school changed, as [encodeCourseChanges] writes them, on every day of the
+        // feed. A phone that predates the key sends none, which the watch reads as no changes, and a
+        // watch that predates it ignores it.
+        const val KEY_COURSE_CHANGES = "courseChanges"
+
+        /**
+         * [changes] as one JSON object, course number to ISO day to that day's classes, each with
+         * its `periods` and `cancelled`, and `room`, `start` and `end` (`HH:mm`) only when changed:
+         * `{"CC900":{"2026-11-05":[{"periods":["2"],"cancelled":true}]}}`. As the iPhone's
+         * `WatchPayloadCodec` writes `changes`, but by course rather than inside each meeting, so
+         * [KEY_COURSES] keeps the shape older watches read.
+         */
+        fun encodeCourseChanges(changes: WatchCourseChanges): String {
+            val root = JsonObject()
+            for ((courseNo, days) in changes.byCourse.toSortedMap()) {
+                val byDay = JsonObject()
+                for ((day, classes) in days.toSortedMap()) {
+                    byDay.add(day.toString(), JsonArray().apply { classes.forEach { add(classJson(it)) } })
+                }
+                root.add(courseNo, byDay)
+            }
+            return root.toString()
+        }
+
+        /**
+         * Null or blank, from a phone or a stored snapshot that predates [KEY_COURSE_CHANGES], reads
+         * as no changes, and so does a payload that is not an object of courses. A day or class of
+         * another shape is dropped rather than failing the rest; a block left with no class shows
+         * as the timetable has it.
+         */
+        fun decodeCourseChanges(raw: String?): WatchCourseChanges {
+            if (raw.isNullOrBlank()) return WatchCourseChanges.EMPTY
+            val root = runCatching { JsonParser.parseString(raw) }.getOrNull() as? JsonObject
+                ?: return WatchCourseChanges.EMPTY
+            val byCourse = root.entrySet().mapNotNull { (courseNo, days) ->
+                val byDay = (days as? JsonObject)?.entrySet().orEmpty().mapNotNull { (key, classes) ->
+                    val day = runCatching { LocalDate.parse(key) }.getOrNull() ?: return@mapNotNull null
+                    val decoded = (classes as? JsonArray)?.mapNotNull(::decodeClass).orEmpty()
+                    if (decoded.isEmpty()) null else day to decoded
+                }.toMap()
+                if (byDay.isEmpty()) null else courseNo to byDay
+            }.toMap()
+            return WatchCourseChanges(byCourse)
+        }
+
+        private fun classJson(change: WatchClassChange) = JsonObject().apply {
+            add("periods", JsonArray().apply { change.periods.forEach(::add) })
+            addProperty("cancelled", change.cancelled)
+            change.room?.let { addProperty("room", it) }
+            change.start?.let { addProperty("start", it) }
+            change.end?.let { addProperty("end", it) }
+        }
+
+        /** Null for a class without periods, or with a value of the wrong type or a time that is not `HH:mm`. */
+        private fun decodeClass(element: JsonElement): WatchClassChange? {
+            val entry = element as? JsonObject ?: return null
+            val periods = (entry.get("periods") as? JsonArray)?.map { stringOf(it) ?: return null }
+            if (periods.isNullOrEmpty()) return null
+            val cancelled = when (val value = entry.get("cancelled")) {
+                null, is JsonNull -> false
+                is JsonPrimitive -> if (value.isBoolean) value.asBoolean else return null
+                else -> return null
+            }
+            val values = listOf("room", "start", "end").associateWith { key ->
+                when (val value = entry.get(key)) {
+                    null, is JsonNull -> null
+                    else -> stringOf(value) ?: return null
+                }
+            }
+            val start = values["start"]
+            val end = values["end"]
+            if (start != null && !CLOCK_TIME.matches(start)) return null
+            if (end != null && !CLOCK_TIME.matches(end)) return null
+            return WatchClassChange(periods, cancelled, values["room"]?.takeIf { it.isNotEmpty() }, start, end)
+        }
+
+        private fun stringOf(element: JsonElement): String? = (element as? JsonPrimitive)?.takeIf { it.isString }?.asString
+
+        private val CLOCK_TIME = Regex("([01]\\d|2[0-3]):[0-5]\\d")
     }
 
     /** One-shot message watch → phone asking for a fresh [Schedule] publish. */

@@ -24,16 +24,20 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.CourseIgnores
-import org.ntust.app.tigerduck.shared.OngoingCourseInfo
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.push.CourseUpload
 import org.ntust.app.tigerduck.data.OutstandingAssignments
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -44,8 +48,8 @@ import org.ntust.app.tigerduck.data.sharing.ImportedClassTables
 import org.ntust.app.tigerduck.data.sharing.ImportedCourseLookup
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.TimetablePeriod
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -55,10 +59,15 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.network.NtustScoreService
 import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.review.ReviewPrompt
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
+import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.SingleFlight
 import org.ntust.app.tigerduck.util.logSummary
@@ -86,6 +95,7 @@ class ClassTableViewModel @Inject constructor(
     private val authService: AuthService,
     internal val courseService: CourseService,
     private val moodleService: MoodleService,
+    private val scoreService: NtustScoreService,
     private val dataCache: DataCache,
     private val courseColorStore: CourseColorStore,
     private val appPreferences: AppPreferences,
@@ -104,6 +114,8 @@ class ClassTableViewModel @Inject constructor(
     private val pendingCourseDeletes: org.ntust.app.tigerduck.data.PendingCourseDeletes,
     private val pendingCourseOverrides: org.ntust.app.tigerduck.data.PendingCourseOverrides,
     private val reviewPrompt: ReviewPrompt,
+    private val courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
+    private val authTokenManager: AuthTokenManager,
     @param:ApplicationScope private val appScope: CoroutineScope,
 ) : ViewModel() {
 
@@ -171,6 +183,37 @@ class ClassTableViewModel @Inject constructor(
 
     private fun noteTermEdit(semester: String) {
         termEdits[semester] = (termEdits[semester] ?: 0) + 1
+    }
+
+    // By tap, the term and the courses each in-place edit of the list on screen added, took off or
+    // changed, until its save of the list lands: the term's cache lacks them meanwhile, and a fetch
+    // takes those from the screen; see ClassTableTermFetch.foldLatest.
+    private val unsavedEdits = HashMap<Long, Pair<String, Set<String>>>()
+    private var nextUnsavedEdit = 0L
+
+    private fun unsavedEditsIn(semester: String): Set<String> =
+        unsavedEdits.values.filter { it.first == semester }.flatMapTo(mutableSetOf()) { it.second }
+
+    /**
+     * Puts [updated], an in-place edit of [semester]'s list, on screen: the edit counted, and the
+     * courses it changed noted unsaved until [saveEdit] is handed the id returned.
+     */
+    private fun showEdit(updated: List<Course>, semester: String): Long {
+        val edited = ClassTableCourseMerge.editedNos(_courses.value, updated)
+        _courses.value = updated
+        noteTermEdit(semester)
+        val edit = nextUnsavedEdit++
+        unsavedEdits[edit] = semester to edited
+        return edit
+    }
+
+    /** Saves [updated], the list [edit] left, and lets the edit go once the save is done. */
+    private suspend fun saveEdit(updated: List<Course>, semester: String, edit: Long) {
+        try {
+            dataCache.saveCourses(updated, semester)
+        } finally {
+            unsavedEdits.remove(edit)
+        }
     }
 
     // When each term's courses without a room were last looked up again, on
@@ -271,6 +314,12 @@ class ClassTableViewModel @Inject constructor(
     // meeting twice a day shows the times of the one tapped, not the day's.
     private val _selectedPeriods = MutableStateFlow<List<String>?>(null)
 
+    /** The day the detail was opened for, whose course changes it shows; null shows none. */
+    private val _selectedDate = MutableStateFlow<java.time.LocalDate?>(null)
+
+    /** The class the detail was opened for, as the Current class card names it; null merges its block. */
+    private val _selectedSlot = MutableStateFlow<org.ntust.app.tigerduck.shared.timeline.ClassSlot?>(null)
+
     // The term the selected course belongs to. Not always the picker's: the
     // today carousel shows the live term's courses whatever term the grid
     // is on, and a course added by hand is looked up in Moodle by
@@ -318,6 +367,8 @@ class ClassTableViewModel @Inject constructor(
     val availableSemesters: StateFlow<List<String>> = _availableSemesters
 
     private val _currentDayTime = MutableStateFlow(currentDayTime())
+    // Each page resume restarts the minute ticks: their wait does not count a phone's deep sleep.
+    private val clockRestarts = MutableStateFlow(0)
     val currentMinute: StateFlow<Int> = _currentDayTime
         .map { it.minuteOfDay }
         .stateIn(
@@ -405,6 +456,21 @@ class ClassTableViewModel @Inject constructor(
         ShownClassTable(null, _currentSemester.value, _availableSemesters.value, emptyList(), 0),
     )
 
+    /**
+     * The class table as a week from today, with the school's course changes on its blocks, while
+     * it shows the term in session and the changes feed has answered; null for a plain timetable.
+     * Rechecked each minute, for the day and the term to roll over. As the iPhone's `showsThisWeek`.
+     */
+    val thisWeek: StateFlow<ClassTableWeek?> = combine(
+        courseChangeStore.changes,
+        shownTable,
+        _currentDayTime,
+    ) { changes, shown, _ ->
+        ClassTableWeek(AppClock.localDateTime().toLocalDate(), changes).takeIf {
+            ClassTableThisWeek.showsThisWeek(changes.term, shown.semester, courseService.currentSemesterCode())
+        }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
     private val _isRefreshingShownPerson = MutableStateFlow(false)
 
     /** A pull to refresh on someone else's class table, which looks their term up again. */
@@ -445,16 +511,9 @@ class ClassTableViewModel @Inject constructor(
             importedTables.collect(::followShownTable)
         }
         viewModelScope.launch {
-            // Tick at 5s so transitions land within at most a few seconds of
-            // the wall-clock minute boundary (e.g., the "現在課程" card appears
-            // ~5s after a class starts, not up to a minute later). The
-            // _currentDayTime MutableStateFlow dedupes by structural equality,
-            // so emissions only propagate when minuteOfDay actually changes —
-            // downstream collectors aren't woken on every poll.
-            while (true) {
-                kotlinx.coroutines.delay(5_000)
-                _currentDayTime.value = currentDayTime()
-            }
+            // Each minute boundary, so a class shows as ongoing the moment it starts. The first tick
+            // is at once; the field dedupes by equality, so only a changed minute wakes collectors.
+            ClassTableSelection.dayTimes(clockRestarts).collect { _currentDayTime.value = it }
         }
         viewModelScope.launch {
             // Reload course state whenever Settings resets tile colors so
@@ -559,16 +618,18 @@ class ClassTableViewModel @Inject constructor(
                     semester, _courses.value
                 )
                 if (relabeled != _courses.value) {
-                    _courses.value = relabeled
                     // An edit of the list like any other, for a commit
-                    // reading the term meanwhile; see noteTermEdit.
-                    noteTermEdit(semester)
-                    dataCache.saveCourses(relabeled, semester)
+                    // reading the term meanwhile; see showEdit.
+                    val edit = showEdit(relabeled, semester)
+                    saveEdit(relabeled, semester, edit)
                     TigerDuckTheme.buildCourseColorMap(relabeled)
                 }
             }
         }
     }
+
+    /** Says the time at once and waits afresh for the next minute. Fetches nothing. */
+    fun realignClock() = clockRestarts.update { it + 1 }
 
     private fun currentDayTime(): ClassTableSelection.DayTime =
         ClassTableSelection.dayTimeFrom(AppClock.calendar())
@@ -720,10 +781,7 @@ class ClassTableViewModel @Inject constructor(
     }
 
     /** Format semester code for display, e.g. "1142" → "114-2". */
-    fun displayLabel(code: String): String {
-        if (code.length < 2) return code
-        return code.dropLast(1) + "-" + code.last()
-    }
+    fun displayLabel(code: String): String = semesterDisplayLabel(code)
 
     fun setSemester(code: String) {
         val displayed = _displayed.value
@@ -872,14 +930,57 @@ class ClassTableViewModel @Inject constructor(
             )
         }
 
-    fun isCourseFinishedToday(course: Course): Boolean =
-        ClassTableSelection.isFinishedAt(course, _currentDayTime.value)
-
-    val ongoingCourses: List<OngoingCourseInfo>
+    /** The selected block on the selected day as the school changed it; null without a day or a change. */
+    val selectedMeeting: org.ntust.app.tigerduck.shared.timeline.ClassSlot?
         get() {
-            val dayTime = _currentDayTime.value
-            return computeOngoingCourses(liveCourses, dayTime.weekday, dayTime.minuteOfDay)
+            val course = _selectedCourse.value ?: return null
+            return org.ntust.app.tigerduck.shared.timeline.CourseChangeSummary.shownMeeting(
+                course, _selectedSlot.value, _selectedPeriods.value, _selectedDate.value, courseChangeStore.current(),
+            )
         }
+
+    /**
+     * 課程異動's rows for the selected course from today on, leaving [shown]'s own change to the
+     * cards; none for a detail opened without a day.
+     */
+    fun selectedChangeRows(
+        shown: org.ntust.app.tigerduck.shared.timeline.ClassSlot?,
+        cancelled: String,
+        locale: java.util.Locale,
+    ): List<org.ntust.app.tigerduck.shared.timeline.CourseChangeRow> {
+        val course = _selectedCourse.value ?: return emptyList()
+        if (_selectedDate.value == null) return emptyList()
+        val changes = courseChangeStore.current()
+        val today = AppClock.localDateTime().toLocalDate()
+        return org.ntust.app.tigerduck.shared.timeline.CourseChangeSummary.rows(
+            org.ntust.app.tigerduck.shared.timeline.CourseMeetings.upcomingChanges(course, today, changes),
+            shown,
+            cancelled,
+            locale,
+        )
+    }
+
+    /** The school's course changes, for the today strip to follow. */
+    val courseChanges: StateFlow<org.ntust.app.tigerduck.shared.timeline.CourseChanges>
+        get() = courseChangeStore.changes
+
+    /** A today-strip card for [course] now, by the times the school changed it to. */
+    fun todayCard(course: Course): ClassTableSelection.TodayCard =
+        ClassTableSelection.todayCard(
+            course,
+            AppClock.localDateTime().toLocalDate(),
+            _currentDayTime.value.minuteOfDay,
+            courseChangeStore.current(),
+        )
+
+    /** The classes going on now as the school changed them; a cancelled one is not. */
+    val ongoingCourses: List<org.ntust.app.tigerduck.shared.timeline.ClassSlot>
+        get() = ClassTableSelection.ongoingClasses(
+            liveCourses,
+            AppClock.localDateTime().toLocalDate(),
+            _currentDayTime.value.minuteOfDay,
+            courseChangeStore.current(),
+        )
 
     // coursesAt / cellRole were removed for the same reason hasAssignment was
     // (below): they read _courses.value, which Compose does not track. The
@@ -915,7 +1016,14 @@ class ClassTableViewModel @Inject constructor(
         fromLiveTerm: Boolean = false,
         // The block a today card stands for; a grid tap opens the cell's, around [periodId].
         periods: List<String>? = null,
+        // The day whose course changes the detail shows: the column's in a week from today, a
+        // card's own; null shows none.
+        date: java.time.LocalDate? = null,
+        // The piece the Current class card or a Home card stands for, whose own changes the detail shows.
+        slot: org.ntust.app.tigerduck.shared.timeline.ClassSlot? = null,
     ) {
+        _selectedDate.value = date
+        _selectedSlot.value = slot
         _selectedWeekday.value = weekday
         _selectedPeriodId.value = periodId
         _selectedPeriods.value = periods ?: ClassTableSelection.block(
@@ -970,6 +1078,19 @@ class ClassTableViewModel @Inject constructor(
         return lookupMoodleCourseId(idnumber)
     }
 
+    /** The term the selected course is shown from, for its syllabus; see [moodleCourseIdFor]. */
+    val selectedCourseTerm: String
+        get() = selectedCourseSemester ?: _currentSemester.value
+
+    /**
+     * [course]'s syllabus in [semester] from the school's course query, public as it is; null
+     * when it has none, or no course number to ask by. Throws when it cannot be fetched.
+     */
+    suspend fun syllabusFor(course: Course, semester: String): org.ntust.app.tigerduck.network.CourseSyllabus? {
+        if (semester.isBlank() || course.courseNo.isBlank()) return null
+        return courseService.syllabus(semester, course.courseNo)
+    }
+
     /** Normalised on both sides: see [MoodleCourseIds.normalizedIdnumber]. */
     private fun lookupMoodleCourseId(idnumber: String): Int? =
         _moodleCourseIdByIdnumber.value[MoodleCourseIds.normalizedIdnumber(idnumber)]
@@ -992,9 +1113,8 @@ class ClassTableViewModel @Inject constructor(
         }
         val flagged = course.copy(isManual = true)
         val updated = _courses.value + flagged
-        _courses.value = updated
         val semester = _currentSemester.value
-        noteTermEdit(semester)
+        val edit = showEdit(updated, semester)
         // Ahead of the write below: a fetch folding meanwhile reads the
         // tombstones with this on top, or its filter would drop the course
         // just added back; see ClassTableTombstoneEdits.
@@ -1014,14 +1134,14 @@ class ClassTableViewModel @Inject constructor(
                 } finally {
                     tombstoneEdits.saved(tombstone)
                 }
-                dataCache.saveCourses(updated, semester)
+                saveEdit(updated, semester, edit)
                 // A delete of it still queued goes first, or it could land after
                 // this add and take the course off the server again; as the
                 // iPhone's `discardCourseDeletes` before an add.
                 pendingCourseDeletes.forget(semester, course.courseNo, reAddedAt)
                 // Kept until it lands: in a term the server already has, no
                 // sync would send it again otherwise.
-                pendingCourseAdds.send(updated, semester, course.courseNo)
+                pendingCourseAdds.send(updated, semester, course.courseNo, addedAt = reAddedAt)
             } finally {
                 dataCache.courseAddSent(course.courseNo, semester)
             }
@@ -1086,12 +1206,12 @@ class ClassTableViewModel @Inject constructor(
         courseCustomNames =
             CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, override)
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, override)
-        _courses.value = updated
-        noteTermEdit(_currentSemester.value)
+        val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, override)
         viewModelScope.launch {
-            dataCache.saveCourseCustomNames(courseCustomNames)
-            dataCache.saveCourses(updated, _currentSemester.value)
+            // Onto the names as they stand, not this screen's copy: a sync may have changed others since.
+            dataCache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, courseNo, locale, override) }
+            saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
         syncCourseOverride(course, semester, customName = trimmed.ifEmpty { "" }, locale = locale)
@@ -1119,12 +1239,12 @@ class ClassTableViewModel @Inject constructor(
         courseCustomNames =
             CourseNameOverrides.withOverride(courseCustomNames, courseNo, locale, null)
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, null)
-        _courses.value = updated
-        noteTermEdit(_currentSemester.value)
+        val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, null)
         viewModelScope.launch {
-            dataCache.saveCourseCustomNames(courseCustomNames)
-            dataCache.saveCourses(updated, _currentSemester.value)
+            // As setCustomCourseName: onto the names as they stand.
+            dataCache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, courseNo, locale, null) }
+            saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
         if (course != null && semester != null) syncCourseOverride(course, semester, customName = "", locale = locale)
@@ -1178,9 +1298,8 @@ class ClassTableViewModel @Inject constructor(
         val deletedCourse = _courses.value.firstOrNull { it.courseNo == courseNo }
         val moodleId = deletedCourse?.moodleIdNumber
         val updated = _courses.value.filter { it.courseNo != courseNo }
-        _courses.value = updated
         val semester = _currentSemester.value
-        noteTermEdit(semester)
+        val listEdit = showEdit(updated, semester)
         val ignoreKey = CourseIgnores.key(semester, courseNo)
         val edit = ignoredCourses.edit { it - ignoreKey }
         appScope.launch {
@@ -1213,7 +1332,7 @@ class ClassTableViewModel @Inject constructor(
                     tombstoneEdits.saved(tombstoneEdit)
                 }
             }
-            dataCache.saveCourses(updated, semester)
+            saveEdit(updated, semester, listEdit)
             // A colour or name of it still waiting to go up goes with it; see
             // PendingCourseOverrides.forget.
             pendingCourseOverrides.forget(listOfNotNull(moodleId))
@@ -1251,11 +1370,10 @@ class ClassTableViewModel @Inject constructor(
             shown = TigerDuckTheme::courseColorVibrant,
         )
         val updated = pick.courses
-        _courses.value = updated
-        noteTermEdit(_currentSemester.value)
+        val edit = showEdit(updated, _currentSemester.value)
         TigerDuckTheme.buildCourseColorMap(updated)
         viewModelScope.launch {
-            dataCache.saveCourses(updated, _currentSemester.value)
+            saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
         // A concrete hex each, a default included: the backend reads a
@@ -1377,6 +1495,7 @@ class ClassTableViewModel @Inject constructor(
      * launch, to whether it is still on screen and resumed.
      */
     fun onPageResumed(pageResumed: () -> Boolean) {
+        realignClock() // First, whatever the prompt decides.
         if (_selectedCourse.value != null) return
         reviewPrompt.calmMoment(pageResumed)
     }
@@ -1465,6 +1584,8 @@ class ClassTableViewModel @Inject constructor(
 
     /** A pull to refresh: what the schools have now, not an answer kept for sharing. */
     fun refresh() {
+        // The school's course changes too, on either class table, as on iOS (#911).
+        viewModelScope.launch { courseChangeStore.refresh() }
         if (isShowingSomeoneElse) {
             refreshShownPerson()
             return
@@ -1530,13 +1651,32 @@ class ClassTableViewModel @Inject constructor(
                     "servesSelection=$servesSelectionSemester"
             )
 
-            // Kick off the two enrolment sources concurrently — they hit
-            // different hosts (courseselection.ntust.edu.tw vs.
-            // moodle2.ntust.edu.tw) and neither depends on the other.
+            // The transcript for this fetch and the warm of the other terms
+            // after it: asked of the score system once at most, through its
+            // day-long cache, for the account this fetch began under.
+            val transcript = ClassTableTranscript(
+                fetch = {
+                    if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.SCORE_SYSTEM)
+                    scoreService.fetchScoreReport(studentId, password)
+                },
+                cached = { dataCache.loadScoreReport(studentId)?.report },
+                stillSignedIn = { authService.isStillSignedInAs(studentId) },
+                record = { ServerStatusTracker.set(it, ServerKind.SCORE_SYSTEM) },
+            )
+
+            // Kick off the enrollment sources concurrently — they hit
+            // different hosts (courseselection, moodle2 and stuinfosys
+            // .ntust.edu.tw).
             //   Source 1: course-selection portal, open term only.
-            //   Source 2: Moodle enrolment list, all semesters (needed for
-            //             historical terms and for fanning out assignments).
-            val (selectionNos, moodleAll) = coroutineScope {
+            //   Source 2: Moodle enrollment list, all semesters: names, Moodle
+            //             IDs and links, and the assignments' courses. It adds
+            //             no course to a term (tigerduck-app#890).
+            //   Source 3: the transcript, once course selection gave nothing:
+            //             past terms are built from it, and the open term
+            //             falls back on it.
+            // Before the fetch: a sign-out while it runs drops its roster.
+            val generation = dataCache.writeGeneration()
+            val (selectionNos, moodleAll, report) = coroutineScope {
                 val selectionDef = async {
                     if (servesSelectionSemester) {
                         try {
@@ -1555,12 +1695,15 @@ class ClassTableViewModel @Inject constructor(
                         emptyList<MoodleEnrolledCourse>()
                     }
                 }
-                selectionDef.await() to moodleDef.await()
+                val reportDef = async {
+                    if (selectionDef.await().isEmpty()) transcript.fetched() else transcript.cachedOnly()
+                }
+                Triple(selectionDef.await(), moodleDef.await(), reportDef.await())
             }
             Log.i("ClassTableVM", "selectionNos=${selectionNos.size} -> $selectionNos")
             // Before the merge below rewrites the cache — see
-            // DataCache.recordSelectionRoster.
-            dataCache.recordSelectionRoster(semester, selectionNos)
+            // DataCache.recordSelectionRoster. The fetch's version of the term.
+            val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)
             Log.i(
                 "ClassTableVM",
                 "moodleAll=${moodleAll.size} sampleIdnums=${
@@ -1589,14 +1732,20 @@ class ClassTableViewModel @Inject constructor(
                 "moodleForSem[$semester]=${moodleForSem.size} -> ${moodleForSem.map { it.courseNo }}"
             )
 
-            val orderedCourseNos = CourseRosterMerge.rosterOrder(selectionNos, moodleForSem)
-            Log.i("ClassTableVM", "orderedCourseNos=${orderedCourseNos.size} -> $orderedCourseNos")
+            val source = ClassTableTermSource.of(semester, selectionNos, report, servesSelectionSemester, cached = latestCourses(semester))
+            Log.i("ClassTableVM", "source[$semester]=$source")
+            // Whose assignments are asked for: course selection's courses,
+            // else every Moodle course of the term, as before Moodle stopped
+            // adding courses to it.
+            val assignmentNos = CourseRosterMerge.assignmentCourseNos(selectionNos, moodleForSem)
 
             // Course detail lookups and assignment fetching are fully
             // independent — run them concurrently and apply each result as
             // soon as it lands.
             coroutineScope {
-                val coursesJob = launch { fetchTermCourses(semester, orderedCourseNos, moodleByNo, countsAsUse = true) }
+                val coursesJob = launch {
+                    fetchTermCourses(semester, source, moodleByNo, recorded, countsAsUse = true) { authService.isStillSignedInAs(studentId) }
+                }
 
                 // Assignments are always "upcoming from now", so they belong
                 // to the active enrolment — fetch only when viewing the
@@ -1607,7 +1756,7 @@ class ClassTableViewModel @Inject constructor(
                         try {
                             val answer = moodleService.fetchAssignments(
                                 enrolledCourses = moodleAll,
-                                rosterCourseNos = orderedCourseNos.toSet()
+                                rosterCourseNos = assignmentNos.toSet()
                             )
                             // Null keeps the cache: an enrolment fetch that
                             // failed above left no course to ask about. An
@@ -1638,9 +1787,9 @@ class ClassTableViewModel @Inject constructor(
                 assignmentsJob?.join()
             }
             _syncCompleteEvent.tryEmit(Unit)
-            // The other terms, now that Moodle has answered once for all of
-            // them; without that answer their rosters would be empty anyway.
-            if (moodleAll.isNotEmpty()) warmTerms(studentId, password, moodleAll)
+            // The other terms, with Moodle's answer and this fetch's
+            // transcript, which their rosters come from.
+            warmTerms(studentId, password, moodleAll, transcript)
         } catch (e: CancellationException) {
             // Structured concurrency: viewModelScope cancellation has to keep
             // propagating, or navigating away mid-refresh leaves this coroutine
@@ -1665,10 +1814,13 @@ class ClassTableViewModel @Inject constructor(
      * [semester]'s courses as the school has them now — see
      * [ClassTableTermFetch] — folded onto the term's list as it stands once
      * the lookups land and, when it is the term on screen, shown; then saved,
-     * uploaded and sent to the widget. QueryCourse only indexes the latest
-     * term or two, so lookupOrFallback drops to Moodle metadata for
-     * historical courses, which still render with the name and credits but
-     * no schedule.
+     * uploaded and sent to the widget. A course QueryCourse has no rows for
+     * keeps the row the term has, or else drops to Moodle metadata, which
+     * still renders with the name and credits but no schedule.
+     *
+     * [source] says what is looked up and how it is drawn; see
+     * [ClassTableTermSource]. A past term rebuilt from its transcript records
+     * its drops before it is saved, see [ClassTableTermFetch.committed].
      *
      * The commit runs under [PendingCourseAdds.uploading], in the order the
      * backend's DELETEs run in and held through the upload: a reset's DELETE
@@ -1676,7 +1828,12 @@ class ClassTableViewModel @Inject constructor(
      * is left as it is when nothing came back, and when [mayCommit] says no
      * under that lock, before the snapshot or again before the upload: a warm
      * whose term was picked, fetched or reset meanwhile has rows older than
-     * what that left — see [ClassTableTermWarm.supersede].
+     * what that left — see [ClassTableTermWarm.supersede]. Nor when the
+     * course selection answer the fetch [recorded] was replaced by a newer
+     * one, at the snapshot or before the upload ([DataCache.isLatestAnswer]):
+     * that answer dropped what it no longer lists, and its fetch saves and
+     * sends the term. One refused as it was recorded is not even looked up
+     * ([RecordedSelection.Refused]).
      *
      * Returns whether every query went through: false when one failed, which
      * [warmTerms] stops on — the Moodle metadata a failed lookup falls back
@@ -1684,47 +1841,97 @@ class ClassTableViewModel @Inject constructor(
      */
     private suspend fun fetchTermCourses(
         semester: String,
-        rosterNos: List<String>,
+        source: ClassTableTermSource,
         moodleByNo: Map<String, MoodleEnrolledCourse>,
+        recorded: RecordedSelection?,
         // The page's own fetch is a day of use; a warm of the other terms is not.
         countsAsUse: Boolean = false,
         mayCommit: () -> Boolean = { true },
     ): Boolean {
-        val answers = termFetch.lookUp(semester, rosterNos, moodleByNo, before = latestCourses(semester))
-        if (answers.isEmpty) return answers.answered
+        // A newer answer's fetch, or a wipe, has the term already: no failure for the warm to stop on.
+        if (recorded == RecordedSelection.Refused) return true
+        val answer = recorded?.answer
+        // Before the lookups: a sign-out while they run drops the rebuild's drops.
+        val generation = dataCache.writeGeneration()
+        // And the upload: the next account's token would take this roster as its own.
+        val signIn = authTokenManager.signInGeneration
+        val answers = termFetch.lookUp(
+            semester, source.rosterNos, moodleByNo, before = latestCourses(semester), atMost = source.lookupsAtOnce,
+        )
+        // A rebuilt term is its transcript's even with nothing to look up.
+        if (answers.isEmpty && source !is ClassTableTermSource.Rebuild) return answers.answered
+        // A rebuilt past term's roster, read off its final transcript as it is committed.
+        var rebuiltRoster: List<String>? = null
         pendingCourseAdds.uploading {
             if (!mayCommit()) return@uploading
-            // The reads that suspend first, the list chosen and folded after
-            // them with nothing in between; the order is foldLatest's.
-            val merged = termFetch.foldLatest(
-                answers, semester,
-                editGeneration = { termEdits[semester] ?: 0 },
-                cachedCourses = { dataCache.loadCourses(semester) },
-                storedTombstones = { dataCache.loadDeletedCourseNos() },
-                shownCourses = { _courses.value.takeIf { coursesSemester == semester } },
-                withPendingEdits = tombstoneEdits::over,
-                names = { courseCustomNames },
-                locale = currentCourseLocale,
-            ) ?: run {
-                // Edited throughout its reads: left as it is, for the next fetch.
-                Log.w("ClassTableVM", "fetchTermCourses: $semester edited throughout the snapshot, left as it is")
+            val merged = termFetch.committed(
+                answers, source, semester, moodleByNo.keys,
+                latest = { latestCourses(semester) },
+                waitingAdds = { pendingCourseAdds.waitingIn(semester) },
+                // With the courses dropped on the server, which a term only gaining leaves out too.
+                droppedNos = { dataCache.fetchDropsIn(semester) },
+                recordFinalRoster = {
+                    rebuiltRoster = it.roster
+                    dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation)
+                },
+            ) { drawn ->
+                // Folded and saved under the courses' lock, onto the term as its cache holds it: a
+                // sync or the background fetch that took a course out of it lands wholly before.
+                var folded: List<Course>? = null
+                dataCache.updateCourses(semester) { current, _ ->
+                    if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@updateCourses current
+                    // The reads that suspend first, the list chosen and folded
+                    // after them with nothing in between; the order is foldLatest's.
+                    folded = termFetch.foldLatest(
+                        drawn, semester,
+                        editGeneration = { termEdits[semester] ?: 0 },
+                        cachedCourses = { current },
+                        storedTombstones = { dataCache.loadDeletedCourseNos() },
+                        shownCourses = { _courses.value.takeIf { coursesSemester == semester } },
+                        unsavedEdits = { unsavedEditsIn(semester) },
+                        // Again under the lock: a course selection answer or a sync may have dropped a course since.
+                        droppedNos = { dataCache.fetchDropsIn(semester) },
+                        waitingAdds = { pendingCourseAdds.waitingIn(semester) },
+                        withPendingEdits = tombstoneEdits::over,
+                        names = { courseCustomNames },
+                        locale = currentCourseLocale,
+                    )
+                    // Only apply if the user hasn't flipped to a different semester
+                    // mid-flight.
+                    folded?.let { merged ->
+                        if (_currentSemester.value == semester) {
+                            showCourses(merged, semester)
+                            TigerDuckTheme.buildCourseColorMap(merged)
+                        }
+                    }
+                    folded ?: current
+                }
+                folded
+            } ?: run {
+                // Nothing to draw, edited throughout its reads, or a newer
+                // answer's: left as it is, for the next fetch.
+                Log.w("ClassTableVM", "fetchTermCourses: $semester drew nothing, was edited throughout the snapshot or superseded, left as it is")
                 return@uploading
             }
-            // Only apply if the user hasn't flipped to a different semester
-            // mid-flight.
-            if (_currentSemester.value == semester) {
-                showCourses(merged, semester)
-                TigerDuckTheme.buildCourseColorMap(merged)
-            }
-            dataCache.saveCourses(merged, semester)
             // The class table loaded: a day of use towards the Play rating ask
             // (issue #332).
             if (countsAsUse) reviewPrompt.classTableLoaded()
             // Superseded during the save: the reset's wipe, or the newer
             // fetch's save, takes the file, and these rows need not go up to
-            // be taken down again.
+            // be taken down again. A newer answer's roster would be undone.
             if (!mayCommit()) return@uploading
-            runCatching { pushApiClient.uploadCourses(merged, semester) }
+            if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
+            // As the term's roster when this fetch's course selection answer or a past term's final
+            // transcript gave it, and the upload lists all of it; see CourseUpload.of.
+            val roster = when (source) {
+                is ClassTableTermSource.Selection -> source.rosterNos
+                is ClassTableTermSource.Rebuild -> rebuiltRoster
+                else -> null
+            }
+            val upload = CourseUpload.of(
+                merged, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
+            )
+            runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn = signIn, rosterTerms = upload.rosterTerms) }
                 .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             widgetUpdater.requestUpdate()
         }
@@ -1744,15 +1951,27 @@ class ClassTableViewModel @Inject constructor(
      * has no cache yet, fetched in the background, one at a time, so a term
      * picked later shows at once (tigerduck-app-android#265); see
      * [ClassTableTermWarm], which runs it once per sign-in. Reuses the fetch's
-     * [moodleAll], Moodle's one answer for every term. On a job of its own,
-     * not the fetch's: a pull must not wait on the other terms, and a
-     * sign-out cancels it.
+     * [moodleAll], Moodle's one answer for every term, and its [transcript],
+     * which the terms' rosters come from: asked for here if the fetch had no
+     * need of it. Without one, only the term course selection serves is
+     * warmed, and the rest wait for a later fetch. Both are [studentId]'s,
+     * and reach no term once that account has left. On a job
+     * of its own, not the fetch's: a pull must not wait on the other terms,
+     * and a sign-out cancels it.
      */
-    private fun warmTerms(studentId: String, password: String, moodleAll: List<MoodleEnrolledCourse>) {
+    private fun warmTerms(
+        studentId: String,
+        password: String,
+        moodleAll: List<MoodleEnrolledCourse>,
+        transcript: ClassTableTranscript,
+    ) {
         if (warmJob?.isActive == true) return
         warmJob = viewModelScope.launch {
             try {
-                termWarm.run { term, isCurrent -> warmTerm(term, isCurrent, studentId, password, moodleAll) }
+                termWarm.run(
+                    stillSignedIn = { authService.isStillSignedInAs(studentId) },
+                    shared = { transcript.fetched() },
+                ) { term, report, isCurrent -> warmTerm(term, isCurrent, studentId, password, moodleAll, report) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -1767,10 +1986,12 @@ class ClassTableViewModel @Inject constructor(
 
     /**
      * One term of [warmTerms], fetched as [fetchData] fetches the term on
-     * screen: 選課's roster when 選課 serves it, else Moodle's, looked up course
-     * by course and cached — unless [isCurrent] says a pick, a fetch or a
-     * reset of the term overtook it meanwhile. Says whether the school
-     * answered.
+     * screen: 選課's roster when 選課 serves it, else the classes [report], the
+     * transcript, lists for it — a past term rebuilt from them — looked up
+     * course by course and cached, unless [isCurrent] says a pick, a fetch or
+     * a reset of the term overtook it meanwhile, or the account left. A term
+     * neither answers for, a past one with [report] null among them, is left
+     * for a later warm. Says whether the school answered.
      */
     private suspend fun warmTerm(
         semester: String,
@@ -1778,11 +1999,15 @@ class ClassTableViewModel @Inject constructor(
         studentId: String,
         password: String,
         moodleAll: List<MoodleEnrolledCourse>,
+        report: ScoreReport?,
     ): Boolean {
         // A reset in progress wipes the term; a roster saved under it would
         // be the old one, kept. Its own refetch fills the term.
         if (semester in dataCache.resettingSemesters()) return true
-        val selectionNos = if (semester == semesterCatalog.selectionSemesterCode()) {
+        val servesSelection = semester == semesterCatalog.selectionSemesterCode()
+        // Before the fetch: a sign-out while it runs drops its roster.
+        val generation = dataCache.writeGeneration()
+        val selectionNos = if (servesSelection) {
             try {
                 courseService.fetchEnrolledCourseNos(studentId, password)
             } catch (e: CancellationException) {
@@ -1794,14 +2019,15 @@ class ClassTableViewModel @Inject constructor(
         } else {
             emptyList()
         }
-        dataCache.recordSelectionRoster(semester, selectionNos)
-        val moodleForSem = CourseRosterMerge.moodleCoursesFor(semester, moodleAll)
-        val rosterNos = CourseRosterMerge.rosterOrder(selectionNos, moodleForSem)
-        val moodleByNo = moodleForSem.associateBy { it.courseNo }
-        Log.i("ClassTableVM", "warm: $semester roster=${rosterNos.size}")
+        val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)
+        val moodleByNo = CourseRosterMerge.moodleCoursesFor(semester, moodleAll).associateBy { it.courseNo }
+        val source = ClassTableTermSource.of(semester, selectionNos, report, servesSelection, cached = latestCourses(semester))
+        Log.i("ClassTableVM", "warm: $semester $source")
+        // Nothing to draw an uncached term from.
+        if (source == ClassTableTermSource.Unanswered) return true
         // Not over a reset or a fetch of the term begun since, nor under a
         // reset Settings has latched meanwhile.
-        val answered = fetchTermCourses(semester, rosterNos, moodleByNo) {
+        val answered = fetchTermCourses(semester, source, moodleByNo, recorded) {
             isCurrent() && semester !in dataCache.resettingSemesters()
         }
         // The today strip reads the live term off its own copy while the
@@ -1836,14 +2062,13 @@ class ClassTableViewModel @Inject constructor(
             val found = courseNos.map { courseNo ->
                 // Without Moodle to fall back on: null for a query that failed
                 // or a course it does not know, which the row then waits out.
-                async { courseNo to courseService.lookupOrFallback(semester, courseNo, moodle = null) }
+                async { courseNo to courseService.lookupOrFallback(semester, courseNo, moodle = null).course }
             }.awaitAll().mapNotNull { (courseNo, course) -> course?.let { courseNo to it } }.toMap()
             if (!authService.isStillSignedInAs(account) || coursesSemester != semester) return@launch
             val updated = ClassTableCourseMerge.withRoomsFound(_courses.value, found) ?: return@launch
-            _courses.value = updated
-            noteTermEdit(semester)
+            val edit = showEdit(updated, semester)
             TigerDuckTheme.buildCourseColorMap(updated)
-            dataCache.saveCourses(updated, semester)
+            saveEdit(updated, semester, edit)
             widgetUpdater.requestUpdate()
             if (semester == liveSemesterCode) {
                 // Home and the Live Update read today's courses off the cache.
@@ -1853,3 +2078,5 @@ class ClassTableViewModel @Inject constructor(
         }
     }
 }
+
+internal fun semesterDisplayLabel(code: String) = if (code.length < 2) code else AcademicTerm.labelOf(code)

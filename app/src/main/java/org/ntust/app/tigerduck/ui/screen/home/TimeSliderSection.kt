@@ -13,18 +13,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Button
@@ -51,6 +57,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.SubcomposeLayout
@@ -62,9 +69,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -75,9 +89,11 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.academic.QuietDays
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.JumpToNowChip
+import org.ntust.app.tigerduck.ui.component.courseChangeInk
 import org.ntust.app.tigerduck.ui.component.courseNameForDisplay
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
@@ -103,20 +119,22 @@ fun TimeSliderSection(
      * the section's turn as an outline while Home is arranged.
      */
     viewModel: TimeSliderViewModel = remember { TimeSliderViewModel() },
+    /** The school's course changes, which split, move and cancel the classes shown. */
+    courseChanges: CourseChanges = CourseChanges.EMPTY,
     // 翹課 — parked until after add-friend. See HomeViewModel._skippedDates.
     // skippedDates: Map<String, List<String>> = emptyMap(),
     // onSkipCourse: (Course, Date) -> Unit = { _, _ -> },
     onSelectCourse: (CourseTimeSlot) -> Unit
 ) {
-    LaunchedEffect(courses, quietDays) {
-        viewModel.configure(courses, quietDays::contains)
+    LaunchedEffect(courses, quietDays, courseChanges) {
+        viewModel.configure(courses, changes = courseChanges, isQuietDay = quietDays::contains)
     }
 
-    // Tick every second
+    // Tick every second, on the second: the thumb moves with the time, a second at a time.
     LaunchedEffect(Unit) {
         while (true) {
             viewModel.tick(Date(AppClock.nowMillis()))
-            kotlinx.coroutines.delay(1000)
+            kotlinx.coroutines.delay(millisToNextSecond(AppClock.nowMillis()))
         }
     }
 
@@ -211,11 +229,8 @@ private fun CourseTimeCard(
     // onSkipCourse: (Course, Date) -> Unit,
     onSelect: (CourseTimeSlot) -> Unit
 ) {
-    // val isoFmt = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US) }
-    // val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot ->
-    //     val dateKey = isoFmt.format(slot.date)
-    //     skippedDates[slot.course.courseNo]?.contains(dateKey) == true
-    // }
+    // val skipped = CourseMeetings.skipsFrom(skippedDates)
+    // val isSkippedFor: (CourseTimeSlot) -> Boolean = { slot -> skipped(slot.course, slot.localDate) }
 
     // Pin the card area to the tallest height seen this session so the slider
     // track below doesn't bob up and down as the user scrubs across states
@@ -369,14 +384,7 @@ private fun SlotCard(
 ) {
     val color = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
     val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
-    val timeRange = slot.periods.let { periods ->
-        if (periods.isEmpty()) ""
-        else {
-            val first = AppConstants.PeriodTimes.mapping[periods.first()]
-            val last = AppConstants.PeriodTimes.mapping[periods.last()]
-            if (first != null && last != null) "${first.first} - ${last.second}" else ""
-        }
-    }
+    val timeRange = "${formatClock(slot.start)} - ${formatClock(slot.end)}"
 
     val isToday = AppClock.calendar().let {
         val today = it.get(Calendar.DAY_OF_YEAR)
@@ -500,12 +508,25 @@ private fun SlotCard(
                 val metaBoldStyle = metaStyle.copy(fontWeight = FontWeight.Bold)
                 val metaColor =
                     style.courseCardSecondaryTextColor(MaterialTheme.colorScheme.onSurface)
+                val ink = courseChangeInk()
+                val strike = if (slot.isCancelled) TextDecoration.LineThrough else null
+                val time: @Composable () -> Unit = {
+                    if (slot.hasChangedTime && !slot.isCancelled) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.Schedule, contentDescription = null, tint = ink, modifier = Modifier.size(11.dp))
+                            Spacer(Modifier.width(3.dp))
+                            Text(timeRange, style = metaBoldStyle, color = ink)
+                        }
+                    } else {
+                        Text(timeRange, style = metaBoldStyle, color = metaColor, textDecoration = strike)
+                    }
+                }
                 if (isToday) {
-                    Text(timeRange, style = metaBoldStyle, color = metaColor)
+                    time()
                 } else {
                     FitOrStack(
                         modifier = Modifier.fillMaxWidth(),
-                        first = { Text(timeRange, style = metaBoldStyle, color = metaColor) },
+                        first = time,
                         second = {
                             Text(formatDateLabel(slot.date), style = metaStyle, color = metaColor)
                         },
@@ -516,15 +537,26 @@ private fun SlotCard(
                     courseNameForDisplay(slot.course.displayName, maxChars = 30),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = if (isSkipped) Color(0xFFFF2D55) else nameColor,
+                    textDecoration = strike,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                InlineOrStackText(
-                    primary = slot.classroom,
-                    secondary = slot.course.instructor,
-                    style = metaStyle,
-                    color = metaColor,
-                )
+                if (slot.isCancelled) {
+                    Text(
+                        stringResource(R.string.course_card_cancelled),
+                        style = metaStyle,
+                        color = metaColor,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                    )
+                } else {
+                    InlineOrStackText(
+                        primary = if (slot.hasChangedRoom) movedRoomText(slot.classroom, ink) else AnnotatedString(slot.classroom),
+                        secondary = slot.course.instructor,
+                        style = metaStyle,
+                        color = metaColor,
+                    )
+                }
             }
         }
     }
@@ -541,6 +573,10 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
     val style = LocalVisualStylePolicy.current
     val activeOutline = style.timeSliderActiveOutline
     val activeOutlineWidthPx = with(density) { 1.5.dp.toPx() }
+    val cancelledBorderPx = with(density) { 1.dp.toPx() }
+    val cancelledDash = remember(density) {
+        with(density) { PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 2.dp.toPx())) }
+    }
     val a11yLabel = stringResource(R.string.home_time_slider_title)
     val a11ySwipeHint = stringResource(R.string.a11y_time_slider_swipe_hint)
     val selectedTimeLabel = formatTimeLabel(viewModel.selectedTime)
@@ -589,8 +625,7 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                     val left = segCenterX - segW / 2
 
                     if (left + segW > -50 && left < size.width + 50) {
-                        val isActive =
-                            viewModel.selectedTime >= slot.start && viewModel.selectedTime <= slot.end
+                        val isActive = slot.isGoingOn(viewModel.selectedTime)
                         val courseColor = TigerDuckTheme.courseColorVibrant(slot.course.courseNo)
 
                         // 衝堂: lanes meet flush inside the same band, so the
@@ -635,6 +670,16 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                                     ),
                                 )
                             )
+                        }
+                        if (slot.isCancelled) {
+                            // A cancelled class: a faint fill in a dashed outline, as on iOS.
+                            drawPath(path = laneShape(0f), color = courseColor.copy(alpha = 0.06f))
+                            drawPath(
+                                path = laneShape(cancelledBorderPx / 2),
+                                color = courseColor.copy(alpha = 0.6f),
+                                style = Stroke(width = cancelledBorderPx, pathEffect = cancelledDash),
+                            )
+                            continue
                         }
                         drawPath(
                             path = laneShape(0f),
@@ -697,12 +742,9 @@ private fun FluidTrack(viewModel: TimeSliderViewModel, invertDirection: Boolean)
                 )
 
                 // Glow dot
-                val glowColor = when (val s = viewModel.currentCourseState) {
-                    is CourseState.InClass -> style.timeSliderInClassDotColor(
-                        TigerDuckTheme.courseColorVibrant(s.slots.first().course.courseNo)
-                    )
-                    else -> Color.White
-                }
+                val glowColor = viewModel.thumbSlot?.let {
+                    style.timeSliderInClassDotColor(TigerDuckTheme.courseColorVibrant(it.course.courseNo))
+                } ?: Color.White
                 val gs = TimeSliderViewModel.GLOW_DOT_SIZE
                 drawCircle(
                     color = glowColor,
@@ -736,6 +778,19 @@ private fun formatTimeLabel(date: Date): String {
 private fun formatDateLabel(date: Date): String =
     dateLabelFmt().format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
 
+private fun formatClock(date: Date): String = timeFmt.format(date.toInstant().atZone(AppConstants.TAIPEI_ZONE))
+
+/** `⇄ room`, semibold in the change ink, for a class the school moved to [room]. As iOS `CourseTimeCard`. */
+private fun movedRoomText(room: String, ink: Color): AnnotatedString = buildAnnotatedString {
+    withStyle(SpanStyle(color = ink, fontWeight = FontWeight.SemiBold)) {
+        appendInlineContent(MOVED_ROOM_ICON, "⇄")
+        append(" ")
+        append(room)
+    }
+}
+
+private const val MOVED_ROOM_ICON = "moved-room"
+
 /**
  * Places [first] at the start and [second] at the end on a single row if both
  * fit; otherwise stacks them vertically with [first] above [second].
@@ -768,30 +823,45 @@ private fun FitOrStack(
     }
 }
 
+/** The `⇄` of [movedRoomText], drawn as the class table draws it. */
+@Composable
+private fun movedRoomIcon(style: TextStyle): Map<String, InlineTextContent> {
+    val ink = courseChangeInk()
+    return mapOf(
+        MOVED_ROOM_ICON to InlineTextContent(
+            Placeholder(style.fontSize, style.fontSize, PlaceholderVerticalAlign.TextCenter),
+        ) {
+            Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = ink, modifier = Modifier.fillMaxSize())
+        },
+    )
+}
+
 /**
  * Renders `"$primary $separator $secondary"` on a single line when it fits;
  * otherwise stacks [primary] above [secondary] without the separator.
  */
 @Composable
 private fun InlineOrStackText(
-    primary: String,
+    primary: AnnotatedString,
     secondary: String,
     style: TextStyle,
     color: Color,
     separator: String = " · ",
     modifier: Modifier = Modifier,
 ) {
+    val inlineContent = movedRoomIcon(style)
     SubcomposeLayout(modifier) { constraints ->
         val unbounded = Constraints()
         val bounded = constraints.copy(minWidth = 0, maxHeight = Constraints.Infinity)
         val inline = subcompose("inline") {
             Text(
-                primary + separator + secondary,
+                primary + AnnotatedString(separator + secondary),
                 style = style,
                 color = color,
                 maxLines = 1,
                 softWrap = false,
                 overflow = TextOverflow.Clip,
+                inlineContent = inlineContent,
             )
         }.first().measure(unbounded)
 
@@ -803,6 +873,7 @@ private fun InlineOrStackText(
                 Text(
                     primary, style = style, color = color,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    inlineContent = inlineContent,
                 )
             }.first().measure(bounded)
             val s = subcompose("secondary") {

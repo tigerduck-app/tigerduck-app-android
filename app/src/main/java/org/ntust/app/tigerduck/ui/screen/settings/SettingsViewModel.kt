@@ -373,18 +373,21 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
                 if ("course_names" in conflict.categories) {
-                    val localNames = dataCache.loadCourseCustomNames().toMutableMap()
-                    for (override in result.courseOverrides) {
-                        val courseNo = override.courseNo ?: continue
-                        if (override.customNames.isNotEmpty()) {
-                            val existing = localNames[courseNo]?.toMutableMap() ?: mutableMapOf()
-                            for ((locale, name) in override.customNames) {
-                                if (name.isEmpty()) existing.remove(locale) else existing[locale] = name
+                    // Onto the names as they stand, under their lock: a rename made meanwhile stays.
+                    dataCache.updateCourseCustomNames { current ->
+                        val localNames = current.toMutableMap()
+                        for (override in result.courseOverrides) {
+                            val courseNo = override.courseNo ?: continue
+                            if (override.customNames.isNotEmpty()) {
+                                val existing = localNames[courseNo]?.toMutableMap() ?: mutableMapOf()
+                                for ((locale, name) in override.customNames) {
+                                    if (name.isEmpty()) existing.remove(locale) else existing[locale] = name
+                                }
+                                if (existing.isEmpty()) localNames.remove(courseNo) else localNames[courseNo] = existing
                             }
-                            if (existing.isEmpty()) localNames.remove(courseNo) else localNames[courseNo] = existing
                         }
+                        localNames
                     }
-                    dataCache.saveCourseCustomNames(localNames)
                 }
                 if ("assignments" in conflict.categories) {
                     dataCache.adoptAssignmentMarks(result.ignoredIds, result.completedIds)

@@ -79,10 +79,10 @@ class MoodleLogicTest {
     @Test
     fun `a summary that only repeats the course's names or codes is not shown`() {
         val names = listOf("資料結構 Data Structures")
-        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "1151CS3005301", emptyList()), listOf("1151CS3005301")))
-        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "資料結構  data structures", names), emptyList()))
-        assertFalse("digits only", MoodleSections.isWorthShowing(MoodleCourseSummary("", "2026", emptyList()), emptyList()))
-        assertTrue(MoodleSections.isWorthShowing(MoodleCourseSummary("", "Weekly quizzes", names), listOf("CS3005301")))
+        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "1151CS3005301", emptyList(), null, null), listOf("1151CS3005301")))
+        assertFalse(MoodleSections.isWorthShowing(MoodleCourseSummary("", "資料結構  data structures", names, null, null), emptyList()))
+        assertFalse("digits only", MoodleSections.isWorthShowing(MoodleCourseSummary("", "2026", emptyList(), null, null), emptyList()))
+        assertTrue(MoodleSections.isWorthShowing(MoodleCourseSummary("", "Weekly quizzes", names, null, null), listOf("CS3005301")))
     }
 
     @Test
@@ -210,6 +210,25 @@ class MoodleLogicTest {
         assertEquals("B00000001", MoodlePersonName.studentId("B00000001 @ Amy"))
         assertEquals("Teacher Wang", MoodlePersonName.displayName("Teacher Wang"))
         assertNull(MoodlePersonName.studentId("Teacher Wang"))
+    }
+
+    @Test
+    fun `a full name in either spelling gives the name and the student ID`() {
+        // As the iPhone's MoodlePersonNameTests: "ID @ name", or "name ID@" in some users' order.
+        val cases = listOf(
+            Triple("B00015999 @ Tiger Duck", "Tiger Duck", "B00015999"),
+            Triple("B00015999@塔克", "塔克", "B00015999"),
+            Triple("Tiger Duck B00015999@", "Tiger Duck", "B00015999"),
+            Triple(" 塔克  B00015999@ ", "塔克", "B00015999"),
+            Triple("B00015999@", "B00015999@", "B00015999"),
+            Triple("Tiger Duck@", "Tiger Duck@", "Tiger Duck"),
+            Triple("@ Tiger Duck", "Tiger Duck", null),
+            Triple("Tiger Duck", "Tiger Duck", null),
+        )
+        for ((fullName, name, studentId) in cases) {
+            assertEquals(fullName, name, MoodlePersonName.displayName(fullName))
+            assertEquals(fullName, studentId, MoodlePersonName.studentId(fullName))
+        }
     }
 
     @Test

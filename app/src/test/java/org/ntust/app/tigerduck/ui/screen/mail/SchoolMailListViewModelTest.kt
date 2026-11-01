@@ -2,6 +2,7 @@
 
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import org.ntust.app.tigerduck.mail.index.MailIndexProgress
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -144,6 +145,288 @@ class SchoolMailListViewModelTest {
         assertTrue(vm.state.value.searchLocalOnly)
         vm.setSearchText("")
         assertEquals(2, vm.state.value.displayed.size)
+    }
+
+    /** A pull is the user asking for the mail as it is now: mail for search downloads at once (#586). */
+    @Test
+    fun `a pull to refresh asks for mail to be downloaded for search at once`() {
+        repo.add("INBOX", mailSummary(1))
+        vm.load()
+
+        vm.refresh()
+
+        assertEquals(1, repo.downloadsAsked)
+    }
+
+    /** A pull after the folder list failed starts over from it, and still asks for mail for search. */
+    @Test
+    fun `a pull with no folders yet still asks for mail to be downloaded for search`() {
+        vm.refresh()
+
+        assertEquals(1, repo.downloadsAsked)
+    }
+
+    /** The download's end runs the search once more, over the last batch it brought. */
+    @Test
+    fun `a search on screen runs once more when the download ends`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        repo.searchIndexProgress.value = MailIndexProgress(1, 2)
+        main.dispatcher.scheduler.runCurrent()
+        val searched = repo.searchCalls
+
+        repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+        repo.searchIndexProgress.value = null
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.SEARCH_REGROW_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.searchCalls > searched)
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /** A search that found nothing yet runs again as mail comes, and shows what it then finds. */
+    @Test
+    fun `a search with no matches yet grows as mail for it downloads`() {
+        repo.add("INBOX", mailSummary(1, subject = "other"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(emptyList<Long>(), vm.state.value.displayed.map { it.uid })
+
+        repo.add("INBOX", mailSummary(2, subject = "期中考"))
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /** A download whose batches were never seen, only its start and its end, still ends in a run. */
+    @Test
+    fun `a search on screen runs once more when a download it saw only begin ends`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        repo.searchIndexProgress.value = MailIndexProgress.COUNTING
+        main.dispatcher.scheduler.runCurrent()
+        val searched = repo.searchCalls
+
+        repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+        repo.searchIndexProgress.value = null
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.searchCalls > searched)
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /** A query being edited is not run before it is submitted: the search on screen is the one submitted. */
+    @Test
+    fun `a query being edited is not run as mail downloads`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        val searched = repo.searchCalls
+
+        vm.setSearchText("期末")
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(searched, repo.searchCalls)
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /** Pages of the search the user scrolled to stay: run again, it would show only the first. */
+    @Test
+    fun `a search scrolled past its first page is not run again as mail downloads`() {
+        repo.pageSize = 2
+        repo.add("INBOX", *(1L..5L).map { mailSummary(it, subject = "期中考 $it") }.toTypedArray())
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        val shown = vm.state.value.displayed.map { it.uid }
+        val searched = repo.searchCalls
+
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(searched, repo.searchCalls)
+        assertEquals(shown, vm.state.value.displayed.map { it.uid })
+    }
+
+    /**
+     * While mail downloads for search, a search on screen runs again as it comes in, at most every
+     * [SchoolMailListViewModel.SEARCH_REGROW_MS], its results staying on screen meanwhile, so they
+     * grow rather than wait for a new search (#586).
+     */
+    @Test
+    fun `a search on screen grows as mail for it downloads, at most every few seconds`() {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(1L), vm.state.value.displayed.map { it.uid })
+        val searched = repo.searchCalls
+
+        // Downloaded meanwhile, and now found by the search.
+        repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+        val held = CompletableDeferred<Unit>().also { repo.searchGate = it }
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue("it ran again", repo.searchCalls > searched)
+        assertEquals("the results stay while it runs", listOf(1L), vm.state.value.displayed.map { it.uid })
+        assertFalse(vm.state.value.isSearching)
+        repo.searchGate = null
+        held.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+
+        // More mail within the few seconds: not yet.
+        val again = repo.searchCalls
+        repo.searchIndexProgress.value = MailIndexProgress(2, 10)
+        main.dispatcher.scheduler.runCurrent()
+        assertEquals(again, repo.searchCalls)
+        main.dispatcher.scheduler.advanceTimeBy(SchoolMailListViewModel.SEARCH_REGROW_MS + 1)
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(repo.searchCalls > again)
+    }
+
+    /**
+     * The user's own search reads the inbox, then the download's last batch lands and the
+     * download ends while that search is still out on Sent: the mail came after it read the inbox.
+     */
+    private fun searchOutAsTheDownloadEnds(): CompletableDeferred<Unit> {
+        repo.add("INBOX", mailSummary(1, subject = "期中考"))
+        vm.load()
+        vm.setSearchText("期中")
+        repo.searchIndexProgress.value = MailIndexProgress.COUNTING
+        main.dispatcher.scheduler.runCurrent()
+        val held = CompletableDeferred<Unit>()
+        repo.onSearched = { folder ->
+            if (folder == "INBOX") {
+                repo.onSearched = null
+                repo.add("INBOX", mailSummary(2, subject = "期中考 補考"))
+                repo.searchIndexProgress.value = null
+                repo.searchGate = held
+            }
+        }
+        vm.submitSearch()
+        main.dispatcher.scheduler.runCurrent()
+        assertTrue(vm.state.value.isSearching)
+        repo.searchGate = null
+        return held
+    }
+
+    /** A download that ends during the user's own search runs it once more when it ends, quietly. */
+    @Test
+    fun `a download that ends during the user's own search runs it once more when it ends`() {
+        val held = searchOutAsTheDownloadEnds()
+        val searched = repo.searchCalls
+
+        held.complete(Unit)
+        main.dispatcher.scheduler.advanceTimeBy(3 * SchoolMailListViewModel.SEARCH_REGROW_MS)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(2L, 1L), vm.state.value.displayed.map { it.uid })
+        assertEquals("once more, over All mail's two folders", searched + 2, repo.searchCalls)
+    }
+
+    /** Another query submitted meanwhile read the index after the mail came: no run once more. */
+    @Test
+    fun `another query submitted during that search drops its run once more`() {
+        val held = searchOutAsTheDownloadEnds()
+        vm.setSearchText("補考")
+        vm.submitSearch()
+        val searched = repo.searchCalls
+
+        held.complete(Unit)
+        main.dispatcher.scheduler.advanceTimeBy(3 * SchoolMailListViewModel.SEARCH_REGROW_MS)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf(2L), vm.state.value.displayed.map { it.uid })
+        assertEquals(searched, repo.searchCalls)
+    }
+
+    /**
+     * The last row reached while the search runs again quietly: the screen asks no more while that
+     * row stays the last, so its page loads once the run lands.
+     */
+    @Test
+    fun `a page asked for while the search runs again quietly loads once it lands`() {
+        repo.pageSize = 2
+        repo.add("INBOX", *(1L..5L).map { mailSummary(it, subject = "期中考 $it") }.toTypedArray())
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(5L, 4L), vm.state.value.displayed.map { it.uid })
+        val held = CompletableDeferred<Unit>().also { repo.searchGate = it }
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        repo.searchGate = null
+        held.complete(Unit)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf("INBOX" to listOf(3L, 2L, 1L)), repo.searchPages)
+        assertEquals(listOf(5L, 4L, 3L, 2L, 1L), vm.state.value.displayed.map { it.uid })
+    }
+
+    /**
+     * A folder the server cannot search as the search runs again quietly: its matches among the
+     * loaded mail alone do not stand for the older ones the server found, which stay.
+     */
+    @Test
+    fun `a folder that fails as the search runs again quietly keeps the matches shown`() {
+        repo.pageSize = 2
+        repo.add(
+            "INBOX",
+            mailSummary(1, subject = "other"), mailSummary(2, subject = "期中考 B"), mailSummary(3, subject = "other"),
+            mailSummary(4, subject = "other"), mailSummary(5, subject = "期中考 A"),
+        )
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(5L, 2L), vm.state.value.displayed.map { it.uid })
+        val searched = repo.searchCalls
+
+        repo.searchError = MailError.Network()
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.searchCalls > searched)
+        val s = vm.state.value
+        assertEquals(listOf(5L, 2L), s.displayed.map { it.uid })
+        assertFalse(s.searchLocalOnly)
+        assertNull(s.actionError)
+    }
+
+    /** Nor do the matches of that folder still to fetch go: scrolling on fetches them. */
+    @Test
+    fun `a folder that fails as the search runs again quietly keeps its matches still to fetch`() {
+        repo.pageSize = 2
+        repo.add("INBOX", *(1L..5L).map { mailSummary(it, subject = "期中考 $it") }.toTypedArray())
+        vm.load()
+        vm.selectFolder(FolderSelection.Real("INBOX"))
+        vm.setSearchText("期中")
+        vm.submitSearch()
+        assertEquals(listOf(5L, 4L), vm.state.value.displayed.map { it.uid })
+
+        repo.searchError = MailError.Network()
+        repo.searchIndexProgress.value = MailIndexProgress(1, 10)
+        main.dispatcher.scheduler.runCurrent()
+        repo.searchError = null
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        main.dispatcher.scheduler.runCurrent()
+
+        assertEquals(listOf("INBOX" to listOf(3L, 2L, 1L)), repo.searchPages)
+        assertEquals(listOf(5L, 4L, 3L, 2L, 1L), vm.state.value.displayed.map { it.uid })
     }
 
     @Test

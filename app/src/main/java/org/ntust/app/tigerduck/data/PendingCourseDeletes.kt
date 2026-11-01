@@ -12,9 +12,12 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Deletes one course's row from the backend by its key, as sign-in [signIn]; see [PushApiClient.deleteCourse]. */
+/**
+ * Deletes one course's row from the backend by its key, as sign-in [signIn], with the time the
+ * hide was asked ([hiddenAt]); see [PushApiClient.deleteCourse].
+ */
 internal fun interface CourseDeleter {
-    suspend fun delete(courseKey: String, signIn: Int)
+    suspend fun delete(courseKey: String, signIn: Int, hiddenAt: Long)
 }
 
 /**
@@ -107,6 +110,9 @@ class PendingCourseDeletes internal constructor(
     suspend fun stamp(): Long = mutex.withLock {
         if (!seeded) {
             noteStamps(waiting())
+            // The adds' moments too, which the class table takes from here: after a restart with
+            // the clock set back, a hide must still come after an add queued before it (#591).
+            noteStamps(dataCache.loadPendingCourseAddTimes())
             seeded = true
         }
         lastStamp.updateAndGet { last -> maxOf(last + 1, clock()) }
@@ -232,7 +238,10 @@ class PendingCourseDeletes internal constructor(
             // The request itself carries [signIn]: a sign-out after the
             // check sends it without a token rather than with the next
             // account's.
-            deleter.delete(PendingCourseAdds.forceKey(semester, courseNo), signIn)
+            // With the moment it was asked, the backend applies it only when later than the
+            // course's last add, hide and reset: a hide queued offline loses to an add made since
+            // on another device, and a retry after a lost reply changes nothing (#591).
+            deleter.delete(PendingCourseAdds.forceKey(semester, courseNo), signIn, queuedAt)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

@@ -53,6 +53,13 @@ class BrowserDownloadsTest {
     }
 
     @Test
+    fun `the developer's Open a page browser saves a file off the allowlist, and its plan says so`() {
+        val plan = plan("https://example.com:8443/a.pdf", allowlist = BrowserAllowlist.DEFAULT.lettingAnyPageIn())
+        assertEquals(DownloadPlan.Save("https://example.com:8443/a.pdf", "a.pdf", "application/pdf", anyPage = true), plan)
+        assertEquals(false, (plan("https://moodle2.ntust.edu.tw/a.pdf") as DownloadPlan.Save).anyPage)
+    }
+
+    @Test
     fun `a generic type takes the name's`() {
         assertEquals("application/pdf", (plan("https://moodle2.ntust.edu.tw/x/notes.pdf", mime = "application/octet-stream") as DownloadPlan.Save).mimeType)
         assertEquals("application/octet-stream", (plan("https://moodle2.ntust.edu.tw/x/blob.bin") as DownloadPlan.Save).mimeType)
@@ -308,6 +315,21 @@ class BrowserDownloadsTest {
 
         assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf"), sent.map { it.first })
         assertTrue(saved.isEmpty())
+    }
+
+    @Test
+    fun `a download from the developer's Open a page browser follows a redirect off the allowlist`() = runTest(StandardTestDispatcher()) {
+        val sent = mutableListOf<Pair<String, String?>>()
+        val saved = mutableListOf<String>()
+        val hops = mapOf(
+            "https://moodle2.ntust.edu.tw/a.pdf" to Hop(302, "https://example.com/real.pdf"),
+            "https://example.com/real.pdf" to Hop(200, body = "PDF"),
+        )
+
+        transfer(hops, sent, saved).download(save.copy(anyPage = true)) { _, _ -> }
+
+        assertEquals(listOf("https://moodle2.ntust.edu.tw/a.pdf", "https://example.com/real.pdf"), sent.map { it.first })
+        assertEquals(listOf("PDF"), saved)
     }
 
     @Test

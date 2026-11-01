@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.activity.ComponentActivity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -32,17 +33,70 @@ class BrowserAllowlistDebugScreenTest {
 
     private lateinit var store: BrowserAllowlistStore
 
+    /** What "Open a page" asked the browser to open, and what the browser answers. */
+    private val opened = mutableListOf<String>()
+    private var opens = true
+
     @Before
     fun setUp() {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences(BrowserAllowlistStore.PREFS_FILE, 0).edit().clear().commit()
         store = BrowserAllowlistStore(context, debug = true)
-        composeRule.setContent { MaterialTheme { BrowserAllowlistDebugScreen(onBack = {}, store = store) } }
+        composeRule.setContent {
+            MaterialTheme {
+                BrowserAllowlistDebugScreen(onBack = {}, store = store, openPage = { _, url -> opened += url; opens })
+            }
+        }
     }
 
     private fun add(text: String) {
-        composeRule.onNode(hasSetTextAction()).performTextInput(text)
+        composeRule.onNode(hasSetTextAction() and hasTestTag(ADD_DOMAIN_FIELD_TAG)).performTextInput(text)
         composeRule.onNodeWithText("Add").performClick()
+    }
+
+    private fun open(text: String) {
+        composeRule.onNode(hasSetTextAction() and hasTestTag(OPEN_PAGE_FIELD_TAG)).performTextInput(text)
+        composeRule.onNodeWithText("Open").performClick()
+    }
+
+    @Test
+    fun `a host typed in Open a page opens as an https page`() {
+        open("example.com")
+        assertEquals(listOf("https://example.com/"), opened)
+    }
+
+    @Test
+    fun `Open a page takes a full address as it is, http and a port included`() {
+        open("http://10.0.2.2:8080/test?a=1")
+        assertEquals(listOf("http://10.0.2.2:8080/test?a=1"), opened)
+    }
+
+    @Test
+    fun `Open a page reads a scheme as one, and a host and port as a host`() {
+        assertEquals(null, debugPageUrl("mailto:alice@example.com"))
+        assertEquals(null, debugPageUrl("file:/sdcard/a"))
+        assertEquals(null, debugPageUrl("javascript:alert(1)"))
+        assertEquals("https://example.com/", debugPageUrl("https:/example.com"))
+        assertEquals("https://localhost:8080/", debugPageUrl("localhost:8080"))
+        assertEquals("https://example.com:8443/x", debugPageUrl("example.com:8443/x"))
+        assertEquals("https://localhost:8080/?x=1", debugPageUrl("localhost:8080?x=1"))
+        assertEquals("https://example.com:8443/#top", debugPageUrl("example.com:8443#top"))
+        assertEquals("http://10.0.2.2:8080/", debugPageUrl(" http://10.0.2.2:8080 "))
+        assertEquals(null, debugPageUrl("   "))
+    }
+
+    @Test
+    fun `Open a page says so for a line that is not a web address`() {
+        open("not a page")
+        assertEquals(emptyList<String>(), opened)
+        composeRule.onNodeWithText("Not a web address.").assertExists()
+    }
+
+    @Test
+    fun `Open a page says so when the browser cannot open now`() {
+        opens = false
+        open("example.com")
+        composeRule.onNodeWithText("The browser can't open now: this phone's WebView can't clear its data, or a clearing is owed.").assertExists()
     }
 
     @Test

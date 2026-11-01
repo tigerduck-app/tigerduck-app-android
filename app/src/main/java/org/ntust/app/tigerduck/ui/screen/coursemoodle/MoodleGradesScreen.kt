@@ -32,7 +32,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -61,6 +60,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.moodle.MoodleCourseStore
 import org.ntust.app.tigerduck.data.moodle.MoodleGrades
 import org.ntust.app.tigerduck.network.model.moodle.MoodleGradeItem
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
@@ -68,7 +68,6 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
  * in the gradebook's order. An item with feedback opens in place to show it, and a long press
  * opens the item's activity in Moodle.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleGradesScreen(
     browserPreference: String,
@@ -78,15 +77,11 @@ fun MoodleGradesScreen(
     val store by viewModel.store.collectAsStateWithLifecycle()
     MoodleSignedOutEffect(viewModel, onBack)
     val current = store
-    Scaffold(
-        topBar = {
-            MoodleTopBar(
-                title = stringResource(R.string.course_detail_moodle_grades_label),
-                onBack = onBack,
-                moodlePath = current?.let { MoodlePage.gradeReport(it.courseId) },
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = stringResource(R.string.course_detail_moodle_grades_label),
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(current?.let { MoodlePage.gradeReport(it.courseId) }) },
     ) { padding ->
         Box(
             Modifier

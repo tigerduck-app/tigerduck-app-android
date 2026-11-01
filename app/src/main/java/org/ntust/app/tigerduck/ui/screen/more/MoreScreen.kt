@@ -40,7 +40,8 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.FeatureCategory
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.navigation.Screen
 import org.ntust.app.tigerduck.ui.navigation.icon
@@ -72,61 +73,63 @@ fun MoreScreen(navController: NavController) {
 
     val grouped = moreCategorySections()
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val columns = featureGridColumns(maxWidth)
-        val cardSize = rememberFeatureCardSize(
-            labels = (pageFeatures + grouped.flatMap { it.second }).map { stringResource(it.displayNameRes) },
-            gridWidthPx = constraints.maxWidth,
-            columns = columns,
-        )
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 32.dp)
-        ) {
-            item {
-                PageHeader(title = stringResource(R.string.feature_more)) {
-                    IconButton(
-                        onClick = { navController.navigate(Screen.Settings.route) }
-                    ) {
-                        Icon(
-                            Icons.Filled.Settings, stringResource(R.string.feature_settings),
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
-            }
-
-            // Pages section (first section)
-            item { SectionHeader(title = stringResource(R.string.more_section_pages)) }
-            item {
-                FeatureGrid(
-                    features = pageFeatures,
-                    columns = columns,
-                    cardSize = cardSize,
-                    implementedFeatures = implementedFeatures,
-                    navController = navController,
-                    onNotImplemented = { showNotImplemented = true }
+    PageScaffold(
+        title = stringResource(R.string.feature_more),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        actions = {
+            IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
+                Icon(
+                    Icons.Filled.Settings, stringResource(R.string.feature_settings),
+                    modifier = Modifier.size(28.dp)
                 )
             }
+        },
+    ) { padding ->
+        BoxWithConstraints(modifier = Modifier.fillMaxSize().padding(padding)) {
+            val columns = featureGridColumns(maxWidth)
+            val cardSize = rememberFeatureCardSize(
+                labels = (pageFeatures + grouped.flatMap { it.second }).map { stringResource(it.displayNameRes) },
+                gridWidthPx = constraints.maxWidth,
+                columns = columns,
+            )
 
-            grouped.forEachIndexed { index, (category, features) ->
-                item {
-                    SectionHeader(
-                        title = category?.let { stringResource(it.displayNameRes) }
-                            ?: stringResource(R.string.more_section_other),
-                        modifier = Modifier.padding(top = 16.dp)
-                    )
-                }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 32.dp)
+            ) {
+                item { Header() }
+
+                // Pages section (first section)
+                item { SectionHeader(title = stringResource(R.string.more_section_pages)) }
                 item {
                     FeatureGrid(
-                        features = features,
+                        features = pageFeatures,
                         columns = columns,
                         cardSize = cardSize,
                         implementedFeatures = implementedFeatures,
                         navController = navController,
                         onNotImplemented = { showNotImplemented = true }
                     )
+                }
+
+                grouped.forEachIndexed { index, (category, features) ->
+                    item {
+                        SectionHeader(
+                            title = category?.let { stringResource(it.displayNameRes) }
+                                ?: stringResource(R.string.more_section_other),
+                            modifier = Modifier.padding(top = 16.dp)
+                        )
+                    }
+                    item {
+                        FeatureGrid(
+                            features = features,
+                            columns = columns,
+                            cardSize = cardSize,
+                            implementedFeatures = implementedFeatures,
+                            navController = navController,
+                            onNotImplemented = { showNotImplemented = true }
+                        )
+                    }
                 }
             }
         }

@@ -34,6 +34,19 @@ class BrowserAllowlistTest {
     }
 
     @Test
+    fun `the developer's Open a page lets in every http and https page, any port included`() {
+        val allowlist = BrowserAllowlist.DEFAULT.lettingAnyPageIn()
+
+        assertTrue(allowlist.allows("https://example.com/"))
+        assertTrue(allowlist.allows("https://192.168.1.20:8443/test"))
+        assertTrue(allowlist.allows("http://10.0.2.2:8080/"))
+        assertFalse(allowlist.allows("javascript:alert(1)"))
+        assertFalse(allowlist.allows("file:///sdcard/a"))
+        // The browser it came from goes on by the list.
+        assertFalse(BrowserAllowlist.DEFAULT.allows("https://example.com/"))
+    }
+
+    @Test
     fun `only https on the default port with no user in the address`() {
         val allowlist = list("*.ntust.edu.tw")
 

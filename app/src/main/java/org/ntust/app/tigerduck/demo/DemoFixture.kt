@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -70,7 +71,7 @@ data class DemoFixture(
         const val LANG_ZH = "zh"
         const val LANG_EN = "en"
 
-        private val ZONE: ZoneId = ZoneId.of("Asia/Taipei")
+        private val ZONE: ZoneId = TaipeiClock.zone
 
         /**
          * [lang] picks which half of every `{"zh": …, "en": …}` pair to read.

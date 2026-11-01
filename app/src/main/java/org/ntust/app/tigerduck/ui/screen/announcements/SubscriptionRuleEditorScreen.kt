@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -22,17 +21,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,7 +42,7 @@ import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 /**
  * Full-screen rule editor. Replaces the prior `AlertDialog`-based editor
@@ -75,42 +71,26 @@ fun SubscriptionRuleEditorScreen(
     var mode by remember { mutableStateOf(initial.mode) }
     var enabled by remember { mutableStateOf(initial.enabled) }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = {
-                    Text(
-                        stringResource(
-                            if (isNew) R.string.bulletin_rule_add_title
-                            else R.string.bulletin_rule_edit_title
-                        )
+    PageScaffold(
+        title = stringResource(
+            if (isNew) R.string.bulletin_rule_add_title
+            else R.string.bulletin_rule_edit_title
+        ),
+        onBack = onCancel,
+        actions = {
+            TextButton(onClick = {
+                onDone(
+                    initial.copy(
+                        name = name.trim().takeIf { it.isNotEmpty() },
+                        orgs = orgs.toList(),
+                        tags = tags.toList(),
+                        mode = mode,
+                        enabled = enabled,
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onCancel) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back)
-                        )
-                    }
-                },
-                actions = {
-                    TextButton(onClick = {
-                        onDone(
-                            initial.copy(
-                                name = name.trim().takeIf { it.isNotEmpty() },
-                                orgs = orgs.toList(),
-                                tags = tags.toList(),
-                                mode = mode,
-                                enabled = enabled,
-                            )
-                        )
-                    }) {
-                        Text(stringResource(R.string.action_done))
-                    }
-                },
-            )
+                )
+            }) {
+                Text(stringResource(R.string.action_done))
+            }
         },
     ) { padding ->
         Column(

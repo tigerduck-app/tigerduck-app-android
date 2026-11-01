@@ -19,6 +19,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,18 +28,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.AssignmentStatus
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.model.status
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
@@ -250,30 +255,31 @@ private fun statusBadge(status: AssignmentStatus): Pair<String, Color>? = when (
 }
 
 /**
- * Bridges [AppClock]'s listener mechanism into Compose. The returned state
- * advances each time [AppClock.setOverride] is called AND once per minute as
- * wall-clock time progresses, so any composable that keys on it recomputes
- * against a fresh "now". Without the periodic pulse a row that composed at
- * "in 5 minutes" would stay frozen at that label until something else
- * triggered a recomposition.
+ * Bridges [AppClock] into Compose. The returned state advances each time [AppClock.setOverride] is
+ * called, at every minute boundary of the app's clock, and when the app comes back to the front, so
+ * any composable that keys on it recomputes against a fresh "now". Without the periodic tick a row
+ * that composed at "in 5 minutes" would stay frozen at that label until something else triggered a
+ * recomposition. The state is a counter, not the time, so a tick that lands on the same time
+ * still changes it.
+ *
+ * The wait for the next boundary does not count the time a phone spends in deep sleep, so a return
+ * to the front starts the ticks afresh (as Home's do) and the labels are right at once instead of
+ * up to a minute late. A composable's `produceState` restarts when it leaves and enters
+ * composition, not on resume, hence the restarts here.
  */
 @Composable
-internal fun rememberAppClockVersion(): State<Long> =
-    produceState(initialValue = AppClock.version()) {
-        val listener: (Long) -> Unit = { value = value + 1 }
-        AppClock.addOverrideListener(listener)
-        try {
-            // Refresh once in case setOverride fired between initialValue
-            // capture and listener registration.
-            value = value + 1
-            while (true) {
-                kotlinx.coroutines.delay(60_000)
-                value = value + 1
-            }
-        } finally {
-            AppClock.removeOverrideListener(listener)
-        }
+internal fun rememberAppClockVersion(): State<Long> {
+    val resumes = remember { MutableStateFlow(0) }
+    // The first resume is the one composition starts under, and the ticks below already start then.
+    val firstResume = remember { AtomicBoolean(true) }
+    LifecycleResumeEffect(resumes) {
+        if (!firstResume.getAndSet(false)) resumes.update { it + 1 }
+        onPauseOrDispose {}
     }
+    return produceState(initialValue = AppClock.version(), resumes) {
+        TaipeiClock.minuteTicksRestartedBy(resumes).collect { value += 1 }
+    }
+}
 
 private fun formatAbsolute(date: Date): String =
     SimpleDateFormat("M/d HH:mm:ss", Locale.getDefault()).format(date)

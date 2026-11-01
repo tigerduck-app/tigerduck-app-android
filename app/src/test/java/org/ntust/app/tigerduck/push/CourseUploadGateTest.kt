@@ -169,6 +169,32 @@ class CourseUploadGateTest {
         assertEquals(2, uploads())
     }
 
+    private fun rosterTermsSent() = backend.received(UPLOAD).map { body ->
+        org.json.JSONObject(body.body).optJSONArray("roster_terms")?.let { terms -> List(terms.length()) { terms.getString(it) } }
+    }
+
+    /**
+     * The backend asks for a term's roster when none arrived in a week (`roster_requests`), and
+     * the answer goes past the ledger: the courses may not have changed since the list it last
+     * took. As iOS `UnchangedUploadTests.requestedRosterGoesAgainUnchanged` (tigerduck-app#914).
+     */
+    @Test
+    fun `a roster the backend asks for goes again unchanged, roster_terms and all`() = runTest {
+        api.uploadCourses(roster("CS1"), "1151", rosterTerms = listOf("1151"))
+        api.uploadCourses(roster("CS1"), "1151", rosterTerms = listOf("1151"))
+        api.uploadCourses(roster("CS1"), "1151", resend = true, rosterTerms = listOf("1151"))
+
+        assertEquals(listOf(listOf("1151"), listOf("1151")), rosterTermsSent())
+    }
+
+    @Test
+    fun `the same courses go once more as the term's roster, and an upload that is none carries no roster_terms`() = runTest {
+        api.uploadCourses(roster("CS1"), "1151")
+        api.uploadCourses(roster("CS1"), "1151", rosterTerms = listOf("1151"))
+
+        assertEquals(listOf(null, listOf("1151")), rosterTermsSent())
+    }
+
     private companion object {
         const val UPLOAD = "POST /sync/courses/upload"
     }

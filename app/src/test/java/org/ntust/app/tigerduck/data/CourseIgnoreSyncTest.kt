@@ -23,6 +23,7 @@ import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import java.io.File
 
 /** Course ignores over real files, with the backend faked. */
 class CourseIgnoreSyncTest {
@@ -35,6 +36,9 @@ class CourseIgnoreSyncTest {
     private lateinit var sync: CourseIgnoreSync
 
     private val sent = mutableListOf<Sent>()
+
+    // The edit time each PATCH carried as `hlc` (before the clock's microsecond scale).
+    private val stamps = mutableListOf<Long?>()
     private var answer: suspend (Sent) -> Boolean? = { true }
     private var sends = true
     private var now = 1_000L
@@ -49,9 +53,10 @@ class CourseIgnoreSyncTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = CourseIgnoreSync(
         dataCache = cache,
-        sender = CourseIgnoreSender { moodleId, ignore, moodleCourseId ->
+        sender = CourseIgnoreSender { moodleId, ignore, moodleCourseId, madeAtMs ->
             val request = Sent(moodleId, ignore, moodleCourseId)
             sent += request
+            stamps += madeAtMs
             answer(request)
         },
         effects = CourseIgnoreEffects { effects++ },
@@ -95,6 +100,43 @@ class CourseIgnoreSyncTest {
         assertEquals(listOf(Sent("1141AAA", true, null)), sent)
         assertEquals(emptyList<Any>(), waiting())
         assertEquals("reminders and the Live Update are refreshed", 1, effects)
+    }
+
+    @Test
+    fun `a change sent after a newer one carries the time it was made`() = runTest {
+        sends = false
+        now = 2_000L
+        setIgnored("AAA")
+        now = 3_000L
+        setIgnored("BBB")
+        assertEquals(emptyList<Long?>(), stamps)
+
+        sends = true
+        sync.retryPending()
+
+        // The older sends first here, but each carries its own time, not the time of the retry.
+        assertEquals(listOf<Long?>(2_000L, 3_000L), stamps)
+        now = 9_000L
+        sends = false
+        setIgnored("AAA", ignore = false)
+        now = 9_500L
+        sends = true
+        stamps.clear()
+        sync.retryPending()
+        assertEquals(listOf<Long?>(9_000L), stamps)
+    }
+
+    @Test
+    fun `a change stored by the build before has no time, and goes out without one`() = runTest {
+        File(context.filesDir, "TigerDuckData/pending_course_ignores.json").writeText(
+            """[{"semester":"1141","courseNo":"AAA","moodleId":"1141AAA","ignore":true,"changedAtMs":1000,"attempts":0}]""",
+        )
+        assertNull(cache.loadPendingCourseIgnores().single().madeAtMs)
+
+        sync.retryPending()
+
+        assertEquals(listOf<Long?>(null), stamps)
+        assertEquals(1, sent.size)
     }
 
     @Test

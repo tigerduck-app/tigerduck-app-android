@@ -84,6 +84,7 @@ Scopes:
 | prefs | `academic_calendar` | keys | |
 | prefs | `bulletin_read_state` | school | `BulletinReadStateStore.kt` `clear` |
 | prefs | `cjk_centering` | keys | |
+| prefs | `course_changes` | keys | |
 | prefs | `class_preparing_tracker` | keys | |
 | prefs | `debug_clock` | keys | |
 | prefs | `debug_fixture` | keys | |
@@ -142,6 +143,7 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `configuredTabs` | device | |
 | tigerduck_prefs | `courseNameScale` | device | |
 | tigerduck_prefs | `coursesUploadFingerprint:*` | school | `AppPreferences.kt` `removeCourseUploads` |
+| tigerduck_prefs | `coursesUploadRoster:*` | school | `AppPreferences.kt` `removeCourseUploads` |
 | tigerduck_prefs | `coursesUploadedAtMs:*` | school | `AppPreferences.kt` `removeCourseUploads` |
 | tigerduck_prefs | `dataSchemaVersion` | device | |
 | tigerduck_prefs | `disableScreenCaptureProtection` | device | |
@@ -156,12 +158,17 @@ keeps through `getOrCreateString`.
 | tigerduck_prefs | `hasUnconfirmedAssignmentSyncEdit` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `assignmentStore.hasUnconfirmedEdit = false` |
 | tigerduck_prefs | `hasUnconfirmedClassReminderSyncEdit` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `classReminderStore.hasUnconfirmedEdit = false` |
 | tigerduck_prefs | `holidayNotifyOverrides` | school | `AppPreferences.kt` `forgetHolidayOverrides` |
+| tigerduck_prefs | `holidayOverrideEditTimes` | school | `AppPreferences.kt` `forgetHolidayOverrides` |
 | tigerduck_prefs | `holidayOverridesAwaitingUpload` | school | `AppPreferences.kt` `forgetHolidayOverrides` |
 | tigerduck_prefs | `homeAssignmentFilter` | device | |
 | tigerduck_prefs | `homeSections` | device | |
 | tigerduck_prefs | `invertSliderDirection` | device | |
 | tigerduck_prefs | `lastSeenCoursesResetAt` | school | `AppPreferences.kt` `clearSyncStamps` |
 | tigerduck_prefs | `lastSeenWhatsNewVersionCode` | device | |
+| tigerduck_prefs | `lastSyncedAssignmentReminderSettings` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `lastSynced.assignments = null` |
+| tigerduck_prefs | `lastSyncedClassReminderSettings` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `lastSynced.courses = null` |
+| tigerduck_prefs | `lastSyncedLiveActivitySettings` | school | `NotificationSettingsSync.kt` `cancelPendingPushes` via `lastSynced.liveActivity = null` |
+| tigerduck_prefs | `lastSyncedSettingsSeedDone` | device | |
 | tigerduck_prefs | `lastUpdatePromptEpoch` | device | |
 | tigerduck_prefs | `lastUpdatePromptVersionCode` | device | |
 | tigerduck_prefs | `legacyNotificationChannelsDeleted` | device | |
@@ -257,6 +264,9 @@ into `library_password_refusals` when it opens.
 | academic_calendar | `payload` | device | |
 | cjk_centering | `corrections` | device | |
 | cjk_centering | `key` | device | |
+| course_changes | `endpoint` | device | |
+| course_changes | `etag` | device | |
+| course_changes | `payload` | device | |
 | class_preparing_tracker | `next_request_code` | device | |
 | class_preparing_tracker | `scheduled_ids` | school | `ClassPreparingNotificationScheduler.kt` `cancelAllTrackedLocked` |
 | class_preparing_tracker | `slot_request_codes` | school | `ClassPreparingNotificationScheduler.kt` `cancelAllTrackedLocked` |
@@ -351,14 +361,17 @@ Under `cacheDir/TigerDuckCache/`, `filesDir/TigerDuckData/` and, for the downloa
 | cache | `moodle_files/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `moodle_open/` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_adds.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `pending_course_add_times.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_deletes.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_ignores.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `pending_course_overrides.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `restored_courses.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `score_*.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `selection_answered_at.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `selection_dropped.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `selection_rosters.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `semester_reset_at.json` | school | `DataCache.kt` `clearAllUserData` |
+| cache | `server_dropped.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `server_known_courses.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `skipped_dates.json` | school | `DataCache.kt` `clearAllUserData` |
 | cache | `unsent_marks.json` | school | `DataCache.kt` `clearAllUserData` |

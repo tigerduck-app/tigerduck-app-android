@@ -51,9 +51,10 @@ class ReviewPromptWiringTest {
 
     @Test
     fun `a fetch counts as a day of use once the class table's courses are saved`() {
-        // The class table's fetch saves each term's courses in fetchTermCourses.
-        assertCountsAfterSaving(classTable, "fetchTermCourses", "dataCache.saveCourses(merged, semester)")
-        assertCountsAfterSaving(home, "fetchData", "dataCache.saveCourses(courses)")
+        // The class table's fetch saves each term's courses in fetchTermCourses, under the courses' lock.
+        assertCountsAfterSaving(classTable, "fetchTermCourses", "dataCache.updateCourses(semester)")
+        // Home saves its fetch through commitFetchedTerm.
+        assertCountsAfterSaving(home, "fetchData", "courses = commitFetchedTerm(")
     }
 
     /** A warm of the other terms runs on its own, and must not lift a failed load's hold. */
@@ -65,7 +66,7 @@ class ReviewPromptWiringTest {
         )
         assertTrue(
             "fetchData no longer asks its term fetch to count a day of use",
-            "fetchTermCourses(semester, orderedCourseNos, moodleByNo, countsAsUse = true)" in body(classTable, "fetchData"),
+            "fetchTermCourses(semester, source, moodleByNo, recorded, countsAsUse = true)" in body(classTable, "fetchData"),
         )
         assertFalse("warmTerm counts a day of use", "countsAsUse" in body(classTable, "warmTerm"))
     }

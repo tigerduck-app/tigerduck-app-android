@@ -34,7 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -52,7 +51,8 @@ import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.CreditSummary
 import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
@@ -65,13 +65,10 @@ import org.ntust.app.tigerduck.util.formatCredits
 fun ScoreScreen(
     viewModel: ScoreViewModel = hiltViewModel(),
     onOpenSignInSettings: () -> Unit = {},
+    // A slot because its view model comes from Hilt, which a test of this page doesn't have.
+    signInBanner: @Composable () -> Unit = { AutoSignInFailedBanner() },
 ) {
-    val report by viewModel.report.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
-    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
-    val rankingScope by viewModel.rankingScope.collectAsStateWithLifecycle()
-    val collapsedTerms by viewModel.collapsedTerms.collectAsStateWithLifecycle()
     val syncedAtMs by viewModel.syncedAtMs.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) { viewModel.load() }
@@ -85,20 +82,24 @@ fun ScoreScreen(
         }
     }
 
-    // Published rankings plus a computed point for any term the school has
-    // not posted yet. Derived here rather than in the view model so it is
-    // rebuilt when the report changes and not on every scroll frame.
-    val gpaTrend = remember(report) { GpaTrendPoint.trendFor(report) }
-    val gpaByTerm = remember(gpaTrend) { gpaTrend.associateBy { it.term } }
-
-
     var selectedCourse by remember { mutableStateOf<CourseGrade?>(null) }
 
-    Box(Modifier.fillMaxSize()) {
+    PageScaffold(
+        title = stringResource(R.string.feature_score),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = {
+            SyncStatusDot(
+                servers = ServerKind.transcriptSources,
+                isLoading = isRefreshing,
+                syncedAtMs = syncedAtMs,
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
         TigerPullToRefresh(
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.triggerRefresh() },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(padding),
             refreshingMessage = stringResource(R.string.refreshing_message),
         ) {
             Column(
@@ -106,67 +107,17 @@ fun ScoreScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                PageHeader(title = stringResource(R.string.feature_score)) {
-                    SyncStatusDot(
-                        servers = listOf(ServerKind.COURSE_SELECTION),
-                        isLoading = isRefreshing,
-                        syncedAtMs = syncedAtMs,
-                    )
-                }
-                AutoSignInFailedBanner()
+                Header()
+                signInBanner()
 
-                when {
-                    !isLoggedIn -> EmptyStateView(
-                        icon = Icons.Filled.Lock,
-                        title = stringResource(R.string.common_not_signed_in),
-                        message = stringResource(R.string.score_not_signed_in_message),
-                        modifier = Modifier.padding(top = 32.dp),
-                        actionLabel = stringResource(R.string.onboarding_sign_in_button),
-                        onAction = onOpenSignInSettings,
-                    )
-
-                    !viewModel.hasContent && !isRefreshing -> EmptyStateView(
-                        icon = Icons.Filled.Search,
-                        title = stringResource(R.string.score_empty_title),
-                        message = errorMessage ?: stringResource(R.string.score_empty_message),
-                        modifier = Modifier.padding(top = 32.dp)
-                    )
-
-                    else -> {
-                        StudentHeaderCard(
-                            student = report.student,
-                            currentTerm = report.currentTerm,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        CreditSummaryCard(summary = report.creditSummary)
-                        // Not `rankings.isNotEmpty()`: a first-term student
-                        // has no published ranking at all, and the estimate
-                        // is exactly what they came here to see.
-                        if (gpaTrend.isNotEmpty()) {
-                            Spacer(Modifier.height(8.dp))
-                            RankingsTrendCard(
-                                points = gpaTrend,
-                                scope = rankingScope,
-                                onScopeChange = viewModel::setRankingScope,
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        viewModel.groupedCourses.forEach { (term, courses) ->
-                            SemesterSection(
-                                term = term,
-                                courses = courses,
-                                gpaPoint = gpaByTerm[term],
-                                isCollapsed = term in collapsedTerms,
-                                onToggle = { viewModel.toggleCollapse(term) },
-                                onCourseTap = { selectedCourse = it }
-                            )
-                        }
-                        Spacer(Modifier.height(32.dp))
-                    }
-                }
+                ScoreBody(
+                    viewModel = viewModel,
+                    isRefreshing = isRefreshing,
+                    onOpenSignInSettings = onOpenSignInSettings,
+                    onCourseTap = { selectedCourse = it },
+                )
             }
         }
-        SnackbarHost(snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 
     selectedCourse?.let { course ->
@@ -175,6 +126,77 @@ fun ScoreScreen(
             lookupRoster = viewModel::rosterCourse,
             onDismiss = { selectedCourse = null },
         )
+    }
+}
+
+/** The page below its header: the sign-in or empty state, or the report. */
+@Composable
+private fun ScoreBody(
+    viewModel: ScoreViewModel,
+    isRefreshing: Boolean,
+    onOpenSignInSettings: () -> Unit,
+    onCourseTap: (CourseGrade) -> Unit,
+) {
+    val report by viewModel.report.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateWithLifecycle()
+    val rankingScope by viewModel.rankingScope.collectAsStateWithLifecycle()
+    val collapsedTerms by viewModel.collapsedTerms.collectAsStateWithLifecycle()
+
+    // Published rankings plus a computed point for any term the school has
+    // not posted yet. Derived here rather than in the view model so it is
+    // rebuilt when the report changes and not on every scroll frame.
+    val gpaTrend = remember(report) { GpaTrendPoint.trendFor(report) }
+    val gpaByTerm = remember(gpaTrend) { gpaTrend.associateBy { it.term } }
+
+    when {
+        !isLoggedIn -> EmptyStateView(
+            icon = Icons.Filled.Lock,
+            title = stringResource(R.string.common_not_signed_in),
+            message = stringResource(R.string.score_not_signed_in_message),
+            modifier = Modifier.padding(top = 32.dp),
+            actionLabel = stringResource(R.string.onboarding_sign_in_button),
+            onAction = onOpenSignInSettings,
+        )
+
+        !viewModel.hasContent && !isRefreshing -> EmptyStateView(
+            icon = Icons.Filled.Search,
+            title = stringResource(R.string.score_empty_title),
+            message = errorMessage ?: stringResource(R.string.score_empty_message),
+            modifier = Modifier.padding(top = 32.dp)
+        )
+
+        else -> {
+            StudentHeaderCard(
+                student = report.student,
+                currentTerm = report.currentTerm,
+            )
+            Spacer(Modifier.height(8.dp))
+            CreditSummaryCard(summary = report.creditSummary)
+            // Not `rankings.isNotEmpty()`: a first-term student
+            // has no published ranking at all, and the estimate
+            // is exactly what they came here to see.
+            if (gpaTrend.isNotEmpty()) {
+                Spacer(Modifier.height(8.dp))
+                RankingsTrendCard(
+                    points = gpaTrend,
+                    scope = rankingScope,
+                    onScopeChange = viewModel::setRankingScope,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            viewModel.groupedCourses.forEach { (term, courses) ->
+                SemesterSection(
+                    term = term,
+                    courses = courses,
+                    gpaPoint = gpaByTerm[term],
+                    isCollapsed = term in collapsedTerms,
+                    onToggle = { viewModel.toggleCollapse(term) },
+                    onCourseTap = onCourseTap
+                )
+            }
+            Spacer(Modifier.height(32.dp))
+        }
     }
 }
 
@@ -224,13 +246,13 @@ private fun StudentHeaderCard(student: String, currentTerm: String) {
         }
     }
 }
-private fun formatCurrentTerm(pattern: String, code: String): String {
-    if (code.length != 4) return code
-    val year = code.take(3)
-    val label = when (val sem = code.last()) {
-        '1' -> "1"; '2' -> "2"; else -> sem.toString()
-    }
-    return pattern.format(year, label)
+/** A four-character term code as its year digits and its last character; null for any other length. */
+internal fun termYearAndPart(code: String): Pair<String, Char>? =
+    if (code.length != 4) null else code.take(3) to code.last()
+
+internal fun formatCurrentTerm(pattern: String, code: String): String {
+    val (year, part) = termYearAndPart(code) ?: return code
+    return pattern.format(year, part.toString())
 }
 
 // --- Credit summary ---
@@ -294,12 +316,11 @@ private fun CreditStat(label: String, value: Float, modifier: Modifier = Modifie
 // --- GPA trend ---
 @Composable
 internal fun displayTerm(code: String): String {
-    if (code.length != 4) return code
-    val year = code.take(3)
-    val label = when (val sem = code.last()) {
+    val (year, part) = termYearAndPart(code) ?: return code
+    val label = when (part) {
         '1' -> stringResource(R.string.score_semester_upper)
         '2' -> stringResource(R.string.score_semester_lower)
-        else -> sem.toString()
+        else -> part.toString()
     }
     return stringResource(R.string.score_academic_year_semester, year, label)
 }

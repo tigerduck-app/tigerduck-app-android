@@ -20,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -55,6 +56,9 @@ class PendingCourseDeletesTest {
     private data class Sent(val courseKey: String, val account: Int)
 
     private val sent = mutableListOf<Sent>()
+
+    // The moment each DELETE went with.
+    private val hiddenAts = mutableListOf<Long>()
     private var answer: suspend (String) -> Unit = {}
     private val uploads = mutableListOf<List<String>>()
     private val events = mutableListOf<String>()
@@ -72,17 +76,18 @@ class PendingCourseDeletesTest {
     fun setUp() {
         val context = RuntimeEnvironment.getApplication()
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
-        adds = PendingCourseAdds(cache, { courses, _, _, pinned ->
+        adds = PendingCourseAdds(cache, { courses, _, _, pinned, _ ->
             if (pinned != signIn) throw NotSignedInException()
             uploads += courses.map { it.courseNo }
             events += "upload"
-            courses.map { it.courseNo }
+            CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         }, signInGeneration = { signIn })
         // As PushApiClient.deleteCourse: pinned to a sign-in, the header is that account's or none.
-        deletes = PendingCourseDeletes(cache, adds, { courseKey, pinned ->
+        deletes = PendingCourseDeletes(cache, adds, { courseKey, pinned, hiddenAt ->
             beforeHeader()
             if (pinned != signIn) throw NotSignedInException()
             sent += Sent(courseKey, account = signIn)
+            hiddenAts += hiddenAt
             answer(courseKey)
             events += "DELETE"
         }, signInGeneration = { signIn }, clock = { ++tick })
@@ -108,6 +113,35 @@ class PendingCourseDeletesTest {
             yield()
         }
         throw AssertionError("the outbox did not settle")
+    }
+
+    /**
+     * The moments the class table gives adds come from [PendingCourseDeletes.stamp] too: after a
+     * restart with the clock set back, a hide asked now still comes after an add kept from before.
+     */
+    @Test
+    fun `a stamp after a restart comes after every add's moment kept`() = runTest {
+        cache.savePendingCourseAddTimes(mapOf(term to mapOf(typed to 9_000L)))
+        val restarted = PendingCourseDeletes(cache, adds, { _, _, _ -> }, signInGeneration = { signIn }, clock = { 1L })
+
+        assertTrue(restarted.stamp() > 9_000L)
+    }
+
+    /**
+     * A delete goes with the moment it was asked (#591), again on a retry: the backend applies
+     * it only when later than the course's last add, hide and reset, so a hide kept offline
+     * loses to an add made since on another device, and a retry after a lost reply changes
+     * nothing.
+     */
+    @Test
+    fun `a delete goes with the moment it was asked, again on a retry`() = runTest {
+        answer = { throw IOException("offline") }
+        deletes.send(term, typed, queuedAt = 7_000)
+
+        answer = {}
+        deletes.retry()
+
+        assertEquals(listOf(7_000L, 7_000L), hiddenAts)
     }
 
     @Test
@@ -365,7 +399,7 @@ class PendingCourseDeletesTest {
         deletes.send(term, typed, queuedAt = 1_000)
         assertEquals(mapOf(term to listOf(typed)), queued())
 
-        val restarted = PendingCourseDeletes(cache, adds, { courseKey, pinned ->
+        val restarted = PendingCourseDeletes(cache, adds, { courseKey, pinned, _ ->
             if (pinned != signIn) throw NotSignedInException()
             sent += Sent(courseKey, account = signIn)
             answer(courseKey)
@@ -391,7 +425,7 @@ class PendingCourseDeletesTest {
         // The read goes back through the main looper first, so the first stamp always holds the
         // lock over it when the second is asked, and resumes from the looper, not inline.
         val fresh = PendingCourseDeletes(
-            cache, adds, { _, _ -> },
+            cache, adds, { _, _, _ -> },
             signInGeneration = { signIn },
             clock = { ++tick },
             load = { yield(); cache.loadPendingCourseDeletes() },
@@ -435,7 +469,7 @@ class PendingCourseDeletesTest {
         gate.complete(Unit)
         holder.join()
         answer = {}
-        val restarted = PendingCourseDeletes(cache, adds, { courseKey, pinned ->
+        val restarted = PendingCourseDeletes(cache, adds, { courseKey, pinned, _ ->
             if (pinned != signIn) throw NotSignedInException()
             sent += Sent(courseKey, account = signIn)
             answer(courseKey)

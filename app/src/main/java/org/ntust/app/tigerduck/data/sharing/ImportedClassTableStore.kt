@@ -49,7 +49,7 @@ data class ImportedPerson(
     )
 
     /** Newest first, as the term picker lists them. */
-    val semesters: List<String> get() = terms.map { it.semester }.sortedDescending()
+    val semesters: List<String> get() = terms.map { it.semester }.sortedWith(org.ntust.app.tigerduck.shared.time.AcademicTerm.newestFirst)
 
     /** The term to open this class table on: [keeping] when the person shared it, else their latest. */
     fun semester(keeping: String): String =

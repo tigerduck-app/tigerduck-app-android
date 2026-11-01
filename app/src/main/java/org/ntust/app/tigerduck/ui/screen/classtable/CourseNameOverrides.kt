@@ -35,6 +35,18 @@ object CourseNameOverrides {
         }
     }
 
+    /**
+     * Each course's [Course.customCourseName] set to [locale]'s entry in [names],
+     * or cleared when it has none, as [ClassTableCourseMerge.mergeFetched] does
+     * for the courses it fetched. For a sync that changed the names under the
+     * cached courses: the widgets read those courses, not the names file.
+     */
+    fun stamp(courses: List<Course>, names: CustomNameMap, locale: String): List<Course> =
+        courses.map { course ->
+            val name = overrideFor(names, course.courseNo, locale)
+            if (name == course.customCourseName) course else course.copy(customCourseName = name)
+        }
+
     fun overrideFor(names: CustomNameMap, courseNo: String, locale: String): String? =
         names[courseNo]?.get(locale)
 

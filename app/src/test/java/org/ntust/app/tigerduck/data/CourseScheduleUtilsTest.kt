@@ -6,7 +6,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.collapseContiguousPeriods
-import org.ntust.app.tigerduck.shared.computeOngoingCourses
 import org.ntust.app.tigerduck.shared.parseHm
 
 class CourseScheduleUtilsTest {
@@ -21,37 +20,6 @@ class CourseScheduleUtilsTest {
     fun `collapseContiguousPeriods keeps unknown periods separate`() {
         val collapsed = collapseContiguousPeriods(listOf("E", "1"))
         assertEquals(listOf("E" to "E", "1" to "1"), collapsed)
-    }
-
-    @Test
-    fun `returns empty list for empty course list`() {
-        assertTrue(computeOngoingCourses(emptyList(), weekday = 1, minuteOfDay = 660).isEmpty())
-    }
-
-    @Test
-    fun `returns ongoing course when current time is within a contiguous block`() {
-        val course =
-            Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "4")))
-        val results = computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 660)
-        assertEquals(1, results.size)
-        val result = results.first()
-        assertEquals("CS101", result.course.courseNo)
-        assertEquals("3", result.firstPeriodId)
-        assertEquals(620, result.startMinute)
-        assertEquals(730, result.endMinute)
-    }
-
-    @Test
-    fun `returns empty when between two non-contiguous blocks of the same course`() {
-        val course =
-            Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(1 to listOf("3", "6")))
-        assertTrue(computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 750).isEmpty())
-    }
-
-    @Test
-    fun `returns empty when course is on a different weekday`() {
-        val course = Course.fromSchedule("CS101", "Algorithms", schedule = mapOf(2 to listOf("3")))
-        assertTrue(computeOngoingCourses(listOf(course), weekday = 1, minuteOfDay = 660).isEmpty())
     }
 
     @Test

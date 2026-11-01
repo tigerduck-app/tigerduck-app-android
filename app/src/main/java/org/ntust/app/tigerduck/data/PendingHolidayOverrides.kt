@@ -14,7 +14,7 @@ import javax.inject.Singleton
 
 /** Sends one holiday's choice as sign-in [signIn], and says whether it went; see [PushApiClient.putHolidayOverride]. */
 internal fun interface HolidayOverrideSender {
-    suspend fun send(holidayId: Int, notify: Boolean, signIn: Int): Boolean
+    suspend fun send(holidayId: Int, notify: Boolean, signIn: Int, madeAtMs: Long?): Boolean
 }
 
 /**
@@ -54,7 +54,9 @@ class PendingHolidayOverrides internal constructor(
         authTokenManager: AuthTokenManager,
     ) : this(
         prefs = prefs,
-        sender = HolidayOverrideSender(pushApiClient::putHolidayOverride),
+        sender = HolidayOverrideSender { id, notify, signIn, madeAtMs ->
+            pushApiClient.putHolidayOverride(id, notify, signIn, madeAtMs)
+        },
         syncs = { prefs.cloudSyncEnabled },
         signInGeneration = { authTokenManager.signInGeneration },
         runIfSignedIn = authTokenManager::runIfSignedIn,
@@ -83,6 +85,9 @@ class PendingHolidayOverrides internal constructor(
      */
     suspend fun send(holidayId: Int) {
         lastChangeAtMs = clock()
+        // Before the sync check: a choice still waiting from before is this one now, and goes up
+        // with this time whenever sync is on again.
+        synchronized(lock) { prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to lastChangeAtMs) }
         if (!syncs()) return
         val signIn = signInGeneration()
         synchronized(lock) { prefs.holidayOverridesAwaitingUpload = waitingIds + holidayId }
@@ -115,9 +120,9 @@ class PendingHolidayOverrides internal constructor(
             sendMutex.withLock {
                 // Stale once the account changed, or once the choice landed while this waited.
                 if (signIn != signInGeneration() || holidayId !in waitingIds) return
-                val notify = holidayId in prefs.holidayNotifyOverrides
+                val sent = edit(holidayId)
                 val landed = try {
-                    sender.send(holidayId, notify, signIn)
+                    sender.send(holidayId, sent.first, signIn, sent.second)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -130,8 +135,9 @@ class PendingHolidayOverrides internal constructor(
                 runIfSignedIn(signIn) {
                     synchronized(lock) {
                         // Let go only if the server now holds what the user still wants: a
-                        // choice changed during the request has its own PUT.
-                        if ((holidayId in prefs.holidayNotifyOverrides) == notify) {
+                        // choice made again during the request, even to the same setting, has
+                        // its own PUT and its own time.
+                        if (edit(holidayId) == sent) {
                             prefs.holidayOverridesAwaitingUpload = waitingIds - holidayId
                         }
                     }
@@ -140,6 +146,24 @@ class PendingHolidayOverrides internal constructor(
         } finally {
             inFlight.decrementAndGet()
         }
+    }
+
+    // The choice as it stands, and when it was made (null for one made before the time was kept).
+    // The time is read first: a tap writes the value and then the time, so a tap between these two
+    // reads pairs its new value with the old time, which that tap's own PUT then corrects, and
+    // never an old value with the new time, which nothing would.
+    private fun edit(holidayId: Int): Pair<Boolean, Long?> {
+        val madeAtMs = prefs.holidayOverrideEditTimes[holidayId]
+        return (holidayId in prefs.holidayNotifyOverrides) to madeAtMs
+    }
+
+    /**
+     * Forgets the edit times of [holidayIds], whose choice a pull just replaced: the value is the
+     * server's now, and a time kept for it would stamp a PUT of someone else's choice.
+     */
+    fun forgetEditTimes(holidayIds: Set<Int>) {
+        if (holidayIds.isEmpty()) return
+        synchronized(lock) { prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes - holidayIds }
     }
 
     private companion object {

@@ -36,11 +36,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +66,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.screen.classtable.sharing.ClassTableImportModel.Prompt
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -140,7 +140,6 @@ internal fun ClassTableImportPage(
     key(model) { ImportPage(model, onClose, onFinished, onPickPicture, onShare, refreshShare, shareSource, camera) }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ImportPage(
     model: ClassTableImportModel,
@@ -185,30 +184,28 @@ private fun ImportPage(
             accentColor = MaterialTheme.colorScheme.primary,
             onAccentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
-            Scaffold(
+            PageScaffold(
+                title = stringResource(R.string.class_table_import),
+                // As the iOS scanner: the way to the user's own share sheet at the start,
+                // mirroring the share sheet's way here, and Close at the end, as its Done.
+                navigationIcon = {
+                    // A link's page came for its code, not to scan, as on iOS.
+                    if (onShare != null && !state.fromLink) {
+                        IconButton(onClick = onShare, enabled = !state.isSaving) {
+                            Icon(Icons.Filled.QrCode, contentDescription = stringResource(R.string.class_table_share))
+                        }
+                    }
+                },
+                actions = {
+                    IconButton(onClick = close, enabled = !state.isSaving) {
+                        Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
+                    }
+                },
+                barColors = PageDefaults.barColors(containerColor = Color.Black),
+                // A full-screen dialog, so no host has padded the page.
+                barWindowInsets = PageDefaults.systemBarWindowInsets,
                 containerColor = Color.Black,
                 contentColor = Color.White,
-                topBar = {
-                    // As the iOS scanner: the way to the user's own share sheet at the start,
-                    // mirroring the share sheet's way here, and Close at the end, as its Done.
-                    TopAppBar(
-                        title = { Text(stringResource(R.string.class_table_import)) },
-                        navigationIcon = {
-                            // A link's page came for its code, not to scan, as on iOS.
-                            if (onShare != null && !state.fromLink) {
-                                IconButton(onClick = onShare, enabled = !state.isSaving) {
-                                    Icon(Icons.Filled.QrCode, contentDescription = stringResource(R.string.class_table_share))
-                                }
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = close, enabled = !state.isSaving) {
-                                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black),
-                    )
-                },
                 bottomBar = {
                     // A link's page has nothing to pick: the code came with it.
                     if (!state.fromLink) {
@@ -471,10 +468,7 @@ internal fun importConfirmRows(
     formatTime: (Instant) -> String,
 ): List<ImportConfirmRow> = buildList {
     code.studentId?.let { add(ImportConfirmRow(R.string.sign_in_student_id, it)) }
-    add(ImportConfirmRow(R.string.class_table_semester_picker_label, joinList(code.terms.map { semesterLabel(it.semester) })))
+    add(ImportConfirmRow(R.string.class_table_semester_picker_label, joinList(code.terms.map { AcademicTerm.labelOf(it.semester) })))
     add(ImportConfirmRow(R.string.class_table_import_course_count, formatCount(code.terms.sumOf { it.courseNos.size })))
     code.sharedAt?.let { add(ImportConfirmRow(R.string.class_table_import_shared_at, formatTime(it))) }
 }
-
-/** `1151` as `115-1`, as the term picker shows it. */
-private fun semesterLabel(semester: String) = semester.dropLast(1) + "-" + semester.takeLast(1)

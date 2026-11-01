@@ -15,19 +15,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.ZoomIn
 import androidx.compose.material.icons.outlined.ZoomOut
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateMapOf
@@ -53,7 +49,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.preferences.DisplayScale
 import org.ntust.app.tigerduck.ui.AppScale
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -114,23 +110,9 @@ internal fun DisplaySizeContent(
         onFinished = { onCommit(scale, current(scale)) },
     )
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = { Text(stringResource(R.string.settings_display_size_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-                expandedHeight = SubSettingsBarHeight,
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = stringResource(R.string.settings_display_size_title),
+        onBack = onBack,
     ) { scaffoldPadding ->
         LazyColumn(
             modifier = Modifier

@@ -3,8 +3,16 @@ package org.ntust.app.tigerduck.shared
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.time.LocalDate
 
 class NextClassResolverTest {
+
+    /** A date on [weekday] (1 = Monday), so a test says which weekday it is on. */
+    private fun day(weekday: Int): LocalDate = LocalDate.of(2026, 11, 1).plusDays(weekday.toLong())
+
+    /** [classes] on the dates `daysAhead` from Monday, as the phone sends them. */
+    private fun changesOn(courseNo: String, daysAhead: Int, vararg classes: WatchClassChange) =
+        WatchCourseChanges(mapOf(courseNo to mapOf(day(1).plusDays(daysAhead.toLong()) to classes.toList())))
 
     private fun course(no: String, schedule: Map<Int, List<String>>): Course =
         Course.fromSchedule(courseNo = no, courseName = "Course-$no", schedule = schedule)
@@ -16,7 +24,7 @@ class NextClassResolverTest {
 
     @Test
     fun `Empty when no courses`() {
-        val r = NextClassResolver.resolve(courses = emptyList(), weekday = 1, minuteOfDay = 600)
+        val r = NextClassResolver.resolve(courses = emptyList(), today = day(1), minuteOfDay = 600)
         assertTrue(r is NextClassResult.Empty)
     }
 
@@ -24,7 +32,7 @@ class NextClassResolverTest {
     fun `Ongoing returns currently-running course and next-today below`() {
         val courses = listOf(mondayMorningCourse, mondayAfternoonCourse)
         // 08:30 on Monday — period 1 ongoing, AI is next today.
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 8 * 60 + 30)
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 8 * 60 + 30)
         assertTrue(r is NextClassResult.Ongoing)
         r as NextClassResult.Ongoing
         assertEquals("CN", r.course.courseNo)
@@ -36,7 +44,7 @@ class NextClassResolverTest {
     @Test
     fun `Ongoing with no next-today returns null secondary`() {
         val courses = listOf(mondayMorningCourse)
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 8 * 60 + 30)
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 8 * 60 + 30)
         assertTrue(r is NextClassResult.Ongoing)
         assertEquals(null, (r as NextClassResult.Ongoing).nextToday)
     }
@@ -45,7 +53,7 @@ class NextClassResolverTest {
     fun `NextToday when not in class but more classes today`() {
         val courses = listOf(mondayMorningCourse, mondayAfternoonCourse)
         // 11:00 Mon — gap between morning and afternoon. AI starts at 14:20.
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 11 * 60)
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 11 * 60)
         assertTrue(r is NextClassResult.NextToday)
         r as NextClassResult.NextToday
         assertEquals("AI", r.course.courseNo)
@@ -56,7 +64,7 @@ class NextClassResolverTest {
     fun `NextFuture walks forward across weekdays`() {
         val courses = listOf(tuesdayCourse)
         // Sunday after all classes. Walk forward to Tuesday (2 days).
-        val r = NextClassResolver.resolve(courses, weekday = 7, minuteOfDay = 23 * 60)
+        val r = NextClassResolver.resolve(courses, today = day(7), minuteOfDay = 23 * 60)
         assertTrue(r is NextClassResult.NextFuture)
         r as NextClassResult.NextFuture
         assertEquals("DB", r.course.courseNo)
@@ -68,14 +76,14 @@ class NextClassResolverTest {
     fun `NextFuture daysAhead is 1 when tomorrow has class`() {
         val courses = listOf(tuesdayCourse)
         // Monday evening — tomorrow (Tuesday) has class.
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 22 * 60)
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 22 * 60)
         r as NextClassResult.NextFuture
         assertEquals(1, r.daysAhead)
     }
 
     @Test
     fun `Empty when nothing scheduled in next 7 days`() {
-        val r = NextClassResolver.resolve(courses = emptyList(), weekday = 1, minuteOfDay = 600)
+        val r = NextClassResolver.resolve(courses = emptyList(), today = day(1), minuteOfDay = 600)
         assertTrue(r is NextClassResult.Empty)
     }
 
@@ -83,7 +91,7 @@ class NextClassResolverTest {
     fun `today's classes returns chronological list with status`() {
         val courses = listOf(mondayMorningCourse, mondayAfternoonCourse)
         // 11:00 Mon — morning ended, afternoon upcoming.
-        val today = NextClassResolver.todaysClasses(courses, weekday = 1, minuteOfDay = 11 * 60)
+        val today = NextClassResolver.todaysClasses(courses, today = day(1), minuteOfDay = 11 * 60)
         assertEquals(2, today.size)
         assertEquals("CN", today[0].course.courseNo)
         assertEquals(TodayClassStatus.Ended, today[0].status)
@@ -94,7 +102,7 @@ class NextClassResolverTest {
     @Test
     fun `today's classes marks ongoing row`() {
         val courses = listOf(mondayMorningCourse)
-        val today = NextClassResolver.todaysClasses(courses, weekday = 1, minuteOfDay = 8 * 60 + 30)
+        val today = NextClassResolver.todaysClasses(courses, today = day(1), minuteOfDay = 8 * 60 + 30)
         assertEquals(TodayClassStatus.Ongoing, today.single().status)
     }
 
@@ -105,7 +113,7 @@ class NextClassResolverTest {
     fun `on a quiet day nothing is on now and the next class is the next class day's`() {
         val courses = listOf(mondayMorningCourse, mondayAfternoonCourse, tuesdayCourse)
         // 08:30 Mon, inside CN's block, with AI later today.
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 8 * 60 + 30) {
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 8 * 60 + 30) {
             it == 0
         }
         assertTrue(r is NextClassResult.NextFuture)
@@ -118,7 +126,7 @@ class NextClassResolverTest {
     fun `a quiet day ahead is skipped for the next class`() {
         val courses = listOf(tuesdayCourse, wednesdayCourse)
         // Monday evening, Tuesday quiet: Wednesday's class is next.
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 22 * 60) {
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 22 * 60) {
             it == 1
         }
         assertTrue(r is NextClassResult.NextFuture)
@@ -130,7 +138,7 @@ class NextClassResolverTest {
     @Test
     fun `Empty when today and the whole week ahead are quiet`() {
         val courses = listOf(mondayMorningCourse, tuesdayCourse)
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 8 * 60 + 30) { true }
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 8 * 60 + 30) { true }
         assertTrue(r is NextClassResult.Empty)
     }
 
@@ -138,7 +146,7 @@ class NextClassResolverTest {
     fun `today's classes are empty on a quiet day`() {
         val courses = listOf(mondayMorningCourse, mondayAfternoonCourse)
         val today = NextClassResolver.todaysClasses(
-            courses, weekday = 1, minuteOfDay = 11 * 60, quietToday = true,
+            courses, today = day(1), minuteOfDay = 11 * 60, quietToday = true,
         )
         assertTrue(today.isEmpty())
     }
@@ -159,7 +167,7 @@ class NextClassResolverTest {
     fun `Ongoing mid-block uses full block bounds for smooth progress`() {
         val courses = listOf(mondayMorningCourse)
         // 09:30 on Monday — inside period "2" (09:10–10:00).
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 9 * 60 + 30)
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 9 * 60 + 30)
         assertTrue(r is NextClassResult.Ongoing)
         r as NextClassResult.Ongoing
         assertEquals("CN", r.course.courseNo)
@@ -171,11 +179,134 @@ class NextClassResolverTest {
     fun `Ongoing during intra-block break uses full block bounds`() {
         val courses = listOf(mondayMorningCourse)
         // 09:05 on Monday — 5 min AFTER period "1" ends (09:00), BEFORE period "2" starts (09:10).
-        val r = NextClassResolver.resolve(courses, weekday = 1, minuteOfDay = 9 * 60 + 5)
+        val r = NextClassResolver.resolve(courses, today = day(1), minuteOfDay = 9 * 60 + 5)
         assertTrue(r is NextClassResult.Ongoing)
         r as NextClassResult.Ongoing
         assertEquals("CN", r.course.courseNo)
         assertEquals(8 * 60 + 10, r.startMinute)   // block start = 08:10 = 490
         assertEquals(10 * 60, r.endMinute)          // block end   = 10:00 = 600
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // The school's changes: a day's changed classes stand in for the block they
+    // start in, as iOS `WatchCourse.on(dayKey)` has them.
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `a changed class runs at its changed times in its changed room`() {
+        // CN's 1-2 (08:10-10:00) starts at 08:40 in TR-411 today only.
+        val change = WatchClassChange(listOf("1", "2"), room = "TR-411", start = "08:40")
+        val changed = changesOn("CN", 0, change)
+        val before = NextClassResolver.resolve(listOf(mondayMorningCourse), day(1), 8 * 60 + 20, changed)
+        before as NextClassResult.NextToday
+        assertEquals(8 * 60 + 40, before.startMinute)
+        assertEquals("TR-411", before.classroom)
+        assertEquals(change, before.change)
+
+        val during = NextClassResolver.resolve(listOf(mondayMorningCourse), day(1), 9 * 60, changed)
+        during as NextClassResult.Ongoing
+        assertEquals(8 * 60 + 40, during.startMinute)
+        assertEquals(10 * 60, during.endMinute)
+        assertEquals("TR-411", during.classroom)
+        assertEquals(change, during.change)
+    }
+
+    @Test
+    fun `the rest of a meeting split by a change is next while its first class runs`() {
+        // CN's 1-2 split by a room move: 1 in its room, then 2 in TR-415.
+        val moved = WatchClassChange(listOf("2"), room = "TR-415")
+        val changed = changesOn("CN", 0, WatchClassChange(listOf("1")), moved)
+        val during = NextClassResolver.resolve(listOf(mondayMorningCourse), day(1), 8 * 60 + 30, changed)
+        during as NextClassResult.Ongoing
+        assertEquals(listOf("1"), during.periods)
+        val next = during.nextToday!!
+        assertEquals(listOf("2"), next.periods)
+        assertEquals("TR-415", next.classroom)
+    }
+
+    @Test
+    fun `a later day's cancelled class is passed over for the next class`() {
+        val changed = changesOn("DB", 1, WatchClassChange(listOf("3", "4"), cancelled = true))
+        val r = NextClassResolver.resolve(listOf(tuesdayCourse, wednesdayCourse), day(1), 22 * 60, changed)
+        r as NextClassResult.NextFuture
+        assertEquals("OS", r.course.courseNo)
+        assertEquals(2, r.daysAhead)
+        assertEquals(null, r.change)
+    }
+
+    @Test
+    fun `a later day's moved class is next at its changed start`() {
+        val change = WatchClassChange(listOf("3", "4"), start = "10:50")
+        val r = NextClassResolver.resolve(listOf(tuesdayCourse), day(1), 22 * 60, changesOn("DB", 1, change))
+        r as NextClassResult.NextFuture
+        assertEquals(10 * 60 + 50, r.startMinute)
+        assertEquals(listOf("3", "4"), r.periods)
+        assertEquals(change, r.change)
+    }
+
+    @Test
+    fun `today's classes show a changed class in place of its block and leave a cancelled one out`() {
+        val today = NextClassResolver.todaysClasses(
+            listOf(mondayMorningCourse, mondayAfternoonCourse),
+            today = day(1),
+            minuteOfDay = 11 * 60,
+            changes = WatchCourseChanges(
+                mapOf(
+                    "CN" to mapOf(day(1) to listOf(WatchClassChange(listOf("1", "2"), cancelled = true))),
+                    "AI" to mapOf(
+                        day(1) to listOf(
+                            WatchClassChange(listOf("7"), room = "TR-411"),
+                            WatchClassChange(listOf("8"), end = "16:00"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        assertEquals(listOf(listOf("7"), listOf("8")), today.map { it.periods })
+        assertEquals(listOf("TR-411", ""), today.map { it.classroom })
+        assertEquals(listOf(14 * 60 + 20, 15 * 60 + 30), today.map { it.startMinute })
+        assertEquals(listOf(15 * 60 + 10, 16 * 60), today.map { it.endMinute })
+    }
+
+    // ---- a class is over from its end minute (D2: start <= now < end) ----
+
+    private val period4 = course("P4", mapOf(2 to listOf("3", "4")))                  // 10:20-12:10
+    private val afterwards = course("P7", mapOf(2 to listOf("7", "8")))               // 14:20-16:20
+
+    @Test
+    fun `a class is ongoing in its last minute and over at its end minute`() {
+        val courses = listOf(period4, afterwards)
+
+        val last = NextClassResolver.resolve(courses, today = day(2), minuteOfDay = 12 * 60 + 9)
+        assertTrue(last is NextClassResult.Ongoing)
+        assertEquals("P4", (last as NextClassResult.Ongoing).course.courseNo)
+
+        val over = NextClassResolver.resolve(courses, today = day(2), minuteOfDay = 12 * 60 + 10)
+        assertTrue(over is NextClassResult.NextToday)
+        assertEquals("P7", (over as NextClassResult.NextToday).course.courseNo)
+    }
+
+    @Test
+    fun `today's list marks a class ended from its end minute`() {
+        fun statusAt(minute: Int) =
+            NextClassResolver.todaysClasses(listOf(period4), today = day(2), minuteOfDay = minute).single().status
+
+        assertEquals(TodayClassStatus.Ongoing, statusAt(12 * 60 + 9))
+        assertEquals(TodayClassStatus.Ended, statusAt(12 * 60 + 10))
+    }
+
+    @Test
+    fun `a class the school ended early is over at its changed end minute`() {
+        val changed = changesOn("P4", 1, WatchClassChange(listOf("3", "4"), end = "11:45"))
+        val courses = listOf(period4, afterwards)
+
+        assertTrue(NextClassResolver.resolve(courses, day(2), 11 * 60 + 44, changed) is NextClassResult.Ongoing)
+        val over = NextClassResolver.resolve(courses, day(2), 11 * 60 + 45, changed)
+        assertTrue(over is NextClassResult.NextToday)
+        assertEquals("P7", (over as NextClassResult.NextToday).course.courseNo)
+        assertEquals(
+            TodayClassStatus.Ended,
+            NextClassResolver.todaysClasses(listOf(period4), day(2), 11 * 60 + 45, changes = changed).single().status,
+        )
     }
 }

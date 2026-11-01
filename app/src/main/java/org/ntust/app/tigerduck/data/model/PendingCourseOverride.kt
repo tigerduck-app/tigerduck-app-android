@@ -38,6 +38,11 @@ data class PendingCourseOverride(
      * written before versions were.
      */
     val seq: Long = 0L,
+    /**
+     * When the user made the change, sent as its `hlc` so a retry is no newer than the edit.
+     * Null on a row written before it was kept, which goes out unstamped.
+     */
+    val madeAtMs: Long? = null,
 ) {
     /**
      * What the row changes — the course's colour, or its name in one locale —

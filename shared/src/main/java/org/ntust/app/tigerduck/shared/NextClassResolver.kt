@@ -1,5 +1,11 @@
 package org.ntust.app.tigerduck.shared
 
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import java.time.LocalDate
+
 sealed class NextClassResult {
     data class Ongoing(
         val course: Course,
@@ -10,9 +16,11 @@ sealed class NextClassResult {
         val weekday: Int,
         /** The periods of the block going on. */
         val periods: List<String>,
+        /** What the school changed of this class today; null for the timetable's block. */
+        val change: WatchClassChange? = null,
     ) : NextClassResult() {
-        /** The room of the block going on, not every room the course meets in that day. */
-        val classroom: String get() = course.blockClassroom(weekday, periods)
+        /** The room of the class going on, a moved one included, not every room the course meets in that day. */
+        val classroom: String get() = change?.room ?: course.blockClassroom(weekday, periods)
     }
 
     data class NextToday(
@@ -21,9 +29,11 @@ sealed class NextClassResult {
         val weekday: Int,
         /** The periods of the block that starts next. */
         val periods: List<String>,
+        /** What the school changed of this class today; null for the timetable's block. */
+        val change: WatchClassChange? = null,
     ) : NextClassResult() {
-        /** The room of the block that starts next. */
-        val classroom: String get() = course.blockClassroom(weekday, periods)
+        /** The room of the class that starts next, a moved one included. */
+        val classroom: String get() = change?.room ?: course.blockClassroom(weekday, periods)
     }
 
     data class NextFuture(
@@ -33,9 +43,11 @@ sealed class NextClassResult {
         val weekday: Int,
         /** The periods of that day's first block. */
         val periods: List<String>,
+        /** What the school changed of this class that day; null for the timetable's block. */
+        val change: WatchClassChange? = null,
     ) : NextClassResult() {
-        /** The room of that day's first block. */
-        val classroom: String get() = course.blockClassroom(weekday, periods)
+        /** The room of that day's first class, a moved one included. */
+        val classroom: String get() = change?.room ?: course.blockClassroom(weekday, periods)
     }
 
     object Empty : NextClassResult()
@@ -53,136 +65,154 @@ data class TodayClassEntry(
     val weekday: Int,
     /** Every period of this block, from [firstPeriodId] to [lastPeriodId]. */
     val periods: List<String>,
+    /** What the school changed of this class today; null for the timetable's block. */
+    val change: WatchClassChange? = null,
 ) {
-    /** This block's room, not every room the course meets in that day. */
-    val classroom: String get() = course.blockClassroom(weekday, periods)
+    /** This class's room, a moved one included, not every room the course meets in that day. */
+    val classroom: String get() = change?.room ?: course.blockClassroom(weekday, periods)
 }
 
+/**
+ * What the watch shows now and next. The day's classes, with the school's changes laid over the
+ * timetable, come from [ClassTimeline], the one home of that rule; what stays here is how the
+ * watch picks among them:
+ *  - a quiet day (outside the term, or a holiday the user kept) has no class, and the walk ahead
+ *    skips it, which [ClassTimeline] does not know;
+ *  - the course going on is left out of what comes next, its other blocks of the day included;
+ *  - a block that has started is not next: of courses meeting at once, the one not going on is
+ *    not offered again at its later periods;
+ *  - the first course in the list is the one going on, and wins ties.
+ */
 object NextClassResolver {
 
     /**
      * The class going on now and the next one, today or within the coming week.
      *
+     * [changes] are the classes the school changed, cancelled ones included: each stands in for the
+     * block it starts in, at its changed times and in its changed room, and a cancelled one is
+     * left out, as iOS `WatchCourse.on(dayKey)` has them. A block the school left alone keeps its
+     * timetable times.
+     *
      * [isQuietDay] tells whether no class meets for this user on the day
-     * `daysAhead` from today (0 is today): outside the term, or a school
+     * `daysAhead` from [today] (0 is today): outside the term, or a school
      * holiday they have not opted back into. Such a day's classes are left
      * out, so on a quiet today the next class is the first one of the next day
      * that has any.
      */
     fun resolve(
         courses: List<Course>,
-        weekday: Int,
+        today: LocalDate,
         minuteOfDay: Int,
+        changes: WatchCourseChanges = WatchCourseChanges.EMPTY,
         isQuietDay: (daysAhead: Int) -> Boolean = { false },
     ): NextClassResult {
+        val timeline = changes.toCourseChanges(courses)
+        val weekday = today.dayOfWeek.value
         val todaysCourses = if (isQuietDay(0)) emptyList() else courses
-        val ongoing = computeOngoingCourses(todaysCourses, weekday, minuteOfDay).firstOrNull()
+        val todays = classesOn(todaysCourses, today, changes, timeline)
+        val now = today.atTime(minuteOfDay / 60, minuteOfDay % 60).atZone(TaipeiClock.zone).toInstant()
+        // The first course in the list; of one course's classes going on at once, the earlier block.
+        val ongoing = todays.filter { it.slot.isOn(now) }
+            .minWithOrNull(compareBy<DayClass> { courseIndex(todaysCourses, it) }.thenBy { periodOrder(it.periods.first()) })
         if (ongoing != null) {
-            val nextToday = nextStartingToday(
-                todaysCourses,
-                weekday,
-                minuteOfDay,
-                excluding = ongoing.course.courseNo
-            )
+            // The course going on is left out of what comes next, as before changes; but a meeting
+            // the school split runs as its classes, so only the one going on is left out of it.
+            val split = changes.on(ongoing.slot.course.courseNo, today).isNotEmpty()
+            val nextToday = earliestStart(todays, todaysCourses, after = minuteOfDay) {
+                it.slot.course.courseNo == ongoing.slot.course.courseNo && (!split || it.periods == ongoing.periods)
+            }
             return NextClassResult.Ongoing(
-                course = ongoing.course,
+                course = ongoing.slot.course,
                 startMinute = ongoing.startMinute,
                 endMinute = ongoing.endMinute,
                 nextToday = nextToday?.let {
-                    NextClassResult.NextToday(it.course, it.startMinute, weekday, it.periods)
+                    NextClassResult.NextToday(it.dayClass.slot.course, it.startMinute, weekday, it.dayClass.periods, it.dayClass.change)
                 },
                 weekday = weekday,
                 periods = ongoing.periods,
+                change = ongoing.change,
             )
         }
-        val next = nextStartingToday(todaysCourses, weekday, minuteOfDay, excluding = null)
+        val next = earliestStart(todays, todaysCourses, after = minuteOfDay)
         if (next != null) {
-            return NextClassResult.NextToday(next.course, next.startMinute, weekday, next.periods)
+            return NextClassResult.NextToday(
+                next.dayClass.slot.course, next.startMinute, weekday, next.dayClass.periods, next.dayClass.change,
+            )
         }
         // Walk forward up to 7 days.
         for (offset in 1..7) {
             if (isQuietDay(offset)) continue
-            val futureWeekday = ((weekday - 1 + offset) % 7) + 1
-            val first = firstClassOfDay(courses, futureWeekday) ?: continue
+            val day = today.plusDays(offset.toLong())
+            val first = earliestStart(classesOn(courses, day, changes, timeline), courses, after = null) ?: continue
             return NextClassResult.NextFuture(
-                first.course, offset, first.startMinute, futureWeekday, first.periods,
+                first.dayClass.slot.course, offset, first.startMinute, day.dayOfWeek.value,
+                first.dayClass.periods, first.dayClass.change,
             )
         }
         return NextClassResult.Empty
     }
 
-    /** Today's classes in start order; none when [quietToday], as [resolve] has none. */
+    /**
+     * Today's classes in start order; none when [quietToday], as [resolve] has none. A class the
+     * school changed today, from [changes], stands in for its block as in [resolve].
+     */
     fun todaysClasses(
         courses: List<Course>,
-        weekday: Int,
+        today: LocalDate,
         minuteOfDay: Int,
         quietToday: Boolean = false,
+        changes: WatchCourseChanges = WatchCourseChanges.EMPTY,
     ): List<TodayClassEntry> {
         if (quietToday) return emptyList()
-        val entries = mutableListOf<TodayClassEntry>()
-        for (course in courses) {
-            val periods = course.schedule[weekday]?.sortedBy(::periodOrder) ?: continue
-            var i = 0
-            while (i < periods.size) {
-                var j = i
-                while (j + 1 < periods.size &&
-                    periodOrder(periods[j + 1]) == periodOrder(periods[j]) + 1
-                ) j++
-                val first = periods[i]
-                val last = periods[j]
-                val start = parseHm(PeriodTimes.mapping[first]?.first)
-                val end = parseHm(PeriodTimes.mapping[last]?.second)
-                if (start != null && end != null) {
-                    val status = when {
-                        minuteOfDay > end -> TodayClassStatus.Ended
-                        minuteOfDay in start..end -> TodayClassStatus.Ongoing
-                        else -> TodayClassStatus.Upcoming
-                    }
-                    entries += TodayClassEntry(
-                        course, first, last, start, end, status, weekday, periods.subList(i, j + 1),
-                    )
-                }
-                i = j + 1
+        return classesOn(courses, today, changes, changes.toCourseChanges(courses)).map { dayClass ->
+            val status = when {
+                minuteOfDay >= dayClass.endMinute -> TodayClassStatus.Ended
+                minuteOfDay >= dayClass.startMinute -> TodayClassStatus.Ongoing
+                else -> TodayClassStatus.Upcoming
             }
+            TodayClassEntry(
+                dayClass.slot.course, dayClass.periods.first(), dayClass.periods.last(), dayClass.startMinute,
+                dayClass.endMinute, status, today.dayOfWeek.value, dayClass.periods, dayClass.change,
+            )
         }
-        return entries.sortedBy { it.startMinute }
     }
 
-    /** A course's class starting at [startMinute], in the block of [periods]. */
-    private data class Pick(val course: Course, val startMinute: Int, val periods: List<String>)
+    /** One class of a course on a day: a timetable block, or a class the school changed one into. */
+    private class DayClass(val slot: ClassSlot, val change: WatchClassChange?) {
+        val periods: List<String> get() = slot.periods
+        val startMinute: Int get() = slot.start.hour * 60 + slot.start.minute
+        val endMinute: Int get() = slot.end.hour * 60 + slot.end.minute
+    }
 
-    /** The run of [course]'s periods on [weekday] that holds [periodId]. */
-    private fun blockHolding(course: Course, weekday: Int, periodId: String): List<String> =
-        contiguousPeriodRuns(course.schedule[weekday].orEmpty()).firstOrNull { periodId in it }
-            ?: listOf(periodId)
-
-    private fun nextStartingToday(
+    /** The classes of [courses] that meet on [day], by start: [ClassTimeline]'s, the cancelled ones left out. */
+    private fun classesOn(
         courses: List<Course>,
-        weekday: Int,
-        minuteOfDay: Int,
-        excluding: String?,
-    ): Pick? {
-        return courses
-            .filter { it.courseNo != excluding && it.schedule.containsKey(weekday) }
-            .mapNotNull { course ->
-                course.schedule[weekday]!!
-                    .mapNotNull { pid -> parseHm(PeriodTimes.mapping[pid]?.first)?.let { pid to it } }
-                    .filter { it.second > minuteOfDay }
-                    .minByOrNull { it.second }
-                    ?.let { (pid, start) -> Pick(course, start, blockHolding(course, weekday, pid)) }
-            }
-            .minByOrNull { it.startMinute }
-    }
+        day: LocalDate,
+        changes: WatchCourseChanges,
+        timeline: CourseChanges,
+    ): List<DayClass> =
+        ClassTimeline.meetings(courses, day, timeline).filter { !it.isCancelled }.map { slot ->
+            DayClass(slot, changes.on(slot.course.courseNo, day).firstOrNull { it.periods == slot.periods })
+        }
 
-    private fun firstClassOfDay(courses: List<Course>, weekday: Int): Pick? {
-        return courses
-            .filter { it.schedule.containsKey(weekday) }
-            .mapNotNull { course ->
-                course.schedule[weekday]!!
-                    .mapNotNull { pid -> parseHm(PeriodTimes.mapping[pid]?.first)?.let { pid to it } }
-                    .minByOrNull { it.second }
-                    ?.let { (pid, start) -> Pick(course, start, blockHolding(course, weekday, pid)) }
-            }
-            .minByOrNull { it.startMinute }
-    }
+    private fun courseIndex(courses: List<Course>, dayClass: DayClass): Int =
+        courses.indexOfFirst { it === dayClass.slot.course }
+
+    /**
+     * The class that starts first, after [after] when given, of the classes [excluding] leaves; of
+     * two starting together, the one whose course comes first in [courses].
+     */
+    private fun earliestStart(
+        classes: List<DayClass>,
+        courses: List<Course>,
+        after: Int?,
+        excluding: (DayClass) -> Boolean = { false },
+    ): Pick? = classes
+        .filter { !excluding(it) }
+        .map { Pick(it, it.startMinute) }
+        .filter { after == null || it.startMinute > after }
+        .minWithOrNull(compareBy<Pick> { it.startMinute }.thenBy { courseIndex(courses, it.dayClass) }.thenBy { periodOrder(it.dayClass.periods.first()) })
+
+    /** A class picked up at [startMinute]. */
+    private class Pick(val dayClass: DayClass, val startMinute: Int)
 }

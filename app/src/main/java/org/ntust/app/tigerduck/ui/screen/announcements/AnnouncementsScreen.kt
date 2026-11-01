@@ -23,29 +23,21 @@ import androidx.compose.foundation.lazy.LazyListLayoutInfo
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Campaign
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.FilterAlt
-import androidx.compose.material.icons.filled.FilterAltOff
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,7 +61,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
@@ -79,17 +70,18 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.network.model.BulletinSummary
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.network.model.localizedTagLabel
 import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageHeader
+import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SearchDrawer
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SyncStatusDot
@@ -110,6 +102,8 @@ import kotlin.math.roundToInt
 fun AnnouncementsScreen(
     onOpenBulletin: (Int) -> Unit,
     onOpenSubscriptions: () -> Unit,
+    // The backend keeps bulletin subscriptions only for an account, so their settings need one.
+    signedIn: Boolean,
     viewModel: AnnouncementsViewModel = hiltViewModel(),
 ) {
     LaunchedEffect(Unit) { viewModel.load() }
@@ -171,190 +165,174 @@ fun AnnouncementsScreen(
         if (searchResets > 0) focusManager.clearFocus()
     }
 
-    // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
-    // re-subcomposes its content lambda whenever incoming constraints change
-    // (IME open/close, rotation, system-bar inset animations), which would
-    // tear down and rebuild the entire LazyColumn each time. onSizeChanged
-    // also can't fire with an infinite value, so this survives unbounded
-    // vertical constraints from any future host.
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { viewportHeightPx = it.height },
-    ) {
-        TigerPullToRefresh(
-            isRefreshing = state.loadState is AnnouncementsViewModel.LoadState.Loading,
-            onRefresh = viewModel::refresh,
-            modifier = Modifier.fillMaxSize(),
-            refreshingMessage = stringResource(R.string.refreshing_message),
-            appBar = appBar,
-            searchReveal = searchReveal,
+    PageScaffold(
+        title = stringResource(R.string.feature_announcements),
+        headerPosition = PageDefaults.TabHeaderPosition,
+        syncDot = {
+            SyncStatusDot(
+                servers = listOf(ServerKind.BACKEND),
+                isLoading = isLoading,
+                syncedAtMs = state.syncedAtMs,
+            )
+        },
+        actions = {
+            AnnouncementsHeaderActions(
+                unreadOnly = state.unreadOnly,
+                hasUnread = state.hasUnread,
+                signedIn = signedIn,
+                onMarkAllRead = viewModel::markAllRead,
+                onUnreadOnlyChange = viewModel::setUnreadOnly,
+                onOpenSubscriptions = onOpenSubscriptions,
+            )
+        },
+    ) { padding ->
+        // Plain Box (not BoxWithConstraints) avoids SubcomposeLayout: the latter
+        // re-subcomposes its content lambda whenever incoming constraints change
+        // (IME open/close, rotation, system-bar inset animations), which would
+        // tear down and rebuild the entire LazyColumn each time. onSizeChanged
+        // also can't fire with an infinite value, so this survives unbounded
+        // vertical constraints from any future host. The shell's Scaffold around this is a
+        // SubcomposeLayout too, but it keeps one body lambda across constraints, so it doesn't.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .onSizeChanged { viewportHeightPx = it.height },
         ) {
-            // Clipped, because the chrome overlay hides by translating up past this
-            // box's top edge, and the root Scaffold has already padded that edge down
-            // to the bottom of the status bar. Unclipped, the band of chrome that
-            // lands behind the status bar stayed drawn there, under the clock.
-            Box(Modifier.fillMaxSize().clipToBounds()) {
-                LazyColumn(
-                    state = listState,
-                    // The thumb's track starts where the chrome overlay ends, or the bar would
-                    // hide it whenever the list is near its top.
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .scrollbar(
-                            listState,
-                            topInsetPx = { appBar.heightPx + appBar.offsetPx },
-                            // A fast scroll moves the list without a nested-scroll delta, so a bar it
-                            // left hidden over the very top would uncover bare content padding.
-                            onFastScrollStopped = {
-                                if (!listState.canScrollBackward) chromeScope.launch { appBar.snapToRest() }
-                            },
-                        ),
-                    // The chrome is a sibling overlay now rather than the first
-                    // item, so the list keeps the room for it here instead. The
-                    // overlay translates away on scroll while this padding stays
-                    // put, which is what lets the bulletins travel up under it.
-                    contentPadding = chromePadding,
-                ) {
-                    // The cached bulletins paint first and the refresh lands newer ones ahead of
-                    // them; this is what opens the list on those rather than on the cache's first.
-                    listTopAnchor()
-                    val displayed = state.displayed
-                    val loadState = state.loadState
-                    val placeholder = bulletinPlaceholder(state.items.isNotEmpty(), displayed.isNotEmpty(), loadState)
-                    when {
-                        placeholder == BulletinPlaceholder.EMPTY -> {
-                            if (canShowEmptyState) {
-                                item(key = "empty-state") {
-                                    val (title, message) = bulletinEmptyText(
-                                        hasItems = state.items.isNotEmpty(),
-                                        unreadOnly = state.unreadOnly,
-                                        hasActiveFilter = state.hasActiveFilter,
-                                    )
-                                    CenteredEmptyState(
-                                        modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
-                                        title = stringResource(title),
-                                        message = stringResource(message),
-                                    )
-                                }
-                            }
-                        }
-
-                        placeholder == BulletinPlaceholder.FAILED && loadState is AnnouncementsViewModel.LoadState.Failed -> {
-                            if (canShowEmptyState) {
-                                item(key = "failed-state") {
-                                    CenteredEmptyState(
-                                        modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
-                                        title = stringResource(R.string.bulletin_load_failed_title),
-                                        message = loadState.message,
-                                        actionLabel = stringResource(R.string.action_retry),
-                                        onAction = viewModel::refresh,
-                                    )
-                                }
-                            }
-                        }
-
-                        else -> {
-                            items(displayed, key = { it.id }) { item ->
-                                // 8dp gap above each card stands in for the
-                                // verticalArrangement.spacedBy on the old list-only
-                                // LazyColumn; horizontal padding stays off the
-                                // LazyColumn's contentPadding, which now carries
-                                // the room the chrome overlay needs.
-                                SwipeableBulletinCard(
-                                    item = item,
-                                    taxonomy = state.taxonomy,
-                                    isRead = item.id in state.readIds,
-                                    onClick = { onOpenBulletin(item.id) },
-                                    onToggleRead = { viewModel.toggleRead(item.id) },
-                                    modifier = Modifier.padding(
-                                        start = 16.dp,
-                                        end = 16.dp,
-                                        top = 8.dp,
-                                    ),
-                                )
-                            }
-                            if (state.isPaginating) {
-                                item(key = "pagination-spinner") {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        contentAlignment = Alignment.Center,
-                                    ) { CircularProgressIndicator() }
-                                }
-                            }
-                            item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
-                        }
-                    }
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        // One measurement, three readers: the empty state sizes
-                        // itself to the viewport below the chrome, the list pads
-                        // itself by exactly what the chrome covers, and the bar
-                        // knows how far it has to travel to hide.
-                        .onSizeChanged { appBar.heightPx = it.height.toFloat() }
-                        .graphicsLayer { translationY = appBar.offsetPx }
-                        .background(MaterialTheme.colorScheme.background),
-                ) {
-                    PageHeader(title = stringResource(R.string.feature_announcements)) {
-                        SyncStatusDot(
-                            servers = listOf(ServerKind.BACKEND),
-                            isLoading = isLoading,
-                            syncedAtMs = state.syncedAtMs,
-                        )
-                        if (state.unreadOnly && state.hasUnread) {
-                            IconButton(onClick = viewModel::markAllRead) {
-                                Icon(
-                                    Icons.Filled.DoneAll,
-                                    contentDescription = stringResource(R.string.bulletin_mark_all_read_action),
-                                )
-                            }
-                        }
-                        val unreadOnlyLabel =
-                            stringResource(R.string.bulletin_show_unread_only_action)
-                        Box(
-                            modifier = Modifier
-                                .minimumInteractiveComponentSize()
-                                .toggleable(
-                                    value = state.unreadOnly,
-                                    role = Role.Switch,
-                                    onValueChange = { viewModel.setUnreadOnly(it) },
-                                )
-                                .semantics {
-                                    contentDescription = unreadOnlyLabel
+            TigerPullToRefresh(
+                isRefreshing = state.loadState is AnnouncementsViewModel.LoadState.Loading,
+                onRefresh = viewModel::refresh,
+                modifier = Modifier.fillMaxSize(),
+                refreshingMessage = stringResource(R.string.refreshing_message),
+                appBar = appBar,
+                searchReveal = searchReveal,
+            ) {
+                // Clipped, because the chrome overlay hides by translating up past this
+                // box's top edge, and the root Scaffold has already padded that edge down
+                // to the bottom of the status bar. Unclipped, the band of chrome that
+                // lands behind the status bar stayed drawn there, under the clock.
+                Box(Modifier.fillMaxSize().clipToBounds()) {
+                    LazyColumn(
+                        state = listState,
+                        // The thumb's track starts where the chrome overlay ends, or the bar would
+                        // hide it whenever the list is near its top.
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .scrollbar(
+                                listState,
+                                topInsetPx = { appBar.heightPx + appBar.offsetPx },
+                                // A fast scroll moves the list without a nested-scroll delta, so a bar it
+                                // left hidden over the very top would uncover bare content padding.
+                                onFastScrollStopped = {
+                                    if (!listState.canScrollBackward) chromeScope.launch { appBar.snapToRest() }
                                 },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                if (state.unreadOnly) Icons.Filled.FilterAlt else Icons.Filled.FilterAltOff,
-                                contentDescription = null,
-                            )
-                        }
-                        IconButton(onClick = onOpenSubscriptions) {
-                            Icon(
-                                Icons.Filled.Settings,
-                                contentDescription = stringResource(R.string.bulletin_notifications_title),
-                            )
+                            ),
+                        // The chrome is a sibling overlay now rather than the first
+                        // item, so the list keeps the room for it here instead. The
+                        // overlay translates away on scroll while this padding stays
+                        // put, which is what lets the bulletins travel up under it.
+                        contentPadding = chromePadding,
+                    ) {
+                        // The cached bulletins paint first and the refresh lands newer ones ahead of
+                        // them; this is what opens the list on those rather than on the cache's first.
+                        listTopAnchor()
+                        val displayed = state.displayed
+                        val loadState = state.loadState
+                        val placeholder = bulletinPlaceholder(state.items.isNotEmpty(), displayed.isNotEmpty(), loadState)
+                        when {
+                            placeholder == BulletinPlaceholder.EMPTY -> {
+                                if (canShowEmptyState) {
+                                    item(key = "empty-state") {
+                                        val (title, message) = bulletinEmptyText(
+                                            hasItems = state.items.isNotEmpty(),
+                                            unreadOnly = state.unreadOnly,
+                                            hasActiveFilter = state.hasActiveFilter,
+                                        )
+                                        CenteredEmptyState(
+                                            modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
+                                            title = stringResource(title),
+                                            message = stringResource(message),
+                                        )
+                                    }
+                                }
+                            }
+
+                            placeholder == BulletinPlaceholder.FAILED && loadState is AnnouncementsViewModel.LoadState.Failed -> {
+                                if (canShowEmptyState) {
+                                    item(key = "failed-state") {
+                                        CenteredEmptyState(
+                                            modifier = Modifier.fillHeightBelowChrome(appBar, viewportHeightPx),
+                                            title = stringResource(R.string.bulletin_load_failed_title),
+                                            message = loadState.message,
+                                            actionLabel = stringResource(R.string.action_retry),
+                                            onAction = viewModel::refresh,
+                                        )
+                                    }
+                                }
+                            }
+
+                            else -> {
+                                items(displayed, key = { it.id }) { item ->
+                                    // 8dp gap above each card stands in for the
+                                    // verticalArrangement.spacedBy on the old list-only
+                                    // LazyColumn; horizontal padding stays off the
+                                    // LazyColumn's contentPadding, which now carries
+                                    // the room the chrome overlay needs.
+                                    SwipeableBulletinCard(
+                                        item = item,
+                                        taxonomy = state.taxonomy,
+                                        isRead = item.id in state.readIds,
+                                        onClick = { onOpenBulletin(item.id) },
+                                        onToggleRead = { viewModel.toggleRead(item.id) },
+                                        modifier = Modifier.padding(
+                                            start = 16.dp,
+                                            end = 16.dp,
+                                            top = 8.dp,
+                                        ),
+                                    )
+                                }
+                                if (state.isPaginating) {
+                                    item(key = "pagination-spinner") {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 16.dp),
+                                            contentAlignment = Alignment.Center,
+                                        ) { CircularProgressIndicator() }
+                                    }
+                                }
+                                item(key = "bottom-spacer") { Spacer(Modifier.height(8.dp)) }
+                            }
                         }
                     }
-                    SearchDrawer(searchReveal) {
-                        SearchBar(
-                            value = state.searchText,
-                            onValueChange = viewModel::setSearch,
-                            onFocusChanged = { searchFocused = it },
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            // One measurement, three readers: the empty state sizes
+                            // itself to the viewport below the chrome, the list pads
+                            // itself by exactly what the chrome covers, and the bar
+                            // knows how far it has to travel to hide.
+                            .onSizeChanged { appBar.heightPx = it.height.toFloat() }
+                            .graphicsLayer { translationY = appBar.offsetPx }
+                            .background(MaterialTheme.colorScheme.background),
+                    ) {
+                        Header()
+                        SearchDrawer(searchReveal) {
+                            SearchBar(
+                                value = state.searchText,
+                                onValueChange = viewModel::setSearch,
+                                onFocusChanged = { searchFocused = it },
+                            )
+                        }
+                        FilterSection(
+                            taxonomy = state.taxonomy,
+                            selectedOrgs = state.selectedOrgs,
+                            selectedTags = state.selectedTags,
+                            onOrgsChange = viewModel::setOrgFilter,
+                            onTagsChange = viewModel::setTagFilter,
                         )
                     }
-                    FilterSection(
-                        taxonomy = state.taxonomy,
-                        selectedOrgs = state.selectedOrgs,
-                        selectedTags = state.selectedTags,
-                        onOrgsChange = viewModel::setOrgFilter,
-                        onTagsChange = viewModel::setTagFilter,
-                    )
                 }
             }
         }
@@ -548,7 +526,7 @@ private fun BulletinCard(
                 Spacer(Modifier.weight(1f))
                 item.postedAt?.let {
                     Text(
-                        text = formatShortDate(it),
+                        text = bulletinDateLabel(it),
                         style = MaterialTheme.typography.labelSmall,
                         color = cs.onSurfaceVariant,
                     )
@@ -789,14 +767,31 @@ private fun TagStrip(tags: List<String>, taxonomy: TaxonomyResponse?) {
     }
 }
 
-private fun formatShortDate(raw: String): String {
-    // Server emits ISO-8601 with Z; show just the date portion. Falling back
-    // to the raw string preserves whatever the server sent if parsing fails.
+internal fun bulletinDateLabel(raw: String): String {
+    // Server emits ISO-8601 with Z; show just the date portion in Taipei time, like every
+    // other date in the app, so a phone in another zone still sees the school's day. Falling
+    // back to the raw string preserves whatever the server sent if parsing fails.
     return try {
         val instant = java.time.Instant.parse(raw)
         java.time.format.DateTimeFormatter
             .ofPattern("M/d")
-            .withZone(java.time.ZoneId.systemDefault())
+            .withZone(AppConstants.TAIPEI_ZONE)
+            .format(instant)
+    } catch (_: Exception) {
+        raw.substringBefore('T')
+    }
+}
+
+/**
+ * The full date on a bulletin's detail, in Taipei time like the list's short date. Reading the
+ * UTC date here would show a bulletin posted after midnight in Taipei on the previous day.
+ */
+internal fun bulletinFullDateLabel(raw: String): String {
+    return try {
+        val instant = java.time.Instant.parse(raw)
+        java.time.format.DateTimeFormatter
+            .ofPattern("yyyy-MM-dd")
+            .withZone(AppConstants.TAIPEI_ZONE)
             .format(instant)
     } catch (_: Exception) {
         raw.substringBefore('T')

@@ -7,10 +7,11 @@
 //
 // The rules the class table needs too — roster ordering, the Moodle semester
 // filter, the submission safety net, the weekday mapping — live in
-// data.CourseRosterMerge. The class table's own version of this merge is
-// ClassTableCourseMerge; the two are deliberately not shared, but both must
-// restore the manual flag and look the per-locale rename up the same way
-// because they write the same cache file.
+// data.CourseRosterMerge. The merge itself is the class table's,
+// ClassTableCourseMerge.mergeFetched: the two write the same cache file, and
+// each rule one of them missed — the manual flag, the per-locale rename, a
+// hand-add's missing Moodle ID — made a course's survival depend on which
+// screen refreshed last.
 //
 // Pure on purpose — extracted from HomeViewModel.fetchData, which is 200
 // lines of coroutine orchestration that no test can reach.
@@ -18,7 +19,7 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
+import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
 import org.ntust.app.tigerduck.ui.screen.classtable.CustomNameMap
 
 object HomeCourseMerge {
@@ -46,6 +47,14 @@ object HomeCourseMerge {
      *   flag, and Home and the class table write the same cache file — so
      *   dropping it here would make a course's survival depend on which
      *   screen refreshed last.
+     * - **A hand-add's identity.** A course added here keeps the Moodle ID
+     *   it was added with, none, though the lookup gives the school's: with
+     *   one it reads as merged from the server, which a past term's rebuild
+     *   drops (tigerduck-app#890).
+     * - **The rest of the term, with [onlyGains].** A term course selection
+     *   gave nothing for only gains the transcript's classes, so no course
+     *   the fetch does not list is removed: the class table may have saved
+     *   one while Home's lookups ran.
      * - **Deletions.** [deletedNos] is applied last, to the merged list, so a
      *   course the user deleted stays deleted even when the roster still
      *   returns it.
@@ -56,19 +65,7 @@ object HomeCourseMerge {
         names: CustomNameMap,
         locale: String,
         deletedNos: Set<String>,
-    ): List<Course> {
-        val cachedByNo = cached.associateBy { it.courseNo }
-        val fetched = remote.map { course ->
-            val prior = cachedByNo[course.courseNo]
-            course.copy(
-                customColorHex = prior?.customColorHex,
-                customCourseName = CourseNameOverrides.overrideFor(names, course.courseNo, locale),
-                isManual = prior?.isManual == true,
-            )
-        }
-        val fetchedNos = fetched.mapTo(mutableSetOf()) { it.courseNo }
-        val manualLeftovers = cached.filter { it.isManual && it.courseNo !in fetchedNos }
-        return CourseNameOverrides.resolve(fetched + manualLeftovers, names, locale)
-            .filter { it.courseNo !in deletedNos }
-    }
+        onlyGains: Boolean = false,
+    ): List<Course> =
+        ClassTableCourseMerge.mergeFetched(remote, cached, names, locale, deletedNos, alsoKeeps = { onlyGains })
 }

@@ -10,6 +10,7 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.network.model.SemesterInfo
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -218,8 +219,7 @@ class SemesterCatalog @Inject constructor(
          * `1151` → 115, `114H` → 114, `99 1` → 99. The last character is the
          * term (1 / 2 / H); everything before it is the ROC academic year.
          */
-        internal fun academicYear(code: String): Int? =
-            code.dropLast(1).trim().toIntOrNull()
+        internal fun academicYear(code: String): Int? = AcademicTerm.parse(code)?.year
 
         /**
          * NTUST ids are one degree letter plus the three-digit admission year

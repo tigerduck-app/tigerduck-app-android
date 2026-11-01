@@ -1,13 +1,13 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.shared.periodOrder
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
-import java.util.Locale
 
 data class CourseTimeSlot(
     val id: String,
@@ -21,105 +21,71 @@ data class CourseTimeSlot(
     val periods: List<String>,
     val start: Date,
     val end: Date,
-    val date: Date
+    val date: Date,
+    /** Whether the school cancelled this class. A cancelled class stays on the slider, struck through. */
+    val isCancelled: Boolean = false,
+    /** The class as the school changed it, for the course detail. */
+    val classSlot: org.ntust.app.tigerduck.shared.timeline.ClassSlot,
+    /** The room the school moved this class to; null keeps the timetable's. */
+    val movedRoom: String? = null,
+    /** Whether the school moved this class's start or end off the timetable's. */
+    val hasChangedTime: Boolean = false,
 ) {
-    companion object {
-        private val dayKeyFormatter = DateTimeFormatter.ofPattern("yyyyMMdd", Locale.US)
+    val hasChangedRoom: Boolean get() = movedRoom != null
 
+    companion object {
+        /**
+         * The classes of [courses] on [on]'s day, as the school's [changes] split, move and cancel
+         * them: a meeting cancelled or moved in part is a slot per piece, as iOS
+         * `CourseTimeSlot.buildSlots`. The day is [on]'s; [weekday] is its weekday.
+         */
         fun buildSlots(
             courses: List<Course>,
-            weekday: Int,
-            on: Date = Date()
+            @Suppress("UNUSED_PARAMETER") weekday: Int,
+            on: Date = Date(),
+            changes: CourseChanges = CourseChanges.EMPTY,
         ): List<CourseTimeSlot> {
-            val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
-            val slots = mutableListOf<CourseTimeSlot>()
-            val dayKey = dayKeyFormatter.format(on.toInstant().atZone(AppConstants.TAIPEI_ZONE))
-
-            for (course in courses) {
-                val periods = course.schedule[weekday]
-                if (periods.isNullOrEmpty()) continue
-
-                for (run in groupContiguous(periods)) {
-                    val firstTime = AppConstants.PeriodTimes.mapping[run.first()] ?: continue
-                    val lastTime = AppConstants.PeriodTimes.mapping[run.last()] ?: continue
-
-                    val startDate = dateFromTimeString(firstTime.first, on, cal) ?: continue
-                    val endDate = dateFromTimeString(lastTime.second, on, cal) ?: continue
-
-                    slots.add(
-                        CourseTimeSlot(
-                            id = "${course.courseNo}_${dayKey}_${run.first()}",
-                            course = course,
-                            periods = run,
-                            start = startDate,
-                            end = endDate,
-                            date = on
-                        )
-                    )
-                }
-            }
-            return slots.sortedBy { it.start }
+            val day = on.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+            return ClassTimeline.meetings(courses, day, changes).map { of(it, on) }
         }
 
-        private fun groupContiguous(periods: List<String>): List<List<String>> {
-            val sorted = periods.sortedBy(::periodOrder)
-            if (sorted.isEmpty()) return emptyList()
-            val runs = mutableListOf<MutableList<String>>()
-            for (p in sorted) {
-                val curOrder = periodOrder(p)
-                val last = runs.lastOrNull()
-                val lastOrder = last?.lastOrNull()?.let(::periodOrder)
-                if (last != null && lastOrder != null && lastOrder >= 0 &&
-                    curOrder == lastOrder + 1
-                ) {
-                    last.add(p)
-                } else {
-                    runs.add(mutableListOf(p))
-                }
-            }
-            return runs
-        }
+        private fun of(slot: ClassSlot, on: Date) = CourseTimeSlot(
+            id = slot.id,
+            course = slot.course,
+            periods = slot.periods,
+            start = Date.from(slot.startsAt),
+            end = Date.from(slot.endsAt),
+            date = on,
+            isCancelled = slot.isCancelled,
+            movedRoom = slot.room.takeIf { slot.hasChangedRoom },
+            hasChangedTime = slot.hasChangedTime,
+            classSlot = slot,
+        )
 
+        /**
+         * Every day's classes from [dayRadius] days before [centerDate]'s Taipei day to [dayRadius]
+         * after it, by start. A cancelled class stays, to be shown as one.
+         */
         fun buildMultiDaySlots(
             courses: List<Course>,
             centerDate: Date,
-            dayRadius: Int = 28
+            dayRadius: Int = 28,
+            changes: CourseChanges = CourseChanges.EMPTY,
         ): List<CourseTimeSlot> {
-            val cal = Calendar.getInstance(AppConstants.TAIPEI_TZ)
-            val allSlots = mutableListOf<CourseTimeSlot>()
-
-            for (offset in -dayRadius..dayRadius) {
-                cal.time = centerDate
-                cal.set(Calendar.HOUR_OF_DAY, 0)
-                cal.set(Calendar.MINUTE, 0)
-                cal.set(Calendar.SECOND, 0)
-                cal.set(Calendar.MILLISECOND, 0)
-                cal.add(Calendar.DAY_OF_YEAR, offset)
-                val date = cal.time
-
-                val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
-                val weekday = when (dayOfWeek) {
-                    Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-                    Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-                    Calendar.SUNDAY -> 7; else -> 1
+            val center = centerDate.toInstant().atZone(AppConstants.TAIPEI_ZONE).toLocalDate()
+            return (-dayRadius..dayRadius)
+                .flatMap { offset ->
+                    val day = center.plusDays(offset.toLong())
+                    val midnight = Date.from(day.atStartOfDay(AppConstants.TAIPEI_ZONE).toInstant())
+                    ClassTimeline.meetings(courses, day, changes).map { of(it, midnight) }
                 }
-
-                allSlots.addAll(buildSlots(courses, weekday, date))
-            }
-            return allSlots.sortedBy { it.start }
-        }
-
-        private fun dateFromTimeString(time: String, on: Date, cal: Calendar): Date? {
-            val parts = time.split(":").mapNotNull { it.toIntOrNull() }
-            if (parts.size != 2) return null
-            cal.time = on
-            cal.set(Calendar.HOUR_OF_DAY, parts[0])
-            cal.set(Calendar.MINUTE, parts[1])
-            cal.set(Calendar.SECOND, 0)
-            cal.set(Calendar.MILLISECOND, 0)
-            return cal.time
+                .sortedBy { it.start }
         }
     }
+
+    /** Whether [at] is within this class, by the one end rule: from its start, over from its end. */
+    fun isGoingOn(at: Date): Boolean =
+        classSlot.isOn(at.toInstant())
 }
 
 /** This slot's day, in Taipei tz. */
@@ -138,21 +104,32 @@ val CourseTimeSlot.weekday: Int
         }
     }
 
-/** What the class table's course detail opens on: the course, the weekday and the period it was tapped at. */
-data class CourseDetailSelection(val course: Course, val weekday: Int, val periodId: String)
+/**
+ * What the class table's course detail opens on: the course, the weekday and the period it was
+ * tapped at, and the day whose course changes it shows, null for none.
+ */
+data class CourseDetailSelection(
+    val course: Course,
+    val weekday: Int,
+    val periodId: String,
+    val date: java.time.LocalDate? = null,
+    /** The piece of the meeting the card stands for, whose changes the detail shows. */
+    val slot: org.ntust.app.tigerduck.shared.timeline.ClassSlot? = null,
+)
 
-/** This slot's course on its own day and first period, so the detail shows this slot's room and time. */
+/** This slot's course on its own day and first period, so the detail shows this slot's room, time and changes. */
 val CourseTimeSlot.detailSelection: CourseDetailSelection
-    get() = CourseDetailSelection(course, weekday, periods.firstOrNull().orEmpty())
+    get() = CourseDetailSelection(course, weekday, periods.firstOrNull().orEmpty(), localDate, classSlot)
 
 /**
- * Classroom resolved per-period for this slot — iterates [periods] through
+ * The room the school moved this slot to, else the classroom resolved per-period for this slot — iterates [periods] through
  * [Course.classroom] (weekday + period) so a same-day course with split
  * rooms (morning lecture in A, afternoon lab in B) shows only the room(s)
  * that match *this* slot's periods, not the union across the whole day.
  */
 val CourseTimeSlot.classroom: String
     get() {
+        movedRoom?.let { return it }
         val seen = LinkedHashSet<String>()
         for (period in periods) {
             for (part in Course.splitRooms(course.classroom(weekday, period))) seen.add(part)

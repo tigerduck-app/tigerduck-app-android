@@ -50,6 +50,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 
 /**
  * [PushRegistrationService] registering the device again after a registration failed:
@@ -112,6 +113,7 @@ class PushRegistrationServiceTest {
                 refresh = auth::refreshDeparting,
                 sessionAt = { _ -> auth.isLoggedIn },
                 now = System::currentTimeMillis,
+                endpoint = { resolveAnnouncementEndpoint(prefs).url },
             ),
         )
     }

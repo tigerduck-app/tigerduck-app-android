@@ -2,7 +2,6 @@ package org.ntust.app.tigerduck.ui.screen.coursemoodle
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -30,7 +29,6 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -71,6 +69,7 @@ import org.ntust.app.tigerduck.data.moodle.name
 import org.ntust.app.tigerduck.data.moodle.studentId
 import org.ntust.app.tigerduck.network.model.moodle.MoodleMember
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SearchFieldIcon
 import org.ntust.app.tigerduck.ui.component.searchClearIcon
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
@@ -81,7 +80,6 @@ import java.text.NumberFormat
  * list above its top, which a pull on the list brings down, as on iOS; it matches on the device
  * and asks Moodle nothing.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleMembersScreen(
     onBack: () -> Unit,
@@ -92,15 +90,11 @@ fun MoodleMembersScreen(
     MoodleSignedOutEffect(viewModel, onBack)
     var query by rememberSaveable { mutableStateOf("") }
     val current = store
-    Scaffold(
-        topBar = {
-            MoodleTopBar(
-                title = stringResource(R.string.course_detail_members_label),
-                onBack = onBack,
-                moodlePath = current?.let { MoodlePage.participants(it.courseId) },
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = stringResource(R.string.course_detail_members_label),
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(current?.let { MoodlePage.participants(it.courseId) }) },
     ) { padding ->
         Box(
             Modifier

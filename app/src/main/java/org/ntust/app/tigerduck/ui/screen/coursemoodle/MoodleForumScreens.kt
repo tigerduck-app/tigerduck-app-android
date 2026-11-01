@@ -29,7 +29,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -73,13 +72,13 @@ import org.ntust.app.tigerduck.data.moodle.MoodleThreads
 import org.ntust.app.tigerduck.network.model.moodle.MoodleDiscussion
 import org.ntust.app.tigerduck.network.model.moodle.MoodleForum
 import org.ntust.app.tigerduck.network.moodle.MoodleHtmlText
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /**
  * A course's general forums in one card, each with its intro, its number of discussions and an
  * unread dot. The bar's "Open in Moodle" opens the course's forum index.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleForumsScreen(
     onBack: () -> Unit,
@@ -88,15 +87,11 @@ fun MoodleForumsScreen(
 ) {
     val store by viewModel.store.collectAsStateWithLifecycle()
     MoodleSignedOutEffect(viewModel, onBack)
-    Scaffold(
-        topBar = {
-            MoodleTopBar(
-                title = stringResource(R.string.course_detail_forums_label),
-                onBack = onBack,
-                moodlePath = store?.let { MoodlePage.forums(it.courseId) },
-            )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = stringResource(R.string.course_detail_forums_label),
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(store?.let { MoodlePage.forums(it.courseId) }) },
     ) { padding ->
         Box(
             Modifier
@@ -175,7 +170,6 @@ private fun ForumsList(store: MoodleCourseStore, onOpen: (MoodleForum) -> Unit) 
  * number of replies, a page of twenty at a time. Opened with nothing cached, as after the system
  * ended the app, the course's forums are fetched first; a forum that is gone closes the page.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleForumScreen(
     forumId: Int,
@@ -195,9 +189,11 @@ fun MoodleForumScreen(
         lookup = current.ensureForum(forumId)
     }
     if (lookup == MoodleLookup.Missing) LaunchedEffect(Unit) { onBack() }
-    Scaffold(
-        topBar = { MoodleTopBar(forum?.name.orEmpty(), onBack, forum?.let { MoodlePage.forum(it.cmid) }) },
-        containerColor = MaterialTheme.colorScheme.background,
+    PageScaffold(
+        title = forum?.name.orEmpty(),
+        onBack = onBack,
+        oneLineTitle = true,
+        actions = { OpenInMoodleAction(forum?.let { MoodlePage.forum(it.cmid) }) },
     ) { padding ->
         Box(
             Modifier
@@ -225,7 +221,6 @@ fun MoodleForumScreen(
  * posts, and Moodle is told the discussion was read only once they show; the posts unread at
  * the opening keep their dot while the page is open.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MoodleDiscussionScreen(
     forumId: Int,
@@ -253,8 +248,9 @@ fun MoodleDiscussionScreen(
     if (lookup == MoodleLookup.Missing) LaunchedEffect(Unit) { onBack() }
 
     val files = store?.let { rememberMoodleFileOpener(it, browserPreference) }
-    Scaffold(
-        topBar = { MoodleTopBar(title = "", onBack = onBack, moodlePath = null) },
+    PageScaffold(
+        title = "",
+        onBack = onBack,
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = {
@@ -265,7 +261,6 @@ fun MoodleDiscussionScreen(
                 text = { Text(stringResource(R.string.action_open_in_moodle)) },
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         Box(
             Modifier

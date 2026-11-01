@@ -115,13 +115,16 @@ class PushApiClient @Inject constructor(
      * session it left, at [base], the backend that issued it, and gives the HTTP status. The
      * sign-out's unregister runs after the tokens are wiped, and a session looked up now could be
      * the next account's, or its sign-in, whose row the DELETE would remove; and the endpoint
-     * setting may name another host by now. Throws [java.io.IOException] when no reply came back.
+     * setting may name another host by now. Throws [java.io.IOException] when no reply came back,
+     * and [UnregisterHeldBack] when [mayDepart], asked right before the request goes, says no.
      */
     suspend fun deleteDevice(
         base: String,
         deviceId: String,
         accessToken: String,
+        mayDepart: () -> Boolean = { true },
     ): Int = withContext(Dispatchers.IO) {
+        if (!mayDepart()) throw UnregisterHeldBack()
         // v3: DELETE /devices/{client_device_id}, scoped to the authed user
         // (matches iOS + the server). `deviceId` is PushIdentity.uuid().
         deletes.at(base).removeDevice("Bearer $accessToken", deviceId, EmptyBody).execute().use { response -> response.code }
@@ -145,20 +148,21 @@ class PushApiClient @Inject constructor(
      * already been written by then, and this call is only about agreement
      * between devices, not about whether the guard works. With [signIn], sent
      * only as that sign-in: see `PendingHolidayOverrides`. Says whether it was
-     * sent, so a skipped PUT is not taken for one that landed.
+     * sent, so a skipped PUT is not taken for one that landed. [madeAtMs] is sent as `hlc`.
      */
-    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: Int? = null): Boolean =
+    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: Int? = null, madeAtMs: Long? = null): Boolean =
         withContext(Dispatchers.IO) {
             if (!isSyncCapable) return@withContext false
             val service = api.at(baseUrl)
-            service.holidayOverride(authHeader(signIn), holidayId, HolidayOverrideRequest(notify)).execute().use { response ->
+            val header = authHeader(signIn)
+            executeStamped(madeAtMs, { isSyncCapable }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
                 if (!response.isSuccessful) {
                     throw PushApiException(
                         "holiday override failed: HTTP ${response.code}"
                     )
                 }
                 true
-            }
+            } ?: false
         }
 
     suspend fun updateDevicePreferences(
@@ -223,21 +227,26 @@ class PushApiClient @Inject constructor(
     /**
      * [signIn], when given, pins the request to that sign-in
      * ([AuthTokenManager.signInGeneration]): after a sign-out it goes without
-     * a token rather than with the next account's.
+     * a token rather than with the next account's. [madeAtMs] is sent as `hlc`.
+     * Says whether it went out: false when the switch stopped it, so the mark waits.
      */
     suspend fun patchAssignmentOverride(
         assignmentId: Int,
         localStatus: String,
         signIn: Int? = null,
-    ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
+        madeAtMs: Long? = null,
+    ): Boolean = withContext(Dispatchers.IO) {
+        val syncs = { isSyncCapable && prefs.syncAssignments }
+        if (!syncs()) return@withContext false
         val payload = mapOf("local_status" to localStatus)
         val service = api.at(baseUrl)
-        service.assignmentOverride(authHeader(signIn), assignmentId, payload).execute().use { response ->
+        val header = authHeader(signIn)
+        executeStamped(madeAtMs, syncs, { hlc -> service.assignmentOverride(header, assignmentId, payload.stampedWith(hlc)) }) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchAssignmentOverride failed: HTTP ${response.code}", response.code)
             }
-        }
+            true
+        } ?: false
     }
 
     /**
@@ -246,7 +255,7 @@ class PushApiClient @Inject constructor(
      * for colours or names, is off, or when [allowed] says no right before
      * the request goes, after the header is made. Throws when the request
      * fails. [signIn], when given, pins the request to that sign-in, as
-     * [patchAssignmentOverride]'s is.
+     * [patchAssignmentOverride]'s is. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseOverride(
         courseId: Any,
@@ -255,26 +264,26 @@ class PushApiClient @Inject constructor(
         locale: String? = null,
         signIn: Int? = null,
         allowed: () -> Boolean = { true },
+        madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
-        if (!isSyncCapable) return@withContext false
-        if (colorHex != null && !prefs.syncCourseColors) return@withContext false
-        if (customName != null && !prefs.syncCourseNames) return@withContext false
-        val payload = mutableMapOf<String, Any?>()
-        if (colorHex != null) payload["color_hex"] = colorHex
-        if (customName != null) payload["custom_name"] = customName
-        if (locale != null) payload["locale"] = locale
+        val switchesOn = { isSyncCapable && (colorHex == null || prefs.syncCourseColors) && (customName == null || prefs.syncCourseNames) }
+        if (!switchesOn()) return@withContext false
+        val payload = listOfNotNull(colorHex?.let { "color_hex" to it }, customName?.let { "custom_name" to it }, locale?.let { "locale" to it })
+            .toMap()
         val service = api.at(baseUrl)
-        val call = service.courseOverride(authHeader(signIn), courseId.toString(), payload)
+        val header = authHeader(signIn)
         // Read once the header is made, which can renew the session and so
         // suspend: a hold the course outbox put on the kind meanwhile must
         // stop the request, which the switches above alone would let through.
         if (!allowed()) return@withContext false
-        call.execute().use { response ->
+        // The resend passes the same gate as the first request: the hold can go on meanwhile.
+        val call = { hlc: Long? -> service.courseOverride(header, courseId.toString(), payload.stampedWith(hlc)) }
+        executeStamped(madeAtMs, { switchesOn() && allowed() }, call) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseOverride failed: HTTP ${response.code}", response.code)
             }
-        }
-        true
+            true
+        } ?: false
     }
 
     /**
@@ -286,20 +295,23 @@ class PushApiClient @Inject constructor(
      * Returns whether the backend stored it: false when the answer has no
      * `ignore_assignments`, as from a backend that predates the field and
      * drops it unread, and null when course or assignment sync is off and
-     * nothing went out. Throws when the request fails.
+     * nothing went out. Throws when the request fails. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseIgnore(
         moodleId: String,
         ignore: Boolean?,
         moodleCourseId: Int?,
+        madeAtMs: Long? = null,
     ): Boolean? = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncAssignments || !prefs.syncCourses) return@withContext null
+        val syncs = { isSyncCapable && prefs.syncAssignments && prefs.syncCourses }
+        if (!syncs()) return@withContext null
         val payload = mutableMapOf<String, Any>()
         if (ignore != null) payload["ignore_assignments"] = ignore
         if (moodleCourseId != null && moodleCourseId >= 1) payload["moodle_course_id"] = moodleCourseId
         if (payload.isEmpty()) return@withContext null
         val service = api.at(baseUrl)
-        service.courseIgnore(authHeader(), moodleId, payload).execute().use { response ->
+        val header = authHeader()
+        executeStamped(madeAtMs, syncs, { hlc -> service.courseIgnore(header, moodleId, payload.stampedWith(hlc)) }) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseIgnore failed: HTTP ${response.code}", response.code)
             }
@@ -397,6 +409,12 @@ class PushApiClient @Inject constructor(
     companion object {
         /** See [uploadCall]: longer than any upload of a term's courses takes. */
         const val UPLOAD_CALL_TIMEOUT_SECONDS = 60L
+
+        // The header value of an upload whose adds carry their time.
+        private const val PROTOCOL_STAMPED = "2"
+
+        // [deleteCourse]'s mark for a stamped delete the backend refused as ahead of its clock.
+        private const val CLOCK_AHEAD = -1
     }
 
     /**
@@ -420,6 +438,19 @@ class PushApiClient @Inject constructor(
      *
      * [signIn], when given, pins the request to that sign-in, as
      * [patchAssignmentOverride]'s is.
+     *
+     * [rosterTerms] names the terms the list is the school's whole roster
+     * of; see [CourseUpload.of], which decides it. A roster the backend asks
+     * for (`roster_requests`) goes with [resend], past the ledger.
+     *
+     * [addedAt], by course number, the time of each add [courses] carries (a
+     * [PendingCourseDeletes.stamp]): sent under protocol 2 as `adds`, which the
+     * backend applies only when later than the course's last add, hide and
+     * reset (tigerduck-app#910). Under protocol 2 every other course of the
+     * upload is taken for the school's roster, so such an upload holds the
+     * added courses alone. A course whose add the backend answered, applied or
+     * not, counts as accepted: the backend has settled it. One it refuses as
+     * ahead of its clock goes again unstamped, counting from when it arrives.
      */
     suspend fun uploadCourses(
         courses: List<Course>,
@@ -427,10 +458,30 @@ class PushApiClient @Inject constructor(
         forceKeys: List<String> = emptyList(),
         signIn: Int? = null,
         resend: Boolean = false,
-    ): List<String>? = withContext(Dispatchers.IO) {
+        rosterTerms: List<String> = emptyList(),
+        addedAt: Map<String, Long> = emptyMap(),
+    ): List<String>? = uploadCoursesAnswered(courses, semester, forceKeys, signIn, resend, rosterTerms, addedAt)?.settled
+
+    /** [uploadCourses], with the timed adds the backend refused told apart; see [CourseUploadAnswer]. */
+    suspend fun uploadCoursesAnswered(
+        courses: List<Course>,
+        semester: String,
+        forceKeys: List<String> = emptyList(),
+        signIn: Int? = null,
+        resend: Boolean = false,
+        rosterTerms: List<String> = emptyList(),
+        addedAt: Map<String, Long> = emptyMap(),
+    ): CourseUploadAnswer? = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext null
-        val payload = CourseUploadPayload.build(courses, semester, forceKeys)
+        val payload = CourseUploadPayload.build(courses, semester, forceKeys, rosterTerms)
         val body = gson.toJson(payload).toRequestBody(jsonType)
+        val stampedBody = addedAt.takeIf { it.isNotEmpty() }?.let { stamps ->
+            val adds = stamps.map { (courseNo, at) ->
+                // The key an add forces past a tombstone (PendingCourseAdds.forceKey).
+                mapOf("course_key" to "client:$semester:$courseNo", "hlc" to clockOf(at))
+            }
+            gson.toJson(payload + ("adds" to adds)).toRequestBody(jsonType)
+        }
         // Resolved once, for the fingerprint and the request alike, so the
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl
@@ -438,30 +489,68 @@ class PushApiClient @Inject constructor(
         // upload's is; the request's own header is pinned only when the
         // caller pinned it ([signIn]), as before.
         val startedIn = signIn ?: authTokenManager.signInGeneration
-        var accepted: List<String> = emptyList()
+        // What the accepted list enrolled as the term's roster, for serverDropped.
+        val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
+        var accepted = CourseUploadAnswer(emptyList(), emptyList())
         courseUploads(semester).sendIfDue(
-            fingerprint = courseUploadFingerprint(base, courses, semester),
+            fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
             // Recorded under the sign-in lock, so a sign-out's clear cannot
             // fall between the check and the record; see UploadLedger.sendIfDue.
-            ifCurrent = { record -> authTokenManager.runIfSignedIn(startedIn, record) },
+            ifCurrent = { record ->
+                authTokenManager.runIfSignedIn(startedIn) {
+                    record()
+                    prefs.recordCoursesUploadRoster(semester, roster)
+                }
+            },
             always = resend || forceKeys.isNotEmpty(),
             signIn = startedIn,
         ) {
             // Through uploadCall, with its deadline for the whole call.
             val service = uploads.at(base)
-            accepted = service.coursesUpload(authHeader(signIn), body).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw PushApiException("uploadCourses failed: HTTP ${response.code}", response.code)
+            val header = authHeader(signIn)
+            fun send(stamped: Boolean): CourseUploadAnswer? {
+                val call = if (stamped) service.coursesUpload(header, stampedBody!!, PROTOCOL_STAMPED)
+                    else service.coursesUpload(header, body, null)
+                return call.execute().use { response ->
+                    if (stamped && isClockAhead(response)) return@use null
+                    if (!response.isSuccessful) {
+                        throw PushApiException("uploadCourses failed: HTTP ${response.code}", response.code)
+                    }
+                    // A 2xx with an unreadable body (a captive portal, a proxy) is
+                    // still an upload that landed; it just cannot say what was accepted.
+                    val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
+                    val keys = json?.optJSONArray("accepted_keys")
+                    val answers = json?.optJSONArray("adds")?.let { (0 until it.length()).mapNotNull(it::optJSONObject) }.orEmpty()
+                    // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
+                    fun no(key: String) = key.substringAfterLast(':')
+                    val listed = keys?.let { (0 until it.length()).map { i -> it.getString(i) } }.orEmpty() +
+                        answers.filter { it.optBoolean("applied") }.map { it.optString("course_key") }
+                    CourseUploadAnswer(
+                        accepted = listed.filter { it.isNotEmpty() }.map(::no).distinct(),
+                        refusedAdds = answers.filter { !it.optBoolean("applied", true) }
+                            .map { it.optString("course_key") }.filter { it.isNotEmpty() }.map(::no).distinct(),
+                    )
                 }
-                // A 2xx with an unreadable body (a captive portal, a proxy) is
-                // still an upload that landed; it just cannot say what was accepted.
-                val json = runCatching { JSONObject(response.body.string()) }.getOrNull()
-                val keys = json?.optJSONArray("accepted_keys") ?: return@use emptyList()
-                // "client:{semester}:{course_no}" — the shape CourseUploadPayload sends.
-                (0 until keys.length()).map { keys.getString(it).substringAfterLast(':') }
             }
+            accepted = (if (stampedBody != null) send(stamped = true) else null) ?: send(stamped = false)!!
         }
         accepted
+    }
+
+    /**
+     * A full sync found [courseNos] of [semester] dropped on the server, by another device's
+     * roster. When the term's list the backend last accepted from here went as its roster and
+     * listed one of them, the server no longer holds what it accepted: the ledger forgets it, and
+     * the next roster goes, unchanged or not. Otherwise a course selection answer listing the
+     * course again waited six hours, the course kept here and dropped on the server, without its
+     * reminders. Only a roster's: an upload without one leaves a dropped row dropped, and
+     * forgetting it would send it at every fetch to no effect.
+     */
+    suspend fun serverDropped(semester: String, courseNos: Collection<String>) {
+        fun listsOne() = prefs.coursesUploadRoster(semester)?.any { it in courseNos } == true
+        if (!listsOne()) return
+        // Under the ledger: an upload out now would record its list after the forget.
+        courseUploads(semester).holdingUploads { if (listsOne()) prefs.forgetCourseUploads(semester) }
     }
 
     /**
@@ -471,14 +560,24 @@ class PushApiClient @Inject constructor(
      * another sign-in goes without a token, not with the next account's,
      * which could take that account's own course off.
      */
-    suspend fun deleteCourse(courseKey: String, signIn: Int? = null) = withContext(Dispatchers.IO) {
+    suspend fun deleteCourse(courseKey: String, signIn: Int? = null, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val service = api.at(baseUrl)
-        service.removeCourse(authHeader(signIn), courseKey, EmptyBody).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw PushApiException("deleteCourse failed: HTTP ${response.code}")
+        val header = authHeader(signIn)
+        // With the hide's time, which the backend applies only when later than the course's last
+        // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
+        // since on another device, and a retry after a lost reply changes nothing. One refused as
+        // ahead of the backend's clock goes again without it, counting from when it arrives.
+        fun send(hlc: Long?): Int? = service.removeCourse(header, courseKey, EmptyBody, hlc).execute().use { response ->
+            when {
+                response.isSuccessful -> null
+                hlc != null && isClockAhead(response) -> CLOCK_AHEAD
+                else -> response.code
             }
         }
+        var failed = send(hiddenAt?.let(::clockOf))
+        if (failed == CLOCK_AHEAD) failed = send(null)
+        if (failed != null) throw PushApiException("deleteCourse failed: HTTP $failed", failed)
     }
 
     /**
@@ -552,3 +651,15 @@ internal fun preferencesPatchBlockedOnFdroid(
 }
 
 private const val DELETE_TIMEOUT_SECONDS = 20L
+
+/**
+ * What a course upload's answer says: the course numbers the backend took ([accepted]), and the
+ * timed adds it answered but did not apply ([refusedAdds]), as a hide or reset made after them
+ * elsewhere is newer. Both are settled: the backend has the final word on each.
+ */
+data class CourseUploadAnswer(val accepted: List<String>, val refusedAdds: List<String>) {
+    val settled: List<String> get() = (accepted + refusedAdds).distinct()
+}
+
+/** A sign-out's device unregister not sent, as its caller said right before it would go. */
+class UnregisterHeldBack : java.io.IOException("unregister held back")

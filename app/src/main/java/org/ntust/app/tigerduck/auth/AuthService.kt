@@ -78,6 +78,9 @@ class AuthService @Inject constructor(
      */
     private val demoMode = demoAccount.isActive
 
+    /** Whether the demo account is the session, read now; it has no stored student ID. */
+    val isDemoSession: Boolean get() = demoAccount.isActive
+
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
 
@@ -141,12 +144,13 @@ class AuthService @Inject constructor(
                 runCatching { pushRegistration.onSignedIn() }
                     .onFailure { e -> android.util.Log.w("AuthService", "registration after auto sign-in failed: ${e.logSummary()}") }
             }
-            // Deliver a live_activity edit that is still unconfirmed: one made
-            // while signed out, or while the v3 JWT had lapsed. With nothing
-            // pending this sends nothing, so this device's values never
-            // overwrite what another device wrote. It must not mark anything
-            // either, because this sign-in can run from inside a pull's own
-            // request — see NotificationSettingsSync.pushIfUnconfirmed.
+            // Deliver an edit that is still unconfirmed, such as one made while
+            // the v3 JWT had lapsed; one made while signed out gives way to the
+            // account's settings. With nothing pending this sends nothing, so
+            // this device's values never overwrite what another device wrote.
+            // It must not mark anything either, because this sign-in can run
+            // from inside a pull's own request — see
+            // NotificationSettingsSync.pushIfUnconfirmed.
             notificationSettingsSync.pushIfUnconfirmed()
         },
     )
@@ -284,10 +288,12 @@ class AuthService @Inject constructor(
             }
 
             if (outcome == TypedAccountSignIn.Outcome.SIGNED_IN) {
-                runCatching { pushRegistration.onSignedIn() }
-                    .onFailure { e -> if (e is CancellationException) throw e }
-                // Same catch-up as the automatic sign-in, for a fresh SSO login.
-                notificationSettingsSync.pushIfUnconfirmed()
+                // The same catch-up as the automatic sign-in, for a fresh SSO
+                // login, before the registration's network call.
+                followTypedSignIn(
+                    startSettingsCopy = notificationSettingsSync::pushIfUnconfirmed,
+                    register = pushRegistration::onSignedIn,
+                )
             }
 
             _isLoggingIn.value = false
@@ -428,6 +434,12 @@ class AuthService @Inject constructor(
         // Last, so everything above still sees the demo account and keeps
         // its requests on the device.
         demoAccount.exit()
+        // Bulletins are school-wide rather than private, but the read-state
+        // store is already cleared above — clear the content snapshot too
+        // so the next session starts coherent instead of half-stale. Started
+        // now, so every read and write of it waits for it, as an API endpoint
+        // move's clear (BulletinCache.clearIn).
+        bulletinCache.clearIn(appScope)
         // Wipe persisted user data on the application scope so a coroutine
         // launched from a transient ViewModel scope can't be cancelled mid-
         // delete when the user backs out of Settings or the activity dies.
@@ -440,11 +452,6 @@ class AuthService @Inject constructor(
                 .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
             runCatching { dataCache.clearAllUserData() }
                 .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
-            // Bulletins are school-wide rather than private, but the read-state
-            // store is already cleared above — clear the content snapshot too
-            // so the next session starts coherent instead of half-stale.
-            runCatching { bulletinCache.clear() }
-                .onFailure { android.util.Log.w("AuthService", "bulletinCache.clear failed on logout: ${it.logSummary()}") }
             // The information-system portal shows the account's own student
             // record / grades / financial-aid links — user-scoped, must not
             // bleed into the next account on this device.
@@ -465,4 +472,25 @@ class AuthService @Inject constructor(
         // The service the school sign-in signs in to.
         const val SSO_SERVICE_URL = "https://courseselection.ntust.edu.tw/"
     }
+}
+
+/**
+ * What [AuthService.login] does once the school took a typed sign-in, after
+ * its backend login, which stored the session if it got one. Apart from
+ * AuthService so a test can run it: AuthService needs the Android Keystore.
+ *
+ * [startSettingsCopy] is the catch-up the automatic sign-in runs too
+ * (NotificationSettingsSync.pushIfUnconfirmed), and it goes first, without
+ * suspending: it starts the copy of the notification settings a push tells
+ * this phone's edits apart by. Only the backend login's own return to the
+ * caller comes between the session being stored and this call. [register],
+ * the push registration, is a network call, and while it ran first an edit
+ * made in its wait found no copy: its push counted nothing as changed, sent
+ * nothing, and confirmed the edit as if it had gone up. iOS starts the copy
+ * first too, in onV3SignedIn.
+ */
+internal suspend fun followTypedSignIn(startSettingsCopy: () -> Unit, register: suspend () -> Unit) {
+    startSettingsCopy()
+    runCatching { register() }
+        .onFailure { e -> if (e is CancellationException) throw e }
 }

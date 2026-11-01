@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.debug.DebugClockController
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import java.time.LocalDateTime
 import java.time.ZoneId
 import javax.inject.Inject
@@ -32,7 +33,7 @@ class DebugViewModel @Inject constructor(
     private val controller: DebugClockController,
 ) : ViewModel() {
 
-    private val zone: ZoneId = ZoneId.of("Asia/Taipei")
+    private val zone: ZoneId = TaipeiClock.zone
     private val _uiState = MutableStateFlow(initialState())
     val uiState: StateFlow<DebugUiState> = _uiState.asStateFlow()
 

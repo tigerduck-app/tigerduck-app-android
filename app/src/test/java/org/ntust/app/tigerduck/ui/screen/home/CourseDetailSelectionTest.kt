@@ -14,14 +14,19 @@ class CourseDetailSelectionTest {
         Date.from(LocalDate.parse(day).atTime(8, 0).atZone(AppConstants.TAIPEI_ZONE).toInstant())
 
     @Test
-    fun `a slot opens the course detail on its own weekday and first period`() {
+    fun `a slot opens the course detail on its own day, weekday and first period`() {
         // Split around noon on Wednesday: each run is a slot of its own, with its own room.
         val course = Course.fromSchedule("CS3005301", "Data Structures", schedule = mapOf(1 to listOf("2", "3", "4"), 3 to listOf("3", "4", "6", "7")))
         val wednesday = CourseTimeSlot.buildSlots(listOf(course), weekday = 3, on = on("2026-09-30"))
 
         assertEquals(
-            listOf(CourseDetailSelection(course, 3, "3"), CourseDetailSelection(course, 3, "6")),
-            wednesday.map { it.detailSelection },
+            listOf(
+                CourseDetailSelection(course, 3, "3", java.time.LocalDate.of(2026, 9, 30)),
+                CourseDetailSelection(course, 3, "6", java.time.LocalDate.of(2026, 9, 30)),
+            ),
+            wednesday.map { it.detailSelection.copy(slot = null) },
         )
+        // Each with its own piece of the day, whose changes the detail shows.
+        assertEquals(listOf(listOf("3", "4"), listOf("6", "7")), wednesday.map { it.detailSelection.slot?.periods })
     }
 }

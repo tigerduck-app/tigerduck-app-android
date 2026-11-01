@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -273,9 +274,82 @@ class DataCacheTest {
         assertEquals(emptyMap<Int, Long>(), cache.loadClosedAssignments())
     }
 
+    @Test
+    fun `a save made while the custom names update lands after it, not undone by it`() = runBlocking {
+        cache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "Read")))
+        val changing = CountDownLatch(1)
+        val finish = CountDownLatch(1)
+        val update = async(Dispatchers.IO) {
+            cache.updateCourseCustomNames { names ->
+                changing.countDown()
+                assertTrue("never told to finish", finish.await(WAIT_SECONDS, TimeUnit.SECONDS))
+                names + ("CS1002301" to mapOf("zh" to "From the server"))
+            }
+        }
+        assertTrue("the update never reached its change", changing.await(WAIT_SECONDS, TimeUnit.SECONDS))
+
+        // Use Server's clear, saved while the update holds the names it read. Given time to land,
+        // which it does at once were the update's read and write locked apart.
+        val save = launch(start = CoroutineStart.UNDISPATCHED) { cache.saveCourseCustomNames(emptyMap()) }
+        withTimeoutOrNull(LANDING_MS) { save.join() }
+        finish.countDown()
+        withTimeout(WAIT_SECONDS * 1000) {
+            update.await()
+            save.join()
+        }
+
+        assertEquals(emptyMap<String, Map<String, String>>(), cache.loadCourseCustomNames())
+    }
+
+    @Test
+    fun `a course saved while a courses update is under way lands after it, not undone by it`() = runBlocking {
+        val read = Course(courseNo = "CS1001301", courseName = "Read")
+        cache.saveCourses(listOf(read), "1151")
+        val changing = CountDownLatch(1)
+        val finish = CountDownLatch(1)
+        val update = async(Dispatchers.IO) {
+            cache.updateCoursesIfChanged("1151") { courses ->
+                changing.countDown()
+                assertTrue("never told to finish", finish.await(WAIT_SECONDS, TimeUnit.SECONDS))
+                courses.map { it.copy(customCourseName = "Named") }
+            }
+        }
+        assertTrue("the update never reached its change", changing.await(WAIT_SECONDS, TimeUnit.SECONDS))
+
+        // The class table saving a course added while the update holds the list it read; given
+        // time to land, as above.
+        val added = listOf(read, Course(courseNo = "CS1002301", courseName = "Added"))
+        val save = launch(start = CoroutineStart.UNDISPATCHED) { cache.saveCourses(added, "1151") }
+        withTimeoutOrNull(LANDING_MS) { save.join() }
+        finish.countDown()
+        withTimeout(WAIT_SECONDS * 1000) {
+            update.await()
+            save.join()
+        }
+
+        assertEquals(listOf("CS1001301", "CS1002301"), cache.loadCourses("1151").map { it.courseNo })
+    }
+
+    @Test
+    fun `a courses update writes only when its change changes the list`() = runTest {
+        cache.saveCourses(listOf(Course(courseNo = "CS1001301", courseName = "A")), "1151")
+        val before = cache.coursesVersion.value
+
+        assertNull(cache.updateCoursesIfChanged("1151") { courses -> courses.map { it.copy() } })
+        assertEquals("nothing written", before, cache.coursesVersion.value)
+
+        val written = cache.updateCoursesIfChanged("1151") { courses -> courses.map { it.copy(customCourseName = "B") } }
+        assertEquals("and hands back the list as written", cache.loadCourses("1151"), written)
+        assertEquals(before + 1, cache.coursesVersion.value)
+    }
+
     private companion object {
         // Only a broken lock waits this long; it fails the test instead of hanging the suite.
         const val WAIT_SECONDS = 5L
+
+        // What a write made while an update holds what it read is given to land: it lands at
+        // once unless the update's lock keeps it off until the update has written.
+        const val LANDING_MS = 300L
     }
 
     @Test

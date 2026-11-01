@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.debug
 
+import android.content.Context
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,10 +24,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,22 +35,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.browser.AllowlistEntry
 import org.ntust.app.tigerduck.browser.BrowserAllowlist
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.PageScaffold
+import org.ntust.app.tigerduck.ui.screen.browser.InAppBrowser
 
 /**
  * Settings › Developer › Browser allowlist: which sites the TigerDuck browser
  * loads inside, for testing. Entries added here go on top of the defaults,
  * which stay; "Allow every site" lets any https page in. A release build
- * ignores all of it ([BrowserAllowlistStore]).
+ * ignores all of it ([BrowserAllowlistStore]). "Open a page" opens a typed
+ * address in a browser that lets every page in, past any allowlist
+ * ([InAppBrowser.openAnyPage]).
  *
  * Debug builds only: the route is registered inside `AppNavigation`'s
  * `BuildConfig.DEBUG` block. Debug UI in this app is written in English and
@@ -63,10 +66,23 @@ import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
 fun BrowserAllowlistDebugScreen(
     onBack: () -> Unit,
     store: BrowserAllowlistStore = BrowserAllowlistStore.of(LocalContext.current),
+    openPage: (Context, String) -> Boolean = { context, url -> InAppBrowser.openAnyPage(context, url) },
 ) {
+    val context = LocalContext.current
     val allowlist by store.allowlist.collectAsState()
     var draft by remember { mutableStateOf("") }
     var note by remember { mutableStateOf<String?>(null) }
+    var page by remember { mutableStateOf("") }
+    var pageNote by remember { mutableStateOf<String?>(null) }
+
+    fun open() {
+        val url = debugPageUrl(page)
+        pageNote = when {
+            url == null -> "Not a web address."
+            openPage(context, url) -> null
+            else -> "The browser can't open now: this phone's WebView can't clear its data, or a clearing is owed."
+        }
+    }
 
     fun add() {
         note = when (store.add(draft)) {
@@ -76,16 +92,9 @@ fun BrowserAllowlistDebugScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = { Text("Browser allowlist") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-                },
-            )
-        },
+    PageScaffold(
+        title = "Browser allowlist",
+        onBack = onBack,
     ) { padding ->
         Column(
             Modifier
@@ -94,6 +103,36 @@ fun BrowserAllowlistDebugScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            Text("Open a page", style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = page,
+                    onValueChange = {
+                        page = it
+                        pageNote = null
+                    },
+                    modifier = Modifier.weight(1f).testTag(OPEN_PAGE_FIELD_TAG),
+                    singleLine = true,
+                    placeholder = { Text("e.g. example.com or http://10.0.2.2:8080/") },
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.None,
+                        autoCorrectEnabled = false,
+                        keyboardType = KeyboardType.Uri,
+                        imeAction = ImeAction.Go,
+                    ),
+                    keyboardActions = KeyboardActions(onGo = { open() }),
+                )
+                Button(onClick = ::open, enabled = page.isNotBlank()) { Text("Open") }
+            }
+            pageNote?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            Text(
+                "In the TigerDuck browser, letting every http and https page in, whatever the list below says. " +
+                    "An address with no scheme opens as https. Plain http still loads only where the network " +
+                    "security config allows cleartext, which the school's hosts never do.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -127,7 +166,7 @@ fun BrowserAllowlistDebugScreen(
                         draft = it
                         note = null
                     },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag(ADD_DOMAIN_FIELD_TAG),
                     singleLine = true,
                     placeholder = { Text("e.g. example.com or *.example.com") },
                     keyboardOptions = KeyboardOptions(
@@ -165,4 +204,20 @@ private fun EntryRow(entry: AllowlistEntry, isDefault: Boolean, isRedundant: Boo
             IconButton(onClick = onRemove) { Icon(Icons.Filled.Delete, contentDescription = "Remove ${entry.text}") }
         }
     }
+}
+
+internal const val OPEN_PAGE_FIELD_TAG = "browserAllowlist.openPage"
+internal const val ADD_DOMAIN_FIELD_TAG = "browserAllowlist.addDomain"
+
+/**
+ * What "Open a page" opens for [text]: the address as typed, https when it names no scheme; null
+ * for anything but an http or https address. A host and port (`localhost:8080`, with a path, a
+ * query or a fragment after it) names no scheme.
+ */
+internal fun debugPageUrl(text: String): String? {
+    val typed = text.trim()
+    if (typed.isEmpty()) return null
+    val scheme = Regex("^[A-Za-z][A-Za-z0-9+.-]*:(.*)$").find(typed)
+    val namesScheme = scheme != null && !Regex("^\\d+([/?#].*)?$").matches(scheme.groupValues[1])
+    return (if (namesScheme) typed else "https://$typed").toHttpUrlOrNull()?.toString()
 }

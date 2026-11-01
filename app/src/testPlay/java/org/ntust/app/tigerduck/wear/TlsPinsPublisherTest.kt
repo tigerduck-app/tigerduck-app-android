@@ -18,7 +18,7 @@ class TlsPinsPublisherTest {
         val snapshots = mutableListOf<String>()
         val puts = mutableListOf<String>()
         val firstPut = CompletableDeferred<Unit>()
-        val publisher = TlsPinsPublisher(snapshot = { acceptances.also { snapshots += it } }) { item ->
+        val publisher = WatchItemPublisher(snapshot = { acceptances.also { snapshots += it } }) { item ->
             if (puts.isEmpty()) firstPut.await()
             puts += item
         }

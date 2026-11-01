@@ -23,4 +23,13 @@ class IndexProgressTextTest {
     fun `no number while the download still counts`() {
         assertNull(indexProgressText(MailIndexProgress.COUNTING, Locale.US))
     }
+
+    /** The dot turns only while mail downloads: not while it counts, nor once a download stopped short (#587). */
+    @Test
+    fun `only a download under way past its count turns the dot`() {
+        assertEquals(false, MailIndexProgress.COUNTING.downloading())
+        assertEquals(true, MailIndexProgress(3, 10).downloading())
+        assertEquals(false, MailIndexProgress(3, 10, running = false).downloading())
+        assertEquals(false, MailIndexProgress.COUNTING.copy(running = false).downloading())
+    }
 }

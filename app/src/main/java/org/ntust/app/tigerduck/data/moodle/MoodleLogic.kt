@@ -279,20 +279,37 @@ object MoodleGrades {
     }
 }
 
-/** A Moodle user as the app names them: NTUST's Moodle spells a full name "student ID @ name". */
+/**
+ * A Moodle user as the app names them. NTUST's Moodle spells a full name "student ID @ name", or
+ * "name student ID@" in some users' display order; any other full name is the name whole. As the
+ * iPhone's `MoodlePersonName` (tigerduck-app#900); the backend stores names by the same rule.
+ */
 object MoodlePersonName {
     fun displayName(fullName: String): String {
         val trimmed = fullName.trim()
-        val at = trimmed.indexOf('@')
-        if (at < 0) return trimmed
-        return trimmed.substring(at + 1).trim().ifEmpty { trimmed }
+        return parts(trimmed)?.second ?: trimmed
     }
 
-    /** The part before the `@`, for a user whose `idnumber` Moodle leaves out. */
+    /** The student ID in the full name, for a user whose `idnumber` Moodle leaves out. */
     fun studentId(fullName: String): String? {
         val at = fullName.indexOf('@')
         if (at < 0) return null
-        return fullName.substring(0, at).trim().ifEmpty { null }
+        return (parts(fullName)?.first ?: fullName.substring(0, at).trim()).ifEmpty { null }
+    }
+
+    /** The ID and the name, in either spelling; null for a full name in neither. */
+    private fun parts(fullName: String): Pair<String, String>? {
+        val at = fullName.indexOf('@')
+        if (at < 0) return null
+        val before = fullName.substring(0, at).trim()
+        val after = fullName.substring(at + 1).trim()
+        if (after.isNotEmpty()) return before to after
+        // A student ID has digits, so a name that only ends in `@` stays whole.
+        val space = before.indexOfLast { it.isWhitespace() }
+        if (space < 0) return null
+        val id = before.substring(space + 1)
+        val name = before.substring(0, space).trim()
+        return if (id.any { it.isDigit() } && name.isNotEmpty()) id to name else null
     }
 }
 

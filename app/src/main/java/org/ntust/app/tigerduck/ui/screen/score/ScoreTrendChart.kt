@@ -575,13 +575,9 @@ private fun resolvedSelection(
     }
     return points.last()
 }
-private fun displayTermShort(code: String): String {
-    if (code.length != 4) return code
-    val year = code.take(3)
-    val label = when (val sem = code.last()) {
-        '1' -> "1"; '2' -> "2"; else -> sem.toString()
-    }
-    return "$year-$label"
+internal fun displayTermShort(code: String): String {
+    val (year, part) = termYearAndPart(code) ?: return code
+    return "$year-$part"
 }
 
 // --- Semester section ---

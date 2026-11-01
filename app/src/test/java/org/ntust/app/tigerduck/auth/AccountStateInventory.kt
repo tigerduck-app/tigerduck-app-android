@@ -312,7 +312,7 @@ internal class AccountStateInventory(
     )
 
     private val keyCall = Regex(
-        """(\.?)\b(get(?:Boolean|Int|Long|Float|String|StringSet)|put(?:Boolean|Int|Long|Float|String|StringSet)|remove|contains)\(""",
+        """(\.?)\b(get(?:Boolean|Int|Long|Float|String|StringSet|Ids|TimesById)|put(?:Boolean|Int|Long|Float|String|StringSet|Ids|TimesById)|remove|contains)\(""",
     )
 
     /** [receivers] of each source. */
@@ -494,15 +494,17 @@ internal class AccountStateInventory(
             keyCall.findAll(text).forEach { match ->
                 val call = match.groupValues[2]
                 val args = arguments(path, match.range.last) ?: return@forEach
-                val wanted = if (call.startsWith("get") || call.startsWith("put")) 2 else 1
+                // AppPreferences' helpers for the holiday sets read a key alone and write a key and a set.
+                val helper = call.endsWith("Ids") || call.endsWith("TimesById")
+                val wanted = if (call == "getIds" || call == "getTimesById") 1 else if (call.startsWith("get") || call.startsWith("put")) 2 else 1
                 if (args.size != wanted) return@forEach
                 val receiver = if (match.groupValues[1] == ".") chainStart(path, match.range.first) else editorBlockStart(path, match.range.first)
                 val file = named[receiver]
                     ?: fallback?.takeIf { receiver != null && isPrefsName(receiver) }
                     ?: return@forEach
                 val expr = args[0]
-                val type = Regex("""^(?:get|put)(\w+)$""").find(call)?.groupValues?.get(1)
-                val default = if (call.startsWith("get")) args[1] else null
+                val type = if (helper) "StringSet" else Regex("""^(?:get|put)(\w+)$""").find(call)?.groupValues?.get(1)
+                val default = if (call.startsWith("get") && !helper) args[1] else null
                 val names = resolve(expr, path)?.let(::listOf) ?: when {
                     expr in namedElsewhere -> emptyList()
                     // Each key read back from the file itself, removed.

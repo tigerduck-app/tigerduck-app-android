@@ -8,16 +8,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.PageScaffold
 
 /**
  * "同步內容" (Synced content) — spec §6's second-level menu nested under
@@ -81,7 +75,7 @@ fun SyncContentScreen(
     // 作業到期提醒 gates NotificationSettingsSync's `assignments` section in
     // both directions: while it is off, this device neither pushes its
     // reminder settings nor adopts another device's, and turning it back on
-    // republishes them (its syncAssignmentRemindersChanged collector). The
+    // takes the account's (its syncAssignmentRemindersChanged collector). The
     // PATCH also stores the flag on this device's backend row, which the
     // backend reads only to deliver reminders to iPhone and iPad; Android
     // fires its own. Nor is it content with a server-vs-local conflict prompt
@@ -154,19 +148,9 @@ fun SyncContentScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = { Text(stringResource(R.string.sync_content_nav_label)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
-                expandedHeight = SubSettingsBarHeight,
-            )
-        },
+    PageScaffold(
+        title = stringResource(R.string.sync_content_nav_label),
+        onBack = onBack,
     ) { padding ->
         LazyColumn(
             modifier = Modifier

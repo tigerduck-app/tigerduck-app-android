@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.push.PendingUnregister
 import org.ntust.app.tigerduck.push.PendingUnregisterStore
 import org.ntust.app.tigerduck.push.DeviceRegisterRequest
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.push.UnregisterHeldBack
 import org.ntust.app.tigerduck.push.PushTokenIn
 import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
@@ -111,6 +112,27 @@ class AutomaticSignInTest {
 
         assertEquals(listOf(ANNOUNCE, ANNOUNCE), backend.endpoints())
         assertEquals(listOf<String?>(null, null), backend.received(ANNOUNCE).map { it.authorization })
+    }
+
+    /**
+     * The unregister's own check, asked by the real client on its I/O thread right before the
+     * DELETE goes (#593): told no, nothing reaches the backend.
+     */
+    @Test
+    fun `an unregister told not to depart sends nothing`() = runTest {
+        tokens.save("access-1", "refresh-1", expiresAt = Long.MAX_VALUE)
+        val manager = manager()
+        val departing = manager.departingSession()
+        accountStored = false
+        manager.logout()
+
+        val failure = runCatching {
+            PushApiClient(backend.client, prefs, manager)
+                .deleteDevice(departing!!.baseUrl, "device-1", departing.accessToken) { false }
+        }.exceptionOrNull()
+
+        assertTrue(failure is UnregisterHeldBack)
+        assertEquals(emptyList<String>(), backend.endpoints())
     }
 
     @Test

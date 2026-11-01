@@ -5,7 +5,11 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -68,5 +72,21 @@ class CourseNameSizeSliderTest {
         show(scale = 1.2f)
         composeRule.waitForIdle()
         assertEquals(0, steps)
+    }
+
+    @Test
+    fun `the slider's two As stay 13sp and 24sp, the larger one semi-bold`() {
+        composeRule.setContent {
+            TigerDuckAppTheme(darkTheme = false) {
+                CourseNameSizeContent(persistedScale = 1f, onCommit = {}, onStep = {}, onBack = {})
+            }
+        }
+        val styles = composeRule.onAllNodesWithText("A").fetchSemanticsNodes().map { node ->
+            val results = mutableListOf<TextLayoutResult>()
+            node.config[SemanticsActions.GetTextLayoutResult].action!!(results)
+            results.single().layoutInput.style
+        }
+        assertEquals(listOf(13.sp, 24.sp), styles.map { it.fontSize })
+        assertEquals(listOf(FontWeight.Medium, FontWeight.SemiBold), styles.map { it.fontWeight })
     }
 }

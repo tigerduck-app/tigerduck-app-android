@@ -21,11 +21,19 @@ internal object CourseUploadPayload {
      * — an explicit re-add by the user, not a side effect of a sync. Omitted
      * from the body entirely when empty, so a routine upload can never
      * resurrect something the user deleted on another device.
+     *
+     * [rosterTerms] names the terms whose listed courses are the school's
+     * whole roster (backend 3.10.1): the backend enrolls the listed school
+     * courses of each and drops the others. Omitted when empty, as an upload
+     * that is no roster changes no course's enrollment; a backend before
+     * 3.10.1 ignores the field. See [CourseUpload.of] for when a fetch sends
+     * one, as iOS `PushAPI.CourseUploadRequest.rosterTerms` (tigerduck-app#914).
      */
     fun build(
         courses: List<Course>,
         semester: String,
         forceKeys: List<String> = emptyList(),
+        rosterTerms: List<String> = emptyList(),
     ): Map<String, Any> {
         val items = courses.map { c ->
             mapOf(
@@ -76,6 +84,7 @@ internal object CourseUploadPayload {
             "course_overrides" to overrides,
         )
         if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
+        if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
         return payload
     }
 }

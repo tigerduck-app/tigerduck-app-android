@@ -27,6 +27,11 @@ data class PendingCourseIgnore(
     val changedAtMs: Long,
     /** How many times the backend refused it; see CourseIgnoreSync, which parks it after five. */
     val attempts: Int = 0,
+    /**
+     * Sent as the change's `hlc`: the time it was made, which a new change takes from [changedAtMs].
+     * Null on a row written before it was kept (Gson skips the default), which goes out unstamped.
+     */
+    val madeAtMs: Long? = changedAtMs,
 ) {
     /** Whether [other] is this change, however many times either was refused. */
     fun isSameChange(other: PendingCourseIgnore): Boolean = copy(attempts = 0) == other.copy(attempts = 0)

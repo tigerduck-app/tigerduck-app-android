@@ -9,15 +9,20 @@ import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.shared.computeOngoingCourses
-import org.ntust.app.tigerduck.shared.Course
-import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.parseHm
+import org.ntust.app.tigerduck.shared.time.TaipeiClock
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
+import java.time.Instant
 import java.time.LocalDate
-import java.util.Calendar
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 
 @EntryPoint
 @InstallIn(SingletonComponent::class)
@@ -26,6 +31,7 @@ interface WidgetEntryPoint {
     fun authService(): AuthService
     fun appPreferences(): AppPreferences
     fun academicCalendar(): org.ntust.app.tigerduck.academic.AcademicCalendarStore
+    fun courseChangeStore(): CourseChangeStore
 }
 
 object WidgetDataLoader {
@@ -42,10 +48,38 @@ object WidgetDataLoader {
         // an expired 1h cookie or a process restart while offline makes the
         // widget say "Please sign in" even though we have cached courses.
         val isLoggedIn = entry.authService().authState.value
+        val state = state(
+            courses = courses,
+            now = AppClock.localDateTime(),
+            isLoggedIn = isLoggedIn,
+            quietDays = entry.academicCalendar().quietDays(),
+            changes = entry.courseChangeStore().current(),
+            courseNameScale = entry.appPreferences().courseNameScale,
+        )
+        val customCount = courses.count { it.customColorHex != null }
+        Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${state.courseColors.size} color assignments")
+        courses.filter { it.customColorHex != null }.forEach { c ->
+            Log.d("WidgetData", "[load] ${c.courseNo}: customHex=${c.customColorHex} resolved=${state.courseColors[c.courseNo]}")
+        }
+        return state
+    }
 
-        val cal = AppClock.calendar()
-        val weekday = cal.toWeekday()
-        val minuteOfDay = cal.get(Calendar.HOUR_OF_DAY) * 60 + cal.get(Calendar.MINUTE)
+    /**
+     * What the widgets draw at [now], Taipei time, from the timetable as the
+     * school's [changes] leave it: today's classes and the next days' as the
+     * classes they split into, cancelled ones passed over for now and next.
+     */
+    internal fun state(
+        courses: List<Course>,
+        now: LocalDateTime,
+        isLoggedIn: Boolean,
+        quietDays: QuietDays,
+        changes: CourseChanges,
+        courseNameScale: Float,
+    ): WidgetState {
+        val today = now.toLocalDate()
+        val weekday = today.dayOfWeek.value
+        val minuteOfDay = now.hour * 60 + now.minute
 
         // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
         // the timetable weeks ahead of the term, so having courses is not
@@ -54,23 +88,16 @@ object WidgetDataLoader {
         // and the Today list empties off [WidgetState.isQuietToday].
         // `courses` is deliberately left alone: the Week grid shows the
         // timetable itself, which stays useful on a day off.
-        val quietDays = entry.academicCalendar().quietDays()
-        val today = AppClock.localDateTime().toLocalDate()
         val quietToday = today in quietDays
 
-        val ongoing =
-            if (quietToday) emptyList() else computeOngoingBlocks(courses, weekday, minuteOfDay)
+        // The widgets read the clock to the minute, so a class is on from its
+        // start minute and over from its end minute whatever second a redraw lands on.
+        val minute = now.truncatedTo(ChronoUnit.MINUTES).atZone(TaipeiClock.zone).toInstant()
+        val ongoing = if (quietToday) emptyList() else computeOngoingBlocks(courses, minute, changes)
         val nextToday = if (quietToday) null else computeNextTodayBlock(
-            courses, weekday, minuteOfDay, ongoing.map { it.course.courseNo },
+            courses, minute, ongoing.map { it.course.courseNo }, changes,
         )
-        val tomorrowFirst = computeTomorrowFirst(courses, today, quietDays)
-
-        val courseColors = buildCourseColorAssignments(courses)
-        val customCount = courses.count { it.customColorHex != null }
-        Log.d("WidgetData", "[load] ${courses.size} courses, $customCount with customColorHex, ${courseColors.size} color assignments")
-        courses.filter { it.customColorHex != null }.forEach { c ->
-            Log.d("WidgetData", "[load] ${c.courseNo}: customHex=${c.customColorHex} resolved=${courseColors[c.courseNo]}")
-        }
+        val tomorrowFirst = computeTomorrowFirst(courses, today, quietDays, changes)
 
         return WidgetState(
             courses = courses,
@@ -85,8 +112,10 @@ object WidgetDataLoader {
             tomorrowFirstCourseNo = tomorrowFirst?.courseNo,
             tomorrowFirstCourseWeekday = tomorrowFirst?.weekday,
             tomorrowFirstCoursePeriodId = tomorrowFirst?.periodId,
-            courseColors = courseColors,
-            courseNameScale = entry.appPreferences().courseNameScale,
+            courseColors = buildCourseColorAssignments(courses),
+            courseNameScale = courseNameScale,
+            today = today,
+            courseChanges = changes,
         )
     }
 
@@ -95,12 +124,6 @@ object WidgetDataLoader {
         val weekday: Int,
         val periodId: String,
     )
-
-    private fun Calendar.toWeekday(): Int = when (get(Calendar.DAY_OF_WEEK)) {
-        Calendar.MONDAY -> 1; Calendar.TUESDAY -> 2; Calendar.WEDNESDAY -> 3
-        Calendar.THURSDAY -> 4; Calendar.FRIDAY -> 5; Calendar.SATURDAY -> 6
-        else -> 7
-    }
 
     private fun computeActiveWeekdays(courses: List<Course>): List<Int> {
         val days = courses.flatMap { it.schedule.keys }.toMutableSet()
@@ -116,34 +139,38 @@ object WidgetDataLoader {
         return AppConstants.Periods.chronologicalOrder.filter { it in ids }
     }
 
-    /** The block each course is in at [minuteOfDay] on [weekday], for the courses going on. */
+    /**
+     * The block each course is in at [now], for the courses going on, in the
+     * courses' order. A course in two classes at once shows the first. A class
+     * the school cancelled is not going on, and one it moved runs at its new
+     * times. [now] is to the minute, as the widgets draw it.
+     */
     internal fun computeOngoingBlocks(
         courses: List<Course>,
-        weekday: Int,
-        minuteOfDay: Int,
-    ): List<CourseBlock> =
-        computeOngoingCourses(courses, weekday, minuteOfDay)
-            .map { CourseBlock(it.course, weekday, it.periods) }
+        now: Instant,
+        changes: CourseChanges,
+    ): List<CourseBlock> {
+        val running = ClassTimeline.ongoing(courses, now, changes)
+        return courses.mapNotNull { course ->
+            running.firstOrNull { it.course === course }?.let(CourseBlock::of)
+        }
+    }
 
     /**
-     * The block starting soonest after [minuteOfDay] today, from the courses
-     * not in [ongoingNos]. A block, not a course: after a course's morning
-     * block its afternoon one is next, starting at its own first period.
+     * The block starting soonest after [now] today, from the courses not in
+     * [ongoingNos]. A block, not a course: after a course's morning block its
+     * afternoon one is next, starting at its own first period. A cancelled
+     * class is passed over and a moved one starts at its new start, as iOS
+     * `WidgetTimelineDerivation.derive`'s `nextToday`.
      */
     internal fun computeNextTodayBlock(
         courses: List<Course>,
-        weekday: Int,
-        minuteOfDay: Int,
+        now: Instant,
         ongoingNos: List<String>,
+        changes: CourseChanges,
     ): CourseBlock? =
-        courses
-            .filter { it.courseNo !in ongoingNos }
-            .flatMap { CourseBlock.allOf(it, weekday) }
-            .mapNotNull { block ->
-                parseHm(block.startTime)?.takeIf { it > minuteOfDay }?.let { block to it }
-            }
-            .minByOrNull { it.second }
-            ?.first
+        ClassTimeline.next(courses.filter { it.courseNo !in ongoingNos }, now, changes, daysAhead = 0)
+            ?.let(CourseBlock::of)
 
     /**
      * Scans up to 7 future days for the earliest scheduled class. Mirrors
@@ -153,29 +180,30 @@ object WidgetDataLoader {
      *
      * A day in [quietDays] is passed over wherever it falls in the scan: on a
      * Friday evening before a holiday Monday the user has not opted back into,
-     * the class to show is Tuesday's.
+     * the class to show is Tuesday's. So is a class the school's [changes]
+     * cancel, and one they move is placed by its new start.
      */
     internal fun computeTomorrowFirst(
         courses: List<Course>,
         today: LocalDate,
         quietDays: QuietDays,
+        changes: CourseChanges = CourseChanges.EMPTY,
     ): TomorrowFirst? {
-        val order = AppConstants.Periods.chronologicalOrder
         for (offset in 1L..7L) {
             val day = today.plusDays(offset)
             if (day in quietDays) continue
-            val target = day.dayOfWeek.value
-            val candidates = courses.mapNotNull { course ->
-                val periods = course.schedule[target] ?: return@mapNotNull null
-                val firstPeriod =
-                    periods.minByOrNull { order.indexOf(it) } ?: return@mapNotNull null
-                Triple(course, target, firstPeriod)
-            }
-            val pick = candidates.minByOrNull { order.indexOf(it.third) } ?: continue
+            // Stays on CourseBlock rather than ClassTimeline: this names a course, weekday and first
+            // period, not a slot with a start, and a course in a period with no known time is still
+            // offered (ClassTimeline's slots drop it), so a day's first is picked by start with
+            // such a course last.
+            val pick = courses
+                .mapNotNull { course -> CourseBlock.on(course, day, changes).firstOrNull { !it.isCancelled } }
+                .minByOrNull { parseHm(it.startTime) ?: Int.MAX_VALUE }
+                ?: continue
             return TomorrowFirst(
-                courseNo = pick.first.courseNo,
-                weekday = pick.second,
-                periodId = pick.third,
+                courseNo = pick.course.courseNo,
+                weekday = pick.weekday,
+                periodId = pick.firstPeriodId,
             )
         }
         return null

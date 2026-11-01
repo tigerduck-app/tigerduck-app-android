@@ -21,7 +21,11 @@ import android.os.Looper
 import android.os.Message
 import android.print.PrintManager
 import android.view.ContextThemeWrapper
+import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeProvider
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.JsPromptResult
@@ -45,6 +49,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.VisibleForTesting
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -67,7 +72,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.browser.BrowserAllowlist
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
 import org.ntust.app.tigerduck.browser.BrowserAppearance
 import org.ntust.app.tigerduck.browser.BrowserCleanup
@@ -115,6 +122,9 @@ import org.ntust.app.tigerduck.debug.PretendMissingApps
 object InAppBrowser {
     const val EXTRA_URL = "org.ntust.app.tigerduck.browser.URL"
 
+    /** Set by [openAnyPage]: the browser lets every page in, in a debug build only. */
+    const val EXTRA_ANY_PAGE = "org.ntust.app.tigerduck.browser.ANY_PAGE"
+
     /**
      * Whether this phone's WebView can delete everything a site keeps,
      * service workers and Cache Storage included. The browser opens only
@@ -134,10 +144,37 @@ object InAppBrowser {
      */
     fun open(context: Context, url: String): Boolean {
         if (url.toHttpUrlOrNull()?.isHttps != true) return false
+        return start(context, Intent(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, url))
+    }
+
+    /**
+     * Settings › Developer › Browser allowlist's "Open a page": opens [url], any http or https
+     * page, in a TigerDuck browser that lets every page in, past any allowlist, for a developer
+     * to try a page. A release build ([debug] false) opens nothing. As [open] otherwise.
+     */
+    fun openAnyPage(context: Context, url: String): Boolean = openAnyPage(context, url, BuildConfig.DEBUG)
+
+    @VisibleForTesting
+    internal fun openAnyPage(context: Context, url: String, debug: Boolean): Boolean {
+        if (!debug || url.toHttpUrlOrNull() == null) return false
+        val intent = Intent(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, url).putExtra(EXTRA_ANY_PAGE, true)
+        return start(context, intent)
+    }
+
+    private fun start(context: Context, intent: Intent): Boolean {
         if (!canClearEverything() || !BrowserSession.usable || BrowserCleanup.of(context).isPending()) return false
-        val intent = Intent(context, InAppBrowserActivity::class.java).putExtra(EXTRA_URL, url)
         if (context !is Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         return runCatching { context.startActivity(intent) }.isSuccess
+    }
+
+    /** The allowlist a browser goes by: [stored], or every page when [anyPageAsked] ([openAnyPage]) in a [debug] build. */
+    internal fun allowlistFor(stored: BrowserAllowlist, anyPageAsked: Boolean, debug: Boolean = BuildConfig.DEBUG): BrowserAllowlist =
+        if (anyPageAsked && debug) stored.lettingAnyPageIn() else stored
+
+    /** The page a browser starts on: [url] when it is an https page, or any web page for [anyPage]. */
+    internal fun startPage(url: String?, anyPage: Boolean): String? {
+        val parsed = url?.toHttpUrlOrNull() ?: return null
+        return url.takeIf { parsed.isHttps || anyPage }
     }
 }
 
@@ -159,6 +196,13 @@ class InAppBrowserActivity : AppCompatActivity() {
 
     @Inject lateinit var appState: AppState
     @Inject lateinit var allowlistStore: BrowserAllowlistStore
+
+    /** Opened by the developer page's "Open a page" ([InAppBrowser.openAnyPage]): every page loads, in a debug build. */
+    private var anyPage = false
+
+    /** The allowlist every navigation here is checked against. */
+    private val allowlist: BrowserAllowlist
+        get() = InAppBrowser.allowlistFor(allowlistStore.allowlist.value, anyPage)
     @Inject lateinit var settings: BrowserSettings
     @Inject lateinit var downloads: BrowserDownloads
     @Inject lateinit var signIns: BrowserSignIns
@@ -245,7 +289,8 @@ class InAppBrowserActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val target = intent.getStringExtra(InAppBrowser.EXTRA_URL)?.takeIf { it.toHttpUrlOrNull()?.isHttps == true }
+        anyPage = BuildConfig.DEBUG && intent.getBooleanExtra(InAppBrowser.EXTRA_ANY_PAGE, false)
+        val target = InAppBrowser.startPage(intent.getStringExtra(InAppBrowser.EXTRA_URL), anyPage)
         if (target == null) {
             finish()
             return
@@ -261,7 +306,6 @@ class InAppBrowserActivity : AppCompatActivity() {
         chrome = BrowserChromeCollapse(
             jitterPx = (BrowserChromeCollapse.JITTER_DP * density).toInt(),
             topZonePx = (BrowserChromeCollapse.TOP_ZONE_DP * density).toInt(),
-            endZonePx = (BrowserChromeCollapse.END_ZONE_DP * density).toInt(),
             growthPx = (BrowserChromeCollapse.GROWTH_DP * density).toInt(),
         )
         signInFlow = BrowserSignInFlow(
@@ -492,7 +536,7 @@ class InAppBrowserActivity : AppCompatActivity() {
 
     /** Loads [url], one the app chose, on the same terms as a page's own navigation. */
     private fun load(url: String) {
-        when (val decision = BrowserRouting.navigation(url, allowlistStore.allowlist.value)) {
+        when (val decision = BrowserRouting.navigation(url, allowlist)) {
             NavigationDecision.Load -> {
                 val web = web ?: return
                 state.error = null
@@ -512,7 +556,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             signInFlow.signInPageReached(provider, url, from = state.url)
             return true
         }
-        return when (val decision = BrowserRouting.navigation(url, allowlistStore.allowlist.value)) {
+        return when (val decision = BrowserRouting.navigation(url, allowlist)) {
             NavigationDecision.Load -> {
                 loads.requested(url)
                 false
@@ -536,7 +580,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             signInFlow.signInPageReached(provider, url, from = state.url)
             return
         }
-        val decision = BrowserRouting.navigation(url, allowlistStore.allowlist.value)
+        val decision = BrowserRouting.navigation(url, allowlist)
         if (decision != NavigationDecision.Load) {
             webView.stopLoading()
             if (decision is NavigationDecision.OpenOutside) state.outsideUrl = decision.url
@@ -628,7 +672,7 @@ class InAppBrowserActivity : AppCompatActivity() {
             url = url,
             contentDisposition = contentDisposition,
             mimeType = mimeType,
-            allowlist = allowlistStore.allowlist.value,
+            allowlist = allowlist,
             guessFileName = URLUtil::guessFileName,
             mimeOfExtension = { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) },
         )
@@ -861,13 +905,13 @@ class InAppBrowserActivity : AppCompatActivity() {
             // choice, as any script on it can send anywhere too. The allowlist decides which pages
             // this browser shows, and onPageStart stops such a page as it starts.
             val url = request.url.toString()
-            if (!BrowserRouting.blocksRequest(url, request.isForMainFrame, allowlistStore.allowlist.value)) {
+            if (!BrowserRouting.blocksRequest(url, request.isForMainFrame, allowlist)) {
                 // So a certificate refused for it is known for the page's, before the page starts.
                 if (request.isForMainFrame) loads.mainFrameRequested(url)
                 return null
             }
             view.post {
-                when (val decision = BrowserRouting.navigation(url, allowlistStore.allowlist.value)) {
+                when (val decision = BrowserRouting.navigation(url, allowlist)) {
                     is NavigationDecision.OpenOutside -> state.outsideUrl = decision.url
                     else -> Unit
                 }
@@ -886,7 +930,7 @@ class InAppBrowserActivity : AppCompatActivity() {
 
         override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
             // A page that changes its address itself (history.pushState) lands here only.
-            if (url != null && BrowserRouting.navigation(url, allowlistStore.allowlist.value) == NavigationDecision.Load) state.url = loads.address(url)
+            if (url != null && BrowserRouting.navigation(url, allowlist) == NavigationDecision.Load) state.url = loads.address(url)
             updateHistory()
         }
 
@@ -956,16 +1000,61 @@ class InAppBrowserActivity : AppCompatActivity() {
 
     /**
      * The browser's WebView, which tells how far the page can still scroll down and how wide it is
-     * laid out, and tells the bars' collapse when it changes size: as the keyboard comes or goes,
-     * the page's offset moves without a scroll.
+     * laid out, and tells the bars' collapse when it changes size (as the keyboard comes or goes,
+     * the page's offset moves without a scroll) and which way the student's finger moves the page.
      */
     private inner class BrowserWebView(context: Context) : WebView(context) {
         val scrollLeftBelow: Int get() = computeVerticalScrollRange() - computeVerticalScrollExtent() - computeVerticalScrollOffset()
         val contentWidth: Int get() = computeHorizontalScrollRange()
 
+        private val touches = BrowserTouches(
+            drags = BrowserDragTracker(
+                touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat(),
+                minFlingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity.toFloat(),
+                dragged = { down -> chrome.dragged(down) },
+            ),
+            cancelled = { chrome.dragCancelled() },
+        )
+
         override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
             super.onSizeChanged(w, h, ow, oh)
             chrome.resized()
+        }
+
+        // Only watches the touch: the WebView handles it, its click included.
+        @SuppressLint("ClickableViewAccessibility")
+        override fun onTouchEvent(event: MotionEvent): Boolean {
+            touches.onTouch(event)
+            return super.onTouchEvent(event)
+        }
+
+        // Keys, a mouse wheel and accessibility scrolls move the page with no touch: each tells the
+        // bars its way first, so their scroll is the student's, not the page's own.
+        override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+            if (event.action == KeyEvent.ACTION_DOWN) keyScrollsDown(event.keyCode, event.isShiftPressed)?.let(chrome::dragged)
+            return super.dispatchKeyEvent(event)
+        }
+
+        override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+            if (event.actionMasked == MotionEvent.ACTION_SCROLL) {
+                wheelScrollsDown(event.getAxisValue(MotionEvent.AXIS_VSCROLL))?.let(chrome::dragged)
+            }
+            return super.onGenericMotionEvent(event)
+        }
+
+        override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
+            accessibilityScrollsDown(action)?.let(chrome::dragged)
+            return super.performAccessibilityAction(action, arguments)
+        }
+
+        /** The WebView's provider, wrapped once: its virtual nodes are where TalkBack's scrolls go. */
+        private var scrollTelling: ScrollTellingProvider? = null
+
+        override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider? {
+            val provider = super.getAccessibilityNodeProvider() ?: return null
+            scrollTelling?.takeIf { it.delegate === provider }?.let { return it }
+            return ScrollTellingProvider(provider, dragged = chrome::dragged, refused = chrome::dragCancelled)
+                .also { scrollTelling = it }
         }
     }
 

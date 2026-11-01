@@ -1168,6 +1168,59 @@ class MailRepositoryTest {
         assertNull("gone once it is done", repo.searchIndexProgress.value)
     }
 
+    /**
+     * A download cut short, by the network say, leaves mail out of search: the status row says
+     * how far it came, stopped, rather than OK, until a later download gets through (#587).
+     */
+    @Test
+    fun `a download cut short says how far it came, stopped, until one gets through`() = runTest {
+        val inbox = MailIndexer.BATCH + 2
+        repeat(inbox) { server.deliver("收件 $it") }
+        val repo = TestSetup(backgroundScope).signedIn()
+        var fetched = 0
+        server.onFetchBody = { if (++fetched == MailIndexer.BATCH + 1) server.failBodyFetch = true }
+
+        runCatching { repo.updateSearchIndex() }
+
+        val left = repo.searchIndexProgress.value
+        assertNotNull("not OK while mail is missing", left)
+        assertFalse("stopped, not under way", left!!.running)
+        assertEquals(inbox, left.total)
+        assertTrue("${left.done} of ${left.total}", left.done < inbox)
+
+        server.failBodyFetch = false
+        repo.updateSearchIndex()
+        assertNull("gone once one gets through", repo.searchIndexProgress.value)
+    }
+
+    /**
+     * A search found mail missing while the pass ran, and the run was let go of before the pass
+     * that would fetch it: the row does not say OK, as that mail is still missing (#587).
+     */
+    @Test
+    fun `a gap found as the last pass ends, with no pass after, leaves the row saying mail is missing`() = runTest {
+        server.deliver("期中考 0")
+        val repo = TestSetup(backgroundScope).signedIn()
+        var wanted = true
+        var searching = true
+        repo.clock = {
+            if (searching) {
+                searching = false
+                (1..MailRepository.SEARCH_CATCH_UP + 5).forEach { server.deliver("期中考 $it") }
+                runBlocking { repo.search("INBOX", "期中") }
+                wanted = false
+            }
+            1_000_000L
+        }
+
+        repo.updateSearchIndex { wanted }
+
+        assertFalse("a search ran during the pass", searching)
+        val left = repo.searchIndexProgress.value
+        assertNotNull("not OK while mail is missing", left)
+        assertFalse(left!!.running)
+    }
+
     @Test
     fun `a search catching up shows no download under way`() = runTest {
         repeat(3) { server.deliver("期中考 $it") }
@@ -1325,6 +1378,51 @@ class MailRepositoryTest {
         visit(repo)
 
         assertEquals(listed, server.undeletedUidsCalls)
+    }
+
+    /** A pull to refresh downloads at once, the quarter hour after a whole download or not (#586). */
+    @Test
+    fun `a pull downloads mail for search at once, soon after a whole download too`() = runTest {
+        server.deliver("期中考")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.clock = { 1_000_000L }
+        visit(repo)
+        val listed = server.undeletedUidsCalls
+        val late = server.deliver("期中考 補")
+
+        repo.downloadNow()
+        runCurrent()
+        withContext(Dispatchers.Default) { withTimeout(30_000) { while (repo.downloadingInApp) delay(10) } }
+
+        assertTrue(server.undeletedUidsCalls > listed)
+        assertTrue(late in setup.searchIndex.uids(setup.account.ownAddress!!.lowercase(), "INBOX"))
+    }
+
+    /** A pull while a download runs: that one planned before the pull, so another pass follows it. */
+    @Test
+    fun `a pull while a download runs is served by a pass after it`() = runTest {
+        server.deliver("期中考")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.clock = { 1_000_000L }
+        repo.updateSearchIndex()
+        val onePass = server.undeletedUidsCalls
+        // Due again, as after the downloaded mail was deleted.
+        repo.deleteSearchIndex()
+        var pulled = false
+        server.onUndeletedUids = {
+            if (!pulled) {
+                pulled = true
+                repo.downloadNow()
+            }
+        }
+
+        val before = server.undeletedUidsCalls
+        repo.updateSearchIndex()
+
+        assertTrue(pulled)
+        assertEquals("two passes", 2 * onePass, server.undeletedUidsCalls - before)
     }
 
     @Test

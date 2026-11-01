@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.HorizontalDivider
@@ -51,7 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -66,14 +69,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import java.text.SimpleDateFormat
-import java.util.Locale
 import kotlinx.coroutines.delay
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.shared.timeline.ClassSlot
+import org.ntust.app.tigerduck.shared.timeline.CourseChangeRow
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.SheetContentScroll
 import org.ntust.app.tigerduck.ui.component.WholeWordsText
+import org.ntust.app.tigerduck.ui.component.courseChangeInk
 import org.ntust.app.tigerduck.ui.haptics.HapticScenario
 import org.ntust.app.tigerduck.ui.haptics.Haptics
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleCourseSection
@@ -86,6 +90,9 @@ import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 import org.ntust.app.tigerduck.ui.theme.LocalVisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.formatCredits
+import java.text.SimpleDateFormat
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * The class table's selected course, in full, as its sheet's page:
@@ -134,6 +141,13 @@ internal fun CourseDetailSheetPage(
     val title = viewModel.detailTitle(course)
     val classroom = viewModel.selectedCourseClassroom
     val timeRange = viewModel.selectedCourseTimeRange
+    // The school's changes are read once, as the detail opens, as on iOS.
+    val meeting = remember(course) { viewModel.selectedMeeting }
+    val cancelledLabel = stringResource(R.string.course_card_cancelled)
+    val locale = LocalConfiguration.current.locales[0]
+    val changeRows = remember(course, meeting, cancelledLabel, locale) {
+        viewModel.selectedChangeRows(meeting, cancelledLabel, locale)
+    }
     val assignments = remember(outstanding, course.courseNo, readOnly) {
         if (readOnly) emptyList() else outstanding.filter { it.courseNo == course.courseNo }
     }
@@ -143,6 +157,19 @@ internal fun CourseDetailSheetPage(
     }
     val store by moodleViewModel.store.collectAsStateWithLifecycle()
     var renaming by rememberSaveable { mutableStateOf(false) }
+    // Offered only when the school has a syllabus with something in it: a hand-added course, one
+    // whose fetch failed or one whose syllabus is blank shows no button. Public, so someone
+    // else's course has one too.
+    val term = viewModel.selectedCourseTerm
+    val teachingLabels = syllabusTeachingLabels()
+    // The language too: the course service answers in the app's, and a blank syllabus in one may
+    // have content in the other.
+    val locales = LocalConfiguration.current.locales
+    var syllabusShown by remember(term, course.courseNo, locales) { mutableStateOf(false) }
+    LaunchedEffect(term, course.courseNo, locales) {
+        syllabusShown = runCatching { viewModel.syllabusFor(course, term) }
+            .getOrNull()?.hasContent(teachingLabels) == true
+    }
 
     val sheetScroll = remember(scrollState) { SheetContentScroll(scrollState) }
     // Centred and held to a readable width on a tablet or in landscape.
@@ -168,8 +195,11 @@ internal fun CourseDetailSheetPage(
                 timeRange = timeRange,
                 assignments = assignments,
                 onRename = if (canRename) ({ renaming = true }) else null,
+                onOpenSyllabus = if (syllabusShown) ({ onOpenRoute(CourseSyllabusRoutes.syllabus(term, course.courseNo)) }) else null,
                 onOpenInMoodle = moodleCourseId?.takeIf { showsMoodle }?.let { id -> { openCourseInMoodle(context, id) } },
                 onOpenAssignment = { onOpenRoute(MoodleRoutes.assignment(moodleCourseId ?: 0, it.assignmentId)) },
+                meeting = meeting,
+                changeRows = changeRows,
             )
             val current = store
             if (showsMoodle && moodleCourseId != null && current != null && current.courseId == moodleCourseId) {
@@ -195,16 +225,32 @@ internal fun CourseDetailContent(
     onRename: (() -> Unit)?,
     /** Null for a course with no Moodle course of the user's. */
     onOpenInMoodle: (() -> Unit)?,
+    /** Opens the course's syllabus; null for a course with none to show. */
+    onOpenSyllabus: (() -> Unit)? = null,
     /** Opens an incomplete assignment's page, full screen. */
     onOpenAssignment: (Assignment) -> Unit = {},
+    /** The shown day's meeting as the school changed it, which the cards show; null for the timetable's. */
+    meeting: ClassSlot? = null,
+    /** The 課程異動 list's days; none for a detail opened without a date. */
+    changeRows: List<CourseChangeRow> = emptyList(),
 ) {
     val courseColor = LocalVisualStylePolicy.current.courseAccentColor(
         courseColor = TigerDuckTheme.courseColorVibrant(course.courseNo),
         tint = TigerDuckTheme.courseColor(course.courseNo),
     )
     val dash = "—"
-    val classroomValue = classroom.trim().ifEmpty { dash }
-    val timeValue = timeRange?.takeIf { it.isNotBlank() } ?: dash
+    val ink = courseChangeInk()
+    val cancelledLabel = stringResource(R.string.course_card_cancelled)
+    // The shown day's change takes the card's value, in the change ink, as on iOS.
+    val movedRoom = meeting?.takeIf { it.hasChangedRoom }?.room
+    val changedTime = when {
+        meeting == null -> null
+        meeting.isCancelled -> cancelledLabel
+        meeting.hasChangedTime -> "${hourMinute(meeting.start)} - ${hourMinute(meeting.end)}"
+        else -> null
+    }
+    val classroomValue = movedRoom ?: classroom.trim().ifEmpty { dash }
+    val timeValue = changedTime ?: timeRange?.takeIf { it.isNotBlank() } ?: dash
 
     // The course code is what students paste into 加退選, the portal search
     // and group chats, so the row that shows it also hands it over.
@@ -254,6 +300,16 @@ internal fun CourseDetailContent(
                     )
                 }
             }
+            // Left of "Open in Moodle", as on the iPhone.
+            if (onOpenSyllabus != null) {
+                IconButton(onClick = onOpenSyllabus) {
+                    Icon(
+                        imageVector = Icons.Filled.Description,
+                        contentDescription = stringResource(R.string.course_detail_syllabus),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
             if (onOpenInMoodle != null) {
                 IconButton(onClick = onOpenInMoodle) {
                     Icon(
@@ -277,10 +333,12 @@ internal fun CourseDetailContent(
         EmphasisCard(
             label = stringResource(R.string.course_detail_classroom_label),
             value = classroomValue,
+            valueColor = if (movedRoom != null) ink else null,
         )
         EmphasisCard(
             label = stringResource(R.string.course_detail_time_label),
             value = timeValue,
+            valueColor = if (changedTime != null) ink else null,
         )
     }
 
@@ -324,6 +382,10 @@ internal fun CourseDetailContent(
         )
     }
 
+    if (changeRows.isNotEmpty()) {
+        CourseChangesSection(changeRows)
+    }
+
     if (assignments.isNotEmpty()) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -349,6 +411,45 @@ internal fun CourseDetailContent(
         }
     }
 }
+
+/**
+ * 課程異動: the course's changes on the days ahead, a line each, the day as `M/d (EEEEE)`. As the
+ * iPhone's detail sheet.
+ */
+@Composable
+private fun CourseChangesSection(rows: List<CourseChangeRow>) {
+    val locale = LocalConfiguration.current.locales[0]
+    val dayFormat = remember(locale) { DateTimeFormatter.ofPattern("M/d (EEEEE)", locale) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        Text(
+            text = stringResource(R.string.course_detail_changes),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.semantics { heading() },
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            rows.forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = row.day.format(dayFormat),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = row.summary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun hourMinute(time: java.time.LocalTime): String = "%02d:%02d".format(time.hour, time.minute)
 
 /** An outstanding assignment: its title and due time, opening its page. */
 @Composable
@@ -392,6 +493,8 @@ private fun EmphasisCard(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
+    /** The value's color when it is not the usual one, as a school's change. */
+    valueColor: Color? = null,
 ) {
     // titleMedium (not titleLarge) so longer time strings like
     // "09:10 - 12:00" fit on one line without auto-shrinking, and both
@@ -429,7 +532,7 @@ private fun EmphasisCard(
                 Text(
                     text = value,
                     style = valueStyle,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = valueColor ?: MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,

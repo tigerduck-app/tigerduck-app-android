@@ -279,10 +279,10 @@ class AccountSwitchTest {
             credentials = credentials,
             pushRegistration = PushRegistrationService(
                 context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope, fixtures,
-                DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens),
+                DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
             ),
             notificationSettingsSync = NotificationSettingsSync(
-                SettingsDocumentApiClient(refusing, appPrefs, tokens), liveUpdate, appPrefs, tokens,
+                SettingsDocumentApiClient(refusing, appPrefs, tokens), liveUpdate, appPrefs, tokens, credentials,
                 assignmentReminders, dataCache, idleScope,
             ),
             authTokenManager = tokens,

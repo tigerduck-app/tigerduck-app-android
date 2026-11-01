@@ -5,6 +5,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.NextClassResult
+import org.ntust.app.tigerduck.shared.WatchClassChange
+import org.ntust.app.tigerduck.shared.WatchCourseChanges
 import java.time.LocalDate
 
 /** What the Now and Next, Today, tile and complication read from a snapshot. */
@@ -105,5 +107,63 @@ class WatchSnapshotTest {
             twiceSnapshot().todaysClasses(thursday, 7 * 60).map { it.classroom },
         )
     }
-}
 
+    // ---- the school's changes ----
+
+    // Thursday 2026-11-05: course A meets 2-4 (09:10-12:10) in TR-313. That day period 2 is
+    // cancelled and 3-4 starts at 10:40 in TR-411.
+    private val changeDay = LocalDate.of(2026, 11, 5)
+    private val meetingA = Course.fromSchedule("A", "A", classroom = "TR-313", schedule = mapOf(4 to listOf("2", "3", "4")))
+    private val movedA = WatchClassChange(listOf("3", "4"), room = "TR-411", start = "10:40")
+
+    private fun changedSnapshot() = WatchSnapshot(
+        courses = listOf(meetingA),
+        accentHex = SchedulePersistence.DEFAULT_ACCENT,
+        syncedAtMs = 1_000L,
+        loggedIn = true,
+        languageTag = null,
+        quietDays = emptySet(),
+        courseChanges = WatchCourseChanges(
+            mapOf("A" to mapOf(changeDay to listOf(WatchClassChange(listOf("2"), cancelled = true), movedA))),
+        ),
+    )
+
+    /** Ported from iOS `NextClassResolverTests.test_aDaysClassesReplaceTheMeetingAndACancelledClassDrops`. */
+    @Test
+    fun `a day's classes replace the meeting and a cancelled class drops`() {
+        val today = changedSnapshot().todaysClasses(changeDay, 8 * 60)
+        assertEquals(listOf(listOf("3", "4")), today.map { it.periods })
+        assertEquals("TR-411", today.single().classroom)
+        assertEquals("10:40", today.single().change?.start)
+        assertEquals(10 * 60 + 40, today.single().startMinute)
+
+        val duringPeriod2 = changedSnapshot().nextClass(changeDay, 9 * 60 + 20)
+        duringPeriod2 as NextClassResult.NextToday
+        assertEquals(listOf("3", "4"), duringPeriod2.periods)
+        assertEquals(10 * 60 + 40, duringPeriod2.startMinute)
+        assertEquals("TR-411", duringPeriod2.classroom)
+
+        val later = changedSnapshot().todaysClasses(changeDay.plusDays(7), 8 * 60)
+        assertEquals(listOf(listOf("2", "3", "4")), later.map { it.periods })
+        assertTrue(later.all { it.change == null })
+        assertEquals("TR-313", later.single().classroom)
+    }
+
+    @Test
+    fun `the class going on is the changed one, in its changed room`() {
+        val now = changedSnapshot().nextClass(changeDay, 11 * 60) as NextClassResult.Ongoing
+        assertEquals(listOf("3", "4"), now.periods)
+        assertEquals(10 * 60 + 40, now.startMinute)
+        assertEquals(12 * 60 + 10, now.endMinute)
+        assertEquals("TR-411", now.classroom)
+        assertEquals(movedA, now.change)
+    }
+
+    @Test
+    fun `the next class day's changed class is the one shown`() {
+        val next = changedSnapshot().nextClass(changeDay.minusDays(1), 20 * 60) as NextClassResult.NextFuture
+        assertEquals(1, next.daysAhead)
+        assertEquals(10 * 60 + 40, next.startMinute)
+        assertEquals("TR-411", next.classroom)
+    }
+}

@@ -4,6 +4,8 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import org.ntust.app.tigerduck.ui.screen.classtable.CourseSyllabusScreen
+import org.ntust.app.tigerduck.ui.screen.classtable.CourseSyllabusRoutes
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.MailRoutes
 import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleAnnouncementScreen
@@ -28,6 +30,15 @@ import org.ntust.app.tigerduck.ui.screen.coursemoodle.MoodleRoutes
 internal fun NavGraphBuilder.coursePages(navController: NavController, browserPreference: () -> String) {
     val openRoute: (String) -> Unit = { navController.navigate(it) }
     val moodleCourseArg = navArgument(MoodleCourseViewModel.ARG_COURSE_ID) { type = NavType.IntType }
+    page(
+        CourseSyllabusRoutes.SYLLABUS,
+        arguments = listOf(
+            navArgument(CourseSyllabusRoutes.ARG_SEMESTER) { type = NavType.StringType },
+            navArgument(CourseSyllabusRoutes.ARG_COURSE_NO) { type = NavType.StringType },
+        ),
+    ) { entry ->
+        CourseSyllabusScreen(browserPreference = browserPreference(), onBack = { navController.popIfTop(entry) })
+    }
     page(MoodleRoutes.ANNOUNCEMENTS, arguments = listOf(moodleCourseArg)) { entry ->
         MoodleAnnouncementsScreen(
             onBack = { navController.popIfTop(entry) },

@@ -24,7 +24,7 @@ class LanguageTagCopyTest {
         persistence.write(
             coursesGzipped = gzip("[]"), accentHex = "#112233", accentEndHex = null, accentDirectionCode = null,
             syncedAtMs = 1L, loggedIn = true, languageTag = tag, disableScreenCaptureProtection = false, quietDays = null,
-            visualPreset = null,
+            visualPreset = null, courseChanges = null,
         )
     }
 

@@ -58,6 +58,7 @@ internal fun testMaterials() = MoodleCourseMaterials(
                 MoodleMaterial(101, 7, MoodleMaterial.RESOURCE, "Syllabus", listOf(testFile("syllabus.pdf")), null),
                 MoodleMaterial(102, 8, MoodleMaterial.URL, "Slides", emptyList(), "https://www.example.com/ds"),
             ),
+            0,
         ),
         MoodleMaterialSection(
             2, "Week 1",
@@ -67,6 +68,7 @@ internal fun testMaterials() = MoodleCourseMaterials(
                     listOf(testFile("lab1.zip", path = "/a/"), testFile("lab2.zip", path = "/b/")), null,
                 ),
             ),
+            1,
         ),
     ),
 )

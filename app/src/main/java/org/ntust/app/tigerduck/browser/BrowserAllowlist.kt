@@ -58,21 +58,28 @@ sealed interface AllowlistEntry {
 /**
  * Which pages load inside the TigerDuck browser: https pages on the default
  * port, with no user in the address, on a host one of [entries] lets in, or
- * any such page when [allowEverySite] (the developer switch) is on.
+ * any such page when [allowEverySite] (the developer switch) is on. A browser
+ * the developer page's "Open a page" opened lets in every http and https page
+ * at all ([anyPage], [lettingAnyPageIn]).
  */
 class BrowserAllowlist(
     val entries: List<AllowlistEntry>,
     val allowEverySite: Boolean = false,
+    val anyPage: Boolean = false,
 ) {
     /** Whether [url] may load inside. */
     fun allows(url: String): Boolean {
         val parsed = url.toHttpUrlOrNull() ?: return false
+        if (anyPage) return true
         if (parsed.scheme != "https" || parsed.port != 443) return false
         if (parsed.username.isNotEmpty() || parsed.password.isNotEmpty()) return false
         if (allowEverySite) return true
         val host = parsed.host.lowercase()
         return entries.any { it.matches(host) }
     }
+
+    /** This allowlist, letting in every http and https page, any port and any user included. */
+    fun lettingAnyPageIn(): BrowserAllowlist = BrowserAllowlist(entries, allowEverySite, anyPage = true)
 
     /** Whether [entry] adds nothing: an exact host a wildcard entry already lets in. */
     fun isRedundant(entry: AllowlistEntry): Boolean =

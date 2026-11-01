@@ -22,11 +22,23 @@ import java.util.concurrent.TimeUnit
  * "access-2" and "refresh-2".
  */
 internal class ScriptedBackend {
-    class Received(val endpoint: String, val authorization: String?, val body: String, val host: String = "", val query: String = "")
+    class Received(
+        val endpoint: String,
+        val authorization: String?,
+        val body: String,
+        val host: String = "",
+        val query: String = "",
+        /** The `X-TigerSync-Protocol` header, null without one. */
+        val protocol: String? = null,
+    )
 
     class Held {
         val arrived = CompletableDeferred<Unit>()
         private val reply = CompletableFuture<Int>()
+
+        /** The body the release answers with, in place of the default for its status; set before it. */
+        @Volatile
+        var body: String? = null
 
         fun release(code: Int) {
             reply.complete(code)
@@ -71,7 +83,10 @@ internal class ScriptedBackend {
     private fun answer(request: Request): Response {
         val endpoint = request.method + " " + request.url.encodedPath.removePrefix("/v3")
         val sent = request.body?.let { Buffer().also(it::writeTo).readUtf8() }.orEmpty()
-        received += Received(endpoint, request.header("Authorization"), sent, request.url.host, request.url.encodedQuery.orEmpty())
+        received += Received(
+            endpoint, request.header("Authorization"), sent, request.url.host, request.url.encodedQuery.orEmpty(),
+            request.header("X-TigerSync-Protocol"),
+        )
         if (endpoint == "POST /auth/login") onLogin()
         val next = queued[endpoint]?.poll()
         val code = when (next) {
@@ -85,6 +100,7 @@ internal class ScriptedBackend {
         }
         val reply = when {
             next is Pair<*, *> -> next.second as String
+            next is Held && next.body != null -> next.body!!
             code !in 200..299 -> """{"detail":"refused"}"""
             endpoint == "POST /auth/login" || endpoint == "POST /auth/refresh" ->
                 """{"access_token":"access-2","refresh_token":"refresh-2","expires_in":900,"device_id":"device-1"}"""

@@ -21,7 +21,7 @@ class EndpointChangeTest {
     private var mail = false
     private val events = mutableListOf<String>()
 
-    private fun change() = EndpointChange(
+    private fun change(movedBackend: () -> Unit = {}) = EndpointChange(
         stored = { stored },
         store = { stored = it; events += "store $it" },
         holdsSchoolAccount = { school },
@@ -41,6 +41,8 @@ class EndpointChangeTest {
             events += "mail"
         },
         registerAgain = { events += "register" },
+        forgetBackendData = { events += "forget" },
+        movedBackend = movedBackend,
     )
 
     // When it asks
@@ -76,6 +78,16 @@ class EndpointChangeTest {
     // What it signs out
 
     @Test
+    fun `a move to another backend fetches the school's course changes from it, and staying does not`() {
+        var moved = 0
+        change(movedBackend = { moved++; events += "moved" }).apply(OTHER)
+        assertEquals(1, moved)
+        assertTrue("after the endpoint is stored", events.indexOf("moved") > events.indexOf("store $OTHER"))
+        change(movedBackend = { moved++ }).apply(OTHER)
+        assertEquals(1, moved)
+    }
+
+    @Test
     fun `a change signs out of every account held before the endpoint is stored`() {
         school = true
         library = true
@@ -83,7 +95,7 @@ class EndpointChangeTest {
 
         change().apply(OTHER)
 
-        assertEquals(listOf("school", "library", "mail", "store $OTHER", "register"), events)
+        assertEquals(listOf("school", "library", "mail", "store $OTHER", "forget", "register"), events)
     }
 
     @Test
@@ -105,11 +117,12 @@ class EndpointChangeTest {
             holdsMailAccount = { false },
             signOutMail = { events += "mail" },
             registerAgain = { events += "register" },
+            forgetBackendData = { events += "forget" },
         )
 
         change.apply(OTHER)
 
-        assertEquals(listOf("school", "store $OTHER", "register"), events)
+        assertEquals(listOf("school", "store $OTHER", "forget", "register"), events)
     }
 
     @Test
@@ -118,7 +131,7 @@ class EndpointChangeTest {
 
         change().apply(OTHER)
 
-        assertEquals(listOf("mail", "store $OTHER", "register"), events)
+        assertEquals(listOf("mail", "store $OTHER", "forget", "register"), events)
     }
 
     @Test
@@ -128,7 +141,7 @@ class EndpointChangeTest {
 
         change().apply(null)
 
-        assertEquals(listOf("school", "store null", "register"), events)
+        assertEquals(listOf("school", "store null", "forget", "register"), events)
     }
 
     @Test
@@ -141,6 +154,29 @@ class EndpointChangeTest {
         change().apply(OTHER)
 
         assertEquals(listOf("store $OTHER", "register"), events)
+    }
+
+    // What it lets go of
+
+    /**
+     * The bulletins, which no account owns, are the old backend's whether or not anyone was
+     * signed in: its pages would merge into the new backend's rows by id (#592). After the store,
+     * so a page fetched from the old backend that lands from then on is dropped.
+     */
+    @Test
+    fun `a move with no account held still lets go of the old backend's bulletins`() {
+        change().apply(OTHER)
+
+        assertEquals(listOf("store $OTHER", "forget", "register"), events)
+    }
+
+    @Test
+    fun `saving the endpoint in use lets go of nothing`() {
+        stored = OTHER
+
+        change().apply("$OTHER/")
+
+        assertEquals(listOf("store $OTHER/", "register"), events)
     }
 
     // The question's lines

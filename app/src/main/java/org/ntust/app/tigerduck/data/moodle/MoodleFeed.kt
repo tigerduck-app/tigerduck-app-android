@@ -51,6 +51,8 @@ class MoodleFeed<T : Any>(
         val failure: Throwable? = null,
         /** Whether the cached copy, if any, has been read; a screen waits for it before fetching. */
         val cacheLoaded: Boolean = false,
+        /** How many fetches have ended, answered or failed, so a screen can tell one since it opened. */
+        val fetchesEnded: Int = 0,
     ) {
         /** The last fetch's error while a copy shows, which stays: shown beside it with Retry. */
         val failureBesideCopy: Throwable? get() = failure.takeIf { !isRefreshing && value != null }
@@ -167,7 +169,7 @@ class MoodleFeed<T : Any>(
             if (context.isCurrent()) _state.update { it.copy(failure = e) }
         } finally {
             synchronized(this) { changesDuringFetch = null }
-            _state.update { it.copy(isRefreshing = false) }
+            _state.update { it.copy(isRefreshing = false, fetchesEnded = it.fetchesEnded + 1) }
         }
     }
 }

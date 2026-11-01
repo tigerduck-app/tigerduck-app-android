@@ -226,8 +226,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     // Flips so NotificationSettingsSync can reconcile: turning this switch
     // back on doesn't itself change notifyAssignments/notifyAssignmentOffsets,
-    // so nothing else would ever notice and (re-)push them. Emitted only on
-    // an actual change, mirroring syncLiveActivityChanged below.
+    // so nothing else would notice that the section has to be taken from the
+    // account's document again. Emitted only on an actual change, mirroring
+    // syncLiveActivityChanged below.
     private val _syncAssignmentRemindersChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -245,8 +246,9 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     // Flips so NotificationSettingsSync can reconcile: turning this switch
     // back on doesn't itself change any of the five live_activity values,
-    // so nothing else would ever notice and (re-)push them. Emitted only on
-    // an actual change, same as appLanguageChanged above.
+    // so nothing else would notice that the section has to be taken from the
+    // account's document again. Emitted only on an actual change, same as
+    // appLanguageChanged above.
     private val _syncLiveActivityChanged = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -903,6 +905,40 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         get() = prefs.getBoolean("hasUnconfirmedClassReminderSyncEdit", false)
         set(value) = prefs.edit().putBoolean("hasUnconfirmedClassReminderSyncEdit", value).apply()
 
+    /**
+     * The `notification` document's `live_activity`, `assignments` and
+     * `courses` sections as this phone last synced them, the base of the
+     * field-by-field merge; see `NotificationSettingsSync`'s
+     * `LastSyncedSections`. Cleared at sign-out with the unconfirmed-edit
+     * flags. JSON text the sync parses itself, not a class Gson fills in, so
+     * no field of it can be missing after an upgrade; a build before these
+     * keys wrote none, which the sync reads as nothing recorded.
+     */
+    var lastSyncedLiveActivitySettings: String?
+        get() = prefs.getString("lastSyncedLiveActivitySettings", null)
+        set(value) = prefs.edit().putString("lastSyncedLiveActivitySettings", value).apply()
+
+    var lastSyncedAssignmentReminderSettings: String?
+        get() = prefs.getString("lastSyncedAssignmentReminderSettings", null)
+        set(value) = prefs.edit().putString("lastSyncedAssignmentReminderSettings", value).apply()
+
+    var lastSyncedClassReminderSettings: String?
+        get() = prefs.getString("lastSyncedClassReminderSettings", null)
+        set(value) = prefs.edit().putString("lastSyncedClassReminderSettings", value).apply()
+
+    /**
+     * Set once this device has run the step for the first launch of the build
+     * that brought the three keys above, signed in or not; see
+     * `NotificationSettingsSync`'s `LastSyncedSeed`. It belongs to the device,
+     * so a sign-out keeps it, and the step runs only once. [clearAllPrefs]
+     * drops it with everything else, and the full reset sets it again
+     * (`FullReset`), like [previousDefaultTabsChecked]: nothing from before
+     * the reset is left for the step to read.
+     */
+    var lastSyncedSettingsSeedDone: Boolean
+        get() = prefs.getBoolean("lastSyncedSettingsSeedDone", false)
+        set(value) = prefs.edit().putBoolean("lastSyncedSettingsSeedDone", value).apply()
+
     /** Set once [ClassReminders.migrateIfNeeded] has given this install its class reminder settings. */
     var classReminderSettingsMigrated: Boolean
         get() = prefs.getBoolean("classReminderSettingsMigrated", false)
@@ -1023,6 +1059,18 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     }
 
     /**
+     * The course numbers of [semester]'s list [coursesUploadFingerprint] holds when it went as
+     * the term's roster, null when it went as none; see `PushApiClient.serverDropped`. Recorded
+     * with it, and forgotten with it.
+     */
+    fun coursesUploadRoster(semester: String): Set<String>? = prefs.getStringSet(COURSES_UPLOAD_ROSTER + semester, null)
+
+    fun recordCoursesUploadRoster(semester: String, roster: Collection<String>?) {
+        val key = COURSES_UPLOAD_ROSTER + semester
+        prefs.edit().apply { if (roster == null) remove(key) else putStringSet(key, roster.toSet()) }.apply()
+    }
+
+    /**
      * Forgets the course list the backend last accepted for [semester], or
      * for every term when null: a reset took it off the server, and the
      * upload after the reset, usually that same list, has to go.
@@ -1034,10 +1082,11 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
     private fun SharedPreferences.Editor.removeCourseUploads(semester: String?): SharedPreferences.Editor {
         if (semester != null) {
             return remove(COURSES_UPLOAD_FINGERPRINT + semester).remove(COURSES_UPLOADED_AT + semester)
+                .remove(COURSES_UPLOAD_ROSTER + semester)
         }
         // The terms are not listed anywhere else; the keys are the list.
         prefs.all.keys
-            .filter { it.startsWith(COURSES_UPLOAD_FINGERPRINT) || it.startsWith(COURSES_UPLOADED_AT) }
+            .filter { key -> listOf(COURSES_UPLOAD_FINGERPRINT, COURSES_UPLOADED_AT, COURSES_UPLOAD_ROSTER).any(key::startsWith) }
             .forEach { remove(it) }
         return this
     }
@@ -1201,16 +1250,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         }
 
     /**
-     * Semester codes published by NTUST, newest first — see
-     * [org.ntust.app.tigerduck.network.SemesterCatalog]. Empty until the first
-     * successful fetch, which the catalogue reads as "fall back to the month
-     * heuristic".
-     *
-     * Stored as a delimited string rather than a `StringSet` because
-     * `SharedPreferences` sets are unordered, and this list's whole value is
-     * that it is newest-first.
-     */
-    /**
      * Holidays the user asked to keep receiving class reminders on.
      *
      * Written whether or not cloud sync is on — the holiday guard itself is
@@ -1220,13 +1259,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * and the opt-in should follow the holiday.
      */
     var holidayNotifyOverrides: Set<Int>
-        get() = prefs.getStringSet("holidayNotifyOverrides", emptySet())
-            ?.mapNotNull(String::toIntOrNull)
-            ?.toSet()
-            ?: emptySet()
-        set(value) = prefs.edit()
-            .putStringSet("holidayNotifyOverrides", value.map(Int::toString).toSet())
-            .apply()
+        get() = prefs.getIds("holidayNotifyOverrides")
+        set(value) = prefs.edit().putIds("holidayNotifyOverrides", value).apply()
 
     /**
      * Holidays whose choice in [holidayNotifyOverrides] the backend has not
@@ -1235,16 +1269,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
      * `PendingHolidayOverrides`; the iPhone's `holidayOverridesAwaitingUpload`.
      */
     var holidayOverridesAwaitingUpload: Set<Int>
-        get() = prefs.getStringSet("holidayOverridesAwaitingUpload", emptySet())
-            ?.mapNotNull(String::toIntOrNull)
-            ?.toSet()
-            ?: emptySet()
-        set(value) = prefs.edit()
-            .putStringSet("holidayOverridesAwaitingUpload", value.map(Int::toString).toSet())
-            .apply()
+        get() = prefs.getIds("holidayOverridesAwaitingUpload")
+        set(value) = prefs.edit().putIds("holidayOverridesAwaitingUpload", value).apply()
 
     /**
-     * At sign-out: both holiday sets are the departing account's. Left
+     * When each holiday's choice was last made here, epoch ms by holiday id: the `hlc` its upload
+     * sends, so a retry is no newer than the choice. None for a choice made before the time was
+     * kept. Dropped for a holiday a pull replaces; the iPhone's `holidayOverrideEditTimes`.
+     */
+    var holidayOverrideEditTimes: Map<Int, Long>
+        get() = prefs.getTimesById("holidayOverrideEditTimes")
+        set(value) = prefs.edit().putTimesById("holidayOverrideEditTimes", value).apply()
+
+    /**
+     * At sign-out: the holiday sets and edit times are the departing account's. Left
      * behind, the next student would inherit their quiet days, and the
      * awaiting set would send those choices up as the new account. As the
      * iPhone's `forgetHolidayOverrides`.
@@ -1253,9 +1291,20 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         prefs.edit()
             .remove("holidayNotifyOverrides")
             .remove("holidayOverridesAwaitingUpload")
+            .remove("holidayOverrideEditTimes")
             .apply()
     }
 
+    /**
+     * Semester codes published by NTUST, newest first — see
+     * [org.ntust.app.tigerduck.network.SemesterCatalog]. Empty until the first
+     * successful fetch, which the catalogue reads as "fall back to the month
+     * heuristic".
+     *
+     * Stored as a delimited string rather than a `StringSet` because
+     * `SharedPreferences` sets are unordered, and this list's whole value is
+     * that it is newest-first.
+     */
     var semesterCatalogTerms: List<String>
         get() = prefs.getString("semesterCatalogTerms", null)
             ?.split(SEMESTER_LIST_DELIMITER)
@@ -1336,9 +1385,10 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         private const val PIN_TODAY_COURSES_ON_CLASS_TABLE = "pinTodayCoursesOnClassTable"
         private const val OUTLINE_REQUIRED_COURSES = "outlineRequiredCourses"
 
-        /** The course upload ledger's keys, one pair per term, the term after the colon; see [coursesUploadFingerprint]. */
+        /** The course upload ledger's keys, one set per term, the term after the colon; see [coursesUploadFingerprint]. */
         private const val COURSES_UPLOAD_FINGERPRINT = "coursesUploadFingerprint:"
         private const val COURSES_UPLOADED_AT = "coursesUploadedAtMs:"
+        private const val COURSES_UPLOAD_ROSTER = "coursesUploadRoster:"
 
         const val WHATS_NEW_UNSET = -1
         const val WHATS_NEW_REPLAY = 0

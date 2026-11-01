@@ -160,7 +160,9 @@ class DemoAccount @Inject constructor(
         fixture.assignments?.let { dataCache.saveAssignments(it) }
         // The assignments' pages read these, as a round would have kept them.
         fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty())) }
-        fixture.bulletins?.let { bulletinCache.save(it) }
+        // Only while still the demo account, asked under the cache's lock: a sign-out exits it
+        // before its clear, which a write let through earlier lands before.
+        fixture.bulletins?.let { bulletins -> bulletinCache.saveIf(bulletins, fetchedAt = null) { isActive } }
         fixture.calendar?.let { dataCache.saveCalendarEvents(it) }
     }
 

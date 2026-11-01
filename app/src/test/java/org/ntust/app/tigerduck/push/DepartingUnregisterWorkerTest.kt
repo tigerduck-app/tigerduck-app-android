@@ -34,10 +34,11 @@ class DepartingUnregisterWorkerTest {
     // Never reaches the server: every DELETE gets no reply.
     private val unregister = DepartingDeviceUnregister(
         owed = OwedUnregister(store),
-        deleteDevice = { _, _, _ -> throw IOException("offline") },
-        refresh = { _, _ -> DepartingRefresh.Unavailable },
+        deleteDevice = { _, _, _, _ -> throw IOException("offline") },
+        refresh = { _, _, _ -> DepartingRefresh.Unavailable },
         sessionAt = { _ -> false },
         now = { 0L },
+        endpoint = { "https://backend.example/v3" },
     )
 
     private fun worker(attempt: Int) = TestListenableWorkerBuilder<DepartingUnregisterWorker>(context)

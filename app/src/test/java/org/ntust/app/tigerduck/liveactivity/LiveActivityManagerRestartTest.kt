@@ -81,6 +81,7 @@ class LiveActivityManagerRestartTest {
             academicCalendar = calendar,
             boundaryScheduler = LiveActivityBoundaryScheduler(context),
             appScope = scope,
+            isDemoSession = { true },
         )
     }
 

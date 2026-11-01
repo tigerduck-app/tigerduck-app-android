@@ -20,11 +20,13 @@ import androidx.glance.layout.padding
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
+import androidx.glance.text.TextDecoration
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy
 import org.ntust.app.tigerduck.ui.theme.VisualStylePolicy.CourseColorStyle
 import org.ntust.app.tigerduck.widget.CourseBlock
@@ -33,24 +35,42 @@ import org.ntust.app.tigerduck.widget.WidgetColors
 import org.ntust.app.tigerduck.widget.WidgetState
 import org.ntust.app.tigerduck.widget.isOngoing
 import org.ntust.app.tigerduck.widget.scaled
+import org.ntust.app.tigerduck.widget.widgetChangeInk
 import org.ntust.app.tigerduck.widget.widgetCourseColor
 
 /**
  * The Today widget's rows: one per block, so a course meeting in periods 3–4
  * and 7–8 has two rows, each with its own times and room, in the order they
- * are taught (iOS `WidgetTimelineDerivation.todayRows`). None on a quiet day
- * ([WidgetState.isQuietToday]): before 開學 the timetable is cached weeks
- * ahead and would list classes for a term that has not started, and on a
- * holiday the user has not opted back into no class meets, as the Next Class
- * widget shows. Filtered here rather than in WidgetDataLoader because the
- * Week grid shares `state.courses` and keeps rendering the timetable.
+ * are taught (iOS `WidgetTimelineDerivation.todayRows`). Under the school's
+ * course changes on [WidgetState.today] a block is the classes it splits into,
+ * by their changed starts, and a cancelled one stays, to be struck through.
+ * None on a quiet day ([WidgetState.isQuietToday]): before 開學 the timetable
+ * is cached weeks ahead and would list classes for a term that has not
+ * started, and on a holiday the user has not opted back into no class meets,
+ * as the Next Class widget shows. Filtered here rather than in
+ * WidgetDataLoader because the Week grid shares `state.courses` and keeps
+ * rendering the timetable.
  */
 internal fun todayListBlocks(state: WidgetState): List<CourseBlock> {
     if (state.isQuietToday) return emptyList()
     val order = AppConstants.Periods.chronologicalOrder
+    val today = state.today
     return state.courses
-        .flatMap { CourseBlock.allOf(it, state.currentWeekday) }
-        .sortedBy { block -> order.indexOf(block.firstPeriodId).takeIf { it >= 0 } ?: Int.MAX_VALUE }
+        .flatMap { course ->
+            if (today == null) {
+                CourseBlock.allOf(course, state.currentWeekday)
+            } else {
+                CourseBlock.on(course, today, state.courseChanges)
+            }
+        }
+        // By start, as iOS sorts, then by period: the same order the
+        // timetable's periods give where nothing moved.
+        .sortedWith(
+            compareBy(
+                { parseHm(it.startTime) ?: Int.MAX_VALUE },
+                { block -> order.indexOf(block.firstPeriodId).takeIf { it >= 0 } ?: Int.MAX_VALUE },
+            ),
+        )
 }
 
 /**
@@ -79,6 +99,18 @@ internal fun todayRowFill(
         courseColor = widgetCourseColor(course, courseColors, isDark = false),
         tint = widgetCourseColor(course, courseColors, colors.isDark),
     )
+}
+
+/**
+ * The ink a row marks the school's change in: on a class in session filled
+ * with its course's color under TigerDuck, the row's own text, as on the
+ * iPhone's full-color palette; on a pastel, which stays light in either
+ * theme, the light ink; else the theme's.
+ */
+internal fun todayRowInk(ongoing: Boolean, colors: WidgetColors, style: VisualStylePolicy): Color = when {
+    style.courseColorStyle == CourseColorStyle.Pastel -> widgetChangeInk(isDark = false)
+    ongoing -> todayRowTextColor(true, colors, style)
+    else -> widgetChangeInk(colors.isDark)
 }
 
 /** A row's periods and course name on [todayRowFill]. */
@@ -172,9 +204,12 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
                 todayBlocks.forEach { block ->
                     val course = block.course
                     val isOngoing = state.isOngoing(block)
+                    val cancelled = block.isCancelled
                     val rowBg = todayRowFill(course, isOngoing, colors, style, state.courseColors)
-                    val primaryText = todayRowTextColor(isOngoing, colors, style)
                     val secondaryText = todayRowSecondaryTextColor(isOngoing, colors, style)
+                    // A cancelled class steps back, as on the iPhone; it is never in session.
+                    val primaryText = if (cancelled) secondaryText else todayRowTextColor(isOngoing, colors, style)
+                    val ink = todayRowInk(isOngoing, colors, style)
 
                     Row(
                         modifier = GlanceModifier
@@ -197,7 +232,7 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
                             Text(
                                 text = "${block.startTime}–${block.endTime}",
                                 style = TextStyle(
-                                    color = ColorProvider(secondaryText),
+                                    color = ColorProvider(if (block.timeChanged && !cancelled) ink else secondaryText),
                                     fontSize = 11.sp.scaled,
                                 ),
                             )
@@ -211,12 +246,33 @@ fun TodayListContent(state: WidgetState, colors: WidgetColors, style: VisualStyl
                                     color = ColorProvider(primaryText),
                                     fontSize = 14.sp.scaled * state.courseNameScale,
                                     fontWeight = FontWeight.Medium,
+                                    textDecoration = if (cancelled) TextDecoration.LineThrough else null,
                                 ),
                                 maxLines = 1,
                             )
                             val room = block.classroom
-                            if (room.isNotEmpty()) {
-                                Text(
+                            when {
+                                cancelled -> Text(
+                                    text = context.getString(R.string.course_card_cancelled),
+                                    style = TextStyle(
+                                        color = ColorProvider(secondaryText),
+                                        fontSize = 11.sp.scaled,
+                                        fontWeight = FontWeight.Medium,
+                                    ),
+                                    maxLines = 1,
+                                )
+
+                                block.roomChanged -> Text(
+                                    text = block.roomLabel,
+                                    style = TextStyle(
+                                        color = ColorProvider(ink),
+                                        fontSize = 11.sp.scaled,
+                                        fontWeight = FontWeight.Medium,
+                                    ),
+                                    maxLines = 1,
+                                )
+
+                                room.isNotEmpty() -> Text(
                                     text = room,
                                     style = TextStyle(
                                         color = ColorProvider(secondaryText),

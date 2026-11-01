@@ -1,0 +1,35 @@
+{
+  "term": "1151",
+  "changes": [
+    {
+      "id": 101, "course_no": "CC900", "kind": "cancelled", "mode": "day", "day": "2026-11-05",
+      "from": null, "to": null, "excluded_weekdays": [], "periods": ["7", "8"],
+      "class_days": ["2026-11-05"], "room": null, "start": null, "end": null,
+      "note_zh": null, "note_en": null, "updated_at": "2026-10-29T14:03:00+08:00"
+    },
+    {
+      "id": 102, "course_no": "CC900", "kind": "room", "mode": "day", "day": "2026-11-05",
+      "from": null, "to": null, "excluded_weekdays": [], "periods": ["2", "3", "4"],
+      "class_days": ["2026-11-05"], "room": "TR-313", "start": null, "end": null,
+      "note_zh": null, "note_en": null, "updated_at": "2026-10-29T14:03:00+08:00"
+    },
+    {
+      "id": 103, "course_no": "CC900", "kind": "end", "mode": "day", "day": "2026-11-05",
+      "from": null, "to": null, "excluded_weekdays": [], "periods": ["2", "3", "4"],
+      "class_days": ["2026-11-05"], "room": null, "start": null, "end": "11:45",
+      "note_zh": null, "note_en": null, "updated_at": "2026-10-29T14:03:00+08:00"
+    },
+    {
+      "id": 104, "course_no": "CC900", "kind": "note", "mode": "day", "day": "2026-11-05",
+      "from": null, "to": null, "excluded_weekdays": [], "periods": null,
+      "class_days": ["2026-11-05"], "room": null, "start": null, "end": null,
+      "note_zh": "期中考", "note_en": null, "updated_at": "2026-10-29T14:03:00+08:00"
+    },
+    {
+      "id": 105, "course_no": "CC900", "kind": "moved_online", "mode": "day", "day": "2026-11-05",
+      "from": null, "to": null, "excluded_weekdays": [], "periods": null,
+      "class_days": ["2026-11-05"], "room": "Teams", "start": null, "end": null,
+      "note_zh": null, "note_en": null, "updated_at": "2026-10-29T14:03:00+08:00"
+    }
+  ]
+}

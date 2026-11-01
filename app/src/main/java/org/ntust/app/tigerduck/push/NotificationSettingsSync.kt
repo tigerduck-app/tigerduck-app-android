@@ -28,6 +28,17 @@
 // `NotificationSettingsSync.merging(_:into:)`
 // (`AppState+NotificationSettings.swift`).
 //
+// Within a section this file owns, a push writes only the fields this device
+// changed since it last synced with the document, plus any the document does
+// not hold yet; every other field keeps the server's current value. Each
+// section's last synced values are recorded ([LastSyncedSections]) as the base
+// of that three-way merge ([keepingOwnChanges]). Writing the whole section from
+// local values used to take back another device's change to a different field
+// of it: a push still pending when that change landed, or one a sync switch
+// turned back on sent, carried this device's older copy of every field. iOS
+// 2.9.2 merges the same way, with no backend change; its rules are in the Apple
+// repo's docs/decisions/0002-notification-settings-json-merge.md.
+//
 // This is not a stylistic preference; a typed re-encode here is a live
 // data-loss bug:
 //
@@ -59,19 +70,25 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonArray
 import com.google.gson.JsonElement
+import com.google.gson.JsonNull
 import com.google.gson.JsonObject
+import com.google.gson.JsonParseException
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncUpdate
@@ -231,6 +248,68 @@ internal fun merging(updates: JsonObject, into: JsonObject): JsonObject {
 }
 
 /**
+ * The part of [updates] (`{"<section>": {...}}`, every key a push of
+ * [section] would write) this device has a reason to write over [server]: a
+ * field it changed since [lastSynced] (the section as it last synced it), and
+ * a field [server]'s section does not hold at all. An empty object when there
+ * is none, so [merging] it would change nothing.
+ *
+ * Every other field keeps the value [server] holds now, which may be another
+ * device's change this device has not pulled yet; sending this device's copy
+ * of it would take that change back. A field both devices changed goes to
+ * whichever writes last, as every field did before.
+ *
+ * [local] and [lastSynced] are in the document's keys
+ * ([LiveActivitySyncValues.syncedSection] and its two siblings). [fieldOf]
+ * names the field an update key belongs to, for a key that only ever moves
+ * with another: `reminder_offsets_hours` is derived from
+ * `reminder_offsets_minutes`.
+ *
+ * A null [lastSynced] means nothing is recorded, so nothing counts as
+ * changed and only what [server] lacks is written: a value nobody has written
+ * cannot be a newer one. An empty [lastSynced] ([SENDS_EVERY_FIELD]) makes
+ * every field count as changed, which is how every push wrote before this
+ * merge, and what the one push an update finds pending does
+ * ([LastSyncedSections]). Otherwise a field [lastSynced] does not hold counts
+ * as unchanged: a record an earlier build wrote lacks a field a later build
+ * adds, and this device has no claim to having changed it, so another
+ * device's value of it stays.
+ */
+internal fun keepingOwnChanges(
+    updates: JsonObject,
+    section: String,
+    local: JsonObject,
+    lastSynced: JsonObject?,
+    server: JsonObject,
+    fieldOf: (String) -> String = { it },
+): JsonObject {
+    val wanted = updates.get(section)?.takeIf { it.isJsonObject }?.asJsonObject ?: return JsonObject()
+    val held = server.get(section)?.takeIf { it.isJsonObject }?.asJsonObject?.keySet().orEmpty()
+        .mapTo(mutableSetOf(), fieldOf)
+    val kept = JsonObject()
+    for ((key, value) in wanted.entrySet()) {
+        val field = fieldOf(key)
+        val changedHere = when {
+            lastSynced == null -> false
+            lastSynced.isEmpty -> true
+            else -> lastSynced.has(field) && local.get(field) != lastSynced.get(field)
+        }
+        if (changedHere || field !in held) kept.add(key, value)
+    }
+    return if (kept.isEmpty) JsonObject() else JsonObject().apply { add(section, kept) }
+}
+
+/** [text] as a recorded section ([LastSyncedSections]), or null when there is none or it does not parse. */
+internal fun recordedSection(text: String?): JsonObject? {
+    if (text == null) return null
+    return try {
+        JsonParser.parseString(text).takeIf { it.isJsonObject }?.asJsonObject
+    } catch (e: JsonParseException) {
+        null
+    }
+}
+
+/**
  * The `live_activity` keys this client owns, as a JSON object ready to
  * splice over whatever the server currently holds — i.e.
  * `{"live_activity": {...}}` and nothing else.
@@ -267,6 +346,14 @@ internal fun LiveActivitySyncValues.documentUpdates(): JsonObject =
             )
         )
     ).asJsonObject
+
+/**
+ * These values as the `live_activity` section holds them: what
+ * [LastSyncedSections.liveActivity] records, and what a push compares with it
+ * field by field ([keepingOwnChanges]).
+ */
+internal fun LiveActivitySyncValues.syncedSection(): JsonObject =
+    documentUpdates().getAsJsonObject(LIVE_ACTIVITY_SECTION_KEY)
 
 /**
  * The `live_activity` section's wire keys, restated as literals rather
@@ -312,13 +399,21 @@ private const val ASSIGNMENT_LEAD_SECONDS_KEY = "assignment_lead_seconds"
 /**
  * Read-modify-write cycle for the document's `live_activity` section.
  * Everything else in the document travels back exactly as read (see
- * [merging]). On a 409 conflict, adopts the server's document and its
- * revision and retries **exactly once** — never loops.
+ * [merging]), and so does every field of this section this device has not
+ * changed since [lastSynced] ([keepingOwnChanges]). On a 409 conflict,
+ * adopts the server's document and its revision and retries **exactly once**
+ * — never loops.
  *
- * Returns true only when a write actually landed; false when the gates below
- * are closed and nothing was attempted, or when [isCurrentGeneration] turns
- * false partway through and the push is abandoned, so a caller can never
- * read "didn't land" as "succeeded".
+ * Returns true when a write landed, or when the document already holds what
+ * this device has to write, so nothing is sent; false when the
+ * gates below are closed and nothing was attempted, or when
+ * [isCurrentGeneration] turns false partway through and the push is
+ * abandoned, so a caller can never read "didn't land" as "succeeded".
+ *
+ * [lastSynced] is the section as this device last synced it
+ * ([NotificationSettingsSync] passes what [LastSyncedSections] records, null
+ * when nothing is). It defaults to an empty object, which makes every field
+ * count as changed: the wire mapping's own tests write the whole section.
  *
  * [isCurrentGeneration] is checked before the read, again once the read
  * comes back, and — through [SettingsDocumentTransport.write] — for every
@@ -349,8 +444,11 @@ private const val ASSIGNMENT_LEAD_SECONDS_KEY = "assignment_lead_seconds"
  * under the same plain-JVM tests. The Live Activity settings screen works
  * without an account, so an edit made while signed out is refused by this
  * gate and stays unconfirmed
- * ([LiveActivityPreferences.hasUnconfirmedSyncEdit]); the next sign-in
- * delivers it through [NotificationSettingsSync.pushIfUnconfirmed].
+ * ([LiveActivityPreferences.hasUnconfirmedSyncEdit]). The next sign-in
+ * starts the section's record from those values and runs the push through
+ * [NotificationSettingsSync.pushIfUnconfirmed], so the edit gives way to the
+ * account's settings and fills in only what its document lacks
+ * ([LastSyncedSections]).
  *
  * A second conflict throws rather than returning false: it is a genuine
  * failure to write (two other devices wrote in the time this one took to
@@ -364,6 +462,7 @@ internal suspend fun pushLiveActivitySettings(
     syncLiveActivity: Boolean,
     isLoggedIn: Boolean,
     isCurrentGeneration: () -> Boolean = { true },
+    lastSynced: JsonObject? = JsonObject(),
 ): Boolean {
     if (!cloudSyncEnabled || !syncLiveActivity || !isLoggedIn) return false
     if (!isCurrentGeneration()) return false
@@ -377,9 +476,19 @@ internal suspend fun pushLiveActivitySettings(
     var baseRevision = current?.revision
 
     val updates = local.documentUpdates()
+    val own = local.syncedSection()
     var conflicts = 0
     while (true) {
-        val result = transport.write(merging(updates, into = existing), baseRevision, isCurrentGeneration)
+        // Against each document it is merged over, the 409's included: which
+        // fields that document holds decides what still has to be written.
+        val merged = merging(
+            keepingOwnChanges(updates, LIVE_ACTIVITY_SECTION_KEY, own, lastSynced, existing),
+            into = existing,
+        )
+        // A write that changes nothing still moves the revision, which sends
+        // every other device to read the document again.
+        if (merged == existing) return true
+        val result = transport.write(merged, baseRevision, isCurrentGeneration)
         when (result) {
             is SettingsWriteResult.Written -> return true
             SettingsWriteResult.Abandoned -> return false
@@ -726,6 +835,14 @@ internal fun AssignmentSyncValues.documentUpdates(existing: JsonObject): JsonObj
     return root
 }
 
+/** These values as the `assignments` section holds them: what [LastSyncedSections.assignments] records. */
+internal fun AssignmentSyncValues.syncedSection(): JsonObject =
+    documentUpdates(JsonObject()).getAsJsonObject(ASSIGNMENTS_SECTION_KEY)
+
+/** The field an `assignments` key belongs to: the hours list is derived from the minutes and moves with it. */
+private fun assignmentsField(key: String): String =
+    if (key == REMINDER_OFFSETS_HOURS_KEY) REMINDER_OFFSETS_MINUTES_KEY else key
+
 /**
  * Read-modify-write cycle for the document's `assignments` section —
  * the [pushLiveActivitySettings] of this section. Everything else in the
@@ -740,7 +857,11 @@ internal fun AssignmentSyncValues.documentUpdates(existing: JsonObject): JsonObj
  * loop iteration (including after a conflict rebase), not built once up
  * front: the foreign-minute preservation [documentUpdates] does depends on
  * what the *current* document holds, and after a 409 that is the winner's
- * document, not the stale one this call started with.
+ * document, not the stale one this call started with. So is which fields
+ * it writes: only those this device changed since [lastSynced], and those
+ * the document lacks ([keepingOwnChanges]), the two offset lists counting as
+ * one field. [lastSynced] and the return value are as in
+ * [pushLiveActivitySettings].
  */
 internal suspend fun pushAssignmentSettings(
     local: AssignmentSyncValues,
@@ -749,6 +870,7 @@ internal suspend fun pushAssignmentSettings(
     syncAssignmentReminders: Boolean,
     isLoggedIn: Boolean,
     isCurrentGeneration: () -> Boolean = { true },
+    lastSynced: JsonObject? = JsonObject(),
 ): Boolean {
     if (!cloudSyncEnabled || !syncAssignmentReminders || !isLoggedIn) return false
     if (!isCurrentGeneration()) return false
@@ -758,13 +880,17 @@ internal suspend fun pushAssignmentSettings(
     var existing = current?.document ?: JsonObject()
     var baseRevision = current?.revision
 
+    val own = local.syncedSection()
     var conflicts = 0
     while (true) {
-        val result = transport.write(
-            merging(local.documentUpdates(existing), into = existing),
-            baseRevision,
-            isCurrentGeneration,
+        val merged = merging(
+            keepingOwnChanges(
+                local.documentUpdates(existing), ASSIGNMENTS_SECTION_KEY, own, lastSynced, existing, ::assignmentsField,
+            ),
+            into = existing,
         )
+        if (merged == existing) return true
+        val result = transport.write(merged, baseRevision, isCurrentGeneration)
         when (result) {
             is SettingsWriteResult.Written -> return true
             SettingsWriteResult.Abandoned -> return false
@@ -955,23 +1081,49 @@ internal fun ClassReminderSyncValues.documentUpdates(existing: JsonObject): Json
         ?.asJsonObject
         ?.get(REMINDER_OFFSETS_MINUTES_KEY)
         .asValidatedIntListOrNull()
-    val writesLead = (hasPickedLead || existingOffsets == null) &&
-        leadMinutes in ClassReminders.LEAD_CHOICES_MINUTES
 
     val section = JsonObject()
     section.addProperty(COURSES_ENABLED_KEY, enabled)
-    if (writesLead) section.add(REMINDER_OFFSETS_MINUTES_KEY, JsonArray().apply { add(leadMinutes) })
+    if (writesLead(listHeld = existingOffsets != null)) {
+        section.add(REMINDER_OFFSETS_MINUTES_KEY, JsonArray().apply { add(leadMinutes) })
+    }
 
     val root = JsonObject()
     root.add(COURSES_SECTION_KEY, section)
     return root
 }
 
+/** Whether a push writes the lead time over a document that holds a list ([listHeld]) or none; see [documentUpdates]. */
+private fun ClassReminderSyncValues.writesLead(listHeld: Boolean): Boolean =
+    (hasPickedLead || !listHeld) && leadMinutes in ClassReminders.LEAD_CHOICES_MINUTES
+
+/**
+ * These values as the `courses` section holds them: what
+ * [LastSyncedSections.courses] records, and what a push compares with it
+ * field by field ([keepingOwnChanges]). The lead time is the one
+ * [documentUpdates] writes over a document that holds a list: the lead time
+ * when it was picked here, and JSON null when it was not, which is how iOS's
+ * `before` leaves the minutes out of a copy with no pick. So a lead time
+ * picked after the document's list was adopted counts as changed even when it
+ * is the one the screen already showed, and goes up over a list this device
+ * did not pick (`[7]`, `[10, 30]`), as on iOS. Null rather than left out: a
+ * field the record does not hold counts as unchanged. Over a document with no
+ * list the lead time goes up regardless, as a field the document lacks.
+ */
+internal fun ClassReminderSyncValues.syncedSection(): JsonObject = JsonObject().apply {
+    addProperty(COURSES_ENABLED_KEY, enabled)
+    add(
+        REMINDER_OFFSETS_MINUTES_KEY,
+        if (writesLead(listHeld = true)) JsonArray().apply { add(leadMinutes) } else JsonNull.INSTANCE,
+    )
+}
+
 /**
  * Read-modify-write cycle for the document's `courses` section — the
- * [pushAssignmentSettings] of this section, with the same 409 handling and
- * generation checks, and the update recomputed from each document it is
- * merged over. Gated on [cloudSyncEnabled] and [isLoggedIn] only.
+ * [pushAssignmentSettings] of this section, with the same 409 handling,
+ * generation checks and field-by-field merge, and the update recomputed from
+ * each document it is merged over. Gated on [cloudSyncEnabled] and
+ * [isLoggedIn] only.
  */
 internal suspend fun pushClassReminderSettings(
     local: ClassReminderSyncValues,
@@ -979,6 +1131,7 @@ internal suspend fun pushClassReminderSettings(
     cloudSyncEnabled: Boolean,
     isLoggedIn: Boolean,
     isCurrentGeneration: () -> Boolean = { true },
+    lastSynced: JsonObject? = JsonObject(),
 ): Boolean {
     if (!cloudSyncEnabled || !isLoggedIn) return false
     if (!isCurrentGeneration()) return false
@@ -988,13 +1141,15 @@ internal suspend fun pushClassReminderSettings(
     var existing = current?.document ?: JsonObject()
     var baseRevision = current?.revision
 
+    val own = local.syncedSection()
     var conflicts = 0
     while (true) {
-        val result = transport.write(
-            merging(local.documentUpdates(existing), into = existing),
-            baseRevision,
-            isCurrentGeneration,
+        val merged = merging(
+            keepingOwnChanges(local.documentUpdates(existing), COURSES_SECTION_KEY, own, lastSynced, existing),
+            into = existing,
         )
+        if (merged == existing) return true
+        val result = transport.write(merged, baseRevision, isCurrentGeneration)
         when (result) {
             is SettingsWriteResult.Written -> return true
             SettingsWriteResult.Abandoned -> return false
@@ -1085,10 +1240,9 @@ internal suspend fun pullClassReminderSettingsCatching(
 /**
  * How many additional attempts [NotificationSettingsSync]'s coalesced push
  * loop makes after a push fails, before giving up until the next trigger:
- * an edit, either section's 同步內容 switch turning on, or — while the edit
- * is still unconfirmed — a sign-in, a successful full sync, or either
- * settings screen opening. Bounded so a persistent failure (offline,
- * server down) cannot retry forever.
+ * an edit, or — while the edit is still unconfirmed — a sign-in, a
+ * successful full sync, or a settings screen opening. Bounded so a
+ * persistent failure (offline, server down) cannot retry forever.
  */
 internal const val MAX_PUSH_RETRIES = 2
 
@@ -1136,18 +1290,22 @@ internal fun pushRetryBackoffMillis(consecutiveFailures: Int): Long =
  * hazard is live in `SettingsViewModel.setServerPushOn` today; it is tracked
  * separately and deliberately not copied here.)
  *
- * Nothing is persisted locally by this class, so there is no fail-closed
- * question to answer: [LiveActivityPreferences] is the source of truth and
- * has already committed the user's choice by the time a push is enqueued.
- * The document is a copy of it, not the record of it — unlike
- * `applyOptOutIfAccepted`, where the local pref *is* the thing the server
- * has to accept first.
+ * No setting is persisted by this class, so there is no fail-closed
+ * question to answer: [LiveActivityPreferences] and the two stores are the
+ * source of truth and have already committed the user's choice by the time a
+ * push is enqueued. The document is a copy of them, not the record of them —
+ * unlike `applyOptOutIfAccepted`, where the local pref *is* the thing the
+ * server has to accept first. What this class does persist is bookkeeping
+ * about the sync itself: the unconfirmed-edit flags, through those stores,
+ * what each section last synced ([LastSyncedSections]), and whether the
+ * update's step has run ([LastSyncedSeed]).
  *
- * Every push is queued through one of two entry points, and which one a
- * caller uses is the protocol: [markUnconfirmedAndPush] /
- * [markAssignmentUnconfirmedAndPush] for a change this device made, which
- * the other devices must now see, and [pushIfUnconfirmed] for everything
- * that only wants a change still pending delivered, for either section.
+ * Every push is queued through one of two kinds of entry point, and which
+ * one a caller uses is the protocol: [markUnconfirmedAndPush] /
+ * [markAssignmentUnconfirmedAndPush] / [markClassReminderUnconfirmedAndPush]
+ * for a change this device made, which the other devices must now see, and
+ * [pushIfUnconfirmed] for everything that only wants a change still pending
+ * delivered, for any section.
  * [cancelPendingPushes] ends all of it at logout.
  */
 /**
@@ -1185,6 +1343,71 @@ internal interface ClassReminderSyncStore {
 }
 
 /**
+ * Each section of the `notification` document this device owns, as it last
+ * synced it: the values it last wrote there or took from there, as JSON in
+ * the document's own keys ([LiveActivitySyncValues.syncedSection],
+ * [AssignmentSyncValues.syncedSection], [ClassReminderSyncValues.syncedSection]),
+ * or null when nothing is recorded. The base of the field-by-field merge: a
+ * field whose local value still equals the recorded one is not this device's
+ * change, so a push leaves the document's value alone ([keepingOwnChanges]).
+ * The rules are iOS 2.9.2's:
+ *
+ * - A sign-in with nothing recorded starts the record from this device's
+ *   values, so what was edited while signed out gives way to the account's
+ *   document, and an edit made after the sign-in goes up.
+ * - A push that lands records what it sent. A pull records each section it
+ *   finds with no unconfirmed edit at the values it then holds.
+ * - A 同步內容 switch turned back on makes that section's values the record,
+ *   so what was edited while it was off gives way too. A push that was
+ *   already on the wire then lands without recording.
+ * - The first launch of this build, once per device ([LastSyncedSeed]) and
+ *   signed in to the school, records each section with no edit pending at
+ *   its values. A section with one gets [SENDS_EVERY_FIELD]: that edit was
+ *   made on an earlier build, so its push sends every field once, as that
+ *   build would have, and then records what it sent. Signed out, the next
+ *   sign-in starts the record.
+ * - A sign-out clears it, with the unconfirmed-edit flags: it describes the
+ *   departing account's document.
+ *
+ * Backed by [org.ntust.app.tigerduck.data.preferences.AppPreferences], beside
+ * the assignments and courses flags rather than in the Live Update's own
+ * file, which "reset to defaults" wipes: that reset is an edit to send, and
+ * it would find nothing to compare against. Plain JSON text read back by
+ * [recordedSection], never bound to a class by Gson, so a field is never
+ * filled in for it: a record an earlier build wrote simply lacks a field a
+ * later build adds, and [keepingOwnChanges] counts a field the record lacks
+ * as unchanged, so that field is not sent over another device's value. A
+ * build before this one recorded none, and text that does not parse reads
+ * the same way.
+ */
+internal interface LastSyncedSections {
+    var liveActivity: String?
+    var assignments: String?
+    var courses: String?
+}
+
+/**
+ * The record ([LastSyncedSections]) of a section whose next push sends every
+ * field: an empty object, which shares no field with this device's values.
+ */
+internal const val SENDS_EVERY_FIELD = "{}"
+
+/**
+ * Whether this device has run the update's step: the one the first launch of
+ * the build that brought [LastSyncedSections] runs, in
+ * [NotificationSettingsSync]'s init. Set by that step's first run, signed in
+ * or not. It belongs to the device, not to an account, so a sign-out keeps
+ * it; a full reset clears the file it lives in and sets it again
+ * (`FullReset`), since nothing from before the reset is left for the step to
+ * read. Backed by
+ * [org.ntust.app.tigerduck.data.preferences.AppPreferences], which needs a
+ * real `Context`, hence an interface, as for [LastSyncedSections].
+ */
+internal interface LastSyncedSeed {
+    var done: Boolean
+}
+
+/**
  * What a pull that changes the assignment-reminder settings does to the
  * reminders already armed on this device. Android fires these reminders
  * itself (the backend delivers assignment reminders only to iPhone and
@@ -1212,13 +1435,21 @@ class NotificationSettingsSync internal constructor(
     private val assignmentStore: AssignmentReminderSyncStore,
     private val assignmentAlarms: AssignmentReminderAlarms,
     private val classReminderStore: ClassReminderSyncStore,
+    private val lastSynced: LastSyncedSections,
+    private val lastSyncedSeed: LastSyncedSeed,
     private val cloudSyncEnabled: () -> Boolean,
     private val syncLiveActivity: () -> Boolean,
     private val syncAssignmentReminders: () -> Boolean,
     private val isLoggedIn: () -> Boolean,
+    /**
+     * Whether the school account is stored, which is what "signed in" means
+     * to the user, whatever state the backend session is in: the update's
+     * step ([LastSyncedSeed]) asks it, as iOS asks for stored credentials.
+     */
+    private val schoolAccountStored: () -> Boolean,
     syncLiveActivityChanged: Flow<Unit>,
     syncAssignmentRemindersChanged: Flow<Unit>,
-    scope: CoroutineScope,
+    private val scope: CoroutineScope,
 ) {
     // The real entry point: Hilt calls this (the @Inject constructor), which
     // adapts the app's singletons to the plain types of the primary
@@ -1232,6 +1463,7 @@ class NotificationSettingsSync internal constructor(
         liveActivityPreferences: LiveActivityPreferences,
         appPreferences: AppPreferences,
         authTokenManager: AuthTokenManager,
+        credentials: CredentialManager,
         scheduler: AssignmentNotificationScheduler,
         dataCache: DataCache,
         @ApplicationScope scope: CoroutineScope,
@@ -1283,10 +1515,27 @@ class NotificationSettingsSync internal constructor(
                 get() = appPreferences.hasUnconfirmedClassReminderSyncEdit
                 set(value) { appPreferences.hasUnconfirmedClassReminderSyncEdit = value }
         },
+        lastSynced = object : LastSyncedSections {
+            override var liveActivity: String?
+                get() = appPreferences.lastSyncedLiveActivitySettings
+                set(value) { appPreferences.lastSyncedLiveActivitySettings = value }
+            override var assignments: String?
+                get() = appPreferences.lastSyncedAssignmentReminderSettings
+                set(value) { appPreferences.lastSyncedAssignmentReminderSettings = value }
+            override var courses: String?
+                get() = appPreferences.lastSyncedClassReminderSettings
+                set(value) { appPreferences.lastSyncedClassReminderSettings = value }
+        },
+        lastSyncedSeed = object : LastSyncedSeed {
+            override var done: Boolean
+                get() = appPreferences.lastSyncedSettingsSeedDone
+                set(value) { appPreferences.lastSyncedSettingsSeedDone = value }
+        },
         cloudSyncEnabled = { appPreferences.cloudSyncEnabled },
         syncLiveActivity = { appPreferences.syncLiveActivity },
         syncAssignmentReminders = { appPreferences.syncAssignmentReminders },
         isLoggedIn = { authTokenManager.isLoggedIn },
+        schoolAccountStored = { credentials.ntustStudentId != null },
         syncLiveActivityChanged = appPreferences.syncLiveActivityChanged,
         syncAssignmentRemindersChanged = appPreferences.syncAssignmentRemindersChanged,
         scope = scope,
@@ -1323,6 +1572,71 @@ class NotificationSettingsSync internal constructor(
     // (NotificationSettingsPushQueue.enqueueReconcile).
     private val documentLock = Mutex()
 
+    /**
+     * Keeps the writers of the records ([LastSyncedSections]) that run on
+     * different threads from landing inside each other. Its holders:
+     *
+     * - a sign-in's start ([pushIfUnconfirmed]), from its session check to
+     *   its writes;
+     * - a switch restart ([restartRecord]);
+     * - a push ([pushNow]), once as it reads what it sends, the record it
+     *   merges against and the restart count, and again once it lands, from
+     *   its account and count checks to its record write;
+     * - a sign-out ([cancelPendingPushes]), for its generation bump and
+     *   record clears.
+     *
+     * So a start or a landing push records before a sign-out clears or not
+     * at all: `AuthService.logout()` wipes the session and only then comes
+     * here, so a start that follows the clear finds no session, and a push
+     * that follows it finds the generation moved. And a landing push never
+     * records over a restart that came while it was on the wire. Guards
+     * [liveActivityRestarts] and [assignmentRestarts].
+     *
+     * Two writers stay outside it, and are safe there:
+     *
+     * - A pull ([recordCleanSectionsAsSynced]) runs under [documentLock],
+     *   which keeps a push out, and on `Dispatchers.Main`, with nothing
+     *   suspending between its session check and its writes. A restart runs
+     *   on Main too, and so does every caller of `AuthService.logout()`, so
+     *   neither lands in the middle. A start on another thread only fills a
+     *   record that is missing, with this device's values, which is what the
+     *   pull writes as well.
+     * - The update's step ([startRecordsOnUpdate]) runs in the constructor,
+     *   before the queue and the switch collectors start and before anything
+     *   else can reach this instance.
+     *
+     * Never held across a suspension, so the restart, which must not wait on
+     * [documentLock] (a pull holds that for the whole of its read), waits at
+     * most for a few field reads and writes. Nothing done under it takes
+     * another lock: [documentLock] is a coroutine Mutex that cannot be taken
+     * without suspending, `isLoggedIn` reads the token store without
+     * `AuthTokenManager`'s `signInLock`, and no change listener is registered
+     * on the stores it touches. Nor does anyone come here holding one:
+     * `AuthService.logout()` calls in after its `accountLock` is released,
+     * and every sign-in path calls in from a suspending function. The one
+     * nesting is a push, or a pull leaving a section to one, taking this
+     * inside [documentLock], always in that order.
+     */
+    private val recordLock = Any()
+
+    /**
+     * How many times a 同步內容 switch turned back on has restarted the
+     * `live_activity` / `assignments` record ([restartRecord]). A push reads
+     * its section's count with the record it merges against, and once it
+     * lands records what it sent only if the count has not moved since. A
+     * restart that came while the push was on the wire made the section's
+     * values at that turn-on the record; an older push putting back what it
+     * sent would make an edit made while the switch was off read as this
+     * device's change, and the next push would send it instead of taking the
+     * account's value. The `courses` section has no switch, so no count.
+     *
+     * In memory only: a count has only to outlast a push that is on the wire,
+     * and a process death ends that push too, before its landing records
+     * anything.
+     */
+    private var liveActivityRestarts = 0
+    private var assignmentRestarts = 0
+
     // How many pushes in a row have failed outright (an exception from
     // pushNow(), never a closed-gate no-op — see the init loop below). The
     // loop bumps and reads it on the application scope's dispatcher, while
@@ -1334,7 +1648,17 @@ class NotificationSettingsSync internal constructor(
     // resets it and the retry never goes through one.
     private var consecutiveFailures = 0
 
+    /**
+     * The sign-in ([generation]) under which [pullNow] left a section to an
+     * unconfirmed edit's push, and so runs again once a push lands with
+     * nothing left to send ([takeOwedPull]); null when no pull is owed.
+     * Dropped at sign-out.
+     */
+    @Volatile
+    private var owedPull: Int? = null
+
     init {
+        startRecordsOnUpdate()
         scope.launch {
             for (queuedGeneration in pending) {
                 // Settle before reading the preferences: a drag that is still
@@ -1353,7 +1677,12 @@ class NotificationSettingsSync internal constructor(
                         // a logout abandoned the push. An intentional no-op,
                         // not a failure to retry. The next real trigger
                         // re-enqueues.
-                        if (succeeded) consecutiveFailures = 0
+                        if (succeeded) {
+                            consecutiveFailures = 0
+                            if (takeOwedPull(queuedGeneration)) {
+                                scope.launch { pullOnMain(what = "pull after a push landed") }
+                            }
+                        }
                     },
                     onFailure = { e ->
                         if (e is CancellationException) throw e
@@ -1385,27 +1714,127 @@ class NotificationSettingsSync internal constructor(
                 )
             }
         }
-        // Turning "同步內容 → 即時更新" back on doesn't itself change any of
-        // the five synced values, so nothing else here would ever notice
-        // and (re-)push them. Mirrors the language-change collector in
-        // PushRegistrationService.init.
+        // Turning "同步內容 → 即時更新" or "同步內容 → 作業到期提醒" back on
+        // changes none of its section's values, so nothing else here would
+        // notice: see restartRecord. Only the off->on transition acts, which
+        // is what a change on these flows with the switch now on means, since
+        // AppPreferences emits only on an actual change.
         scope.launch {
             syncLiveActivityChanged.collect {
-                if (syncLiveActivity()) markUnconfirmedAndPush()
+                switchChanged(isOn = syncLiveActivity, section = "live_activity") {
+                    restartRecord(liveActivity = true)
+                }
             }
         }
-        // Same reasoning, for "同步內容 → 作業到期提醒": turning it back on
-        // doesn't itself change notifyAssignments/notifyAssignmentOffsets, so
-        // without this the just-ungated section would stay stale server-side
-        // until some unrelated edit happened to trigger a push. Mirrors
-        // iOS's shouldPushOnDeviceSwitchChange (true only on the off->on
-        // transition, which is exactly what "a change arrived on this flow"
-        // means here since AppPreferences only emits on an actual change).
         scope.launch {
             syncAssignmentRemindersChanged.collect {
-                if (syncAssignmentReminders()) markAssignmentUnconfirmedAndPush()
+                switchChanged(isOn = syncAssignmentReminders, section = "assignments") {
+                    restartRecord(assignments = true)
+                }
             }
         }
+    }
+
+    /**
+     * One change of the 同步內容 switch for [section]: when [isOn] says it is
+     * now on, [restart]s the section's record on `Dispatchers.Main`, where the
+     * settings screens make their edits, and starts the pull that adopts the
+     * section, which runs by itself.
+     *
+     * The pull is not waited for. A collector that waited out its read let
+     * every change made meanwhile queue up behind it, and the restart of a
+     * change taken that late recorded the section's values as they were by
+     * then: an edit made after the switch came on was in them, so its push
+     * found nothing changed, sent nothing, and the pull took the edit back.
+     * Taken at once, each restart records the values of its own turn-on.
+     * The pull still goes through [pullNow], under [documentLock] like every
+     * other pull and push; the restart, as before, does not take that lock,
+     * which a pull holds for the whole of its read. It takes [recordLock]
+     * instead, which no one holds across a round trip, so a push on the wire
+     * cannot put its older record back over it.
+     */
+    private suspend fun switchChanged(isOn: () -> Boolean, section: String, restart: () -> Unit) {
+        val turnedOn = try {
+            withContext(Dispatchers.Main) { isOn().also { if (it) restart() } }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "restarting the $section record after its switch came on failed: ${e.logSummary()}")
+            false
+        }
+        if (turnedOn) scope.launch { pullOnMain(what = "adopting $section after its switch came on") }
+    }
+
+    /**
+     * Runs [pullNow] on `Dispatchers.Main`, which its check-and-apply
+     * requires; the application scope's dispatcher is Default. A failure is
+     * logged under [what] and goes no further.
+     */
+    private suspend fun pullOnMain(what: String) {
+        try {
+            withContext(Dispatchers.Main) { pullNow() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "notification settings $what failed: ${e.logSummary()}")
+        }
+    }
+
+    /**
+     * A 同步內容 switch turned back on takes its section from the account's
+     * document before anything is sent, as iOS 2.9.2 does. This device's
+     * values went stale while the switch was off, and sending them, as this
+     * once did, took back every change another device made in the meantime.
+     * So the section's values here, as they are when the switch comes on
+     * ([switchChanged]), become its record ([LastSyncedSections]), and the
+     * pull that follows adopts the section. An edit made while the
+     * switch was off gives way with them; one made after it goes up. With no
+     * real record (signed out, or a push an update found pending) there is
+     * nothing to restart.
+     *
+     * An edit made while the switch was off is still unconfirmed, so that
+     * pull leaves the section to its push, which now has nothing to send, and
+     * runs again once it lands ([takeOwedPull]).
+     *
+     * A push already on the wire when the switch came on read the record
+     * before this restart; when it lands, it leaves this record alone
+     * ([liveActivityRestarts]).
+     */
+    private fun restartRecord(liveActivity: Boolean = false, assignments: Boolean = false) = synchronized(recordLock) {
+        fun restartable(text: String?) = recordedSection(text)?.isEmpty == false
+        if (liveActivity && restartable(lastSynced.liveActivity)) {
+            liveActivityRestarts++
+            lastSynced.liveActivity = liveActivityPreferences.syncSnapshot().syncedSection().toString()
+        }
+        if (assignments && restartable(lastSynced.assignments)) {
+            assignmentRestarts++
+            lastSynced.assignments = assignmentValues().syncedSection().toString()
+        }
+    }
+
+    /**
+     * Whether a pull is owed once the push queued under [queuedGeneration]
+     * has landed, and if so takes it. [pullNow] leaves a section with an
+     * unconfirmed edit to that edit's push; once a push lands with nothing
+     * left to send, the pull runs again, so the device takes the section's
+     * other fields from the document right after, as iOS's reconcile does
+     * (`NotificationSettingsPushQueue`). Nothing is held while it waits, so an
+     * edit made in the meantime is kept: it is unconfirmed again, and the
+     * pull leaves it alone.
+     */
+    private fun takeOwedPull(queuedGeneration: Int): Boolean {
+        if (owedPull != queuedGeneration || queuedGeneration != generation.get()) return false
+        if (hasEditLeftToSend()) return false
+        owedPull = null
+        return true
+    }
+
+    /** Whether some section has an unconfirmed edit that a push could send now. */
+    private fun hasEditLeftToSend(): Boolean {
+        if (!cloudSyncEnabled() || !isLoggedIn()) return false
+        return liveActivityPreferences.hasUnconfirmedSyncEdit && syncLiveActivity() ||
+            assignmentStore.hasUnconfirmedEdit && syncAssignmentReminders() ||
+            classReminderStore.hasUnconfirmedEdit
     }
 
     /**
@@ -1414,17 +1843,15 @@ class NotificationSettingsSync internal constructor(
      * of them. Returns immediately; the write happens on the application
      * scope.
      *
-     * For exactly the two triggers that make this device's values the ones
+     * For exactly the one trigger that makes this device's values the ones
      * the user's other devices should now see: an edit to one of the five
      * synced values
-     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]),
-     * and "同步內容 → 即時更新" turning on (this class's `init`), which
-     * republishes values that stopped syncing while it was off — iOS pushes
-     * on that same off-to-on edge. Nothing else may call this. A marked
-     * device keeps its values through every pull and pushes them over
-     * whatever the other devices wrote, so a sign-in or a sync that marked
-     * would overwrite the shared settings with this device's stale ones.
-     * Those use [pushIfUnconfirmed].
+     * ([org.ntust.app.tigerduck.ui.screen.settings.LiveActivitySettingsViewModel]).
+     * Nothing else may call this, "同步內容 → 即時更新" turning back on
+     * included: that takes the section from the document instead
+     * ([restartRecord]). A marked device keeps its values through
+     * every pull, so a sign-in or a sync that marked would hold this device's
+     * stale values against the shared ones. Those use [pushIfUnconfirmed].
      *
      * Resets [consecutiveFailures] so every fresh trigger gets its own full
      * retry budget — without this, a bad streak left the counter stuck at
@@ -1440,12 +1867,11 @@ class NotificationSettingsSync internal constructor(
     /**
      * The assignments-section mirror of [markUnconfirmedAndPush]: marks
      * [AssignmentReminderSyncStore.hasUnconfirmedEdit] and queues a push
-     * through the same channel. Called for exactly the two triggers that
-     * make this device's assignment-reminder settings the ones the user's
-     * other devices should now see: an edit to the master switch or an
-     * offset
-     * ([org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsViewModel]),
-     * and "同步內容 → 作業到期提醒" turning on (this class's `init`).
+     * through the same channel. Called only for an edit to the master switch
+     * or an offset
+     * ([org.ntust.app.tigerduck.ui.screen.settings.AssignmentReminderSettingsViewModel]);
+     * "同步內容 → 作業到期提醒" turning back on takes the section from the
+     * document instead ([restartRecord]).
      */
     fun markAssignmentUnconfirmedAndPush() {
         assignmentStore.hasUnconfirmedEdit = true
@@ -1466,18 +1892,25 @@ class NotificationSettingsSync internal constructor(
     }
 
     /**
-     * Queues a push only if an earlier edit — live_activity's, assignments',
-     * or both — is still unconfirmed, and never marks anything: with nothing
+     * Queues a push only if an earlier edit, to any of the three sections,
+     * is still unconfirmed, and never marks anything: with nothing
      * pending it does nothing at all, and the next pull is free to adopt
      * what another device wrote.
      *
      * The catch-up for an edit whose push has not landed — one made while
-     * signed out, or while cloud sync or the relevant "同步內容" switch was
-     * off, or one whose retries ran out. Called from each of
+     * cloud sync was off or the session had lapsed, or one whose retries ran
+     * out. An edit made while signed out, or while its "同步內容" switch was
+     * off, comes through here too, but its section's record holds it by then
+     * ([LastSyncedSections]), so it gives way and only what the document
+     * lacks goes up. Called from each of
      * [org.ntust.app.tigerduck.auth.AuthService]'s sign-in paths (a fresh
      * login and the automatic sign-in), after every
      * successful full sync (`HomeBackendSync.pull`), and by [pullNow] when it
-     * finds an edit it must not overwrite.
+     * finds an edit it must not overwrite. Signed in with nothing recorded, it
+     * first starts the record, which is what makes it the sign-in's; so each
+     * sign-in path calls it as soon as its backend login returns, before
+     * anything else it waits for, or an edit made in between would be pushed
+     * against no record and lost (`followTypedSignIn`).
      *
      * The automatic sign-in is one more reason this must never mark: a
      * lapsed refresh token or a missing session sends
@@ -1489,6 +1922,15 @@ class NotificationSettingsSync internal constructor(
      * [markUnconfirmedAndPush] does.
      */
     fun pushIfUnconfirmed() {
+        // Every sign-in path calls this once the session exists: a signed-in
+        // account with nothing recorded starts its record from this device's
+        // values, so an edit made while signed out gives way to the
+        // account's document (LastSyncedSections). The session check and the
+        // start are one step against a sign-out (recordLock), and the
+        // automatic sign-in runs this off the main thread.
+        synchronized(recordLock) {
+            if (isLoggedIn()) startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = false)
+        }
         if (!liveActivityPreferences.hasUnconfirmedSyncEdit &&
             !assignmentStore.hasUnconfirmedEdit &&
             !classReminderStore.hasUnconfirmedEdit
@@ -1498,9 +1940,11 @@ class NotificationSettingsSync internal constructor(
     }
 
     /**
-     * Drops every queued push and clears the unconfirmed-edit flag. Called
-     * from `AuthService.logout()`: both belong to the account that is
-     * leaving, and neither may reach whoever signs in next. The flag would
+     * Drops every queued push and any pull owed after one, and clears the
+     * unconfirmed-edit flags and the record of what each section last synced
+     * ([LastSyncedSections]). Called
+     * from `AuthService.logout()`: all of it belongs to the account that is
+     * leaving, and none of it may reach whoever signs in next. The flag would
      * make that sign-in push this device's values into the new account's
      * document, and a queued push — one still in its debounce, or a retry
      * still in its backoff — would run under the new session. Mirrors iOS's
@@ -1516,12 +1960,25 @@ class NotificationSettingsSync internal constructor(
      * write's check is the one that counts: a request built after this
      * logout can still carry a token, because resolving it may run a
      * relogin with whoever's credentials are stored by then.
+     *
+     * A push that has already landed checks the generation once more before
+     * it records what it sent, and that check and its record write are one
+     * step with this bump and the record clears ([recordLock]). Without that,
+     * a sign-out between the two would leave the departing account's record
+     * behind for whoever signs in next. The flags stay outside the lock: a
+     * landing push only ever clears them too.
      */
     fun cancelPendingPushes() {
-        generation.incrementAndGet()
+        synchronized(recordLock) {
+            generation.incrementAndGet()
+            lastSynced.liveActivity = null
+            lastSynced.assignments = null
+            lastSynced.courses = null
+        }
         liveActivityPreferences.hasUnconfirmedSyncEdit = false
         assignmentStore.hasUnconfirmedEdit = false
         classReminderStore.hasUnconfirmedEdit = false
+        owedPull = null
     }
 
     /**
@@ -1593,6 +2050,13 @@ class NotificationSettingsSync internal constructor(
      * [knownRevision] is the sync revision of the full sync this pull follows:
      * at one a pull already found no document at, it reads none ([missingAt]).
      * A settings screen's pull passes none and always reads.
+     *
+     * Signed in, each section with no unconfirmed edit is recorded as synced
+     * ([LastSyncedSections]) before the read and again after the apply: an
+     * edit made while the read is on the wire is told apart from the values
+     * before it, and a later edit's push does not send back what the pull
+     * applied. A section left to an unconfirmed edit's push owes a second
+     * pull once that push lands ([takeOwedPull]).
      */
     suspend fun pullNow(knownRevision: Long? = null): Boolean {
         requireMainThread()
@@ -1604,6 +2068,13 @@ class NotificationSettingsSync internal constructor(
             // abandoned instead of applied — see pullLiveActivitySettings.
             val pulledGeneration = generation.get()
             val isCurrentGeneration = { pulledGeneration == generation.get() }
+            // A section with an edit this must not overwrite is left to that
+            // edit's push, and this pull runs again once it lands.
+            val deferToPush = {
+                owedPull = pulledGeneration
+                pushIfUnconfirmed()
+            }
+            recordCleanSectionsAsSynced()
             // One GET for both sections; see SingleReadTransport. None at a
             // revision a pull already found no document at: any device's write
             // of one moves the revision (missingAt).
@@ -1626,7 +2097,7 @@ class NotificationSettingsSync internal constructor(
                 syncLiveActivity = syncLiveActivity(),
                 isLoggedIn = isLoggedIn(),
                 isLocalDirty = { liveActivityPreferences.hasUnconfirmedSyncEdit },
-                onLocalDirty = { pushIfUnconfirmed() },
+                onLocalDirty = deferToPush,
                 isCurrentGeneration = isCurrentGeneration,
                 onFailure = { e -> Log.w(TAG, "pulling live_activity settings failed: ${e.logSummary()}") },
             )
@@ -1642,7 +2113,7 @@ class NotificationSettingsSync internal constructor(
                 syncAssignmentReminders = assignmentsSynced,
                 isLoggedIn = loggedIn,
                 isLocalDirty = { assignmentStore.hasUnconfirmedEdit || assignmentValues() != expected },
-                onLocalDirty = { pushIfUnconfirmed() },
+                onLocalDirty = deferToPush,
                 isCurrentGeneration = isCurrentGeneration,
                 onFailure = { e ->
                     assignmentReadFailed = true
@@ -1667,7 +2138,7 @@ class NotificationSettingsSync internal constructor(
                 isLocalDirty = {
                     classReminderStore.hasUnconfirmedEdit || classReminderValues() != expectedClassReminder
                 },
-                onLocalDirty = { pushIfUnconfirmed() },
+                onLocalDirty = deferToPush,
                 isCurrentGeneration = isCurrentGeneration,
                 onFailure = { e ->
                     classReminderReadFailed = true
@@ -1688,6 +2159,7 @@ class NotificationSettingsSync internal constructor(
             // false, so a logout's cancelled reminders stay cancelled.
             val assignmentsAttempted =
                 cloudSync && assignmentsSynced && loggedIn && !assignmentReadFailed && isCurrentGeneration()
+            if (isCurrentGeneration()) recordCleanSectionsAsSynced()
             liveActivityAttempted || assignmentsAttempted || classReminderAttempted
         }
 
@@ -1706,6 +2178,77 @@ class NotificationSettingsSync internal constructor(
         leadMinutes = classReminderStore.leadMinutes,
         hasPickedLead = classReminderStore.hasPickedLead,
     )
+
+    /**
+     * Records each section with no unconfirmed edit as synced at the values
+     * it holds now ([LastSyncedSections]): with no edit of its own pending,
+     * none of them is this device's change to send. A section with one keeps
+     * the record from before that edit, which is what tells the edit apart.
+     * Signed out there is no record to keep: the next sign-in starts it.
+     * Called by [pullNow] under [documentLock].
+     */
+    private fun recordCleanSectionsAsSynced() {
+        if (!isLoggedIn()) return
+        if (!liveActivityPreferences.hasUnconfirmedSyncEdit) {
+            lastSynced.liveActivity = liveActivityPreferences.syncSnapshot().syncedSection().toString()
+        }
+        if (!assignmentStore.hasUnconfirmedEdit) lastSynced.assignments = assignmentValues().syncedSection().toString()
+        if (!classReminderStore.hasUnconfirmedEdit) lastSynced.courses = classReminderValues().syncedSection().toString()
+    }
+
+    /**
+     * The step the first launch of the build that brought the field-by-field
+     * merge runs, once per device ([LastSyncedSeed]): an earlier build kept no
+     * record. Signed in, each section with no edit pending is recorded at its
+     * values, and one with an edit pending gets [SENDS_EVERY_FIELD]; signed
+     * out, nothing is recorded, and the next sign-in starts the record. See
+     * [LastSyncedSections].
+     *
+     * Once, because "an edit is pending and nothing is recorded" means "made
+     * on an earlier build" only on that launch. On any later one it is a
+     * record that went missing or stopped parsing, and sending every field
+     * then would take back what another device changed since.
+     *
+     * Signed in means the school account is stored, as iOS asks for stored
+     * credentials, not that the backend session is: a session that lapsed
+     * before the update is the automatic sign-in's to renew, and the edit the
+     * earlier build left pending is still this device's. Android never runs
+     * before the first unlock (no component is directBootAware), so what is
+     * stored always reads back here.
+     */
+    private fun startRecordsOnUpdate() {
+        if (lastSyncedSeed.done) return
+        if (schoolAccountStored()) startRecordsWhereMissing(sendEveryFieldOfAPendingEdit = true)
+        lastSyncedSeed.done = true
+    }
+
+    /**
+     * Gives each section with no record (none stored, or one that does not
+     * parse) one at its values now; see [LastSyncedSections]. With
+     * [sendEveryFieldOfAPendingEdit], the update's step, a section with an
+     * unconfirmed edit gets [SENDS_EVERY_FIELD] instead. The caller has
+     * checked that an account is signed in, and holds [recordLock] unless it
+     * is the update's step, in the constructor.
+     *
+     * A record that exists is not touched at all: written back, it would take
+     * away whatever replaced it since the read here, a restart's included.
+     */
+    private fun startRecordsWhereMissing(sendEveryFieldOfAPendingEdit: Boolean) {
+        fun started(text: String?, pending: Boolean, values: () -> JsonObject): String? = when {
+            recordedSection(text) != null -> null
+            sendEveryFieldOfAPendingEdit && pending -> SENDS_EVERY_FIELD
+            else -> values().toString()
+        }
+        started(lastSynced.liveActivity, liveActivityPreferences.hasUnconfirmedSyncEdit) {
+            liveActivityPreferences.syncSnapshot().syncedSection()
+        }?.let { lastSynced.liveActivity = it }
+        started(lastSynced.assignments, assignmentStore.hasUnconfirmedEdit) {
+            assignmentValues().syncedSection()
+        }?.let { lastSynced.assignments = it }
+        started(lastSynced.courses, classReminderStore.hasUnconfirmedEdit) {
+            classReminderValues().syncedSection()
+        }?.let { lastSynced.courses = it }
+    }
 
     /**
      * Fails loudly, in debug builds, if [pullNow] runs anywhere but the main
@@ -1737,20 +2280,21 @@ class NotificationSettingsSync internal constructor(
     }
 
     /**
-     * Pushes whichever of the two sections this class owns is actually
+     * Pushes whichever of the three sections this class owns is actually
      * unconfirmed, sequentially under the one queued trigger: live_activity
-     * first (unchanged from before assignments existed), then assignments.
-     * Sequential, not concurrent, so the assignments push's own read sees
-     * whatever the live_activity push just wrote rather than racing it into
-     * an avoidable 409.
+     * first (unchanged from before assignments existed), then assignments,
+     * then courses. Sequential, not concurrent, so each push's own read sees
+     * whatever the one before it just wrote rather than racing it into an
+     * avoidable 409.
      *
      * Each is gated on its own unconfirmed-edit flag *in addition to* its
-     * own sync switch: every path that enqueues a push — [markUnconfirmedAndPush],
-     * [markAssignmentUnconfirmedAndPush], [pushIfUnconfirmed], the off→on
-     * switch collectors, and the failure handler's own re-`trySend` — sets
-     * or requires at least one of the two flags first, so this never skips
-     * a push that was actually asked for. What it does prevent: one
-     * section's trigger (an assignments edit, say) re-sending the *other*
+     * own gates: every path that enqueues a push — [markUnconfirmedAndPush],
+     * [markAssignmentUnconfirmedAndPush], [markClassReminderUnconfirmedAndPush],
+     * [pushIfUnconfirmed] and the failure handler's own re-`trySend` — sets
+     * or requires at least one of the three flags first, so this never skips
+     * a push that was actually asked for. A 同步內容 switch turned back on
+     * queues none: it pulls instead ([restartRecord]). What it does prevent:
+     * one section's trigger (an assignments edit, say) re-sending another
      * section's values on every unrelated queue run. Those values are only
      * this device's copy, and another device may have changed that section
      * since this one last pulled: an unconditional push would write the
@@ -1761,17 +2305,34 @@ class NotificationSettingsSync internal constructor(
      * changed locally while it ran — see [pushLiveActivitySettings]'s KDoc
      * (`canClearPendingMarker`) for why.
      *
-     * Returns `true` if *either* section actually pushed, so the retry loop
-     * above only treats "neither was dirty, or every dirty gate was closed"
-     * as the no-op case; either section throwing propagates immediately
-     * (the other is not attempted that pass), and the whole call is
-     * retried together on the next attempt, exactly as a single-section
+     * Each writes only the fields of its section this device changed since
+     * [LastSyncedSections] last recorded it ([keepingOwnChanges]), and none
+     * at all when the document already holds them; a push that lands records
+     * the values it sent, under the account it was queued for. An edit made
+     * while it was on the wire then differs from that record, and its own
+     * push sends it. A switch turned back on while it was on the wire
+     * restarted the record ([restartRecord]), and the push leaves that newer
+     * record in place: it reads what it sends, the record it merges against
+     * and its section's restart count together, and records only if the count
+     * has not moved, both under [recordLock], so no restart lands between
+     * those reads or between the check and the write. Nor does a sign-out:
+     * its bump and clears take the same lock, in every section, courses
+     * included.
+     *
+     * Returns `true` if any section's push landed (a push whose change the
+     * document already held counts as landed), so the retry loop above only
+     * treats "no section was dirty, or every dirty section's gate was
+     * closed" as the no-op case. A section that throws propagates at once,
+     * and the sections after it are not attempted that pass; the whole call
+     * is retried together on the next attempt, exactly as a single-section
      * push already was.
      */
     private suspend fun pushNow(queuedGeneration: Int): Boolean {
         var liveActivitySucceeded = false
         if (liveActivityPreferences.hasUnconfirmedSyncEdit) {
-            val sentLiveActivity = liveActivityPreferences.syncSnapshot()
+            val (sentLiveActivity, liveActivityBase, liveActivityRestartsAtBase) = synchronized(recordLock) {
+                Triple(liveActivityPreferences.syncSnapshot(), recordedSection(lastSynced.liveActivity), liveActivityRestarts)
+            }
             liveActivitySucceeded = pushLiveActivitySettings(
                 local = sentLiveActivity,
                 transport = transport,
@@ -1779,7 +2340,13 @@ class NotificationSettingsSync internal constructor(
                 syncLiveActivity = syncLiveActivity(),
                 isLoggedIn = isLoggedIn(),
                 isCurrentGeneration = { queuedGeneration == generation.get() },
+                lastSynced = liveActivityBase,
             )
+            if (liveActivitySucceeded) synchronized(recordLock) {
+                if (queuedGeneration == generation.get() && liveActivityRestarts == liveActivityRestartsAtBase) {
+                    lastSynced.liveActivity = sentLiveActivity.syncedSection().toString()
+                }
+            }
             // Cleared only by a push that landed, and only if the five
             // values still equal what it sent. A gate-closed `false`, an
             // abandoned push (the account changed mid-flight — see
@@ -1798,7 +2365,9 @@ class NotificationSettingsSync internal constructor(
 
         var assignmentsSucceeded = false
         if (assignmentStore.hasUnconfirmedEdit) {
-            val sentAssignments = AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
+            val (sentAssignments, assignmentsBase, assignmentRestartsAtBase) = synchronized(recordLock) {
+                Triple(assignmentValues(), recordedSection(lastSynced.assignments), assignmentRestarts)
+            }
             assignmentsSucceeded = pushAssignmentSettings(
                 local = sentAssignments,
                 transport = transport,
@@ -1806,7 +2375,13 @@ class NotificationSettingsSync internal constructor(
                 syncAssignmentReminders = syncAssignmentReminders(),
                 isLoggedIn = isLoggedIn(),
                 isCurrentGeneration = { queuedGeneration == generation.get() },
+                lastSynced = assignmentsBase,
             )
+            if (assignmentsSucceeded) synchronized(recordLock) {
+                if (queuedGeneration == generation.get() && assignmentRestarts == assignmentRestartsAtBase) {
+                    lastSynced.assignments = sentAssignments.syncedSection().toString()
+                }
+            }
             val currentAssignments =
                 AssignmentSyncValues(enabled = assignmentStore.enabled, offsets = assignmentStore.offsets)
             if (assignmentsSucceeded && currentAssignments == sentAssignments) {
@@ -1823,7 +2398,15 @@ class NotificationSettingsSync internal constructor(
                 cloudSyncEnabled = cloudSyncEnabled(),
                 isLoggedIn = isLoggedIn(),
                 isCurrentGeneration = { queuedGeneration == generation.get() },
+                lastSynced = recordedSection(lastSynced.courses),
             )
+            // No switch restarts this section, but a sign-out can clear its
+            // record, so the check and the write are one step all the same.
+            if (classReminderSucceeded) synchronized(recordLock) {
+                if (queuedGeneration == generation.get()) {
+                    lastSynced.courses = sentClassReminder.syncedSection().toString()
+                }
+            }
             if (classReminderSucceeded && classReminderValues() == sentClassReminder) {
                 classReminderStore.hasUnconfirmedEdit = false
             }
