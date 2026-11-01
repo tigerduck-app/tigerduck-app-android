@@ -28,7 +28,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Forward
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.ReplyAll
@@ -47,11 +46,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -100,13 +97,12 @@ import org.ntust.app.tigerduck.mail.warning.MailWarning
 import org.ntust.app.tigerduck.mail.warning.MailWarnings
 import org.ntust.app.tigerduck.ui.component.ContentCard
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.SubPageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.component.scrollbar
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.Content
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailMessageViewModel.ViewMode
-import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.util.replaceIosArg
 
@@ -222,52 +218,41 @@ fun SchoolMailMessageScreen(
         viewModel.consumeSaveRequest()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    if (ready != null && state.folderKind != SpecialFolder.DRAFTS) {
-                        IconButton(onClick = { onCompose(ComposeMode.REPLY, viewModel.folder, viewModel.uid) }) {
-                            Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = stringResource(R.string.school_mail_reply))
-                        }
-                        IconButton(onClick = { onCompose(ComposeMode.REPLY_ALL, viewModel.folder, viewModel.uid) }) {
-                            Icon(Icons.AutoMirrored.Filled.ReplyAll, contentDescription = stringResource(R.string.school_mail_reply_all))
-                        }
-                        IconButton(onClick = { onCompose(ComposeMode.FORWARD, viewModel.folder, viewModel.uid) }) {
-                            Icon(Icons.AutoMirrored.Filled.Forward, contentDescription = stringResource(R.string.school_mail_forward))
-                        }
-                    }
-                    if (state.content !is Content.Loading) {
-                        Box {
-                            MessageActionsButton(onClick = { menuOpen = true })
-                            MessageMenu(
-                                expanded = menuOpen,
-                                mode = state.mode,
-                                canFormat = canFormat,
-                                offersLightMode = offersLightMode(isDark, state.mode, canFormat),
-                                viewInLight = viewInLight,
-                                onDismiss = { menuOpen = false },
-                                onMode = { menuOpen = false; viewModel.selectMode(it) },
-                                onViewInLight = { menuOpen = false; viewModel.setViewInLight(!viewInLight) },
-                                seen = ready?.summary?.flags?.seen,
-                                onToggleSeen = { menuOpen = false; viewModel.toggleSeen() },
-                                onMove = { menuOpen = false; showMove = true },
-                                onDelete = { menuOpen = false; viewModel.delete() },
-                            )
-                        }
-                    }
-                },
-                expandedHeight = SubSettingsBarHeight,
-            )
+    SubPageScaffold(
+        title = "",
+        onBack = onBack,
+        actions = {
+            if (ready != null && state.folderKind != SpecialFolder.DRAFTS) {
+                IconButton(onClick = { onCompose(ComposeMode.REPLY, viewModel.folder, viewModel.uid) }) {
+                    Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = stringResource(R.string.school_mail_reply))
+                }
+                IconButton(onClick = { onCompose(ComposeMode.REPLY_ALL, viewModel.folder, viewModel.uid) }) {
+                    Icon(Icons.AutoMirrored.Filled.ReplyAll, contentDescription = stringResource(R.string.school_mail_reply_all))
+                }
+                IconButton(onClick = { onCompose(ComposeMode.FORWARD, viewModel.folder, viewModel.uid) }) {
+                    Icon(Icons.AutoMirrored.Filled.Forward, contentDescription = stringResource(R.string.school_mail_forward))
+                }
+            }
+            if (state.content !is Content.Loading) {
+                Box {
+                    MessageActionsButton(onClick = { menuOpen = true })
+                    MessageMenu(
+                        expanded = menuOpen,
+                        mode = state.mode,
+                        canFormat = canFormat,
+                        offersLightMode = offersLightMode(isDark, state.mode, canFormat),
+                        viewInLight = viewInLight,
+                        onDismiss = { menuOpen = false },
+                        onMode = { menuOpen = false; viewModel.selectMode(it) },
+                        onViewInLight = { menuOpen = false; viewModel.setViewInLight(!viewInLight) },
+                        seen = ready?.summary?.flags?.seen,
+                        onToggleSeen = { menuOpen = false; viewModel.toggleSeen() },
+                        onMove = { menuOpen = false; showMove = true },
+                        onDelete = { menuOpen = false; viewModel.delete() },
+                    )
+                }
+            }
         },
-        containerColor = MaterialTheme.colorScheme.background,
     ) { padding ->
         when (val content = state.content) {
             Content.Loading -> Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {

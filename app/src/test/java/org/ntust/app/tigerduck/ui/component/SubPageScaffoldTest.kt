@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -68,6 +69,13 @@ class SubPageScaffoldTest {
     }
 
     @Test
+    fun `an empty title leaves the title slot empty`() {
+        composeRule.setContent { SubPageScaffold(title = "", onBack = {}) {} }
+        composeRule.onNodeWithContentDescription(backLabel()).assertIsDisplayed()
+        composeRule.onAllNodes(hasText("")).assertCountEquals(0)
+    }
+
+    @Test
     fun `the content starts below the compact bar`() {
         var padding: PaddingValues? = null
         composeRule.setContent {
@@ -89,5 +97,23 @@ class SubPageScaffoldTest {
             ) { padding = it }
         }
         composeRule.runOnIdle { assertEquals(10.dp, padding!!.calculateBottomPadding()) }
+    }
+
+    @Test
+    fun `a snackbar host is shown with the page`() {
+        composeRule.setContent {
+            SubPageScaffold(
+                title = "Mail",
+                onBack = {},
+                snackbarHost = { Text("Message sent") },
+            ) {}
+        }
+        composeRule.onNodeWithText("Message sent").assertIsDisplayed()
+    }
+
+    @Test
+    fun `without a snackbar host nothing extra is shown`() {
+        composeRule.setContent { SubPageScaffold(title = "Mail", onBack = {}) {} }
+        composeRule.onNodeWithText("Message sent").assertDoesNotExist()
     }
 }

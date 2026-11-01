@@ -25,7 +25,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Image
@@ -35,14 +34,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,14 +62,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.MailError
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.SubPageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerDuckDialog
 import org.ntust.app.tigerduck.ui.navigation.AskBeforeLeaving
 import org.ntust.app.tigerduck.ui.navigation.HeldMove
 import org.ntust.app.tigerduck.ui.navigation.LeaveGuard
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.RecipientSlot
-import org.ntust.app.tigerduck.ui.screen.settings.SubSettingsBarHeight
 import org.ntust.app.tigerduck.util.replaceIosArg
 
 /**
@@ -183,56 +179,41 @@ fun SchoolMailComposeScreen(
     val pickPhotos = rememberPhotoPicker(viewModel::addPicked)
     val fieldsEnabled = !state.sending && !state.loading
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = {
-                    Text(
-                        stringResource(
-                            when (viewModel.mode) {
-                                ComposeMode.REPLY -> R.string.school_mail_reply
-                                ComposeMode.REPLY_ALL -> R.string.school_mail_reply_all
-                                ComposeMode.FORWARD -> R.string.school_mail_forward
-                                ComposeMode.NEW, ComposeMode.DRAFT -> R.string.school_mail_compose
-                            },
-                        ),
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = leave) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = pickPhotos, enabled = fieldsEnabled) {
-                        Icon(Icons.Filled.Image, contentDescription = stringResource(R.string.class_table_import_choose_photo))
-                    }
-                    IconButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = fieldsEnabled) {
-                        Icon(Icons.Filled.AttachFile, contentDescription = stringResource(R.string.school_mail_add_attachment))
-                    }
-                    // A pick still being described/measured off the io dispatcher shows its own
-                    // spinner here, distinct from the send spinner -- Send/Save must not run
-                    // against a form whose attachment list isn't done changing yet.
-                    if (state.pendingPicks > 0) {
-                        Box(Modifier.padding(horizontal = 8.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
-                    }
-                    if (state.sending) {
-                        Box(Modifier.padding(horizontal = 16.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
-                    } else {
-                        TextButton(
-                            onClick = { if (viewModel.requestSend()) showSendConfirm = true },
-                            enabled = !state.loading && state.pendingPicks == 0,
-                        ) {
-                            Text(stringResource(R.string.school_mail_send))
-                        }
-                    }
-                },
-                expandedHeight = SubSettingsBarHeight,
-            )
+    SubPageScaffold(
+        title = stringResource(
+            when (viewModel.mode) {
+                ComposeMode.REPLY -> R.string.school_mail_reply
+                ComposeMode.REPLY_ALL -> R.string.school_mail_reply_all
+                ComposeMode.FORWARD -> R.string.school_mail_forward
+                ComposeMode.NEW, ComposeMode.DRAFT -> R.string.school_mail_compose
+            },
+        ),
+        onBack = leave,
+        actions = {
+            IconButton(onClick = pickPhotos, enabled = fieldsEnabled) {
+                Icon(Icons.Filled.Image, contentDescription = stringResource(R.string.class_table_import_choose_photo))
+            }
+            IconButton(onClick = { picker.launch(arrayOf("*/*")) }, enabled = fieldsEnabled) {
+                Icon(Icons.Filled.AttachFile, contentDescription = stringResource(R.string.school_mail_add_attachment))
+            }
+            // A pick still being described/measured off the io dispatcher shows its own
+            // spinner here, distinct from the send spinner -- Send/Save must not run
+            // against a form whose attachment list isn't done changing yet.
+            if (state.pendingPicks > 0) {
+                Box(Modifier.padding(horizontal = 8.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+            }
+            if (state.sending) {
+                Box(Modifier.padding(horizontal = 16.dp)) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp) }
+            } else {
+                TextButton(
+                    onClick = { if (viewModel.requestSend()) showSendConfirm = true },
+                    enabled = !state.loading && state.pendingPicks == 0,
+                ) {
+                    Text(stringResource(R.string.school_mail_send))
+                }
+            }
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(padding).imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
