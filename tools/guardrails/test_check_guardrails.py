@@ -118,6 +118,32 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "ui/screen/Page.kt", "val a = { TopAppBar (title = {}) }\n")
         self.assertEqual(self.top_app_bars(), {APP + "ui/screen/Page.kt": 1})
 
+    def test_a_renamed_import_of_a_top_app_bar_still_counts(self):
+        self.write(APP + "ui/screen/Page.kt", (
+            "import androidx.compose.material3.TopAppBar as MaterialBar\n"
+            "import androidx.compose.material3.MediumTopAppBar as `Bar2`\n"
+            "val a = { MaterialBar(title = {}) }\n"
+            "val b = { Bar2 (title = {}) }\n"))
+        self.assertEqual(self.top_app_bars(), {APP + "ui/screen/Page.kt": 2})
+
+    def test_a_backticked_top_app_bar_call_counts(self):
+        self.write(APP + "ui/screen/Page.kt", "val a = { `TopAppBar`(title = {}) }\n")
+        self.assertEqual(self.top_app_bars(), {APP + "ui/screen/Page.kt": 1})
+
+    def test_a_renamed_import_in_ui_component_passes(self):
+        self.write(APP + "ui/component/Bar.kt", (
+            "import androidx.compose.material3.TopAppBar as MaterialBar\n"
+            "val a = { MaterialBar(title = {}) }\n"))
+        self.assertEqual(self.top_app_bars(), {})
+
+    def test_an_alias_of_something_else_is_not_a_top_app_bar(self):
+        self.write(APP + "ui/screen/Page.kt", (
+            "import androidx.compose.material3.TopAppBarDefaults as Defaults\n"
+            "import androidx.compose.material3.Text as MaterialText\n"
+            "val a = { MaterialText(\"x\") }\n"
+            "val b = Defaults.windowInsets\n"))
+        self.assertEqual(self.top_app_bars(), {})
+
     def test_what_only_names_a_top_app_bar_is_not_one(self):
         self.write(APP + "ui/screen/Page.kt", (
             "import androidx.compose.material3.TopAppBar\n"

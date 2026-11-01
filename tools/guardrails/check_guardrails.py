@@ -60,8 +60,24 @@ SORT_CALL = re.compile(
 # is not a term code, and "code" alone cannot be told from other codes.
 TERM_NAME = re.compile(r"\b(?:semesters?|semesterCode|terms?|termCode)\b", re.IGNORECASE)
 # Material's own names, so a page's helper that merely ends in the word passes.
-TOP_APP_BAR = re.compile(
-    r"\b(?:CenterAligned|Medium|MediumFlexible|Large|LargeFlexible|TwoRows)?TopAppBar\s*\(")
+TOP_APP_BAR_NAMES = (r"(?:CenterAligned|Medium|MediumFlexible|Large|LargeFlexible|TwoRows)?"
+                     r"TopAppBar")
+# A backtick may wrap the name, which Kotlin allows around any identifier.
+TOP_APP_BAR = re.compile(r"\b" + TOP_APP_BAR_NAMES + r"`?\s*\(")
+# `import ...material3.TopAppBar as MaterialBar` renames the call.
+TOP_APP_BAR_ALIAS = re.compile(
+    r"\bimport\s+androidx\.compose\.material3\.`?" + TOP_APP_BAR_NAMES
+    + r"`?\s+as\s+`?(\w+)`?")
+
+
+def top_app_bar_calls(code):
+    """Calls to a Material top app bar, under its own name or an import alias."""
+    count = len(TOP_APP_BAR.findall(code))
+    for alias in TOP_APP_BAR_ALIAS.findall(code):
+        count += len(re.findall(r"(?<![\w.])`?" + re.escape(alias) + r"`?\s*\(", code))
+    return count
+
+
 # By directory rather than whole path, so the check still holds once ui/component
 # moves into a module of its own.
 SHARED_UI = "/ui/component/"
@@ -498,7 +514,7 @@ def scan(root):
         if rel != TERM_HOME:
             add(rel, "term-sort", term_sorts(code))
         if SHARED_UI not in rel:
-            add(rel, "top-app-bar", len(TOP_APP_BAR.findall(code)))
+            add(rel, "top-app-bar", top_app_bar_calls(code))
 
         # Literals are matched with strings kept and comments blanked, so a
         # KDoc that mentions the zone does not count.
