@@ -10,7 +10,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
-import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
+import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -98,7 +98,7 @@ class ClassPreparingNotificationScheduler internal constructor(
         val scheduled = mutableSetOf<String>()
         var nextCode = trackerPrefs.getInt(KEY_NEXT_CODE, 1)
         var nextClassStart: Long? = null
-        // By CourseMeetings' id, which a posted reminder carries.
+        // By ClassTimeline's id, which a posted reminder carries.
         val ahead = mutableMapOf<String, UpcomingSlot>()
 
         for (slot in upcomingSlots(
@@ -274,7 +274,7 @@ class ClassPreparingNotificationScheduler internal constructor(
         val startMs: Long,
         val endMs: Long,
         val id: String,
-        /** [CourseMeetings]' id for the class, which the receiver checks against the feed again. */
+        /** [ClassTimeline]'s id for the class, which the receiver checks against the feed again. */
         val classId: String,
         /**
          * This class's room, the changed one included: a course meeting twice
@@ -314,13 +314,8 @@ class ClassPreparingNotificationScheduler internal constructor(
             val isoDate = date.toString()
             // A meeting the school split arms each class of it that still
             // meets, from its own start.
-            val classes = CourseMeetings.meetingSlots(
-                courses, date, changes,
-                // Checked against the calendar above.
-                isClassDay = { true },
-                skipped = { course, day -> skippedDates[course.courseNo]?.contains(day.toString()) == true },
-            )
-            for (slot in classes) {
+            val meeting = courses.filter { skippedDates[it.courseNo]?.contains(isoDate) != true }
+            for (slot in ClassTimeline.meetings(meeting, date, changes).filter { !it.isCancelled }) {
                 results += UpcomingSlot(
                     course = slot.course,
                     term = term,
