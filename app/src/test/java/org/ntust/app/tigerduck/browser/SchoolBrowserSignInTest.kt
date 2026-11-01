@@ -23,7 +23,6 @@ class SchoolBrowserSignInTest {
     private var warmWorks = true
     private var generation = 7
     private var usable = true
-    private var demo = false
     private var clock = 1_000_000L
 
     private val site = "https://$SITE_HOST/".toHttpUrl()
@@ -35,7 +34,6 @@ class SchoolBrowserSignInTest {
     private fun signIn(timeoutMs: Long = 15_000) = SchoolBrowserSignIn(
         run = { target -> runs += target; answer(target) },
         warm = { target -> warms += target; warmWorks },
-        isDemo = { demo },
         usable = { usable },
         generation = { generation },
         writeCookie = { url, value -> written += url to value },
@@ -171,10 +169,7 @@ class SchoolBrowserSignInTest {
     }
 
     @Test
-    fun `nothing runs for the demo account, while the browser cannot be used, or for SSO's own page`() = runTest {
-        demo = true
-        assertFalse(signIn().signInWithoutLink(PAGE, byHand = true))
-        demo = false
+    fun `nothing runs while the browser cannot be used, or for SSO's own page`() = runTest {
         usable = false
         assertFalse(signIn().signInWithoutLink(PAGE, byHand = true))
         usable = true

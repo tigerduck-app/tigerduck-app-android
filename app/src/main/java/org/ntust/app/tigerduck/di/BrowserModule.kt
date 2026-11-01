@@ -123,7 +123,6 @@ object BrowserModule {
                     }
                 }.await()
             },
-            isDemo = { demoAccount.isActive },
             usable = usable,
             generation = { BrowserSession.generation.value },
             writeCookie = { url, value -> CookieManager.getInstance().setCookie(url, value) },

@@ -18,12 +18,16 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.demo.DemoAccount
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.NtustPortalError
 import org.ntust.app.tigerduck.network.NtustPortalService
+import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.network.model.PortalCategory
 import org.ntust.app.tigerduck.network.model.PortalLink
+import org.ntust.app.tigerduck.shared.account.SignIn
+import java.io.IOException
 import javax.inject.Inject
 
 /**
@@ -37,7 +41,7 @@ class InformationSystemViewModel @Inject constructor(
     private val authService: AuthService,
     private val portalService: NtustPortalService,
     private val networkChecker: NetworkChecker,
-    private val demoAccount: DemoAccount,
+    private val sessions: AccountSessions,
 ) : ViewModel() {
 
     sealed interface LoadState {
@@ -70,9 +74,6 @@ class InformationSystemViewModel @Inject constructor(
     private var loadedFor: Pair<String, Boolean>? = null
     private var lastUseEnglish: Boolean? = null
 
-    // Moves with every account change, so a result can tell it started for another one.
-    private var accountGeneration = 0
-
     init {
         // This screen can be a retained tab that outlives a sign-out, so it has to forget the
         // previous account itself. Both flows are followed: a sign-out and sign-in that land
@@ -86,12 +87,12 @@ class InformationSystemViewModel @Inject constructor(
     private fun accountChanged() {
         accountJob.cancel()
         accountJob = SupervisorJob(viewModelScope.coroutineContext.job)
-        accountGeneration++
         loadedFor = null
         _state.value = State()
         if (authService.authState.value) lastUseEnglish?.let(::load)
     }
 
+    @OptIn(StartsAccountWork::class)
     fun load(useEnglish: Boolean) {
         lastUseEnglish = useEnglish
         val studentId = authService.storedStudentId ?: return
@@ -107,42 +108,46 @@ class InformationSystemViewModel @Inject constructor(
         // the load that signing in triggers.
         loadedFor = studentId to useEnglish
 
-        val generation = accountGeneration
+        val signIn = sessions.school.current
         accountScope.launch {
             portalService.cachedPortalLinks(studentId, useEnglish)?.let { cached ->
-                if (isCurrent(generation, studentId, useEnglish)) {
+                if (isCurrent(signIn, studentId, useEnglish)) {
                     _state.update { applyFilters(it.copy(items = cached, loadState = LoadState.Loaded)) }
                 }
             }
-            refresh(useEnglish)
+            refresh(useEnglish, signIn)
         }
     }
 
-    // Whether a result for [studentId] in this language is still the one the page is for.
-    private fun isCurrent(generation: Int, studentId: String, useEnglish: Boolean) =
-        generation == accountGeneration &&
+    // Whether a result for [studentId] in this language is still the one the page is for. The
+    // student is asked too: another student signing in over a stored one ends no sign-in.
+    private fun isCurrent(signIn: SignIn, studentId: String, useEnglish: Boolean) =
+        signIn.isCurrent &&
             authService.storedStudentId == studentId &&
             (lastUseEnglish ?: useEnglish) == useEnglish
 
+    @OptIn(StartsAccountWork::class)
     fun refresh(useEnglish: Boolean) {
+        refresh(useEnglish, sessions.school.current)
+    }
+
+    private fun refresh(useEnglish: Boolean, signIn: SignIn) {
         val studentId = authService.storedStudentId
         val password = authService.storedPassword
         if (studentId == null || password == null) {
             _state.update { it.copy(loadState = LoadState.Failed(context.getString(R.string.common_not_signed_in))) }
             return
         }
-        // The demo account has no real portal to scrape and no server to ask —
-        // leave whatever's on screen (nothing) rather than reporting a failure.
-        if (demoAccount.isActive) return
 
-        val generation = accountGeneration
         accountScope.launch {
             if (!networkChecker.isAvailable()) return@launch
-            if (!isCurrent(generation, studentId, useEnglish)) return@launch
+            if (!isCurrent(signIn, studentId, useEnglish)) return@launch
+            // Another run's Loading is not what this one goes back to, which would never end.
+            val shown = _state.value.loadState.takeUnless { it is LoadState.Loading } ?: LoadState.Idle
             _state.update { it.copy(loadState = LoadState.Loading) }
             // A result is published only if the account and language it started for still hold.
             fun publish(change: (State) -> State) {
-                if (isCurrent(generation, studentId, useEnglish)) _state.update(change)
+                if (isCurrent(signIn, studentId, useEnglish)) _state.update(change)
             }
             try {
                 val links = portalService.fetchPortalLinks(studentId, password, useEnglish)
@@ -163,7 +168,10 @@ class InformationSystemViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
-                publish { it.copy(loadState = LoadState.Failed(e.message ?: context.getString(R.string.information_system_load_failed))) }
+                // No network leaves what's on screen, as the check above does. That is the demo
+                // account's case too: DemoModeInterceptor refuses as the radio being off would.
+                val after = if (e.isOffline) shown else LoadState.Failed(e.message ?: context.getString(R.string.information_system_load_failed))
+                publish { it.copy(loadState = after) }
             }
         }
     }
@@ -183,3 +191,6 @@ class InformationSystemViewModel @Inject constructor(
         return s.copy(displayed = displayed)
     }
 }
+
+/** Whether the network gave no answer: to the portal's own call, or to the SSO sign-in ahead of it, which wraps it. */
+private val Exception.isOffline: Boolean get() = this is IOException || this is SsoLoginError.NetworkError

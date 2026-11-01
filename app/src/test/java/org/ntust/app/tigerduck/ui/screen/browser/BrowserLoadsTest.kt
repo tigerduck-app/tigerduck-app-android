@@ -272,7 +272,6 @@ class BrowserLoadsTest {
     private val school = org.ntust.app.tigerduck.browser.SchoolBrowserSignIn(
         run = { error("no sign-in here") },
         warm = { false },
-        isDemo = { false },
         usable = { true },
         generation = { 0 },
         writeCookie = { _, _ -> },

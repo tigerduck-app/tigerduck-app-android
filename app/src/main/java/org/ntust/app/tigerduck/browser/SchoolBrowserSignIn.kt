@@ -28,14 +28,14 @@ import org.ntust.app.tigerduck.util.logSummary
  * each site in at most once every [INTERVAL_MS], a failed run included, so a site that does not
  * keep the session ends on the screen rather than loop.
  *
- * Nothing runs for the demo account or while the browser cannot be used ([usable]), and nothing is
- * kept of a run a sign-out or an account change overtook ([generation]) or that took longer than
- * [timeoutMs].
+ * Nothing runs while the browser cannot be used ([usable]), and nothing is kept of a run a sign-out
+ * or an account change overtook ([generation]) or that took longer than [timeoutMs]. The demo
+ * account's run goes out on the session's client and fails at `DemoModeInterceptor`, as with the
+ * radio off, so it ends on the screen with nothing signed in.
  */
 class SchoolBrowserSignIn(
     private val run: suspend (target: String) -> BrowserSiteSession,
     private val warm: suspend (target: String) -> Boolean,
-    private val isDemo: () -> Boolean,
     private val usable: () -> Boolean,
     private val generation: () -> Int,
     private val writeCookie: (url: String, value: String) -> Unit,
@@ -79,7 +79,7 @@ class SchoolBrowserSignIn(
     override suspend fun signedInUrl(target: String): String? = null
 
     override fun maySignInWithoutLink(target: String, byHand: Boolean): Boolean {
-        if (isDemo() || !usable() || !isReturnPage(target)) return false
+        if (!usable() || !isReturnPage(target)) return false
         if (byHand) return true
         val host = hostOf(target) ?: return false
         val (at, forGeneration) = synchronized(this) { lastRuns[host] } ?: return true
