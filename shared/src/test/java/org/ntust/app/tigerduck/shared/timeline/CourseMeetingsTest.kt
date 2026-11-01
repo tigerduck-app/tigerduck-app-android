@@ -441,6 +441,20 @@ class CourseMeetingsTest {
     }
 
     @Test
+    fun `a course is skipped on the days listed under its own number`() {
+        val skipped = CourseMeetings.skipsFrom(
+            mapOf("CC901" to listOf("2026-09-22", "2026-09-29"), "custom_CC904" to listOf("2026-09-22")),
+        )
+
+        assertTrue(skipped(tuesdayCourse("CC901", listOf("3")), tuesday))
+        assertTrue(skipped(tuesdayCourse("CC901", listOf("3")), tuesday.plusDays(7)))
+        assertTrue(skipped(tuesdayCourse("custom_CC904", listOf("3")), tuesday))
+        assertFalse("another day", skipped(tuesdayCourse("CC901", listOf("3")), tuesday.plusDays(14)))
+        assertFalse("another course", skipped(tuesdayCourse("CC902", listOf("3")), tuesday))
+        assertFalse("no list at all", CourseMeetings.skipsFrom(emptyMap())(tuesdayCourse("CC901", listOf("3")), tuesday))
+    }
+
+    @Test
     fun `meeting slots leave out a course skipped that day`() {
         val slots = CourseMeetings.meetingSlots(
             listOf(tuesdayCourse("CC901", listOf("3")), tuesdayCourse("CC902", listOf("6"))),
