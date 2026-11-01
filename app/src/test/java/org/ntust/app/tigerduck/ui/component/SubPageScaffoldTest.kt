@@ -116,4 +116,26 @@ class SubPageScaffoldTest {
         composeRule.setContent { SubPageScaffold(title = "Mail", onBack = {}) {} }
         composeRule.onNodeWithText("Message sent").assertDoesNotExist()
     }
+
+    @Test
+    fun `a floating action button is shown and clickable`() {
+        var clicks = 0
+        composeRule.setContent {
+            SubPageScaffold(
+                title = "Detail",
+                onBack = {},
+                floatingActionButton = {
+                    androidx.compose.material3.TextButton(onClick = { clicks++ }) { Text("Open source") }
+                },
+            ) {}
+        }
+        composeRule.onNodeWithText("Open source").assertIsDisplayed().performClick()
+        assertEquals(1, clicks)
+    }
+
+    @Test
+    fun `without a floating action button none is shown`() {
+        composeRule.setContent { SubPageScaffold(title = "Detail", onBack = {}) {} }
+        composeRule.onNodeWithText("Open source").assertDoesNotExist()
+    }
 }

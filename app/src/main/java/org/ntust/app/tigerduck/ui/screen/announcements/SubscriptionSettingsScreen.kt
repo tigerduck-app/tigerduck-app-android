@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoFixHigh
 import androidx.compose.material.icons.filled.Check
@@ -36,7 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -67,7 +65,7 @@ import org.ntust.app.tigerduck.network.model.orgLabel
 import org.ntust.app.tigerduck.notification.AppPermission
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.ui.component.ContentCard
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.SubPageScaffold
 import org.ntust.app.tigerduck.ui.screen.settings.rememberAllowNotificationsAction
 
 private data class EditingTarget(
@@ -128,21 +126,9 @@ fun SubscriptionSettingsScreen(
         return
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = { Text(stringResource(R.string.bulletin_notifications_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-            )
-        },
+    SubPageScaffold(
+        title = stringResource(R.string.bulletin_notifications_title),
+        onBack = onBack,
     ) { padding ->
         Box(
             modifier = Modifier

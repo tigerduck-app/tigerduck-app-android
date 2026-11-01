@@ -10,21 +10,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -42,7 +37,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.auth.StoredPasswordLatch
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.ui.component.NoTopBarInsets
+import org.ntust.app.tigerduck.ui.component.SubPageScaffold
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
@@ -55,18 +50,9 @@ fun ServerFailureDebugScreen(onBack: () -> Unit) {
     val failures by ServerFailureSimulator.failures.collectAsState()
     val statuses by ServerStatusTracker.statuses.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                windowInsets = NoTopBarInsets,
-                title = { Text("Server failure simulation") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                },
-            )
-        },
+    SubPageScaffold(
+        title = "Server failure simulation",
+        onBack = onBack,
     ) { padding ->
         Column(
             modifier = Modifier
