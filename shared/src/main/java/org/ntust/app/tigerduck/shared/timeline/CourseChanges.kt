@@ -97,17 +97,30 @@ class CourseChanges private constructor(
             if (value !is JSONObject) throw JSONException("not a course changes feed")
             val term = value.opt("term") as? String ?: throw JSONException("course changes feed without a term")
             val rows = value.opt("changes") as? JSONArray ?: throw JSONException("course changes feed without changes")
-            val index = LinkedHashMap<Key, MutableList<CourseChange>>()
+            val read = ArrayList<ReadRow>()
             for (i in 0 until rows.length()) {
                 val row = rows.optJSONObject(i) ?: continue
                 val change = change(row) ?: continue
                 val days = stringList(row, "class_days") ?: continue
-                for (day in days.mapNotNull(::day)) {
-                    index.getOrPut(Key(change.courseNo, day)) { mutableListOf() } += change
-                }
+                read += ReadRow(change, firstDay(row), days.mapNotNull(::day))
+            }
+            // Newest first, so every reader that takes the first row of a kind gets the one that
+            // wins. The backend reads rows by first day, then id, and its last row of a kind wins
+            // (`meeting_changes`); here that is the latest first day, then the highest id. Rows
+            // without a first day come last, and the sort is stable for rows that tie fully.
+            read.sortWith(compareByDescending<ReadRow> { it.firstDay ?: LocalDate.MIN }.thenByDescending { it.change.id })
+            val index = LinkedHashMap<Key, MutableList<CourseChange>>()
+            for (row in read) {
+                for (day in row.days) index.getOrPut(Key(row.change.courseNo, day)) { mutableListOf() } += row.change
             }
             return CourseChanges(term, index)
         }
+
+        private class ReadRow(val change: CourseChange, val firstDay: LocalDate?, val days: List<LocalDate>)
+
+        /** The day a row starts on: `day` for a one-day row, `from` for a range; null when it has neither. */
+        private fun firstDay(row: JSONObject): LocalDate? =
+            ((row.opt("from") as? String) ?: (row.opt("day") as? String))?.let(::day)
 
         /** Null for a row of the wrong shape, a kind this build does not know, or a row missing its kind's value. */
         private fun change(row: JSONObject): CourseChange? {

@@ -78,10 +78,11 @@ data class TodayClassEntry(
  * watch picks among them:
  *  - a quiet day (outside the term, or a holiday the user kept) has no class, and the walk ahead
  *    skips it, which [ClassTimeline] does not know;
- *  - the course going on is left out of what comes next, its other blocks of the day included;
- *  - a block that has started is not next: of courses meeting at once, the one not going on is
- *    not offered again at its later periods;
- *  - the first course in the list is the one going on, and wins ties.
+ *  - the class going on and the one after it are [ClassTimeline.nowAndNext]'s, as on iOS: the
+ *    earliest start is going on, and the next is the first other class not yet over, so a later
+ *    block of the same course is next and so is a class of another course that began meanwhile,
+ *    with its real start;
+ *  - of classes starting together the first course in the list comes first.
  */
 object NextClassResolver {
 
@@ -111,42 +112,34 @@ object NextClassResolver {
         val todaysCourses = if (isQuietDay(0)) emptyList() else courses
         val todays = classesOn(todaysCourses, today, changes, timeline)
         val now = today.atTime(minuteOfDay / 60, minuteOfDay % 60).atZone(TaipeiClock.zone).toInstant()
-        // The first course in the list; of one course's classes going on at once, the earlier block.
-        val ongoing = todays.filter { it.slot.isOn(now) }
-            .minWithOrNull(compareBy<DayClass> { courseIndex(todaysCourses, it) }.thenBy { periodOrder(it.periods.first()) })
+        val found = ClassTimeline.nowAndNext(todays.map { it.slot }, now)
+        val ongoing = found.current?.let { slot -> todays.first { it.slot === slot } }
+        val nextToday = found.next?.let { slot -> todays.first { it.slot === slot } }
         if (ongoing != null) {
-            // The course going on is left out of what comes next, as before changes; but a meeting
-            // the school split runs as its classes, so only the one going on is left out of it.
-            val split = changes.on(ongoing.slot.course.courseNo, today).isNotEmpty()
-            val nextToday = earliestStart(todays, todaysCourses, after = minuteOfDay) {
-                it.slot.course.courseNo == ongoing.slot.course.courseNo && (!split || it.periods == ongoing.periods)
-            }
             return NextClassResult.Ongoing(
                 course = ongoing.slot.course,
                 startMinute = ongoing.startMinute,
                 endMinute = ongoing.endMinute,
                 nextToday = nextToday?.let {
-                    NextClassResult.NextToday(it.dayClass.slot.course, it.startMinute, weekday, it.dayClass.periods, it.dayClass.change)
+                    NextClassResult.NextToday(it.slot.course, it.startMinute, weekday, it.periods, it.change)
                 },
                 weekday = weekday,
                 periods = ongoing.periods,
                 change = ongoing.change,
             )
         }
-        val next = earliestStart(todays, todaysCourses, after = minuteOfDay)
-        if (next != null) {
+        if (nextToday != null) {
             return NextClassResult.NextToday(
-                next.dayClass.slot.course, next.startMinute, weekday, next.dayClass.periods, next.dayClass.change,
+                nextToday.slot.course, nextToday.startMinute, weekday, nextToday.periods, nextToday.change,
             )
         }
         // Walk forward up to 7 days.
         for (offset in 1..7) {
             if (isQuietDay(offset)) continue
             val day = today.plusDays(offset.toLong())
-            val first = earliestStart(classesOn(courses, day, changes, timeline), courses, after = null) ?: continue
+            val first = classesOn(courses, day, changes, timeline).firstOrNull() ?: continue
             return NextClassResult.NextFuture(
-                first.dayClass.slot.course, offset, first.startMinute, day.dayOfWeek.value,
-                first.dayClass.periods, first.dayClass.change,
+                first.slot.course, offset, first.startMinute, day.dayOfWeek.value, first.periods, first.change,
             )
         }
         return NextClassResult.Empty
@@ -194,25 +187,4 @@ object NextClassResolver {
         ClassTimeline.meetings(courses, day, timeline).filter { !it.isCancelled }.map { slot ->
             DayClass(slot, changes.on(slot.course.courseNo, day).firstOrNull { it.periods == slot.periods })
         }
-
-    private fun courseIndex(courses: List<Course>, dayClass: DayClass): Int =
-        courses.indexOfFirst { it === dayClass.slot.course }
-
-    /**
-     * The class that starts first, after [after] when given, of the classes [excluding] leaves; of
-     * two starting together, the one whose course comes first in [courses].
-     */
-    private fun earliestStart(
-        classes: List<DayClass>,
-        courses: List<Course>,
-        after: Int?,
-        excluding: (DayClass) -> Boolean = { false },
-    ): Pick? = classes
-        .filter { !excluding(it) }
-        .map { Pick(it, it.startMinute) }
-        .filter { after == null || it.startMinute > after }
-        .minWithOrNull(compareBy<Pick> { it.startMinute }.thenBy { courseIndex(courses, it.dayClass) }.thenBy { periodOrder(it.dayClass.periods.first()) })
-
-    /** A class picked up at [startMinute]. */
-    private class Pick(val dayClass: DayClass, val startMinute: Int)
 }

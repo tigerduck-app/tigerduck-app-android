@@ -31,8 +31,9 @@ import java.time.LocalDate
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * The minutes after [minuteOfDay] at which the tile's state changes: each block's start, and its end,
- * the minute the class is over (start <= now < end).
+ * The minutes after [minuteOfDay] at which the tile's state changes, earliest first: each block's
+ * start, and its end, the minute the class is over (start <= now < end). Classes can overlap, so the
+ * blocks' order doesn't give these in order.
  */
 internal fun tileTransitionMinutes(blocks: List<TodayClassEntry>, minuteOfDay: Int): List<Int> {
     val transitions = mutableListOf<Int>()
@@ -40,7 +41,7 @@ internal fun tileTransitionMinutes(blocks: List<TodayClassEntry>, minuteOfDay: I
         if (block.startMinute > minuteOfDay) transitions += block.startMinute
         transitions += block.endMinute
     }
-    return transitions
+    return transitions.distinct().sorted()
 }
 
 class NextClassTileService : TileService() {

@@ -194,4 +194,43 @@ class ClassTimelineTest {
             ClassTimeline.boundaries(courses, thursday, split),
         )
     }
+
+    // Now and next, as iOS `ClassTimeline.nowAndNext`
+
+    private fun thursdayCourse(no: String, vararg periods: String): Course =
+        Course.fromSchedule(courseNo = no, courseName = no, schedule = mapOf(4 to periods.toList()))
+
+    private fun nowAndNext(list: List<Course>, text: String, changes: CourseChanges = CourseChanges.EMPTY): String {
+        val at = now(text)
+        val slots = ClassTimeline.meetings(list, thursday, changes).filter { !it.isCancelled }
+        val found = ClassTimeline.nowAndNext(slots, at)
+        return "on=${found.current?.id} next=${found.next?.id}"
+    }
+
+    @Test
+    fun `a later block of the course going on is next`() {
+        assertEquals("on=CC900_20261105_2 next=CC900_20261105_7", nowAndNext(courses, "10:00"))
+        assertEquals("on=null next=CC900_20261105_7", nowAndNext(courses, "13:00"))
+        assertEquals("on=CC900_20261105_7 next=null", nowAndNext(courses, "15:00"))
+        assertEquals("on=null next=null", nowAndNext(courses, "16:20"))
+    }
+
+    @Test
+    fun `a class that began while another runs is next with its real start`() {
+        val early = thursdayCourse("CC901", "3", "4")   // 10:20-12:10
+        val overlapping = listOf(thursdayCourse("CC902", "4", "5"), early)   // 11:20-13:10 listed first
+
+        // The earlier start is on whatever the list order, and the other is next though it began at 11:20.
+        assertEquals("on=CC901_20261105_3 next=CC902_20261105_4", nowAndNext(overlapping, "11:30"))
+        assertEquals("on=CC902_20261105_4 next=null", nowAndNext(overlapping, "12:20"))
+    }
+
+    @Test
+    fun `classes starting together go in list order, one on and the other next`() {
+        val one = thursdayCourse("CC903", "3")
+        val two = thursdayCourse("CC904", "3", "4")
+
+        assertEquals("on=CC904_20261105_3 next=CC903_20261105_3", nowAndNext(listOf(two, one), "10:20"))
+        assertEquals("on=null next=CC903_20261105_3", nowAndNext(listOf(one, two), "10:19"))
+    }
 }

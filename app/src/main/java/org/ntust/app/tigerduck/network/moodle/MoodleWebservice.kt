@@ -15,12 +15,17 @@ import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
+import okhttp3.Call
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.shared.executeCredentialPost
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -112,7 +117,7 @@ class MoodleWebservice internal constructor(
      * sign-in page, throws [MoodleWebserviceError.MalformedResponse]. Blocking: call on IO.
      */
     fun download(request: Request, accepts: (contentType: String?) -> Boolean): ByteArray =
-        client().newCall(request).execute().use { response ->
+        send(client(), request).use { response ->
             // The bare type: Moodle sends its errors as `application/json; charset=utf-8`.
             val type = baseType(response.body.contentType()?.toString() ?: response.header("Content-Type"))
             if (type == "application/json") {
@@ -142,17 +147,26 @@ class MoodleWebservice internal constructor(
         refusesPage: Boolean = false,
         onProgress: (read: Long, length: Long) -> Unit = { _, _ -> },
     ) {
-        val call = client().newCall(request)
+        // The call in flight, which a redirect handled by hand may replace with another.
+        val inFlight = AtomicReference<Call?>()
+        val cancelled = AtomicBoolean(false)
         coroutineScope {
             val cancelOnCancel = launch(start = CoroutineStart.UNDISPATCHED) {
                 try {
                     awaitCancellation()
                 } finally {
-                    call.cancel()
+                    cancelled.set(true)
+                    inFlight.get()?.cancel()
                 }
             }
             try {
-                withContext(Dispatchers.IO) { readFile(call, target, expectedMime, maxBytes, refusesPage, onProgress) }
+                withContext(Dispatchers.IO) {
+                    val response = send(client(), request) { call ->
+                        inFlight.set(call)
+                        if (cancelled.get()) call.cancel()
+                    }
+                    readFile(response, target, expectedMime, maxBytes, refusesPage, onProgress)
+                }
             } catch (e: java.io.IOException) {
                 // The request cancelled because its caller was: that is the cancellation, not a
                 // network failure to report.
@@ -165,14 +179,14 @@ class MoodleWebservice internal constructor(
     }
 
     private suspend fun readFile(
-        call: okhttp3.Call,
+        response: Response,
         target: java.io.File,
         expectedMime: String?,
         maxBytes: Long,
         refusesPage: Boolean,
         onProgress: (Long, Long) -> Unit,
     ) {
-        call.execute().use { response ->
+        response.use {
             val type = response.body.contentType()?.toString() ?: response.header("Content-Type")
             if (baseType(type) == "application/json" || type == null) {
                 MoodleWebserviceError.fromJsonBody(response.peekBody(ERROR_REPLY_LIMIT).string())?.let { throw it }
@@ -266,11 +280,28 @@ class MoodleWebservice internal constructor(
          * A request that never got an answer throws its `IOException`.
          */
         fun execute(client: OkHttpClient, request: Request): String =
-            client.newCall(request).execute().use { response ->
+            send(client, request).use { response ->
                 val body = response.body.string()
                 checkAnswer(response.code, response.header("Retry-After"), body)
                 body
             }
+
+        /**
+         * [request]'s answer through [client]. A POST carries a token in its body, so it goes by
+         * [executeCredentialPost]: a 307 or a 308 would make OkHttp send the same body again to
+         * wherever the redirect points, and that body stays with the Moodle site. A redirect the
+         * POST may not follow throws [MoodleWebserviceError.MalformedResponse]. [onCall] gets each
+         * call before it runs, so a caller can cancel it. The caller closes the response.
+         */
+        private fun send(client: OkHttpClient, request: Request, onCall: (Call) -> Unit = {}): Response {
+            if (request.method != "POST") return client.newCall(request).also(onCall).execute()
+            // A dropped connection is still tried again, as it was before: these calls name no
+            // password and count toward no lockout.
+            return client.executeCredentialPost(request, retryOnConnectionFailure = true) { call ->
+                onCall(call)
+                call.execute()
+            } ?: throw MoodleWebserviceError.MalformedResponse("redirected")
+        }
 
         /** What a sign-in or error page is served as. */
         private val PAGE_TYPES = setOf("text/html", "application/xhtml+xml")

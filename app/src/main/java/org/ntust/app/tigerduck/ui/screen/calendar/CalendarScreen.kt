@@ -66,7 +66,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.CalendarEvent
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.EmptyStateView
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.TigerPullToRefresh
 import org.ntust.app.tigerduck.ui.component.scrollbar
@@ -115,7 +115,7 @@ fun CalendarScreen(
 
     PageScaffold(
         title = stringResource(R.string.feature_calendar),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = { CalendarSyncDot(isLoading, schoolDataSyncedAtMs) },
         actions = { CalendarTodayChip(onClick = { viewModel.goToToday() }) },
         snackbarHost = { SnackbarHost(snackbarHostState) },

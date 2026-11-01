@@ -1,5 +1,7 @@
 package org.ntust.app.tigerduck.data.model
 
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
+
 /**
  * One term on the GPA trend: the school's published ranking, or — while the
  * ranking is not out yet — a GPA computed from the grades that have arrived
@@ -58,7 +60,7 @@ data class GpaTrendPoint(
                 if (!rankings.containsKey(ranking.term)) rankings[ranking.term] = ranking
             }
 
-            return (coursesByTerm.keys + rankings.keys).sorted().mapNotNull { term ->
+            return (coursesByTerm.keys + rankings.keys).sortedWith(AcademicTerm::compareStable).mapNotNull { term ->
                 val ranking = rankings[term]
                 if (ranking?.semester?.gpa != null) return@mapNotNull published(ranking)
                 val semesterGpa = NtustGradePoints.gpaOf(coursesByTerm[term].orEmpty())
@@ -70,7 +72,7 @@ data class GpaTrendPoint(
                     // and including this term, so that series keeps running
                     // past the last term the school has ranked.
                     cumulativeGpa = NtustGradePoints.gpaOf(
-                        report.courses.filter { it.term <= term },
+                        report.courses.filter { AcademicTerm.compareStable(it.term, term) <= 0 },
                     ),
                 )
             }

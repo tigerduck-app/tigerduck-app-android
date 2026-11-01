@@ -63,11 +63,23 @@ class FileViewerRoutingTest {
     }
 
     @Test
-    fun `a web page never opens in the viewer`() {
-        open("text/html", "B00015999-page.html")
+    fun `a web page never opens in the viewer or in another app, only in the share sheet`() {
+        assertTrue(open("text/html", "B00015999-page.html"))
 
-        assertNull(shadowOf(app).nextStartedActivity)
-        assertEquals(1, elsewhere)
+        val started = shadowOf(app).nextStartedActivity
+        assertEquals(Intent.ACTION_CHOOSER, started.action)
+        @Suppress("DEPRECATION")
+        val wrapped = started.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)!!
+        assertEquals(Intent.ACTION_SEND, wrapped.action)
+        assertEquals(0, elsewhere)
+    }
+
+    @Test
+    fun `an SVG picture is shared too, whoever opens it`() {
+        assertTrue(open("image/svg+xml", "B00015999-figure.svg"))
+
+        assertEquals(Intent.ACTION_CHOOSER, shadowOf(app).nextStartedActivity.action)
+        assertEquals(0, elsewhere)
     }
 
     @Test

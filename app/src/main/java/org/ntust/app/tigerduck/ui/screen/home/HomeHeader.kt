@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import org.ntust.app.tigerduck.R
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.PageScope
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -46,7 +46,7 @@ internal fun HomeShell(
 ) {
     PageScaffold(
         title = greeting,
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         syncDot = {
             if (!isEditing) {
                 SyncStatusDot(

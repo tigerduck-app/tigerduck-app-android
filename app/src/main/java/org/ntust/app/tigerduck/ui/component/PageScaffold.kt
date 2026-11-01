@@ -60,13 +60,6 @@ interface PageScope {
 
 /** What [PageScaffold] uses where a page doesn't say, in the shape of Material's `TopAppBarDefaults`. */
 object PageDefaults {
-    /**
-     * Whether a tab page's header scrolls with its content or stays put, the one place that says.
-     * Tab pages apply the padding [PageScaffold] gives them and place [PageScope.Header], which
-     * draws nothing when pinned, so changing this pins every one of them.
-     */
-    val TabHeaderPosition: PageHeaderPosition = PageHeaderPosition.InContent
-
     /** Below M3's 64dp so a page leads with its content rather than its chrome (D7). */
     val BarHeight: Dp = 56.dp
 
@@ -133,13 +126,13 @@ object PageDefaults {
  * [onBack], the title, [syncDot], [decoration], [actions], [menu]. A part a page doesn't give takes
  * no room. [header] replaces all of them.
  *
- * A tab page's header goes by [PageDefaults.TabHeaderPosition], and the page places it, here as
- * its list's first item, so that it scrolls with the list:
+ * A header is pinned unless the page says otherwise. A page whose header scrolls with its content
+ * overrides [headerPosition] and places it, here as its list's first item:
  *
  * ```
  * PageScaffold(
  *     title = stringResource(R.string.feature_x),
- *     headerPosition = PageDefaults.TabHeaderPosition,
+ *     headerPosition = PageHeaderPosition.InContent,
  *     syncDot = { SyncStatusDot(servers, isLoading) },
  * ) { padding ->
  *     LazyColumn(Modifier.padding(padding)) { item { Header() } ... }

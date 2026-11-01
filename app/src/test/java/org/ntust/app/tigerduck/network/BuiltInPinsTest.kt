@@ -144,6 +144,16 @@ class BuiltInPinsTest {
     }
 
     @Test
+    fun `the release and watch configs name no host that may use cleartext`() {
+        listOf(configs.getValue("release"), configs.getValue("watch")).forEach { path ->
+            val domainConfigs = config(path).getElementsByTagName("domain-config")
+            val cleartext = (0 until domainConfigs.length).map { domainConfigs.item(it) as Element }
+                .filter { it.getAttribute("cleartextTrafficPermitted") == "true" }
+            assertEquals("$path lets a host use cleartext", 0, cleartext.size)
+        }
+    }
+
+    @Test
     fun `the watch applies its config`() {
         val application = parser.parse(File("../wear/src/main/AndroidManifest.xml"))
             .getElementsByTagName("application").item(0) as Element
