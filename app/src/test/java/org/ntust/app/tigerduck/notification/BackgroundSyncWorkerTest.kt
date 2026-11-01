@@ -30,6 +30,7 @@ import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -416,14 +417,11 @@ class BackgroundSyncWorkerTest {
             prefs = appPrefs,
             sender = HolidayOverrideSender { _, _, _, _ -> true },
             syncs = { true },
-            signInGeneration = { 1 },
-            runIfSignedIn = { _, _ -> true },
         )
 
         HolidayOverrideApply.apply(
-            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = 1,
+            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = SignInSeries().current,
             pending = pending, calendar = calendar,
-            runIfSignedIn = { signIn, block -> if (signIn == 1) { block(); true } else false },
         )
 
         assertEquals(setOf(3, 5), appPrefs.holidayNotifyOverrides)
@@ -436,15 +434,13 @@ class BackgroundSyncWorkerTest {
             prefs = appPrefs,
             sender = HolidayOverrideSender { _, _, _, _ -> true },
             syncs = { true },
-            signInGeneration = { 2 },
-            runIfSignedIn = { _, _ -> true },
         )
+        val series = SignInSeries()
+        val ended = series.end()
 
         HolidayOverrideApply.apply(
-            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = 1,
+            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = ended,
             pending = pending, calendar = calendar,
-            // The sign-out moved the generation: the block never runs.
-            runIfSignedIn = { _, _ -> false },
         )
 
         assertEquals(setOf(7), appPrefs.holidayNotifyOverrides)

@@ -4,11 +4,11 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -16,7 +16,7 @@ import javax.inject.Singleton
 
 /** Sends one assignment's mark, and says whether it went out; see [PushApiClient.patchAssignmentOverride]. */
 internal fun interface MarkSender {
-    suspend fun send(assignmentId: Int, status: String, signIn: Int, madeAtMs: Long?): Boolean
+    suspend fun send(assignmentId: Int, status: String, signIn: SignIn, madeAtMs: Long?): Boolean
 }
 
 /**
@@ -44,14 +44,12 @@ class UnsentMarks internal constructor(
     private val sender: MarkSender,
     private val records: () -> Boolean,
     private val sends: () -> Boolean,
-    private val signInGeneration: () -> Int,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     @Inject constructor(
         dataCache: DataCache,
         pushApiClient: PushApiClient,
         prefs: AppPreferences,
-        authTokenManager: AuthTokenManager,
     ) : this(
         dataCache = dataCache,
         sender = MarkSender { id, status, signIn, madeAtMs ->
@@ -59,7 +57,6 @@ class UnsentMarks internal constructor(
         },
         records = { recordsMarks(prefs) },
         sends = { sendsMarks(prefs) },
-        signInGeneration = { authTokenManager.signInGeneration },
     )
 
     private val mutex = Mutex()
@@ -85,59 +82,54 @@ class UnsentMarks internal constructor(
      * it replaces a mark still waiting for the same assignment, which would
      * otherwise go up later over it.
      */
-    suspend fun send(assignmentId: String, status: String) {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
+    suspend fun send(assignmentId: String, status: String, signIn: SignIn) {
         if (!records()) {
             mutex.withLock {
                 val waiting = waiting()
-                if (assignmentId in waiting) save(waiting - assignmentId, generation)
+                if (assignmentId in waiting) save(waiting - assignmentId, signIn)
             }
             return
         }
         val tap = UnsentMark(assignmentId, status, madeAtMs = clock())
         val kept = mutex.withLock {
-            save(waiting() + (assignmentId to tap), generation)
+            save(waiting() + (assignmentId to tap), signIn)
         }
-        if (kept && sends()) trySend(tap, generation, signIn)
+        if (kept && sends()) trySend(tap, signIn)
     }
 
     /**
      * Keeps a mark Use Local could not send, whatever [sends] says: while the
      * answer is applied the re-enable check still holds marks, and dropped,
-     * the mark would be lost to the next sync. Written only while the data is
-     * still [generation]'s, and never over a mark already waiting for the
-     * assignment: that is a tap made during the hold, newer than what Use
-     * Local read.
+     * the mark would be lost to the next sync. Written only while [signIn]
+     * stands, and never over a mark already waiting for the assignment: that
+     * is a tap made during the hold, newer than what Use Local read.
      */
-    suspend fun keep(assignmentId: String, status: String, generation: Int) {
+    suspend fun keep(assignmentId: String, status: String, signIn: SignIn) {
         mutex.withLock {
             val waiting = waiting()
             if (assignmentId in waiting) return@withLock
-            save(waiting + (assignmentId to UnsentMark(assignmentId, status, madeAtMs = clock())), generation)
+            save(waiting + (assignmentId to UnsentMark(assignmentId, status, madeAtMs = clock())), signIn)
         }
     }
 
     /** Sends every mark still waiting; each full sync starts with this. */
-    suspend fun retry() {
+    suspend fun retry(signIn: SignIn) {
         if (!sends()) return
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
-        requeueParked(generation, firstInProcess = parkedRequeued.compareAndSet(false, true))
+        requeueParked(signIn, firstInProcess = parkedRequeued.compareAndSet(false, true))
         for ((id, mark) in waiting()) {
             if (mark.attempts >= MAX_ATTEMPTS) continue
-            trySend(mark, generation, signIn)
+            trySend(mark, signIn)
         }
     }
 
     /** The server's marks were taken over this phone's, so what waited is no longer wanted. */
-    suspend fun forget() {
-        mutex.withLock { save(emptyMap(), null) }
+    suspend fun forget(signIn: SignIn) {
+        mutex.withLock { save(emptyMap(), signIn) }
     }
 
     /**
-     * Sends [id]'s [status] if it is still the mark waiting for it, for the
-     * account whose data [generation] and sign-in [signIn] were read with.
+     * Sends [id]'s [status] if it is still the mark waiting for it, under the
+     * sign-in [signIn] it was read with.
      * Checked under the send lock, right before the request: a newer tap of
      * the id, a send of it that landed meanwhile, or a sign-out each make it
      * stale, and sent it would undo the newer mark, repeat the request, or
@@ -145,13 +137,13 @@ class UnsentMarks internal constructor(
      * sign-out after the check sends it without a token rather than with the
      * next account's.
      */
-    private suspend fun trySend(tap: UnsentMark, generation: Int, signIn: Int) {
+    private suspend fun trySend(tap: UnsentMark, signIn: SignIn) {
         val id = tap.assignmentId.orEmpty()
         val status = tap.status ?: return
         val intId = id.toIntOrNull()
         val sent = sendMutex.withLock {
             val current = sends() && mutex.withLock {
-                generation == dataCache.userDataGeneration && waiting()[id]?.isSameTap(tap) == true
+                signIn.isCurrent && waiting()[id]?.isSameTap(tap) == true
             }
             if (!current) return
             if (intId == null) return@withLock true
@@ -161,7 +153,7 @@ class UnsentMarks internal constructor(
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "mark PATCH failed, kept for the next sync: ${e.logSummary()}")
-                if (CourseIgnoreSync.refuses(e)) countRefusal(tap, generation)
+                if (CourseIgnoreSync.refuses(e)) countRefusal(tap, signIn)
                 false
             }
         }
@@ -169,33 +161,33 @@ class UnsentMarks internal constructor(
         // Only if no newer tap of the id replaced it meanwhile.
         mutex.withLock {
             val waiting = waiting()
-            if (waiting[id]?.isSameTap(tap) == true) save(waiting - id, generation)
+            if (waiting[id]?.isSameTap(tap) == true) save(waiting - id, signIn)
         }
     }
 
     // A mark the backend refused, as a 404 for an assignment it has no row
     // for, is parked after MAX_ATTEMPTS: still kept at this phone's value,
     // but no longer sent on every sync.
-    private suspend fun countRefusal(tap: UnsentMark, generation: Int) = mutex.withLock {
+    private suspend fun countRefusal(tap: UnsentMark, signIn: SignIn) = mutex.withLock {
         val id = tap.assignmentId.orEmpty()
         val waiting = waiting()
         val mark = waiting[id]?.takeIf { it.isSameTap(tap) } ?: return@withLock
         val counted = mark.copy(attempts = mark.attempts + 1, lastRefusedAtMs = clock())
         if (counted.attempts >= MAX_ATTEMPTS) Log.w(TAG, "mark parked after $MAX_ATTEMPTS refusals")
-        save(waiting + (id to counted), generation)
+        save(waiting + (id to counted), signIn)
     }
 
     // A parked mark gets one more try per process, and again once
     // PARKED_RETRY_MS has passed since its last refusal: the backend creates
     // an assignment's row in its own Moodle fetch, every eight hours, and the
     // app may stay open far longer than that.
-    private suspend fun requeueParked(generation: Int, firstInProcess: Boolean) = mutex.withLock {
+    private suspend fun requeueParked(signIn: SignIn, firstInProcess: Boolean) = mutex.withLock {
         val waiting = waiting()
         val now = clock()
         fun due(mark: UnsentMark) = mark.attempts >= MAX_ATTEMPTS &&
             (firstInProcess || now - mark.lastRefusedAtMs !in 0 until PARKED_RETRY_MS)
         if (waiting.values.none(::due)) return@withLock
-        save(waiting.mapValues { (_, mark) -> if (due(mark)) mark.copy(attempts = MAX_ATTEMPTS - 1) else mark }, generation)
+        save(waiting.mapValues { (_, mark) -> if (due(mark)) mark.copy(attempts = MAX_ATTEMPTS - 1) else mark }, signIn)
     }
 
     // The same tap, however many times the backend refused it.
@@ -205,8 +197,8 @@ class UnsentMarks internal constructor(
     private suspend fun waiting(): Map<String, UnsentMark> =
         dataCache.loadUnsentMarks().associateByTo(LinkedHashMap()) { it.assignmentId.orEmpty() }
 
-    private suspend fun save(waiting: Map<String, UnsentMark>, generation: Int?): Boolean =
-        dataCache.saveUnsentMarks(waiting.values.toList(), generation)
+    private suspend fun save(waiting: Map<String, UnsentMark>, signIn: SignIn): Boolean =
+        dataCache.saveUnsentMarks(waiting.values.toList(), signIn)
 
     companion object {
         private const val TAG = "UnsentMarks"

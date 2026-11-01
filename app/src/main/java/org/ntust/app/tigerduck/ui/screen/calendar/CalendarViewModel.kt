@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.CourseRosterMerge
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.RefreshTriggers
@@ -95,8 +97,8 @@ class CalendarViewModel @Inject constructor(
     private val widgetUpdater: WidgetUpdater,
     private val liveActivityManager: LiveActivityManager,
     private val notificationScheduler: org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler,
+    private val sessions: AccountSessions,
 ) : ViewModel() {
-
 
     private val _events = MutableStateFlow<List<CalendarEvent>>(emptyList())
     val events: StateFlow<List<CalendarEvent>> = _events
@@ -139,14 +141,12 @@ class CalendarViewModel @Inject constructor(
      * the user can still use while logged out.
      */
     private fun academicEvents(): List<CalendarEvent> {
-        // Both the holiday name and the boundary titles are resolved against
-        // the language the user picked, not against `Locale.getDefault()` and
-        // the injected `@ApplicationContext`. Below API 33 AppCompat applies
-        // the in-app language to Activity configurations only, so those two
-        // keep reporting the *device* language: on a Taiwanese phone running
-        // the app in English or Japanese every holiday came back as its
-        // Chinese name and every term boundary as "115-1 開始", on a screen
-        // that was otherwise correctly translated. The tag comes from the
+        // Both the holiday name and the boundary titles are resolved against the language the user
+        // picked, not against `Locale.getDefault()` and the injected `@ApplicationContext`. Below
+        // API 33 AppCompat applies the in-app language to Activity configurations only, so those
+        // two keep reporting the *device* language: on a Taiwanese phone running the app in English
+        // or Japanese every holiday came back as its Chinese name and every term boundary as
+        // "115-1 開始", on a screen that was otherwise correctly translated. The tag comes from the
         // same context as the titles, so the two cannot disagree.
         val localized = AppLanguageManager.localizedContext(context, prefs.appLanguage)
         return org.ntust.app.tigerduck.academic.AcademicCalendarEvents.eventsFor(
@@ -169,29 +169,28 @@ class CalendarViewModel @Inject constructor(
     private val _holidayOverrides =
         MutableStateFlow(academicCalendar.optedInHolidayIds)
 
-    /** Holidays the user has opted back into, as a flow so a row redraws the
-     *  moment its own toggle flips. */
+    /** Holidays the user has opted back into, as a flow so a row redraws as its toggle flips. */
     val holidayOverrides: StateFlow<Set<Int>> = _holidayOverrides
 
     /**
      * Flip the exception for one holiday.
      *
      * The local write is what makes the guard behave; the upload only makes
-     * the user's other devices agree, so a failure there is not rolled back —
-     * the setting the user just made on this device stands either way. It
-     * waits in [org.ntust.app.tigerduck.data.PendingHolidayOverrides] until the
-     * backend has it, marked as this launch runs up to its first suspension
-     * (Main.immediate), so a sync meanwhile keeps it.
+     * the user's other devices agree, so a failure there is not rolled back.
+     * It waits in [org.ntust.app.tigerduck.data.PendingHolidayOverrides] until
+     * the backend has it, marked as this launch runs up to its first
+     * suspension (Main.immediate), so a sync meanwhile keeps it.
      */
+    @OptIn(StartsAccountWork::class)
     fun setNotifyOnHoliday(holidayId: Int, notify: Boolean) {
         if (!academicCalendar.setNotifyOnHoliday(holidayId, notify)) return
         _holidayOverrides.value = academicCalendar.optedInHolidayIds
-        // The widgets, the Live Update and the class reminders go quiet on a
-        // holiday the user has not opted back into. Without these they keep
-        // the old answer until their next class boundary or 30-minute refresh.
+        // The widgets, the Live Update and the class reminders go quiet on a holiday the user has
+        // not opted back into. Without these they keep the old answer until their next class
+        // boundary or 30-minute refresh.
         widgetUpdater.requestUpdate()
         liveActivityManager.refresh()
-        viewModelScope.launch { pendingHolidayOverrides.send(holidayId) }
+        viewModelScope.launch { pendingHolidayOverrides.send(holidayId, sessions.school.current) }
     }
 
     /** Replaces the academic rows in [base] with freshly-built ones. */

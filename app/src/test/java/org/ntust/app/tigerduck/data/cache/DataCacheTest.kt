@@ -25,9 +25,13 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.CourseIgnores
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.PendingCourseIgnore
+import org.ntust.app.tigerduck.data.model.PendingCourseOverride
+import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /** The cache over real files, in each test's own app folders. */
 class DataCacheTest {
@@ -89,7 +93,7 @@ class DataCacheTest {
                 assignment("course-ignored").copy(courseNo = "IGNORED"),
             )
         )
-        cache.saveIgnoredCourses(setOf(CourseIgnores.key(cache.currentSemesterCode(), "IGNORED")))
+        cache.saveIgnoredCourses(setOf(CourseIgnores.key(cache.currentSemesterCode(), "IGNORED")), testSignIn())
 
         assertEquals(listOf("open"), cache.loadOutstandingAssignments().map { it.assignmentId })
     }
@@ -97,16 +101,17 @@ class DataCacheTest {
     @Test
     fun `an assignment kept from an earlier term stays under that term's course ignore`() = runTest {
         cache.saveAssignments(listOf(assignment("kept").copy(courseNo = "OLD", semester = "1091")))
-        cache.saveIgnoredCourses(setOf(CourseIgnores.key("1091", "OLD")))
+        cache.saveIgnoredCourses(setOf(CourseIgnores.key("1091", "OLD")), testSignIn())
 
         assertEquals(emptyList<String>(), cache.loadOutstandingAssignments().map { it.assignmentId })
     }
 
     @Test
     fun `signing out forgets the ignored courses and their unsent changes`() = runTest {
-        cache.saveIgnoredCourses(setOf("1141:CS1001301"))
+        cache.saveIgnoredCourses(setOf("1141:CS1001301"), testSignIn())
         cache.savePendingCourseIgnores(
-            listOf(PendingCourseIgnore("1141", "CS1001301", "1141CS1001301", null, true, 1L))
+            listOf(PendingCourseIgnore("1141", "CS1001301", "1141CS1001301", null, true, 1L)),
+            testSignIn(),
         )
 
         cache.clearAllUserData()
@@ -130,6 +135,40 @@ class DataCacheTest {
         assertFalse(leftInData.exists())
     }
 
+    /** The check is the queue files' own: a sign-out ends the sign-in, and only then wipes them. */
+    @Test
+    fun `a queue write under an ended sign-in leaves the file as it was`() = runTest {
+        val series = SignInSeries()
+        val signIn = series.current
+        val writes = listOf<Pair<String, suspend () -> Boolean>>(
+            "unsent_marks.json" to { cache.saveUnsentMarks(listOf(UnsentMark("7", "ignored")), signIn) },
+            "pending_course_adds.json" to { cache.savePendingCourseAdds(mapOf("1141" to listOf("CS1001")), signIn) },
+            "pending_course_add_times.json" to { cache.savePendingCourseAddTimes(mapOf("1141" to mapOf("CS1001" to 1L)), signIn) },
+            "pending_course_deletes.json" to { cache.savePendingCourseDeletes(mapOf("1141" to mapOf("CS1002" to 1L)), signIn) },
+            "pending_course_overrides.json" to {
+                cache.savePendingCourseOverrides(listOf(PendingCourseOverride("1141CS1001", "#FF0000", null, null, 1L)), signIn)
+            },
+            "pending_course_ignores.json" to {
+                cache.savePendingCourseIgnores(listOf(PendingCourseIgnore("1141", "CS1001", "1141CS1001", null, true, 1L)), signIn)
+            },
+            "ignored_courses.json" to { cache.saveIgnoredCourses(setOf("1141:CS1001"), signIn) },
+            "course_rows_seen.json" to { cache.saveCourseRowsSeen(mapOf("1141:CS1001" to 1L), signIn) },
+            "server_known_courses.json" to { cache.updateServerKnownNos(signIn) { it + ("1141" to listOf("CS1001")) } },
+        )
+        val folder = File(context.filesDir, "TigerDuckData")
+        writes.forEach { (name, write) -> assertTrue(name, write()) }
+        val held = writes.associate { (name, _) -> name to File(folder, name).readText() }
+
+        series.end()
+
+        writes.forEach { (name, write) ->
+            File(folder, name).delete()
+            assertFalse(name, write())
+            assertFalse("$name was written", File(folder, name).exists())
+            File(folder, name).writeText(held.getValue(name))
+        }
+    }
+
     @Test
     fun `a waiting change too damaged to send is left out`() = runTest {
         cache.savePendingCourseIgnores(
@@ -137,7 +176,8 @@ class DataCacheTest {
                 PendingCourseIgnore("1141", "CS1001301", "1141CS1001301", null, true, 1L),
                 PendingCourseIgnore(null, "CS1001302", "1141CS1001302", null, true, 1L),
                 PendingCourseIgnore("1141", "CS1001303", null, null, true, 1L),
-            )
+            ),
+            testSignIn(),
         )
 
         assertEquals(

@@ -4,9 +4,9 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -14,7 +14,7 @@ import javax.inject.Singleton
 
 /** Sends one holiday's choice as sign-in [signIn], and says whether it went; see [PushApiClient.putHolidayOverride]. */
 internal fun interface HolidayOverrideSender {
-    suspend fun send(holidayId: Int, notify: Boolean, signIn: Int, madeAtMs: Long?): Boolean
+    suspend fun send(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long?): Boolean
 }
 
 /**
@@ -33,9 +33,9 @@ internal fun interface HolidayOverrideSender {
  * is sent, so a retry sends today's value and the server keeps the user's
  * last. Each is pinned to the sign-in it was asked under: the sign-out clears
  * both sets ([AppPreferences.forgetHolidayOverrides]), a PUT still waiting for
- * its turn then sends nothing, and one that lands is let go under the lock the
- * sign-out moves the generation under, so it never writes the departing
- * account's set back after the clear. With TigerSync off a choice is this
+ * its turn then sends nothing, and one that lands is let go in a step that
+ * ends before the sign-in does ([SignIn.ifCurrent]), so it never writes the
+ * departing account's set back after the clear. With TigerSync off a choice is this
  * phone's own and goes nowhere. As the iPhone's `enqueueHolidayUpload` and
  * `unacknowledgedHolidayIDs`.
  */
@@ -44,22 +44,17 @@ class PendingHolidayOverrides internal constructor(
     private val prefs: AppPreferences,
     private val sender: HolidayOverrideSender,
     private val syncs: () -> Boolean,
-    private val signInGeneration: () -> Int,
-    private val runIfSignedIn: (Int, () -> Unit) -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     @Inject constructor(
         prefs: AppPreferences,
         pushApiClient: PushApiClient,
-        authTokenManager: AuthTokenManager,
     ) : this(
         prefs = prefs,
         sender = HolidayOverrideSender { id, notify, signIn, madeAtMs ->
             pushApiClient.putHolidayOverride(id, notify, signIn, madeAtMs)
         },
         syncs = { prefs.cloudSyncEnabled },
-        signInGeneration = { authTokenManager.signInGeneration },
-        runIfSignedIn = authTokenManager::runIfSignedIn,
     )
 
     // The waiting set's read-modify-writes.
@@ -81,23 +76,24 @@ class PendingHolidayOverrides internal constructor(
     /**
      * The user just wrote [holidayId]'s choice into the local set: kept as
      * waiting and sent. Marked before this suspends, so a sync running
-     * meanwhile keeps the choice.
+     * meanwhile keeps the choice, and only while [signIn] stands: marked after
+     * the sign-out's clear, it would go up as the next account's.
      */
-    suspend fun send(holidayId: Int) {
+    suspend fun send(holidayId: Int, signIn: SignIn) {
         lastChangeAtMs = clock()
         // Before the sync check: a choice still waiting from before is this one now, and goes up
         // with this time whenever sync is on again.
-        synchronized(lock) { prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to lastChangeAtMs) }
+        signIn.ifCurrent {
+            synchronized(lock) { prefs.holidayOverrideEditTimes = prefs.holidayOverrideEditTimes + (holidayId to lastChangeAtMs) }
+        }
         if (!syncs()) return
-        val signIn = signInGeneration()
-        synchronized(lock) { prefs.holidayOverridesAwaitingUpload = waitingIds + holidayId }
+        signIn.ifCurrent { synchronized(lock) { prefs.holidayOverridesAwaitingUpload = waitingIds + holidayId } }
         trySend(holidayId, signIn)
     }
 
     /** Sends every choice still waiting; each full sync starts with this. */
-    suspend fun retry() {
+    suspend fun retry(signIn: SignIn) {
         if (!syncs()) return
-        val signIn = signInGeneration()
         for (id in waitingIds) trySend(id, signIn)
     }
 
@@ -114,12 +110,12 @@ class PendingHolidayOverrides internal constructor(
         return snapshot - waiting + (local intersect waiting)
     }
 
-    private suspend fun trySend(holidayId: Int, signIn: Int) {
+    private suspend fun trySend(holidayId: Int, signIn: SignIn) {
         inFlight.incrementAndGet()
         try {
             sendMutex.withLock {
                 // Stale once the account changed, or once the choice landed while this waited.
-                if (signIn != signInGeneration() || holidayId !in waitingIds) return
+                if (!signIn.isCurrent || holidayId !in waitingIds) return
                 val sent = edit(holidayId)
                 val landed = try {
                     sender.send(holidayId, sent.first, signIn, sent.second)
@@ -132,7 +128,7 @@ class PendingHolidayOverrides internal constructor(
                 // Not sent, as with TigerSync turned off before its turn: it still waits.
                 if (!landed) return
                 lastChangeAtMs = clock()
-                runIfSignedIn(signIn) {
+                signIn.ifCurrent {
                     synchronized(lock) {
                         // Let go only if the server now holds what the user still wants: a
                         // choice made again during the request, even to the same setting, has

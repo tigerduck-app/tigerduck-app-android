@@ -4,9 +4,9 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
@@ -17,7 +17,7 @@ import javax.inject.Singleton
  * hide was asked ([hiddenAt]); see [PushApiClient.deleteCourse].
  */
 internal fun interface CourseDeleter {
-    suspend fun delete(courseKey: String, signIn: Int, hiddenAt: Long)
+    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long)
 }
 
 /**
@@ -65,7 +65,6 @@ class PendingCourseDeletes internal constructor(
     private val dataCache: DataCache,
     private val pendingCourseAdds: PendingCourseAdds,
     private val deleter: CourseDeleter,
-    private val signInGeneration: () -> Int,
     private val clock: () -> Long = System::currentTimeMillis,
     // The file's read; a test holds it to order two callers around it.
     private val load: suspend () -> Map<String, Map<String, Long>> = dataCache::loadPendingCourseDeletes,
@@ -74,12 +73,10 @@ class PendingCourseDeletes internal constructor(
         dataCache: DataCache,
         pendingCourseAdds: PendingCourseAdds,
         pushApiClient: PushApiClient,
-        authTokenManager: AuthTokenManager,
     ) : this(
         dataCache = dataCache,
         pendingCourseAdds = pendingCourseAdds,
         deleter = CourseDeleter(pushApiClient::deleteCourse),
-        signInGeneration = { authTokenManager.signInGeneration },
     )
 
     // The file's lock: every read that a write follows, and the stamps' seed.
@@ -123,10 +120,10 @@ class PendingCourseDeletes internal constructor(
      * disk without sending it, for [send] or the next full sync to send: the
      * class table keeps it before its hide is marked, so a course selection
      * answer never finds the mark without the delete
-     * (`DataCache.hideDeletedCourse`). False once the data was wiped since.
+     * (`DataCache.hideDeletedCourse`). False once [signIn] has ended.
      */
-    suspend fun keep(semester: String, courseNo: String, queuedAt: Long): Boolean =
-        edit(dataCache.writeGeneration()) { it.with(semester, courseNo, queuedAt) }
+    suspend fun keep(semester: String, courseNo: String, queuedAt: Long, signIn: SignIn): Boolean =
+        edit(signIn) { it.with(semester, courseNo, queuedAt) }
 
     /**
      * Sends the delete of [courseNo] in [semester] that [keep] kept, without
@@ -136,29 +133,25 @@ class PendingCourseDeletes internal constructor(
      * only while it is still queued, as [retry] sends. Takes
      * [PendingCourseAdds.removing] itself, so call it outside that lock.
      */
-    suspend fun sendKept(semester: String, courseNo: String) {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
-        pendingCourseAdds.removing { sendHeld(semester, courseNo, generation, signIn) }
+    suspend fun sendKept(semester: String, courseNo: String, signIn: SignIn) {
+        pendingCourseAdds.removing { sendHeld(semester, courseNo, signIn) }
     }
 
     /** [send] with the delete asked now. */
-    suspend fun send(semester: String, courseNo: String) = send(semester, courseNo, stamp())
+    suspend fun send(semester: String, courseNo: String, signIn: SignIn) = send(semester, courseNo, stamp(), signIn)
 
     /**
      * Deletes [courseNo]'s row in [semester] from the backend, keeping the
      * delete, asked at [queuedAt], until it lands. Takes
      * [PendingCourseAdds.removing] itself, so call it outside that lock.
      */
-    suspend fun send(semester: String, courseNo: String, queuedAt: Long) {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
+    suspend fun send(semester: String, courseNo: String, queuedAt: Long, signIn: SignIn) {
         // On disk before the wait for the lock, which a slow request may hold
         // for a while: a process killed meanwhile keeps the delete for its
         // next sync. A re-add's forget waiting ahead of this cannot let it go,
         // as the delete was asked after the re-add; see [forget].
-        if (!edit(generation) { it.with(semester, courseNo, queuedAt) }) return
-        pendingCourseAdds.removing { sendHeld(semester, courseNo, generation, signIn) }
+        if (!edit(signIn) { it.with(semester, courseNo, queuedAt) }) return
+        pendingCourseAdds.removing { sendHeld(semester, courseNo, signIn) }
     }
 
     /**
@@ -166,12 +159,10 @@ class PendingCourseDeletes internal constructor(
      * add or a reset can come between two; each full sync starts with this,
      * so the snapshot lacks them.
      */
-    suspend fun retry() {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
+    suspend fun retry(signIn: SignIn) {
         for ((semester, entries) in waiting()) {
             for (courseNo in entries.keys) {
-                val goOn = pendingCourseAdds.removing { sendHeld(semester, courseNo, generation, signIn) }
+                val goOn = pendingCourseAdds.removing { sendHeld(semester, courseNo, signIn) }
                 if (!goOn) return
             }
         }
@@ -181,7 +172,7 @@ class PendingCourseDeletes internal constructor(
     suspend fun waitingIn(semester: String): Set<String> = waiting()[semester].orEmpty().keys
 
     /** [forget] for a course added back now. */
-    suspend fun forget(semester: String, courseNo: String) = forget(semester, courseNo, stamp())
+    suspend fun forget(semester: String, courseNo: String, signIn: SignIn) = forget(semester, courseNo, stamp(), signIn)
 
     /**
      * Lets go of [courseNo]'s delete in [semester] asked before [askedAt], the
@@ -190,10 +181,9 @@ class PendingCourseDeletes internal constructor(
      * a retry that read it is then either done or finds it gone. Call it
      * outside that lock, before the add's own upload.
      */
-    suspend fun forget(semester: String, courseNo: String, askedAt: Long) {
-        val generation = dataCache.writeGeneration()
+    suspend fun forget(semester: String, courseNo: String, askedAt: Long, signIn: SignIn) {
         pendingCourseAdds.removing {
-            edit(generation) { it.without(semester, courseNo) { queuedAt -> queuedAt <= askedAt } }
+            edit(signIn) { it.without(semester, courseNo) { queuedAt -> queuedAt <= askedAt } }
         }
     }
 
@@ -204,8 +194,8 @@ class PendingCourseDeletes internal constructor(
      * wipe would otherwise send a delete the reset's refetch then re-uploads
      * past, taking the course off the server again and tombstoning it.
      */
-    suspend fun forgetTerm(semester: String) {
-        edit(dataCache.writeGeneration()) { it - semester }
+    suspend fun forgetTerm(semester: String, signIn: SignIn) {
+        edit(signIn) { it - semester }
     }
 
     /**
@@ -217,20 +207,19 @@ class PendingCourseDeletes internal constructor(
      * A removal stamped before [stamp] whose own writes outlast this, as the class table's may
      * before it keeps its delete, finds it let go too: [keep] and [send] then keep nothing.
      */
-    suspend fun forgetAskedBefore(stamp: Long) {
+    suspend fun forgetAskedBefore(stamp: Long, signIn: SignIn) {
         mutex.withLock { forgottenBefore = maxOf(forgottenBefore, stamp) }
-        edit(dataCache.writeGeneration()) { pending ->
+        edit(signIn) { pending ->
             pending.mapValues { (_, entries) -> entries.filterValues { queuedAt -> queuedAt > stamp } }
                 .filterValues { it.isNotEmpty() }
         }
     }
 
-    // Under the adds lock, with the delete read again there: false once the
-    // data was wiped or the account changed since [generation] and [signIn]
-    // were read, when the delete was another account's and is not sent as
-    // this one's; true otherwise, sent or not.
-    private suspend fun sendHeld(semester: String, courseNo: String, generation: Int, signIn: Int): Boolean {
-        if (generation != dataCache.userDataGeneration || signIn != signInGeneration()) return false
+    // Under the adds lock, with the delete read again there: false once
+    // [signIn] has ended, when the delete was another account's and is not
+    // sent as this one's; true otherwise, sent or not.
+    private suspend fun sendHeld(semester: String, courseNo: String, signIn: SignIn): Boolean {
+        if (!signIn.isCurrent) return false
         // Only a delete still queued: one a re-add or a reset let go
         // meanwhile must not go, as it would take the restored course off.
         val queuedAt = waiting()[semester]?.get(courseNo) ?: return true
@@ -250,21 +239,21 @@ class PendingCourseDeletes internal constructor(
         }
         // The delete sent, and only that one: a removal asked during the
         // request kept its own, newer stamp on disk and is sent again.
-        edit(generation) { it.without(semester, courseNo) { it == queuedAt } }
+        edit(signIn) { it.without(semester, courseNo) { it == queuedAt } }
         return true
     }
 
     private suspend fun waiting(): Map<String, Map<String, Long>> = load()
 
-    // False, and nothing written, once the data was wiped since [generation].
+    // False, and nothing written, once [signIn] has ended.
     private suspend fun edit(
-        generation: Int,
+        signIn: SignIn,
         change: (Map<String, Map<String, Long>>) -> Map<String, Map<String, Long>>,
     ): Boolean = mutex.withLock {
         val before = waiting()
         noteStamps(before)
         val after = change(before)
-        after == before || dataCache.savePendingCourseDeletes(after, generation)
+        after == before || dataCache.savePendingCourseDeletes(after, signIn)
     }
 
     // Keeps the next stamp above every one [pending] holds.

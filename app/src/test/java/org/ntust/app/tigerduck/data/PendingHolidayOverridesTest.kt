@@ -15,6 +15,8 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
  * Holiday choices whose PUT has not landed ([PendingHolidayOverrides]). A
@@ -39,13 +41,14 @@ class PendingHolidayOverridesTest {
     /** Whether the client sent the PUT: false as with TigerSync turned off before its turn. */
     private var delivered = true
 
-    /** A sign-out that lands just as an acknowledgment is written, clearing both sets. */
-    private var signOutAtTheWrite = false
-    private var signInGeneration = 1
+    /** A sign-out that lands as the PUT's answer comes back, clearing both sets. */
+    private var signOutAtTheAnswer = false
+    private val series = SignInSeries()
+    private val signIn get() = series.current
     private var now = 1_000_000L
 
     /** The sign-in each PUT was pinned to. */
-    private val signIns = mutableListOf<Int>()
+    private val signIns = mutableListOf<SignIn>()
 
     @Before
     fun setUp() {
@@ -57,23 +60,15 @@ class PendingHolidayOverridesTest {
                 stamps += madeAtMs
                 sent += id to notify
                 answer(id, notify)
+                if (signOutAtTheAnswer) {
+                    // The sign-in ends first, and the sets are cleared after.
+                    series.end()
+                    prefs.forgetHolidayOverrides()
+                    series.open()
+                }
                 delivered
             },
             syncs = { syncs },
-            signInGeneration = { signInGeneration },
-            runIfSignedIn = { signIn, block ->
-                if (signOutAtTheWrite) {
-                    // The sign-out moved the generation under the lock first, and cleared after.
-                    signInGeneration++
-                    prefs.forgetHolidayOverrides()
-                }
-                if (signIn == signInGeneration) {
-                    block()
-                    true
-                } else {
-                    false
-                }
-            },
             clock = { now },
         )
     }
@@ -82,7 +77,7 @@ class PendingHolidayOverridesTest {
     private suspend fun tap(id: Int, notify: Boolean) {
         val current = prefs.holidayNotifyOverrides
         prefs.holidayNotifyOverrides = if (notify) current + id else current - id
-        holidays.send(id)
+        holidays.send(id, signIn)
     }
 
     @Test
@@ -94,7 +89,7 @@ class PendingHolidayOverridesTest {
         // Changed back while it waited: the retry sends what the user wants now.
         prefs.holidayNotifyOverrides = emptySet()
         answer = { _, _ -> }
-        holidays.retry()
+        holidays.retry(signIn)
 
         assertEquals(listOf(3 to true, 3 to false), sent)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
@@ -109,7 +104,7 @@ class PendingHolidayOverridesTest {
         now = 3_000L
         tap(5, notify = true)
         now = 4_000L
-        holidays.retry()
+        holidays.retry(signIn)
 
         // 3 failed at T1, 5 landed at T2, and the retry sent 3 again at its own time.
         assertEquals(listOf<Long?>(2_000L, 3_000L, 2_000L), stamps)
@@ -130,7 +125,7 @@ class PendingHolidayOverridesTest {
         tap(3, notify = false)
         syncs = true
         now = 4_000L
-        holidays.retry()
+        holidays.retry(signIn)
 
         assertEquals(listOf(3 to true, 3 to false), sent)
         assertEquals(listOf<Long?>(2_000L, 3_000L), stamps)
@@ -142,7 +137,7 @@ class PendingHolidayOverridesTest {
         prefs.holidayOverridesAwaitingUpload = setOf(4)
         assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
 
-        holidays.retry()
+        holidays.retry(signIn)
 
         assertEquals(listOf<Long?>(null), stamps)
         assertEquals(listOf(4 to true), sent)
@@ -159,11 +154,11 @@ class PendingHolidayOverridesTest {
         // Off and on again while the PUT is out: the same setting, made later.
         now = 3_000L
         prefs.holidayNotifyOverrides = emptySet()
-        val off = launch { holidays.send(3) }
+        val off = launch { holidays.send(3, signIn) }
         testScheduler.runCurrent()
         now = 4_000L
         prefs.holidayNotifyOverrides = setOf(3)
-        val on = launch { holidays.send(3) }
+        val on = launch { holidays.send(3, signIn) }
         testScheduler.runCurrent()
         gate.complete(Unit)
         first.join()
@@ -186,8 +181,7 @@ class PendingHolidayOverridesTest {
 
         now = 5_000L
         HolidayOverrideApply.apply(
-            setOf(5), fetchedAtMs = now, signIn = 1, pending = holidays, calendar = calendar,
-            runIfSignedIn = { _, block -> block(); true },
+            setOf(5), fetchedAtMs = now, signIn = signIn, pending = holidays, calendar = calendar,
         )
 
         assertEquals(setOf(5), prefs.holidayNotifyOverrides)
@@ -199,7 +193,7 @@ class PendingHolidayOverridesTest {
         tap(3, notify = true)
 
         assertEquals(listOf(3 to true), sent)
-        assertEquals(listOf(1), signIns)
+        assertEquals(listOf(signIn), signIns)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
     }
 
@@ -207,7 +201,7 @@ class PendingHolidayOverridesTest {
     fun `with TigerSync off a choice goes nowhere and is not kept`() = runTest {
         syncs = false
         tap(3, notify = true)
-        holidays.retry()
+        holidays.retry(signIn)
 
         assertEquals(emptyList<Pair<Int, Boolean>>(), sent)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
@@ -238,7 +232,8 @@ class PendingHolidayOverridesTest {
         testScheduler.runCurrent()
 
         // Signed out and in as someone else while 3 was under way and 4 waited behind it.
-        signInGeneration = 2
+        series.end()
+        series.open()
         prefs.holidayOverridesAwaitingUpload = setOf(4)
         gate.complete(Unit)
         first.join()
@@ -246,6 +241,26 @@ class PendingHolidayOverridesTest {
 
         assertEquals("4 never went up as the next account", listOf(3 to true), sent)
         assertEquals("nor was the next account's waiting set let go by 3's answer", setOf(4), holidays.waitingIds)
+    }
+
+    /** The gap between the sign-in's end and the wipe: the entry is still kept, and stays as it is. */
+    @Test
+    fun `a choice read under an ended sign-in is neither sent nor rewritten`() = runTest {
+        answer = { _, _ -> throw IOException("offline") }
+        tap(3, notify = true)
+        sent.clear()
+        val times = prefs.holidayOverrideEditTimes
+
+        val ended = series.end()
+        holidays.retry(ended)
+        // The sign-out's clear has run by now, or runs before the wipe: marked here it would stay.
+        prefs.forgetHolidayOverrides()
+        holidays.send(4, ended)
+
+        assertEquals(emptyList<Pair<Int, Boolean>>(), sent)
+        assertEquals("nothing for the next account to send", emptySet<Int>(), holidays.waitingIds)
+        assertEquals(emptyMap<Int, Long>(), prefs.holidayOverrideEditTimes)
+        assertEquals(mapOf(3 to times.getValue(3)), times)
     }
 
     @Test
@@ -289,13 +304,33 @@ class PendingHolidayOverridesTest {
     }
 
     @Test
-    fun `an acknowledgment is written only while its sign-in holds, under the sign-out's lock`() = runTest {
+    fun `an acknowledgment is written only while its sign-in holds`() = runTest {
         prefs.holidayOverridesAwaitingUpload = setOf(4)
-        signOutAtTheWrite = true
+        signOutAtTheAnswer = true
 
         tap(3, notify = true)
 
         assertEquals("the departing account's 4 is not written back over the sign-out", emptySet<Int>(), holidays.waitingIds)
+    }
+
+    /** The next account's choice reads the same as the one that landed, down to its time. */
+    @Test
+    fun `an old run's answer leaves the next account's same choice waiting`() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        answer = { _, _ -> gate.await() }
+        val first = launch { tap(3, notify = true) }
+        testScheduler.runCurrent()
+
+        series.end()
+        prefs.forgetHolidayOverrides()
+        series.open()
+        prefs.holidayNotifyOverrides = setOf(3)
+        prefs.holidayOverrideEditTimes = mapOf(3 to now)
+        prefs.holidayOverridesAwaitingUpload = setOf(3)
+        gate.complete(Unit)
+        first.join()
+
+        assertEquals(setOf(3), holidays.waitingIds)
     }
 
     @Test
@@ -307,7 +342,7 @@ class PendingHolidayOverridesTest {
         now += 1_000
         answer = { _, _ -> }
         // Sent by the worker while Home's fetch was under way.
-        holidays.retry()
+        holidays.retry(signIn)
 
         assertNull(holidays.merged(emptySet(), fetchedAtMs = fetchedAt, local = setOf(3)))
     }

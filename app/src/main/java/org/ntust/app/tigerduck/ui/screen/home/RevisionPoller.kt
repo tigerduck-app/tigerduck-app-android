@@ -28,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.SyncChangesPage
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import kotlin.math.max
 import kotlin.math.min
@@ -293,9 +294,9 @@ internal suspend fun pollRevisionOnce(
     fetchChanges: suspend (sinceRevision: Long) -> SyncChangesPage?,
     lastKnownRevision: () -> Long,
     setLastKnownRevision: (Long) -> Unit,
-    signInGeneration: () -> Int,
+    currentSignIn: () -> SignIn,
     fullSyncsInFlight: () -> Int,
-    retryUnsent: suspend () -> Unit,
+    retryUnsent: suspend (SignIn) -> Unit,
     fullSync: suspend () -> Unit,
 ): RevisionPollOutcome {
     if (!syncEnabled()) return RevisionPollOutcome.UNCHANGED
@@ -307,10 +308,10 @@ internal suspend fun pollRevisionOnce(
         if (revision <= since) return RevisionPollOutcome.UNCHANGED
         if (fullSyncsInFlight() > 0) return RevisionPollOutcome.CHANGED
         if (since > 0) {
-            val startedIn = signInGeneration()
+            val startedIn = currentSignIn()
             // Read on the poll's own thread, with nothing suspending between the
             // check and the move, as a full sync sets the watermark.
-            fun overtaken() = lastKnownRevision() != since || signInGeneration() != startedIn || fullSyncsInFlight() > 0
+            fun overtaken() = lastKnownRevision() != since || !startedIn.isCurrent || fullSyncsInFlight() > 0
             val page = try {
                 fetchChanges(since)
             } catch (e: CancellationException) {
@@ -323,7 +324,7 @@ internal suspend fun pollRevisionOnce(
             val plan = ChangeFeedPlan.of(page, since)
             Log.i(TAG, "[feed] since=$since plan=$plan")
             if (plan is ChangeFeedPlan.Advance) {
-                retryUnsent()
+                retryUnsent(startedIn)
                 if (!overtaken()) setLastKnownRevision(plan.to)
                 return RevisionPollOutcome.CHANGED
             }

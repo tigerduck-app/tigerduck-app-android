@@ -8,6 +8,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -65,6 +67,7 @@ class ReenableCheck @Inject constructor(
     private val semesterCatalog: SemesterCatalog,
     private val courseIgnoreSync: CourseIgnoreSync,
     private val authService: AuthService,
+    private val sessions: AccountSessions,
     @param:ApplicationScope private val appScope: CoroutineScope,
     @param:ApplicationContext private val context: Context,
 ) {
@@ -89,6 +92,7 @@ class ReenableCheck @Inject constructor(
      * Settings would keep "assignments" pending, and the marks held, until
      * TigerSync is opened again. On Main, like the view models' work.
      */
+    @OptIn(StartsAccountWork::class)
     fun check(waitForAnswers: Boolean = true, onConflict: (SettingsViewModel.ReenableConflict) -> Unit) {
         val pending = prefs.pendingConflictCategories
         if (pending.isEmpty()) {
@@ -98,7 +102,7 @@ class ReenableCheck @Inject constructor(
         val token = resolutions.checkStarting(waits = waitForAnswers) { check(onConflict = onConflict) } ?: return
         Log.i(TAG, "[reenable] checkPendingConflicts start: pending=$pending")
         val account = authService.storedStudentId
-        val generation = dataCache.userDataGeneration
+        val signIn = sessions.school.current
         owed.started()
         appScope.launch(Dispatchers.Main) {
             var verdict = false
@@ -111,7 +115,7 @@ class ReenableCheck @Inject constructor(
                 // sign-out the result is the departed account's.
                 val stillApplies = resolutions.isCurrent(token) &&
                     authService.isStillSignedInAs(account) &&
-                    dataCache.userDataGeneration == generation
+                    signIn.isCurrent
                 if (!stillApplies) return@launch
                 verdict = true
                 if (diffs.isNotEmpty()) {
@@ -127,7 +131,7 @@ class ReenableCheck @Inject constructor(
                     // still hold "assignments" for its own dialog.
                     prefs.pendingConflictCategories = prefs.pendingConflictCategories - pending
                     // The course ignores it held go out now, not at the next sync.
-                    if ("assignments" in pending) courseIgnoreSync.retryPending()
+                    if ("assignments" in pending) courseIgnoreSync.retryPending(signIn)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "[reenable] checkPendingConflicts FAILED — pending kept for retry: ${e.logSummary()}")

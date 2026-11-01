@@ -1,21 +1,29 @@
 package org.ntust.app.tigerduck.notification
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** When a background sync stops for its account: made-up student IDs. */
 class BackgroundRunAccountTest {
 
     private var student: String? = "B00015999"
-    private var signIn = 4
+    private val series = SignInSeries()
 
-    private var refuse = false
+    private fun run() = BackgroundRunAccount("B00015999", series.current) { student }
 
-    private fun run() = BackgroundRunAccount(
-        "B00015999", 4, { student }, { signIn },
-        runIfSignedIn = { _, block -> if (refuse) false else { block(); true } },
-    )
+    private fun signOutAndBackIn() {
+        series.end()
+        series.open()
+    }
 
     @Test
     fun `a run under the same sign-in goes on`() {
@@ -26,7 +34,7 @@ class BackgroundRunAccountTest {
     fun `a sign-out and sign-in as the same student ends the run`() {
         val run = run()
         // The student is the same again; only the sign-in moved.
-        signIn = 5
+        signOutAndBackIn()
         assertTrue(run.ended())
     }
 
@@ -41,7 +49,7 @@ class BackgroundRunAccountTest {
     fun `a sign-in as another student ends the run`() {
         val run = run()
         student = "B00016000"
-        signIn = 5
+        signOutAndBackIn()
         assertTrue(run.ended())
     }
 
@@ -53,18 +61,46 @@ class BackgroundRunAccountTest {
     }
 
     @Test
-    fun `no stamp is written when the sign-in lock refuses it`() {
-        // A sign-out that fell between the run's check and its write.
-        refuse = true
+    fun `a stamp a sign-out overtakes waits for neither, and is refused`() {
+        val run = run()
+        series.end()
         var stamped = false
-        assertFalse(run().writeIfCurrent { stamped = true })
+        assertFalse(run.writeIfCurrent { stamped = true })
         assertFalse(stamped)
+    }
+
+    /** The sign-out waits for the write: what the write stores lands before the clearing that follows it. */
+    @Test
+    fun `a sign-out waits for a stamp under way`() = runBlocking {
+        val run = run()
+        val writing = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val order = mutableListOf<String>()
+        val write = launch(Dispatchers.IO) {
+            run.writeIfCurrent {
+                writing.countDown()
+                release.await(10, TimeUnit.SECONDS)
+                synchronized(order) { order += "stamp" }
+            }
+        }
+        assertTrue(writing.await(10, TimeUnit.SECONDS))
+        val signOut = launch(Dispatchers.IO) {
+            series.end()
+            synchronized(order) { order += "sign-out" }
+        }
+        // Long enough for a sign-out that did not wait to have finished.
+        delay(100)
+        release.countDown()
+        write.join()
+        signOut.join()
+
+        assertEquals(listOf("stamp", "sign-out"), order)
     }
 
     @Test
     fun `no stamp is written for an ended run`() {
         val run = run()
-        signIn = 5
+        signOutAndBackIn()
         var stamped = false
         assertFalse(run.writeIfCurrent { stamped = true })
         assertFalse(stamped)

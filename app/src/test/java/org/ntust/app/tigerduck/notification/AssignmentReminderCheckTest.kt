@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.SubmissionStatusProbe
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -181,7 +182,7 @@ class AssignmentReminderCheckTest {
         val moved = dueInThreeDays("20979")
         dataCache.saveAssignments(listOf(marked, ofIgnoredCourse, moved))
         dataCache.saveMarkedCompletedAssignments(setOf("20977"))
-        dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")))
+        dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")), testSignIn())
         moodle = { answer(own = "new") }
 
         assertEquals(
@@ -215,7 +216,7 @@ class AssignmentReminderCheckTest {
         moodle = changingMeanwhile { dataCache.saveMarkedCompletedAssignments(setOf("20977")) }
         val afterMark = check.verdict("20977", marked.dueDate.time)
         moodle = changingMeanwhile {
-            dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")))
+            dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")), testSignIn())
         }
         val afterIgnore = check.verdict("20978", ofIgnoredCourse.dueDate.time)
         moodle = changingMeanwhile {

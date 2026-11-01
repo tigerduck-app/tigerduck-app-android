@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.data
 
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
  * Where a full sync's holiday choices land on this phone. Home's sync and the
@@ -12,19 +13,18 @@ internal object HolidayOverrideApply {
      * Applies [snapshot], fetched at [fetchedAtMs] under sign-in [signIn], to
      * [calendar]. A choice whose PUT has not landed stays as this phone has it,
      * and a snapshot that may predate one is not applied: see
-     * [PendingHolidayOverrides.merged]. Run under [runIfSignedIn], the
-     * sign-out's lock: applied after its clear, the departing account's
-     * choices would come back.
+     * [PendingHolidayOverrides.merged]. In a step that ends before the sign-in
+     * does ([SignIn.ifCurrent]): applied after the sign-out's clear, the
+     * departing account's choices would come back.
      */
     fun apply(
         snapshot: Set<Int>,
         fetchedAtMs: Long,
-        signIn: Int,
+        signIn: SignIn,
         pending: PendingHolidayOverrides,
         calendar: AcademicCalendarStore,
-        runIfSignedIn: (Int, () -> Unit) -> Boolean,
     ) {
-        runIfSignedIn(signIn) {
+        signIn.ifCurrent {
             pending.merged(snapshot, fetchedAtMs, calendar.optedInHolidayIds)?.let { merged ->
                 // A holiday this pull replaces loses its edit time with its value.
                 val before = calendar.optedInHolidayIds

@@ -208,17 +208,18 @@ class AccountSwitchTest {
     fun `a write pinned before the sign-out leaves nothing after the wipe, whether it lands before or after`() = runBlocking {
         val w = world(signedInAsFirst())
         val pinned = w.dataCache.writeGeneration()
+        val signIn = w.sessions.school.signIns.current
 
         // Landing before the wipe: it is on disk, and the wipe takes it.
-        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), pinned))
+        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), signIn))
         assertTrue(userFile("unsent_marks.json").exists())
         w.auth.logout()
         withTimeout(10_000) { signOutJob.children.toList().joinAll() }
         assertFalse(userFile("unsent_marks.json").exists())
 
-        // Landing after it: the wipe moved the generation, so the write is dropped where it lands.
-        assertFalse(w.dataCache.saveUnsentMarks(listOf(mark), pinned))
-        assertFalse(w.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001")), pinned))
+        // Landing after it: the sign-in has ended, so the write is dropped where it lands.
+        assertFalse(w.dataCache.saveUnsentMarks(listOf(mark), signIn))
+        assertFalse(w.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001")), signIn))
         withContext(DataCache.Generation(pinned)) {
             w.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())))
         }
@@ -233,14 +234,14 @@ class AccountSwitchTest {
         val w = world(signedInAsFirst(), CoroutineScope(SupervisorJob() + held))
 
         w.auth.logout()
-        // The sign-in has ended and the wipe has not run: the gap userDataGeneration closes.
+        // The sign-in has ended and the wipe has not run: the session is closed, so work that
+        // starts in the gap reads the sign-in that ended, and writes nothing.
         assertEquals(null, w.auth.storedStudentId)
-        val startedInTheGap = w.dataCache.writeGeneration()
-        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), startedInTheGap))
+        val startedInTheGap = w.sessions.school.signIns.current
+        assertFalse(startedInTheGap.isCurrent)
+        assertFalse(w.dataCache.saveUnsentMarks(listOf(mark), startedInTheGap))
         held.release()
-        withTimeout(10_000) {
-            while (userFile("unsent_marks.json").exists() || w.dataCache.userDataGeneration == startedInTheGap) delay(20)
-        }
+        withTimeout(10_000) { w.sessions.school.awaitOpen() }
 
         // The work from the gap writes after the wipe: dropped.
         assertFalse(w.dataCache.saveUnsentMarks(listOf(mark), startedInTheGap))
@@ -276,8 +277,9 @@ class AccountSwitchTest {
         val credentialPrefs = signedInAsFirst()
         val first = world(credentialPrefs, CoroutineScope(SupervisorJob() + held))
         val queued = listOf("unsent_marks.json", "pending_course_adds.json")
-        assertTrue(first.dataCache.saveUnsentMarks(listOf(mark)))
-        assertTrue(first.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001"))))
+        val signIn = first.sessions.school.signIns.current
+        assertTrue(first.dataCache.saveUnsentMarks(listOf(mark), signIn))
+        assertTrue(first.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001")), signIn))
         first.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())))
 
         first.auth.logout()
@@ -352,7 +354,7 @@ class AccountSwitchTest {
     @Test
     fun `a start with nothing owed leaves the files and the session alone`() = runBlocking {
         val w = world(signedInAsFirst())
-        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark)))
+        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), w.sessions.school.signIns.current))
         w.credentials.v3Tokens.save("first's-token", "first's-refresh", Long.MAX_VALUE)
         w.appPrefs.holidayOverridesAwaitingUpload = setOf(7)
         val current = w.sessions.school.signIns.current

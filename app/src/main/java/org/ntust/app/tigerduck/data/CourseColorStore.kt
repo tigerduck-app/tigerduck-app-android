@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
 import org.ntust.app.tigerduck.ui.theme.courseColorPalette
 import org.ntust.app.tigerduck.widget.WidgetUpdater
@@ -71,7 +72,7 @@ class CourseColorStore @Inject constructor(
      * course beyond the 18-color palette receives a random non-palette color. Persists to the
      * cache and rebuilds the shared color map before broadcasting [changeEvent].
      */
-    suspend fun resetAllColors() {
+    suspend fun resetAllColors(signIn: SignIn) {
         ensureMoodleColorsLoaded()
         // Reserved before the colours are read: a pick made from here on is
         // the newer, and the reset's own colour for that course gives way.
@@ -108,12 +109,13 @@ class CourseColorStore @Inject constructor(
                 PendingCourseOverrides.Change(moodleId, colorHex = hex)
             },
             version,
+            signIn,
         )
         dataCache.saveCourses(updated)
         TigerDuckTheme.clearCourseColorMap()
         widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)
-        pendingCourseOverrides.retry()
+        pendingCourseOverrides.retry(signIn)
     }
 
     private fun formatHex(color: Color): String =

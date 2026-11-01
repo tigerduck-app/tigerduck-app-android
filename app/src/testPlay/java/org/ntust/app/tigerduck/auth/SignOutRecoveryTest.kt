@@ -484,7 +484,7 @@ class SignOutRecoveryTest {
 
         assertTrue(withTimeout(10_000) { nextSignIn.await() })
         assertEquals(SECOND, w.credentials.ntustStudentId)
-        assertTrue("what the next student saves stays", w.dataCache.saveUnsentMarks(listOf(mark)))
+        assertTrue("what the next student saves stays", w.dataCache.saveUnsentMarks(listOf(mark), w.sessions.school.signIns.current))
         delay(100)
         assertTrue(userFile("unsent_marks.json").exists())
         assertFalse(owed.owed)
@@ -507,7 +507,7 @@ class SignOutRecoveryTest {
         held.release()
 
         assertTrue(withTimeout(10_000) { nextSignIn.await() })
-        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark)))
+        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), w.sessions.school.signIns.current))
         delay(100)
         assertTrue("no wipe was left to take it", userFile("unsent_marks.json").exists())
         assertFalse(owed.owed)

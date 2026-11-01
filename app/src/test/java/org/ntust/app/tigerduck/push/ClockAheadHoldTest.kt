@@ -57,7 +57,7 @@ class ClockAheadHoldTest {
         auth = AuthTokenManager(tokens, backend.client, prefs, "device-1")
         api = PushApiClient(backend.client, prefs, auth)
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
-        overrides = PendingCourseOverrides(cache, api, prefs, auth)
+        overrides = PendingCourseOverrides(cache, api, prefs)
     }
 
     /**
@@ -74,9 +74,11 @@ class ClockAheadHoldTest {
         return result.await()
     }
 
+    private val signIn get() = auth.session.signIns.current
+
     @Test
     fun `a color held while its request waits stays queued, and the clock_ahead resend does not go`() = runTest {
-        val sent = async { overrides.send("1151CS1", colorHex = "#FF0000") }
+        val sent = async { overrides.send("1151CS1", colorHex = "#FF0000", signIn = signIn) }
         val held = backend.hold(course)
         held.arrived.await()
         // The re-enable check opens for colors while the first request is out.
@@ -92,7 +94,7 @@ class ClockAheadHoldTest {
 
         // The hold lifts: the next sync sends it, and it clears.
         prefs.pendingConflictCategories = emptySet()
-        overrides.retry()
+        overrides.retry(signIn)
         assertEquals(2, backend.received(course).size)
         assertFalse(overrides.hasPending())
     }
@@ -100,8 +102,8 @@ class ClockAheadHoldTest {
     @Test
     fun `a mark whose resend the switch stopped stays waiting, and goes out once the switch is on`() = runTest {
         val endpoint = "PATCH /sync/assignments/7/override"
-        val marks = UnsentMarks(cache, api, prefs, auth)
-        val sent = async { marks.send("7", "ignored") }
+        val marks = UnsentMarks(cache, api, prefs)
+        val sent = async { marks.send("7", "ignored", signIn) }
         val held = backend.hold(endpoint)
         held.arrived.await()
         prefs.syncAssignments = false
@@ -114,7 +116,7 @@ class ClockAheadHoldTest {
         assertEquals("still waiting, not counted as refused", 0, row.attempts)
 
         prefs.syncAssignments = true
-        marks.retry()
+        marks.retry(signIn)
         assertEquals(2, backend.received(endpoint).size)
         assertEquals("the retry keeps the time it was made", true, "hlc" in backend.received(endpoint).last().body)
         assertEquals(emptyList<Any>(), cache.loadUnsentMarks())
@@ -130,7 +132,7 @@ class ClockAheadHoldTest {
             sends = { CourseIgnoreSync.syncsCourseIgnores(prefs) },
             clock = System::currentTimeMillis,
         )
-        val sent = async { ignores.setIgnored("1141", "AAA", "1141AAA", null, ignore = true) }
+        val sent = async { ignores.setIgnored("1141", "AAA", "1141AAA", null, ignore = true, signIn = signIn) }
         val held = backend.hold(endpoint)
         held.arrived.await()
         prefs.syncCourses = false
@@ -143,7 +145,7 @@ class ClockAheadHoldTest {
 
         prefs.syncCourses = true
         backend.answer(endpoint, 200, """{"ignore_assignments":true}""")
-        ignores.retryPending()
+        ignores.retryPending(signIn)
         assertEquals(2, backend.received(endpoint).size)
         assertEquals(emptyList<Any>(), cache.loadPendingCourseIgnores())
     }
@@ -153,10 +155,9 @@ class ClockAheadHoldTest {
         val endpoint = "PUT /sync/holiday-overrides/3"
         val holidays = PendingHolidayOverrides(
             prefs, HolidayOverrideSender(api::putHolidayOverride), { prefs.cloudSyncEnabled },
-            { auth.signInGeneration }, auth::runIfSignedIn,
         )
         prefs.holidayNotifyOverrides = setOf(3)
-        val sent = async { holidays.send(3) }
+        val sent = async { holidays.send(3, signIn) }
         val held = backend.hold(endpoint)
         held.arrived.await()
         prefs.cloudSyncEnabled = false
@@ -168,7 +169,7 @@ class ClockAheadHoldTest {
         assertEquals(setOf(3), holidays.waitingIds)
 
         prefs.cloudSyncEnabled = true
-        holidays.retry()
+        holidays.retry(signIn)
         assertEquals(2, backend.received(endpoint).size)
         assertEquals(emptySet<Int>(), holidays.waitingIds)
     }
