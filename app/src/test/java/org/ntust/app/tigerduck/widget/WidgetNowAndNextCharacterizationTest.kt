@@ -384,4 +384,22 @@ class WidgetNowAndNextCharacterizationTest {
             lines(listOf(a, b), listOf("11:10", "11:20"), seconds = 1),
         )
     }
+
+    @Test
+    fun `a course in a period with no known time is still the first class of its day, after any with a time`() {
+        val unknown = course("CC938", mapOf(5 to listOf("E")))
+        val known = course("CC939", mapOf(5 to listOf("1")))
+        assertEquals(
+            """
+            20:00 on=[] next=none first=CC938 d5 pE quiet=false
+            """.trimIndent(),
+            lines(listOf(unknown), listOf("20:00")),
+        )
+        assertEquals(
+            """
+            20:00 on=[] next=none first=CC939 d5 p1 quiet=false
+            """.trimIndent(),
+            lines(listOf(unknown, known), listOf("20:00")),
+        )
+    }
 }

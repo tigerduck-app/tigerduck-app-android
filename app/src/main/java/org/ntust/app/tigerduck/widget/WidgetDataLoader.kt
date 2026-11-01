@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.parseHm
 import org.ntust.app.tigerduck.shared.time.TaipeiClock
 import org.ntust.app.tigerduck.shared.timeline.ClassTimeline
 import org.ntust.app.tigerduck.ui.theme.buildCourseColorAssignments
@@ -191,11 +192,18 @@ object WidgetDataLoader {
         for (offset in 1L..7L) {
             val day = today.plusDays(offset)
             if (day in quietDays) continue
-            val pick = ClassTimeline.meetings(courses, day, changes).firstOrNull { !it.isCancelled } ?: continue
+            // Stays on CourseBlock rather than ClassTimeline: this names a course, weekday and first
+            // period, not a slot with a start, and a course in a period with no known time is still
+            // offered (ClassTimeline's slots drop it), so a day's first is picked by start with
+            // such a course last.
+            val pick = courses
+                .mapNotNull { course -> CourseBlock.on(course, day, changes).firstOrNull { !it.isCancelled } }
+                .minByOrNull { parseHm(it.startTime) ?: Int.MAX_VALUE }
+                ?: continue
             return TomorrowFirst(
                 courseNo = pick.course.courseNo,
                 weekday = pick.weekday,
-                periodId = pick.periods.first(),
+                periodId = pick.firstPeriodId,
             )
         }
         return null
