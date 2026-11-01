@@ -55,7 +55,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -401,8 +400,7 @@ private fun MoodlePostCard(
                 val stroke = 1.dp.toPx()
                 for (level in 0 until entry.depth) {
                     val x = (ReplyIndent * level + ReplyIndent / 2).toPx()
-                    val atX = if (layoutDirection == LayoutDirection.Rtl) size.width - x else x
-                    drawLine(guide, Offset(atX, 0f), Offset(atX, size.height), stroke)
+                    drawLine(guide, Offset(x, 0f), Offset(x, size.height), stroke)
                 }
             },
     ) {
