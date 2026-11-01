@@ -111,7 +111,7 @@ APP_PACKAGE = "/org/ntust/app/tigerduck/"
 # Homes are regexes on the path under the app's package. A file inside one is
 # where that rule is allowed to live.
 DEMO_HOMES = re.compile(
-    r"(?:demo/|auth/session/|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
+    r"(?:demo/|auth/session/|shared/account/|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
     r"|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
 SIGN_IN_HOMES = re.compile(
     r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|demo/|liveactivity/"

@@ -522,6 +522,8 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "debug/DemoModeInterceptor.kt", line)
         self.write(APP + "mail/MailDemo.kt", line)
         self.write("app/src/play/java/org/ntust/app/tigerduck/demo/Play.kt", line)
+        # The sign-in type carries isDemo for the whole session.
+        self.write("shared/src/main/java/org/ntust/app/tigerduck/shared/account/SignIn.kt", line)
         self.write(APP + "ui/Quiet.kt", "// isDemo\nval s = \"fixtures.demoMode\"\n")
         self.assertEqual(self.counts("demo-check"), {APP + "ui/Screen.kt": 1})
 
