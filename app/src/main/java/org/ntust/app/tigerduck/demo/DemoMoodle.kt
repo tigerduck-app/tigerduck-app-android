@@ -37,6 +37,8 @@ data class DemoMoodle(
     /** The demo student's own Moodle user, which the members list counts as "you". */
     val ownMemberId: Int,
     val courses: List<DemoMoodleCourse>,
+    /** The bytes of each file the fixture gives content to, by the file's demo URL. */
+    val content: Map<String, ByteArray> = emptyMap(),
 )
 
 data class DemoMoodleCourse(
@@ -88,13 +90,14 @@ object DemoMoodleFixture {
     /** The `moodle` section of [root], or null without one. A malformed entry is skipped. */
     fun parse(root: JsonObject, lang: String): DemoMoodle? {
         val moodle = root.get("moodle") as? JsonObject ?: return null
+        val content = mutableMapOf<String, ByteArray>()
         val courses = (moodle.get("courses") as? JsonArray).orEmpty().mapNotNull { el ->
-            (el as? JsonObject)?.let { parseCourse(it, lang) }
+            (el as? JsonObject)?.let { parseCourse(it, lang, content) }
         }
-        return DemoMoodle(ownMemberId = moodle.int("ownMemberId") ?: 0, courses = courses)
+        return DemoMoodle(ownMemberId = moodle.int("ownMemberId") ?: 0, courses = courses, content = content)
     }
 
-    private fun parseCourse(o: JsonObject, lang: String): DemoMoodleCourse? {
+    private fun parseCourse(o: JsonObject, lang: String, content: MutableMap<String, ByteArray>): DemoMoodleCourse? {
         val courseNo = o.str("courseNo") ?: return null
         val moodleId = o.int("moodleId") ?: return null
         return DemoMoodleCourse(
@@ -103,30 +106,30 @@ object DemoMoodleFixture {
             fullname = localized(o, "fullname", lang),
             summaryHtml = localized(o, "summary", lang),
             announcements = (o.get("announcements") as? JsonArray).orEmpty()
-                .mapIndexedNotNull { i, el -> (el as? JsonObject)?.let { announcement(it, moodleId, i, lang) } },
+                .mapIndexedNotNull { i, el -> (el as? JsonObject)?.let { announcement(it, moodleId, i, lang, content) } },
             grades = (o.get("grades") as? JsonArray).orEmpty()
                 .mapIndexedNotNull { i, el -> (el as? JsonObject)?.let { grade(it, moodleId, i, lang) } },
             members = (o.get("members") as? JsonArray).orEmpty()
                 .mapNotNull { el -> (el as? JsonObject)?.let { member(it, lang) } },
             assignments = (o.get("assignments") as? JsonArray).orEmpty()
-                .mapNotNull { el -> (el as? JsonObject)?.let { assignment(it, lang) } },
+                .mapNotNull { el -> (el as? JsonObject)?.let { assignment(it, lang, content) } },
             forums = (o.get("forums") as? JsonArray).orEmpty()
-                .mapIndexedNotNull { i, el -> (el as? JsonObject)?.let { forum(it, moodleId, i, lang) } },
+                .mapIndexedNotNull { i, el -> (el as? JsonObject)?.let { forum(it, moodleId, i, lang, content) } },
             materials = MoodleCourseMaterials(
                 (o.get("materials") as? JsonArray).orEmpty()
-                    .mapNotNull { el -> (el as? JsonObject)?.let { materialSection(it, lang) } },
+                    .mapNotNull { el -> (el as? JsonObject)?.let { materialSection(it, lang, content) } },
             ),
         )
     }
 
-    private fun forum(o: JsonObject, moodleId: Int, index: Int, lang: String): DemoMoodleForum? {
+    private fun forum(o: JsonObject, moodleId: Int, index: Int, lang: String, content: MutableMap<String, ByteArray>): DemoMoodleForum? {
         val id = o.int("id") ?: return null
         val threads = (o.get("discussions") as? JsonArray).orEmpty().mapNotNull { el ->
             val d = el as? JsonObject ?: return@mapNotNull null
             val discussionId = d.int("id") ?: return@mapNotNull null
             val title = localized(d, "title", lang)
             val posts = (d.get("posts") as? JsonArray).orEmpty()
-                .mapNotNull { (it as? JsonObject)?.let { p -> post(p, lang) } }
+                .mapNotNull { (it as? JsonObject)?.let { p -> post(p, lang, content) } }
                 // As Moodle titles them: the first post by the discussion, a reply "Re:" it.
                 .mapIndexed { i, post -> post.copy(subject = if (i == 0) title else "Re: $title") }
             val first = posts.firstOrNull() ?: return@mapNotNull null
@@ -157,7 +160,7 @@ object DemoMoodleFixture {
         )
     }
 
-    private fun post(o: JsonObject, lang: String): MoodlePost? {
+    private fun post(o: JsonObject, lang: String, content: MutableMap<String, ByteArray>): MoodlePost? {
         val id = o.int("id") ?: return null
         return MoodlePost(
             id = id,
@@ -168,26 +171,26 @@ object DemoMoodleFixture {
             authorName = localized(o, "author", lang).ifEmpty { null },
             authorId = o.int("authorId"),
             attachments = (o.get("attachments") as? JsonArray).orEmpty().mapNotNull { el ->
-                (el as? JsonObject)?.let { file(it, "mod_forum/attachment/$id", time(o.str("created"))) }
+                (el as? JsonObject)?.let { file(it, "mod_forum/attachment/$id", time(o.str("created")), content) }
             },
             isUnread = o.bool("unread"),
             isDeleted = o.bool("deleted"),
         )
     }
 
-    private fun materialSection(o: JsonObject, lang: String): MoodleMaterialSection? {
+    private fun materialSection(o: JsonObject, lang: String, content: MutableMap<String, ByteArray>): MoodleMaterialSection? {
         val id = o.int("id") ?: return null
         val materials = (o.get("items") as? JsonArray).orEmpty().mapNotNull { el ->
             val m = el as? JsonObject ?: return@mapNotNull null
             val cmid = m.int("id") ?: return@mapNotNull null
             val area = "mod_${m.str("type")}/content/$cmid"
             when (m.str("type")) {
-                "file" -> (m.get("file") as? JsonObject)?.let { file(it, area, null) }?.let {
+                "file" -> (m.get("file") as? JsonObject)?.let { file(it, area, null, content) }?.let {
                     MoodleMaterial(cmid, cmid, MoodleMaterial.RESOURCE, localized(m, "name", lang), listOf(it), null)
                 }
                 "folder" -> MoodleMaterial(
                     cmid, cmid, MoodleMaterial.FOLDER, localized(m, "name", lang),
-                    (m.get("files") as? JsonArray).orEmpty().mapNotNull { (it as? JsonObject)?.let { f -> file(f, area, null) } },
+                    (m.get("files") as? JsonArray).orEmpty().mapNotNull { (it as? JsonObject)?.let { f -> file(f, area, null, content) } },
                     null,
                 ).takeIf { it.files.isNotEmpty() }
                 "link" -> m.str("url")?.let { MoodleMaterial(cmid, cmid, MoodleMaterial.URL, localized(m, "name", lang), emptyList(), it) }
@@ -202,34 +205,36 @@ object DemoMoodleFixture {
      * A file under the Moodle site's own web-service path, so a tap takes the path a real file
      * takes, to the demo account's download, which has no network and says so.
      */
-    private fun file(o: JsonObject, area: String, created: Long?): MoodleFile? {
+    private fun file(o: JsonObject, area: String, created: Long?, content: MutableMap<String, ByteArray>): MoodleFile? {
         val name = o.str("name") ?: return null
+        val url = fileUrl(area, name)
+        keep(content, url, o)
         return MoodleFile(
             name = name,
             size = o.long("size") ?: 0,
-            url = "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/0/$area/$name",
+            url = url,
             mimeType = o.str("mime"),
             modified = time(o.str("modified")) ?: created,
             path = "/",
         )
     }
 
-    private fun assignment(o: JsonObject, lang: String): DemoMoodleAssignment? {
+    private fun assignment(o: JsonObject, lang: String, content: MutableMap<String, ByteArray>): DemoMoodleAssignment? {
         val id = o.int("id") ?: return null
         val cmid = o.int("cmid") ?: (id * 10)
         return DemoMoodleAssignment(
             id = id,
             cmid = cmid,
             intro = localized(o, "intro", lang),
-            attachments = files(o.get("attachments") as? JsonArray, "mod_assign/introattachment/$cmid"),
+            attachments = files(o.get("attachments") as? JsonArray, "mod_assign/introattachment/$cmid", content),
             teamSubmission = o.bool("teamSubmission"),
             noSubmissions = o.bool("noSubmissions"),
-            submission = (o.get("submission") as? JsonObject)?.let { submission(it, id, lang) },
+            submission = (o.get("submission") as? JsonObject)?.let { submission(it, id, lang, content) },
         )
     }
 
     /** A submission as `mod_assign_get_submission_status` would answer it, its comments and group included. */
-    private fun submission(o: JsonObject, assignId: Int, lang: String): MoodleAssignmentSubmission {
+    private fun submission(o: JsonObject, assignId: Int, lang: String, content: MutableMap<String, ByteArray>): MoodleAssignmentSubmission {
         val submissionId = assignId * 10 + 1
         val group = o.get("group") as? JsonObject
         val comments = (o.get("comments") as? JsonArray).orEmpty().mapIndexedNotNull { i, el ->
@@ -244,7 +249,7 @@ object DemoMoodleFixture {
         return MoodleAssignmentSubmission(
             status = o.str("status") ?: "new",
             modified = time(o.str("time")),
-            files = files(o.get("files") as? JsonArray, "assignsubmission_file/submission_files/$submissionId"),
+            files = files(o.get("files") as? JsonArray, "assignsubmission_file/submission_files/$submissionId", content),
             onlineText = localized(o, "text", lang).ifEmpty { null },
             id = submissionId,
             takesComments = true,
@@ -261,14 +266,25 @@ object DemoMoodleFixture {
         )
     }
 
+    private fun fileUrl(area: String, name: String) =
+        "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/0/$area/$name"
+
+    /** Remembers the bytes of a file entry's `base64`, if it has them, under its demo [url]. */
+    private fun keep(content: MutableMap<String, ByteArray>, url: String, entry: JsonObject) {
+        val bytes = entry.str("base64")?.let { runCatching { java.util.Base64.getDecoder().decode(it) }.getOrNull() } ?: return
+        content[url] = bytes
+    }
+
     /** `[{"name", "size", "mime"}]` as files Moodle would list under [area]. */
-    private fun files(array: JsonArray?, area: String): List<MoodleFile> = array.orEmpty().mapNotNull { el ->
+    private fun files(array: JsonArray?, area: String, content: MutableMap<String, ByteArray>): List<MoodleFile> = array.orEmpty().mapNotNull { el ->
         val a = el as? JsonObject ?: return@mapNotNull null
         val name = a.str("name") ?: return@mapNotNull null
+        val url = fileUrl(area, name)
+        keep(content, url, a)
         MoodleFile(
             name = name,
             size = a.long("size") ?: 0,
-            url = "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/0/$area/$name",
+            url = url,
             mimeType = a.str("mime"),
             modified = null,
             path = "/",
@@ -301,7 +317,7 @@ object DemoMoodleFixture {
         }
     }
 
-    private fun announcement(o: JsonObject, moodleId: Int, index: Int, lang: String): MoodleDiscussion? {
+    private fun announcement(o: JsonObject, moodleId: Int, index: Int, lang: String, content: MutableMap<String, ByteArray>): MoodleDiscussion? {
         val created = time(o.str("created")) ?: return null
         val message = localized(o, "message", lang)
         val id = o.int("id") ?: (moodleId * 100 + index + 1)
@@ -321,10 +337,12 @@ object DemoMoodleFixture {
             attachments = (o.get("attachments") as? JsonArray).orEmpty().mapNotNull { el ->
                 val a = el as? JsonObject ?: return@mapNotNull null
                 val name = a.str("name") ?: return@mapNotNull null
+                val url = fileUrl("mod_forum/attachment/${id * 10}", name)
+                keep(content, url, a)
                 MoodleFile(
                     name = name,
                     size = a.long("size") ?: 0,
-                    url = "https://moodle2.ntust.edu.tw/webservice/pluginfile.php/0/mod_forum/attachment/${id * 10}/$name",
+                    url = url,
                     mimeType = a.str("mime"),
                     modified = created,
                     path = "/",
@@ -519,7 +537,14 @@ class DemoMoodleCourseApi(
             id to submission.groupName.orEmpty()
         }.toMap()
 
-    /** The demo account has no network to fetch a file on. */
-    override suspend fun download(file: MoodleFile, target: java.io.File, maxBytes: Long, progress: (Float) -> Unit) =
-        throw java.io.IOException("demo mode has no files")
+    /**
+     * The demo account has no network to fetch a file on: a file the fixture gave content is
+     * written from it, and any other fails as before.
+     */
+    override suspend fun download(file: MoodleFile, target: java.io.File, maxBytes: Long, progress: (Float) -> Unit) {
+        val bytes = moodle.content[file.url] ?: throw java.io.IOException("demo mode has no files")
+        if (bytes.size > maxBytes) throw java.io.IOException("demo file is larger than $maxBytes bytes")
+        target.writeBytes(bytes)
+        progress(1f)
+    }
 }
