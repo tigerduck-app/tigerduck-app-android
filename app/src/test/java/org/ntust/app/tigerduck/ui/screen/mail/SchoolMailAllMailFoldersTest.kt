@@ -278,6 +278,41 @@ class SchoolMailAllMailFoldersTest {
         assertTrue(vm.state.value.cursors.containsKey(USER))
     }
 
+    @Test
+    fun `a folder recreated while another folder's reload fails leaves none of its old rows`() {
+        repo.pageSize = 1
+        repo.add("INBOX", mailSummary(1, sentAt = at(500)), mailSummary(2, sentAt = at(400)))
+        repo.add(USER, mailSummary(4, sentAt = at(300)), mailSummary(3, sentAt = at(200)))
+        vm.load()
+        assertEquals(listOf("INBOX" to 2L, USER to 4L), rows())
+        // Both folders answer their older page under a new UIDVALIDITY, so both are found
+        // recreated; the student's folder then fails the first-page reload the inbox survives.
+        repo.pageValidity = 2
+        repo.olderPage = { folder, _ ->
+            if (folder == USER) repo.folderLoadErrors[USER] = MailError.ServerBusy()
+            MailPage(2, 2, listOf(mailSummary(if (folder == USER) 3 else 1, sentAt = at(1))), null)
+        }
+        vm.loadMoreIfNeeded(vm.state.value.displayed.last())
+        assertTrue(vm.state.value.messages.none { it.folder == USER })
+        assertFalse(vm.state.value.cursors.containsKey(USER))
+        assertTrue(vm.state.value.messages.any { it.folder == "INBOX" })
+    }
+
+    @Test
+    fun `a failure that arrives after the student left the folder or the account is not shown`() {
+        seed()
+        repo.folderLoadErrors[USER] = MailError.ServerBusy()
+        val gate = CompletableDeferred<Unit>()
+        repo.statusGate = gate
+        vm.load()
+        // The load is held on the inbox status; the student switches folder meanwhile.
+        repo.statusGate = null
+        vm.selectFolder(FolderSelection.Real(SENT))
+        gate.complete(Unit)
+        assertEquals(FolderSelection.Real(SENT), vm.state.value.selected)
+        assertTrue(vm.state.value.loadState is SchoolMailListViewModel.LoadState.Loaded)
+    }
+
     private companion object {
         const val SENT = "寄件備份匣"
         const val DRAFTS = "草稿匣"

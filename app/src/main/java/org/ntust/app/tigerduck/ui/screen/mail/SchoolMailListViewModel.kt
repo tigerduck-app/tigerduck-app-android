@@ -961,7 +961,7 @@ class SchoolMailListViewModel @Inject constructor(
      * True once the server's first page is on screen; false when the fetch failed, or when the
      * selection changed before it landed and the page was dropped.
      */
-    private suspend fun fetchFirstPage(): Boolean {
+    private suspend fun fetchFirstPage(discard: Set<String> = emptySet()): Boolean {
         val selection = _state.value.selected
         val targets = _state.value.targets
         if (targets.isEmpty()) {
@@ -989,11 +989,11 @@ class SchoolMailListViewModel @Inject constructor(
             val loaded = pages.map { it.first }
             listGeneration++
             folderValidity = folderValidity + pages.associate { (folder, page) -> folder to page.uidValidity }
-            _state.update { st -> // a folder that did not answer keeps its rows and cursor
+            val kept = read.failed - discard // a folder that did not answer keeps its rows, unless recreated
+            _state.update { st ->
                 st.copy(
-                    messages = ordered(selection, rowsOf(selection, pages) + st.messages.filter { it.folder in read.failed }),
-                    cursors = cursorsOf(pages) + st.cursors.filterKeys { it in read.failed },
-                    loadState = LoadState.Loaded,
+                    messages = ordered(selection, rowsOf(selection, pages) + st.messages.filter { it.folder in kept }),
+                    cursors = cursorsOf(pages) + st.cursors.filterKeys { it in kept }, loadState = LoadState.Loaded,
                 )
             }
             lookedAt = clock.now().takeIf { read.failure == null } ?: lookedAt
@@ -1008,8 +1008,8 @@ class SchoolMailListViewModel @Inject constructor(
             if (_state.value.inboxInView && _state.value.inboxFolder.let { it == null || it in loaded }) {
                 runCatching { checker.noteSeenByPage(repository.inboxStatus { account.accountGeneration == generation }, generation) }
             }
-            // Reported as any load's failure is, with the folders that answered shown (as on iOS).
-            read.failure?.let { fail(it, generation); return false }
+            // Reported as a load's failure is (as on iOS), unless the view or account moved on meanwhile.
+            read.failure?.let { if (stillCurrent(selection, generation)) fail(it, generation); return false }
             return true
         } catch (e: MailError) {
             if (dropped(e, generation)) return false
@@ -1045,7 +1045,7 @@ class SchoolMailListViewModel @Inject constructor(
         // the folder recreated -- starts none for it: [fetchFirstPage] would otherwise take the new
         // selection and account for its own and send, cache and date a load on their behalf.
         if (!stillCurrent(selection, generation) || list != listGeneration) return false
-        if (fetch && fetchFirstPage()) return true
+        if (fetch && fetchFirstPage(discard = folders.keys)) return true
         // Only while this is still the list that was found stale: a newer one owns its rows.
         if (stillCurrent(selection, generation) && list == listGeneration) {
             _state.update { st -> st.copy(messages = st.messages.filterNot { it.folder in folders }, cursors = st.cursors - folders.keys) }
