@@ -77,6 +77,17 @@ class CourseChanges private constructor(
         val EMPTY = CourseChanges("", emptyMap())
 
         /**
+         * Changes made in memory rather than read from the feed, one row on each of its days: the
+         * watch rebuilds the phone's changes from the classes the phone sent it. [term] is empty
+         * as no feed has answered.
+         */
+        fun of(rows: List<Pair<LocalDate, CourseChange>>): CourseChanges {
+            val index = LinkedHashMap<Key, MutableList<CourseChange>>()
+            for ((day, change) in rows) index.getOrPut(Key(change.courseNo, day)) { mutableListOf() } += change
+            return CourseChanges("", index)
+        }
+
+        /**
          * The feed's 200 body. Read by hand rather than by Gson, so a row of an unexpected shape is
          * dropped and the rest still shows; a body that is not an object with a term and a changes
          * array throws, and the caller keeps the copy it has.
