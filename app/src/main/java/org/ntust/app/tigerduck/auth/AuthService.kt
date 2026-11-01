@@ -114,9 +114,8 @@ class AuthService @Inject constructor(
      */
     val signIns: SharedFlow<Unit> = _signIns.asSharedFlow()
 
-    // Held by a sign-out while it drops the stored account and moves the sign-in generation, and
-    // by a sign-in while it checks that generation and stores what it got: one that started
-    // before a sign-out then keeps nothing.
+    // Held by a sign-out as it closes the session and while it drops the stored account and moves
+    // the sign-in generation, and by a sign-in while it checks both and stores what it got.
     private val accountLock = Any()
 
     // The automatic backend sign-in, after a refused refresh and whenever
@@ -368,8 +367,9 @@ class AuthService @Inject constructor(
 
     /** Signs the school account out: [clearAccount] now, and the wipe it leaves on the application scope. */
     fun logout() {
-        // First, on disk, so what follows is owed even if the process dies at any point of it.
-        wipe.begin(credentials.ntustStudentId)
+        // First, on disk, so what follows is owed wherever the process dies. Under the lock a
+        // sign-in stores with: one that came first is on the marker, and a later one stores nothing.
+        synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }
         clearAccount()
         wipe.finish()
     }

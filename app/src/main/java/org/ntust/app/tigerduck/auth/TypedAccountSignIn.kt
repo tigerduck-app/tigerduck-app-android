@@ -21,11 +21,12 @@ import kotlin.coroutines.cancellation.CancellationException
  * nothing sent anywhere.
  *
  * A sign-out takes no sign-in lock, so it can land at any point, the moment the school answers
- * included. The store and the account showing as signed in each happen only while
- * [signInGeneration] is still the one read before the sign-in began, checked under [accountLock],
- * which the sign-out holds while it drops the stored account and moves the generation: a sign-in
- * a sign-out overtook stores nothing and shows nothing, and one it overtakes after the store has
- * its account dropped by the sign-out itself.
+ * included. The store and the account showing as signed in each happen only while the session is
+ * open and [signInGeneration] is still the one read before the sign-in began, checked under
+ * [accountLock], which the sign-out holds as it closes the session and again while it drops the
+ * stored account and moves the generation: a sign-in a sign-out overtook stores nothing and shows
+ * nothing, and one that stored first is the student on the sign-out's marker, its account dropped
+ * by the sign-out itself.
  */
 internal class TypedAccountSignIn(
     private val schoolSignIn: suspend (studentId: String, password: String) -> Boolean,
@@ -37,11 +38,11 @@ internal class TypedAccountSignIn(
      * wipe then takes. A cancelled wait leaves the next sign-in free.
      */
     private val awaitOpen: suspend () -> Unit,
-    /** Whether no sign-out is under way, read now. A sign-out closes this before it moves [signInGeneration]. */
+    /** Whether no sign-out is under way, read now. A sign-out closes this, under [accountLock], before it moves [signInGeneration]. */
     private val isOpen: () -> Boolean,
     /** [AuthTokenManager.signInGeneration], which a sign-out moves while it holds [accountLock]. */
     private val signInGeneration: () -> Int,
-    /** Held by a sign-out while it drops the stored account and moves [signInGeneration]. */
+    /** Held by a sign-out as it closes the session, and while it drops the stored account and moves [signInGeneration]. */
     private val accountLock: Any,
     private val storedStudentId: () -> String?,
     private val writeAccount: (studentId: String, password: String) -> Unit,
@@ -130,10 +131,10 @@ internal class TypedAccountSignIn(
         }
     }
 
-    /** Runs [block] under [accountLock] and says so, unless a sign-out has moved [generation]. */
+    /** Runs [block] under [accountLock] and says so, unless a sign-out has begun or moved [generation]. */
     private inline fun unlessSignedOutSince(generation: Int, block: () -> Unit): Boolean =
         synchronized(accountLock) {
-            if (signInGeneration() != generation) return false
+            if (!isOpen() || signInGeneration() != generation) return false
             block()
             true
         }

@@ -130,8 +130,17 @@ class AccountSessionTest {
 
     private var stored: Pair<String, String>? = null
 
-    private fun typedSignIn(session: AccountSession, signInGeneration: () -> Int = { 1 }) = TypedAccountSignIn(
-        schoolSignIn = { _, _ -> true },
+    private var shown = false
+
+    private fun typedSignIn(
+        session: AccountSession,
+        schoolAnswering: () -> Unit = {},
+        signInGeneration: () -> Int = { 1 },
+    ) = TypedAccountSignIn(
+        schoolSignIn = { _, _ ->
+            schoolAnswering()
+            true
+        },
         signInInteractively = { signIn -> signIn(1) == SignInAttempt.SIGNED_IN },
         awaitOpen = session::awaitOpen,
         isOpen = { session.isOpen },
@@ -143,11 +152,11 @@ class AccountSessionTest {
         isDemoAccount = { _, _ -> false },
         enterDemo = {},
         accountChanging = {},
-        markSignedIn = {},
+        markSignedIn = { shown = true },
     )
 
-    private suspend fun TypedAccountSignIn.typed() =
-        signIn(STUDENT, "made-up-password", prepareSignedIn = {}) { _, _ -> SignInAttempt.SIGNED_IN }
+    private suspend fun TypedAccountSignIn.typed(prepareSignedIn: suspend () -> Unit = {}) =
+        signIn(STUDENT, "made-up-password", prepareSignedIn) { _, _ -> SignInAttempt.SIGNED_IN }
 
     @Test
     fun `a sign-in during the clearing waits, then signs in`() = runBlocking {
@@ -173,13 +182,16 @@ class AccountSessionTest {
         val school = session()
         var generation = 1
         val outcome = scope.async {
-            typedSignIn(school) {
-                if (generation == 1) {
-                    school.signIns.end()
-                    generation = 2
-                }
-                generation
-            }.typed()
+            typedSignIn(
+                school,
+                signInGeneration = {
+                    if (generation == 1) {
+                        school.signIns.end()
+                        generation = 2
+                    }
+                    generation
+                },
+            ).typed()
         }
 
         delay(200)
@@ -189,6 +201,27 @@ class AccountSessionTest {
         school.open()
         assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, withTimeout(5_000) { outcome.await() })
         assertEquals(STUDENT to "made-up-password", stored)
+    }
+
+    @Test
+    fun `a reply landing after a sign-out began stores nothing, with the generation not moved yet`() = runBlocking {
+        val school = session()
+
+        val outcome = typedSignIn(school, schoolAnswering = { school.signIns.end() }).typed()
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, outcome)
+        assertNull(stored)
+        assertFalse(shown)
+    }
+
+    @Test
+    fun `a sign-out begun after the store keeps the account from showing as signed in`() = runBlocking {
+        val school = session()
+
+        val outcome = typedSignIn(school).typed(prepareSignedIn = { school.signIns.end() })
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, outcome)
+        assertFalse(shown)
     }
 
     @Test

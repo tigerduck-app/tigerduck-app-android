@@ -32,6 +32,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -77,10 +79,12 @@ class SignOutRecoveryTest {
         var allowed = Int.MAX_VALUE
         val writes = mutableListOf<String>()
         var counting = false
+        var onWrite: (String) -> Unit = {}
 
         fun write(what: String) {
             if (!counting) return
             if (writes.size >= allowed) throw ProcessDied()
+            onWrite(what)
             writes += what
         }
     }
@@ -281,6 +285,66 @@ class SignOutRecoveryTest {
 
         assertFalse(fixtures.demoMode)
         assertFalse(w.auth.authState.value)
+    }
+
+    @Test
+    fun `a sign-in reply landing after a sign-out began stores nothing, and the next start finishes the sign-out`() = runBlocking {
+        firstStudentOnTheDevice()
+        val firstLeft = account.held()
+        val posted = CountDownLatch(1)
+        val answer = CountDownLatch(1)
+        val w = accountWorld(context, credentialPrefs, idleScope, idleScope) {
+            posted.countDown()
+            answer.await(10, TimeUnit.SECONDS)
+        }
+        val signIn = appScope.async { w.auth.login(SECOND, "second-password") }
+        assertTrue(posted.await(10, TimeUnit.SECONDS))
+
+        // What a sign-out does first, and all this one reached before the process died.
+        w.sessions.school.markWipeOwed(FIRST)
+        w.sessions.school.signIns.end()
+        answer.countDown()
+
+        assertFalse(withTimeout(10_000) { signIn.await() })
+        assertEquals("the marker's student is still the one stored", FIRST, w.credentials.ntustStudentId)
+        val (next, signOutCutShort) = nextStart()
+        assertTrue(signOutCutShort)
+        assertNothingOfTheFirstLeft(next, firstLeft, "the sign-in that lost")
+    }
+
+    @Test
+    fun `a sign-out landing as a sign-in stores waits for it, and names that student on the marker`() = runBlocking {
+        credentialPrefs.edit().putString("ntust_student_id", FIRST).putString("ntust_password", "first-password").commit()
+        val storing = CountDownLatch(1)
+        val store = CountDownLatch(1)
+        val disk = Disk().apply {
+            counting = true
+            // A sign-in's first write, made with the lock it stores under held.
+            onWrite = { what ->
+                if (what.startsWith("tigerduck_browser_cleanup")) {
+                    storing.countDown()
+                    store.await(10, TimeUnit.SECONDS)
+                }
+            }
+        }
+        val onDisk = OnDisk(disk)
+        val w = accountWorld(onDisk, onDisk.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE), idleScope, idleScope)
+        val signIn = appScope.async { w.auth.login(SECOND, "second-password") }
+        assertTrue(storing.await(10, TimeUnit.SECONDS))
+
+        val signOut = appScope.async { w.auth.logout() }
+        try {
+            delay(200)
+            assertFalse("the sign-out waits for the store it would otherwise misname", owed.owed)
+        } finally {
+            // In a finally: the stalled write holds a lock every test of this class goes through.
+            store.countDown()
+        }
+
+        withTimeout(10_000) { signOut.await() }
+        withTimeout(10_000) { signIn.await() }
+        assertTrue(owed.replays(SECOND))
+        assertFalse(owed.replays(FIRST))
     }
 
     /** A scope whose work waits until [release], so a test can stand before a wipe. */

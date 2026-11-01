@@ -92,7 +92,7 @@ class SignOutClearingTest {
     @Test
     fun `a sign-out counts itself in before anything is cleared, and starts its wipe after`() {
         val logout = body("fun logout()")
-        val at = listOf("wipe.begin(credentials.ntustStudentId)", "clearAccount()", "wipe.finish()").map { step ->
+        val at = listOf("synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }", "clearAccount()", "wipe.finish()").map { step ->
             logout.indexOf(step).also { assertTrue("logout() calls $step", it >= 0) }
         }
         assertEquals(at.sorted(), at)

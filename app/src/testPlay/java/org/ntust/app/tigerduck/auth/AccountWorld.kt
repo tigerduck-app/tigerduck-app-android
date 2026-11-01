@@ -86,9 +86,14 @@ internal fun accountWorld(
     credentialPrefs: SharedPreferences,
     appScope: CoroutineScope,
     idleScope: CoroutineScope,
+    /** Runs as the school takes a password, before its answer comes back. */
+    schoolAnswering: () -> Unit = {},
 ): AccountWorld {
     val prefs = { file: String -> context.getSharedPreferences(file, Context.MODE_PRIVATE) }
-    val school = OkHttpClient.Builder().addInterceptor { chain -> schoolPage(chain.request()) }.build()
+    val school = OkHttpClient.Builder().addInterceptor { chain ->
+        if (chain.request().method == "POST") schoolAnswering()
+        schoolPage(chain.request())
+    }.build()
     val refusing = OkHttpClient.Builder().addInterceptor { throw IOException("no network in this test") }.build()
     val sessions = AccountSessions(DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")))
     val appPrefs = AppPreferences(context)

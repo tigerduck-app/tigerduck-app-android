@@ -44,7 +44,8 @@ class SignOutWipe(
 
     /**
      * Before a sign-out clears anything: [departingStudentId] goes on the marker, on disk, and the
-     * session closes, before the clearing moves the sign-in generation a typed sign-in checks.
+     * session closes, which stops a sign-in still on its way. The caller holds the lock a sign-in
+     * stores its account under, so the student read for the marker is the one stored from here on.
      */
     fun begin(departingStudentId: String?): Unit = synchronized(lock) {
         unfinished++
