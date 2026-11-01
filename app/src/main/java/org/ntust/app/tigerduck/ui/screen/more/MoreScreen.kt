@@ -40,7 +40,7 @@ import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.data.model.AppFeature
 import org.ntust.app.tigerduck.data.model.FeatureCategory
 import org.ntust.app.tigerduck.ui.component.ComingSoonDialog
-import org.ntust.app.tigerduck.ui.component.PageDefaults
+import org.ntust.app.tigerduck.ui.component.PageHeaderPosition
 import org.ntust.app.tigerduck.ui.component.PageScaffold
 import org.ntust.app.tigerduck.ui.component.SectionHeader
 import org.ntust.app.tigerduck.ui.navigation.Screen
@@ -75,7 +75,7 @@ fun MoreScreen(navController: NavController) {
 
     PageScaffold(
         title = stringResource(R.string.feature_more),
-        headerPosition = PageDefaults.TabHeaderPosition,
+        headerPosition = PageHeaderPosition.InContent,
         actions = {
             IconButton(onClick = { navController.navigate(Screen.Settings.route) }) {
                 Icon(
