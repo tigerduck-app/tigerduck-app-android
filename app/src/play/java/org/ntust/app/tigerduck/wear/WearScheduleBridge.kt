@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.shared.timeline.ClassSlot
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.shared.timeline.CourseMeetings
+import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AccentPolicy
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -50,6 +51,7 @@ class WearScheduleBridge @Inject constructor(
     private val academicCalendar: AcademicCalendarStore,
     private val pins: PinManager,
     private val courseChangeStore: CourseChangeStore,
+    private val moodleColors: org.ntust.app.tigerduck.data.MoodleColorStore,
 ) {
     private val gson = Gson()
 
@@ -106,7 +108,9 @@ class WearScheduleBridge @Inject constructor(
     private suspend fun scheduleItem(): Pair<PutDataRequest, String> {
         val loggedIn = authService.authState.value
         val courses = if (loggedIn) {
-            dataCache.loadCourses()
+            // A course with no pick goes with the Moodle color it shows: the watch has no Moodle ids.
+            moodleColors.ensureLoaded()
+            dataCache.loadCourses().also { MoodleColorBook.shared.reconcile(it) }.let(MoodleColorBook.shared::withColors)
         } else {
             // On logout, explicitly clear the watch's view.
             emptyList()

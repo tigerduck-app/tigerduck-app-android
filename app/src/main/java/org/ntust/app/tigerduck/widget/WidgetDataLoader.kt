@@ -32,6 +32,7 @@ interface WidgetEntryPoint {
     fun appPreferences(): AppPreferences
     fun academicCalendar(): org.ntust.app.tigerduck.academic.AcademicCalendarStore
     fun courseChangeStore(): CourseChangeStore
+    fun moodleColorStore(): org.ntust.app.tigerduck.data.MoodleColorStore
 }
 
 object WidgetDataLoader {
@@ -41,7 +42,11 @@ object WidgetDataLoader {
             context.applicationContext,
             WidgetEntryPoint::class.java,
         )
+        // The colors of courses that take Moodle's are read from it.
+        entry.moodleColorStore().ensureLoaded()
         val courses = entry.dataCache().loadCourses()
+        // A course the background sync added gets its color here too.
+        org.ntust.app.tigerduck.data.MoodleColorBook.shared.reconcile(courses)
         // "Logged in" here means the user has stored credentials, not that
         // their SSO cookies are still fresh. Cookie validity gates fetching;
         // it shouldn't gate displaying the cached classtable. Without this,

@@ -10,6 +10,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
@@ -56,6 +57,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var dataCache: DataCache
+
+    @Inject
+    lateinit var moodleColorStore: org.ntust.app.tigerduck.data.MoodleColorStore
 
     @Inject
     lateinit var authService: AuthService
@@ -178,7 +182,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         }
         // The watch's course cards follow the interface style.
         appScope.launch {
-            appPreferences.visualPresetChanged.collect { wearBridge.publish() }
+            merge(appPreferences.visualPresetChanged, moodleColorStore.colorsChanged).collect { wearBridge.publish() }
         }
         // The background sync, reminders, notifications and Live Update follow the sign-in from every page.
         accountSessionEffects.start(appScope)

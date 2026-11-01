@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.ui.screen.classtable
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import org.ntust.app.tigerduck.data.MoodleColorBook
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.theme.pickFreeCourseColor
 import java.util.Locale
@@ -60,7 +61,9 @@ internal object CourseColorPick {
         shown: (String) -> Color,
     ): Result {
         val picked = hex?.uppercase()
-        val displaced = if (picked == null) {
+        // Moodle gives two courses one color when their ids end alike, so its colors stay shared.
+        val shared = picked?.let { MoodleColorBook.parseHex(it) }?.let(MoodleColorBook::isMoodleColor) == true
+        val displaced = if (picked == null || shared) {
             emptyList()
         } else {
             courses.filter { it.courseNo != courseNo && it.customColorHex?.uppercase() == picked }
@@ -100,10 +103,17 @@ internal object CourseColorPick {
      * because that one parses the pins through the platform, which a JVM test
      * of a sync cannot run.
      */
-    fun shownColors(courses: List<Course>): (String) -> Color {
+    fun shownColors(
+        courses: List<Course>,
+        moodleColors: Map<String, Int> = MoodleColorBook.shared.colorsFor(courses),
+    ): (String) -> Color {
         val shown = mutableMapOf<String, Color>()
         for (course in courses) {
             course.customColorHex?.let(::parseHex)?.let { shown[course.courseNo] = it }
+        }
+        for (course in courses) {
+            if (course.courseNo in shown) continue
+            moodleColors[course.courseNo]?.let { shown[course.courseNo] = Color(0xFF000000L or it.toLong()) }
         }
         val taken = shown.values.toMutableSet()
         for (course in courses.filter { it.courseNo !in shown }.sortedBy { it.courseNo }) {
