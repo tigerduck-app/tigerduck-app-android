@@ -14,7 +14,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt",
     "kind": "long-function",
     "name": "TigerDuckApp.onCreate()",
-    "lines": 133
+    "lines": 124
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -29,7 +29,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 475
+    "count": 465
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",

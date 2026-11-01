@@ -19,8 +19,12 @@ import javax.inject.Singleton
 class AccountSessions @Inject constructor(
     fixtures: DebugFixtureStore,
     @ApplicationScope scope: CoroutineScope,
+    owed: SignOutOwed,
 ) {
-    val school = AccountSession(SignInSeries(demo = fixtures.demoMode), scope) { fixtures.demoMode }
+    // Closed from the start when the last sign-out's wipe was cut short; the start finishes it.
+    val school = AccountSession(
+        SignInSeries(closed = owed.owed, demo = fixtures.demoMode), scope, { fixtures.demoMode }, owed,
+    )
     val mail = AccountSession(SignInSeries(), scope)
     val library = AccountSession(SignInSeries(), scope)
 }

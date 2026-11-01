@@ -36,6 +36,8 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.HeldShareLink
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
 import org.ntust.app.tigerduck.browser.BrowserDownloads
@@ -223,6 +225,7 @@ class AccountSwitchTest {
         val tokens: AuthTokenManager,
         val auth: AuthService,
         val browserClearings: MutableStateFlow<Int>,
+        val sessions: AccountSessions,
     )
 
     /**
@@ -230,6 +233,7 @@ class AccountSwitchTest {
      * sign-out's own clearing runs on [appScope].
      */
     private fun world(credentialPrefs: SharedPreferences, appScope: CoroutineScope = signOutScope): World {
+        val sessions = AccountSessions(DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")))
         val appPrefs = AppPreferences(context)
         val credentials = CredentialManager(credentialPrefs)
         val fixtures = DebugFixtureStore(context)
@@ -241,7 +245,7 @@ class AccountSwitchTest {
         val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures))
         val latch = PersistedStoredPasswordLatch(context, credentials)
         val sso = SsoLoginService(sessionManager, latch) { school }
-        val tokens = AuthTokenManager(credentials.v3Tokens, refusing, appPrefs, "device-1")
+        val tokens = AuthTokenManager(credentials.v3Tokens, refusing, appPrefs, "device-1", session = sessions.school)
         // As its Hilt constructor builds it, over the refusing client.
         val moodleTokens = MoodleTokenService(
             clientFor = { refusing },
@@ -338,7 +342,7 @@ class AccountSwitchTest {
             clearBrowser = browser::clear,
             browserClearingOwed = { false },
         ).start(effectsScope)
-        return World(appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings)
+        return World(appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings, sessions)
     }
 
     @Test
@@ -522,6 +526,50 @@ class AccountSwitchTest {
         assertEquals(listOf(true), signedInEmissions)
         assertEquals(generationBefore, w.dataCache.userDataGeneration)
         assertTrue(userFile("unsent_marks.json").exists())
+    }
+
+    @Test
+    fun `a wipe a process death cut short runs at the next start`() = runBlocking {
+        // The first process: the student signs out, and the process dies before the wipe runs.
+        val held = HeldDispatcher()
+        val credentialPrefs = signedInAsFirst()
+        val first = world(credentialPrefs, CoroutineScope(SupervisorJob() + held))
+        val queued = listOf("unsent_marks.json", "pending_course_adds.json")
+        assertTrue(first.dataCache.saveUnsentMarks(listOf(mark)))
+        assertTrue(first.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001"))))
+        first.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())))
+
+        first.auth.logout()
+        assertEquals(null, first.auth.storedStudentId)
+        assertTrue("the wipe has not run", queued.all { userFile(it).exists() })
+        // The next process starts: new objects over the same files, as after a process death.
+        val second = world(credentialPrefs)
+        assertTrue("the queued edits are still there to be sent as the next student's", queued.all { userFile(it).exists() })
+        assertFalse("the session starts closed while the wipe is owed", second.sessions.school.signIns.isOpen.value)
+
+        second.auth.finishOwedWipe()
+        withTimeout(10_000) { second.sessions.school.awaitOpen() }
+
+        assertEquals(emptyList<String>(), queued.filter { userFile(it).exists() })
+        assertEquals(emptyList<Assignment>(), second.dataCache.loadAssignments())
+        assertEquals(emptyList<UnsentMark>(), second.dataCache.loadUnsentMarks())
+        assertTrue(second.sessions.school.signIns.isOpen.value)
+        // The marker went with the wipe, so a start after this one finds nothing owed.
+        assertFalse(SignOutOwed(prefs("tigerduck_account_wipe")).owed)
+        assertTrue(second.auth.login(SECOND, "second-password"))
+        assertEquals(SECOND, second.auth.storedStudentId)
+    }
+
+    @Test
+    fun `a start with nothing owed leaves the files and the session alone`() = runBlocking {
+        val w = world(signedInAsFirst())
+        assertTrue(w.dataCache.saveUnsentMarks(listOf(mark)))
+
+        w.auth.finishOwedWipe()
+        delay(200)
+
+        assertTrue(userFile("unsent_marks.json").exists())
+        assertTrue(w.sessions.school.signIns.isOpen.value)
     }
 
     @Test

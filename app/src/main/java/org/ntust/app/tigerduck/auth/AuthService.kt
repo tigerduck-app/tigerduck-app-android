@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.auth.session.SignOutWipe
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
@@ -111,6 +112,8 @@ class AuthService @Inject constructor(
     private fun setSignedIn(signedIn: Boolean) = signedInState.set(signedIn)
 
     private val loginMutex = Mutex()
+
+    private val wipe = SignOutWipe(importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope)
 
     private val _signIns = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
@@ -388,6 +391,7 @@ class AuthService @Inject constructor(
         // On disk before the account goes: the in-app browser's clearing is owed even if the
         // process dies before it runs.
         BrowserCleanup.of(context).markPending()
+        authTokenManager.session.markWipeOwed()
         val departing = synchronized(accountLock) {
             credentials.signOutSchoolAccount()
             authTokenManager.logout()
@@ -444,25 +448,11 @@ class AuthService @Inject constructor(
         // delete when the user backs out of Settings or the activity dies.
         // Without this guarantee, the JSON cache survives logout and bleeds
         // into the next account on the same device.
-        appScope.launch {
-            // The next sign-in starts here, whatever the wipe did: it waited for it.
-            try { wipeAccountData() } finally { authTokenManager.session.open() }
-        }
+        wipe.start()
     }
 
-    /** What the sign-out wipes on the app scope, each step on its own so one that throws stops no other. */
-    internal suspend fun wipeAccountData() {
-        // Only this sign-out empties them: a relogin in the background or a renewed session
-        // keeps the class tables the user imported.
-        runCatching { importedClassTables.clearForSignOut() }
-            .onFailure { android.util.Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
-        runCatching { dataCache.clearAllUserData() }
-            .onFailure { android.util.Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
-        // Now that the timetable is gone: a widget left alone shows the departing student's
-        // until its next scheduled update, up to half an hour away.
-        runCatching { widgetUpdater.updateAll() }
-            .onFailure { android.util.Log.w("AuthService", "widget update failed on logout: ${it.logSummary()}") }
-    }
+    /** At process start: finishes a wipe a process death cut short, then opens the sign-in. */
+    fun finishOwedWipe() = wipe.finishOwed()
 
     fun clearLoginError() {
         _loginError.value = null

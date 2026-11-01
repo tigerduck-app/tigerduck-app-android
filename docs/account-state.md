@@ -55,6 +55,7 @@ Scopes:
 
 | Store | Cleared by |
 |---|---|
+| The wipe a sign-out owes: `tigerduck_account_wipe` `owed`, set before the sign-in ends and taken off when the session opens after the wipe. A process death between the two leaves it set, the school session starts closed, and `SignOutWipe.finishOwed()` runs the wipe at the next start | `SignOutWipe` |
 | The school session's cookies, in memory | `NtustSessionManager.signOut()` in `AuthService.logout()` |
 | Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.logout()` |
 | Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()` in `AuthService.logout()` |
@@ -96,6 +97,7 @@ Scopes:
 | prefs | `school_mail_state` | mail | `MailStateStore.kt` `clear` |
 | prefs | `server_push` | keys | |
 | prefs | `server_push_intent` | keys | |
+| prefs | `tigerduck_account_wipe` | keys | |
 | prefs | `tigerduck_auth` | keys | |
 | prefs | `tigerduck_browser_allowlist` | keys | |
 | prefs | `tigerduck_browser_cleanup` | keys | |
@@ -296,6 +298,7 @@ into `library_password_refusals` when it opens.
 | server_push | `seen_ids_json` | device | |
 | server_push | `seen_ids` | device | |
 | server_push_intent | `token` | device | |
+| tigerduck_account_wipe | `owed` | device | |
 | tigerduck_auth | `stored_password_refusals` | school | `StoredPasswordLatch.kt` `forget` |
 | tigerduck_auth | `stored_password_refused_at` | school | `StoredPasswordLatch.kt` `forget` |
 | tigerduck_auth | `stored_password_rejected_reason` | school | `StoredPasswordLatch.kt` `forget` |

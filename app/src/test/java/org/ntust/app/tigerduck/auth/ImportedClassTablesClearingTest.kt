@@ -50,7 +50,11 @@ class ImportedClassTablesClearingTest {
     }
 
     /** The sign-out: `logout()`, and the wipe it launches on the app scope. */
-    private fun signOut() = body("fun logout()") + body("suspend fun wipeAccountData()")
+    private fun signOut() = body("fun logout()") + wipe
+
+    /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
+    private val wipe: String =
+        File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
 
     private fun String.uses(call: String): Int = Regex("""\bimportedClassTables\.$call""").findAll(this).count()
 
@@ -68,13 +72,14 @@ class ImportedClassTablesClearingTest {
 
     @Test
     fun `nothing else in AuthService touches the imported class tables`() {
-        val everywhere = source.uses("")
-        assertEquals(everywhere, signOut().uses("") + body("suspend fun login(").uses(""))
+        assertEquals(source.uses(""), body("suspend fun login(").uses(""))
+        // And the wipe is the one place that empties them.
+        assertEquals(1, wipe.uses(""))
     }
 
     @Test
     fun `only AuthService empties the imported class tables or tells them who signed in`() {
-        val owners = setOf("AuthService.kt", "ImportedClassTableStore.kt")
+        val owners = setOf("AuthService.kt", "ImportedClassTableStore.kt", "SignOutWipe.kt")
         val offenders = listOf("src/main/java", "src/play/java", "src/fdroid/java", "src/debug/java")
             .map { File(app, it) }
             .filter { it.isDirectory }

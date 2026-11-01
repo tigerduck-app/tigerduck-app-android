@@ -45,12 +45,19 @@ class SignOutClearingTest {
         throw AssertionError("`$declaration` has no closing brace")
     }
 
+    /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
+    private fun wipeBody(): String {
+        val wipe = File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
+        val start = wipe.indexOf("suspend fun run()")
+        return wipe.substring(wipe.indexOf('{', start))
+    }
+
     @Test
     fun `the sign-out runs in this order`() {
         // The order phase 2 keeps while it moves the pieces: the account goes first, and the wipe
         // follows the demo's exit and the bulletins, on the app scope.
         // The wipe is its own function, which logout() launches last.
-        val logout = body("fun logout()") + body("suspend fun wipeAccountData()")
+        val logout = body("fun logout()") + wipeBody()
         val steps = listOf(
             "credentials.signOutSchoolAccount()",
             "authTokenManager.logout()",
@@ -77,15 +84,17 @@ class SignOutClearingTest {
         assertTrue(logout.indexOf("bulletinReadStateStore.clear()") in at[5]..at[7])
         assertTrue(logout.indexOf("forgetEmptyClassroom(classroomUsage, prefs)") in at[4]..at[5])
         // The wipe runs on the app scope, after everything above has been started.
-        assertTrue(logout.indexOf("appScope.launch") in at[10]..at[11])
+        assertTrue(logout.indexOf("wipe.start()") in at[10]..at[11])
     }
 
     @Test
     fun `the next sign-in opens in a finally after the wipe, so a wipe that throws still opens it`() {
+        val wipe = File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
+        assertTrue(wipe, Regex("""try \{ run\(\) \} finally \{ session\.open\(\) \}""").containsMatchIn(wipe))
+        // logout() starts it, and nothing in logout() ends or opens the sign-in itself.
         val logout = body("fun logout()")
-        assertTrue(logout, Regex("""try \{ wipeAccountData\(\) \} finally \{ authTokenManager\.session\.open\(\) \}""").containsMatchIn(logout))
-        // The token manager ended the sign-in under its lock; nothing else in logout() does.
-        assertFalse(logout, "signIns.end()" in logout)
+        assertTrue(logout, "wipe.start()" in logout)
+        assertFalse(logout, "signIns.end()" in logout || "session.open()" in logout)
     }
 
     @Test
@@ -103,7 +112,7 @@ class SignOutClearingTest {
     @Test
     fun `the widgets are drawn again once the departing student's timetable is wiped`() {
         // Not before: a widget drawn from the cache still on disk would keep the timetable.
-        val logout = body("fun logout()") + body("suspend fun wipeAccountData()")
+        val logout = body("fun logout()") + wipeBody()
         val wiped = logout.indexOf("dataCache.clearAllUserData()")
         val redrawn = logout.indexOf("widgetUpdater.updateAll()")
         assertTrue("logout() wipes the cache", wiped >= 0)
