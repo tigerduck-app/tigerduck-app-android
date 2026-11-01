@@ -8,6 +8,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonColors
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -18,6 +21,10 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -27,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.theme.ContentAlpha
 
 /** Where a page's header sits: see [PageScaffold]. */
 enum class PageHeaderPosition {
@@ -68,6 +76,20 @@ object PageDefaults {
     val HeaderMinHeight: Dp = 48.dp
 
     val MenuShape: Shape = RoundedCornerShape(12.dp)
+
+    /**
+     * The three dots' color, the same in a bar and in the content: a bar's own default, which the
+     * content would otherwise lack, as it takes onBackground.
+     */
+    val menuIconColor: Color
+        @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+
+    /** [menuIconColor], dimmed as Material dims a disabled button. */
+    @Composable
+    fun menuButtonColors(): IconButtonColors = IconButtonDefaults.iconButtonColors(
+        contentColor = menuIconColor,
+        disabledContentColor = menuIconColor.copy(alpha = ContentAlpha.DISABLED),
+    )
 
     /** Pinned or in the content, a title is this. Sizes stay on the theme's typography (D9). */
     val titleStyle: TextStyle
@@ -176,11 +198,16 @@ fun PageScaffold(
         menu?.let { PageMenuButton(it) }
     }
     val pinned = headerPosition == PageHeaderPosition.Pinned
+    val pageScope = remember { PageContentScope() }
     val placedHeader: @Composable () -> Unit = header ?: {
         if (pinned) {
             TopAppBar(
                 windowInsets = barWindowInsets,
-                title = { if (title.isNotEmpty()) PageTitle(title, titleStyle, oneLineTitle) },
+                // The bar hands its title the style around it, so a style given here is merged over
+                // that and not in its place: the shift CjkCentering puts on the text comes through.
+                title = {
+                    if (title.isNotEmpty()) PageTitle(title, LocalTextStyle.current.merge(titleStyle), oneLineTitle)
+                },
                 navigationIcon = navigation,
                 actions = afterTitle,
                 expandedHeight = PageDefaults.BarHeight,
@@ -205,11 +232,19 @@ fun PageScaffold(
         contentColor = contentColor,
         contentWindowInsets = contentWindowInsets,
     ) { padding ->
-        PageContentScope(if (pinned) ({}) else placedHeader).content(padding)
+        pageScope.header = if (pinned) ({}) else placedHeader
+        pageScope.content(padding)
     }
 }
 
-private class PageContentScope(private val header: @Composable () -> Unit) : PageScope {
+/**
+ * One for the life of the page, so a list's `item { Header() }` doesn't see a new receiver, and its
+ * content lambda a changed capture, every time the page recomposes. The header is state because
+ * that item reads it on its own.
+ */
+private class PageContentScope : PageScope {
+    var header by mutableStateOf<@Composable () -> Unit>({})
+
     @Composable
     override fun Header() = header()
 }

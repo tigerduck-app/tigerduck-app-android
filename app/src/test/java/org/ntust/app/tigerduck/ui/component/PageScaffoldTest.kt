@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +47,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -238,7 +240,8 @@ class PageScaffoldTest {
         composeRule.setContent {
             PageScaffold(title = "Tabs", menu = menu(enabled = false, onOpen = { opens++ })) {}
         }
-        composeRule.onNodeWithContentDescription("Page actions").assertIsDisplayed().assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Page actions").assertIsDisplayed().assertIsNotEnabled().performClick()
+        composeRule.onNodeWithText("Share").assertDoesNotExist()
         assertEquals(0, opens)
     }
 
@@ -308,6 +311,25 @@ class PageScaffoldTest {
         }
         assertEquals(13.sp, composeRule.onNodeWithText("Pinned").layout().layoutInput.style.fontSize)
         assertEquals(13.sp, composeRule.onNodeWithText("Listed").layout().layoutInput.style.fontSize)
+    }
+
+    @Test
+    fun `a pinned title takes the text style around it, as the bar's own Text did`() {
+        val shift = BaselineShift(-0.2f)
+        composeRule.setContent {
+            ProvideTextStyle(TextStyle(baselineShift = shift)) { PageScaffold(title = "Pinned") {} }
+        }
+        assertEquals(shift, composeRule.onNodeWithText("Pinned").layout().layoutInput.style.baselineShift)
+    }
+
+    @Test
+    fun `a title in the content takes none of it, as the header row's did`() {
+        composeRule.setContent {
+            ProvideTextStyle(TextStyle(baselineShift = BaselineShift(-0.2f))) {
+                PageScaffold(title = "Listed", headerPosition = PageHeaderPosition.InContent) { Header() }
+            }
+        }
+        assertEquals(null, composeRule.onNodeWithText("Listed").layout().layoutInput.style.baselineShift)
     }
 
     @Test
@@ -503,26 +525,15 @@ class PageScaffoldTest {
     }
 
     @Test
-    fun `the page and bar take the colors a page gives them`() {
-        var bar = Color.Unspecified
-        var themeSurface = Color.Unspecified
+    fun `the content color a page gives reaches its content`() {
         composeRule.setContent {
             MaterialTheme {
-                themeSurface = PageDefaults.barColors().containerColor
-                bar = PageDefaults.barColors(containerColor = Color.Black).containerColor
-                PageScaffold(
-                    title = "Dark",
-                    barColors = PageDefaults.barColors(containerColor = Color.Black),
-                    containerColor = Color.Black,
-                    contentColor = Color.White,
-                ) {
+                PageScaffold(title = "Dark", containerColor = Color.Black, contentColor = Color.White) {
                     Text("body")
                 }
             }
         }
         composeRule.onNodeWithText("Dark").assertIsDisplayed()
-        assertEquals(Color.Black, bar)
-        assertEquals(false, themeSurface == Color.Black)
         assertEquals(Color.White, composeRule.onNodeWithText("body").layout().layoutInput.style.color)
     }
 

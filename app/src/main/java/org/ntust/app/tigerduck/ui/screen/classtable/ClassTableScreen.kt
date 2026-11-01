@@ -313,9 +313,6 @@ fun ClassTableScreen(
         menu = PageMenu(
             label = stringResource(R.string.class_table_more_actions),
             enabled = showsTable,
-            iconColor = MaterialTheme.colorScheme.onSurface.copy(
-                alpha = if (showsTable) ContentAlpha.SECONDARY else ContentAlpha.DISABLED
-            ),
             onOpen = { viewModel.refreshShareTerms() },
         ) { close ->
             if (shownPerson != null) {

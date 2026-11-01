@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.component
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
@@ -9,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 
 /**
  * The header row a page's own content holds, which [PageScaffold] draws for
@@ -17,17 +19,18 @@ import androidx.compose.ui.text.TextStyle
 @Composable
 fun PageHeader(
     title: String,
-    modifier: Modifier = Modifier,
+    padding: PaddingValues = PageDefaults.HeaderPadding,
+    minHeight: Dp = PageDefaults.HeaderMinHeight,
     navigationIcon: @Composable () -> Unit = {},
     titleStyle: TextStyle = PageDefaults.titleStyle,
     oneLineTitle: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(PageDefaults.HeaderPadding)
-            .defaultMinSize(minHeight = PageDefaults.HeaderMinHeight),
+            .padding(padding)
+            .defaultMinSize(minHeight = minHeight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         navigationIcon()
