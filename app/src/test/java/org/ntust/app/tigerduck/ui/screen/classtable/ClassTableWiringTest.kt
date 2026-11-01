@@ -47,8 +47,18 @@ class ClassTableWiringTest {
     @Test
     fun `the class table follows the minute ticks instead of polling`() {
         val text = source().joinToString("\n")
-        assertTrue("the init no longer collects ClassTableSelection.dayTimes()", "ClassTableSelection.dayTimes()" in text)
+        assertTrue("the init no longer collects ClassTableSelection.dayTimes(clockRestarts)", "ClassTableSelection.dayTimes(clockRestarts)" in text)
         assertFalse("a delay() poll is back in the view model", Regex("""\bdelay\(""").containsMatchIn(text))
+    }
+
+    /** A resume realigns the ticks, and nothing else: no fetch, no guard. */
+    @Test
+    fun `coming back to the page only realigns the clock`() {
+        val body = body("realignClock")
+        assertTrue("clockRestarts" in body)
+        assertFalse("fetch" in body.lowercase() || "authService" in body)
+        // First in the resume, ahead of the guards that follow it.
+        assertTrue(body("onPageResumed").lines()[1].trim().startsWith("realignClock()"))
     }
 
     /** tigerduck-app-android#241. */

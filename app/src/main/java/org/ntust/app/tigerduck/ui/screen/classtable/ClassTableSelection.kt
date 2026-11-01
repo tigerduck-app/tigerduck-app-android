@@ -92,10 +92,17 @@ object ClassTableSelection {
 
     /**
      * [DayTime] now, and again at each minute boundary of the app's clock, or when the debug clock
-     * is set. It is read when a tick lands, so a tick the system ran late (a phone that slept)
-     * still says the right minute.
+     * is set. Each time [restarts] emits it says the time at once and waits afresh: a phone's
+     * deep sleep is not counted by the wait, so the screen restarts it on coming back. The time
+     * is the tick's own, so a tick the system ran late still says the right minute.
      */
-    fun dayTimes(): Flow<DayTime> = TaipeiClock.minuteTicks().map { dayTimeFrom(AppClock.calendar()) }
+    fun dayTimes(
+        restarts: Flow<*>,
+        nowMillis: () -> Long = AppClock::nowMillis,
+        isFrozen: () -> Boolean = AppClock::isFrozen,
+    ): Flow<DayTime> = TaipeiClock.minuteTicksRestartedBy(restarts, nowMillis, isFrozen).map {
+        dayTimeFrom(Calendar.getInstance(TaipeiClock.timeZone).apply { timeInMillis = it.toInstant().toEpochMilli() })
+    }
 
     /**
      * Today's courses in the order they are taught.

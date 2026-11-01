@@ -188,28 +188,69 @@ class HomeViewModelTest {
 
     private fun upcomingIds(): List<String> = home.upcomingAssignments.value.map { it.assignmentId }
 
+    /** Time the phone slept: the clock moved on while the scheduler's did not. */
+    private var slept = 0L
+
+    /** Home's clock tied to the scheduler's virtual time, so a test waits by advancing it, never by sleeping. */
+    private fun runClockFrom(time: String) {
+        val base = taipei(time)
+        slept = 0L
+        home.minuteClock = { base + dispatcher.scheduler.currentTime + slept }
+    }
+
     /**
-     * A running clock at 11:19:59. An assignment due at 11:20:00 sits first in 全部 while it is
+     * A running clock at 11:19:59. An assignment due at 11:19:59.5 sits first in 全部 while it is
      * still ahead, and moves behind the later one as soon as the minute turns: Home must redraw
      * at the boundary, not up to a minute after it.
      */
     @Test
     fun `an assignment falling due is moved to the past at the minute boundary`() = runTest {
         try {
-            AppClock.setOverride(ClockOverride(taipei("11:19:59"), frozen = false, savedAtRealMillis = System.currentTimeMillis()))
+            runClockFrom("11:19:59")
             home.setAssignmentFilter(AssignmentFilter.ALL)
-            showAssignments(assignment("A", taipei("11:20:00")), assignment("B", taipei("11:30:00")))
+            showAssignments(assignment("A", taipei("11:19:59.500")), assignment("B", taipei("11:30:00")))
             dispatcher.scheduler.runCurrent()
             assertEquals(listOf("A", "B"), upcomingIds())
 
-            // The real second the clock needs to cross the boundary; the scheduler's time is virtual.
-            Thread.sleep(1_100)
-            dispatcher.scheduler.advanceTimeBy(1_000)
+            dispatcher.scheduler.advanceTimeBy(999)
+            dispatcher.scheduler.runCurrent()
+            assertEquals(listOf("A", "B"), upcomingIds())
+            dispatcher.scheduler.advanceTimeBy(1)
             dispatcher.scheduler.runCurrent()
 
             assertEquals(listOf("B", "A"), upcomingIds())
         } finally {
-            AppClock.setOverride(null)
+            home.viewModelScope.cancel()
+        }
+    }
+
+    /**
+     * The phone sleeps through a boundary: the wait did not count the sleep, so Home still shows
+     * the old minute until the page is back in front. Then it shows the right one at once, and
+     * the next boundary still redraws.
+     */
+    @Test
+    fun `coming back to the page after sleep redraws at once and keeps the next boundary`() = runTest {
+        try {
+            runClockFrom("11:19:30")
+            home.setAssignmentFilter(AssignmentFilter.ALL)
+            showAssignments(
+                assignment("A", taipei("11:19:59.500")),
+                assignment("C", taipei("11:20:59.500")),
+                assignment("B", taipei("11:30:00")),
+            )
+            dispatcher.scheduler.runCurrent()
+            assertEquals(listOf("A", "C", "B"), upcomingIds())
+
+            slept = 45_000 // 11:20:15, and no virtual time has passed
+            home.realignClock()
+            dispatcher.scheduler.runCurrent()
+            assertEquals(listOf("C", "B", "A"), upcomingIds())
+
+            dispatcher.scheduler.advanceTimeBy(45_000) // 11:21:00
+            dispatcher.scheduler.runCurrent()
+            assertEquals(listOf("B", "C", "A"), upcomingIds())
+        } finally {
             home.viewModelScope.cancel()
         }
     }

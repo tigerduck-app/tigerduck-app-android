@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.classtable
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -32,20 +33,45 @@ class ClassTableDayTimesTest {
 
     private fun minutes(h: Int, m: Int) = h * 60 + m
 
+    private val mins = { seen: List<ClassTableSelection.DayTime> -> seen.map { it.minuteOfDay } }
+
     @Test
     fun `a running clock moves the minute at the boundary, not seconds after it`() = runTest(UnconfinedTestDispatcher()) {
-        AppClock.setOverride(ClockOverride(taipei("11:19:59"), frozen = false, savedAtRealMillis = System.currentTimeMillis()))
+        val base = taipei("11:19:59")
         val seen = mutableListOf<ClassTableSelection.DayTime>()
-        val job = launch { ClassTableSelection.dayTimes().toList(seen) }
-        assertEquals(listOf(minutes(11, 19)), seen.map { it.minuteOfDay })
+        val job = launch {
+            ClassTableSelection.dayTimes(MutableStateFlow(0), { base + testScheduler.currentTime }, { false }).toList(seen)
+        }
+        assertEquals(listOf(minutes(11, 19)), mins(seen))
 
-        // The real second the clock needs to cross the boundary; the scheduler's time is virtual.
-        Thread.sleep(1_100)
-        testScheduler.advanceTimeBy(1_000)
+        testScheduler.advanceTimeBy(999)
+        assertEquals(listOf(minutes(11, 19)), mins(seen))
+        testScheduler.advanceTimeBy(1)
         testScheduler.runCurrent()
 
-        assertEquals(listOf(minutes(11, 19), minutes(11, 20)), seen.map { it.minuteOfDay })
+        assertEquals(listOf(minutes(11, 19), minutes(11, 20)), mins(seen))
         assertEquals(AppConstants.weekdayIndex(java.util.Calendar.THURSDAY), seen.last().weekday)
+        job.cancel()
+    }
+
+    @Test
+    fun `coming back after sleep says the new minute at once and keeps the next boundary`() = runTest(UnconfinedTestDispatcher()) {
+        val base = taipei("11:19:30")
+        var slept = 0L
+        val restarts = MutableStateFlow(0)
+        val seen = mutableListOf<ClassTableSelection.DayTime>()
+        val job = launch {
+            ClassTableSelection.dayTimes(restarts, { base + testScheduler.currentTime + slept }, { false }).toList(seen)
+        }
+        assertEquals(listOf(minutes(11, 19)), mins(seen))
+
+        slept = 45_000 // 11:20:15, and no virtual time has passed: the wait did not count the sleep
+        restarts.value = 1
+        assertEquals(listOf(minutes(11, 19), minutes(11, 20)), mins(seen))
+
+        testScheduler.advanceTimeBy(45_000) // 11:21:00
+        testScheduler.runCurrent()
+        assertEquals(listOf(minutes(11, 19), minutes(11, 20), minutes(11, 21)), mins(seen))
         job.cancel()
     }
 
@@ -53,13 +79,13 @@ class ClassTableDayTimesTest {
     fun `a frozen clock says nothing more until it is set again`() = runTest(UnconfinedTestDispatcher()) {
         AppClock.setOverride(ClockOverride(taipei("11:19:59"), frozen = true, savedAtRealMillis = 0L))
         val seen = mutableListOf<ClassTableSelection.DayTime>()
-        val job = launch { ClassTableSelection.dayTimes().toList(seen) }
+        val job = launch { ClassTableSelection.dayTimes(MutableStateFlow(0)).toList(seen) }
         testScheduler.advanceTimeBy(10 * 60_000L)
         testScheduler.runCurrent()
-        assertEquals(listOf(minutes(11, 19)), seen.map { it.minuteOfDay })
+        assertEquals(listOf(minutes(11, 19)), mins(seen))
 
         AppClock.setOverride(ClockOverride(taipei("11:20:00"), frozen = true, savedAtRealMillis = 0L))
-        assertEquals(listOf(minutes(11, 19), minutes(11, 20)), seen.map { it.minuteOfDay })
+        assertEquals(listOf(minutes(11, 19), minutes(11, 20)), mins(seen))
         job.cancel()
     }
 }
