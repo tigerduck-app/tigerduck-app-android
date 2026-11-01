@@ -554,13 +554,21 @@ def source_files(root):
                         yield os.path.relpath(full, root).replace(os.sep, "/"), full
 
 
+class Found(dict):
+    """The offenses, and how many functions of each name each file holds (names), long or not."""
+
+    def __init__(self):
+        super().__init__()
+        self.names = {}
+
+
 def scan(root):
     """Returns {(path, kind, name): n} for every offense under root.
 
     n is a count, a file's line count (long-file) or a function's line count
     (long-function, the only kind with a name).
     """
-    found = {}
+    found = Found()
 
     def add(path, kind, count, name=""):
         if count > 0:
@@ -575,6 +583,9 @@ def scan(root):
 
         code = lex(text)
         for name, lines in long_functions(text, code):
+            base = SIGNATURE.match(name)
+            if base:
+                found.names[(rel, base.group(1))] = found.names.get((rel, base.group(1)), 0) + 1
             if lines > MAX_FUNCTION_LINES:
                 add(rel, "long-function", lines, name)
         if rel != TERM_HOME:
@@ -637,13 +648,21 @@ def same_function(path, name, found, baseline):
     """The baseline's key for a function whose parameter types changed, or None.
 
     It matches only when the file holds one function of that name on each side,
-    so overloads still tell each other apart.
+    long or short, so overloads still tell each other apart: a short overload
+    beside a new long one stops the long one inheriting the old allowance.
     """
     bare = without_parameters(name)
     if bare is None:
         return None
-    ours = [k for k in found if k[0] == path and k[1] == "long-function"
-            and without_parameters(k[2]) == bare]
+    names = getattr(found, "names", None)
+    if names is not None:
+        if names.get((path, SIGNATURE.match(name).group(1)), 0) != 1:
+            return None
+        ours = [k for k in found if k[0] == path and k[1] == "long-function"
+                and without_parameters(k[2]) == bare]
+    else:
+        ours = [k for k in found if k[0] == path and k[1] == "long-function"
+                and without_parameters(k[2]) == bare]
     theirs = [k for k in baseline if k[0] == path and k[1] == "long-function"
               and without_parameters(k[2]) == bare]
     return theirs[0] if len(ours) == 1 and len(theirs) == 1 else None

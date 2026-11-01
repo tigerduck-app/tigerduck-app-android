@@ -491,6 +491,16 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "S.kt", self.long_pull("fun pull(a: String, b: Boolean)"))
         self.assertEqual(self.run_cli(), 1)
 
+    def test_a_new_long_overload_beside_a_shortened_one_inherits_nothing(self):
+        # pull(String) was baselined at 87 lines and is now short; pull(Int) is new and long.
+        self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
+                              "name": "pull(String)", "lines": 87}])
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: String)", 10) + self.long_pull("fun pull(a: Int)"))
+        self.assertEqual(self.run_cli(), 1)
+        # Alone, the same long function keeps the allowance when only its parameters changed.
+        self.write(APP + "S.kt", self.long_pull("fun pull(a: Int)"))
+        self.assertEqual(self.run_cli(), 0)
+
     def test_overloads_still_match_on_the_full_name(self):
         self.write_baseline([{"path": APP + "S.kt", "kind": "long-function",
                               "name": "pull(String)", "lines": 87}])
