@@ -49,4 +49,26 @@ class AppLanguageManagerTest {
         assertEquals("zh-Hant-TW", uiTag("zh-Hant"))
         assertEquals("zh-Hans-CN", uiTag("zh-Hans"))
     }
+
+    // --- languages the app no longer ships ---------------------------------
+
+    @Test
+    fun `a stored right-to-left language becomes follow system, with or without region or script`() {
+        listOf(
+            "ar", "ar-EG", "ar-SA", "fa", "fa-IR", "he", "he-IL", "iw", "iw-IL", "ur", "ur-PK",
+            "ar-Arab-EG", "AR-eg", "ur-Arab", "fa-AF",
+        ).forEach { assertEquals(it, AppLanguageManager.SYSTEM, AppLanguageManager.normalize(it)) }
+    }
+
+    @Test
+    fun `languages that are still shipped are kept as they were stored`() {
+        listOf("en", "zh-Hant", "zh-Hans", "ja", "ko", "de", "yue-HK", AppLanguageManager.SYSTEM)
+            .forEach { assertEquals(it, AppLanguageManager.normalize(it)) }
+    }
+
+    @Test
+    fun `a right-to-left pick resolves like follow system everywhere it is read`() {
+        assertEquals(null, AppLanguageManager.resolveExplicitLocale("ar-EG"))
+        assertEquals("ja-JP", AppLanguageManager.uiLanguageTag("he", Locale.forLanguageTag("ja-JP")))
+    }
 }

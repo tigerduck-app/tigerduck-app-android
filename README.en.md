@@ -262,8 +262,8 @@ ADB, push backend wiring, and common pitfalls, see [`debug/DEBUG.md`](debug/DEBU
 Translation strings live in the [`app-translation/`](https://github.com/tigerduck-app/app-translation)
 submodule and are shared with the iOS client.
 
-- Source files in `app-translation/source/` — 55 files (`en.json`, `zh-Hant.json`, `ja.json`,
-  `ko.json`, `ar.json`, …)
+- Source files in `app-translation/source/` — 51 files (`en.json`, `zh-Hant.json`, `ja.json`,
+  `ko.json`, `de.json`, …)
 - Every build generates the Android strings from the submodule's `source/*.json`: the
   `generateAppTranslationStrings` task (`gradle/app-translation.gradle.kts`, applied by `:app` and
   `:wear`) writes `values*/strings.xml`, and the phone's `xml/locales_config.xml`, into

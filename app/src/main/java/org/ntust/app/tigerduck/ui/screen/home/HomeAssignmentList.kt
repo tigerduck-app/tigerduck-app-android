@@ -45,13 +45,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
@@ -199,10 +197,6 @@ internal fun SwipeableAssignmentRow(
     val thresholdPx = with(density) { 100.dp.toPx() }
     val swipeOffset = remember(assignment.assignmentId) { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
-    // Modifier.offset { ... } and Alignment.CenterStart/End are rtl-aware,
-    // but pointer deltas are raw screen-space. Negate in RTL so swipeOffset
-    // stays "logical" (positive = start) and the visual row tracks the finger.
-    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val ignoreColor = Color(0xFF8E8E93)
     val completeColor = Color(0xFF34C759)
     // The swipes are drags TalkBack, Switch Access and a keyboard cannot
@@ -296,7 +290,7 @@ internal fun SwipeableAssignmentRow(
                                             -2000f,
                                             animationSpec = tween(durationMillis = 200),
                                         )
-                                        if (isRtl) latestOnMarkCompleted() else latestOnToggleIgnore()
+                                        latestOnToggleIgnore()
                                         swipeOffset.snapTo(0f)
                                     }
 
@@ -305,7 +299,7 @@ internal fun SwipeableAssignmentRow(
                                             2000f,
                                             animationSpec = tween(durationMillis = 200),
                                         )
-                                        if (isRtl) latestOnToggleIgnore() else latestOnMarkCompleted()
+                                        latestOnMarkCompleted()
                                         swipeOffset.snapTo(0f)
                                     }
 
@@ -319,9 +313,8 @@ internal fun SwipeableAssignmentRow(
                             }
                         },
                         onHorizontalDrag = { _, delta ->
-                            val signedDelta = if (isRtl) -delta else delta
                             coroutineScope.launch {
-                                swipeOffset.snapTo(swipeOffset.value + signedDelta * 0.6f)
+                                swipeOffset.snapTo(swipeOffset.value + delta * 0.6f)
                             }
                         },
                     )

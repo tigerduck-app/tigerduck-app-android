@@ -36,12 +36,9 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.click
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.requestFocus
-import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.input.InputMode
@@ -418,30 +415,27 @@ class ClassTableVisualStyleTest {
 
     private fun chainCell(
         role: CellRole.MultiConflictStart = chain,
-        direction: LayoutDirection = LayoutDirection.Ltr,
         onFocusManager: (FocusManager, InputModeManager) -> Unit = { _, _ -> },
         onSelect: (Course) -> Unit = {},
     ) {
         draw(VisualPreset.TigerDuck, width, cellHeight * role.combinedSpan) {
             onFocusManager(LocalFocusManager.current, LocalInputModeManager.current)
-            CompositionLocalProvider(LocalLayoutDirection provides direction) {
-                MultiConflictCourseCell(
-                  cellRole = role,
-                  dayColWidth = width.dp,
-                  cellHeight = cellHeight.dp,
-                  x = 0.dp,
-                  y = 0.dp,
-                  weekday = 1,
-                  hasAssignment = { false },
-                  assignmentsIgnored = { false },
-                  onSelect = { course, _ -> onSelect(course) },
-                  onLongPress = {},
-                  onRename = {},
-                  onPickColor = {},
-                  onToggleIgnoreAssignments = null,
-                  onDelete = {},
-                )
-            }
+            MultiConflictCourseCell(
+              cellRole = role,
+              dayColWidth = width.dp,
+              cellHeight = cellHeight.dp,
+              x = 0.dp,
+              y = 0.dp,
+              weekday = 1,
+              hasAssignment = { false },
+              assignmentsIgnored = { false },
+              onSelect = { course, _ -> onSelect(course) },
+              onLongPress = {},
+              onRename = {},
+              onPickColor = {},
+              onToggleIgnoreAssignments = null,
+              onDelete = {},
+            )
         }
     }
 
@@ -466,29 +460,6 @@ class ClassTableVisualStyleTest {
         assertEquals(physics, picked)
         composeRule.onRoot().performTouchInput { click(Offset(8f, 112f)) }
         assertEquals(chemistry, picked)
-    }
-
-    /**
-     * A course whose name sits in a run narrower than its whole shape: Calculus in its own lane
-     * beside Physics, then Statistics, and alone on the last row. The grid places by absolute
-     * offsets, so in a right-to-left language the name must stay in that run, not at the shape's
-     * right edge, where the shape is cut away.
-     */
-    @Test
-    fun `in a right-to-left language a course's name stays in its own run`() {
-        val role = CellRole.MultiConflictStart(
-            members = listOf(
-                CellRole.MultiConflictStart.Member(calculus, span = 5, offset = 0, lane = 0, firstPeriodId = "1"),
-                CellRole.MultiConflictStart.Member(physics, span = 2, offset = 0, lane = 1, firstPeriodId = "1"),
-                CellRole.MultiConflictStart.Member(statistics, span = 2, offset = 2, lane = 1, firstPeriodId = "3"),
-            ),
-            combinedSpan = 5,
-            laneCount = 2,
-        )
-        chainCell(role, LayoutDirection.Rtl)
-
-        val name = composeRule.onNodeWithText("Calculus", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        assertTrue("Calculus's name runs ${name.left}..${name.right}, its lane 1..30", name.right.value <= 31f)
     }
 
     @Test

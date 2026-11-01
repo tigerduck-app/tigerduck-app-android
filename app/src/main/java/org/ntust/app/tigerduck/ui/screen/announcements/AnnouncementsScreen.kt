@@ -58,7 +58,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
@@ -66,7 +65,6 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -584,7 +582,6 @@ private fun SwipeableBulletinCard(
     val thresholdPx = with(density) { 100.dp.toPx() }
     val swipeOffset = remember(item.id) { Animatable(0f) }
     val coroutineScope = rememberCoroutineScope()
-    val isRtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val actionColor = Color(0xFF34C759)
     val icon = readToggleIcon(isRead = isRead)
     val iconDesc = stringResource(
@@ -675,9 +672,8 @@ private fun SwipeableBulletinCard(
                             }
                         },
                         onHorizontalDrag = { _, delta ->
-                            val signedDelta = if (isRtl) -delta else delta
                             coroutineScope.launch {
-                                swipeOffset.snapTo(swipeOffset.value + signedDelta * 0.6f)
+                                swipeOffset.snapTo(swipeOffset.value + delta * 0.6f)
                             }
                         },
                     )

@@ -484,7 +484,7 @@ fun TigerDuckAppTheme(
             LocalUsesDynamicColor provides useDynamicColor,
             LocalAccentBrush provides accentBrush,
             LocalOnAccentBrush provides onAccentBrush,
-            content = content,
+            content = { LeftToRight(content) },
         )
     }
 }

@@ -6,8 +6,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.wear.compose.material3.LinearProgressIndicator
 import androidx.wear.compose.material3.ProgressIndicatorColors
 import androidx.wear.compose.material3.ProgressIndicatorDefaults
@@ -41,9 +39,7 @@ internal fun FollowingProgressIndicator(
 internal fun PaddingBar(valueDp: Int, minDp: Int, maxDp: Int, modifier: Modifier = Modifier) {
     val accent = LocalAccentColor.current
     val gradient = LocalAccentGradient.current
-    // Wear's indicator flips its canvas in a right-to-left language; the gradient keeps to the screen's sides.
-    val mirrored = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val fill = remember(accent, gradient, mirrored) { accentFill(accent, gradient, mirrored) }
+    val fill = remember(accent, gradient) { accentFill(accent, gradient) }
     val brush = fill.brush
     FollowingProgressIndicator(
         value = paddingFraction(valueDp, minDp, maxDp),

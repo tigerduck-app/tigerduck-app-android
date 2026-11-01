@@ -17,14 +17,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import org.ntust.app.tigerduck.emptyclassroom.EmptyClassroomSchedule
 import org.ntust.app.tigerduck.emptyclassroom.RoomUsage
@@ -43,20 +41,19 @@ internal fun AvailabilityBar(room: RoomUsage, period: Int, ended: Int, modifier:
     val free = FinderColors.freeFill
     val track = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
     val needle = MaterialTheme.colorScheme.onSurface
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     Canvas(modifier.height(14.dp)) {
         val count = EmptyClassroomSchedule.periodIds.size
         val unit = size.width / count
         val barHeight = 6.dp.toPx()
         val top = (size.height - barHeight) / 2
         val radius = CornerRadius(barHeight / 2)
-        fun x(index: Int, width: Float = 0f) = if (rtl) size.width - unit * index - width else unit * index
+        fun x(index: Int) = unit * index
         drawRoundRect(track, Offset(0f, top), Size(size.width, barHeight), radius)
         for (run in runs) {
             val width = unit * (run.last - run.first + 1)
             drawRoundRect(
                 if (period in run) free else free.copy(alpha = 0.32f),
-                Offset(x(run.first, width), top),
+                Offset(x(run.first), top),
                 Size(width, barHeight),
                 radius,
             )
