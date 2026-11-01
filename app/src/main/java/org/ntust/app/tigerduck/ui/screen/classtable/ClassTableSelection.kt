@@ -186,16 +186,18 @@ object ClassTableSelection {
      * afternoon block's times and room once the morning one ends. Null when it does not meet.
      *
      * This keeps its own pass over the timetable rather than reading `ClassTimeline`: it has no
-     * date to ask with, and a block whose period has no time is never over here, where the timeline
-     * drops that meeting, which would pass the card on to the next block and grey out a class that
-     * may be on.
+     * date to ask with. A block whose period has no time is never over, so it shows only when the
+     * course has no timed block, and never ahead of one: the timeline drops it, as the card does on a
+     * changed day. [isFinishedAt] still never calls such a period finished.
      */
     fun carouselBlock(course: Course, weekday: Int, minuteOfDay: Int): List<String>? {
         val runs = contiguousPeriodRuns(course.schedule[weekday].orEmpty())
-        return runs.firstOrNull { run ->
-            val end = AppConstants.PeriodTimes.mapping[run.last()]?.second?.let(::parseHm)
-            end == null || minuteOfDay < end
-        } ?: runs.lastOrNull()
+        val timed = runs.mapNotNull { run ->
+            AppConstants.PeriodTimes.mapping[run.last()]?.second?.let(::parseHm)?.let { run to it }
+        }
+        // A block with no time is not over, but it must not hold the card in front of a timed class.
+        if (timed.isEmpty()) return runs.firstOrNull()
+        return (timed.firstOrNull { (_, end) -> minuteOfDay < end } ?: timed.last()).first
     }
 
     /**
