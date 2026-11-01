@@ -39,6 +39,7 @@ internal val SubPageBarHeight = 56.dp
  * [content] receives the Scaffold's padding, which is the bar's height; apply
  * it to the page's first child. [snackbarHost] is the Scaffold's own slot,
  * empty by default, for a page that reports through a `SnackbarHostState`.
+ * [floatingActionButton] is the Scaffold's own slot, empty by default.
  * [contentWindowInsets] is the Scaffold's own
  * default unless a page lays out edge to edge; pass `WindowInsets(0, 0, 0, 0)`
  * for a page whose host has already padded the whole screen.
@@ -50,6 +51,7 @@ fun SubPageScaffold(
     onBack: () -> Unit,
     actions: @Composable RowScope.() -> Unit = {},
     snackbarHost: @Composable () -> Unit = {},
+    floatingActionButton: @Composable () -> Unit = {},
     contentWindowInsets: WindowInsets = ScaffoldDefaults.contentWindowInsets,
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -71,6 +73,7 @@ fun SubPageScaffold(
             )
         },
         snackbarHost = snackbarHost,
+        floatingActionButton = floatingActionButton,
         contentWindowInsets = contentWindowInsets,
         content = content,
     )

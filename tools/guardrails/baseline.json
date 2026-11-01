@@ -430,7 +430,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementDetailScreen.kt",
     "kind": "long-function",
     "name": "AnnouncementDetailScreen(String, ()->Unit, AnnouncementDetailViewModel)",
-    "lines": 99
+    "lines": 87
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementDetailScreen.kt",
@@ -464,7 +464,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/SubscriptionRuleEditorScreen.kt",
     "kind": "long-function",
     "name": "SubscriptionRuleEditorScreen(SubscriptionRule, Boolean, TaxonomyResponse?, (SubscriptionRule)->Unit, (()->Unit)?, ()->Unit)",
-    "lines": 148
+    "lines": 132
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/SubscriptionSettingsScreen.kt",
@@ -474,13 +474,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/SubscriptionSettingsScreen.kt",
     "kind": "long-file",
-    "count": 526
+    "count": 512
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/SubscriptionSettingsScreen.kt",
     "kind": "long-function",
     "name": "SubscriptionSettingsScreen(Boolean, ()->Unit, SubscriptionSettingsViewModel)",
-    "lines": 187
+    "lines": 175
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/browser/BrowserSheets.kt",
@@ -743,43 +743,37 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/ApiEndpointDebugScreen.kt",
     "kind": "long-function",
     "name": "ApiEndpointDebugScreen(()->Unit)",
-    "lines": 257
+    "lines": 248
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/BrowserAllowlistDebugScreen.kt",
     "kind": "long-function",
     "name": "BrowserAllowlistDebugScreen(()->Unit, BrowserAllowlistStore, (Context,String)->Boolean)",
-    "lines": 132
+    "lines": 125
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/DebugScreen.kt",
     "kind": "long-function",
     "name": "DebugScreen(()->Unit, DebugViewModel)",
-    "lines": 161
+    "lines": 152
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/MailDevServerDebugScreen.kt",
     "kind": "long-function",
     "name": "MailDevServerDebugScreen(()->Unit)",
-    "lines": 257
+    "lines": 248
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/NotificationDebugScreen.kt",
     "kind": "long-function",
     "name": "NotificationDebugScreen(()->Unit)",
-    "lines": 149
+    "lines": 140
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/TriggersDebugScreen.kt",
     "kind": "long-function",
     "name": "TriggersDebugScreen(AppState, ()->Unit)",
-    "lines": 139
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/ViewerSamplesDebugScreen.kt",
-    "kind": "long-function",
-    "name": "ViewerSamplesDebugScreen(()->Unit)",
-    "lines": 84
+    "lines": 130
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/debug/WhatsNewSample.kt",
