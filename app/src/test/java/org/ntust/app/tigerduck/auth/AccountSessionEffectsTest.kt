@@ -97,7 +97,6 @@ class AccountSessionEffectsTest {
                 clearingGate?.await()
             },
             browserClearingOwed = { clearingOwed },
-            clearPortalLinks = {},
         ).also { it.start(scope) }
     }
 
@@ -193,7 +192,6 @@ class AccountSessionEffectsTest {
             stopLiveUpdates = { liveUpdates += "stop" },
             clearBrowser = { browserClears += signedIn.value },
             browserClearingOwed = { false },
-            clearPortalLinks = {},
         ).start(late)
         scheduler.runCurrent()
 
@@ -231,7 +229,6 @@ class AccountSessionEffectsTest {
             stopLiveUpdates = { liveUpdates += "stop" },
             clearBrowser = { browserClears += signedIn.value },
             browserClearingOwed = { false },
-            clearPortalLinks = {},
         ).start(late)
 
         // Signed out as the app starts, before the watcher has run once.

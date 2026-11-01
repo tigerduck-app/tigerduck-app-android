@@ -47,6 +47,7 @@ class AuthService @Inject constructor(
     private val moodleService: MoodleService,
     private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
+    private val portalLinksCache: org.ntust.app.tigerduck.data.cache.PortalLinksCache,
     private val bulletinReadStateStore: BulletinReadStateStore,
     private val importedClassTables: ImportedClassTableStore,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
@@ -432,12 +433,11 @@ class AuthService @Inject constructor(
         // Last, so everything above still sees the demo account and keeps
         // its requests on the device.
         demoAccount.exit()
-        // Bulletins are school-wide rather than private, but the read-state
-        // store is already cleared above — clear the content snapshot too
-        // so the next session starts coherent instead of half-stale. Started
-        // now, so every read and write of it waits for it, as an API endpoint
+        // The bulletin snapshot and the portal's links are cleared too, so the next session starts
+        // coherent. Started now, so every read and write of them waits for it, as an API endpoint
         // move's clear (BulletinCache.clearIn).
         bulletinCache.clearIn(appScope)
+        portalLinksCache.clearIn(appScope)
         // Wipe persisted user data on the application scope so a coroutine
         // launched from a transient ViewModel scope can't be cancelled mid-
         // delete when the user backs out of Settings or the activity dies.

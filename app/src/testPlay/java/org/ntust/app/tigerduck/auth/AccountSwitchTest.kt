@@ -295,6 +295,7 @@ class AccountSwitchTest {
             ),
             dataCache = dataCache,
             bulletinCache = bulletinCache,
+            portalLinksCache = portalLinksCache,
             bulletinReadStateStore = BulletinReadStateStore(context),
             importedClassTables = imported,
             widgetUpdater = WidgetUpdater(
@@ -309,7 +310,6 @@ class AccountSwitchTest {
         )
         // The in-app browser's WebView storage, counted each time it is cleared.
         val browserClearings = MutableStateFlow(0)
-        val portalClearings = MutableStateFlow(0)
         val liveUpdates = LiveActivityManager(
             preferences = liveUpdate,
             notifier = LiveActivityNotifier(context, liveUpdate, appPrefs, NotificationChannelRegistrar(context, appPrefs)),
@@ -340,10 +340,6 @@ class AccountSwitchTest {
             stopLiveUpdates = liveUpdates::stop,
             clearBrowser = browser::clear,
             browserClearingOwed = { false },
-            clearPortalLinks = {
-                portalLinksCache.clear()
-                portalClearings.value++
-            },
         ).start(effectsScope)
 
         // What the first student's sessions kept besides: DataCache through its own saves, a
@@ -386,7 +382,6 @@ class AccountSwitchTest {
         withTimeout(10_000) {
             signOutJob.children.toList().joinAll()
             browserClearings.first { it >= 1 }
-            portalClearings.first { it >= 1 }
         }
         // By the sign-out itself: the next sign-in clears some of the same again.
         assertNothingOfTheFirstLeft(after = "the sign-out")
