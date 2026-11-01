@@ -31,7 +31,7 @@ import javax.inject.Singleton
 class AccountSessionEffects internal constructor(
     private val context: Context,
     private val accountState: StateFlow<AccountState>,
-    /** Each sign-in by hand, a student signing in over another included; see [AuthService.signIns]. */
+    /** Each sign-in by hand, the same student's again included; see [AuthService.signIns]. */
     private val signIns: Flow<Unit>,
     private val assignmentReminders: AssignmentNotificationScheduler,
     private val refreshLiveUpdates: () -> Unit,
@@ -83,7 +83,7 @@ class AccountSessionEffects internal constructor(
                 if (now.signedIn) onSignedIn(scope)
             }
         }
-        // A student signing in over another never turns authState off and on.
+        // The same student typing their password again never turns authState off and on.
         scope.launch { signIns.collect { clearBrowserSoon(scope) } }
         when {
             signOutCutShort -> scope.launch { onSignedOut(scope) }

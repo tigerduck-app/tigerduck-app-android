@@ -108,9 +108,8 @@ class AuthService @Inject constructor(
     private val _signIns = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     /**
-     * Each sign-in by hand the school took, whoever it is: another student
-     * signing in over this one leaves [authState] true throughout, so what
-     * follows an account, such as the in-app browser's data, follows this too.
+     * Each sign-in by hand the school took, whoever it is: the same student's leaves [authState]
+     * true throughout, and what follows an account, such as the browser's data, follows this too.
      */
     val signIns: SharedFlow<Unit> = _signIns.asSharedFlow()
 
@@ -181,6 +180,7 @@ class AuthService @Inject constructor(
             credentials.ntustPassword = password
         },
         latch = storedPasswordLatch,
+        leaveStoredAccount = { logout() },
         // The store-review account signs in without a server — see DemoAccount.
         isDemoAccount = demoAccount::matches,
         enterDemo = demoAccount::enter,

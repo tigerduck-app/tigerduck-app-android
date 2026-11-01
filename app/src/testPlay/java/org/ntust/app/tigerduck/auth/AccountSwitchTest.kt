@@ -42,6 +42,7 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
 import java.util.Date
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -248,25 +249,48 @@ class AccountSwitchTest {
     }
 
     @Test
-    fun `another student's typed sign-in over a stored one signs nobody out and wipes nothing`() = runBlocking {
+    fun `another student's typed sign-in leaves nothing of the first`() = runBlocking {
         val credentialPrefs = signedInAsFirst()
+        account.fillPreferences()
+        credentialPrefs.edit().putString("ntust_student_id", FIRST).putString("ntust_password", "first-password").commit()
+        val firstLeft = account.held()
+        assertTrue(firstLeft.values.none { it == null })
+        val files = account.fillDataCache()
         val w = world(credentialPrefs)
-        userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.writeText("[]")
         val signInBefore = w.sessions.school.signIns.current
-        val signedInEmissions = mutableListOf<Boolean>()
-        val watching = effectsScope.launch { w.auth.authState.collect { signedInEmissions += it } }
+        val signedInEmissions = CopyOnWriteArrayList<Boolean>()
+        val watching = effectsScope.launch { w.auth.accountState.collect { signedInEmissions += it.signedIn } }
         val signIns = effectsScope.async { w.auth.signIns.first() }
         delay(100)
 
         assertTrue(w.auth.login(SECOND, "second-password"))
-        withTimeout(10_000) { signIns.await() }
+        withTimeout(10_000) {
+            signIns.await()
+            w.browserClearings.first { it >= 1 }
+        }
         watching.cancel()
 
         assertEquals(SECOND, w.auth.storedStudentId)
-        // Never false in between: no sign-out ran, and so no wipe.
-        assertEquals(listOf(true), signedInEmissions)
+        assertEquals("second-password", w.credentials.ntustPassword)
+        assertTrue("the first student's sign-in ended", !signInBefore.isCurrent)
+        assertTrue("the second's is open", w.sessions.school.signIns.current.isCurrent)
+        assertEquals("the account went off, and came back as the second student", listOf(true, false, true), signedInEmissions.toList())
+        assertEquals(emptyList<File>(), files.filter(File::exists))
+        assertEquals(emptySet<Pair<String, String>>(), firstLeft.filter { (at, value) -> prefs(at.first).all[at.second] == value }.keys)
+    }
+
+    @Test
+    fun `the same student typing their password again signs nobody out`() = runBlocking {
+        val credentialPrefs = signedInAsFirst()
+        val files = account.fillDataCache()
+        val w = world(credentialPrefs)
+        val signInBefore = w.sessions.school.signIns.current
+
+        assertTrue(w.auth.login(FIRST, "first-password-again"))
+
+        assertEquals(FIRST, w.auth.storedStudentId)
         assertSame(signInBefore, w.sessions.school.signIns.current)
-        assertTrue(userFile("unsent_marks.json").exists())
+        assertEquals(files, files.filter(File::exists))
     }
 
     @Test

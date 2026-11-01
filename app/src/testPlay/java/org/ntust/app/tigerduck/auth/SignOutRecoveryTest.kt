@@ -314,7 +314,7 @@ class SignOutRecoveryTest {
 
     @Test
     fun `a sign-out landing as a sign-in stores waits for it, and names that student on the marker`() = runBlocking {
-        credentialPrefs.edit().putString("ntust_student_id", FIRST).putString("ntust_password", "first-password").commit()
+        // Nobody stored: over another student, the sign-in signs that one out before it stores.
         val storing = CountDownLatch(1)
         val store = CountDownLatch(1)
         val disk = Disk().apply {
