@@ -22,6 +22,9 @@ Offense kinds (counts in the baseline):
                   Only the identifiers semester(s), semesterCode, term(s) and
                   termCode count, in sortedBy, sortedWith, sortBy, sortWith,
                   compareBy, thenBy and their Descending forms.
+  top-app-bar     a call to one of Material's top app bars outside ui/component.
+                  A page's bar is PageScaffold's. The baseline has no entries of
+                  this kind and takes none.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -56,6 +59,12 @@ SORT_CALL = re.compile(
 # Explicit identifiers only: a field that merely contains "term" (terminalId)
 # is not a term code, and "code" alone cannot be told from other codes.
 TERM_NAME = re.compile(r"\b(?:semesters?|semesterCode|terms?|termCode)\b", re.IGNORECASE)
+# Material's own names, so a page's helper that merely ends in the word passes.
+TOP_APP_BAR = re.compile(
+    r"\b(?:CenterAligned|Medium|MediumFlexible|Large|LargeFlexible|TwoRows)?TopAppBar\s*\(")
+# By directory rather than whole path, so the check still holds once ui/component
+# moves into a module of its own.
+SHARED_UI = "/ui/component/"
 FUN = re.compile(r"\bfun\b")
 CLASS_DECL = re.compile(r"(?<!::)\b(?:class|interface|object)\s+(\w+)")
 COMPANION = re.compile(r"\bcompanion\s+object\s*(?=[{:])")
@@ -488,6 +497,8 @@ def scan(root):
                 add(rel, "long-function", lines, name)
         if rel != TERM_HOME:
             add(rel, "term-sort", term_sorts(code))
+        if SHARED_UI not in rel:
+            add(rel, "top-app-bar", len(TOP_APP_BAR.findall(code)))
 
         # Literals are matched with strings kept and comments blanked, so a
         # KDoc that mentions the zone does not count.
