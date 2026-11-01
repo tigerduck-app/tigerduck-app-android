@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,20 +49,20 @@ class MailMessageMenuTest {
         rule.setContent {
             var viewInLight by remember { mutableStateOf(false) }
             TigerDuckAppTheme(darkTheme = true) {
-                MessageMenu(
-                    expanded = true,
-                    mode = mode,
-                    canFormat = true,
-                    offersLightMode = offersLightMode,
-                    viewInLight = viewInLight,
-                    onDismiss = {},
-                    onMode = {},
-                    onViewInLight = { viewInLight = !viewInLight },
-                    seen = true,
-                    onToggleSeen = {},
-                    onMove = {},
-                    onDelete = {},
-                )
+                Column {
+                    MessageMenuItems(
+                        mode = mode,
+                        canFormat = true,
+                        offersLightMode = offersLightMode,
+                        viewInLight = viewInLight,
+                        onMode = {},
+                        onViewInLight = { viewInLight = !viewInLight },
+                        seen = true,
+                        onToggleSeen = {},
+                        onMove = {},
+                        onDelete = {},
+                    )
+                }
             }
         }
         rule.waitForIdle()

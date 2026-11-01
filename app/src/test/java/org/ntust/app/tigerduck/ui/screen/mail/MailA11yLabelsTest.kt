@@ -10,6 +10,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.ui.component.PageMenuButton
 import org.ntust.app.tigerduck.mail.mailSummary
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -38,7 +39,7 @@ class MailA11yLabelsTest {
 
     @Test
     fun `the message's more button is named for all its actions`() {
-        composeRule.setContent { MessageActionsButton(onClick = {}) }
+        composeRule.setContent { PageMenuButton(messageMenu {}) }
 
         composeRule
             .onNodeWithContentDescription(text(R.string.school_mail_message_actions))
