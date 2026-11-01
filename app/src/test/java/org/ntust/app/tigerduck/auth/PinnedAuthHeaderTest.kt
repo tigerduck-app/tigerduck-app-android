@@ -50,4 +50,32 @@ class PinnedAuthHeaderTest {
         assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
         assertEquals("Bearer access-b", manager.requireAuthHeader())
     }
+
+    @Test
+    fun `the sign-in it was pinned to as a type gets its token`() = runTest {
+        assertEquals("Bearer access-a", manager.requireAuthHeader(manager.session.signIns.current))
+    }
+
+    /** Refused as soon as it ends: the sign-out moves the count later, in its clearing. */
+    @Test
+    fun `a sign-in that has ended gets no token, its own included`() = runTest {
+        val signIn = manager.session.signIns.end()
+
+        val header = runCatching { manager.requireAuthHeader(signIn) }
+
+        assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
+    }
+
+    @Test
+    fun `after a sign-out the next sign-in's token is not handed to the one that ended`() = runTest {
+        val signIn = manager.session.signIns.current
+        manager.logout()
+        manager.session.open()
+        tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
+
+        val header = runCatching { manager.requireAuthHeader(signIn) }
+
+        assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
+        assertEquals("Bearer access-b", manager.requireAuthHeader(manager.session.signIns.current))
+    }
 }

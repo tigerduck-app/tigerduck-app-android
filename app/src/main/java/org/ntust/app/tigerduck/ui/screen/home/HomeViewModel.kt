@@ -34,6 +34,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.academic.QuietDays
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
@@ -173,10 +174,10 @@ class HomeViewModel @Inject constructor(
         CourseIgnores.assignmentIds(all, keys, courseService.currentSemesterCode())
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
-    // Everything the backend sync touches, bundled so HomeBackendSync can
-    // read and write it directly. Declared here rather than at the top of the
-    // class because Kotlin runs property initializers in declaration order —
-    // built any earlier, it would capture nulls for the flows above.
+    // Everything the backend sync touches, bundled so HomeBackendSync can read and write it
+    // directly. Declared here rather than at the top of the class because Kotlin runs property
+    // initializers in declaration order — built any earlier, it would capture nulls for the flows
+    // above.
     //
     // Handed over on every call instead of snapshotting values, so a sync in
     // flight sees pendingOverrides as the toggle handlers leave it rather
@@ -198,6 +199,9 @@ class HomeViewModel @Inject constructor(
     // when the poll and Home's own sync start together.
     private val backendPullsInFlight = AtomicInteger(0)
 
+    @OptIn(StartsAccountWork::class)
+    private fun signInNow() = authTokenManager.session.current
+
     /**
      * Answer the sync-conflict dialog.
      *
@@ -212,7 +216,7 @@ class HomeViewModel @Inject constructor(
         syncState.pendingResult = null
         syncState.conflicts.value = emptyList()
         viewModelScope.launch {
-            backendSync.applyResolution(syncState, result, conflicts, keepLocal)
+            backendSync.applyResolution(syncState, result, conflicts, keepLocal, signInNow())
         }
     }
 
@@ -360,10 +364,9 @@ class HomeViewModel @Inject constructor(
             // fresh data fetch on sign-in so the UI never lingers on a prior
             // user's cached courses.
             //
-            // A sign-in, not the value the StateFlow replays to a new
-            // collector: a user already signed in at launch is fetched for by
-            // load(), which MainNavigation calls straight after construction.
-            // Fetching here as well ran the whole school pipeline twice on
+            // A sign-in, not the value the StateFlow replays to a new collector: a user already
+            // signed in at launch is fetched for by load(), which MainNavigation calls straight
+            // after construction. Fetching here as well ran the whole school pipeline twice on
             // every cold start.
             var wasAuthed: Boolean? = null
             authService.authState.collect { isAuthed ->
@@ -380,10 +383,9 @@ class HomeViewModel @Inject constructor(
                     _ignoredAssignmentIds.value = emptySet()
                     _markedCompletedIds.value = emptySet()
                     _ignoredCourseKeys.value = emptySet()
-                    // The watermark is the departing account's: the next
-                    // account's feed read after it would skip that account's
-                    // own earlier changes. From 0 the poll runs a full sync
-                    // until one lands for the account that signs in.
+                    // The watermark is the departing account's: the next account's feed read after
+                    // it would skip that account's own earlier changes. From 0 the poll runs a full
+                    // sync until one lands for the account that signs in.
                     syncState.lastKnownRevision = 0
                     hasLoaded = false
                     _initialLoadComplete.value = true
@@ -658,7 +660,7 @@ class HomeViewModel @Inject constructor(
         fetchChanges = syncApiClient::fetchChanges,
         lastKnownRevision = { syncState.lastKnownRevision },
         setLastKnownRevision = { syncState.lastKnownRevision = it },
-        signInGeneration = { authTokenManager.signInGeneration },
+        currentSignIn = ::signInNow,
         fullSyncsInFlight = backendPullsInFlight::get,
         retryUnsent = backendSync::sendWhatWaits,
         fullSync = ::syncAndRepublish,
@@ -691,7 +693,7 @@ class HomeViewModel @Inject constructor(
     private suspend fun pullFromBackend() {
         backendPullsInFlight.incrementAndGet()
         try {
-            backendSync.pull(syncState)
+            backendSync.pull(syncState, signInNow())
         } finally {
             backendPullsInFlight.decrementAndGet()
         }
@@ -757,12 +759,10 @@ class HomeViewModel @Inject constructor(
                         widgetUpdater.requestUpdate()
                     }
 
-                    // Null when Moodle failed or was not asked; an empty list
-                    // is its answer and replaces the cache like any other.
-                    // See CourseRosterMerge.assignmentsToStore. What is shown
-                    // and uploaded is the list as written, which the write
-                    // reconciles against newer answers; nothing when the write
-                    // was refused.
+                    // Null when Moodle failed or was not asked; an empty list is its answer and
+                    // replaces the cache like any other. See CourseRosterMerge.assignmentsToStore.
+                    // What is shown and uploaded is the list as written, which the write reconciles
+                    // against newer answers; nothing when the write was refused.
                     val written = remoteAssignments?.let {
                         moodleService.storeAssignments(it.assignments, it.answer)
                     }
@@ -1091,7 +1091,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 // Kept on disk until it lands; a failure is logged there.
-                unsentMarks.send(id, status)
+                unsentMarks.send(id, status, signInNow())
             } finally {
                 // Always release the in-flight lock: from here on a PATCH
                 // that failed is protected by UnsentMarks, which lets the id

@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import java.io.File
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A hand-added course the student deletes and later really enrolls in (tigerduck-app-android#425,
@@ -48,7 +49,6 @@ class ClassTableHandAddedHideTest {
             { _, _, _, _, _, _, _ -> false },
             records = { true },
             sends = { false },
-            signInGeneration = { 0 },
         )
     }
 
@@ -102,7 +102,7 @@ class ClassTableHandAddedHideTest {
         )
         beforeCommit()
         val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
-        commitReconciledTerm(cache, sync, TERM, stored, outcome.tombstones, setOf(course.courseNo), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides)
+        commitReconciledTerm(cache, sync, TERM, stored, outcome.tombstones, setOf(course.courseNo), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn())
     }
 
     /**
@@ -134,7 +134,7 @@ class ClassTableHandAddedHideTest {
         cache.restoredCoursesListed(TERM, serverNos.toList(), fetchedAtMs)
         cache.saveServerKnownNos(mapOf(TERM to outcome.serverKnownNos.sorted()))
         val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
-        commitReconciledTerm(cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides)
+        commitReconciledTerm(cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left, outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn())
     }
 
     /**
@@ -265,11 +265,11 @@ class ClassTableHandAddedHideTest {
         delete(handAdded)
         // Its DELETE has not landed, as PendingCourseDeletes keeps it: landing after the roster
         // upload, it would take the course off the server again.
-        cache.savePendingCourseDeletes(mapOf(TERM to mapOf(handAdded.courseNo to 1L)))
+        cache.savePendingCourseDeletes(mapOf(TERM to mapOf(handAdded.courseNo to 1L)), testSignIn())
 
         assertEquals(listOf(enrolled.courseNo), fetchListing(enrolled.courseNo, handAdded.courseNo))
 
-        cache.savePendingCourseDeletes(emptyMap())
+        cache.savePendingCourseDeletes(emptyMap(), testSignIn())
         assertEquals(listOf(enrolled.courseNo, handAdded.courseNo), fetchListing(enrolled.courseNo, handAdded.courseNo))
     }
 
@@ -755,9 +755,9 @@ class ClassTableHandAddedHideTest {
 
         tombstonedElsewhere(portal, beforeCommit = {
             delete(portal)
-            overrides.forget(listOfNotNull(portal.moodleIdNumber))
+            overrides.forget(listOfNotNull(portal.moodleIdNumber), signIn = testSignIn())
             addBack(portal)
-            overrides.send(portal.moodleIdNumber!!, colorHex = "#FF9500")
+            overrides.send(portal.moodleIdNumber!!, colorHex = "#FF9500", signIn = testSignIn())
         })
 
         assertEquals(mapOf<String?, String?>(portal.moodleIdNumber to "#FF9500"), waitingColors())
@@ -768,8 +768,8 @@ class ClassTableHandAddedHideTest {
     fun `a course a sync prunes takes its waiting colour and name with it`() = runTest {
         cache.saveCourses(listOf(enrolled, portal), TERM)
         syncListing(enrolled.courseNo, portal.courseNo)
-        overrides.send(portal.moodleIdNumber!!, colorHex = "#FF9500")
-        overrides.send(enrolled.moodleIdNumber!!, colorHex = "#34C759")
+        overrides.send(portal.moodleIdNumber!!, colorHex = "#FF9500", signIn = testSignIn())
+        overrides.send(enrolled.moodleIdNumber!!, colorHex = "#34C759", signIn = testSignIn())
 
         tombstonedElsewhere(portal)
 

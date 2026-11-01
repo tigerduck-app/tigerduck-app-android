@@ -140,6 +140,15 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   compares against the literal.
 - `PageScaffold` (`app/.../ui/component/PageScaffold.kt`): every page's shell, with
   its defaults in `PageDefaults`. No file outside `ui/component` calls a `TopAppBar`.
+- Who the account is, and whether the app is in the demo (ratchets, count lines):
+  `account-counter` counts hand-kept generation and epoch numbers, and
+  `demo-check` counts `isDemo`-style reads outside the demo's own homes. The
+  sign-in type replaces the first, one session answer the second.
+  `sign-in-read` fails any `StartsAccountWork` opt-in outside the layers that
+  start account work; every other layer is handed the `SignIn`. A new home is
+  a decision to name in the PR body. `check_guardrails.py --introduce KIND`
+  lets a ratchet land with its counts; a function whose parameter types
+  changed keeps its baseline entry.
 
 ## Greptile
 

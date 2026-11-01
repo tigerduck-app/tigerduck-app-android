@@ -42,6 +42,6 @@ class AuthServiceLatchClearingTest {
 
     @Test
     fun `the sign-out lifts the latch`() {
-        assertEquals(1, Regex("""\bstoredPasswordLatch\.clear\(\)""").findAll(body("fun logout()")).count())
+        assertEquals(1, Regex("""\bstoredPasswordLatch\.clear\(\)""").findAll(body("private fun clearAccount()")).count())
     }
 }

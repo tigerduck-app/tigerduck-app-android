@@ -49,11 +49,18 @@ class ImportedClassTablesClearingTest {
         throw AssertionError("`$declaration` has no closing brace")
     }
 
+    /** The sign-out: `logout()`, what it clears at once, and the wipe it starts on the app scope. */
+    private fun signOut() = body("fun logout()") + body("private fun clearAccount()") + wipe
+
+    /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
+    private val wipe: String =
+        File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
+
     private fun String.uses(call: String): Int = Regex("""\bimportedClassTables\.$call""").findAll(this).count()
 
     @Test
     fun `the user's own sign-out empties the imported class tables`() {
-        assertEquals(1, body("fun logout()").uses("""clearForSignOut\(\)"""))
+        assertEquals(1, signOut().uses("""clearForSignOut\(\)"""))
     }
 
     @Test
@@ -65,13 +72,14 @@ class ImportedClassTablesClearingTest {
 
     @Test
     fun `nothing else in AuthService touches the imported class tables`() {
-        val everywhere = source.uses("")
-        assertEquals(everywhere, body("fun logout()").uses("") + body("suspend fun login(").uses(""))
+        assertEquals(source.uses(""), body("suspend fun login(").uses(""))
+        // And the wipe is the one place that empties them.
+        assertEquals(1, wipe.uses(""))
     }
 
     @Test
     fun `only AuthService empties the imported class tables or tells them who signed in`() {
-        val owners = setOf("AuthService.kt", "ImportedClassTableStore.kt")
+        val owners = setOf("AuthService.kt", "ImportedClassTableStore.kt", "SignOutWipe.kt")
         val offenders = listOf("src/main/java", "src/play/java", "src/fdroid/java", "src/debug/java")
             .map { File(app, it) }
             .filter { it.isDirectory }

@@ -19,7 +19,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** [folder] is which of the demo mailbox's folders this lives in -- INBOX unless the fixture says otherwise. */
-data class DemoMail(val summary: MailSummary, val body: MailBody, val folder: SpecialFolder = SpecialFolder.INBOX)
+data class DemoMail(
+    val summary: MailSummary,
+    val body: MailBody,
+    val folder: SpecialFolder = SpecialFolder.INBOX,
+    /** The bytes of each attachment the fixture gave content to, by its part id; the rest download as a placeholder. */
+    val attachmentBytes: Map<String, ByteArray> = emptyMap(),
+)
 
 /** The store-review mailbox from assets/demo.json's `mail` section. Never touches a socket. */
 class DemoMailbox(
@@ -60,10 +66,15 @@ object DemoMailFixture {
     private fun parseMessage(o: JsonObject, index: Int, lang: String): DemoMail? {
         val fromObj = o.get("from")?.takeIf { it.isJsonObject }?.asJsonObject ?: return null
         val address = fromObj.get("address")?.asString ?: return null
+        val attachmentBytes = mutableMapOf<String, ByteArray>()
         val attachments = o.get("attachments")?.takeIf { it.isJsonArray }?.asJsonArray?.mapIndexedNotNull { i, el ->
             val a = el.takeIf { it.isJsonObject }?.asJsonObject ?: return@mapIndexedNotNull null
+            val partId = "${i + 2}"
+            a.get("base64")?.takeIf { it.isJsonPrimitive }?.asString
+                ?.let { runCatching { java.util.Base64.getDecoder().decode(it) }.getOrNull() }
+                ?.let { attachmentBytes[partId] = it }
             MailAttachment(
-                partId = "${i + 2}",
+                partId = partId,
                 fileName = localized(a, "name", lang).ifBlank { return@mapIndexedNotNull null },
                 contentType = a.get("type")?.asString ?: "application/octet-stream",
                 sizeBytes = a.get("size")?.asLong ?: 0L,
@@ -89,7 +100,7 @@ object DemoMailFixture {
             attachments = attachments,
             inlineImages = emptyMap(),
         )
-        return DemoMail(summary, body, folder)
+        return DemoMail(summary, body, folder, attachmentBytes)
     }
 
     /** Which demo folder a message belongs to; absent or unrecognised means INBOX. */

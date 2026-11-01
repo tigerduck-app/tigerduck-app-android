@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATU
 import org.ntust.app.tigerduck.ui.screen.settings.categoriesSwitchedOn
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Home's mark step as `HomeBackendSync` builds it ([AssignmentMarkStep.over]),
@@ -60,7 +61,6 @@ class HomeMarkSyncTest {
             },
             records = { prefs.syncAssignments },
             sends = { prefs.syncAssignments },
-            signInGeneration = { 0 },
         )
         step = AssignmentMarkStep.over(prefs, cache, unsent) { id, status, _ -> send(id, status) }
     }
@@ -75,7 +75,7 @@ class HomeMarkSyncTest {
 
     /** What `HomeBackendSync.pull` passes: the switch as read with the other categories. */
     private suspend fun fullSync(result: BackendSyncResult) =
-        step.pull(state, result, syncsMarks = "assignments" in categoriesSwitchedOn(prefs), signIn = 0, generation = cache.userDataGeneration)
+        step.pull(state, result, syncsMarks = "assignments" in categoriesSwitchedOn(prefs), signIn = testSignIn())
 
     @Test
     fun `with the Assignments switch off a full sync leaves this phone's marks alone`() = runTest {
@@ -97,16 +97,16 @@ class HomeMarkSyncTest {
         // What HomeViewModel.toggleOverride does for a tap.
         cache.saveMarkedCompletedAssignments(setOf("3"))
         state.markedCompletedIds.value = setOf("3")
-        unsent.send("3", STATUS_COMPLETED)
+        unsent.send("3", STATUS_COMPLETED, testSignIn())
 
         // The next sync: the retry fails too, and the server holds no marks.
-        unsent.retry()
+        unsent.retry(testSignIn())
         fullSync(server())
 
         assertEquals(setOf("3"), cache.loadMarkedCompletedAssignments())
 
         backendUp = true
-        unsent.retry()
+        unsent.retry(testSignIn())
 
         assertEquals(listOf(3 to STATUS_COMPLETED), sent)
         assertEquals(emptySet<String>(), unsent.ids())

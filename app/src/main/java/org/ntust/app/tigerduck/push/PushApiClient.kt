@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -72,7 +73,7 @@ class PushApiClient @Inject constructor(
      * session. Without one it throws [NotSignedInException] and the request
      * is not sent.
      */
-    private suspend fun authHeader(signIn: Int? = null): String =
+    private suspend fun authHeader(signIn: SignIn? = null): String =
         if (signIn == null) authTokenManager.requireAuthHeader() else authTokenManager.requireAuthHeader(signIn)
 
     /**
@@ -150,7 +151,7 @@ class PushApiClient @Inject constructor(
      * only as that sign-in: see `PendingHolidayOverrides`. Says whether it was
      * sent, so a skipped PUT is not taken for one that landed. [madeAtMs] is sent as `hlc`.
      */
-    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: Int? = null, madeAtMs: Long? = null): Boolean =
+    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: SignIn? = null, madeAtMs: Long? = null): Boolean =
         withContext(Dispatchers.IO) {
             if (!isSyncCapable) return@withContext false
             val service = api.at(baseUrl)
@@ -225,15 +226,14 @@ class PushApiClient @Inject constructor(
     }
 
     /**
-     * [signIn], when given, pins the request to that sign-in
-     * ([AuthTokenManager.signInGeneration]): after a sign-out it goes without
-     * a token rather than with the next account's. [madeAtMs] is sent as `hlc`.
+     * [signIn], when given, pins the request to that sign-in: after a sign-out
+     * it goes without a token rather than with the next account's. [madeAtMs] is sent as `hlc`.
      * Says whether it went out: false when the switch stopped it, so the mark waits.
      */
     suspend fun patchAssignmentOverride(
         assignmentId: Int,
         localStatus: String,
-        signIn: Int? = null,
+        signIn: SignIn? = null,
         madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
         val syncs = { isSyncCapable && prefs.syncAssignments }
@@ -262,7 +262,7 @@ class PushApiClient @Inject constructor(
         colorHex: String? = null,
         customName: String? = null,
         locale: String? = null,
-        signIn: Int? = null,
+        signIn: SignIn? = null,
         allowed: () -> Boolean = { true },
         madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
@@ -390,7 +390,7 @@ class PushApiClient @Inject constructor(
             signIn = signIn,
         ) {
             val service = api.at(base)
-            service.assignmentsUpload(authHeader(signIn), json.toRequestBody(jsonType)).execute().use { response ->
+            service.assignmentsUpload(authTokenManager.requireAuthHeader(signIn), json.toRequestBody(jsonType)).execute().use { response ->
                 if (!response.isSuccessful) {
                     throw PushApiException("uploadAssignments failed: HTTP ${response.code}", response.code)
                 }
@@ -456,7 +456,7 @@ class PushApiClient @Inject constructor(
         courses: List<Course>,
         semester: String,
         forceKeys: List<String> = emptyList(),
-        signIn: Int? = null,
+        signIn: SignIn? = null,
         resend: Boolean = false,
         rosterTerms: List<String> = emptyList(),
         addedAt: Map<String, Long> = emptyMap(),
@@ -467,7 +467,7 @@ class PushApiClient @Inject constructor(
         courses: List<Course>,
         semester: String,
         forceKeys: List<String> = emptyList(),
-        signIn: Int? = null,
+        signIn: SignIn? = null,
         resend: Boolean = false,
         rosterTerms: List<String> = emptyList(),
         addedAt: Map<String, Long> = emptyMap(),
@@ -488,7 +488,7 @@ class PushApiClient @Inject constructor(
         // The sign-in the ledger's record is pinned to, as the assignment
         // upload's is; the request's own header is pinned only when the
         // caller pinned it ([signIn]), as before.
-        val startedIn = signIn ?: authTokenManager.signInGeneration
+        val startedIn = authTokenManager.signInGeneration
         // What the accepted list enrolled as the term's roster, for serverDropped.
         val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
@@ -555,12 +555,11 @@ class PushApiClient @Inject constructor(
 
     /**
      * Deletes the course row [courseKey] names. [signIn] pins the request to
-     * that sign-in ([AuthTokenManager.signInGeneration]), as [uploadCourses]
-     * does: a delete queued as one account and sent after a sign-out and
+     * that sign-in, as [uploadCourses] does: a delete queued as one account and sent after a sign-out and
      * another sign-in goes without a token, not with the next account's,
      * which could take that account's own course off.
      */
-    suspend fun deleteCourse(courseKey: String, signIn: Int? = null, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
+    suspend fun deleteCourse(courseKey: String, signIn: SignIn? = null, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val service = api.at(baseUrl)
         val header = authHeader(signIn)

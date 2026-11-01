@@ -84,7 +84,7 @@ class AccountSessionEffectsTest {
     @After
     fun tearDown() = scope.cancel()
 
-    private fun effects(startSignedIn: Boolean): AccountSessionEffects {
+    private fun effects(startSignedIn: Boolean, signOutCutShort: Boolean = false): AccountSessionEffects {
         signedIn.flow.value = AccountState(startSignedIn, changes = 0)
         return AccountSessionEffects(
             context = context,
@@ -99,7 +99,7 @@ class AccountSessionEffectsTest {
             },
             browserClearingOwed = { clearingOwed },
             forgetMoodleColors = { moodleColorsForgotten++ },
-        ).also { it.start(scope) }
+        ).also { it.start(scope, signOutCutShort) }
     }
 
     private fun backgroundSync(): List<WorkInfo.State> =
@@ -172,6 +172,42 @@ class AccountSessionEffectsTest {
         effects(startSignedIn = true)
 
         assertEquals(listOf(true), browserClears)
+    }
+
+    @Test
+    fun `a sign-out the start finished, which it never saw change, is followed all the same`() {
+        // Scheduled and armed by the student whose sign-out a process death cut short. The start
+        // signed them out before this watcher began, or found them gone already.
+        BackgroundSyncWorker.schedule(context)
+        val due = Assignment(
+            assignmentId = "a1",
+            courseNo = "CS1001301",
+            courseName = "Course",
+            title = "Task",
+            dueDate = Date(AppClock.nowMillis() + 3 * 86_400_000L),
+        )
+        assignmentReminders.scheduleAll(listOf(due), setOf(AssignmentReminderOffset.HR24))
+        val alarms = shadowOf(context.getSystemService(AlarmManager::class.java))
+        assertEquals(1, alarms.scheduledAlarms.size)
+
+        effects(startSignedIn = false, signOutCutShort = true)
+
+        assertEquals(listOf(WorkInfo.State.CANCELLED), backgroundSync())
+        assertEquals(listOf("stop"), liveUpdates)
+        assertEquals(0, alarms.scheduledAlarms.size)
+        assertEquals(listOf(false), browserClears)
+        assertEquals(1, moodleColorsForgotten)
+    }
+
+    @Test
+    fun `a start that finished no sign-out leaves all of that alone`() {
+        BackgroundSyncWorker.schedule(context)
+
+        effects(startSignedIn = false)
+
+        assertEquals(listOf(WorkInfo.State.ENQUEUED), backgroundSync())
+        assertEquals(emptyList<String>(), liveUpdates)
+        assertEquals(0, moodleColorsForgotten)
     }
 
     @Test

@@ -4,12 +4,12 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushApiException
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -25,7 +25,7 @@ internal fun interface CourseOverrideSender {
         colorHex: String?,
         customName: String?,
         locale: String?,
-        signIn: Int,
+        signIn: SignIn,
         stillAllowed: () -> Boolean,
         madeAtMs: Long?,
     ): Boolean
@@ -51,7 +51,7 @@ internal fun interface CourseOverrideSender {
  * once the backend confirms it, once the
  * backend has refused it [MAX_ATTEMPTS] times, or at once on a 404 for a
  * course no longer cached in the term it was made in: the row went with the
- * course. Account-scoped: sent only as the account that made it, and wiped
+ * course. Account-scoped: sent only under the sign-in that made it, and wiped
  * with the user data at sign-out.
  *
  * With TigerSync or the kind's switch off ([records] false) colours or names
@@ -74,14 +74,12 @@ class PendingCourseOverrides internal constructor(
     private val sender: CourseOverrideSender,
     private val records: (color: Boolean) -> Boolean,
     private val sends: (color: Boolean) -> Boolean,
-    private val signInGeneration: () -> Int,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     @Inject constructor(
         dataCache: DataCache,
         pushApiClient: PushApiClient,
         prefs: AppPreferences,
-        authTokenManager: AuthTokenManager,
     ) : this(
         dataCache = dataCache,
         sender = CourseOverrideSender { moodleId, colorHex, customName, locale, signIn, stillAllowed, madeAtMs ->
@@ -91,7 +89,6 @@ class PendingCourseOverrides internal constructor(
         },
         records = { color -> records(prefs, color) },
         sends = { color -> sends(prefs, color) },
-        signInGeneration = { authTokenManager.signInGeneration },
     )
 
     /**
@@ -146,12 +143,11 @@ class PendingCourseOverrides internal constructor(
         locale: String? = null,
         semester: String? = null,
         courseNo: String? = null,
+        signIn: SignIn,
     ) {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
-        val recorded = record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), generation)
+        val recorded = record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn)
         for ((key, change) in recorded) {
-            if (sends(change.isColor)) trySend(key, change, generation, signIn)
+            if (sends(change.isColor)) trySend(key, change, signIn)
         }
     }
 
@@ -164,9 +160,9 @@ class PendingCourseOverrides internal constructor(
      * one is the newer, and the reset's own colour for that course, reaching
      * its turn, neither replaces it nor goes up.
      */
-    suspend fun queue(changes: List<Change>, version: Long) {
+    suspend fun queue(changes: List<Change>, version: Long, signIn: SignIn) {
         if (changes.isEmpty()) return
-        record(changes, dataCache.writeGeneration(), version)
+        record(changes, signIn, version)
     }
 
     /**
@@ -182,11 +178,9 @@ class PendingCourseOverrides internal constructor(
      * Sends every change still waiting whose kind goes out; each full sync
      * starts with this, so the snapshot it fetches has them.
      */
-    suspend fun retry() {
-        val generation = dataCache.writeGeneration()
-        val signIn = signInGeneration()
+    suspend fun retry(signIn: SignIn) {
         for ((key, change) in waiting()) {
-            if (sends(change.isColor)) trySend(key, change, generation, signIn)
+            if (sends(change.isColor)) trySend(key, change, signIn)
         }
     }
 
@@ -209,13 +203,12 @@ class PendingCourseOverrides internal constructor(
      * [reserveVersion] gave before the course went: one made since is the
      * course's put back meanwhile, and stays.
      */
-    suspend fun forget(moodleIds: Collection<String>, madeBefore: Long = Long.MAX_VALUE) {
+    suspend fun forget(moodleIds: Collection<String>, madeBefore: Long = Long.MAX_VALUE, signIn: SignIn) {
         if (moodleIds.isEmpty()) return
-        val generation = dataCache.writeGeneration()
         mutex.withLock {
             val waiting = waiting()
             val kept = waiting.filterValues { it.moodleId !in moodleIds || it.seq >= madeBefore }
-            if (kept.size != waiting.size) save(kept, generation)
+            if (kept.size != waiting.size) save(kept, signIn)
         }
     }
 
@@ -225,13 +218,12 @@ class PendingCourseOverrides internal constructor(
      * server's over this phone's at their re-enable check: sent later, they
      * would put this phone's back.
      */
-    suspend fun adoptServer(categories: Collection<String>) {
-        val generation = dataCache.writeGeneration()
+    suspend fun adoptServer(categories: Collection<String>, signIn: SignIn) {
         mutex.withLock {
             val waiting = waiting()
             val kept = waiting.filterValues { category(it.isColor) !in categories }
             if (kept.size == waiting.size) return@withLock
-            if (save(kept, generation)) (waiting.keys - kept.keys).forEach(touchedAt::remove)
+            if (save(kept, signIn)) (waiting.keys - kept.keys).forEach(touchedAt::remove)
         }
     }
 
@@ -242,12 +234,11 @@ class PendingCourseOverrides internal constructor(
      * from data the batch predates, so it stands. A change of a kind that
      * does not sync is this phone's own: not kept, and the last word on its
      * key, as one still waiting would go up over it later. Returns the ones
-     * now waiting, by key; nothing is written once the data was wiped since
-     * [generation].
+     * now waiting, by key; nothing is written once [signIn] has ended.
      */
     private suspend fun record(
         changes: List<Change>,
-        generation: Int,
+        signIn: SignIn,
         version: Long? = null,
     ): Map<String, PendingCourseOverride> =
         mutex.withLock {
@@ -271,7 +262,7 @@ class PendingCourseOverrides internal constructor(
                 recorded[key] = entry
             }
             if (updated == waiting) return@withLock emptyMap()
-            if (!save(updated, generation)) return@withLock emptyMap()
+            if (!save(updated, signIn)) return@withLock emptyMap()
             for (key in recorded.keys) {
                 touchedAt[key] = now
                 latestSeq[key] = seq
@@ -292,8 +283,8 @@ class PendingCourseOverrides internal constructor(
     }
 
     /**
-     * Sends [change] if it is still the change waiting under [key], for the
-     * account whose data [generation] and sign-in [signIn] were read with.
+     * Sends [change] if it is still the change waiting under [key], under the
+     * sign-in [signIn] it was read with.
      * Checked under the send lock, right before the request: a newer change
      * of the key, a send of it that landed meanwhile, a sign-out, or a hold
      * put on its kind since each make it stale, and sent it would undo the
@@ -305,11 +296,9 @@ class PendingCourseOverrides internal constructor(
      * Let go once confirmed, unless a newer change replaced it meanwhile;
      * kept when nothing went out, for the switch's re-enable check to decide.
      */
-    private suspend fun trySend(key: String, change: PendingCourseOverride, generation: Int, signIn: Int) {
+    private suspend fun trySend(key: String, change: PendingCourseOverride, signIn: SignIn) {
         val moodleId = change.moodleId ?: return
-        val allowed = {
-            sends(change.isColor) && generation == dataCache.userDataGeneration && signIn == signInGeneration()
-        }
+        val allowed = { sends(change.isColor) && signIn.isCurrent }
         val sent = sendMutex.withLock {
             val current = mutex.withLock { isWaiting(key, change) } && allowed()
             if (!current) return
@@ -319,7 +308,7 @@ class PendingCourseOverrides internal constructor(
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "course override PATCH failed, kept for the next sync: ${e.logSummary()}")
-                if (CourseIgnoreSync.refuses(e)) countRefusal(key, change, generation, gone = courseGone(e, change))
+                if (CourseIgnoreSync.refuses(e)) countRefusal(key, change, signIn, gone = courseGone(e, change))
                 return
             }
         }
@@ -327,7 +316,7 @@ class PendingCourseOverrides internal constructor(
         mutex.withLock {
             val waiting = waiting()
             if (!isWaiting(key, change)) return@withLock
-            if (save(waiting - key, generation)) touchedAt[key] = clock()
+            if (save(waiting - key, signIn)) touchedAt[key] = clock()
         }
     }
 
@@ -337,7 +326,7 @@ class PendingCourseOverrides internal constructor(
      * course is [gone]: the backend will not take it, and kept it would be
      * sent, and refused, at every sync, and count as unsynced data for good.
      */
-    private suspend fun countRefusal(key: String, change: PendingCourseOverride, generation: Int, gone: Boolean) =
+    private suspend fun countRefusal(key: String, change: PendingCourseOverride, signIn: SignIn, gone: Boolean) =
         mutex.withLock {
             val waiting = waiting()
             val stored = waiting[key]?.takeIf { it.isSameChange(change) } ?: return@withLock
@@ -345,9 +334,9 @@ class PendingCourseOverrides internal constructor(
             if (gone || counted.attempts >= MAX_ATTEMPTS) {
                 val why = if (gone) "its course has left this phone" else "refused $MAX_ATTEMPTS times"
                 Log.w(TAG, "course override let go: $why")
-                save(waiting - key, generation)
+                save(waiting - key, signIn)
             } else {
-                save(waiting + (key to counted), generation)
+                save(waiting + (key to counted), signIn)
             }
         }
 
@@ -368,8 +357,8 @@ class PendingCourseOverrides internal constructor(
     private suspend fun waiting(): Map<String, PendingCourseOverride> =
         dataCache.loadPendingCourseOverrides().associateByTo(LinkedHashMap()) { it.key.orEmpty() }
 
-    private suspend fun save(waiting: Map<String, PendingCourseOverride>, generation: Int): Boolean =
-        dataCache.savePendingCourseOverrides(waiting.values.toList(), generation)
+    private suspend fun save(waiting: Map<String, PendingCourseOverride>, signIn: SignIn): Boolean =
+        dataCache.savePendingCourseOverrides(waiting.values.toList(), signIn)
 
     private val PendingCourseOverride.isColor: Boolean
         get() = colorHex != null

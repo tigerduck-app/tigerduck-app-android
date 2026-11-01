@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.auth
 
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The sign-in with credentials the user typed, which [AuthService] runs as its login. Apart from
@@ -20,20 +21,28 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
  * nothing sent anywhere.
  *
  * A sign-out takes no sign-in lock, so it can land at any point, the moment the school answers
- * included. The store and the account showing as signed in each happen only while
- * [signInGeneration] is still the one read before the sign-in began, checked under [accountLock],
- * which the sign-out holds while it drops the stored account and moves the generation: a sign-in
- * a sign-out overtook stores nothing and shows nothing, and one it overtakes after the store has
- * its account dropped by the sign-out itself.
+ * included. The store and the account showing as signed in each happen only while the session is
+ * open and [signInGeneration] is still the one read before the sign-in began, checked under
+ * [accountLock], which the sign-out holds as it closes the session and again while it drops the
+ * stored account and moves the generation: a sign-in a sign-out overtook stores nothing and shows
+ * nothing, and one that stored first is the student on the sign-out's marker, its account dropped
+ * by the sign-out itself.
  */
 internal class TypedAccountSignIn(
     private val schoolSignIn: suspend (studentId: String, password: String) -> Boolean,
     private val signInInteractively: suspend (
         signIn: suspend (signInGeneration: Int) -> SignInAttempt,
     ) -> Boolean,
+    /**
+     * Returns once no sign-out is under way: a sign-in made during one would store an account its
+     * wipe then takes. A cancelled wait leaves the next sign-in free.
+     */
+    private val awaitOpen: suspend () -> Unit,
+    /** Whether no sign-out is under way, read now. A sign-out closes this, under [accountLock], before it moves [signInGeneration]. */
+    private val isOpen: () -> Boolean,
     /** [AuthTokenManager.signInGeneration], which a sign-out moves while it holds [accountLock]. */
     private val signInGeneration: () -> Int,
-    /** Held by a sign-out while it drops the stored account and moves [signInGeneration]. */
+    /** Held by a sign-out as it closes the session, and while it drops the stored account and moves [signInGeneration]. */
     private val accountLock: Any,
     private val storedStudentId: () -> String?,
     private val writeAccount: (studentId: String, password: String) -> Unit,
@@ -72,7 +81,7 @@ internal class TypedAccountSignIn(
         prepareSignedIn: suspend () -> Unit,
         afterShown: suspend (signInGeneration: Int, sameStudent: Boolean) -> SignInAttempt,
     ): Outcome {
-        val generation = signInGeneration()
+        val generation = generationOnceOpen()
         // Checked before anything goes out, so these credentials never reach NTUST.
         if (isDemoAccount(studentId, password)) {
             // Demo mode is on disk once it goes on.
@@ -110,10 +119,22 @@ internal class TypedAccountSignIn(
         return outcome
     }
 
-    /** Runs [block] under [accountLock] and says so, unless a sign-out has moved [generation]. */
+    /**
+     * The generation of a moment with no sign-out under way. A sign-out that landed before it is
+     * read has closed the session, which is then waited out again; one that lands after moves it.
+     */
+    private suspend fun generationOnceOpen(): Int {
+        while (true) {
+            awaitOpen()
+            val generation = signInGeneration()
+            if (isOpen()) return generation
+        }
+    }
+
+    /** Runs [block] under [accountLock] and says so, unless a sign-out has begun or moved [generation]. */
     private inline fun unlessSignedOutSince(generation: Int, block: () -> Unit): Boolean =
         synchronized(accountLock) {
-            if (signInGeneration() != generation) return false
+            if (!isOpen() || signInGeneration() != generation) return false
             block()
             true
         }
@@ -126,4 +147,25 @@ internal class TypedAccountSignIn(
         writeAccount(studentId, password)
         latch.clear()
     }
+}
+
+/**
+ * What [AuthService.login] does once the school took a typed sign-in, after
+ * its backend login, which stored the session if it got one. Apart from
+ * AuthService so a test can run it: AuthService needs the Android Keystore.
+ *
+ * [startSettingsCopy] is the catch-up the automatic sign-in runs too
+ * (NotificationSettingsSync.pushIfUnconfirmed), and it goes first, without
+ * suspending: it starts the copy of the notification settings a push tells
+ * this phone's edits apart by. Only the backend login's own return to the
+ * caller comes between the session being stored and this call. [register],
+ * the push registration, is a network call, and while it ran first an edit
+ * made in its wait found no copy: its push counted nothing as changed, sent
+ * nothing, and confirmed the edit as if it had gone up. iOS starts the copy
+ * first too, in onV3SignedIn.
+ */
+internal suspend fun followTypedSignIn(startSettingsCopy: () -> Unit, register: suspend () -> Unit) {
+    startSettingsCopy()
+    runCatching { register() }
+        .onFailure { e -> if (e is CancellationException) throw e }
 }
