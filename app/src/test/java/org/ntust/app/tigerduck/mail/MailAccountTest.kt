@@ -1,13 +1,18 @@
 package org.ntust.app.tigerduck.mail
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -19,6 +24,8 @@ import org.ntust.app.tigerduck.mail.index.MailSearchIndex
 import org.ntust.app.tigerduck.mail.store.HeldSendStore
 import org.ntust.app.tigerduck.mail.store.MailCache
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MailAccountTest {
     @get:Rule val tmp = TemporaryFolder()
@@ -191,6 +198,119 @@ class MailAccountTest {
 
         assertEquals("the new sign-in's checks are the last word", listOf("schedule", "cancel", "schedule"), scheduler.events.toList())
         assertFalse(account.authFailed.value)
+    }
+
+    @Test
+    fun `every sign-in and sign-out moves the generation, and a sign-in the server refuses does not`() = runTest {
+        val account = account()
+        val atStart = account.accountGeneration
+
+        account.signIn("b10000001", "pw")
+        val first = account.accountGeneration
+        assertNotEquals("a sign-in", atStart, first)
+
+        assertTrue(account.signIn("b10000001", "wrong") is MailError.AuthFailed)
+        assertEquals("a refused sign-in", first, account.accountGeneration)
+
+        account.signIn("b10000001", "pw")
+        val again = account.accountGeneration
+        assertNotEquals("the same student, the same password", first, again)
+
+        server.passwords["B10000002"] = "pw"
+        account.signIn("b10000002", "pw")
+        val other = account.accountGeneration
+        assertNotEquals("another student", again, other)
+
+        account.signOut()
+        val out = account.accountGeneration
+        assertNotEquals("a sign-out", other, out)
+
+        // The time signed out belongs to the next sign-in, and a second sign-out still moves it.
+        account.signOut()
+        assertNotEquals("a sign-out with no one signed in", out, account.accountGeneration)
+    }
+
+    @Test
+    fun `a student change is told while the departing sign-in still stands`() = runTest {
+        val account = account()
+        account.signIn("b10000001", "pw")
+        val before = account.accountGeneration
+        server.passwords["B10000002"] = "pw"
+        var atTheTelling: Int? = null
+        val listening = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            account.studentChanges.collect { atTheTelling = account.accountGeneration }
+        }
+
+        account.signIn("b10000002", "pw")
+        listening.cancel()
+
+        assertEquals(before, atTheTelling)
+        assertNotEquals(before, account.accountGeneration)
+    }
+
+    @Test
+    fun `a snapshot is the signed-in account with its own sign-in, and nothing while signed out`() = runTest {
+        val account = account()
+        assertNull(account.snapshot())
+
+        account.signIn("b10000001", "pw")
+        val first = account.snapshot()!!
+        assertEquals("b10000001", first.credentials.studentId)
+        assertEquals(account.accountGeneration, first.generation)
+        assertEquals(state.clears, first.clears)
+
+        account.signOut()
+        assertNull(account.snapshot())
+    }
+
+    /** Signs out and runs [during] before the cleanup the sign-out starts, which then runs to its end. */
+    private fun signOutWithItsCleanupLate(account: MailAccount, during: () -> Unit) {
+        val late = CountDownLatch(1)
+        account.onCleanup = { late.await(30, TimeUnit.SECONDS) }
+        account.signOut()
+        during()
+        late.countDown()
+        runBlocking {
+            withContext(Dispatchers.Default) {
+                withTimeout(5_000) { while (notifier.cancelledAll == 0) delay(10) }
+            }
+        }
+        account.onCleanup = null
+    }
+
+    @Test
+    fun `a late cleanup of a sign-out keeps mail held under the next sign-in, same student`() = runTest {
+        val account = account()
+        val me = "b10000001@mail.ntust.edu.tw"
+        account.signIn("b10000001", "pw")
+        assertTrue(heldSends.save("left", me, heldFields, emptyList(), account.accountGeneration) { true })
+
+        signOutWithItsCleanupLate(account) {
+            runBlocking { account.signIn("b10000001", "pw") }
+            assertTrue(heldSends.save("since", me, heldFields, emptyList(), account.accountGeneration) { true })
+        }
+
+        assertFalse("the sign-in that left", File(heldRoot, "left").exists())
+        assertEquals("since", HeldSendStore(heldRoot).orphan(me)?.id)
+    }
+
+    /**
+     * A password typed again moves the sign-in on with the student still here: what they hold
+     * under the sign-in before it stays theirs, and is no sign-out's to clear.
+     */
+    @Test
+    fun `a late cleanup of a sign-out keeps mail held since, though a password typed again moved that sign-in on`() = runTest {
+        val account = account()
+        val me = "b10000001@mail.ntust.edu.tw"
+        account.signIn("b10000001", "pw")
+
+        signOutWithItsCleanupLate(account) {
+            runBlocking { account.signIn("b10000001", "pw") }
+            assertTrue(heldSends.save("since", me, heldFields, emptyList(), account.accountGeneration) { true })
+            runBlocking { account.signIn("b10000001", "pw") }
+        }
+
+        assertEquals("since", HeldSendStore(heldRoot).orphan(me)?.id)
     }
 
     @Test

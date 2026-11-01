@@ -1221,6 +1221,38 @@ class MailRepositoryTest {
         assertFalse(left!!.running)
     }
 
+    /**
+     * A sign-in tells of the student leaving before it moves the sign-in on, and a download can
+     * still come through for them in between: what it shows would stay on the next student's row.
+     */
+    @Test
+    fun `a download of a student told to have left shows no progress, though the sign-in has yet to move`() = runTest {
+        server.deliver("收件")
+        server.passwords["B10000002"] = "pw"
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        val told = CountDownLatch(1)
+        val moveOn = CountDownLatch(1)
+        setup.account.onLockWait = {
+            setup.account.onLockWait = null
+            told.countDown()
+            moveOn.await(30, TimeUnit.SECONDS)
+        }
+        val over = thread(isDaemon = true) { runBlocking { setup.account.signIn("b10000002", "pw") } }
+        assertTrue(told.await(30, TimeUnit.SECONDS))
+        // The repository hears of the student leaving.
+        runCurrent()
+        val seen = mutableListOf<MailIndexProgress?>()
+        server.onUndeletedUids = { seen += repo.searchIndexProgress.value }
+
+        repo.updateSearchIndex()
+        moveOn.countDown()
+        over.join(30_000)
+
+        assertTrue(seen.isNotEmpty())
+        assertTrue("nothing shown after the telling: $seen", seen.all { it == null })
+    }
+
     @Test
     fun `a search catching up shows no download under way`() = runTest {
         repeat(3) { server.deliver("期中考 $it") }

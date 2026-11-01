@@ -77,6 +77,36 @@ class SentCopyNoticesTest {
     }
 
     @Test
+    fun `a send that outlives a password typed again still reports, its student being here`() {
+        val generation = notices.accountGeneration
+        runBlocking { account.signIn("b10000001", "pw") }
+        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, generation)
+        assertEquals(SentCopyNotice.Unknown, notices.posted?.notice)
+    }
+
+    /** A student change is told before the next sign-in moves in: a report can land in between. */
+    @Test
+    fun `a report that lands between a student change and the next sign-in posts nothing`() {
+        val generation = notices.accountGeneration
+        account.onLockWait = {
+            account.onLockWait = null
+            notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, generation)
+        }
+        runBlocking { account.signIn("b10000002", "pw2") }
+        assertNull(notices.posted)
+    }
+
+    @Test
+    fun `a student change that lands while a notice is being published takes that notice with it too`() {
+        notices.onReportChecked = {
+            notices.onReportChecked = null
+            runBlocking { account.signIn("b10000002", "pw2") }
+        }
+        report()
+        assertNull(notices.posted)
+    }
+
+    @Test
     fun `a sign-out that lands while a notice is being published takes that notice with it too`() {
         // In the app the cleanup runs on another dispatcher, so it can land between report's check
         // of the account and its publication. Here it is made to land exactly there: the account

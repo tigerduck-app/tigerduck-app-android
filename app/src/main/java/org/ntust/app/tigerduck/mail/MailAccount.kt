@@ -100,6 +100,11 @@ class MailAccount @Inject constructor(
     @Volatile
     internal var onLockWait: (() -> Unit)? = null
 
+    /** Runs first in a sign-out's cleanup: a test's way of holding it back past what comes next. Null in the app. */
+    @VisibleForTesting
+    @Volatile
+    internal var onCleanup: (() -> Unit)? = null
+
     /** Whether the calling thread holds the account's lock: a test's way of telling a step made under it. */
     @VisibleForTesting
     internal fun holdsLock(): Boolean = Thread.holdsLock(accountLock)
@@ -253,6 +258,7 @@ class MailAccount @Inject constructor(
             // Only the mail of the sign-in that left: by now the same student may have signed in
             // again and kept a mail of the new sign-in's.
             try {
+                onCleanup?.invoke()
                 leaveMailOf(departing, keptBefore = leftAt)
             } finally {
                 notifier.cancelAll()
