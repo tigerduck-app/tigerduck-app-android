@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.work.testing.WorkManagerTestInitHelper
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -48,6 +50,7 @@ import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.FullReset
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -216,6 +219,46 @@ class AccountSwitchTest {
     }
 
     private fun userFile(name: String) = File(context.filesDir, "TigerDuckData/$name")
+
+    @Test
+    fun `a full reset keeps the school session closed past the sign-out's own wipe`() = runBlocking {
+        val w = world(signedInAsFirst())
+
+        w.plans.signOut(SignOutReason.FULL_RESET)
+        withTimeout(10_000) { signOutJob.children.toList().joinAll() }
+
+        // The reset wipes the credentials and the preferences after this: a sign-in now would go with them.
+        assertFalse("open before the reset's own wipe", w.sessions.school.signIns.isOpen.value)
+    }
+
+    @Test
+    fun `a sign-in during a full reset's wipe waits for it, and keeps the account it stores`() = runBlocking {
+        val w = world(signedInAsFirst())
+        val wiping = CompletableDeferred<Unit>()
+        val reset = FullReset(
+            signOut = { w.plans.signOut(SignOutReason.FULL_RESET) },
+            wiped = w.plans::resetWiped,
+            clearCaches = {
+                wiping.await()
+                w.dataCache.clearEverything()
+            },
+            credentials = w.credentials,
+            prefs = w.appPrefs,
+            publishLibraryCredentialsToWatch = {},
+            clearBrowser = {},
+        )
+        val resetting = reset.start(effectsScope) {}
+        withTimeout(10_000) { signOutJob.children.toList().joinAll() }
+
+        val signIn = signOutScope.async { w.auth.login(SECOND, "second-password") }
+        delay(200)
+        assertFalse("the sign-in waits for the reset's wipe", signIn.isCompleted)
+
+        wiping.complete(Unit)
+        withTimeout(10_000) { resetting.join() }
+        assertEquals("signed in once the reset's wipe was done", true, withTimeoutOrNull(10_000) { signIn.await() })
+        assertEquals("stored after the wipe, the account stays", SECOND, w.credentials.ntustStudentId)
+    }
 
     @Test
     fun `the school's sign-out tells the reason it was given`() = runBlocking {

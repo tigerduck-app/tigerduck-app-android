@@ -623,9 +623,9 @@ class AppState @Inject constructor(
      * the "fresh start" it promises not one.
      */
     private val fullReset = FullReset(
-        // School Mail's password, caches, alarms and posted notifications, the school account, and
-        // the demo library, which the school's sign-out keeps.
+        // School Mail, the school, and the demo library the school's sign-out keeps; see FullReset.
         signOut = { signOutPlans.signOut(org.ntust.app.tigerduck.auth.session.SignOutReason.FULL_RESET) },
+        wiped = signOutPlans::resetWiped,
         clearCaches = { dataCache.clearEverything() },
         credentials = credentials,
         prefs = prefs,

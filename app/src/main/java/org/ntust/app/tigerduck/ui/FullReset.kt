@@ -25,6 +25,8 @@ internal class FullReset(
      * whose sign-out keeps a demo library signed in, as a full reset does not.
      */
     private val signOut: () -> Unit,
+    /** The reset's wipe is done, whether it went or threw: the school's session may open again. */
+    private val wiped: () -> Unit,
     private val clearCaches: suspend () -> Unit,
     private val credentials: CredentialManager,
     private val prefs: AppPreferences,
@@ -36,7 +38,11 @@ internal class FullReset(
     fun start(scope: CoroutineScope, onWiped: () -> Unit): Job {
         signOut()
         return scope.launch {
-            wipeStores()
+            try {
+                wipeStores()
+            } finally {
+                wiped()
+            }
             onWiped()
         }
     }

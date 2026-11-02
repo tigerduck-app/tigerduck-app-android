@@ -1,6 +1,11 @@
 package org.ntust.app.tigerduck.ui
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -64,6 +69,7 @@ class FullResetTest {
 
     private fun fullReset() = FullReset(
         signOut = { plans.signOut(SignOutReason.FULL_RESET) },
+        wiped = plans::resetWiped,
         clearCaches = { steps += "caches" },
         credentials = credentials,
         prefs = prefs,
@@ -83,6 +89,36 @@ class FullResetTest {
         assertNull(watch.last())
         assertNull(credentials.libraryUsername)
         assertNull(credentials.ntustStudentId)
+    }
+
+    @Test
+    fun `a reset whose wipe throws still lets the school's session open`() = runBlocking {
+        var released = false
+        val quiet = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, _ -> })
+        val plans = SignOutPlans(
+            school = object : SchoolPlan by NoSchool {
+                override fun releaseClosed() {
+                    released = true
+                }
+            },
+            mail = AccountPlan({ false }) {},
+            library = AccountPlan({ false }) {},
+            readLibraryAgain = {},
+            leaveDemoLibrary = {},
+        )
+
+        FullReset(
+            signOut = { plans.signOut(SignOutReason.FULL_RESET) },
+            wiped = plans::resetWiped,
+            clearCaches = {},
+            credentials = credentials,
+            prefs = prefs,
+            publishLibraryCredentialsToWatch = { throw IllegalStateException("made-up failure") },
+            clearBrowser = {},
+        ).start(quiet) {}.join()
+
+        assertTrue(released)
+        quiet.cancel()
     }
 
     @Test

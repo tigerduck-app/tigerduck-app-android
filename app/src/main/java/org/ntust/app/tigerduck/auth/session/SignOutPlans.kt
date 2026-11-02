@@ -48,6 +48,12 @@ internal interface SchoolPlan : AccountSignOut {
 
     /** At process start, once [finishOwedSignOut] said so: that sign-out's wipe, after which the sign-in opens. */
     fun finishOwedWipe()
+
+    /** Keeps the session closed past this sign-out's own wipe, until [releaseClosed]: a full reset's wipe. */
+    fun holdClosed()
+
+    /** Lets go of [holdClosed]: the session opens once no sign-out's wipe is left either. */
+    fun releaseClosed()
 }
 
 /**
@@ -62,7 +68,8 @@ internal interface SchoolPlan : AccountSignOut {
  * - [SignOutReason.SCHOOL], [SignOutReason.MAIL] and [SignOutReason.LIBRARY]: that account.
  * - [SignOutReason.ENDPOINT_CHANGE]: the school, the library and School Mail, each only if held.
  * - [SignOutReason.FULL_RESET]: School Mail, the school and the demo library. The library account
- *   goes with the credentials in the reset's own wipe, `FullReset`.
+ *   goes with the credentials in the reset's own wipe, `FullReset`, and the school's session stays
+ *   closed until that is done too ([resetWiped]): a sign-in in between would be wiped with it.
  *
  * The reason rides on every [AccountEvent.SignedOut] the sign-out tells.
  */
@@ -123,6 +130,8 @@ class SignOutPlans internal constructor(
             }
             SignOutReason.FULL_RESET -> {
                 mail.signOut(reason)
+                // Before the school's own wipe can open the session.
+                school.holdClosed()
                 school.signOut(reason)
                 leaveDemoLibrary()
             }
@@ -133,6 +142,9 @@ class SignOutPlans internal constructor(
         school.signOut(reason)
         readLibraryAgain()
     }
+
+    /** A full reset's own wipe is done, whether it went or threw: the school's session may open. */
+    fun resetWiped() = school.releaseClosed()
 
     /** Whether [account] has anyone to sign out. */
     fun holds(account: Account): Boolean = when (account) {
@@ -253,4 +265,8 @@ internal class SchoolSignOut(
         wipe.recover({ credentials.ntustStudentId }) { clearAccount(SignOutReason.SCHOOL) }
 
     override fun finishOwedWipe() = wipe.finish()
+
+    override fun holdClosed() = wipe.hold()
+
+    override fun releaseClosed() = wipe.release()
 }

@@ -11,6 +11,10 @@ internal object NoSchool : SchoolPlan {
     override fun finishOwedSignOut(): Boolean = false
 
     override fun finishOwedWipe() = Unit
+
+    override fun holdClosed() = Unit
+
+    override fun releaseClosed() = Unit
 }
 
 /** The plans of a test that signs out School Mail alone: [mail] is School Mail, and the rest hold nothing. */

@@ -76,6 +76,17 @@ class SignOutWipe(
         }
     }
 
+    /**
+     * Holds the session closed as one more sign-out under way, until [release]: a full reset's own
+     * wipe, which a sign-in must wait out as it waits out the sign-out's.
+     */
+    fun hold() {
+        synchronized(lock) { unfinished++ }
+    }
+
+    /** Lets go of a [hold]: the session opens when no sign-out is left. */
+    fun release(): Unit = countOut()
+
     // The last one out takes the marker off and opens the session, unless a clearing failed.
     private fun countOut() = synchronized(lock) {
         if (--unfinished == 0) {

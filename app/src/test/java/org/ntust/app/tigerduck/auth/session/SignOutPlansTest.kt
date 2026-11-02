@@ -33,6 +33,14 @@ class SignOutPlansTest {
             override fun finishOwedWipe() {
                 steps += "owed wipe"
             }
+
+            override fun holdClosed() {
+                steps += "school held closed"
+            }
+
+            override fun releaseClosed() {
+                steps += "school released"
+            }
         },
         mail = AccountPlan({ mail }) { reason ->
             steps += "mail $reason"
@@ -63,7 +71,7 @@ class SignOutPlansTest {
                 "school ENDPOINT_CHANGE", "library read again", "library ENDPOINT_CHANGE", "mail ENDPOINT_CHANGE",
             ),
             // The library account itself goes with the credentials, in the reset's own wipe.
-            SignOutReason.FULL_RESET to listOf("mail FULL_RESET", "school FULL_RESET", "demo library"),
+            SignOutReason.FULL_RESET to listOf("mail FULL_RESET", "school held closed", "school FULL_RESET", "demo library"),
         )
         assertEquals(SignOutReason.entries.toSet(), expected.keys)
         expected.forEach { (reason, wanted) ->
@@ -97,7 +105,16 @@ class SignOutPlansTest {
         assertEquals(listOf("school SCHOOL", "library read again"), signedOut(SignOutReason.SCHOOL))
         assertEquals(listOf("mail MAIL"), signedOut(SignOutReason.MAIL))
         assertEquals(listOf("library LIBRARY"), signedOut(SignOutReason.LIBRARY))
-        assertEquals(listOf("mail FULL_RESET", "school FULL_RESET", "demo library"), signedOut(SignOutReason.FULL_RESET))
+        assertEquals(
+            listOf("mail FULL_RESET", "school held closed", "school FULL_RESET", "demo library"),
+            signedOut(SignOutReason.FULL_RESET),
+        )
+    }
+
+    @Test
+    fun `a full reset's wipe done lets the school's session go`() {
+        plans().resetWiped()
+        assertEquals(listOf("school released"), steps)
     }
 
     @Test
