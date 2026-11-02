@@ -8,8 +8,6 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.data.preferences.CredentialManager
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
@@ -17,7 +15,6 @@ import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLoss
 import org.ntust.app.tigerduck.ui.screen.settings.SignOutLossCheck
-import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 
 /**
@@ -57,9 +54,6 @@ class EndpointChange internal constructor(
         authTokenManager: AuthTokenManager,
         signOutLossCheck: SignOutLossCheck,
         appState: AppState,
-        credentials: CredentialManager,
-        demoAccount: DemoAccount,
-        wearBridge: WearScheduleBridge,
         mailAccount: MailAccount,
         pushRegistration: PushRegistrationService,
         courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
@@ -74,19 +68,13 @@ class EndpointChange internal constructor(
             authService.storedStudentId != null || authTokenManager.isLoggedIn || authService.authState.value
         },
         signOutLosses = signOutLossCheck::losses,
-        // As Settings' Sign out: the library account of the same student goes with it.
+        // As Settings' Sign out, which leaves the library and mail accounts: each goes on its own below.
         signOutSchool = {
             authService.logout()
             appState.librarySession.refresh()
         },
         holdsLibraryAccount = { appState.librarySession.signedIn.value },
-        // As Settings' Sign out of the library account.
-        signOutLibrary = {
-            demoAccount.signOutLibrary()
-            credentials.clearLibraryCredentials()
-            appState.librarySession.refresh()
-            scope.launch { wearBridge.publishLibraryCredentials() }
-        },
+        signOutLibrary = appState.librarySession::signOut,
         holdsMailAccount = { mailAccount.signedIn.value },
         signOutMail = mailAccount::signOut,
         registerAgain = { scope.launch { pushRegistration.syncNow() } },
@@ -120,7 +108,6 @@ class EndpointChange internal constructor(
         val moves = asks(target)
         if (moves) {
             if (holdsSchoolAccount()) signOutSchool()
-            // After the school's, which may have taken them with it.
             if (holdsLibraryAccount()) signOutLibrary()
             if (holdsMailAccount()) signOutMail()
         }

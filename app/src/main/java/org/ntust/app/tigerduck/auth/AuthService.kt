@@ -219,8 +219,7 @@ class AuthService @Inject constructor(
             // pull, waits for this one instead of logging in too. The generation is read before
             // the credentials are stored, so a sign-out from here on keeps the v3 login below from
             // storing a pair. The credentials are stored, and the stored-password latch lifted,
-            // the moment the school takes them, and the library signs in before authState flips;
-            // see TypedAccountSignIn.
+            // the moment the school takes them; see TypedAccountSignIn.
             val outcome = typedSignIn.signIn(
                 normalizedId,
                 password,

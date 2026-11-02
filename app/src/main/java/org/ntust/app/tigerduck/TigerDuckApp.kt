@@ -209,14 +209,13 @@ class TigerDuckApp : Application(), Configuration.Provider {
         }
         appScope.launch {
             authService.authState.collect {
-                // A school sign-in can sign in to the library too, and a
-                // school sign-out can take the library account with it.
+                // Neither way touches the library account, which signs in and
+                // out by itself: only a moment to read its state again.
                 librarySession.refresh()
                 wearBridge.publish()
-                // Auth state flips when SSO + library login finishes (or
-                // when logout clears creds), so this is also the right
-                // moment to (re)mirror the library credentials onto the
-                // paired watch.
+                // Auth state flips when a sign-in finishes or a logout
+                // clears the credentials, so this is also a moment to
+                // (re)mirror the library credentials onto the paired watch.
                 wearBridge.publishLibraryCredentials()
             }
         }

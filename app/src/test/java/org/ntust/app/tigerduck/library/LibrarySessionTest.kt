@@ -4,11 +4,49 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 class LibrarySessionTest {
+
+    @Test
+    fun `a sign-out takes the account off, reads the stores again, and then tells the watch`() {
+        val steps = mutableListOf<String>()
+        var signedIn = true
+        val session = LibrarySession(
+            read = {
+                steps += "read"
+                signedIn
+            },
+            onSignedOut = { steps += "signed out" },
+            remove = {
+                steps += "remove"
+                signedIn = false
+            },
+            tellWatch = { steps += "watch" },
+        )
+        steps.clear()
+
+        session.signOut()
+
+        assertEquals(listOf("remove", "read", "signed out", "watch"), steps)
+        assertFalse(session.signedIn.value)
+    }
+
+    @Test
+    fun `the library is signed out by one path, not a copy per screen`() {
+        var dir: File = File("").absoluteFile
+        while (!File(dir, "src/main/java").isDirectory && !File(dir, "app/src/main/java").isDirectory) {
+            dir = dir.parentFile ?: throw AssertionError("Could not locate the :app module")
+        }
+        val sources = listOf(File(dir, "src/main/java"), File(dir, "app/src/main/java")).first { it.isDirectory }
+        val callers = sources.walkTopDown().filter { it.extension == "kt" }
+            .filter { "clearLibraryCredentials()" in it.readText() }.map { it.name }.toSet()
+
+        assertEquals(setOf("CredentialManager.kt", "LibrarySession.kt"), callers)
+    }
 
     @Test
     fun `refresh picks up a sign-in and a sign-out made behind its back`() {

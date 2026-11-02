@@ -8,7 +8,7 @@ wipe in `SignOutWipe`, together with `AccountSessionEffects.onSignedOut`, which 
 school sign-out wherever it came from. A sign-out a process death cut short is finished at the
 next start by `AuthService.finishOwedSignOut()`, which runs the same `clearAccount`, so what a
 sign-out clears has one list. School Mail's is `MailAccount.signOut()`, and the library's is
-`SettingsViewModel.logoutLibrary()`.
+`LibrarySession.signOut()`.
 
 `AccountStateInventoryTest` reads the tables of stored state below and fails in these cases:
 
@@ -75,7 +75,7 @@ Scopes:
 | Widgets | `WidgetUpdater.updateAll()`, the last step of the wipe `AuthService.logout()` starts |
 | The watch's schedule | `WearScheduleBridge.publish()`, which `TigerDuckApp` runs at each sign-in and sign-out and which sends no courses while no one is signed in; the library account on the watch follows the library's own sign-out |
 | School Mail's cache (`cacheDir/mail/`), the mail held to send (`noBackupFilesDir/mail_held_sends/`), its checks (WorkManager) and its notifications | `MailAccount.signOut()` |
-| The library's pass code, in memory | `LibrarySession.refresh()`, which `SettingsViewModel.logoutLibrary()` calls |
+| The library's pass code, in memory | `LibrarySession.refresh()`, which `LibrarySession.signOut()` calls |
 | Entries taken out of an opened archive, `cacheDir/archive_entries/` | deleted when the viewer closes; a folder a process death left goes once it is a day old, when the next archive opens; not at a sign-out |
 | Exported class table images, `cacheDir/class_table_export/` | kept a day so a share target can still read one, then swept by the next export; not at a sign-out |
 | The TLS pin document, `noBackupFilesDir/tls/` | device |
