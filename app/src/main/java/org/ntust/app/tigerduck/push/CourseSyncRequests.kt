@@ -143,6 +143,7 @@ internal class CourseSyncRequests(
                         accepted = listed.filter { it.isNotEmpty() }.map(::no).distinct(),
                         refusedAdds = answers.filter { !it.optBoolean("applied", true) }
                             .map { it.optString("course_key") }.filter { it.isNotEmpty() }.map(::no).distinct(),
+                        serverClockUs = serverClockOf(response),
                     )
                 }
             }
@@ -171,27 +172,22 @@ internal class CourseSyncRequests(
      * Deletes the course row [courseKey] names. [signIn] pins the request to
      * that sign-in, as [uploadCoursesAnswered] does: a delete queued as one account and sent after a sign-out and
      * another sign-in goes without a token, not with the next account's,
-     * which could take that account's own course off.
+     * which could take that account's own course off. [kind], `hide` or `remove`, is
+     * `/v4`'s; `/v3` takes none.
      */
-    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
-        if (!policies.current.uploadsCourses) return@withContext
-        val service = api.at(baseUrl())
-        val header = authHeader(signIn)
-        // With the hide's time, which the backend applies only when later than the course's last
-        // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
-        // since on another device, and a retry after a lost reply changes nothing. One refused as
-        // ahead of the backend's clock goes again without it, counting from when it arrives.
-        fun send(hlc: Long?): Int? = service.removeCourse(header, courseKey, EmptyBody, hlc).execute().use { response ->
-            when {
-                response.isSuccessful -> null
-                hlc != null && isClockAhead(response) -> CLOCK_AHEAD
-                else -> response.code
-            }
+    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long?, @Suppress("UNUSED_PARAMETER") kind: String?): WriteAnswer =
+        withContext(Dispatchers.IO) {
+            if (!policies.current.uploadsCourses) return@withContext WriteAnswer.NOT_SENT
+            val service = api.at(baseUrl())
+            val header = authHeader(signIn)
+            // With the hide's time, which the backend applies only when later than the course's last
+            // add, hide and reset (tigerduck-app#910): a hide queued offline loses to an add made
+            // since on another device, and a retry after a lost reply changes nothing. One refused as
+            // ahead of the backend's clock goes again without it, counting from when it arrives.
+            executeStamped(hiddenAt, { true }, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc) }) { response ->
+                answerOf(response, "deleteCourse", WriteAnswer.MEMBERSHIP)
+            } ?: WriteAnswer.NOT_SENT
         }
-        var failed = send(hiddenAt?.let(::clockOf))
-        if (failed == CLOCK_AHEAD) failed = send(null)
-        if (failed != null) throw PushApiException("deleteCourse failed: HTTP $failed", failed)
-    }
 
     /**
      * Reset the user's courses on the backend.
@@ -201,46 +197,42 @@ internal class CourseSyncRequests(
      * wipe every term's local overlay — an unscoped reset still stamps it and
      * still means "wipe everything". Reset is offered per term because the
      * timetable is now per term; see `DELETE /sync/courses` in the backend's
-     * `routes/sync/courses.py`.
+     * `routes/sync/courses.py`. [resetAtMs], the time it was asked, is `/v4`'s;
+     * `/v3` takes none.
      */
-    suspend fun deleteAllCourses(semester: String?, signIn: SignIn) = withContext(Dispatchers.IO) {
-        if (!policies.current.uploadsCourses) return@withContext
-        val service = api.at(baseUrl())
-        val call = service.removeCourses(
-            authHeader(signIn),
-            semester?.let { java.net.URLEncoder.encode(it, "UTF-8") },
-            EmptyBody,
-        )
-        val reset: suspend () -> Unit = {
-            call.execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw PushApiException("deleteAllCourses failed: HTTP ${response.code}")
-                }
+    suspend fun deleteAllCourses(semester: String?, signIn: SignIn, @Suppress("UNUSED_PARAMETER") resetAtMs: Long?): WriteAnswer =
+        withContext(Dispatchers.IO) {
+            if (!policies.current.uploadsCourses) return@withContext WriteAnswer.NOT_SENT
+            val service = api.at(baseUrl())
+            val call = service.removeCourses(
+                authHeader(signIn),
+                semester?.let { java.net.URLEncoder.encode(it, "UTF-8") },
+                EmptyBody,
+            )
+            val reset: suspend () -> WriteAnswer = {
+                call.execute().use { response -> answerOf(response, "deleteAllCourses", WriteAnswer.RESET) }
+                    // The upload after the reset, usually the list sent before it,
+                    // releases the reset's tombstones: it has to go.
+                    .also { prefs.forgetCourseUploads(semester) }
             }
-            // The upload after the reset, usually the list sent before it,
-            // releases the reset's tombstones: it has to go.
-            prefs.forgetCourseUploads(semester)
+            // Under the term's upload ledger, so no upload is out across the
+            // reset; see UploadLedger.holdingUploads. Nothing resets every term
+            // today, and that path holds no ledger.
+            if (semester != null) courseUploads(semester).holdingUploads(reset) else reset()
         }
-        // Under the term's upload ledger, so no upload is out across the
-        // reset; see UploadLedger.holdingUploads. Nothing resets every term
-        // today, and that path holds no ledger.
-        if (semester != null) courseUploads(semester).holdingUploads(reset) else reset()
-    }
 
     private companion object {
         // The header value of an upload whose adds carry their time.
         const val PROTOCOL_STAMPED = "2"
-
-        // [deleteCourse]'s mark for a stamped delete the backend refused as ahead of its clock.
-        const val CLOCK_AHEAD = -1
     }
 }
 
 /**
  * What a course upload's answer says: the course numbers the backend took ([accepted]), and the
  * timed adds it answered but did not apply ([refusedAdds]), as a hide or reset made after them
- * elsewhere is newer. Both are settled: the backend has the final word on each.
+ * elsewhere is newer. Both are settled: the backend has the final word on each. [serverClockUs] is
+ * the answer's `X-TigerSync-Clock`, null for an upload the ledger held back or an answer without one.
  */
-data class CourseUploadAnswer(val accepted: List<String>, val refusedAdds: List<String>) {
+data class CourseUploadAnswer(val accepted: List<String>, val refusedAdds: List<String>, val serverClockUs: Long? = null) {
     val settled: List<String> get() = (accepted + refusedAdds).distinct()
 }

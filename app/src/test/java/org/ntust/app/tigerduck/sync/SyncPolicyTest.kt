@@ -132,6 +132,37 @@ class SyncPolicyTest {
     }
 
     @Test
+    fun `last writer wins once the endpoint speaks v4, and not on any other base`() {
+        for ((base, wins) in listOf(
+            "http://127.0.0.1:9/v4" to true,
+            "http://127.0.0.1:9/prefix/v4/" to true,
+            "http://127.0.0.1:9/v3" to false,
+            "http://127.0.0.1:9" to false,
+            "http://127.0.0.1:9/v4x" to false,
+        )) {
+            prefs.announcementApiBaseUrlOverride = base
+            assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
+            assertEquals(base, wins, policies.current.lastWriterWins)
+        }
+    }
+
+    @Test
+    fun `on v4 every switch reads as on v3, and every category is kept whatever its switches say`() {
+        store(master = true, on = setOf(COURSES), held = setOf(COURSES))
+        val v3 = policies.current
+        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4"
+        val v4 = policies.current
+
+        assertTrue(v4.lastWriterWins)
+        for (category in SyncCategory.entries) {
+            assertEquals("sends($category)", v3.sends(category), v4.sends(category))
+            assertEquals("applies($category)", v3.applies(category), v4.applies(category))
+            assertEquals("syncs($category)", v3.syncs(category), v4.syncs(category))
+            assertEquals("keeps($category)", v4.flavorSyncs, v4.keeps(category))
+        }
+    }
+
+    @Test
     fun `a build without TigerSync keeps, sends and uploads nothing, whatever its switches say`() {
         for (cloudSync in listOf(false, true)) for (lww in listOf(false, true)) for (on in everySet) for (held in everySet) {
             val policy = SyncPolicy(cloudSync, flavorSyncs = false, switchedOn = on, held = held, lastWriterWins = lww)

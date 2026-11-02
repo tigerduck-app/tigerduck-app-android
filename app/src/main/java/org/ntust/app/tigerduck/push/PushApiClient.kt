@@ -141,9 +141,13 @@ class PushApiClient @Inject constructor(
             .build()
     }
 
-    /** See [OverrideRequests.putHoliday]. */
-    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long? = null): Boolean =
+    /** One holiday's choice, with the backend's answer; see [OverrideRequests.putHoliday]. */
+    suspend fun putHolidayOverrideAnswered(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
         overrides.putHoliday(holidayId, notify, signIn, madeAtMs)
+
+    /** [putHolidayOverrideAnswered], saying whether it went; a refusal throws with no status, as it always has. */
+    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long? = null): Boolean =
+        refusedAsBefore(keepsStatus = false) { putHolidayOverrideAnswered(holidayId, notify, signIn, madeAtMs) }.sent
 
     suspend fun updateDevicePreferences(
         deviceId: String,
@@ -206,24 +210,39 @@ class PushApiClient @Inject constructor(
         }
     }
 
-    /** See [OverrideRequests.patchMark]. */
-    suspend fun patchAssignmentOverride(assignmentId: Int, localStatus: String, signIn: SignIn, madeAtMs: Long? = null): Boolean =
+    /** One assignment's mark, with the backend's answer; see [OverrideRequests.patchMark]. */
+    suspend fun patchAssignmentOverrideAnswered(assignmentId: Int, localStatus: String, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
         overrides.patchMark(assignmentId, localStatus, signIn, madeAtMs)
 
-    /** See [OverrideRequests.patchCourse]. */
-    suspend fun patchCourseOverride(
-        courseId: Any,
-        signIn: SignIn,
-        colorHex: String? = null,
-        customName: String? = null,
-        locale: String? = null,
-        allowed: () -> Boolean = { true },
-        madeAtMs: Long? = null,
-    ): Boolean = overrides.patchCourse(courseId, signIn, colorHex, customName, locale, allowed, madeAtMs)
+    /** [patchAssignmentOverrideAnswered], saying whether it went. */
+    suspend fun patchAssignmentOverride(assignmentId: Int, localStatus: String, signIn: SignIn, madeAtMs: Long? = null): Boolean =
+        refusedAsBefore { patchAssignmentOverrideAnswered(assignmentId, localStatus, signIn, madeAtMs) }.sent
 
-    /** See [OverrideRequests.patchIgnore]. */
+    /** One course's color, or its name in [locale], with the backend's answer; see [OverrideRequests.patchCourse]. */
+    suspend fun patchCourseOverrideAnswered(
+        target: CourseRef, signIn: SignIn, colorHex: String? = null, customName: String? = null, locale: String? = null,
+        allowed: () -> Boolean = { true }, madeAtMs: Long? = null,
+    ): WriteAnswer = overrides.patchCourse(target, signIn, colorHex, customName, locale, allowed, madeAtMs)
+
+    /** [patchCourseOverrideAnswered] of the course whose Moodle id is [courseId], saying whether it went. */
+    suspend fun patchCourseOverride(
+        courseId: Any, signIn: SignIn, colorHex: String? = null, customName: String? = null, locale: String? = null,
+        allowed: () -> Boolean = { true }, madeAtMs: Long? = null,
+    ): Boolean = refusedAsBefore {
+        patchCourseOverrideAnswered(CourseRef(courseId.toString(), null), signIn, colorHex, customName, locale, allowed, madeAtMs)
+    }.sent
+
+    /** Whether a course's assignments are ignored, with the backend's answer; see [OverrideRequests.patchIgnore]. */
+    suspend fun patchCourseIgnoreAnswered(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
+        overrides.patchIgnore(target, ignore, moodleCourseId, signIn, madeAtMs)
+
+    /**
+     * [patchCourseIgnoreAnswered] of the course whose Moodle id is [moodleId]: null when nothing
+     * went, else whether the backend stored it, which one that predates the field does not.
+     */
     suspend fun patchCourseIgnore(moodleId: String, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long? = null): Boolean? =
-        overrides.patchIgnore(moodleId, ignore, moodleCourseId, signIn, madeAtMs)
+        refusedAsBefore { patchCourseIgnoreAnswered(CourseRef(moodleId, null), ignore, moodleCourseId, signIn, madeAtMs) }
+            .takeIf { it.sent }?.let { "ignore_assignments" in it.values }
 
     private val assignmentUploads = UploadLedger(
         store = object : UploadLedgerStore {
@@ -304,34 +323,36 @@ class PushApiClient @Inject constructor(
 
     /** [uploadCoursesAnswered]'s course numbers settled: see [CourseSyncRequests.uploadCoursesAnswered]. */
     suspend fun uploadCourses(
-        courses: List<Course>,
-        semester: String,
-        signIn: SignIn,
-        forceKeys: List<String> = emptyList(),
-        resend: Boolean = false,
-        rosterTerms: List<String> = emptyList(),
-        addedAt: Map<String, Long> = emptyMap(),
+        courses: List<Course>, semester: String, signIn: SignIn, forceKeys: List<String> = emptyList(), resend: Boolean = false,
+        rosterTerms: List<String> = emptyList(), addedAt: Map<String, Long> = emptyMap(),
     ): List<String>? = uploadCoursesAnswered(courses, semester, signIn, forceKeys, resend, rosterTerms, addedAt)?.settled
 
     /** See [CourseSyncRequests.uploadCoursesAnswered]. */
     suspend fun uploadCoursesAnswered(
-        courses: List<Course>,
-        semester: String,
-        signIn: SignIn,
-        forceKeys: List<String> = emptyList(),
-        resend: Boolean = false,
-        rosterTerms: List<String> = emptyList(),
-        addedAt: Map<String, Long> = emptyMap(),
+        courses: List<Course>, semester: String, signIn: SignIn, forceKeys: List<String> = emptyList(), resend: Boolean = false,
+        rosterTerms: List<String> = emptyList(), addedAt: Map<String, Long> = emptyMap(),
     ): CourseUploadAnswer? = courseSync.uploadCoursesAnswered(courses, semester, signIn, forceKeys, resend, rosterTerms, addedAt)
 
     /** See [CourseSyncRequests.serverDropped]. */
     suspend fun serverDropped(semester: String, courseNos: Collection<String>) = courseSync.serverDropped(semester, courseNos)
 
-    /** See [CourseSyncRequests.deleteCourse]. */
-    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long? = null) = courseSync.deleteCourse(courseKey, signIn, hiddenAt)
+    /** A course's delete, with the backend's answer; see [CourseSyncRequests.deleteCourse]. */
+    suspend fun deleteCourseAnswered(courseKey: String, signIn: SignIn, hiddenAt: Long?, kind: String?): WriteAnswer =
+        courseSync.deleteCourse(courseKey, signIn, hiddenAt, kind)
 
-    /** See [CourseSyncRequests.deleteAllCourses]. */
-    suspend fun deleteAllCourses(semester: String?, signIn: SignIn) = courseSync.deleteAllCourses(semester, signIn)
+    /** [deleteCourseAnswered], with no kind. */
+    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long? = null) {
+        refusedAsBefore { deleteCourseAnswered(courseKey, signIn, hiddenAt, kind = null) }
+    }
+
+    /** A term's reset, or every term's, with the backend's answer; see [CourseSyncRequests.deleteAllCourses]. */
+    suspend fun deleteAllCoursesAnswered(semester: String?, signIn: SignIn, resetAtMs: Long?): WriteAnswer =
+        courseSync.deleteAllCourses(semester, signIn, resetAtMs)
+
+    /** [deleteAllCoursesAnswered]; a refusal throws with no status, as it always has. */
+    suspend fun deleteAllCourses(semester: String?, signIn: SignIn) {
+        refusedAsBefore(keepsStatus = false) { deleteAllCoursesAnswered(semester, signIn, resetAtMs = null) }
+    }
 }
 
 /**

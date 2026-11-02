@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.push
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -49,7 +50,8 @@ class V3SyncWritesTest {
 
     private suspend fun failure(block: suspend () -> Unit): Pair<String?, Int?> {
         val e = runCatching { block() }.exceptionOrNull()
-        return (e as PushApiException).message to e.statusCode
+        assertTrue("got $e", e is PushApiException)
+        return e?.message to (e as PushApiException).statusCode
     }
 
     @Test
