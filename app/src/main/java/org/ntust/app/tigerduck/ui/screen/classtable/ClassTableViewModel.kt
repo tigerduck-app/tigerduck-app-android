@@ -559,13 +559,13 @@ class ClassTableViewModel @Inject constructor(
                 if (authService.authState.value) loadAssignmentMarks()
             }
         }
-        viewModelScope.launch {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             // Clear on logout, refresh on login — a login while the app is
-            // open, not the value replayed to this collector. load() fetches
-            // for a user signed in at launch; fetching on the replay as well
-            // ran the pipeline twice on every cold start.
+            // open, not the state this collector starts from. load() fetches
+            // for a user signed in at launch; fetching on that as well ran
+            // the pipeline twice on every cold start.
             var wasAuthed: Boolean? = null
-            authService.authState.collect { isAuthed ->
+            authTokenManager.session.changes.collect { isAuthed ->
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {

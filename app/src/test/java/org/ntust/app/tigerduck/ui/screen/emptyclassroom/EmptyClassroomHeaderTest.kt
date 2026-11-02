@@ -39,6 +39,7 @@ class EmptyClassroomHeaderTest {
     private class Environment(signedIn: Boolean) : FinderEnvironment {
         override var pickedBuilding: String? = null
         override val signedIn = MutableStateFlow(signedIn)
+        override val accountChanges get() = signedIn
         override val coursesChanged = MutableStateFlow(0)
         override val calendarChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         override fun now(): LocalDateTime = LocalDateTime.of(2026, 10, 14, 10, 5)

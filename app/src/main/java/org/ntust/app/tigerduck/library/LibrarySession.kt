@@ -1,10 +1,12 @@
 package org.ntust.app.tigerduck.library
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.demo.DemoAccount
@@ -37,6 +39,8 @@ class LibrarySession internal constructor(
     private val remove: () -> Unit = {},
     /** Tells the watch the account has gone, without waiting for it. */
     private val tellWatch: () -> Unit = {},
+    /** Tells whoever follows the account that it shows as signed in, which it did not. */
+    private val tellSignedIn: () -> Unit = {},
 ) {
 
     @Inject
@@ -48,6 +52,7 @@ class LibrarySession internal constructor(
         credentials: CredentialManager,
         wearBridge: WearScheduleBridge,
         @ApplicationScope scope: CoroutineScope,
+        sessions: AccountSessions,
     ) : this(
         { libraryService.hasAccount || demoAccount.isLibrarySignedIn },
         qrCache,
@@ -57,6 +62,7 @@ class LibrarySession internal constructor(
             credentials.clearLibraryCredentials()
         },
         tellWatch = { scope.launch { wearBridge.publishLibraryCredentials() } },
+        tellSignedIn = { sessions.emit(AccountEvent.SignedIn(Account.LIBRARY, byHand = false)) },
     )
 
     /** Signed out, [qrCache]'s code goes, and the page's date with it. */
@@ -66,6 +72,7 @@ class LibrarySession internal constructor(
         prefs: AppPreferences,
         remove: () -> Unit = {},
         tellWatch: () -> Unit = {},
+        tellSignedIn: () -> Unit = {},
     ) : this(
         read,
         {
@@ -74,10 +81,11 @@ class LibrarySession internal constructor(
         },
         remove,
         tellWatch,
+        tellSignedIn,
     )
 
-    private val _signedIn = MutableStateFlow(read())
-    val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
+    private val signedInState = SignedInState(read())
+    val signedIn: StateFlow<Boolean> = signedInState.signedIn
 
     /**
      * Reads the stores again; returns whether a library account is signed in.
@@ -86,9 +94,9 @@ class LibrarySession internal constructor(
      * sign-ins' own.
      */
     @Synchronized
-    fun refresh(): Boolean = read().also {
-        _signedIn.value = it
-        if (!it) onSignedOut()
+    fun refresh(): Boolean = read().also { now ->
+        signedInState.set(now) { changed -> if (changed && now) tellSignedIn() }
+        if (!now) onSignedOut()
     }
 
     /**

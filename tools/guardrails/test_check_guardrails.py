@@ -555,6 +555,26 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "A.kt", "val a = mySignInGenerationLabel\nval b = generation: Long\n")
         self.assertEqual(self.counts("account-counter"), {})
 
+    def test_sign_out_reactor_hits_each_watch_and_misses_a_comment(self):
+        self.write(APP + "A.kt",
+                   "// authState.collect\nval a = \"signOuts.collect\"\n"
+                   "authService.authState.collect { }\nauthState.first { !it }\n"
+                   "account.accountState.collect { }\nauth.signIns.collect { }\n"
+                   "account.studentChanges.collect { }\nmail.signOuts.collect { }\n")
+        self.assertEqual(self.counts("sign-out-reactor"), {APP + "A.kt": 6})
+
+    def test_sign_out_reactor_takes_no_baseline(self):
+        self.write(APP + "A.kt", "authState.collect { }\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "sign-out-reactor"), 1)
+
+    def test_sign_out_reactor_leaves_the_stream_and_a_read_of_the_state_alone(self):
+        self.write(APP + "A.kt",
+                   "sessions.events.collect { }\nsession.changes.collect { }\n"
+                   "val a = authState.value\nval b = myauthState.collect\n")
+        self.assertEqual(self.counts("sign-out-reactor"), {})
+
     def test_demo_check_hits_a_use_and_honors_its_homes(self):
         line = "val a = if (isDemo) 1 else demoAccount.isActive\n"
         self.write(APP + "ui/Screen.kt", line)

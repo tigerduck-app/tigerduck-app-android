@@ -41,6 +41,7 @@ class ScoreCourseRosterTest {
 
     private fun viewModel(rosterCourses: suspend (String) -> List<Course>) = ScoreViewModel(
         authState = MutableStateFlow(true),
+        accountChanges = MutableStateFlow(true),
         storedStudentId = { "B11300001" },
         storedPassword = { "password" },
         cachedSnapshot = { null },

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.data.sharing.ImportedCourseLookup
 import org.ntust.app.tigerduck.data.sharing.QrCodeImageReader
@@ -29,6 +31,7 @@ class ClassTableImportViewModel @Inject constructor(
     private val store: ImportedClassTableStore,
     private val authService: AuthService,
     private val lookup: ImportedCourseLookup,
+    private val sessions: AccountSessions,
 ) : ViewModel() {
     private val _session = MutableStateFlow<ClassTableImportModel?>(null)
 
@@ -38,9 +41,9 @@ class ClassTableImportViewModel @Inject constructor(
     init {
         // The prompts ask the store who is imported already.
         viewModelScope.launch { store.load() }
-        viewModelScope.launch {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             // A sign-out ends an import: it would save into the store the sign-out empties.
-            authService.authState.collect { signedIn -> if (!signedIn) end() }
+            sessions.school.changes.collect { signedIn -> if (!signedIn) end() }
         }
     }
 

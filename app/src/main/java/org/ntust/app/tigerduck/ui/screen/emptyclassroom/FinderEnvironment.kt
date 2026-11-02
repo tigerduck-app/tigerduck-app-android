@@ -65,6 +65,9 @@ interface FinderEnvironment {
 
     val signedIn: StateFlow<Boolean>
 
+    /** Whether the account is signed in as it is now, then every change: a sign-out and a sign-in together are two. */
+    val accountChanges: Flow<Boolean>
+
     /** Whether the account [credentials] were read for is still the one signed in. */
     fun isCurrent(credentials: ClassroomUsageService.Credentials): Boolean
 
@@ -123,6 +126,8 @@ class AppFinderEnvironment @Inject constructor(
     }
 
     override val signedIn: StateFlow<Boolean> get() = authService.authState
+
+    override val accountChanges: Flow<Boolean> get() = sessions.school.changes
 
     @OptIn(StartsAccountWork::class)
     override fun signIn(): SignIn = sessions.school.current

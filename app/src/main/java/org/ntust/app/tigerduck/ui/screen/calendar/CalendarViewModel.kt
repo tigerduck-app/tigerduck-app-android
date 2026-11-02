@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.BufferOverflow
@@ -246,13 +247,12 @@ class CalendarViewModel @Inject constructor(
                 signIn.ifCurrent { _events.value = withMoodleRows(_events.value, assignments) }
             }
         }
-        viewModelScope.launch {
-            // Clear / refresh in sync with auth changes — a sign-in while the
-            // app is open, not the value replayed to this collector. load()
-            // fetches for a user signed in at launch; fetching on the replay
-            // as well fetched twice on every cold start.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            // Clear / refresh in sync with auth changes — a sign-in while the app is open, not
+            // the state this collector starts from. load() fetches for a user signed in at
+            // launch; fetching on that as well fetched twice on every cold start.
             var wasAuthed: Boolean? = null
-            authService.authState.collect { isAuthed ->
+            sessions.school.changes.collect { isAuthed ->
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {

@@ -171,6 +171,35 @@ class SyncWiringTest {
         assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "categoriesTaken(", "categoriesSynced(switchedOn, took, prefs)")
     }
 
+    /** The worker cannot be built here. */
+    @Test
+    fun `the worker's settings pull runs on the session and arms nothing past its sign-in`() {
+        val rel = "notification/BackgroundSyncWorker.kt"
+        val body = body(rel, "pullSettings")
+        assertTrue("the pull left the session", "authTokenManager.session.launch(signIn) {" in body)
+        assertTrue("the run no longer waits for the pull", "}.join()" in body)
+        assertTrue("the pull is on the application scope again", "appScope" !in source(rel).joinToString("\n"))
+        assertCalls(rel, "syncOverridesFromBackend", "if (marksChanged && prefs.notifyAssignments && signIn.isCurrent) {")
+    }
+
+    /** The notifier cannot be held open here: one step with the sign-in's end, by reading it. */
+    @Test
+    fun `the Live Update's post lands in one step with the sign-in's end`() {
+        assertCalls("liveactivity/LiveActivityManager.kt", "refreshLocked", "signIn.ifCurrent { notifier.apply(snapshot, quiet) }")
+    }
+
+    /** What a push it queues would do takes a running queue: nothing starts for a login that landed nothing. */
+    @Test
+    fun `a login cut off starts the copy only with a session`() {
+        assertCalls("auth/AuthService.kt", "login", "if (authTokenManager.isLoggedIn) notificationSettingsSync.pushIfUnconfirmed()")
+    }
+
+    /** What stops them is RunRefreshesTest's; the worker cannot be built here. */
+    @Test
+    fun `the worker's refreshes stop with its sign-in`() {
+        assertCalls("notification/BackgroundSyncWorker.kt", "doWork", "refreshAfterRun(signIn,")
+    }
+
     @Test
     fun `an answered re-enable dialog holds colours and names until applied`() {
         assertCalls(

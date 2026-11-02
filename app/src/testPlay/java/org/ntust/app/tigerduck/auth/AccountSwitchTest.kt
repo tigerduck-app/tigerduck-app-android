@@ -4,8 +4,10 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.work.testing.WorkManagerTestInitHelper
+import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -18,19 +20,29 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.UnsentMark
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.library.LibraryQRCache
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
@@ -259,8 +271,8 @@ class AccountSwitchTest {
         val w = world(credentialPrefs)
         val signInBefore = w.sessions.school.signIns.current
         val signedInEmissions = CopyOnWriteArrayList<Boolean>()
-        val watching = effectsScope.launch { w.auth.accountState.collect { signedInEmissions += it.signedIn } }
-        val signIns = effectsScope.async { w.auth.signIns.first() }
+        val watching = effectsScope.launch { w.sessions.school.changes.collect { signedInEmissions += it } }
+        val signIns = effectsScope.async { w.sessions.events.first { it is AccountEvent.SignedIn && it.byHand } }
         delay(100)
 
         assertTrue(w.auth.login(SECOND, "second-password"))
@@ -277,6 +289,126 @@ class AccountSwitchTest {
         assertEquals("the account went off, and came back as the second student", listOf(true, false, true), signedInEmissions.toList())
         assertEquals(emptyList<File>(), files.filter(File::exists))
         assertEquals(emptySet<Pair<String, String>>(), firstLeft.filter { (at, value) -> prefs(at.first).all[at.second] == value }.keys)
+    }
+
+    /** An event, and the account as it read when the event was told. */
+    private data class Told(val event: AccountEvent, val shownSignedIn: Boolean, val stored: String?)
+
+    @Test
+    fun `each sign-in and sign-out is told, in order, with the account as it then is`() = runBlocking {
+        val w = accountWorld(context, prefs("tigerduck_credentials"), signOutScope, idleScope)
+        val told = CopyOnWriteArrayList<Told>()
+        val following = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            w.sessions.events.collect { told += Told(it, w.auth.authState.value, w.auth.storedStudentId) }
+        }
+
+        assertTrue(w.auth.login(FIRST, "first-password"))
+        assertEquals(
+            listOf(
+                Told(AccountEvent.SignedIn(Account.SCHOOL, byHand = true), false, FIRST),
+                Told(AccountEvent.SignedIn(Account.SCHOOL, byHand = false), true, FIRST),
+            ),
+            told.toList(),
+        )
+
+        // The same student again changes nothing a page sees.
+        told.clear()
+        assertTrue(w.auth.login(FIRST, "first-password-again"))
+        assertEquals(listOf(Told(AccountEvent.SignedIn(Account.SCHOOL, byHand = true), true, FIRST)), told.toList())
+
+        told.clear()
+        val ended = w.sessions.school.signIns.current
+        w.auth.logout()
+        assertEquals(
+            listOf(Told(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, ended, address = null), false, null)),
+            told.toList(),
+        )
+        assertFalse(ended.isCurrent)
+
+        // Nobody to sign out: no change, so nothing to tell.
+        told.clear()
+        withTimeout(10_000) { w.sessions.school.awaitOpen() }
+        w.auth.logout()
+        assertEquals(emptyList<Told>(), told.toList())
+        following.cancel()
+    }
+
+    @Test
+    fun `a sign-out landing between the store and the showing shows nothing`() = runBlocking {
+        val w = accountWorld(context, prefs("tigerduck_credentials"), signOutScope, idleScope)
+        val following = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            w.sessions.events.collect { if (it is AccountEvent.SignedIn && it.byHand) w.auth.logout() }
+        }
+
+        assertFalse(w.auth.login(FIRST, "first-password"))
+        following.cancel()
+
+        assertFalse(w.auth.authState.value)
+        assertEquals(null, w.auth.storedStudentId)
+    }
+
+    @Test
+    fun `a typed sign-in cancelled as the backend's reply lands still starts the settings copy`() = runBlocking {
+        val credentialPrefs = prefs("tigerduck_credentials")
+        credentialPrefs.edit()
+            .putString("ntust_student_id", FIRST)
+            .putString("ntust_password", "first-password")
+            .putString("moodle_token", "made-up-token")
+            .commit()
+        // An update long past, whose step would have started a record of its own.
+        AppPreferences(context).lastSyncedSettingsSeedDone = true
+        var typing: Job? = null
+        val backend = OkHttpClient.Builder().addInterceptor { chain ->
+            // The user leaves the page with the POST on the wire, which cancelling cannot stop.
+            typing?.cancel()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(
+                    """{"access_token":"a","refresh_token":"r","expires_in":3600,"device_id":"d"}"""
+                        .toResponseBody("application/json".toMediaType()),
+                )
+                .build()
+        }.build()
+        val w = accountWorld(context, credentialPrefs, signOutScope, idleScope, backendLogin = backend)
+        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
+        assertNull(w.appPrefs.lastSyncedLiveActivitySettings)
+
+        typing = effectsScope.launch(start = CoroutineStart.LAZY) { w.auth.login(FIRST, "first-password") }
+        typing.start()
+        withTimeout(10_000) { typing.join() }
+
+        assertTrue("cancelled", typing.isCancelled)
+        assertTrue("the pair landed all the same", w.tokens.isLoggedIn)
+        assertNotNull("a session with no record loses the next edit", w.appPrefs.lastSyncedLiveActivitySettings)
+    }
+
+    @Test
+    fun `a typed sign-in cancelled before the backend answered starts no copy`() = runBlocking {
+        val credentialPrefs = prefs("tigerduck_credentials")
+        credentialPrefs.edit()
+            .putString("ntust_student_id", FIRST)
+            .putString("ntust_password", "first-password")
+            .putString("moodle_token", "made-up-token")
+            .commit()
+        // An update long past, whose step would have started a record of its own.
+        AppPreferences(context).lastSyncedSettingsSeedDone = true
+        var typing: Job? = null
+        val backend = OkHttpClient.Builder().addInterceptor {
+            typing?.cancel()
+            throw IOException("the line dropped with the user leaving")
+        }.build()
+        val w = accountWorld(context, credentialPrefs, signOutScope, idleScope, backendLogin = backend)
+        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
+
+        typing = effectsScope.launch(start = CoroutineStart.LAZY) { w.auth.login(FIRST, "first-password") }
+        typing.start()
+        withTimeout(10_000) { typing.join() }
+
+        assertFalse(w.tokens.isLoggedIn)
+        assertNull(w.appPrefs.lastSyncedLiveActivitySettings)
     }
 
     @Test

@@ -40,6 +40,7 @@ class ScoreHeaderTest {
 
     private fun viewModel() = ScoreViewModel(
         authState = MutableStateFlow(true),
+        accountChanges = MutableStateFlow(true),
         storedStudentId = { "B00015999" },
         storedPassword = { "not-a-password" },
         cachedSnapshot = { null },

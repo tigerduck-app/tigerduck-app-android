@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -125,7 +126,9 @@ class EmptyClassroomViewModel internal constructor(
     init {
         // A sign-out, or a sign-in on another account, while the screen exists: what it holds
         // belonged to the account before.
-        viewModelScope.launch { env.signedIn.drop(1).collect { accountChanged() } }
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            env.accountChanges.drop(1).collect { accountChanged() }
+        }
         // A sync that rewrote the timetable while the screen is open; off screen, the next
         // appear() reads the courses anyway.
         viewModelScope.launch { env.coursesChanged.drop(1).collect { if (isStarted) reloadCourses() } }

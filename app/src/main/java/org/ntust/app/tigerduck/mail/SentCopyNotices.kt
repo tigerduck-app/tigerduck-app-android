@@ -1,15 +1,14 @@
 package org.ntust.app.tigerduck.mail
 
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -76,9 +75,7 @@ class SentCopyNotices @Inject constructor(
 
     init {
         // Subscribed before this returns, as the repository's own sign-out collector is.
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            merge(account.signOuts, account.studentChanges).collect { posting.value = Posting(null) }
-        }
+        scope.follow(account.events) { if (it !is AccountEvent.SignedIn) posting.value = Posting(null) }
     }
 
     /**

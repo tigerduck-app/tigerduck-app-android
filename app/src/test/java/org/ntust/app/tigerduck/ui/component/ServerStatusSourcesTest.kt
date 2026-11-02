@@ -52,6 +52,7 @@ class ServerStatusSourcesTest {
     private fun refresh(into: MutableMap<ServerKind, ServerStatus>, fetch: () -> ScoreReport) {
         ScoreViewModel(
             authState = MutableStateFlow(true),
+            accountChanges = MutableStateFlow(true),
             storedStudentId = { STUDENT },
             storedPassword = { "not-a-password" },
             cachedSnapshot = { null },

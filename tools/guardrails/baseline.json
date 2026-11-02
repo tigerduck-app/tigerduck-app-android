@@ -14,7 +14,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt",
     "kind": "long-function",
     "name": "TigerDuckApp.onCreate()",
-    "lines": 123
+    "lines": 101
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -24,7 +24,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 446
+    "count": 438
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -144,17 +144,6 @@
     "count": 3
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
-    "kind": "long-file",
-    "count": 427
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
-    "kind": "long-function",
-    "name": "LiveActivityManager.refreshLocked(Boolean)",
-    "lines": 93
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityNotifier.kt",
     "kind": "long-file",
     "count": 445
@@ -183,7 +172,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailRepository.kt",
     "kind": "long-file",
-    "count": 1488
+    "count": 1486
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/imap/AngusMailSession.kt",
@@ -285,7 +274,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.syncOverridesFromBackend(SignIn)",
-    "lines": 106
+    "lines": 90
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",
@@ -1109,7 +1098,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
     "kind": "long-file",
-    "count": 1731
+    "count": 1730
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
@@ -1332,7 +1321,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "long-file",
-    "count": 559
+    "count": 553
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",

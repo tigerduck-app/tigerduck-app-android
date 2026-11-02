@@ -8,9 +8,9 @@ import java.io.File
  * `viewModelScope` dispatches on `Dispatchers.Main.immediate`, so a
  * `launch {}` inside `init` starts running **synchronously on the calling
  * thread**, before the constructor returns. One of those launches collects
- * `authService.authState` — a `StateFlow`, which replays its current value
- * to a new collector immediately — and for a logged-in user that lands in
- * `fetchData()` while the object is still being constructed.
+ * `session.changes`, which gives a new collector the current state
+ * immediately, and for a logged-in user that used to land in `fetchData()`
+ * while the object was still being constructed.
  *
  * Kotlin initialises properties in declaration order, so every stored
  * property declared *below* `init` is still null on that path. Reading one

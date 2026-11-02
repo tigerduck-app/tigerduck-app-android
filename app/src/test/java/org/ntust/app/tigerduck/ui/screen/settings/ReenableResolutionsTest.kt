@@ -1,13 +1,108 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ReenableResolutionsTest {
+
+    private val dispatcher = StandardTestDispatcher()
+    private val failures = mutableListOf<Throwable>()
+    private val scope = CoroutineScope(
+        SupervisorJob() + dispatcher + CoroutineExceptionHandler { _, e -> failures += e },
+    )
+    private val series = SignInSeries()
+    private val session = AccountSession(series, scope)
+    private val steps = mutableListOf<String>()
+
+    private fun answer(signIn: SignIn = series.current, signedIn: Boolean = true, answer: suspend () -> Unit = { steps += "answer" }) =
+        scope.answerOnSession(
+            session,
+            signIn,
+            signedIn = { signedIn },
+            answer = answer,
+            settle = { steps += "settle" },
+            after = { steps += "after" },
+        )
+
+    private fun run() = dispatcher.scheduler.advanceUntilIdle()
+
+    @Test
+    fun `an answer that goes through settles, and what follows it runs`() {
+        answer()
+        run()
+
+        assertEquals(listOf("answer", "settle", "after"), steps)
+    }
+
+    @Test
+    fun `a sign-out during an answer stops it, lets go of what it held, and nothing follows`() {
+        var finished = false
+        answer {
+            delay(1_000)
+            finished = true
+        }
+        dispatcher.scheduler.runCurrent()
+
+        series.end()
+        session.cancelWork()
+        run()
+
+        assertFalse(finished)
+        assertEquals(listOf("settle"), steps)
+    }
+
+    @Test
+    fun `an answer a sign-out overtook before it started still lets go of what it held`() {
+        // Nothing of the answer runs, a finally in it included.
+        series.end()
+
+        answer()
+        run()
+
+        assertEquals(listOf("settle"), steps)
+    }
+
+    @Test
+    fun `an answer given while signed out does nothing, and lets go of what it held`() {
+        answer(signedIn = false)
+        run()
+
+        assertEquals(listOf("settle"), steps)
+    }
+
+    @Test
+    fun `an answer that fails lets go of what it held, and nothing follows`() {
+        answer { error("the send failed") }
+        run()
+
+        assertEquals(listOf("settle"), steps)
+        assertEquals(1, failures.size)
+    }
+
+    @Test
+    fun `a sign-out as the answer ends leaves what follows it unstarted`() {
+        answer {
+            steps += "answer"
+            series.end()
+        }
+        run()
+
+        assertEquals(listOf("answer", "settle"), steps)
+    }
 
     @Test
     fun `a check runs at once when no answer is being applied`() {

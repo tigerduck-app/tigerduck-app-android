@@ -25,6 +25,8 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.changes
 import org.ntust.app.tigerduck.shared.timeline.CourseChangeFixture.row
@@ -65,6 +67,9 @@ class LiveActivityManagerTest {
         /** What [scheduleAll] reports as the next class's start. */
         var nextClassStart: Long? = null
 
+        /** Runs as [scheduleAll] begins. */
+        var onScheduleAll: () -> Unit = {}
+
         override fun scheduleAll(
             coursesByTerm: Map<String, List<Course>>,
             skippedDates: Map<String, List<String>>,
@@ -73,6 +78,7 @@ class LiveActivityManagerTest {
             optedInHolidayIds: Set<Int>,
             startedFor: String?,
         ): Long? {
+            onScheduleAll()
             armedLeadSec = leadTimeSec
             armedCoursesByTerm = coursesByTerm
             return nextClassStart
@@ -287,6 +293,86 @@ class LiveActivityManagerTest {
         val at = ZonedDateTime.of(2026, 10, 12, 20, 0, 0, 0, AppConstants.TAIPEI_ZONE).toInstant().toEpochMilli()
         val wake = refreshWakes().single()
         assertTrue("woke at ${wake - at} ms", wake in at + 30 * 60_000L..at + 31 * 60_000L)
+    }
+
+    private fun managerOn(session: AccountSession) = LiveActivityManager(
+        preferences = liveUpdate,
+        notifier = LiveActivityNotifier(context, liveUpdate, appPrefs, NotificationChannelRegistrar(context, appPrefs)),
+        dataCache = dataCache,
+        isSignedIn = {
+            signInStateReads++
+            signedIn
+        },
+        appPrefs = appPrefs,
+        classPreparingScheduler = alarms,
+        academicCalendar = calendar,
+        boundaryScheduler = LiveActivityBoundaryScheduler(context),
+        appScope = liveScope,
+        storedStudentId = { storedIdRead() },
+        isDemoSession = { demoSession },
+        session = session,
+    )
+
+    private var signInStateReads = 0
+
+    @Test
+    fun `a sign-out stops a refresh that has yet to run`() {
+        val series = SignInSeries()
+        val session = AccountSession(series, liveScope)
+        val manager = managerOn(session)
+
+        manager.refresh()
+        series.end()
+        session.cancelWork()
+        liveDispatcher.scheduler.runCurrent()
+
+        assertEquals(0, signInStateReads)
+    }
+
+    @Test
+    fun `a refresh while the session is closed does not run, and the next sign-in's does`() {
+        val series = SignInSeries()
+        val session = AccountSession(series, liveScope)
+        val manager = managerOn(session)
+        series.end()
+
+        manager.refresh()
+        liveDispatcher.scheduler.runCurrent()
+        assertEquals(0, signInStateReads)
+
+        session.open()
+        manager.refresh()
+        awaitUntil { signInStateReads == 1 }
+    }
+
+    @Test
+    fun `the sign-out's stop takes everything down with the session closed`() {
+        val series = SignInSeries()
+        val session = AccountSession(series, liveScope)
+        val manager = managerOn(session)
+        series.end()
+
+        manager.stop()
+
+        assertEquals(1, alarms.cancels)
+    }
+
+    /** The sign-out's stop runs as this refresh arms what it worked out. */
+    @Test
+    fun `what a refresh arms past its sign-out's stop goes as it ends`() {
+        val series = SignInSeries()
+        val manager = managerOn(AccountSession(series, liveScope))
+        appPrefs.classReminderEnabled = true
+        alarms.nextClassStart = AppClock.nowMillis() + 60 * 60_000L
+        alarms.onScheduleAll = {
+            series.end()
+            manager.stop()
+        }
+
+        runBlocking { manager.refreshAndWait() }
+
+        assertNull(alarms.armedLeadSec)
+        assertEquals(emptyList<Long>(), refreshWakes())
     }
 
     @Test

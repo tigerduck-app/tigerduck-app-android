@@ -10,12 +10,16 @@ import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.shared.LibraryAccountGate
 import org.ntust.app.tigerduck.shared.LibraryCredentialStore
 import org.ntust.app.tigerduck.shared.StoredPasswordSchedule
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.sameStudentId
 import org.ntust.app.tigerduck.util.logSummary
@@ -45,7 +49,7 @@ class CredentialManager private constructor(
     @VisibleForTesting
     internal constructor(
         prefs: SharedPreferences,
-        library: AccountSession = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob())),
+        library: AccountSession = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob()), account = Account.LIBRARY),
     ) : this(prefs, encrypted = false, recreated = false, library)
 
     val isEncrypted: Boolean = encrypted
@@ -189,15 +193,16 @@ class CredentialManager private constructor(
      * The gate's sign-out with the library's sign-in ended inside it, so [remove] runs with both
      * moved. Opened again at once, as the library has no wipe to wait for.
      */
-    private fun signOutLibrary(remove: () -> Unit) = libraryAccount.signOut {
-        library.signIns.end()
-        library.open()
-        remove()
+    private fun signOutLibrary(remove: () -> Unit): SignIn = libraryAccount.signOut {
+        library.signIns.end().also {
+            library.open()
+            remove()
+        }
     }
 
     fun clearLibraryCredentials() {
         // A library sign-in still running for this account then stores nothing.
-        signOutLibrary {
+        val ended = signOutLibrary {
             prefs.edit()
                 .remove("library_username")
                 .remove("library_password")
@@ -208,6 +213,7 @@ class CredentialManager private constructor(
                 .apply()
         }
         library.cancelWork()
+        library.emit(AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, ended, address = null))
     }
 
     /**
@@ -243,8 +249,9 @@ class CredentialManager private constructor(
     /** Wipe every credential key. Used by the full-reset flow. */
     fun clearAll() {
         // All but the device unregister a sign-out still owes; see PendingUnregisterPrefs.
-        synchronized(this) { signOutLibrary { clearAllButOwedUnregister(prefs) } }
+        val ended = synchronized(this) { signOutLibrary { clearAllButOwedUnregister(prefs) } }
         library.cancelWork()
+        library.emit(AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, ended, address = null))
     }
 
     private class Opened(val prefs: SharedPreferences, val encrypted: Boolean, val recreated: Boolean)

@@ -43,6 +43,17 @@ class ClassTableWiringTest {
         for (call in calls) assertTrue("$name no longer calls $call", call in body)
     }
 
+    /** Every change, not the state: a sign-out and a sign-in landing together still clear the page. */
+    @Test
+    fun `the class table follows each change of the account from before it first runs`() {
+        val text = source().joinToString("\n")
+        val follows = Regex(
+            """viewModelScope\.launch\(start = CoroutineStart\.UNDISPATCHED\) \{(?:\s*//[^\n]*)*\s*var wasAuthed: Boolean\? = null\s*""" +
+                """authTokenManager\.session\.changes\.collect \{ isAuthed ->""",
+        )
+        assertTrue("the init no longer follows the session's changes as they land", follows.containsMatchIn(text))
+    }
+
     /** The clock ticks on the minute: no poll with a delay is left in the view model's init. */
     @Test
     fun `the class table follows the minute ticks instead of polling`() {

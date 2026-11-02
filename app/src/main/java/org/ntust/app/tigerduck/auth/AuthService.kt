@@ -3,14 +3,12 @@ package org.ntust.app.tigerduck.auth
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.SignOutWipe
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.browser.BrowserCleanup
@@ -56,6 +54,7 @@ class AuthService @Inject constructor(
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
     private val classroomUsage: org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService,
+    private val sessions: AccountSessions,
 ) {
     /**
      * A demo session presents as signed in, with or without an account: `authState` is what every
@@ -93,25 +92,18 @@ class AuthService @Inject constructor(
      * the user signed in by hand.
      */
     private val signedInState = SignedInState(demoMode || credentials.ntustStudentId != null)
-    val authState: StateFlow<Boolean> = signedInState.signedIn
+    val authState: StateFlow<Boolean> = signedInState.signedIn.also(sessions.school::signedInFrom)
 
-    /** [authState] with its changes counted, for what must follow every one of them; see [AccountState]. */
-    val accountState: StateFlow<AccountState> = signedInState.counted
-
-    private fun setSignedIn(signedIn: Boolean) = signedInState.set(signedIn)
+    /** Shows the account as signed in or out and says so, unless [signIn], a sign-in's own, has ended. */
+    private fun setSignedIn(signedIn: Boolean, signIn: SignIn? = null) =
+        signedInState.set(signedIn, stands = { signIn == null || signIn.isCurrent }) { changed ->
+            if (changed) sessions.schoolChanged(signedIn)
+        }
 
     private val loginMutex = Mutex()
 
     // The sign-outs under way, which hold the next sign-in, and the wipe each leaves behind.
     private val wipe = SignOutWipe(importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope)
-
-    private val _signIns = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-
-    /**
-     * Each sign-in by hand the school took, whoever it is: the same student's leaves [authState]
-     * true throughout, and what follows an account, such as the browser's data, follows this too.
-     */
-    val signIns: SharedFlow<Unit> = _signIns.asSharedFlow()
 
     // Held by a sign-out as it ends the sign-in and while it drops the stored account, and by a
     // sign-in while it asks whether its own has ended and stores what it got.
@@ -185,7 +177,7 @@ class AuthService @Inject constructor(
         isDemoAccount = demoAccount::matches,
         enterDemo = demoAccount::enter,
         accountChanging = { BrowserCleanup.of(context).markPending() },
-        markSignedIn = { setSignedIn(true) },
+        markSignedIn = { signIn -> setSignedIn(true, signIn) },
     )
 
     /**
@@ -218,25 +210,22 @@ class AuthService @Inject constructor(
                 // last one imported, whether imported while signed out or left by a wipe that
                 // never ran.
                 prepareSignedIn = {
-                    _signIns.tryEmit(Unit)
+                    sessions.schoolTookSignIn()
                     importedClassTables.accountDidSignIn(normalizedId)
                     // After the store knows who signed in, which empties another account's leftovers.
                     if (demoAccount.isActive) demoAccount.importClassmates()
                 },
             ) { signIn, sameStudent ->
-                // Best-effort: v3 JWT login failures must not block the SSO
-                // session. The automatic sign-in tries again later; this one
-                // never waits for its pause.
-                // Harvest a FRESH Moodle token before the v3 login. The backend
-                // verifies it against moodle2, and the stored token is stale or
-                // empty right after SSO (especially on a fresh install) — which
-                // makes the backend reject the login with 401 invalid_token.
-                // iOS does the same obtain-then-login. Best-effort: fall back to
-                // this student's stored token, and never let a harvest failure
-                // block the SSO session. obtainToken stores nothing once the
-                // account has signed out, and stillCurrent then keeps the
-                // fallback from sending anything: the sign-out ends the sign-in
-                // before it drops the credentials.
+                // Best-effort: v3 JWT login failures must not block the SSO session. The automatic
+                // sign-in tries again later; this one never waits for its pause.
+                // Harvest a FRESH Moodle token before the v3 login. The backend verifies it against
+                // moodle2, and the stored token is stale or empty right after SSO (especially on a
+                // fresh install), which makes the backend reject the login with 401 invalid_token.
+                // iOS does the same obtain-then-login. Best-effort: fall back to this student's
+                // stored token, and never let a harvest failure block the SSO session. obtainToken
+                // stores nothing once the account has signed out, and stillCurrent then keeps the
+                // fallback from sending anything: the sign-out ends the sign-in before it drops
+                // the credentials.
                 val stillCurrent = { signIn.isCurrent }
                 val moodleToken = interactiveMoodleToken(
                     harvest = { moodleTokenService.obtainToken(normalizedId, password) },
@@ -260,6 +249,9 @@ class AuthService @Inject constructor(
                     )
                     SignInAttempt.SIGNED_IN
                 } catch (e: CancellationException) {
+                    // Cut off as its reply landed, which cancelling cannot stop: the pair is stored,
+                    // nothing below runs, and an edit made with no copy to measure it against is lost.
+                    if (authTokenManager.isLoggedIn) notificationSettingsSync.pushIfUnconfirmed()
                     throw e
                 } catch (e: Exception) {
                     android.util.Log.w("AuthService", "v3 login failed (best-effort): ${e.logSummary()}")

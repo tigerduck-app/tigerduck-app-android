@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailChange
@@ -396,14 +398,11 @@ class SchoolMailListViewModel @Inject constructor(
                     delay(SEARCH_REGROW_MS)
                 }
         }
-        // Signing out must not leave the previous account's mail on screen for
-        // whoever signs in next (spec §7.5).
-        viewModelScope.launch {
-            account.signedIn.collect { signedIn -> if (!signedIn) forgetAccount() }
+        // A sign-out must not leave the mail on screen for whoever signs in next (spec §7.5), nor
+        // may another student signing in over a rejected account act on their mailbox with its UIDs.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            account.events.collect { if (it !is AccountEvent.SignedIn) forgetAccount() }
         }
-        // Nor may another student signing in over a rejected account, which never signs out:
-        // their taps and swipes would act on their own mailbox with this one's UIDs.
-        viewModelScope.launch { account.studentChanges.collect { forgetAccount() } }
     }
 
     private fun forgetAccount() {
