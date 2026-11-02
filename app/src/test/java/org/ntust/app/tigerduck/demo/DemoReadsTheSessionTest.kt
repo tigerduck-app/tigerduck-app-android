@@ -48,6 +48,15 @@ class DemoReadsTheSessionTest {
     }
 
     @Test
+    fun `the finder shows the demo's rooms on every weekday`() {
+        // The store's calendar reads empty in a test too, so only its wiring can be pinned.
+        assertTrue(
+            "finderCalendar(sessions.school.isDemo, academicCalendar::current)" in
+                source("ui/screen/emptyclassroom/FinderEnvironment.kt"),
+        )
+    }
+
+    @Test
     fun `what is decided once per process is sampled once, from the session`() {
         assertEquals(1, Regex("""private val demoMode = sessions\.school\.isDemo""").findAll(source("auth/AuthService.kt")).count())
         assertEquals(1, Regex("""private val demoMode = session\.isDemo""").findAll(source("ui/AppState.kt")).count())

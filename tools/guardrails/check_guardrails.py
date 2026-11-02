@@ -112,16 +112,17 @@ ACCOUNT_COUNTER = re.compile(
     r"|cacheGeneration|accountEpoch|isStillSignedInAs)\b"
     r"|DataCache\.Generation|\b(?:generation|signIn): Int\b")
 DEMO_CHECK = re.compile(
-    r"\b(?:isDemo|isDemoSession|appDemoActive|demoMailbox)\b"
-    r"|\b(?:demoAccount|demo)\.isActive\b|\b(?:store|fixtures)\.demoMode\b")
+    r"\b(?:isDemo|isDemoSession|appDemoActive|demoMailbox|demoFromElsewhere)\b"
+    r"|\b(?:demoAccount|demo)\.isActive\b|\.demoMode\b")
 STARTS_ACCOUNT_WORK = re.compile(r"\bStartsAccountWork\b")
 APP_PACKAGE = "/org/ntust/app/tigerduck/"
 
 # Homes are regexes on the path under the app's package. A file inside one is
 # where that rule is allowed to live.
 DEMO_HOMES = re.compile(
-    r"(?:demo/|auth/session/|shared/account/|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
-    r"|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
+    r"(?:auth/session/AccountSessions?\.kt$|shared/account/SignIn\.kt$"
+    r"|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
+    r"|demo/|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
 SIGN_IN_HOMES = re.compile(
     r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|ShareCodeLink\.kt$|demo/|liveactivity/"
     r"|notification/.*(?:Worker|Receiver)\.kt$|push/PushRegistrationService\.kt$"

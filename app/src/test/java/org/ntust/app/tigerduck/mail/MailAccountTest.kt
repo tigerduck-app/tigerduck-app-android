@@ -64,8 +64,13 @@ class MailAccountTest {
 
     private val searchIndex = InMemoryMailSearchIndex()
 
-    private fun account(index: MailSearchIndex = searchIndex) =
-        MailAccount(credentials, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope, heldSends, index)
+    /** The school's session, which mail counts as the demo with. */
+    private val school = AccountSession(SignInSeries(), appScope)
+
+    private fun account(index: MailSearchIndex = searchIndex) = MailAccount(
+        credentials, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope, heldSends, index,
+        AccountSession(SignInSeries(demo = state.demoMailbox), appScope, alsoDemoWhile = school, account = Account.MAIL),
+    )
 
     /** An index that cannot be emptied, as a full disk fails SQLite's VACUUM. */
     private class UnclearableIndex(inner: MailSearchIndex = InMemoryMailSearchIndex()) : MailSearchIndex by inner {
@@ -119,7 +124,7 @@ class MailAccountTest {
 
     @Test
     fun `while the app demo is active a real sign-in is refused offline`() = runTest {
-        demo.appDemoActive = true
+        school.signIns.startDemo()
         assertTrue(account().signIn("b10000001", "pw") is MailError.AuthFailed)
         assertEquals(0, server.opens)
     }
@@ -129,8 +134,65 @@ class MailAccountTest {
         val account = account()
         account.signIn("b10000001", "pw")
         assertFalse(account.isDemo)
-        demo.appDemoActive = true
+        school.signIns.startDemo()
         assertTrue(account.isDemo)
+    }
+
+    @Test
+    fun `a real account can sign in over the demo mailbox, which is no app-wide demo`() = runTest {
+        val account = account()
+        account.signIn("B10000099", "demo")
+        assertTrue(account.isDemo)
+
+        assertNull(account.signIn("b10000001", "pw"))
+
+        assertEquals(1, server.opens)
+        assertFalse(account.isDemo)
+        assertFalse(state.demoMailbox)
+    }
+
+    @Test
+    fun `the same student's password typed again leaves the demo mailbox`() = runTest {
+        server.passwords["B10000099"] = "real"
+        val account = account()
+        account.signIn("B10000099", "demo")
+
+        assertNull(account.signIn("B10000099", "real"))
+
+        assertFalse(account.isDemo)
+    }
+
+    @Test
+    fun `the demo mailbox sign-in goes with its sign-out`() = runTest {
+        val account = account()
+        account.signIn("B10000099", "demo")
+
+        account.signOut()
+
+        assertFalse(account.isDemo)
+        assertFalse(state.demoMailbox)
+        assertNull(account.signIn("b10000001", "pw"))
+        assertFalse(account.isDemo)
+    }
+
+    @Test
+    fun `a demo mailbox signed in before this process stays the demo`() = runTest {
+        account().signIn("B10000099", "demo")
+
+        assertTrue(account().isDemo)
+    }
+
+    @Test
+    fun `the school leaving the demo leaves a real account as it was`() = runTest {
+        val account = account()
+        account.signIn("b10000001", "pw")
+        school.signIns.startDemo()
+        val inTheDemo = account.currentSignIn
+
+        school.signIns.leaveDemo()
+
+        assertFalse(account.isDemo)
+        assertTrue("the school's demo is no sign-in of the mail account's", inTheDemo.isCurrent)
     }
 
     @Test

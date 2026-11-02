@@ -23,6 +23,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.imap.MailSession
@@ -42,6 +44,7 @@ import org.ntust.app.tigerduck.mail.smtp.MailSender
 import org.ntust.app.tigerduck.mail.smtp.MailTransport
 import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.MailCache
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -63,6 +66,9 @@ class MailRepositoryTest {
     private val state = InMemoryMailStateStore()
     private val credentials = InMemoryCredentialStore()
     private val demo = FakeDemoGate()
+
+    /** The school's session, which mail counts as the demo with. */
+    private val school = AccountSession(SignInSeries(), appScope)
     private val sent = mutableListOf<String>()
     /** Thrown by the SMTP send instead of sending, as a server refusing its login does. */
     @Volatile private var smtpRefusal: MailError? = null
@@ -91,7 +97,10 @@ class MailRepositoryTest {
         val notifier = RecordingNotifier()
         // Its sign-out's cache wipe runs on the IO dispatcher, which the test's own scope does not
         // wait for once the test ends: [appScope] does, before TemporaryFolder deletes the cache.
-        val account = MailAccount(credentials, state, accountSessions, cache, demo, schoolMailSite(), RecordingScheduler(), notifier, appScope)
+        val account = MailAccount(
+            credentials, state, accountSessions, cache, demo, schoolMailSite(), RecordingScheduler(), notifier, appScope,
+            session = AccountSession(SignInSeries(), appScope, alsoDemoWhile = school, account = Account.MAIL),
+        )
         val repository = MailRepository(
             account, sessions, cache, state,
             MailSender(MessageBuilder(), transport, pause = {}), MessageBuilder(), demo, wrapIndex(searchIndex), indexScheduler, scope,
@@ -2555,7 +2564,7 @@ class MailRepositoryTest {
         val uid = server.deliver("a")
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn()
-        demo.appDemoActive = true
+        school.signIns.startDemo()
         val opensBefore = server.opens
         repo.folders()
         repo.loadPage("INBOX", null)

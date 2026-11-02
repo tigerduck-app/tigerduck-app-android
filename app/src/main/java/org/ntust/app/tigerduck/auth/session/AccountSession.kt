@@ -34,6 +34,8 @@ annotation class StartsAccountWork
 class AccountSession(
     val signIns: SignInSeries,
     private val scope: CoroutineScope,
+    /** The session whose demo is this one's too: see [demoFromElsewhere]. */
+    private val alsoDemoWhile: AccountSession? = null,
     /** The marker a sign-out sets before it ends the sign-in; absent for a session whose wipe is not owed. */
     private val owed: SignOutOwed? = null,
     private val account: Account = Account.SCHOOL,
@@ -106,11 +108,18 @@ class AccountSession(
     }
 
     /**
-     * Whether the account is the demo. [SignInSeries.isDemo] is the truth from the start of the
-     * process, and the demo's sign-in and its exit move it, so a sign-out's steps before the exit
-     * still see the demo, and everything after it does not, the wipe included.
+     * Whether the account is the demo: its own series, or [demoFromElsewhere]. The series is the
+     * truth from the start of the process, and the demo's sign-in and its exit move it, so a
+     * sign-out's steps before the exit still see the demo, and everything after it does not, the
+     * wipe included.
      */
-    val isDemo: Boolean get() = signIns.isDemo
+    val isDemo: Boolean get() = signIns.isDemo || demoFromElsewhere
+
+    /**
+     * Whether the session this one follows is the demo, whatever this account's own series says:
+     * a real account stored here is then shut, and no sign-in of a real one may reach a server.
+     */
+    val demoFromElsewhere: Boolean get() = alsoDemoWhile?.isDemo == true
 
     /**
      * Opens a demo sign-in in place of [from], unless a sign-out has ended [from]: [prepare], which

@@ -7,7 +7,6 @@ import com.google.gson.JsonParser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.mail.imap.SpecialFolder
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
@@ -131,8 +130,6 @@ object DemoMailFixture {
 }
 
 interface MailDemoGate {
-    /** The whole-app demo account is signed in: no real mail sign-in may reach the server. */
-    val appDemoActive: Boolean
     fun matches(studentId: String, password: String): Boolean
     fun mailbox(): DemoMailbox
 }
@@ -140,11 +137,8 @@ interface MailDemoGate {
 @Singleton
 class AssetsMailDemoGate @Inject constructor(
     @param:ApplicationContext private val context: Context,
-    private val store: DebugFixtureStore,
     private val appPreferences: AppPreferences,
 ) : MailDemoGate {
-    override val appDemoActive: Boolean get() = store.demoMode
-
     private val box: DemoMailbox by lazy {
         runCatching {
             context.assets.open("demo.json").bufferedReader().use { DemoMailFixture.parse(it.readText(), lang()) }

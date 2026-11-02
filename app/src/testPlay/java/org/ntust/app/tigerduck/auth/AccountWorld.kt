@@ -37,6 +37,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityBoundaryScheduler
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
+import org.ntust.app.tigerduck.mail.store.SharedPrefsMailStateStore
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleTokenPairStore
@@ -107,7 +108,9 @@ internal fun accountWorld(
         schoolPage(chain.request())
     }.build()
     val refusing = OkHttpClient.Builder().addInterceptor { throw IOException("no network in this test") }.build()
-    val sessions = AccountSessions(DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")))
+    val sessions = AccountSessions(
+        DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")), SharedPrefsMailStateStore(context),
+    )
     val appPrefs = AppPreferences(context)
     val credentials = CredentialManager(credentialPrefs)
     val fixtures = DebugFixtureStore(context)

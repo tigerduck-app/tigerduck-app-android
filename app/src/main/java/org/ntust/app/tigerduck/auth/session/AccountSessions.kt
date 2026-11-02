@@ -5,24 +5,28 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
  * The three accounts' sessions, one each for the life of the process. They are independent:
- * a school sign-out ends the school's and leaves the other two.
+ * a school sign-out ends the school's and leaves the other two. One read crosses them, here and
+ * nowhere else: mail counts as the demo while the school is ([AccountSession.isDemo]), since
+ * [org.ntust.app.tigerduck.debug.DemoModeInterceptor] covers OkHttp, not IMAP or SMTP.
  *
  * Depends on nothing that depends on it, so the token manager can take it with no cycle.
- * The school's series starts from the demo's stored flag, [DebugFixtureStore.demoMode], which
- * stays the persisted truth, so a demo session started before this process keeps being one; the
- * mail and the library sessions answer false until the demo moves into the sessions.
+ * Each series starts from its stored flag, [DebugFixtureStore.demoMode] and the mailbox's own
+ * [MailStateStore.demoMailbox], which stay the persisted truth, so a demo started before this
+ * process keeps being one.
  */
 @Singleton
 class AccountSessions @Inject constructor(
     fixtures: DebugFixtureStore,
     @ApplicationScope scope: CoroutineScope,
     owed: SignOutOwed,
+    mailState: MailStateStore,
 ) {
     private val stream = accountEventStream()
 
@@ -31,9 +35,11 @@ class AccountSessions @Inject constructor(
 
     // Closed from the start when the last sign-out was cut short; the start finishes it.
     val school = AccountSession(
-        SignInSeries(closed = owed.owed, demo = fixtures.demoMode), scope, owed, Account.SCHOOL, stream,
+        SignInSeries(closed = owed.owed, demo = fixtures.demoMode), scope, owed = owed, account = Account.SCHOOL, stream = stream,
     )
-    val mail = AccountSession(SignInSeries(), scope, account = Account.MAIL, stream = stream)
+    val mail = AccountSession(
+        SignInSeries(demo = mailState.demoMailbox), scope, alsoDemoWhile = school, account = Account.MAIL, stream = stream,
+    )
     val library = AccountSession(SignInSeries(), scope, account = Account.LIBRARY, stream = stream)
 
     /** Tells every reactor, without waiting for any: safe under a lock, and from any thread. */

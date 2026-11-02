@@ -19,6 +19,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
@@ -83,11 +85,20 @@ class DemoStaysOnTheDeviceTest {
     private val state = InMemoryMailStateStore()
     private val credentials = InMemoryCredentialStore()
     private val demo = FakeDemoGate()
+
+    /** As a process builds them, so the one read that crosses the accounts is the app's own. */
+    private val sessions = AccountSessions(
+        DebugFixtureStore(context), appScope,
+        SignOutOwed(context.getSharedPreferences("demo-device-wipe", Context.MODE_PRIVATE)), state,
+    )
     private val sent = mutableListOf<String>()
     private val transport = MailTransport { _, message -> sent += message.messageId }
 
     private val account by lazy {
-        MailAccount(credentials, state, server.factory(), MailCache(tmp.root), demo, schoolMailSite(), RecordingScheduler(), RecordingNotifier(), appScope)
+        MailAccount(
+            credentials, state, server.factory(), MailCache(tmp.root), demo, schoolMailSite(), RecordingScheduler(), RecordingNotifier(), appScope,
+            session = sessions.mail,
+        )
     }
 
     private fun repository(scope: CoroutineScope, index: MailSearchIndex = InMemoryMailSearchIndex()) = MailRepository(
@@ -104,7 +115,7 @@ class DemoStaysOnTheDeviceTest {
     }
 
     private fun demoSignsIn() {
-        demo.appDemoActive = true
+        sessions.school.signIns.startDemo()
     }
 
     @Before
@@ -124,8 +135,10 @@ class DemoStaysOnTheDeviceTest {
         val inner = InMemoryMailSearchIndex()
         val index = object : MailSearchIndex by inner {
             override fun uidValidity(owner: String, folder: String): Long? {
-                if (opensWhenItCameOn < 0) opensWhenItCameOn = server.opens
-                demoSignsIn()
+                if (opensWhenItCameOn < 0) {
+                    opensWhenItCameOn = server.opens
+                    demoSignsIn()
+                }
                 return inner.uidValidity(owner, folder)
             }
         }
@@ -189,7 +202,7 @@ class DemoStaysOnTheDeviceTest {
     @Test
     fun `with the demo over a real mail account the checks are not scheduled, and those armed go`() = runTest {
         realMailStored()
-        val scheduler = MailAlarmScheduler(context, credentials, state, demo)
+        val scheduler = MailAlarmScheduler(context, credentials, state, sessions.mail)
         scheduler.schedule()
         assertTrue("armed for the real account", mailChecksArmed())
 
@@ -197,6 +210,53 @@ class DemoStaysOnTheDeviceTest {
         scheduler.schedule()
 
         assertFalse(mailChecksArmed())
+    }
+
+    @Test
+    fun `mail counts as the demo while the school is, and with its own mailbox, and the school never with mail's`() {
+        assertFalse(sessions.mail.isDemo)
+
+        sessions.mail.signIns.startDemo()
+        assertTrue("the mailbox's own", sessions.mail.isDemo)
+        assertFalse("which is nobody else's", sessions.school.isDemo)
+        assertFalse(sessions.library.isDemo)
+        assertFalse("and no refusal of a real sign-in", sessions.mail.demoFromElsewhere)
+
+        sessions.mail.signIns.leaveDemo()
+        demoSignsIn()
+        assertTrue(sessions.mail.isDemo)
+        assertTrue(sessions.mail.demoFromElsewhere)
+        assertFalse("a demo library stays independent", sessions.library.isDemo)
+
+        sessions.school.signIns.leaveDemo()
+        assertFalse(sessions.mail.isDemo)
+    }
+
+    @Test
+    fun `a demo started before this process keeps mail shut`() {
+        DebugFixtureStore(context).demoMode = true
+        state.demoMailbox = false
+
+        val restarted = AccountSessions(
+            DebugFixtureStore(context), appScope,
+            SignOutOwed(context.getSharedPreferences("demo-device-wipe", Context.MODE_PRIVATE)), state,
+        )
+
+        assertTrue(restarted.mail.isDemo)
+        assertTrue(restarted.mail.demoFromElsewhere)
+    }
+
+    @Test
+    fun `a demo mailbox signed in before this process stays the demo`() {
+        state.demoMailbox = true
+
+        val restarted = AccountSessions(
+            DebugFixtureStore(context), appScope,
+            SignOutOwed(context.getSharedPreferences("demo-device-wipe", Context.MODE_PRIVATE)), state,
+        )
+
+        assertTrue(restarted.mail.isDemo)
+        assertFalse(restarted.mail.demoFromElsewhere)
     }
 
     @Test

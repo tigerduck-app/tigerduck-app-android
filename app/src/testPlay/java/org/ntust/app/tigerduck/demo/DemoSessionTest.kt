@@ -34,6 +34,7 @@ import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomDemoData
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService
 import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.emptyclassroom.AppFinderEnvironment
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -156,7 +157,7 @@ class DemoSessionTest {
     @Test
     fun `the demo's classmates are imported at its sign-in, and nobody else's`() = runBlocking {
         val world = world()
-        assertTrue(world.auth.login("B00015999", "made-up-password"))
+        assertTrue(world.auth.login(STUDENT, "made-up-password"))
         assertEquals(emptyList<Any>(), world.imported.tables.value.people)
         world.auth.logout()
         world.wipeDone()
@@ -204,6 +205,50 @@ class DemoSessionTest {
     }
 
     @Test
+    fun `a sign-out landing between the demo's store and its showing shows nothing`() = runBlocking {
+        val world = world()
+        val fired = AtomicBoolean()
+        // Told in the step before the account shows, the account stored by then.
+        followers.launch(start = CoroutineStart.UNDISPATCHED) {
+            world.sessions.events.collect {
+                if (it is AccountEvent.SignedIn && fired.compareAndSet(false, true)) world.auth.logout()
+            }
+        }
+
+        assertFalse(world.demoSignIn())
+        world.wipeDone()
+
+        assertTrue(fired.get())
+        assertFalse(world.auth.authState.value)
+        assertFalse(world.sessions.school.isDemo)
+        assertEquals(null, world.credentials.ntustStudentId)
+    }
+
+    @Test
+    fun `a student signing in after the demo finds nothing of it, and the demo nothing of the student before`() = runBlocking {
+        val world = world()
+        assertTrue(world.auth.login(STUDENT, "made-up-password"))
+        val semester = world.dataCache.currentSemesterCode()
+        world.dataCache.saveCourses(listOf(Course(courseNo = "CS1001301", courseName = "Of the student")), semester, world.tokens.session.signIns.current)
+
+        assertTrue("signed in over them", world.demoSignIn())
+        assertEquals(fixture.studentId, world.credentials.ntustStudentId)
+        assertEquals(fixture.courses!!.map { it.courseNo }.sorted(), world.dataCache.loadCourses().map { it.courseNo }.sorted())
+
+        world.auth.logout()
+        world.wipeDone()
+        assertTrue(world.auth.login(STUDENT, "made-up-password"))
+
+        assertFalse(world.sessions.school.isDemo)
+        assertFalse(world.tokens.session.signIns.current.isDemo)
+        assertEquals(emptyList<Any>(), world.dataCache.loadCourses())
+        assertEquals(emptyList<Any>(), world.dataCache.loadAssignments())
+        assertEquals(emptyList<Any>(), world.bulletinCache.load())
+        assertEquals(emptyList<Any>(), world.imported.tables.value.people)
+        assertEquals(null, world.fixtures.studentIdOverride)
+    }
+
+    @Test
     fun `the exit lowers the stored flag first, and the session's answer after it`() = runBlocking {
         val world = world()
         assertTrue(world.demoSignIn())
@@ -246,7 +291,7 @@ class DemoSessionTest {
     fun `the school can be asked by a student signed in, and not by the demo`() = runBlocking {
         val world = world()
         assertFalse("nobody signed in", world.auth.canAskSchool)
-        assertTrue(world.auth.login("B00015999", "made-up-password"))
+        assertTrue(world.auth.login(STUDENT, "made-up-password"))
         assertTrue(world.auth.canAskSchool)
 
         world.auth.logout()
@@ -298,6 +343,7 @@ class DemoSessionTest {
         assertEquals(emptyList<Any>(), world.dataCache.loadCourses())
         assertFalse(world.fixtures.demoMode)
         assertEquals(null, world.fixtures.studentIdOverride)
+        assertTrue("a demo library stays, as a real library account does", world.demoAccount.isLibrarySignedIn)
     }
 
     /**
@@ -371,6 +417,7 @@ class DemoSessionTest {
     }
 
     private companion object {
+        const val STUDENT = "B00015999"
         const val WAIT_MS = 10_000L
         const val MOMENT_MS = 300L
         const val FIXTURE_PREFS = "debug_fixture"

@@ -94,10 +94,12 @@ class MailAccount @Inject constructor(
 
     /**
      * The next sign-in, under [accountLock]. Ended and opened in one hold: mail has no wipe to
-     * wait for, its cleanup has its own guards, and so its series never stays closed.
+     * wait for, its cleanup has its own guards, and so its series never stays closed. [ownDemo]
+     * says whether it is the demo mailbox's, which the series answers from here on.
      */
-    private fun moveSignIn(): SignIn {
+    private fun moveSignIn(ownDemo: Boolean = false): SignIn {
         val ended = session.signIns.end()
+        if (ownDemo) session.signIns.startDemo() else session.signIns.leaveDemo()
         session.open()
         present += session.current
         return ended
@@ -169,7 +171,10 @@ class MailAccount @Inject constructor(
     val ownAddress: String? get() = credentials.mailStudentId?.takeIf { it.isNotBlank() }?.let { MailCredentials.addressOf(it, site.domain()) }
 
     /** True for the mail demo mailbox itself, or whenever the app-wide demo is active -- either way, nothing may open a socket. */
-    val isDemo: Boolean get() = state.demoMailbox || demo.appDemoActive
+    val isDemo: Boolean get() = session.isDemo
+
+    // The whole-app demo account is signed in: no real mail sign-in may reach the server.
+    private val appDemo: Boolean get() = session.demoFromElsewhere
 
     fun credentialsOrNull(): MailCredentials? {
         val id = credentials.mailStudentId
@@ -188,14 +193,14 @@ class MailAccount @Inject constructor(
         if (demo.matches(creds.studentId, password)) {
             if (!sameStudent) leaveMailOf(ownAddress)
             if (replacing) leaveStudent()
-            save(creds, sameStudent) {
+            save(creds, sameStudent, ownDemo = true) {
                 state.demoMailbox = true
                 state.displayName = keptName ?: demo.mailbox().displayName
             }
             notifier.cancelAuthFailure()
             return@withContext null
         }
-        if (demo.appDemoActive) return@withContext MailError.AuthFailed()
+        if (appDemo) return@withContext MailError.AuthFailed()
 
         val fill = try {
             sessions.open(creds).use { session ->
@@ -216,7 +221,7 @@ class MailAccount @Inject constructor(
         } catch (e: Exception) {
             return@withContext MailErrors.classify(e)
         }
-        save(creds, sameStudent, fill)
+        save(creds, sameStudent, fill = fill)
         notifier.cancelAuthFailure()
         scheduler.schedule()
         null
@@ -320,12 +325,12 @@ class MailAccount @Inject constructor(
      * fresh state, and a write that started then recorded its flagged mail as the next one's
      * ([MailStateStore.setOwnedDeletedIf]); a [snapshot] now holds one student's of both.
      */
-    private fun save(creds: MailCredentials, sameStudent: Boolean, fill: () -> Unit) {
+    private fun save(creds: MailCredentials, sameStudent: Boolean, ownDemo: Boolean = false, fill: () -> Unit) {
         onLockWait?.invoke()
         synchronized(accountLock) {
             resetState(sameStudent)
             fill()
-            moveSignIn()
+            moveSignIn(ownDemo)
             credentials.mailStudentId = creds.studentId
             credentials.mailPassword = creds.password
         }
