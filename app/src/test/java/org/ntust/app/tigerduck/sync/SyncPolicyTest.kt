@@ -99,6 +99,16 @@ class SyncPolicyTest {
                 policy.applies(ASSIGNMENTS),
             )
             check("tigerSyncOn", prefs.cloudSyncEnabled, policy.tigerSyncOn)
+            // The backend client's own gates, which read the switches and never the hold.
+            check("syncs(COURSES)", prefs.cloudSyncEnabled && prefs.syncCourses, policy.syncs(COURSES))
+            check("syncs(COURSE_COLORS)", prefs.cloudSyncEnabled && prefs.syncCourseColors, policy.syncs(COURSE_COLORS))
+            check("syncs(COURSE_NAMES)", prefs.cloudSyncEnabled && prefs.syncCourseNames, policy.syncs(COURSE_NAMES))
+            check("syncs(ASSIGNMENTS)", prefs.cloudSyncEnabled && prefs.syncAssignments, policy.syncs(ASSIGNMENTS))
+            for (color in listOf(false, true)) for (name in listOf(false, true)) check(
+                "syncsOverride(color=$color, name=$name)",
+                prefs.cloudSyncEnabled && (!color || prefs.syncCourseColors) && (!name || prefs.syncCourseNames),
+                policy.syncsOverride(color, name),
+            )
             check(
                 "sendsCourseIgnores and sends(ASSIGNMENTS)",
                 CourseIgnoreSync.syncsCourseIgnores(prefs), policy.sendsCourseIgnores && policy.sends(ASSIGNMENTS),
@@ -130,6 +140,8 @@ class SyncPolicyTest {
             assertFalse(row, policy.uploadsCourses)
             assertFalse(row, policy.sendsCourseIgnores)
             for (category in SyncCategory.entries) {
+                assertFalse("syncs($category) at $row", policy.syncs(category))
+                assertFalse("syncsOverride at $row", policy.syncsOverride(category == COURSE_COLORS, category == COURSE_NAMES))
                 assertFalse("keeps($category) at $row", policy.keeps(category))
                 assertFalse("sends($category) at $row", policy.sends(category))
                 // A full sync never runs here; asked anyway, the answer is the switch's and the hold's.
@@ -150,6 +162,7 @@ class SyncPolicyTest {
             for (category in SyncCategory.entries) {
                 assertEquals("keeps($category) at $row", flavor, after.keeps(category))
                 assertEquals("sends($category) at $row", before.sends(category), after.sends(category))
+                assertEquals("syncs($category) at $row", before.syncs(category), after.syncs(category))
                 assertEquals("applies($category) at $row", before.applies(category), after.applies(category))
             }
         }

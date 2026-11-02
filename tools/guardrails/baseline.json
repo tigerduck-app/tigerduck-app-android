@@ -374,12 +374,12 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "long-file",
-    "count": 663
+    "count": 662
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "sync-switch-read",
-    "count": 23
+    "count": 15
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",

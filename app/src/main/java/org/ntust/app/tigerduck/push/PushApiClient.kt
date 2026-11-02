@@ -20,6 +20,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -38,11 +40,8 @@ class PushApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
 ) {
 
-    // prefs.cloudSyncEnabled already reads false on fdroid at its source
-    // (AppPreferences.cloudSyncEnabled -> effectiveCloudSyncEnabled), so
-    // ANDing a second flavor check here would only ever restate it.
-    private val isSyncCapable: Boolean
-        get() = prefs.cloudSyncEnabled
+    // Whether a write goes, as the switches stand at each read; the re-enable hold is the callers'.
+    private val policies = SyncPolicies(prefs)
 
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
@@ -152,10 +151,10 @@ class PushApiClient @Inject constructor(
      */
     suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long? = null): Boolean =
         withContext(Dispatchers.IO) {
-            if (!isSyncCapable) return@withContext false
+            if (!policies.current.tigerSyncOn) return@withContext false
             val service = api.at(baseUrl)
             val header = authHeader(signIn)
-            executeStamped(madeAtMs, { isSyncCapable }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
+            executeStamped(madeAtMs, { policies.current.tigerSyncOn }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
                 if (!response.isSuccessful) {
                     throw PushApiException(
                         "holiday override failed: HTTP ${response.code}"
@@ -237,7 +236,7 @@ class PushApiClient @Inject constructor(
         signIn: SignIn,
         madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
-        val syncs = { isSyncCapable && prefs.syncAssignments }
+        val syncs = { policies.current.syncs(SyncCategory.ASSIGNMENTS) }
         if (!syncs()) return@withContext false
         val payload = mapOf("local_status" to localStatus)
         val service = api.at(baseUrl)
@@ -267,7 +266,7 @@ class PushApiClient @Inject constructor(
         allowed: () -> Boolean = { true },
         madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
-        val switchesOn = { isSyncCapable && (colorHex == null || prefs.syncCourseColors) && (customName == null || prefs.syncCourseNames) }
+        val switchesOn = { policies.current.syncsOverride(color = colorHex != null, name = customName != null) }
         if (!switchesOn()) return@withContext false
         val payload = listOfNotNull(colorHex?.let { "color_hex" to it }, customName?.let { "custom_name" to it }, locale?.let { "locale" to it })
             .toMap()
@@ -306,7 +305,7 @@ class PushApiClient @Inject constructor(
         signIn: SignIn,
         madeAtMs: Long? = null,
     ): Boolean? = withContext(Dispatchers.IO) {
-        val syncs = { isSyncCapable && prefs.syncAssignments && prefs.syncCourses }
+        val syncs = { policies.current.sendsCourseIgnores }
         if (!syncs()) return@withContext null
         val payload = mutableMapOf<String, Any>()
         if (ignore != null) payload["ignore_assignments"] = ignore
@@ -358,7 +357,7 @@ class PushApiClient @Inject constructor(
         assignments: List<Assignment>,
         signIn: SignIn,
     ) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncAssignments) return@withContext
+        if (!policies.current.syncs(SyncCategory.ASSIGNMENTS)) return@withContext
         val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
@@ -475,7 +474,7 @@ class PushApiClient @Inject constructor(
         rosterTerms: List<String> = emptyList(),
         addedAt: Map<String, Long> = emptyMap(),
     ): CourseUploadAnswer? = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncCourses) return@withContext null
+        if (!policies.current.uploadsCourses) return@withContext null
         val payload = CourseUploadPayload.build(courses, semester, forceKeys, rosterTerms)
         val body = gson.toJson(payload).toRequestBody(jsonType)
         val stampedBody = addedAt.takeIf { it.isNotEmpty() }?.let { stamps ->
@@ -559,7 +558,7 @@ class PushApiClient @Inject constructor(
      * which could take that account's own course off.
      */
     suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncCourses) return@withContext
+        if (!policies.current.uploadsCourses) return@withContext
         val service = api.at(baseUrl)
         val header = authHeader(signIn)
         // With the hide's time, which the backend applies only when later than the course's last
@@ -589,7 +588,7 @@ class PushApiClient @Inject constructor(
      * `routes/sync/courses.py`.
      */
     suspend fun deleteAllCourses(semester: String?, signIn: SignIn) = withContext(Dispatchers.IO) {
-        if (!isSyncCapable || !prefs.syncCourses) return@withContext
+        if (!policies.current.uploadsCourses) return@withContext
         val service = api.at(baseUrl)
         val call = service.removeCourses(
             authHeader(signIn),

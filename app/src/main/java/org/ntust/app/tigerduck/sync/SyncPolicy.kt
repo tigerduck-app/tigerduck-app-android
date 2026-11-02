@@ -29,7 +29,19 @@ class SyncPolicy(
     /** Whether TigerSync runs at all: its switch is on, on a build that has it. */
     val tigerSyncOn: Boolean get() = cloudSync && flavorSyncs
 
-    private fun syncs(category: SyncCategory): Boolean = tigerSyncOn && category in switchedOn
+    /**
+     * Whether TigerSync and [category]'s switch are on, whatever the re-enable hold says: the gate
+     * of the backend client's own writes, as `PushApiClient` reads the switches. The hold is its
+     * callers' to read, as the queues do through [sends], and Use Local sends while it holds.
+     */
+    fun syncs(category: SyncCategory): Boolean = tigerSyncOn && category in switchedOn
+
+    /**
+     * Whether a course override carrying a [color], a [name] or both goes, as the backend client
+     * decides: TigerSync on, and the switch of each kind it carries ([syncs]).
+     */
+    fun syncsOverride(color: Boolean, name: Boolean): Boolean =
+        tigerSyncOn && (!color || syncs(SyncCategory.COURSE_COLORS)) && (!name || syncs(SyncCategory.COURSE_NAMES))
 
     /**
      * Whether an edit of [category] is kept to send: while TigerSync and the category's switch are
