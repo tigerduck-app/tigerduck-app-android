@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
@@ -11,8 +12,11 @@ import javax.inject.Inject
  * device issued are no account's, and a full reset leaves it too. Absent keys read as nothing
  * heard or issued, which is a build before the clock's.
  *
- * Written with `apply()`: a write a process death loses can make a stamp repeat one issued before
- * it only if the wall clock has gone back as well, and the next header heard sets the cap again.
+ * A write is [save]d with `commit()` when its value is ahead of the wall clock, and with `apply()`
+ * otherwise. A lost write of a value behind the wall clock costs nothing: the next launch's wall
+ * clock is already past it, unless the wall clock has gone back as well. One ahead of it, lost,
+ * would let the next launch stamp at or below a stamp already issued, or below a backend time
+ * already seen, which happens only while the backend's clock or the last stamp runs ahead.
  */
 class SyncClockStore(private val prefs: SharedPreferences) {
     @Inject
@@ -26,16 +30,22 @@ class SyncClockStore(private val prefs: SharedPreferences) {
         heardAtMs = prefs.getLong(KEY_HEARD_AT_MS, 0L),
     )
 
-    internal fun save(state: SyncClockState) {
+    /** Writes [state], on disk before it returns when [durable]. */
+    internal fun save(state: SyncClockState, durable: Boolean) {
         val edit = prefs.edit()
             .putLong(KEY_LAST_ISSUED_MS, state.lastIssuedMs)
             .putLong(KEY_LAST_SEEN_US, state.lastSeenUs)
             .putLong(KEY_HEARD_AT_MS, state.heardAtMs)
         if (state.heardUs != null) edit.putLong(KEY_HEARD_US, state.heardUs) else edit.remove(KEY_HEARD_US)
-        edit.apply()
+        if (!durable) {
+            edit.apply()
+        } else if (!edit.commit()) {
+            Log.w(TAG, "the sync clock was not written to disk")
+        }
     }
 
     private companion object {
+        const val TAG = "SyncClockStore"
         const val PREFS_FILE = "tigerduck_sync_clock"
         const val KEY_LAST_ISSUED_MS = "lastIssuedMs"
         const val KEY_LAST_SEEN_US = "lastSeenUs"

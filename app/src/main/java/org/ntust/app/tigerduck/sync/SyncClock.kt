@@ -34,6 +34,9 @@ class SyncClock internal constructor(
     constructor(store: SyncClockStore, prefs: AppPreferences) :
         this(store, { BackendApi.of(resolveAnnouncementEndpoint(prefs).url) }, System::currentTimeMillis)
 
+    // A leaf: nothing under it takes another lock or calls out but to the store, so a write the
+    // store makes at once, under it, keeps the values in the order they were made and waits on
+    // nothing else.
     private val lock = Any()
 
     // Under lock: what the store holds, read before this process's first stamp or hearing, and
@@ -44,24 +47,31 @@ class SyncClock internal constructor(
     fun stampMs(): Long = when (api()) {
         BackendApi.V3 -> wallClock()
         BackendApi.V4 -> synchronized(lock) {
+            val now = wallClock()
             val state = state()
-            state.stampMs(wallClock()).also { save(state.copy(lastIssuedMs = it)) }
+            // Past what the wall clock alone gives, a stamp must outlive a process death: the next
+            // launch, its wall clock still behind it, would stamp at or below it.
+            state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + 1) }
         }
     }
 
     /** The backend's clock, from an `X-TigerSync-Clock` header heard now. */
     fun heard(serverClockUs: Long) {
         synchronized(lock) {
+            val now = wallClock()
             val state = state()
-            save(state.copy(lastSeenUs = maxOf(state.lastSeenUs, serverClockUs), heardUs = serverClockUs, heardAtMs = wallClock()))
+            val raised = serverClockUs > state.lastSeenUs
+            val next = state.copy(lastSeenUs = maxOf(state.lastSeenUs, serverClockUs), heardUs = serverClockUs, heardAtMs = now)
+            save(next, durable = raised && next.lastSeenMs > now)
         }
     }
 
     /** A clock value read in a snapshot or in a write's answer: it raises the last seen value only. */
     fun heardInSnapshot(clockUs: Long) {
         synchronized(lock) {
+            val now = wallClock()
             val state = state()
-            if (clockUs > state.lastSeenUs) save(state.copy(lastSeenUs = clockUs))
+            if (clockUs > state.lastSeenUs) state.copy(lastSeenUs = clockUs).let { save(it, durable = it.lastSeenMs > now) }
         }
     }
 
@@ -75,17 +85,19 @@ class SyncClock internal constructor(
         if (serverClockUs != null) heard(serverClockUs)
         val state = state()
         val cap = state.capMs(wallClock())
-        if (cap != null && state.lastIssuedMs > cap) save(state.copy(lastIssuedMs = cap))
+        // Lost, a lowering only leaves the last issued value higher.
+        if (cap != null && state.lastIssuedMs > cap) save(state.copy(lastIssuedMs = cap), durable = false)
         stampMs()
     }
 
     // Under lock.
     private fun state(): SyncClockState = known ?: store.load().also { known = it }
 
-    // Under lock, so the store's writes go in the order the values were made.
-    private fun save(state: SyncClockState) {
+    // Under lock, so the store's writes go in the order the values were made. A value ahead of
+    // the wall clock is [durable]: written before the clock goes on.
+    private fun save(state: SyncClockState, durable: Boolean) {
         known = state
-        store.save(state)
+        store.save(state, durable)
     }
 }
 
@@ -103,10 +115,13 @@ internal data class SyncClockState(
     /** The backend's time at [nowMs] as last heard, plus the five seconds it allows; null with nothing heard. */
     fun capMs(nowMs: Long): Long? = heardUs?.let { it / 1_000 + maxOf(0, nowMs - heardAtMs) + SKEW_ALLOWED_MS }
 
+    /** The last value seen, in the first whole ms at or past it. */
+    val lastSeenMs: Long get() = -Math.floorDiv(-lastSeenUs, 1_000L)
+
     /** `max(min(now, cap), last seen, last issued)` plus one tick, `tigersync-clock`'s rule in ms. */
     fun stampMs(nowMs: Long): Long {
         val now = capMs(nowMs)?.let { minOf(nowMs, it) } ?: nowMs
-        return maxOf(now, -Math.floorDiv(-lastSeenUs, 1_000L), lastIssuedMs) + 1
+        return maxOf(now, lastSeenMs, lastIssuedMs) + 1
     }
 
     private companion object {
