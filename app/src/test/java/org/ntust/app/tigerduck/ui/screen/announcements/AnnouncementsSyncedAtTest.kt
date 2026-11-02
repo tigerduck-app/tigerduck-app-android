@@ -100,7 +100,7 @@ class AnnouncementsSyncedAtTest {
         val api = BulletinApiClient(client, prefs, AuthTokenManager(tokens, client, prefs, "device-1"))
         return AnnouncementsViewModel(
             SavedStateHandle(), api, cache, repository, BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache), sessions, AppReturns(now = { 0L }, register = {}),
+            sessions, AppReturns(now = { 0L }, register = {}),
         )
     }
 

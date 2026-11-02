@@ -37,6 +37,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityBoundaryScheduler
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.liveactivity.LiveActivityNotifier
 import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
+import org.ntust.app.tigerduck.mail.store.SharedPrefsMailStateStore
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleTokenPairStore
@@ -79,6 +80,8 @@ internal class AccountWorld(
     val semesterCatalog: SemesterCatalog,
     val widgetUpdater: WidgetUpdater,
     val academicCalendar: AcademicCalendarStore,
+    val demoAccount: DemoAccount,
+    val fixtures: DebugFixtureStore,
 )
 
 /**
@@ -105,7 +108,9 @@ internal fun accountWorld(
         schoolPage(chain.request())
     }.build()
     val refusing = OkHttpClient.Builder().addInterceptor { throw IOException("no network in this test") }.build()
-    val sessions = AccountSessions(DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")))
+    val sessions = AccountSessions(
+        DebugFixtureStore(context), appScope, SignOutOwed(prefs("tigerduck_account_wipe")), SharedPrefsMailStateStore(context),
+    )
     val appPrefs = AppPreferences(context)
     val credentials = CredentialManager(credentialPrefs)
     val fixtures = DebugFixtureStore(context)
@@ -160,7 +165,7 @@ internal fun accountWorld(
         ssoLoginService = sso,
         credentials = credentials,
         pushRegistration = PushRegistrationService(
-            context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope, fixtures,
+            context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope,
             DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
         ),
         notificationSettingsSync = notificationSettingsSync,
@@ -180,7 +185,7 @@ internal fun accountWorld(
         appScope = appScope,
         demoAccount = demoAccount,
         prefs = appPrefs,
-        classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
+        classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, sessions.school, appPrefs)),
         sessions = sessions,
     )
     // The in-app browser's WebView storage, counted each time it is cleared.
@@ -220,7 +225,7 @@ internal fun accountWorld(
     return AccountWorld(
         appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings, sessions, effects,
         pushApi, notificationSettingsSync, courseService, SemesterCatalog(sessionManager, appPrefs, credentials), widgetUpdater,
-        academicCalendar,
+        academicCalendar, demoAccount, fixtures,
     )
 }
 

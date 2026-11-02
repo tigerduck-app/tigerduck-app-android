@@ -29,6 +29,7 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleMemberList
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSession
 import java.lang.reflect.Type
 
 /** One store per account and course, dropped at sign-out, on the demo account's Moodle in demo mode. */
@@ -54,7 +55,7 @@ class MoodleCourseRepositoryTest {
 
     private val authState = MutableStateFlow(true)
     private var account: String? = "B11300001"
-    private var demo = false
+    private val session = testSession()
     private val live = Api("live")
     private var demoGrade = "demo"
     private val languageChanges = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -73,7 +74,7 @@ class MoodleCourseRepositoryTest {
     ) = MoodleCourseRepository(
         signedIn = { authState.value },
         account = { account },
-        isDemo = { demo },
+        session = session,
         liveApi = liveApi,
         demoApi = { Api(demoGrade) },
         idMap = { mapOf("1151CS3005301" to 5) },
@@ -195,7 +196,7 @@ class MoodleCourseRepositoryTest {
 
     @Test
     fun `the demo account's stores answer from the demo Moodle`() = runTest(UnconfinedTestDispatcher()) {
-        demo = true
+        session.signIns.startDemo()
         val store = repository().store(5)!!
 
         store.refreshGrades()
@@ -228,7 +229,7 @@ class MoodleCourseRepositoryTest {
 
     @Test
     fun `the demo account's Moodle follows a change of language, in stores already built`() = runTest(UnconfinedTestDispatcher()) {
-        demo = true
+        session.signIns.startDemo()
         val repository = repository()
         val store = repository.store(5)!!
         store.refreshGrades()
@@ -244,12 +245,12 @@ class MoodleCourseRepositoryTest {
 
     @Test
     fun `the demo account's copies stay in memory, so a restart shows the language the app has then`() = runTest(UnconfinedTestDispatcher()) {
-        demo = true
+        session.signIns.startDemo()
         repository().store(5)
 
         assertTrue("nothing kept on disk for the demo account", cachedFor.isEmpty())
 
-        demo = false
+        session.signIns.leaveDemo()
         repository().store(5)
         assertEquals(listOf("B11300001"), cachedFor)
     }
@@ -264,7 +265,7 @@ class MoodleCourseRepositoryTest {
         val repository = MoodleCourseRepository(
             signedIn = { authState.value },
             account = { account },
-            isDemo = { false },
+            session = session,
             liveApi = live,
             demoApi = { null },
             idMap = { emptyMap() },
@@ -307,7 +308,7 @@ class MoodleCourseRepositoryTest {
         val repository = MoodleCourseRepository(
             signedIn = { authState.value },
             account = { account },
-            isDemo = { false },
+            session = session,
             liveApi = live,
             demoApi = { null },
             idMap = { emptyMap() },

@@ -131,10 +131,10 @@ class StoredAccountSignInTest {
         assertEquals(SignInAttempt.NOTHING_TO_SEND, signIn())
 
         studentId = "B00000000"
-        demo = true
+        manager.session.signIns.startDemo()
         assertEquals(SignInAttempt.NOTHING_TO_SEND, signIn())
 
-        demo = false
+        manager.session.signIns.leaveDemo()
         password = null
         storedToken = null
         assertEquals(SignInAttempt.NOTHING_TO_SEND, signIn())
@@ -211,7 +211,6 @@ class StoredAccountSignInTest {
 
     private suspend fun signIn(signIn: SignIn = manager.session.signIns.current): SignInAttempt = StoredAccountSignIn(
         tokens = manager,
-        isDemo = { demo },
         studentId = { studentId },
         password = { password },
         storedMoodleToken = { storedToken },

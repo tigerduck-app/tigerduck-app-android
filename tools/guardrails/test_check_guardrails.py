@@ -592,6 +592,27 @@ class GuardrailsTest(unittest.TestCase):
         self.write(APP + "ui/A.kt", "val a = store.demoMode\nval b = fixtures.demoMode\nval c = demo.isActive\n")
         self.assertEqual(self.counts("demo-check"), {APP + "ui/A.kt": 3})
 
+    def test_demo_check_sees_the_stored_flag_by_any_name(self):
+        self.write(APP + "ui/A.kt", "val a = !debugFixtures.demoMode\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/A.kt": 1})
+
+    def test_demo_check_sees_the_read_that_crosses_the_accounts(self):
+        self.write(APP + "ui/A.kt", "val a = session.demoFromElsewhere\n")
+        self.assertEqual(self.counts("demo-check"), {APP + "ui/A.kt": 1})
+
+    def test_demo_check_leaves_a_local_of_that_name_alone(self):
+        self.write(APP + "ui/A.kt", "private val demoMode = sampled\nval a = demoMode\n")
+        self.assertEqual(self.counts("demo-check"), {})
+
+    def test_demo_check_homes_are_the_session_not_its_folder(self):
+        self.write(APP + "auth/session/AccountSessions.kt", "val a = fixtures.demoMode\n")
+        self.write(APP + "auth/session/SignOutWipe.kt", "val a = session.isDemo\n")
+        self.write("shared/src/main/java/org/ntust/app/tigerduck/shared/account/Other.kt", "val a = isDemo\n")
+        self.assertEqual(self.counts("demo-check"), {
+            APP + "auth/session/SignOutWipe.kt": 1,
+            "shared/src/main/java/org/ntust/app/tigerduck/shared/account/Other.kt": 1,
+        })
+
     def test_sign_in_read_honors_its_homes_and_takes_no_baseline(self):
         line = "@OptIn(StartsAccountWork::class)\nfun f() {}\n"
         for home in ("auth/AuthService.kt", "ui/screen/Home.kt", "ui/AppState.kt", "TigerDuckApp.kt",

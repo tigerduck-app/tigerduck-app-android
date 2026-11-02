@@ -506,7 +506,7 @@ class SettingsViewModel @Inject constructor(
                 }
                 // The demo account itself never reaches the library, so
                 // anything else fails there the way a wrong password would.
-                if (demoAccount.isActive) {
+                if (sessions.school.isDemo) {
                     _libLoginError.value = context.getString(R.string.error_sign_in_failed)
                     return@launch
                 }

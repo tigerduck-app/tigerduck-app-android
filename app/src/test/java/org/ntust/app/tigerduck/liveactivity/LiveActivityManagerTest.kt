@@ -99,7 +99,7 @@ class LiveActivityManagerTest {
     private val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher())
     private var signedIn = true
     private var storedId: String? = "B00015999"
-    private var demoSession = false
+    private val demoSession = AccountSession(SignInSeries(), scope)
     private var storedIdRead: () -> String? = { storedId }
 
     private val course = Course(courseNo = "CS3005301", courseName = "Data Structures", scheduleJson = """{"1":["2","3"]}""")
@@ -115,7 +115,7 @@ class LiveActivityManagerTest {
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = scope,
         storedStudentId = { storedIdRead() },
-        isDemoSession = { demoSession },
+        session = demoSession,
     )
 
     private val manager = managerWith(calendar)
@@ -188,7 +188,7 @@ class LiveActivityManagerTest {
     @Test
     fun `the demo account, which has no stored student ID, still arms`() {
         storedId = null
-        demoSession = true
+        demoSession.signIns.startDemo()
         appPrefs.classReminderEnabled = true
 
         refresh()
@@ -309,7 +309,6 @@ class LiveActivityManagerTest {
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = liveScope,
         storedStudentId = { storedIdRead() },
-        isDemoSession = { demoSession },
         session = session,
     )
 
@@ -432,7 +431,7 @@ class LiveActivityManagerTest {
             courseChanges = { feed.value },
             courseChangesUpdated = feed,
             // No account: the real scheduler here reads none either.
-            isDemoSession = { true },
+            session = AccountSession(SignInSeries(demo = true), liveScope),
         ).also {
             runBlocking { it.refreshAndWait() }
             // Past the feed it starts with, so the next one is a change.

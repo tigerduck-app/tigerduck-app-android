@@ -10,7 +10,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
@@ -56,17 +55,16 @@ class MoodleAutologin internal constructor(
         webservice: MoodleWebservice,
         tokenService: MoodleTokenService,
         session: AccountSession,
-        demoAccount: DemoAccount,
         @ApplicationScope appScope: CoroutineScope,
     ) : this(
         // The demo account has no network and no private token.
         keySource = {
-            if (demoAccount.isActive) null else requestKey(webservice, tokenService::currentPrivateToken)
+            if (session.isDemo) null else requestKey(webservice, tokenService::currentPrivateToken)
         },
         scope = appScope,
         currentSignIn = { session.current },
         hasPrivateToken = { tokenService.currentPrivateToken() != null },
-        canFetchPrivateToken = { !demoAccount.isActive && tokenService.currentToken() != null },
+        canFetchPrivateToken = { !session.isDemo && tokenService.currentToken() != null },
         fetchPrivateToken = tokenService::fetchPrivateToken,
     )
 

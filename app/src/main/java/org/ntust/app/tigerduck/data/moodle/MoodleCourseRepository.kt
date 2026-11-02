@@ -16,6 +16,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.auth.session.follow
@@ -48,7 +49,8 @@ class MoodleCourseRepository internal constructor(
     private val signedIn: () -> Boolean,
     /** The account the stores are for; null with none. */
     private val account: () -> String?,
-    private val isDemo: () -> Boolean,
+    /** The school's session, which says whether the stores are the demo's. */
+    private val session: AccountSession,
     private val liveApi: MoodleCourseApi,
     private val demoApi: () -> MoodleCourseApi?,
     private val idMap: suspend () -> Map<String, Int>,
@@ -94,9 +96,9 @@ class MoodleCourseRepository internal constructor(
         // the same.
         account = {
             authService.storedStudentId?.takeIf { it.isNotBlank() }
-                ?: if (demoAccount.isActive) DEMO_ACCOUNT else null
+                ?: if (sessions.school.isDemo) DEMO_ACCOUNT else null
         },
-        isDemo = { demoAccount.isActive },
+        session = sessions.school,
         liveApi = live,
         demoApi = demoAccount::moodleApi,
         idMap = dataCache::loadMoodleCourseIds,
@@ -186,7 +188,7 @@ class MoodleCourseRepository internal constructor(
         }
 
     /** The Moodle the account's stores ask: the demo account's own, else the live site; null when the demo has none. */
-    private fun apiLocked(): MoodleCourseApi? = if (isDemo()) {
+    private fun apiLocked(): MoodleCourseApi? = if (session.isDemo) {
         demo ?: demoApi()?.let(::SwitchableApi)?.also { demo = it }
     } else {
         liveApi
@@ -201,7 +203,7 @@ class MoodleCourseRepository internal constructor(
         val signIn = currentSignIn()
         MoodleCacheContext(
             account = account,
-            cache = if (isDemo()) demoCache else cachePort(account, signIn),
+            cache = if (session.isDemo) demoCache else cachePort(account, signIn),
             isCurrent = { signIn.isCurrent && signedIn() && account() == account },
         )
     }
@@ -238,7 +240,7 @@ class MoodleCourseRepository internal constructor(
      */
     private suspend fun reloadDemo() = lock.withLock {
         val switchable = demo ?: return@withLock
-        if (!isDemo()) return@withLock
+        if (!session.isDemo) return@withLock
         switchable.api = demoApi() ?: return@withLock
         stores.values.forEach { it.reloadAll() }
     }

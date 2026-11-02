@@ -119,6 +119,7 @@ class AppState @Inject constructor(
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     private val pushRegistration: org.ntust.app.tigerduck.push.PushRegistrationService,
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
+    session: org.ntust.app.tigerduck.auth.session.AccountSession,
     private val mailAccount: org.ntust.app.tigerduck.mail.MailAccount,
     val librarySession: LibrarySession,
     private val wearBridge: org.ntust.app.tigerduck.wear.WearScheduleBridge,
@@ -126,13 +127,11 @@ class AppState @Inject constructor(
     private val courseChangeStore: org.ntust.app.tigerduck.coursechanges.CourseChangeStore,
 ) {
     /**
-     * Whether the demo account was signed in when this process started.
-     *
-     * Sampled once, for what is decided once per process — the onboarding
-     * skip below, and rewriting the demo data. The demo sign-in switches the
-     * network and the status dots itself, without waiting for a restart.
+     * Whether the demo account was signed in when this process started. Sampled once, for what
+     * is decided once per process: the onboarding skip below, and rewriting the demo data. The
+     * demo sign-in switches the network and the status dots itself, without waiting for a restart.
      */
-    private val demoMode = demoAccount.isActive
+    private val demoMode = session.isDemo
 
     init {
         if (demoMode) {

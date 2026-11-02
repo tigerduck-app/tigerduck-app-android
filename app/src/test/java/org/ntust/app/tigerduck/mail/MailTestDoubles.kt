@@ -132,7 +132,7 @@ class RecordingNotifier : MailNotifier {
     }
 }
 
-class FakeDemoGate(override var appDemoActive: Boolean = false) : MailDemoGate {
+class FakeDemoGate : MailDemoGate {
     var box = DemoMailbox(
         studentId = "B10000099", password = "demo", displayName = "示範同學",
         messages = listOf(

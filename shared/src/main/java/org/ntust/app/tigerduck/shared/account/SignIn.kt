@@ -40,6 +40,8 @@ class SignIn internal constructor(private val series: SignInSeries, val isDemo: 
  */
 class SignInSeries(closed: Boolean = false, demo: Boolean = false) {
     internal val lock = Any()
+
+    @Volatile
     private var demoNext = demo
     private var open = !closed
 
@@ -56,6 +58,13 @@ class SignInSeries(closed: Boolean = false, demo: Boolean = false) {
 
     /** The current sign-in; while the series is closed, the one that ended. Never null. */
     val current: SignIn get() = latest
+
+    /**
+     * Whether the account is the demo now: from [startDemo], or from the start, until [leaveDemo].
+     * A sign-in keeps its own [SignIn.isDemo] for good. This one lowers as the demo is left, with
+     * the sign-in that ended still [current].
+     */
+    val isDemo: Boolean get() = demoNext
 
     /** Ends the current sign-in and closes the series. A second call changes nothing. */
     fun end(): SignIn = synchronized(lock) {
@@ -76,7 +85,10 @@ class SignInSeries(closed: Boolean = false, demo: Boolean = false) {
         }
     }
 
-    /** Ends the current sign-in and opens a demo one. */
+    /**
+     * Ends the current sign-in and opens a demo one. It opens the series whatever closed it, so
+     * a caller a sign-out's wipe must hold off asks first, inside [SignIn.ifCurrent].
+     */
     fun startDemo() = synchronized(lock) {
         end()
         demoNext = true

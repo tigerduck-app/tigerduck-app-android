@@ -26,7 +26,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * The account then shows as signed in ([markSignedIn]). The library and the school mail are signed
  * in to by themselves: a school sign-in signs neither in (decided for Android on 2026-10-22). The
  * demo account ([isDemoAccount]) signs in on the device ([enterDemo]), stored the same way, with
- * nothing sent anywhere.
+ * nothing sent anywhere: under a sign-in of its own, which takes the place of the one read at the
+ * start, and which every check here then asks about.
  *
  * A sign-out takes no sign-in lock, so it can land at any point, the moment the school answers
  * included. The store and the account showing as signed in each happen only while the [SignIn]
@@ -57,8 +58,11 @@ internal class TypedAccountSignIn(
     private val leaveStoredAccount: suspend () -> Unit,
     /** Whether these are the demo account's credentials. Reads the bundled file and nothing else. */
     private val isDemoAccount: (studentId: String, password: String) -> Boolean,
-    /** Signs the demo account in on the device. */
-    private val enterDemo: suspend () -> Unit,
+    /**
+     * Signs the demo account in on the device in place of the [SignIn], and hands back the sign-in
+     * that takes its place; null, with nothing changed, when a sign-out has ended it.
+     */
+    private val enterDemo: suspend (SignIn) -> SignIn?,
     /**
      * Writes, before anything of the new account reaches disk, what a process death right after
      * must not lose: the in-app browser's clearing, which the account change then owes.
@@ -84,13 +88,14 @@ internal class TypedAccountSignIn(
 
     /**
      * Signs in as [studentId] with [password]. [prepareSignedIn] runs what must hold before the
-     * account shows as signed in; [afterShown] runs the rest once it does, with the sign-in
-     * read before the store and whether the account stored before was this one.
+     * account shows as signed in, under the sign-in that will show; [afterShown] runs the rest
+     * once it does, with the sign-in read before the store and whether the account stored before
+     * was this one.
      */
     suspend fun signIn(
         studentId: String,
         password: String,
-        prepareSignedIn: suspend () -> Unit,
+        prepareSignedIn: suspend (SignIn) -> Unit,
         afterShown: suspend (SignIn, sameStudent: Boolean) -> SignInAttempt,
     ): Outcome {
         var started = signInOnceOpen()
@@ -109,11 +114,11 @@ internal class TypedAccountSignIn(
             overStoredAccount()
             // Demo mode is on disk once it goes on.
             accountChanging()
-            enterDemo()
+            started = enterDemo(started) ?: return Outcome.NOT_SIGNED_IN
             if (!unlessSignedOutSince(started) { storeAccount(studentId, password) }) {
                 return Outcome.NOT_SIGNED_IN
             }
-            prepareSignedIn()
+            prepareSignedIn(started)
             if (!markSignedIn(started)) return Outcome.NOT_SIGNED_IN
             return Outcome.DEMO
         }
@@ -133,7 +138,7 @@ internal class TypedAccountSignIn(
             }
             // Cancelled from here on, the sign-in still leaves the password the school took,
             // with no refusal of the old one held against it.
-            prepareSignedIn()
+            prepareSignedIn(started)
             if (!markSignedIn(started)) return@signInInteractively SignInAttempt.NOTHING_TO_SEND
             outcome = Outcome.SIGNED_IN
             afterShown(signIn, sameStudent)

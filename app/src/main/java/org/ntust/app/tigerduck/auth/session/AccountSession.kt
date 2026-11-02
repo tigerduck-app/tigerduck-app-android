@@ -29,13 +29,13 @@ annotation class StartsAccountWork
  * it. The sign-out ends the sign-in and then [cancelWork]; the wipe follows, and [open] starts
  * the next sign-in once it is done.
  *
- * [isDemo] answers as the code it replaces did, from [demo], until the demo moves into the
- * session.
+ * [isDemo] is the one answer to whether the account is the demo.
  */
 class AccountSession(
     val signIns: SignInSeries,
     private val scope: CoroutineScope,
-    private val demo: () -> Boolean = { false },
+    /** The session whose demo is this one's too: see [demoFromElsewhere]. */
+    private val alsoDemoWhile: AccountSession? = null,
     /** The marker a sign-out sets before it ends the sign-in; absent for a session whose wipe is not owed. */
     private val owed: SignOutOwed? = null,
     private val account: Account = Account.SCHOOL,
@@ -107,7 +107,32 @@ class AccountSession(
         return job
     }
 
-    val isDemo: Boolean get() = demo()
+    /**
+     * Whether the account is the demo: its own series, or [demoFromElsewhere]. The series is the
+     * truth from the start of the process, and the demo's sign-in and its exit move it, so a
+     * sign-out's steps before the exit still see the demo, and everything after it does not, the
+     * wipe included.
+     */
+    val isDemo: Boolean get() = signIns.isDemo || demoFromElsewhere
+
+    /**
+     * Whether the session this one follows is the demo, whatever this account's own series says:
+     * a real account stored here is then shut, and no sign-in of a real one may reach a server.
+     */
+    val demoFromElsewhere: Boolean get() = alsoDemoWhile?.isDemo == true
+
+    /**
+     * Opens a demo sign-in in place of [from], unless a sign-out has ended [from]: [prepare], which
+     * must not take a lock a sign-out holds, then the sign-in, in one step against that sign-out's
+     * end. So a sign-out either came first, and nothing of the demo is raised behind it, or it
+     * ends the demo sign-in and undoes [prepare] after. Null when it came first. A session a
+     * sign-out's wipe holds closed stays closed.
+     */
+    fun startDemo(from: SignIn, prepare: () -> Unit): SignIn? = from.ifCurrent {
+        prepare()
+        signIns.startDemo()
+        signIns.current
+    }?.also { cancelWork() }
 
     /** Cancels what [launch] started. Called after the sign-in ended, and after the sign-in lock is released. */
     fun cancelWork() {

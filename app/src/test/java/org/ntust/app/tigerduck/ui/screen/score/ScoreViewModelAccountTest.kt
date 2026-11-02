@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSession
 
 /**
  * Score follows the signed-in account: it loads after a sign-in from its own page, and the
@@ -37,6 +38,7 @@ import org.ntust.app.tigerduck.shared.account.SignInSeries
 class ScoreViewModelAccountTest {
     @get:Rule val main = MainDispatcherRule()
 
+    private val session = testSession()
     private val signedIn = MutableStateFlow(false)
     private var studentId: String? = null
     private var online = true
@@ -63,10 +65,22 @@ class ScoreViewModelAccountTest {
             report(id)
         },
         isOnline = { online },
-        isDemo = { false },
+        session = session,
         strings = { "string $it" },
         rosterCourses = { emptyList() },
     )
+
+    @Test
+    fun `the demo account has no scores to ask for, and shows the empty state rather than a failure`() {
+        session.signIns.startDemo()
+        signIn("B00015999")
+        val vm = viewModel()
+
+        vm.load()
+
+        assertEquals(emptyList<String>(), fetches.toList())
+        assertEquals(null, vm.errorMessage.value)
+    }
 
     private fun signIn(id: String) {
         studentId = id

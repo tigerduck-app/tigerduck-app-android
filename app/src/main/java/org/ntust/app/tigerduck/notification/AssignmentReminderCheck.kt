@@ -8,7 +8,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.moodle.AssignmentStatusWriter
 import org.ntust.app.tigerduck.data.moodle.AssignmentStatusWriter.StatusWrite
 import org.ntust.app.tigerduck.data.moodle.SubmissionStatusAnswer
-import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.SubmissionStatusProbe
@@ -31,7 +31,7 @@ class AssignmentReminderCheck internal constructor(
     private val dataCache: DataCache,
     private val scheduler: AssignmentNotificationScheduler,
     private val statusProbe: SubmissionStatusProbe,
-    private val fixtures: DebugFixtureStore,
+    private val session: AccountSession,
     private val reminderPrefs: AppPreferences,
     private val statusWriter: AssignmentStatusWriter,
     /** The clock the writer orders answers by; see [SubmissionStatusAnswer.askedAtMs]. */
@@ -42,10 +42,10 @@ class AssignmentReminderCheck internal constructor(
         dataCache: DataCache,
         scheduler: AssignmentNotificationScheduler,
         statusProbe: SubmissionStatusProbe,
-        fixtures: DebugFixtureStore,
+        session: AccountSession,
         reminderPrefs: AppPreferences,
         statusWriter: AssignmentStatusWriter,
-    ) : this(dataCache, scheduler, statusProbe, fixtures, reminderPrefs, statusWriter, SystemClock::elapsedRealtime)
+    ) : this(dataCache, scheduler, statusProbe, session, reminderPrefs, statusWriter, SystemClock::elapsedRealtime)
 
     /** A sign-out while this runs wipes the data, and ends [signIn]: nothing is written back after it. */
     suspend fun verdict(assignmentId: String, armedDueAtMs: Long?, signIn: SignIn): ReminderVerdict {
@@ -54,7 +54,7 @@ class AssignmentReminderCheck internal constructor(
             ?.let { return ReminderVerdict.Drop(it) }
         // The demo account has no Moodle token to ask with: its submission status is the
         // bundled file's, already in the cache, which has the assignment still due.
-        if (fixtures.demoMode) return ReminderVerdict.Show
+        if (session.isDemo) return ReminderVerdict.Show
 
         val moodleId = assignmentId.toIntOrNull()
         val askedAtMs = monotonicNowMs()

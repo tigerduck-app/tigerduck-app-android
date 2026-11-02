@@ -81,7 +81,7 @@ class AnnouncementsFilterStartsEmptyTest {
         val api = BulletinApiClient(client, prefs, AuthTokenManager(tokens, client, prefs, "device-1"))
         return AnnouncementsViewModel(
             SavedStateHandle(), api, cache, repository, BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache), testSessions(context), AppReturns(now = { 0L }, register = {}),
+            testSessions(context), AppReturns(now = { 0L }, register = {}),
         )
     }
 

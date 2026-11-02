@@ -19,7 +19,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "demo-check",
-    "count": 7
+    "count": 6
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -40,7 +40,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
     "kind": "demo-check",
-    "count": 2
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredPasswordLatch.kt",
@@ -50,7 +50,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/browser/MoodleWebSessionSignIn.kt",
     "kind": "demo-check",
-    "count": 2
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/BulletinRepository.kt",
@@ -70,7 +70,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseRepository.kt",
     "kind": "demo-check",
-    "count": 6
+    "count": 4
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseStore.kt",
@@ -124,11 +124,6 @@
     "count": 408
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/di/BrowserModule.kt",
-    "kind": "demo-check",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/files/Archives.kt",
     "kind": "long-file",
     "count": 993
@@ -141,7 +136,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
     "kind": "demo-check",
-    "count": 3
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityNotifier.kt",
@@ -192,7 +187,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/sync/MailChecker.kt",
     "kind": "demo-check",
-    "count": 2
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/sync/MailChecker.kt",
@@ -339,7 +334,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
     "kind": "long-file",
-    "count": 1058
+    "count": 1057
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
@@ -371,7 +366,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/AppState.kt",
     "kind": "long-file",
-    "count": 760
+    "count": 759
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/AssignmentItem.kt",
@@ -551,7 +546,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/AnnouncementsViewModel.kt",
     "kind": "long-file",
-    "count": 602
+    "count": 600
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/announcements/SubscriptionRuleEditorScreen.kt",
@@ -1199,7 +1194,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/score/ScoreViewModel.kt",
     "kind": "demo-check",
-    "count": 3
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/AccentColorScreen.kt",

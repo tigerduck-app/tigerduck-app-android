@@ -77,7 +77,7 @@ class AnnouncementsHeaderTest {
         runBlocking { cache.save((1..30).map { bulletin(it) }) }
         val vm = AnnouncementsViewModel(
             SavedStateHandle(), api(), cache, BulletinRepository(), BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache, DebugFixtureStore(context)), testSessions(context),
+            testSessions(context),
             AppReturns(now = { 0L }, register = {}),
         )
         composeRule.setContent {

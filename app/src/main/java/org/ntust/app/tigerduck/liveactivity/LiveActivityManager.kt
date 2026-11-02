@@ -61,7 +61,6 @@ class LiveActivityManager internal constructor(
     private val courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
     private val courseChangesUpdated: Flow<CourseChanges> = emptyFlow(),
     private val storedStudentId: () -> String? = { null },
-    private val isDemoSession: () -> Boolean = { false },
     /** The school session, which a refresh runs on. The default is one of its own, for tests not about it. */
     private val session: AccountSession = AccountSession(SignInSeries(), appScope),
 ) {
@@ -98,7 +97,6 @@ class LiveActivityManager internal constructor(
         // on the app's scope, not as the manager is injected on the main thread.
         courseChangesUpdated = flow { emitAll(courseChangeStore.changes) },
         storedStudentId = { authService.storedStudentId },
-        isDemoSession = { authService.isDemoSession },
         session = sessions.school,
     )
 
@@ -191,7 +189,7 @@ class LiveActivityManager internal constructor(
         // refresh in that gap sees both "signed in" and no ID.
         val account = runCatching { storedStudentId() }
         val startedFor = account.getOrNull()
-        val leaving = account.isSuccess && signedIn && startedFor == null && !isDemoSession()
+        val leaving = account.isSuccess && signedIn && startedFor == null && !session.isDemo
         // Classes do not meet on a school holiday, nor before 開學 — 選課 fills the timetable
         // weeks ahead of the term, so having courses is not evidence that classes have started.
         // Neither the chip nor the class-preparing alarm should surface one on such a day. Read

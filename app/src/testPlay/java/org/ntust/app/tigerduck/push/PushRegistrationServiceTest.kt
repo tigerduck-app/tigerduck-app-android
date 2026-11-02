@@ -14,6 +14,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -38,7 +39,6 @@ import org.ntust.app.tigerduck.data.preferences.PendingUnregisterPrefs
 import org.ntust.app.tigerduck.data.preferences.clearAllButOwedUnregister
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
-import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.robolectric.RobolectricTestRunner
@@ -118,7 +118,6 @@ class PushRegistrationServiceTest {
             appPreferences = prefs,
             uiLanguage = UiLanguageMonitor(prefs),
             scope = backgroundScope,
-            fixtures = DebugFixtureStore(context),
             departingUnregister = DepartingDeviceUnregister(
                 owed = OwedUnregister(owedStore),
                 deleteDevice = PushApiClient(backend.client, prefs, auth)::deleteDevice,
@@ -424,6 +423,66 @@ class PushRegistrationServiceTest {
     private fun unregisterWork(): List<WorkInfo.State> =
         WorkManager.getInstance(context)
             .getWorkInfosForUniqueWork(DepartingUnregisterWorker.UNIQUE_NAME).get().map { it.state }
+
+    // The demo account, which registered nothing and has no server to tell
+
+    @Test
+    fun `the demo registers nothing, and reports what a registered device reports`() = runTest {
+        val service = service()
+        auth.session.signIns.startDemo()
+
+        service.update("fcm-1")
+        service.awaitRegistrations()
+
+        assertEquals(emptyList<Any>(), backend.received(REGISTER))
+        assertTrue(service.diagnostic.value.isRegistered)
+    }
+
+    @Test
+    fun `the demo's push opt-out stays on the device, and reads as accepted`() = runTest {
+        val service = service()
+        auth.session.signIns.startDemo()
+
+        assertTrue(service.updateServerPushOptOut(true))
+
+        assertTrue(service.isServerPushOptedOut())
+        assertEquals(emptyList<Any>(), backend.received(PREFERENCES))
+    }
+
+    @Test
+    fun `the demo's TigerSync switch stays on the device`() = runTest {
+        val service = service()
+        auth.session.signIns.startDemo()
+
+        service.updateCloudSyncEnabled(true)
+
+        assertTrue(prefs.cloudSyncEnabled)
+        assertEquals(emptyList<Any>(), backend.received(PREFERENCES))
+    }
+
+    @Test
+    fun `the demo's sync preferences go nowhere`() = runTest {
+        val service = service()
+        auth.session.signIns.startDemo()
+
+        service.updateSyncPreferences(true, true, true, true, true, true)
+
+        assertEquals(emptyList<Any>(), backend.received(PREFERENCES))
+    }
+
+    @Test
+    fun `the demo's sign-out deletes nothing, as it is still the demo when asked`() = runTest {
+        val service = service(signedIn = false)
+        auth.session.signIns.startDemo()
+
+        service.unregister(departing())
+        // Left at once, as the sign-out leaves demo mode straight after this call.
+        auth.session.signIns.leaveDemo()
+        runCurrent()
+
+        assertEquals(emptyList<Any>(), deletes())
+        assertNull(owed.pending)
+    }
 
     @Test
     fun `a sign-out's unregister the server cannot take yet is kept and queued for later`() = runTest {

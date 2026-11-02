@@ -52,7 +52,7 @@ class BulletinSearchResetTest {
         val cache = BulletinCache(context)
         vm = AnnouncementsViewModel(
             SavedStateHandle(), api, cache, BulletinRepository(), BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache), testSessions(context), returns,
+            testSessions(context), returns,
         )
     }
 

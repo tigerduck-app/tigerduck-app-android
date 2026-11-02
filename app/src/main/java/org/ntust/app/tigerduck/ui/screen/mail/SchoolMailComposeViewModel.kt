@@ -415,7 +415,7 @@ class SchoolMailComposeViewModel @Inject constructor(
             _state.update { it.copy(loading = true, loadError = null) }
             val signIn = account.currentSignIn
             val held = try {
-                withContext(io) { account.ownAddress?.let { heldSends.adopt(id, it) }?.also { heldId = id } }
+                withContext(io) { account.heldMailOwner?.let { heldSends.adopt(id, it) }?.also { heldId = id } }
             } catch (e: CancellationException) {
                 // Closed while it read: an adoption that went through still lets go, or no composer
                 // could open the mail again before the next restart.
@@ -620,7 +620,7 @@ class SchoolMailComposeViewModel @Inject constructor(
      * [signIn] has ended. Reads the encrypted store and copies each file: for the IO dispatcher.
      */
     private fun keep(id: String, s: UiState, signIn: SignIn): Boolean {
-        val owner = account.ownAddress ?: return false
+        val owner = account.heldMailOwner ?: return false
         val fields = HeldSendStore.Fields(
             mode.name, sourceFolder, sourceUid, sourceLoaded, inReplyTo, references,
             s.to.entries, s.cc.entries, s.bcc.entries, s.subject, s.body,
