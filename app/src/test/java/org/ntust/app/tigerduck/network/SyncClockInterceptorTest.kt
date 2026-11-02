@@ -97,7 +97,9 @@ class SyncClockInterceptorTest {
 
     @Test
     fun `a header that is no clock is not heard`() {
-        listOf(null, "", "abc", "12.5", "0", "-5", "99999999999999999999").forEach { value ->
+        // Not a number, below 2020 or past 2100 in microseconds, or one whose stamps would overflow.
+        val notClocks = listOf(null, "", "abc", "12.5", "0", "-5", "99999999999999999999", "1000", "4200000000000000", "${Long.MAX_VALUE}")
+        notClocks.forEach { value ->
             answer = { reply(it, clock = value) }
             get("https://api.example.test/v3/sync/full")
         }

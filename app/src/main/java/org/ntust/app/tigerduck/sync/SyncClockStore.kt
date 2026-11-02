@@ -10,7 +10,8 @@ import javax.inject.Inject
  * [SyncClock]'s state on disk, `tigerduck_sync_clock`. Device scope: the clock spec keeps it across
  * a sign-out ("The clock state survives relaunch"), as the backend's time and the stamps this
  * device issued are no account's, and a full reset leaves it too. Absent keys read as nothing
- * heard or issued, which is a build before the clock's.
+ * heard or issued, which is a build before the clock's; so do values past any plausible time
+ * ([isPlausibleClockUs]), which only a broken file holds.
  *
  * A write is [save]d with `commit()` when its value is ahead of the wall clock, and with `apply()`
  * otherwise. A lost write of a value behind the wall clock costs nothing: the next launch's wall
@@ -24,9 +25,9 @@ class SyncClockStore(private val prefs: SharedPreferences) {
         this(context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE))
 
     internal fun load(): SyncClockState = SyncClockState(
-        lastIssuedMs = prefs.getLong(KEY_LAST_ISSUED_MS, 0L),
-        lastSeenUs = prefs.getLong(KEY_LAST_SEEN_US, 0L),
-        heardUs = if (prefs.contains(KEY_HEARD_US)) prefs.getLong(KEY_HEARD_US, 0L) else null,
+        lastIssuedMs = prefs.getLong(KEY_LAST_ISSUED_MS, 0L).takeIf { it in 0..LATEST_CLOCK_US / 1_000 } ?: 0L,
+        lastSeenUs = prefs.getLong(KEY_LAST_SEEN_US, 0L).takeIf(::isPlausibleClockUs) ?: 0L,
+        heardUs = if (prefs.contains(KEY_HEARD_US)) prefs.getLong(KEY_HEARD_US, 0L).takeIf(::isPlausibleClockUs) else null,
         heardAtMs = prefs.getLong(KEY_HEARD_AT_MS, 0L),
     )
 

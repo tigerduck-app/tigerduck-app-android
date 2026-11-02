@@ -55,8 +55,9 @@ class SyncClock internal constructor(
         }
     }
 
-    /** The backend's clock, from an `X-TigerSync-Clock` header heard now. */
+    /** The backend's clock, from an `X-TigerSync-Clock` header heard now; ignored unless [isPlausibleClockUs]. */
     fun heard(serverClockUs: Long) {
+        if (!isPlausibleClockUs(serverClockUs)) return
         synchronized(lock) {
             val now = wallClock()
             val state = state()
@@ -66,8 +67,12 @@ class SyncClock internal constructor(
         }
     }
 
-    /** A clock value read in a snapshot or in a write's answer: it raises the last seen value only. */
+    /**
+     * A clock value read in a snapshot or in a write's answer: it raises the last seen value only,
+     * and is ignored unless [isPlausibleClockUs].
+     */
     fun heardInSnapshot(clockUs: Long) {
+        if (!isPlausibleClockUs(clockUs)) return
         synchronized(lock) {
             val now = wallClock()
             val state = state()
@@ -100,6 +105,18 @@ class SyncClock internal constructor(
         store.save(state, durable)
     }
 }
+
+/**
+ * Whether [clockUs] can be a TigerSync clock value: a time from 2020 to 2100, in µs. Anything else
+ * is a broken header or a broken file, and taken in, it would hold every later stamp past it for
+ * good, as a stamp never goes below the last value seen, and a sign-out or a full reset keeps that.
+ * The bound keeps a stamp's wire value, its ms times 1000, far from overflowing too.
+ */
+internal fun isPlausibleClockUs(clockUs: Long): Boolean = clockUs in EARLIEST_CLOCK_US..LATEST_CLOCK_US
+
+// 2020-01-01T00:00:00Z and 2100-01-01T00:00:00Z, in µs.
+internal const val EARLIEST_CLOCK_US = 1_577_836_800_000_000L
+internal const val LATEST_CLOCK_US = 4_102_444_800_000_000L
 
 /**
  * What the clock keeps: the last stamp it issued, in epoch ms; the last backend clock value it has

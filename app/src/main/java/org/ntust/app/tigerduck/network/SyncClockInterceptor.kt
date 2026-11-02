@@ -6,6 +6,7 @@ import okhttp3.Response
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.isPlausibleClockUs
 
 /**
  * Hears the backend's clock: every response from our backend carries `X-TigerSync-Clock`, errors
@@ -16,8 +17,9 @@ import org.ntust.app.tigerduck.sync.SyncClock
  * whichever service made it. Only our backend's, the one the endpoint setting names now at either
  * API version ([ApiBase.serves]): the NTUST, Moodle and library traffic on the same client, and a
  * departing unregister to a backend the setting no longer names, say nothing of its time. Read from
- * the response's own request, the last hop of any redirect. Hearing changes no request and no
- * response, and a clock that cannot record what it heard fails nothing.
+ * the response's own request, the last hop of any redirect. A value that is no plausible time
+ * ([isPlausibleClockUs]) is not heard. Hearing changes no request and no response, and a clock
+ * that cannot record what it heard fails nothing.
  */
 class SyncClockInterceptor internal constructor(
     // Our backend's base URL as the endpoint setting names it now; null when it cannot be read.
@@ -32,7 +34,7 @@ class SyncClockInterceptor internal constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val response = chain.proceed(chain.request())
-        val clock = response.header(CLOCK_HEADER)?.trim()?.toLongOrNull()?.takeIf { it > 0 } ?: return response
+        val clock = response.header(CLOCK_HEADER)?.trim()?.toLongOrNull()?.takeIf(::isPlausibleClockUs) ?: return response
         val base = backend() ?: return response
         if (!ApiBase.serves(base, response.request.url)) return response
         try {

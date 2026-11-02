@@ -187,6 +187,37 @@ class SyncClockTest {
     }
 
     @Test
+    fun `a clock value outside any plausible time is not heard`() {
+        val clock = clock()
+        // Before 2020, past 2100, and a value whose stamps would overflow once sent as microseconds.
+        listOf(1_000L, -5L, 4_200_000_000_000_000L, Long.MAX_VALUE).forEach { value ->
+            clock.heard(value)
+            clock.heardInSnapshot(value)
+        }
+
+        assertEquals(SyncClockState(), SyncClockStore(file).load())
+        assertEquals(T + 1, clock.stampMs())
+        assertEquals(T + 2, clock.restampAfterClockAhead(Long.MAX_VALUE))
+    }
+
+    @Test
+    fun `an implausible clock value is not kept on v3 either`() {
+        api = BackendApi.V3
+        clock().heard(Long.MAX_VALUE)
+
+        assertEquals(SyncClockState(), SyncClockStore(file).load())
+    }
+
+    @Test
+    fun `a stored value outside any plausible time reads as nothing`() {
+        file.edit().putLong("lastSeenUs", Long.MAX_VALUE).putLong("heardUs", Long.MAX_VALUE)
+            .putLong("lastIssuedMs", Long.MAX_VALUE).putLong("heardAtMs", T).commit()
+
+        assertEquals(SyncClockState(heardAtMs = T), SyncClockStore(file).load())
+        assertEquals(T + 1, clock().stampMs())
+    }
+
+    @Test
     fun `nothing stored reads as nothing heard or issued`() {
         assertEquals(SyncClockState(), SyncClockStore(file).load())
         assertEquals(null, SyncClockState().capMs(T))
