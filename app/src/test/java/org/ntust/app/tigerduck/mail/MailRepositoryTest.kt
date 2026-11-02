@@ -2625,6 +2625,25 @@ class MailRepositoryTest {
     }
 
     @Test
+    fun `a sign-out and a sign-in landing before it runs are both seen`() = runTest {
+        val setup = TestSetup(backgroundScope)
+        val repo = runBlocking { setup.signedIn() }
+        runBlocking { repo.folders() }
+        assertEquals(1, server.openSessions)
+
+        // The same student: the account reads the same once both have landed.
+        runBlocking {
+            setup.account.signOut()
+            setup.account.signIn("b10000001", "pw")
+        }
+        withContext(Dispatchers.Default) {
+            withTimeout(5_000) { while (server.openSessions != 0) delay(10) }
+        }
+
+        assertEquals(0, server.openSessions)
+    }
+
+    @Test
     fun `signing out closes the held connection`() = runTest {
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn()

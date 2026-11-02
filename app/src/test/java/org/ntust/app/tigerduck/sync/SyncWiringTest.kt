@@ -182,6 +182,18 @@ class SyncWiringTest {
         assertCalls(rel, "syncOverridesFromBackend", "if (marksChanged && prefs.notifyAssignments && signIn.isCurrent) {")
     }
 
+    /** The notifier cannot be held open here: one step with the sign-in's end, by reading it. */
+    @Test
+    fun `the Live Update's post lands in one step with the sign-in's end`() {
+        assertCalls("liveactivity/LiveActivityManager.kt", "refreshLocked", "signIn.ifCurrent { notifier.apply(snapshot, quiet) }")
+    }
+
+    /** What a push it queues would do takes a running queue: nothing starts for a login that landed nothing. */
+    @Test
+    fun `a login cut off starts the copy only with a session`() {
+        assertCalls("auth/AuthService.kt", "login", "if (authTokenManager.isLoggedIn) notificationSettingsSync.pushIfUnconfirmed()")
+    }
+
     /** What stops them is RunRefreshesTest's; the worker cannot be built here. */
     @Test
     fun `the worker's refreshes stop with its sign-in`() {
