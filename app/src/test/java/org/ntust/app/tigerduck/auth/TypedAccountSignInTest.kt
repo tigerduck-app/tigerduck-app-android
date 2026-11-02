@@ -67,8 +67,11 @@ class TypedAccountSignInTest {
     /** The sign-in [prepare] ran under. */
     private var preparedUnder: SignIn? = null
 
-    /** Runs as the demo account signs in on the device. */
+    /** Runs as the demo account signs in on the device, before it goes on. */
     private var onDemo: () -> Unit = {}
+
+    /** Runs with the demo on, as its data is written. */
+    private var onDemoWrite: () -> Unit = {}
 
     /** The sign-outs that ran. */
     private var signOuts = 0
@@ -128,7 +131,7 @@ class TypedAccountSignInTest {
         enterDemo = { from ->
             steps += "demo"
             onDemo()
-            from.isCurrent
+            session.startDemo(from) {}.also { onDemoWrite() }
         },
         accountChanging = { steps += "owed" },
         markSignedIn = { signIn ->
@@ -403,6 +406,32 @@ class TypedAccountSignInTest {
         signIn()
 
         assertSame(session.signIns.current, preparedUnder)
+    }
+
+    @Test
+    fun `the demo signs in under a sign-in of its own, which is the one that shows`() = runTest {
+        val from = session.signIns.current
+
+        assertEquals(TypedAccountSignIn.Outcome.DEMO, signIn(password = DEMO_PASSWORD))
+
+        assertFalse(from.isCurrent)
+        assertTrue(preparedUnder!!.isDemo)
+        assertSame(session.signIns.current, preparedUnder)
+        assertTrue(signedIn)
+    }
+
+    @Test
+    fun `a sign-out while the demo's data is written stores nothing, though the next sign-in has opened`() = runTest {
+        // The wipe over: the sign-in to ask about is the demo's own, not the one open by now.
+        onDemoWrite = {
+            signOut()
+            session.open()
+        }
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, signIn(password = DEMO_PASSWORD))
+
+        assertEquals(null, stored)
+        assertFalse(signedIn)
     }
 
     @Test

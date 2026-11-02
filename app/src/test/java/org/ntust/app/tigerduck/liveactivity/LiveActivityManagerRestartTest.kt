@@ -56,7 +56,7 @@ class LiveActivityManagerRestartTest {
     fun tearDown() = scope.cancel()
 
     private fun manager(
-        session: AccountSession = AccountSession(SignInSeries(), scope),
+        session: AccountSession = AccountSession(SignInSeries(demo = true), scope),
         // Read last before the post, so a test can land a sign-out there.
         courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
     ): LiveActivityManager {
@@ -91,7 +91,6 @@ class LiveActivityManagerRestartTest {
             boundaryScheduler = LiveActivityBoundaryScheduler(context),
             appScope = scope,
             courseChanges = courseChanges,
-            isDemoSession = { true },
             session = session,
         )
     }
@@ -106,7 +105,7 @@ class LiveActivityManagerRestartTest {
 
     @Test
     fun `a sign-out while a refresh reads its data puts nothing up`() {
-        val series = SignInSeries()
+        val series = SignInSeries(demo = true)
         val manager = manager(AccountSession(series, scope)) {
             // The state still reads signed in: the sign-out lowers it after the sign-in ends.
             series.end()
@@ -120,7 +119,7 @@ class LiveActivityManagerRestartTest {
 
     @Test
     fun `a same-student sign-in while a refresh reads its data leaves the post to the next refresh`() {
-        val series = SignInSeries()
+        val series = SignInSeries(demo = true)
         val manager = manager(AccountSession(series, scope)) {
             series.end()
             series.open()
@@ -134,7 +133,7 @@ class LiveActivityManagerRestartTest {
 
     @Test
     fun `a refresh under a sign-in that stands shows the Live Update`() {
-        val manager = manager(AccountSession(SignInSeries(), scope))
+        val manager = manager(AccountSession(SignInSeries(demo = true), scope))
 
         runBlocking { manager.refreshAndWait() }
 

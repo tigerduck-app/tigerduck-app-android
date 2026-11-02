@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.util.testSession
 
 /** The library's part of each launch and return to the app. */
 class LibraryReturnSignInTest {
@@ -14,9 +15,9 @@ class LibraryReturnSignInTest {
     private val service = server.service(store)
     private var reads = 0
     private val session = LibrarySession(read = { reads++; service.hasAccount })
-    private var demo = false
+    private val school = testSession()
     private var online = true
-    private val onReturn = LibraryReturnSignIn(session, service, { demo }, { online })
+    private val onReturn = LibraryReturnSignIn(session, service, school, { online })
 
     @Test
     fun `a return reads the sign-in again and signs in with the stored credentials`() = runBlocking {
@@ -31,7 +32,7 @@ class LibraryReturnSignInTest {
 
     @Test
     fun `in demo mode a return reaches no server`() = runBlocking {
-        demo = true
+        school.signIns.startDemo()
 
         assertFalse(onReturn.onAppResumed())
         assertEquals(0, server.signIns)

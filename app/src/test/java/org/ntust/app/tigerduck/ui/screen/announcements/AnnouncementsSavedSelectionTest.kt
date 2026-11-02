@@ -96,7 +96,7 @@ class AnnouncementsSavedSelectionTest {
         val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-test", Context.MODE_PRIVATE))
         val api = BulletinApiClient(client, prefs, AuthTokenManager(tokens, client, prefs, "device-1"))
         return AnnouncementsViewModel(
-            handle, api, cache, repository, BulletinReadStateStore(context), testDemoAccount(context, prefs, cache), testSessions(context),
+            handle, api, cache, repository, BulletinReadStateStore(context), testSessions(context),
             AppReturns(now = { 0L }, register = {}),
         )
     }

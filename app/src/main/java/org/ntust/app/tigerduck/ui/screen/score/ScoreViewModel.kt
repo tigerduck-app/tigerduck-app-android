@@ -23,9 +23,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.BuildConfig
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -54,7 +54,7 @@ class ScoreViewModel internal constructor(
     private val cachedSnapshot: suspend (studentId: String) -> DataCache.ScoreReportSnapshot?,
     private val fetchReport: suspend (studentId: String, password: String, force: Boolean) -> ScoreReport,
     private val isOnline: () -> Boolean,
-    private val isDemo: () -> Boolean,
+    private val session: AccountSession,
     private val strings: (Int) -> String,
     /** The class table's cached courses of a term, portal and hand-added together; see [DataCache.loadCourses]. */
     private val rosterCourses: suspend (term: String) -> List<Course>,
@@ -69,7 +69,6 @@ class ScoreViewModel internal constructor(
         authService: AuthService,
         scoreService: NtustScoreService,
         networkChecker: NetworkChecker,
-        demoAccount: DemoAccount,
         dataCache: DataCache,
         sessions: AccountSessions,
     ) : this(
@@ -83,7 +82,7 @@ class ScoreViewModel internal constructor(
             scoreService.fetchScoreReport(id, password, sessions.school.current, forceRefresh = force)
         },
         isOnline = networkChecker::isAvailable,
-        isDemo = { demoAccount.isActive },
+        session = sessions.school,
         strings = context::getString,
         rosterCourses = { term -> dataCache.loadCourses(term) },
     )
@@ -236,7 +235,7 @@ class ScoreViewModel internal constructor(
         }
         // The demo account has no scores and no server to ask for them: the
         // empty state, not the refusal reported as a load failure.
-        if (isDemo()) return
+        if (session.isDemo) return
 
         _isRefreshing.value = true
         _errorMessage.value = null

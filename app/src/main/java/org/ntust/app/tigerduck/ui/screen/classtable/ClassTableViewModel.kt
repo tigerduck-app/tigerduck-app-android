@@ -165,7 +165,7 @@ class ClassTableViewModel @Inject constructor(
     private val termWarm = ClassTableTermWarm(
         terms = { semesterCatalog.availableSemesters() },
         isCached = { dataCache.loadCourses(it).isNotEmpty() },
-        mayFetch = { authService.authState.value && !debugFixtures.demoMode && networkChecker.isAvailable() },
+        mayFetch = { authService.canAskSchool && networkChecker.isAvailable() },
         shownTerm = { _currentSemester.value },
     )
     private var warmJob: Job? = null

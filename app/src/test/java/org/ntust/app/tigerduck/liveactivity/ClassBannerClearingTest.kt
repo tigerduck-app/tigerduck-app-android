@@ -20,6 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -28,6 +29,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.ClassReminderAlarms
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -122,7 +124,7 @@ class ClassBannerClearingTest {
         academicCalendar = calendarStore,
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = scope,
-        isDemoSession = { true },
+        session = AccountSession(SignInSeries(demo = true), scope),
     )
 
     /** When the Live Update's wake-up alarm, the one that brings a refresh, is set for. */

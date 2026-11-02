@@ -22,11 +22,11 @@ import org.ntust.app.tigerduck.data.moodle.AssignmentStatusLedger
 import org.ntust.app.tigerduck.data.moodle.AssignmentStatusWriter
 import org.ntust.app.tigerduck.data.moodle.SubmissionStatusAnswer
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.SubmissionStatusProbe
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.util.testSession
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -44,7 +44,7 @@ class AssignmentReminderCheckTest {
     private lateinit var context: Application
     private lateinit var dataCache: DataCache
     private lateinit var scheduler: AssignmentNotificationScheduler
-    private lateinit var fixtures: DebugFixtureStore
+    private val session = testSession()
     private lateinit var ledger: AssignmentStatusLedger
     private val series = SignInSeries()
     private lateinit var writer: AssignmentStatusWriter
@@ -79,12 +79,11 @@ class AssignmentReminderCheckTest {
                 .body(moodle().toResponseBody("application/json".toMediaType()))
                 .build()
         }.build()
-        fixtures = DebugFixtureStore(context)
         ledger = AssignmentStatusLedger()
         // The pages' writer, which tells no one here: what the check itself tells is what is tested.
         writer = AssignmentStatusWriter(ledger, dataCache) { _, _ -> }
         check = AssignmentReminderCheck(
-            dataCache, scheduler, SubmissionStatusProbe({ storedToken }, client), fixtures, AppPreferences(context),
+            dataCache, scheduler, SubmissionStatusProbe({ storedToken }, client), session, AppPreferences(context),
             writer,
         ) { monotonicNow }
     }
@@ -291,7 +290,7 @@ class AssignmentReminderCheckTest {
     @Test
     fun `the demo account's reminder answers from its own data and asks Moodle nothing`() = runBlocking {
         // The demo account has no Moodle token: its assignments are the bundled file's.
-        fixtures.demoMode = true
+        session.signIns.startDemo()
         storedToken = null
         val due = dueInThreeDays("900001")
         val handedIn = dueInThreeDays("900003").copy(isCompleted = true)

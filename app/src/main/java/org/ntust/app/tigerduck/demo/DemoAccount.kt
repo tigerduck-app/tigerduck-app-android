@@ -40,7 +40,9 @@ import javax.inject.Singleton
  * every OkHttp client, the file's data goes into the same caches the real
  * fetches fill, and [ServerStatusTracker] holds every status dot at OK. Each
  * screen then takes the offline path it already has, over the demo data.
- * Signing out leaves it.
+ * Signing out leaves it. The school session answers whether the app is in the
+ * demo ([org.ntust.app.tigerduck.auth.session.AccountSession.isDemo]): this
+ * class moves it, and the stored flag it starts from at the next process.
  */
 @Singleton
 class DemoAccount @Inject constructor(
@@ -52,9 +54,7 @@ class DemoAccount @Inject constructor(
     private val importedClassTables: ImportedClassTableStore,
     private val sessions: AccountSessions,
 ) {
-    /** Whether the demo account is signed in. Read live: sign-in flips it without a restart. */
-    val isActive: Boolean
-        get() = store.demoMode
+    private val isActive: Boolean get() = sessions.school.isDemo
 
     /** Whether these are the demo account's credentials. Reads the bundled file and nothing else. */
     fun matches(studentId: String, password: String): Boolean =
@@ -103,23 +103,24 @@ class DemoAccount @Inject constructor(
     }
 
     /**
-     * Switch to the demo account, unless a sign-out has ended [from], the sign-in this one started
-     * in; says whether it did. Demo mode goes on first, so nothing that starts after this can
-     * reach a server and overwrite the data written next. All that the demo's sign-out takes away
-     * goes on in one step against that sign-out's end of [from]: it came first, and nothing is
-     * left behind it, or it clears all of this after.
+     * Switch to the demo account, in place of the sign-in [from], and hand back the sign-in that
+     * follows it; null, with nothing changed, when a sign-out has ended [from]. Demo mode goes on
+     * first, then the session's answer, so nothing that starts after this can reach a server and
+     * overwrite the data written next. All that the demo's sign-out takes away goes on in one step
+     * against that sign-out's end of [from]: it came first, and nothing is left behind it, or it
+     * clears all of this after.
      */
-    suspend fun enter(from: SignIn): Boolean {
-        val fixture = load(currentLang()) ?: return true
-        from.ifCurrent {
+    suspend fun enter(from: SignIn): SignIn? {
+        val fixture = load(currentLang()) ?: return from
+        val signIn = sessions.school.startDemo(from) {
             store.demoMode = true
             store.studentIdOverride = fixture.studentId
             store.libraryQrContent = fixture.libraryQrContent
             store.libraryFakeSignedIn = fixture.libraryFakeSignedIn
             ServerStatusTracker.enterDemoMode()
-        } ?: return false
-        write(fixture)
-        return true
+        } ?: return null
+        write(fixture, signIn)
+        return signIn
     }
 
     /**
@@ -127,17 +128,23 @@ class DemoAccount @Inject constructor(
      * language the app now shows, and over anything a request already in
      * flight at sign-in may have written after it.
      */
+    @OptIn(StartsAccountWork::class)
     suspend fun reapply() {
-        if (!isActive) return
-        load(currentLang())?.let { write(it) }
+        val signIn = sessions.school.current
+        if (!signIn.isDemo) return
+        load(currentLang())?.let { write(it, signIn) }
     }
 
     /**
      * Leave the demo account. Part of the school sign-out, which clears the cached data itself; a
-     * demo library signed in stays, as a real library account does, until [signOutLibrary].
+     * demo library signed in stays, as a real library account does, until [signOutLibrary]. The
+     * stored flag first: one that would not clear leaves the session's answer as the flag reads,
+     * which the next start tries again from, and School Mail, which only that answer keeps shut,
+     * shut until then.
      */
     fun exit() {
         store.clearSchool()
+        sessions.school.signIns.leaveDemo()
         ServerStatusTracker.exitDemoMode()
     }
 
@@ -155,9 +162,7 @@ class DemoAccount @Inject constructor(
         )
     }
 
-    @OptIn(StartsAccountWork::class)
-    private suspend fun write(fixture: DemoFixture) {
-        val signIn = sessions.school.current
+    private suspend fun write(fixture: DemoFixture, signIn: SignIn) {
         fixture.courses?.let { dataCache.saveCourses(it, signIn) }
         // The ids the course detail finds the demo courses' Moodle content under. A course has
         // no idnumber of its own, so it is looked up as `<term><courseNo>`, as one added by hand.
@@ -171,9 +176,9 @@ class DemoAccount @Inject constructor(
         fixture.assignments?.let { dataCache.saveAssignments(it, signIn) }
         // The assignments' pages read these, as a round would have kept them.
         fixture.moodle?.let { dataCache.saveAssignmentRecords(DemoMoodleFixture.records(it, fixture.assignments.orEmpty()), signIn) }
-        // Only while still the demo account, asked under the cache's lock: a sign-out exits it
-        // before its clear, which a write let through earlier lands before.
-        fixture.bulletins?.let { bulletins -> bulletinCache.saveIf(bulletins, fetchedAt = null) { isActive } }
+        // Only while still this sign-in, asked under the cache's lock: a sign-out ends it before
+        // its clear, which a write let through earlier lands before.
+        fixture.bulletins?.let { bulletins -> bulletinCache.saveIf(bulletins, fetchedAt = null) { signIn.isCurrent } }
         fixture.calendar?.let { dataCache.saveCalendarEvents(it, signIn) }
     }
 

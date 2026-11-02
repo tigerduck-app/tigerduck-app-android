@@ -14,7 +14,8 @@ import javax.inject.Singleton
  * a school sign-out ends the school's and leaves the other two.
  *
  * Depends on nothing that depends on it, so the token manager can take it with no cycle.
- * The school's session answers [AccountSession.isDemo] from the demo's stored flag as today; the
+ * The school's series starts from the demo's stored flag, [DebugFixtureStore.demoMode], which
+ * stays the persisted truth, so a demo session started before this process keeps being one; the
  * mail and the library sessions answer false until the demo moves into the sessions.
  */
 @Singleton
@@ -30,7 +31,7 @@ class AccountSessions @Inject constructor(
 
     // Closed from the start when the last sign-out was cut short; the start finishes it.
     val school = AccountSession(
-        SignInSeries(closed = owed.owed, demo = fixtures.demoMode), scope, { fixtures.demoMode }, owed, Account.SCHOOL, stream,
+        SignInSeries(closed = owed.owed, demo = fixtures.demoMode), scope, owed, Account.SCHOOL, stream,
     )
     val mail = AccountSession(SignInSeries(), scope, account = Account.MAIL, stream = stream)
     val library = AccountSession(SignInSeries(), scope, account = Account.LIBRARY, stream = stream)

@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -22,17 +23,25 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
+import org.ntust.app.tigerduck.emptyclassroom.ClassroomDemoData
+import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService
+import org.ntust.app.tigerduck.network.NetworkChecker
+import org.ntust.app.tigerduck.ui.screen.emptyclassroom.AppFinderEnvironment
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.time.LocalDate
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 /**
@@ -71,8 +80,13 @@ class DemoSessionTest {
         followers.cancel()
     }
 
-    private fun world(): AccountWorld =
-        accountWorld(context, context.getSharedPreferences("demo-session-credentials", Context.MODE_PRIVATE), appScope, idleScope)
+    /** What the school was sent, as its sign-in posts. */
+    private val posts = AtomicInteger()
+
+    private fun world(): AccountWorld = accountWorld(
+        context, context.getSharedPreferences("demo-session-credentials", Context.MODE_PRIVATE), appScope, idleScope,
+        schoolAnswering = { posts.incrementAndGet() },
+    )
 
     private suspend fun AccountWorld.demoSignIn(): Boolean = auth.login(fixture.studentId!!, fixture.schoolPassword!!)
 
@@ -124,6 +138,122 @@ class DemoSessionTest {
         assertTrue(restarted.auth.authState.value)
         assertFalse("no session to build, and nothing goes out for one", restarted.auth.ensureAuthenticated())
         assertTrue("the data stays", restarted.dataCache.loadCourses().isNotEmpty())
+    }
+
+    @Test
+    fun `the demo posts nothing to the school, whatever asks`() = runBlocking {
+        val world = world()
+        assertTrue(world.demoSignIn())
+
+        assertFalse(world.auth.ensureAuthenticated())
+        assertTrue("nothing to try", world.auth.retryStoredPassword())
+        // Past the check above, the one behind it.
+        assertFalse(world.auth.attemptRelogin(world.tokens.session.signIns.current))
+
+        assertEquals(0, posts.get())
+    }
+
+    @Test
+    fun `the demo's classmates are imported at its sign-in, and nobody else's`() = runBlocking {
+        val world = world()
+        assertTrue(world.auth.login("B00015999", "made-up-password"))
+        assertEquals(emptyList<Any>(), world.imported.tables.value.people)
+        world.auth.logout()
+        world.wipeDone()
+
+        assertTrue(world.demoSignIn())
+
+        assertEquals(fixture.classmates!!.map { it.nickname }, world.imported.tables.value.people.map { it.nickname })
+    }
+
+    @Test
+    fun `writing the demo's data again on a start writes it, in the demo alone`() = runBlocking {
+        val world = world()
+        world.demoAccount.reapply()
+        assertEquals("not the demo", emptyList<Any>(), world.dataCache.loadCourses())
+        assertTrue(world.demoSignIn())
+        world.dataCache.saveCourses(emptyList(), world.tokens.session.signIns.current)
+
+        world.demoAccount.reapply()
+
+        assertTrue(world.dataCache.loadCourses().isNotEmpty())
+    }
+
+    @Test
+    fun `a sign-out as the demo's data is written leaves none of it`() = runBlocking {
+        val world = world()
+        val fired = AtomicBoolean()
+        // Runs inside the first write, and lets the rest go on behind the wipe.
+        followers.launch {
+            world.dataCache.coursesVersion.drop(1).collect {
+                if (fired.compareAndSet(false, true)) {
+                    world.auth.logout()
+                    runBlocking { world.wipeDone() }
+                }
+            }
+        }
+
+        assertFalse(world.demoSignIn())
+
+        assertTrue(fired.get())
+        assertEquals(null, world.credentials.ntustStudentId)
+        assertFalse(world.auth.authState.value)
+        assertEquals(emptyList<Any>(), world.dataCache.loadAssignments())
+        assertEquals(emptyList<Any>(), world.bulletinCache.load())
+        assertEquals(emptyList<Any>(), world.dataCache.loadCalendarEvents())
+    }
+
+    @Test
+    fun `the exit lowers the stored flag first, and the session's answer after it`() = runBlocking {
+        val world = world()
+        assertTrue(world.demoSignIn())
+        var answerAsTheFlagWent: Boolean? = null
+        val hold = onceAsWritten(FIXTURE_PREFS, DEMO_MODE_KEY) { answerAsTheFlagWent = world.sessions.school.isDemo }
+
+        world.auth.logout()
+
+        assertEquals("a flag that will not clear leaves the session as the flag reads", true, answerAsTheFlagWent)
+        assertNotNull(hold)
+    }
+
+    @Test
+    fun `the finder's calendar and credentials are the demo's while it lasts`() = runBlocking {
+        val world = world()
+        assertTrue(world.demoSignIn())
+        world.credentials.signOutSchoolAccount()
+        val environment = AppFinderEnvironment(
+            world.auth, world.academicCalendar, world.dataCache, world.courseService, world.appPrefs,
+            NetworkChecker(context), CourseChangeStore(context, OkHttpClient(), world.appPrefs), world.sessions,
+        )
+
+        assertEquals(AcademicCalendar.EMPTY, environment.calendar())
+        assertEquals(ClassroomUsageService.Credentials("", ""), environment.credentials())
+    }
+
+    @Test
+    fun `the demo's rooms answer in the demo alone`() = runBlocking {
+        val world = world()
+        val rooms = ClassroomDemoData(context, world.sessions.school, world.appPrefs)
+        val monday = LocalDate.of(2026, 11, 2)
+        assertEquals(null, rooms.usage(monday))
+
+        assertTrue(world.demoSignIn())
+
+        assertNotNull(rooms.usage(monday))
+    }
+
+    @Test
+    fun `the school can be asked by a student signed in, and not by the demo`() = runBlocking {
+        val world = world()
+        assertFalse("nobody signed in", world.auth.canAskSchool)
+        assertTrue(world.auth.login("B00015999", "made-up-password"))
+        assertTrue(world.auth.canAskSchool)
+
+        world.auth.logout()
+        world.wipeDone()
+        assertTrue(world.demoSignIn())
+
+        assertFalse(world.auth.canAskSchool)
     }
 
     @Test

@@ -20,7 +20,6 @@ import kotlin.coroutines.cancellation.CancellationException
  */
 internal class StoredAccountSignIn(
     private val tokens: AuthTokenManager,
-    private val isDemo: () -> Boolean,
     private val studentId: () -> String?,
     private val password: () -> String?,
     private val storedMoodleToken: () -> String?,
@@ -38,7 +37,7 @@ internal class StoredAccountSignIn(
      */
     suspend fun signIn(signIn: SignIn): SignInAttempt {
         // Ended already, as while the session is closed: nothing here is that sign-in's to send.
-        if (isDemo() || !signIn.isCurrent) return SignInAttempt.NOTHING_TO_SEND
+        if (tokens.session.isDemo || !signIn.isCurrent) return SignInAttempt.NOTHING_TO_SEND
         val studentId = studentId() ?: return SignInAttempt.NOTHING_TO_SEND
         val password = password()
         val stored = storedMoodleToken()?.takeIf { it.isNotEmpty() }

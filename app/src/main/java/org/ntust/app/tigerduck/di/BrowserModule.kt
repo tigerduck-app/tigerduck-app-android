@@ -9,6 +9,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.browser.AndroidWebViewStorage
 import org.ntust.app.tigerduck.browser.BrowserAllowlistStore
 import org.ntust.app.tigerduck.browser.BrowserCleanup
@@ -20,7 +21,6 @@ import org.ntust.app.tigerduck.browser.BrowserSignIns
 import org.ntust.app.tigerduck.browser.MediaStoreDownloadTransfer
 import org.ntust.app.tigerduck.browser.MoodleBrowserSignIn
 import org.ntust.app.tigerduck.browser.MoodleWebSessionSignIn
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.moodle.MoodleAutologin
 import javax.inject.Singleton
@@ -84,12 +84,12 @@ object BrowserModule {
         @ApplicationContext context: Context,
         autologin: MoodleAutologin,
         tokenService: MoodleTokenService,
-        demoAccount: DemoAccount,
+        session: AccountSession,
         cleanup: BrowserCleanup,
     ): BrowserSignIns {
         val webSession = MoodleWebSessionSignIn(
             run = tokenService::signInToWebsite,
-            isDemo = { demoAccount.isActive },
+            session = session,
             usable = { BrowserSession.usable && !BrowserSession.clearing.value && !cleanup.isPending() },
             generation = { BrowserSession.generation.value },
             writeCookie = { url, value -> CookieManager.getInstance().setCookie(url, value) },

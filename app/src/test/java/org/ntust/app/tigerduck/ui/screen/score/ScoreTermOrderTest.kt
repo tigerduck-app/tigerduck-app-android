@@ -10,6 +10,7 @@ import org.ntust.app.tigerduck.data.model.GpaTrendPoint
 import org.ntust.app.tigerduck.data.model.GradeStatus
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
+import org.ntust.app.tigerduck.util.testSession
 
 /**
  * The Score page puts terms in order the way iOS does, through `AcademicTerm`: a padded older term
@@ -34,7 +35,7 @@ class ScoreTermOrderTest {
         cachedSnapshot = { null },
         fetchReport = { _, _, _ -> report },
         isOnline = { true },
-        isDemo = { false },
+        session = testSession(),
         strings = { "string $it" },
         rosterCourses = { emptyList() },
     ).also { it.load() }

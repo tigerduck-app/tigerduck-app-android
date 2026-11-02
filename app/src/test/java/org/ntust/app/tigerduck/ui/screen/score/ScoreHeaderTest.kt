@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.ui.screen.TabHeaderChecks.assertHeaderScrollsAway
 import org.ntust.app.tigerduck.ui.screen.TabHeaderChecks.assertRowEndsWith
 import org.ntust.app.tigerduck.ui.screen.TabHeaderChecks.title
 import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
+import org.ntust.app.tigerduck.util.testSession
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -46,7 +47,7 @@ class ScoreHeaderTest {
         cachedSnapshot = { null },
         fetchReport = { _, _, _ -> ScoreReport.EMPTY.copy(student = "B00015999", courses = courses) },
         isOnline = { true },
-        isDemo = { false },
+        session = testSession(),
         strings = { "string $it" },
         rosterCourses = { emptyList() },
     )

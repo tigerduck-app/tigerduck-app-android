@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.data.preferences.ReviewPromptStore
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.AppState
@@ -54,7 +54,7 @@ class ReviewPrompt(
         store: ReviewPromptStore,
         authService: AuthService,
         appState: AppState,
-        demoAccount: DemoAccount,
+        session: AccountSession,
         @ApplicationScope scope: CoroutineScope,
     ) : this(
         store = store,
@@ -65,7 +65,7 @@ class ReviewPrompt(
                 !authService.isLoggingIn.value &&
                 !appState.ntustSignInSheetRequested &&
                 !appState.showOnboarding &&
-                !demoAccount.isActive &&
+                !session.isDemo &&
                 // A red status dot is an error still on screen.
                 ServerStatusTracker.statuses.value.values.none { it == ServerStatus.FAILED }
         },

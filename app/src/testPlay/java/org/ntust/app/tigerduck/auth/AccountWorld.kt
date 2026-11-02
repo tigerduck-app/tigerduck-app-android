@@ -162,7 +162,7 @@ internal fun accountWorld(
         ssoLoginService = sso,
         credentials = credentials,
         pushRegistration = PushRegistrationService(
-            context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope, fixtures,
+            context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope,
             DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
         ),
         notificationSettingsSync = notificationSettingsSync,
@@ -182,7 +182,7 @@ internal fun accountWorld(
         appScope = appScope,
         demoAccount = demoAccount,
         prefs = appPrefs,
-        classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
+        classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, sessions.school, appPrefs)),
         sessions = sessions,
     )
     // The in-app browser's WebView storage, counted each time it is cleared.

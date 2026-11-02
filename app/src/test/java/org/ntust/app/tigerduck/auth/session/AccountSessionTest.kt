@@ -17,6 +17,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
@@ -29,6 +30,9 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 /**
  * The session around a [SignInSeries]: the work it launches ends with the sign-in, the school
@@ -147,6 +151,79 @@ class AccountSessionTest {
 
     private var shown = false
 
+    @Test
+    fun `a demo sign-in takes the place of the sign-in it starts from`() {
+        val school = session()
+        val from = school.signIns.current
+        var prepared = false
+
+        val demo = school.startDemo(from) { prepared = true }
+
+        assertTrue(prepared)
+        assertSame(school.signIns.current, demo)
+        assertTrue(demo!!.isDemo)
+        assertTrue(demo.isCurrent)
+        assertFalse(from.isCurrent)
+        assertTrue(school.isDemo)
+    }
+
+    @Test
+    fun `a demo sign-in from one a sign-out ended raises nothing, and the wipe keeps the session closed`() {
+        val school = session()
+        val from = school.signIns.current
+        school.signIns.end()
+        var prepared = false
+
+        assertNull(school.startDemo(from) { prepared = true })
+
+        assertFalse(prepared)
+        assertFalse(school.isDemo)
+        assertFalse("still closed for the wipe", school.isOpen)
+    }
+
+    @Test
+    fun `a demo sign-in stops the work of the sign-in it replaces`() = runBlocking {
+        val school = session()
+        val running = CompletableDeferred<Unit>()
+        val work = school.launch {
+            running.complete(Unit)
+            awaitCancellation()
+        }
+        withTimeout(WAIT_MS) { running.await() }
+
+        school.startDemo(school.signIns.current) {}
+
+        withTimeout(WAIT_MS) { work.join() }
+        assertTrue(work.isCancelled)
+    }
+
+    @Test
+    fun `a sign-out waits out the demo's first step, and finds what to undo`() {
+        val school = session()
+        val from = school.signIns.current
+        val inTheStep = CountDownLatch(1)
+        val letGo = CountDownLatch(1)
+        var endedInTheStep = true
+        val demo = thread {
+            school.startDemo(from) {
+                inTheStep.countDown()
+                letGo.await(WAIT_MS, TimeUnit.MILLISECONDS)
+                endedInTheStep = !from.isCurrent
+            }
+        }
+        assertTrue(inTheStep.await(WAIT_MS, TimeUnit.MILLISECONDS))
+        val signOut = thread { school.signIns.end() }
+        // A moment for it to get to the series' lock, or past it with nothing to hold it.
+        signOut.join(MOMENT_MS)
+        letGo.countDown()
+        demo.join(WAIT_MS)
+        signOut.join(WAIT_MS)
+
+        assertFalse("a sign-out came in between", endedInTheStep)
+        assertFalse("it ended the demo sign-in", school.signIns.current.isCurrent)
+        assertTrue(school.isDemo)
+    }
+
     private fun typedSignIn(
         session: AccountSession,
         schoolAnswering: () -> Unit = {},
@@ -165,7 +242,7 @@ class AccountSessionTest {
         latch = InMemoryStoredPasswordLatch(),
         leaveStoredAccount = {},
         isDemoAccount = { _, _ -> false },
-        enterDemo = { true },
+        enterDemo = { it },
         accountChanging = {},
         markSignedIn = { signIn -> signIn.isCurrent.also { if (it) shown = true } },
     )
@@ -256,5 +333,7 @@ class AccountSessionTest {
 
     private companion object {
         const val STUDENT = "B00015999"
+        const val WAIT_MS = 5_000L
+        const val MOMENT_MS = 200L
     }
 }

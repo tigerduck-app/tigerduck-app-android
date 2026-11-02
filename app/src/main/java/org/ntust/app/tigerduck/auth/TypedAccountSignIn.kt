@@ -26,7 +26,8 @@ import kotlin.coroutines.cancellation.CancellationException
  * The account then shows as signed in ([markSignedIn]). The library and the school mail are signed
  * in to by themselves: a school sign-in signs neither in (decided for Android on 2026-10-22). The
  * demo account ([isDemoAccount]) signs in on the device ([enterDemo]), stored the same way, with
- * nothing sent anywhere.
+ * nothing sent anywhere: under a sign-in of its own, which takes the place of the one read at the
+ * start, and which every check here then asks about.
  *
  * A sign-out takes no sign-in lock, so it can land at any point, the moment the school answers
  * included. The store and the account showing as signed in each happen only while the [SignIn]
@@ -57,8 +58,11 @@ internal class TypedAccountSignIn(
     private val leaveStoredAccount: suspend () -> Unit,
     /** Whether these are the demo account's credentials. Reads the bundled file and nothing else. */
     private val isDemoAccount: (studentId: String, password: String) -> Boolean,
-    /** Signs the demo account in on the device, unless the [SignIn] has ended; says whether it did. */
-    private val enterDemo: suspend (SignIn) -> Boolean,
+    /**
+     * Signs the demo account in on the device in place of the [SignIn], and hands back the sign-in
+     * that takes its place; null, with nothing changed, when a sign-out has ended it.
+     */
+    private val enterDemo: suspend (SignIn) -> SignIn?,
     /**
      * Writes, before anything of the new account reaches disk, what a process death right after
      * must not lose: the in-app browser's clearing, which the account change then owes.
@@ -110,7 +114,7 @@ internal class TypedAccountSignIn(
             overStoredAccount()
             // Demo mode is on disk once it goes on.
             accountChanging()
-            if (!enterDemo(started)) return Outcome.NOT_SIGNED_IN
+            started = enterDemo(started) ?: return Outcome.NOT_SIGNED_IN
             if (!unlessSignedOutSince(started) { storeAccount(studentId, password) }) {
                 return Outcome.NOT_SIGNED_IN
             }

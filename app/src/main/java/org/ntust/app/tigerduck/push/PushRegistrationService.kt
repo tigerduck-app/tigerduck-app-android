@@ -69,7 +69,6 @@ class PushRegistrationService @Inject constructor(
     private val appPreferences: AppPreferences,
     private val uiLanguage: UiLanguageMonitor,
     @param:ApplicationScope private val scope: CoroutineScope,
-    private val fixtures: org.ntust.app.tigerduck.debug.DebugFixtureStore,
     private val departingUnregister: DepartingDeviceUnregister,
 ) {
     private val mutex = Mutex()
@@ -275,7 +274,7 @@ class PushRegistrationService @Inject constructor(
         // The demo account registered nothing, so there is nothing to delete
         // and no server to tell. Read now rather than in the coroutine:
         // sign-out leaves demo mode straight after calling this.
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             scope.launch { updateDiagnostic { it.copy(isRegistered = false, lastError = null) } }
             return
         }
@@ -377,7 +376,7 @@ class PushRegistrationService @Inject constructor(
         // The demo account contacts no server, so there is nothing to
         // register; report what a registered device reports, rather than the
         // refusal every request gets.
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             recordRegistrationAttempt(landed = true)
             updateDiagnostic { it.copy(isRegistered = true, lastError = null) }
             return true
@@ -632,7 +631,7 @@ class PushRegistrationService @Inject constructor(
     suspend fun updateServerPushOptOut(optOut: Boolean): Boolean {
         if (BuildConfig.FLAVOR.equals("fdroid", ignoreCase = true)) return false
         // Demo account: kept on the device, and reported as accepted.
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             prefs.edit().putBoolean(KEY_SERVER_PUSH_OPT_OUT, optOut).apply()
             updateDiagnostic { it.copy(lastError = null) }
             return true
@@ -741,7 +740,7 @@ class PushRegistrationService @Inject constructor(
     suspend fun updateCloudSyncEnabled(enabled: Boolean) {
         val signIn = signInNow()
         val request = switchPatches.request()
-        if (fixtures.demoMode) {
+        if (authTokenManager.session.isDemo) {
             if (enabled && switchPatches.isLatest(request)) appPreferences.cloudSyncEnabled = true
             return
         }
@@ -799,7 +798,7 @@ class PushRegistrationService @Inject constructor(
         syncAssignmentReminders: Boolean,
         syncLiveActivity: Boolean,
     ) {
-        if (fixtures.demoMode) return
+        if (authTokenManager.session.isDemo) return
         val deviceId = identity.uuid()
         val signIn = signInNow()
         runCatching {

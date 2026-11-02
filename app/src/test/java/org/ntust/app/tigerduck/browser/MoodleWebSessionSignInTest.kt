@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.browser
 
+import org.ntust.app.tigerduck.util.testSession
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
@@ -19,7 +20,7 @@ class MoodleWebSessionSignInTest {
     private var runs = 0
     private var generation = 7
     private var usable = true
-    private var demo = false
+    private val account = testSession()
     private var clock = 1_000_000L
 
     private val moodle = "https://moodle2.ntust.edu.tw/".toHttpUrl()
@@ -37,7 +38,7 @@ class MoodleWebSessionSignInTest {
         run: suspend () -> List<Cookie> = { runs++; session },
     ) = MoodleWebSessionSignIn(
         run = run,
-        isDemo = { demo },
+        session = account,
         usable = { usable },
         generation = { generation },
         writeCookie = { url, value -> written += url to value },
@@ -97,7 +98,7 @@ class MoodleWebSessionSignInTest {
         usable = false
         assertFalse(signIn().signIn())
         usable = true
-        demo = true
+        account.signIns.startDemo()
         assertFalse(signIn().signIn())
 
         assertEquals(0, runs)

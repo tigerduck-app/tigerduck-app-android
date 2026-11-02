@@ -61,12 +61,10 @@ class AuthService @Inject constructor(
      * screen asks, and a clean install could not otherwise be photographed. Safe only because demo
      * mode also refuses every request ([org.ntust.app.tigerduck.debug.DemoModeInterceptor]), and
      * nothing lowers the flag but `logout()`, which the user asks for. Sampled once, at process
-     * start, like the rest of demo mode.
+     * start, for what is decided once per process: how [authState] starts. The demo sign-in and
+     * the sign-out move that themselves.
      */
-    private val demoMode = demoAccount.isActive
-
-    /** Whether the demo account is the session, read now; it has no stored student ID. */
-    val isDemoSession: Boolean get() = demoAccount.isActive
+    private val demoMode = sessions.school.isDemo
 
     private val _isLoggingIn = MutableStateFlow(false)
     val isLoggingIn: StateFlow<Boolean> = _isLoggingIn
@@ -113,7 +111,6 @@ class AuthService @Inject constructor(
     // something finds no session.
     private val storedAccountSignIn = StoredAccountSignIn(
         tokens = authTokenManager,
-        isDemo = { demoAccount.isActive },
         studentId = { credentials.ntustStudentId },
         password = { credentials.ntustPassword },
         storedMoodleToken = { credentials.moodleToken },
@@ -187,6 +184,9 @@ class AuthService @Inject constructor(
      */
     suspend fun attemptRelogin(signIn: SignIn): Boolean = authTokenManager.signInAgain(signIn)
 
+    /** Whether the school can be asked for what the cache lacks: signed in, and not the demo, which has no server. */
+    val canAskSchool: Boolean get() = authState.value && !sessions.school.isDemo
+
     val storedStudentId: String? get() = credentials.ntustStudentId
     internal val storedPassword: String? get() = credentials.ntustPassword
     val storedMoodleToken: String? get() = credentials.moodleToken
@@ -213,7 +213,7 @@ class AuthService @Inject constructor(
                     sessions.schoolTookSignIn()
                     importedClassTables.accountDidSignIn(normalizedId)
                     // After the store knows who signed in, which empties another account's leftovers.
-                    if (demoAccount.isActive) demoAccount.importClassmates(signIn)
+                    if (signIn.isDemo) demoAccount.importClassmates(signIn)
                 },
             ) { signIn, sameStudent ->
                 // Best-effort: v3 JWT login failures must not block the SSO session. The automatic
@@ -288,7 +288,7 @@ class AuthService @Inject constructor(
      * nothing to try.
      */
     internal suspend fun retryStoredPassword(): Boolean {
-        if (demoAccount.isActive) return true
+        if (sessions.school.isDemo) return true
         // Made before anything is posted: a sign-in by hand or a sign-out meanwhile moves the
         // generation it reads, and leaves it nothing to settle.
         val settlement = RetrySettlement(
@@ -319,7 +319,7 @@ class AuthService @Inject constructor(
         // moves the generation, by the time the lock is held.
         val refused = storedPasswordLatch.generation
         return loginMutex.withLock {
-            if (demoAccount.isActive) return@withLock false
+            if (sessions.school.isDemo) return@withLock false
             try {
                 schoolSignIn.storedAgain(accepted = accepted, stillRefused = {
                     storedPasswordLatch.generation == refused && storedPasswordLatch.refusals.value > 0
@@ -335,7 +335,7 @@ class AuthService @Inject constructor(
     suspend fun ensureAuthenticated(): Boolean = loginMutex.withLock {
         // No session to build: every caller then reads its cache, which is
         // where the demo data is.
-        if (demoAccount.isActive) return@withLock false
+        if (sessions.school.isDemo) return@withLock false
         try {
             schoolSignIn.stored()
         } catch (e: CancellationException) {

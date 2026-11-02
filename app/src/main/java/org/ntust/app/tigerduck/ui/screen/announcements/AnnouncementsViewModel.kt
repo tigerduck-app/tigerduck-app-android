@@ -28,7 +28,6 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.data.RefreshPolicy
 import org.ntust.app.tigerduck.data.cache.BulletinCache
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.network.model.BulletinSummary
@@ -98,7 +97,6 @@ class AnnouncementsViewModel @Inject constructor(
     private val cache: BulletinCache,
     private val repository: BulletinRepository,
     private val readState: BulletinReadStateStore,
-    private val demoAccount: DemoAccount,
     private val sessions: AccountSessions,
     appReturns: AppReturns,
 ) : ViewModel() {
@@ -291,7 +289,7 @@ class AnnouncementsViewModel @Inject constructor(
         // The demo account's bulletins are the ones its sign-in cached, and
         // DemoModeInterceptor refuses the fetch: the cached list is the loaded
         // one, with no page behind it, rather than a refresh that can only fail.
-        if (demoAccount.isActive) {
+        if (sessions.school.isDemo) {
             _state.update { it.copy(loadState = LoadState.Loaded, hasMore = false) }
             return
         }

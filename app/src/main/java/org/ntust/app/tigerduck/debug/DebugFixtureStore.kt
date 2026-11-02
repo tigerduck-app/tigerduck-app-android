@@ -75,9 +75,11 @@ class DebugFixtureStore @Inject constructor(
      * stay: [DemoModeInterceptor] fails every request before it leaves the
      * device, so there is nothing left to overwrite it with.
      *
-     * Read live by [DemoModeInterceptor] on every call, so the demo sign-in
-     * takes hold at once; [org.ntust.app.tigerduck.ui.AppState] and
-     * `AuthService` sample it at process start for what they decide once.
+     * The persisted truth, which the school's session starts from at process
+     * start and answers from after that
+     * ([org.ntust.app.tigerduck.auth.session.AccountSession.isDemo]); only
+     * [DemoModeInterceptor] reads it live, on every call, so the demo sign-in
+     * takes hold at once.
      */
     var demoMode: Boolean
         get() = prefs.getBoolean(KEY_DEMO_MODE, false)

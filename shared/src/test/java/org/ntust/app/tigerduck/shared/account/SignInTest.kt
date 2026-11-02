@@ -209,6 +209,26 @@ class SignInTest {
     }
 
     @Test
+    fun `the series is the demo from the start or from startDemo, until leaveDemo`() {
+        assertFalse(SignInSeries().isDemo)
+        assertTrue(SignInSeries(demo = true).isDemo)
+        assertTrue("a start with the sign-out cut short", SignInSeries(closed = true, demo = true).isDemo)
+
+        val series = SignInSeries()
+        series.startDemo()
+        assertTrue(series.isDemo)
+
+        series.end()
+        assertTrue("everything in the sign-out before the exit sees it", series.isDemo)
+        series.leaveDemo()
+        assertFalse("though the sign-in that ended, still current, keeps its own", series.isDemo)
+        assertTrue(series.current.isDemo)
+
+        series.open()
+        assertFalse(series.isDemo)
+    }
+
+    @Test
     fun `two sign-ins of the same series are never equal`() {
         val series = SignInSeries()
         val first = series.current

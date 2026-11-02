@@ -55,6 +55,7 @@ import org.ntust.app.tigerduck.mail.sync.MailChecker
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.shared.LibraryService
+import org.ntust.app.tigerduck.util.testSession
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -225,7 +226,7 @@ class DemoStaysOnTheDeviceTest {
             extraInterceptors = NetworkModule.libraryInterceptors(DemoModeInterceptor(fixtures), debug = false) + network,
         )
 
-        val onReturn = LibraryReturnSignIn(LibrarySession(read = { service.hasAccount }), service, { fixtures.demoMode }, { true })
+        val onReturn = LibraryReturnSignIn(LibrarySession(read = { service.hasAccount }), service, testSession(demo = true), { true })
         assertFalse(onReturn.onAppResumed())
         // Past the app's own check, the interceptor refuses.
         assertTrue(runCatching { service.ensureToken() }.isFailure)

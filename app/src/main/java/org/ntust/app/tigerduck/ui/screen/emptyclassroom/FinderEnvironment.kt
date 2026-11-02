@@ -16,7 +16,6 @@ import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -97,13 +96,12 @@ class AppFinderEnvironment @Inject constructor(
     private val courseService: CourseService,
     private val prefs: AppPreferences,
     private val networkChecker: NetworkChecker,
-    private val demoAccount: DemoAccount,
     private val courseChangeStore: CourseChangeStore,
     private val sessions: AccountSessions,
 ) : FinderEnvironment {
     override fun now(): LocalDateTime = AppClock.localDateTime(AppConstants.TAIPEI_ZONE)
 
-    override fun calendar(): AcademicCalendar = finderCalendar(demoAccount.isActive, academicCalendar::current)
+    override fun calendar(): AcademicCalendar = finderCalendar(sessions.school.isDemo, academicCalendar::current)
 
     override val calendarChanged: Flow<Unit> get() = academicCalendar.changes
 
@@ -122,7 +120,7 @@ class AppFinderEnvironment @Inject constructor(
         if (studentId != null && password != null) return ClassroomUsageService.Credentials(studentId, password)
         // The demo account reads its rooms from the device, and a clean install photographed
         // in it may hold no credentials at all.
-        return if (demoAccount.isActive) ClassroomUsageService.Credentials(studentId.orEmpty(), "") else null
+        return if (sessions.school.isDemo) ClassroomUsageService.Credentials(studentId.orEmpty(), "") else null
     }
 
     override val signedIn: StateFlow<Boolean> get() = authService.authState
