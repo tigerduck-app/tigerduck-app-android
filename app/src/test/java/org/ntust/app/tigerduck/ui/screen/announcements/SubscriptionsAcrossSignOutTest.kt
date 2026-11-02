@@ -4,8 +4,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
+import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.FIRST
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.SECOND
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.V3
+import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.V4
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewModel.LoadState
 
 /**
@@ -20,15 +22,20 @@ class SubscriptionsAcrossSignOutTest {
 
     private fun SubscriptionSettingsViewModel.shown() = state.value.rules.map { it.name to it.enabled }
 
-    /** The page shows the second student's rules, read under their session, and nothing else went with it. */
-    private fun SubscriptionSettingsViewModel.showsTheNextStudents(rules: List<Pair<String?, Boolean>>) {
+    /**
+     * The page shows the second student's rules, read under their session with [read], and
+     * nothing else went with it. On `/v4` the read may go twice: a save that waited behind one
+     * across the sign-out is refused before it is sent, and its refusal starts the page over too.
+     */
+    private fun SubscriptionSettingsViewModel.showsTheNextStudents(
+        rules: List<Pair<String?, Boolean>>,
+        read: String = "GET /v3/bulletin-subscriptions",
+    ) {
         page.eventually("the page shows the second student's rules") {
             state.value.loadState == LoadState.Loaded && shown() == rules
         }
-        assertEquals(
-            listOf("GET /v3/bulletin-subscriptions"),
-            page.backend.sent.filter { it.authorization == "Bearer $SECOND" }.map { it.toString() },
-        )
+        val sent = page.backend.sent.filter { it.authorization == "Bearer $SECOND" }.map { it.toString() }
+        assertEquals(listOf(read), if (read == V4_READ) sent.distinct() else sent)
     }
 
     @Test
@@ -97,5 +104,98 @@ class SubscriptionsAcrossSignOutTest {
         assertEquals("the first student's rules leave the page at the first edit", emptyList<Pair<String?, Boolean>>(), left)
         vm.showsTheNextStudents(listOf("Grants" to true))
         assertEquals(listOf("GET /v3/bulletin-subscriptions"), page.backend.routes().drop(1).distinct())
+    }
+
+    @Test
+    fun `on v4 a save across a sign-out lands on no page`() {
+        val vm = page.open(V4, "Scholarships")
+        val put = page.backend.hold(V4_SAVE)
+        page.onMain { vm.toggleEnabled(0) }
+        put.awaitArrival()
+
+        page.nextStudentSignsIn("Grants")
+        put.release()
+
+        vm.showsTheNextStudents(listOf("Grants" to true), V4_READ)
+    }
+
+    @Test
+    fun `on v4 a save waiting behind one across a sign-out is never sent`() {
+        val vm = page.open(V4, "Scholarships", "Lectures")
+        val put = page.backend.hold(V4_SAVE)
+        page.onMain { vm.toggleEnabled(0) }
+        put.awaitArrival()
+        page.onMain { vm.toggleEnabled(1) }
+
+        page.nextStudentSignsIn("Grants")
+        put.release()
+
+        vm.showsTheNextStudents(listOf("Grants" to true), V4_READ)
+        assertEquals(1, page.backend.sent(V4_SAVE).size)
+        assertEquals(listOf("Scholarships" to false, "Lectures" to true), page.backend.held(FIRST))
+        assertEquals(listOf("Grants" to true), page.backend.held(SECOND))
+    }
+
+    @Test
+    fun `on v4 a refused save across a sign-out puts nothing back`() {
+        val vm = page.open(V4, "Scholarships")
+        val put = page.backend.hold(V4_SAVE)
+        page.onMain { vm.deleteRule(0) }
+        put.awaitArrival()
+
+        page.nextStudentSignsIn("Grants")
+        put.release(503 to "{}")
+
+        vm.showsTheNextStudents(listOf("Grants" to true), V4_READ)
+    }
+
+    @Test
+    fun `on v4 rules read across a sign-out never show`() {
+        val read = page.backend.hold(V4_READ)
+        val vm = page.open(V4, "Scholarships", shown = false)
+        read.awaitArrival()
+
+        page.nextStudentSignsIn("Grants")
+        read.release()
+
+        vm.showsTheNextStudents(listOf("Grants" to true), V4_READ)
+    }
+
+    @Test
+    fun `on v4 an edit of the rules a sign-out left on the page sends nothing`() {
+        val vm = page.open(V4, "Scholarships", "Lectures")
+        page.nextStudentSignsIn("Grants")
+
+        val left = page.onMain {
+            vm.toggleEnabled(0)
+            vm.deleteRule(1)
+            vm.upsertRule(SubscriptionRule(name = "Lectures"), replacingIndex = null)
+            vm.shown()
+        }
+
+        assertEquals("the first student's rules leave the page at the first edit", emptyList<Pair<String?, Boolean>>(), left)
+        vm.showsTheNextStudents(listOf("Grants" to true), V4_READ)
+        assertEquals(listOf(V4_READ), page.backend.routes().drop(1).distinct())
+    }
+
+    /** Answered between the sign-out and the next sign-in: nobody's rules show, and the page offers to read again. */
+    @Test
+    fun `on v4 a save answered while no one is signed in leaves the page empty`() {
+        val vm = page.open(V4, "Scholarships")
+        val put = page.backend.hold(V4_SAVE)
+        page.onMain { vm.toggleEnabled(0) }
+        put.awaitArrival()
+
+        page.manager.logout()
+        put.release()
+
+        page.eventually("the read under the ended sign-in fails") { vm.state.value.loadState is LoadState.Failed }
+        assertEquals(emptyList<Pair<String?, Boolean>>(), vm.shown())
+        assertEquals(listOf(V4_READ, V4_SAVE), page.backend.routes())
+    }
+
+    private companion object {
+        const val V4_READ = "GET /v4/bulletin-subscriptions"
+        const val V4_SAVE = "PUT /v4/bulletin-subscriptions"
     }
 }

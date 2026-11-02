@@ -1,0 +1,5 @@
+{"rules": [
+  {"client_id": "0b7c6f2e-4a1d-4e8b-9c3f-2d5e8a1b7c90", "name": "Scholarships", "orgs": ["office"], "tags": ["scholarship"], "mode": "OR", "enabled": true},
+  {"client_id": "5f3e2d1c-0b9a-4876-a5b4-c3d2e1f0a9b8", "orgs": [], "tags": ["lecture", "event"], "mode": "AND", "enabled": true},
+  {"client_id": "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", "name": "Lectures", "orgs": ["office"], "tags": [], "mode": "AND", "enabled": true}
+]}

@@ -9,6 +9,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.json.JSONArray
 import org.json.JSONObject
+import org.junit.Assert.assertTrue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
@@ -48,7 +49,7 @@ class SubscriptionBackend {
             go.countDown()
         }
 
-        fun awaitArrival() = check(arrived.await(10, TimeUnit.SECONDS)) { "the held request never came" }
+        fun awaitArrival() = assertTrue("the held request never came", arrived.await(10, TimeUnit.SECONDS))
 
         internal fun awaitRelease() = check(go.await(10, TimeUnit.SECONDS)) { "the held request was never released" }
     }
@@ -63,6 +64,13 @@ class SubscriptionBackend {
     private val refusals = ConcurrentHashMap<String, ConcurrentLinkedQueue<Pair<Int, String>>>()
 
     val sent = CopyOnWriteArrayList<Sent>()
+
+    /**
+     * Every request's arrival (`> PUT /v4/bulletin-subscriptions`) and its answer leaving
+     * (`< PUT /v4/bulletin-subscriptions 200`), in the order they happened: whether one request
+     * went before another's answer, whatever the threads' timing.
+     */
+    val events = CopyOnWriteArrayList<String>()
 
     val client: OkHttpClient = OkHttpClient.Builder().addInterceptor { chain -> answer(chain.request()) }.build()
 
@@ -79,7 +87,10 @@ class SubscriptionBackend {
     fun hold(route: String): Held = Held().also { holds.getOrPut(route) { ConcurrentLinkedQueue() }.add(it) }
 
     /** The next request to [route] is refused with [code] and [body], the backend unchanged. */
-    fun refuseNext(route: String, code: Int, body: String) {
+    fun refuseNext(route: String, code: Int, body: String) = answerNext(route, code, body)
+
+    /** The next request to [route] is answered with [code] and [body], the backend unchanged. */
+    fun answerNext(route: String, code: Int, body: String) {
         refusals.getOrPut(route) { ConcurrentLinkedQueue() }.add(code to body)
     }
 
@@ -101,12 +112,16 @@ class SubscriptionBackend {
         val path = request.url.encodedPath
         val route = "${request.method} $path"
         sent += Sent(request.method, path, request.header("Authorization"), body)
+        if (!path.endsWith("/bulletins/taxonomy")) events += "> $route"
         val held = holds[route]?.poll()
         if (held != null) {
             held.arrived.countDown()
             held.awaitRelease()
         }
-        val (code, reply) = held?.refusal ?: refusals[route]?.poll() ?: route(request, path, body)
+        // A held request is answered as its release says, and leaves a scripted answer to the next.
+        val scripted = if (held != null) held.refusal else refusals[route]?.poll()
+        val (code, reply) = scripted ?: route(request, path, body)
+        if (!path.endsWith("/bulletins/taxonomy")) events += "< $route $code"
         return Response.Builder()
             .request(request)
             .protocol(Protocol.HTTP_1_1)

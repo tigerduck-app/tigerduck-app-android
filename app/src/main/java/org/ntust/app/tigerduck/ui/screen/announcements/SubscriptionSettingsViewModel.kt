@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,18 +15,23 @@ import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.network.BulletinApiClient
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.shared.account.SignIn
+import java.util.UUID
 import javax.inject.Inject
 
 /**
  * Drives SubscriptionSettingsScreen.
  *
  * Behaviour mirrors iOS BulletinNotificationSettingsView:
- *  - Rules are saved immediately on each upsert / delete / toggle via v3
- *    CRUD endpoints (POST, PATCH, DELETE on /bulletin-subscriptions).
+ *  - Rules are saved immediately on each upsert / delete / toggle. On `/v3`
+ *    each edit is its own request to its rule (POST, PATCH, DELETE on
+ *    /bulletin-subscriptions). On `/v4`, which has no per-rule route, the
+ *    edit shows at once and the whole list goes in one PUT, each rule by the
+ *    `client_id` this device made for it, one save at a time ([editList]).
  *  - The "default seed" path applies a starter rule from the taxonomy's
  *    `default_tags` when the rule list is empty and the user explicitly opts
  *    in. iOS uses the same `seedDefault(from:)` shape.
@@ -76,8 +82,22 @@ class SubscriptionSettingsViewModel @Inject constructor(
      */
     private var shownFor: SignIn? = null
 
+    /** The API the rules on the page were read from, which decides how an edit of them is saved. */
+    private var shownApi = BackendApi.V3
+
+    /** `/v4`: the list as the backend last agreed to it, which a refused save puts back. */
+    private var acknowledged: List<SubscriptionRule> = emptyList()
+
+    /**
+     * `/v4`: the save waiting to go, under the sign-in of the edit that asked for it. One save is
+     * out at a time ([putList]), and it takes the list as it is when it goes, so the edits made
+     * while another was out are one save.
+     */
+    private val listSaves = Channel<SignIn>(Channel.CONFLATED)
+
     init {
         viewModelScope.launch { fetchTaxonomy() }
+        viewModelScope.launch { for (signIn in listSaves) putList(signIn) }
         load()
     }
 
@@ -93,13 +113,18 @@ class SubscriptionSettingsViewModel @Inject constructor(
     fun load() {
         loadJob?.cancel()
         val signIn = signInNow()
+        val speaks = api.subscriptionsApi()
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
                 val response = api.fetchSubscriptions(signIn)
+                // The list's PUT keeps each rule by its client_id, so every rule on the page has one.
+                val rules = if (speaks == BackendApi.V4) response.items.map { it.withClientId() } else response.items
                 land(signIn) {
                     shownFor = signIn
-                    _state.update { it.copy(rules = response.items, loadState = LoadState.Loaded) }
+                    shownApi = speaks
+                    acknowledged = rules
+                    _state.update { it.copy(rules = rules, loadState = LoadState.Loaded) }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -115,6 +140,16 @@ class SubscriptionSettingsViewModel @Inject constructor(
      */
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
         val signIn = editing() ?: return
+        if (shownApi == BackendApi.V4) {
+            return editList(signIn) { rules ->
+                val listed = rule.withClientId()
+                if (replacingIndex != null && replacingIndex in rules.indices) {
+                    rules.toMutableList().also { it[replacingIndex] = listed }
+                } else {
+                    rules + listed
+                }
+            }
+        }
         sendEdit(
             signIn,
             send = {
@@ -141,6 +176,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val signIn = editing() ?: return
         val s = _state.value
         if (index !in s.rules.indices) return
+        if (shownApi == BackendApi.V4) {
+            return editList(signIn) { rules -> rules.filterIndexed { at, _ -> at != index } }
+        }
         val rule = s.rules[index]
         _state.update { it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) }) }
         val id = rule.id ?: return
@@ -183,6 +221,43 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     /**
+     * `/v4`: [edit] on the page at once, then the whole list saved under [signIn], the sign-in of
+     * the rules it edits. A save already out is answered first: one request of a channel at a
+     * time, as on iOS (`sync-order`, "One send per channel at a time"; spec §5.3, race 4).
+     */
+    private fun editList(signIn: SignIn, edit: (List<SubscriptionRule>) -> List<SubscriptionRule>) {
+        _state.update { it.copy(rules = edit(it.rules), saveState = SaveState.Saving) }
+        listSaves.trySend(signIn)
+    }
+
+    /**
+     * `/v4`: one PUT of the list on the page, under [signIn]. Its answer is what the backend holds
+     * now, and replaces the page's list only if no edit came since it went: a newer edit stays on
+     * the page, and its own save follows. A refusal puts back what the backend last agreed to, on
+     * the same condition. Either lands only while [signIn] stands ([land]), and a save of a sign-in
+     * that has ended is never sent: its header is refused first.
+     */
+    private suspend fun putList(signIn: SignIn) {
+        val sent = _state.value.rules
+        val kept = try {
+            api.saveSubscriptions(sent, signIn)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            land(signIn) {
+                if (_state.value.rules == sent) {
+                    _state.update { it.copy(rules = acknowledged, saveState = SaveState.Failed(e.message ?: "error")) }
+                }
+            }
+            return
+        }
+        land(signIn) {
+            acknowledged = kept
+            if (_state.value.rules == sent) _state.update { it.copy(rules = kept, saveState = SaveState.Saved) }
+        }
+    }
+
+    /**
      * The sign-in an edit of the rules on the page goes under: the one they were read under. Null
      * while none has landed, and once that sign-in has ended, which starts the page over.
      */
@@ -203,9 +278,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Drops the rules of a sign-in that has ended, and what was waiting on them, and reads the
-     * rules again under the sign-in that stands. With none, the read fails, and the page offers to
-     * try again.
+     * Drops the rules of a sign-in that has ended, and reads the rules again under the sign-in that
+     * stands. With none, the read fails, and the page offers to try again. A save of the ended
+     * sign-in's still waiting is refused before it is sent, and its refusal lands nowhere.
      */
     private fun startOver() {
         shownFor = null
@@ -227,6 +302,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val signIn = editing() ?: return
         val before = _state.value
         if (index !in before.rules.indices) return
+        if (shownApi == BackendApi.V4) {
+            return editList(signIn) { rules ->
+                rules.mapIndexed { at, rule -> if (at == index) rule.copy(enabled = !rule.enabled) else rule }
+            }
+        }
         val previous = before.rules[index]
         val toggled = previous.copy(enabled = !previous.enabled)
 
@@ -300,3 +380,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
         _state.update { it.copy(saveState = SaveState.Idle) }
     }
 }
+
+/** The rule with a `client_id` for `/v4`: its own, or a new UUID, made here, for one without. */
+private fun SubscriptionRule.withClientId(): SubscriptionRule =
+    if (clientId != null) this else copy(clientId = UUID.randomUUID().toString())
