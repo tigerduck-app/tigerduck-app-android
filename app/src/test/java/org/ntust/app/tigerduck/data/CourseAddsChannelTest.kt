@@ -187,6 +187,43 @@ class CourseAddsChannelTest {
         assertEquals(mapOf(term to mapOf(typed.courseNo to 5_000L)), cache.loadPendingCourseAddTimes())
     }
 
+    /**
+     * A retry's timed adds go in the order the times file keeps their moments, which is the order
+     * each moment was first kept, while the adds file keeps the order each add was: two files that
+     * disagree, as an add asked first with no moment and later with one leaves them. The body lists
+     * its adds as that file holds them, and its force keys as the adds file does, as before.
+     */
+    @Test
+    fun `on v3 a retry lists its adds in the order their moments were first kept`() = runTest {
+        val first = Course(courseNo = "AA1010001", courseName = "First", isManual = true)
+        val second = Course(courseNo = "BB1010002", courseName = "Second", isManual = true)
+        cache.saveCourses(listOf(first, second), term, signIn)
+        val adds = v3Adds()
+        repeat(3) { backend.answer("/v3/sync/courses/upload", 500, "{}") }
+        // Asked with no moment, then the other with one, then the first again with one; each upload fails.
+        adds.send(listOf(first, second), term, first.courseNo, signIn = signIn)
+        adds.send(listOf(first, second), term, second.courseNo, addedAt = 5_000L, signIn = signIn)
+        adds.send(listOf(first, second), term, first.courseNo, addedAt = 6_000L, signIn = signIn)
+        assertEquals(listOf(first.courseNo, second.courseNo), cache.loadPendingCourseAdds()[term])
+        assertEquals(listOf(second.courseNo, first.courseNo), cache.loadPendingCourseAddTimes()[term]?.keys?.toList())
+
+        backend.sent.clear()
+        backend.answer("/v3/sync/courses/upload", 200, """{"accepted_keys":["${key(first)}","${key(second)}"]}""")
+        adds.retry(signIn)
+
+        assertEquals(
+            listOf(
+                listOf(
+                    "POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json,
+                    """{"courses":[${row(first)},${row(second)}],"course_overrides":[],"force_keys":["${key(first)}","${key(second)}"],""" +
+                        """"adds":[{"course_key":"${key(second)}","hlc":5000000},{"course_key":"${key(first)}","hlc":6000000}]}""",
+                ),
+            ),
+            backend.sent.map { it.shape() },
+        )
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+    }
+
     /** Refused as ahead of the backend's clock, an add goes once more without its time. */
     @Test
     fun `on v3 an add refused as ahead goes again unstamped`() = runTest {

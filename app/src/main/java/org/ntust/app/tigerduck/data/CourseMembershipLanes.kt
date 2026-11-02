@@ -61,14 +61,32 @@ internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<Cou
         val before = dataCache.loadPendingCourseAdds()
         val timesBefore = dataCache.loadPendingCourseAddTimes()
         val after = entries.byTerm { it.semester }.mapValues { (_, adds) -> adds.map { it.courseNo } }
-        val timesAfter = entries.byTerm { it.semester }
-            .mapValues { (_, adds) -> adds.mapNotNull { add -> add.addedAtMs?.let { add.courseNo to it } }.toMap() }
-            .filterValues { it.isNotEmpty() }
+        val timesAfter = momentsInPlace(entries, timesBefore)
         val added = after.any { (semester, nos) -> nos.any { it !in before[semester].orEmpty() } }
         suspend fun saveAdds() = after == before || dataCache.savePendingCourseAdds(after, signIn)
         suspend fun saveTimes() = timesAfter == timesBefore || dataCache.savePendingCourseAddTimes(timesAfter, signIn)
         return if (added) saveTimes() && saveAdds() else saveAdds() && saveTimes()
     }
+}
+
+/**
+ * [entries]' moments as the times file keeps them, where [before] has them: each where it was
+ * first kept and a new one after the rest of its term's, a term's where it first had one, as the
+ * queue has always written that file. The file's order is not the adds file's (an add asked first
+ * with no moment and later with one is behind the others in it), and `/v3`'s upload lists its
+ * adds in it.
+ */
+private fun momentsInPlace(entries: List<CourseAdd>, before: Map<String, Map<String, Long>>): Map<String, Map<String, Long>> {
+    val now = entries.filter { it.addedAtMs != null }.byTerm { it.semester }
+    val kept = LinkedHashMap<String, Map<String, Long>>()
+    for (semester in before.keys + now.keys) {
+        val adds = now[semester] ?: continue
+        val times = LinkedHashMap<String, Long>()
+        for (courseNo in before[semester].orEmpty().keys) adds.firstOrNull { it.courseNo == courseNo }?.let { times[courseNo] = it.addedAtMs!! }
+        for (add in adds) if (add.courseNo !in times) times[add.courseNo] = add.addedAtMs!!
+        kept[semester] = times
+    }
+    return kept
 }
 
 /** The deletes' lane store: `pending_course_deletes.json` (term to course number to moment), read through [load]. */
