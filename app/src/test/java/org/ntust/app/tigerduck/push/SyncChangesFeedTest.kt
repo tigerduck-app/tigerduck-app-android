@@ -3,7 +3,16 @@ package org.ntust.app.tigerduck.push
 import android.content.Context
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.buffer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -109,6 +118,39 @@ class SyncChangesFeedTest {
         assertEquals(409, (unknown as? PushApiException)?.statusCode)
         // Any 410 is changes no longer kept, as on /v3; the update latch reads it apart.
         assertNull(client.fetchChanges(sinceRevision = 5, testSignIn()))
+    }
+
+    /**
+     * Only a 409 says which with its code. Any other failure is reported as it comes, its
+     * body unread, so a slow body never holds back a failure the status already told.
+     */
+    @Test
+    fun `a failure other than a 409 is reported without reading its body`() = runTest {
+        var read = false
+        val body = object : ResponseBody() {
+            private val source: BufferedSource by lazy {
+                object : ForwardingSource(Buffer().writeUtf8("""{"error":"sync_revision_expired"}""")) {
+                    override fun read(sink: Buffer, byteCount: Long): Long {
+                        read = true
+                        return super.read(sink, byteCount)
+                    }
+                }.buffer()
+            }
+
+            override fun contentType() = null
+            override fun contentLength() = -1L
+            override fun source() = source
+        }
+        val unavailable = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(503).message("").body(body).build()
+        }.build()
+
+        val failure = runCatching {
+            syncApiClientAt("http://127.0.0.1:9/v4", unavailable).fetchChanges(sinceRevision = 5, testSignIn())
+        }.exceptionOrNull()
+
+        assertEquals(503, (failure as? PushApiException)?.statusCode)
+        assertFalse("the failure's body was read", read)
     }
 
     private companion object {

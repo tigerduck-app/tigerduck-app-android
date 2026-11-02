@@ -15,6 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 // The change feed's answer on /v3 when the changes after the asked revision are gone.
+private const val HTTP_CONFLICT = 409
 private const val HTTP_GONE = 410
 
 /** One entry of the change feed: only what a poll's plan reads (`ChangeFeedPlan`). */
@@ -87,7 +88,10 @@ class SyncApiClient @Inject constructor(
         val authHeader = authTokenManager.requireAuthHeader(signIn)
         api.at(baseUrl).changes(authHeader, sinceRevision).execute().use { response ->
             if (!response.isSuccessful) {
-                if (response.code == HTTP_GONE || BackendError.of(response).isRevisionExpired) return@withContext null
+                // Only a 409 says which with its code; any other failure goes as it came, its body unread.
+                if (response.code == HTTP_GONE || (response.code == HTTP_CONFLICT && BackendError.of(response).isRevisionExpired)) {
+                    return@withContext null
+                }
                 throw PushApiException("sync changes failed: HTTP ${response.code}", response.code)
             }
             parseChangesPage(JSONObject(response.body.string()))
