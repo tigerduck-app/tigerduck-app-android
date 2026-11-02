@@ -52,9 +52,9 @@ class PushCourseSyncBackendTest {
     fun `with course sync off every request fails and none is sent`() = runTest {
         prefs.syncCourses = false
 
-        assertTrue(fails { courses.deleteAllCourses("1151") })
-        assertTrue(fails { courses.uploadCourses(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151") })
-        assertTrue(fails { courses.deleteCourse("client:1151:CS1") })
+        assertTrue(fails { courses.resetTerm("1151") })
+        assertTrue(fails { courses.uploadTerm(listOf(Course(courseNo = "CS1", courseName = "CS1")), "1151") })
+        assertTrue(fails { courses.hideCourse("client:1151:CS1") })
         assertTrue(fails { courses.patchCustomName("1151CS1", "Calc", "en") })
         assertEquals(emptyList<String>(), backend.endpoints())
     }
@@ -63,8 +63,8 @@ class PushCourseSyncBackendTest {
     fun `with cloud sync off every request fails and none is sent`() = runTest {
         prefs.cloudSyncEnabled = false
 
-        assertTrue(fails { courses.deleteAllCourses("1151") })
-        assertTrue(fails { courses.uploadCourses(emptyList(), "1151") })
+        assertTrue(fails { courses.resetTerm("1151") })
+        assertTrue(fails { courses.uploadTerm(emptyList(), "1151") })
         assertEquals(emptyList<String>(), backend.endpoints())
     }
 }

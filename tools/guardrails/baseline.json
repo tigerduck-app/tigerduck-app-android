@@ -1377,13 +1377,8 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/KeepLocalCourses.kt",
-    "kind": "sync-switch-read",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/KeepLocalCourses.kt",
     "kind": "sync-write",
-    "count": 6
+    "count": 4
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LanguagePickerScreen.kt",

@@ -13,9 +13,12 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
@@ -110,5 +113,84 @@ class UseLocalRequestsTest {
             backend.sent.map { it.method },
         )
         assertEquals("$v3/sync/courses/client:1151:CS2", backend.sent[1].url)
+    }
+
+    /** A phone whose clock runs behind a backend it has heard: the stamps it gives are past its wall clock. */
+    private fun behindTheBackend(): Pair<PushCourseSyncBackend, RecordingBackend> {
+        val v4 = RecordingBackend()
+        val v4Prefs = AppPreferences(JvmContext())
+        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { WALL_MS })
+        clock.heardInSnapshot(BACKEND_US)
+        val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
+        val outbox = PendingCourseOverrides(DataCache(context, AcademicCalendarStore(context, OkHttpClient(), v4Prefs)), v4Api, v4Prefs)
+        return PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn) to v4
+    }
+
+    private fun hlcOf(sent: RecordingBackend.Sent): Long? =
+        sent.body?.takeIf { it.isNotEmpty() }?.let { JSONObject(it).optLong("hlc").takeIf { hlc -> hlc > 0 } }
+            ?: Regex("[?&]hlc=(\\d+)").find(sent.url)?.groupValues?.get(1)?.toLong()
+
+    @Test
+    fun `each color override's stamp is later than the reset's`() = runTest {
+        val (courses, v4) = behindTheBackend()
+        val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
+        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#00FF00")
+        val hidden = Course(courseNo = "CS2", courseName = "CS2", customColorHex = "#0000FF")
+
+        keepLocalCourses(
+            terms = listOf("1151" to listOf(colored, manual, hidden)),
+            hiding = setOf("1151:CS2"),
+            backend = courses,
+            customNames = mapOf("CS1" to mapOf("en" to "Calc")),
+        )
+
+        assertEquals(
+            listOf(
+                "DELETE http://127.0.0.1:9/v4/sync/courses?semester=1151",
+                "POST http://127.0.0.1:9/v4/sync/courses/upload",
+                "DELETE http://127.0.0.1:9/v4/sync/courses/client:1151:CS2",
+                "PATCH http://127.0.0.1:9/v4/sync/courses/client:1151:CS1/override",
+                "PATCH http://127.0.0.1:9/v4/sync/courses/client:1151:CS1/override",
+                "PATCH http://127.0.0.1:9/v4/sync/courses/client:1151:MY1/override",
+            ),
+            v4.sent.map { "${it.method} ${it.url.substringBefore("&hlc").substringBefore("?hlc")}" },
+        )
+        val upload = JSONObject(v4.sent[1].body!!)
+        assertTrue("no colors ride a v4 upload", !upload.has("course_overrides"))
+        val reset = hlcOf(v4.sent[0])!!
+        val add = upload.getJSONArray("adds").getJSONObject(0)
+        assertEquals("client:1151:MY1", add.getString("course_key"))
+        val stamps = listOf(reset, add.getLong("hlc")) + v4.sent.drop(2).map { hlcOf(it)!! }
+        // Stamped from one clock in the order sent: each later than the reset, though the phone's own
+        // clock is behind every one of them, as a stamp from it would be at or before the reset.
+        assertEquals(stamps.sorted().distinct(), stamps)
+        assertTrue("the reset is past the wall clock", reset > WALL_MS * 1_000)
+        assertEquals(
+            listOf(mapOf("color_hex" to "#FF0000"), mapOf("custom_name" to "Calc", "locale" to "en"), mapOf("color_hex" to "#00FF00")),
+            v4.sent.drop(3).map { sent -> JSONObject(sent.body!!).asMap() - "hlc" },
+        )
+    }
+
+    @Test
+    fun `on v4 a color for a course the backend does not hold is let go, and any other refusal asks again`() = runTest {
+        val (courses, v4) = behindTheBackend()
+        val terms = listOf("1151" to listOf(Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000")))
+        val override = "/v4/sync/courses/client:1151:CS1/override"
+        v4.answer(override, 404, """{"error":"course_not_found","message":"No such course."}""")
+        v4.answer(override, 500, """{"error":"internal_error","message":"Internal server error."}""")
+
+        val gone = runCatching { keepLocalCourses(terms, hiding = emptySet(), backend = courses) }.exceptionOrNull()
+        val failure = runCatching { keepLocalCourses(terms, hiding = emptySet(), backend = courses) }.exceptionOrNull()
+
+        assertEquals(null, gone)
+
+        assertTrue("got $failure", failure != null && failure !is CourseSyncOffException)
+        assertEquals(6, v4.sent.size)
+    }
+
+    private companion object {
+        /** The phone's wall clock, and the backend's time it heard, ten minutes later. */
+        const val WALL_MS = 1_790_000_000_000L
+        const val BACKEND_US = (WALL_MS + 600_000) * 1_000
     }
 }

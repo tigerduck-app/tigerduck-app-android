@@ -5,21 +5,46 @@ import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
+import org.ntust.app.tigerduck.push.CourseRef
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** The course requests Use Local sends, so a test can stand in for the backend. */
+/**
+ * The course requests Use Local sends, so a test can stand in for the backend. Its steps are named
+ * for what Use Local does: the backend client's writes they make are counted once, where they are
+ * made (`sync-write`).
+ */
 internal interface CourseSyncBackend {
     /** `DELETE /sync/courses?semester=`: a reset of one term, never of every term. */
-    suspend fun deleteAllCourses(semester: String)
-    suspend fun uploadCourses(courses: List<Course>, semester: String)
-    suspend fun deleteCourse(courseKey: String)
+    suspend fun resetTerm(semester: String)
 
-    /** `PATCH /sync/courses/{moodle_id}/override` with one locale's custom name. */
+    /** `POST /sync/courses/upload` of the term's courses. */
+    suspend fun uploadTerm(courses: List<Course>, semester: String)
+
+    /** `DELETE /sync/courses/{course_key}`: one course hidden, on every device. */
+    suspend fun hideCourse(courseKey: String)
+
+    /** `PATCH /sync/courses/{moodle_id}/override` with one locale's custom name, through the course outbox. */
     suspend fun patchCustomName(moodleId: String, name: String, locale: String)
+
+    /**
+     * Whether the backend settles every field by its stamp (`/v4`, last writer wins). A term's
+     * upload then carries no colors, and its reset clears every color and name stamped at or
+     * before it, so each goes as [patchStampedOverride], stamped after the reset.
+     */
+    val stampsOverrides: Boolean
+
+    /**
+     * `/v4`'s `PATCH /sync/courses/{course_key}/override` with a color, or one locale's name,
+     * stamped at its send: after every request Use Local sent before it.
+     */
+    suspend fun patchStampedOverride(courseKey: String, colorHex: String? = null, name: String? = null, locale: String? = null)
 }
 
 /**
@@ -32,32 +57,42 @@ internal class CourseSyncOffException : IllegalStateException("course sync is of
  * [CourseSyncBackend] over [PushApiClient], whose course requests return
  * quietly unsent with cloud or course sync off. Use Local's fail instead, so
  * it stops rather than follow a term reset with an upload that never went.
- * The names go through [PendingCourseOverrides], as every name PATCH does.
+ * On `/v3` the names go through [PendingCourseOverrides], as every name PATCH
+ * does. On `/v4` every request is stamped at its send, in the order Use Local
+ * makes it, so each is later than the reset before it (D10, X5).
  */
 internal class PushCourseSyncBackend(
     private val api: PushApiClient,
-    private val prefs: AppPreferences,
+    prefs: AppPreferences,
     private val overrides: PendingCourseOverrides,
     private val signIn: SignIn,
 ) : CourseSyncBackend {
+    private val policies = SyncPolicies(prefs)
+
     private fun ensureSends() {
-        if (!prefs.cloudSyncEnabled || !prefs.syncCourses) throw CourseSyncOffException()
+        if (!policies.current.uploadsCourses) throw CourseSyncOffException()
     }
 
-    override suspend fun deleteAllCourses(semester: String) {
+    override val stampsOverrides: Boolean
+        get() = policies.current.lastWriterWins
+
+    override suspend fun resetTerm(semester: String) {
         ensureSends()
-        api.deleteAllCourses(semester, signIn)
+        api.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null)
     }
 
-    override suspend fun uploadCourses(courses: List<Course>, semester: String) {
+    override suspend fun uploadTerm(courses: List<Course>, semester: String) {
         ensureSends()
+        // On /v4 a course added by hand goes as an add made now, after the term's reset: as the
+        // oldest, as a roster names it, the reset would keep it out.
+        val addedAt = if (stampsOverrides) courses.filter { it.isManual }.associate { it.courseNo to api.stampMs() } else emptyMap()
         // Null: switched off between the check and the request.
-        api.uploadCourses(courses, semester, signIn) ?: throw CourseSyncOffException()
+        api.uploadCoursesAnswered(courses, semester, signIn, addedAt = addedAt) ?: throw CourseSyncOffException()
     }
 
-    override suspend fun deleteCourse(courseKey: String) {
+    override suspend fun hideCourse(courseKey: String) {
         ensureSends()
-        api.deleteCourse(courseKey, signIn)
+        api.deleteCourseAnswered(courseKey, signIn, hiddenAt = null, kind = null)
     }
 
     override suspend fun patchCustomName(moodleId: String, name: String, locale: String) {
@@ -65,6 +100,22 @@ internal class PushCourseSyncBackend(
         // Through the outbox: kept until it lands, and in place of an older
         // name of the course still waiting, which would land over this one.
         overrides.send(moodleId, customName = name, locale = locale, signIn = signIn)
+    }
+
+    override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) {
+        ensureSends()
+        try {
+            api.patchCourseOverrideAnswered(CourseRef(moodleId = null, courseKey = courseKey), signIn, colorHex, name, locale)
+        } catch (e: BackendException) {
+            // A course the upload did not put back, a later hide elsewhere keeping it out, holds
+            // no color or name to set; asked again, Use Local would meet the same.
+            if (e.error != BackendError(HTTP_NOT_FOUND, COURSE_NOT_FOUND)) throw e
+        }
+    }
+
+    private companion object {
+        const val HTTP_NOT_FOUND = 404
+        const val COURSE_NOT_FOUND = "course_not_found"
     }
 }
 
@@ -94,6 +145,12 @@ internal class PushCourseSyncBackend(
  * `courses_reset_at`, which this phone's next sync then took for a reset made
  * elsewhere, dropping its hidden and hand-typed courses.
  *
+ * On `/v4` ([CourseSyncBackend.stampsOverrides]) each request is stamped
+ * at its send, in this order, and the upload carries no colours: every custom
+ * colour of a term reset goes up after its deletes, beside its names, as an
+ * override of its own stamped later than the reset (X5). Its hand-typed
+ * courses go as adds made now.
+ *
  * Every request is awaited and a failure is thrown, for the caller to ask
  * again. Once [isCurrent] turns false, as at a sign-out, nothing more is sent
  * and it throws [CancellationException]. [onReset] hears of each term reset
@@ -111,6 +168,8 @@ internal suspend fun keepLocalCourses(
     fun ensureCurrent() {
         if (!isCurrent()) throw CancellationException("signed out during Use Local")
     }
+    // Read once, so every term goes up in one shape.
+    val stamped = backend.stampsOverrides
     for ((semester, courses) in terms) {
         val hiddenNos = CourseTombstoneKeys.hiddenIn(semester, hiding)
         val cachedNos = courses.mapTo(mutableSetOf()) { it.courseNo }
@@ -122,32 +181,59 @@ internal suspend fun keepLocalCourses(
         val reset = courses.isNotEmpty() && portalCached(semester)
         if (reset) {
             ensureCurrent()
-            backend.deleteAllCourses(semester)
+            backend.resetTerm(semester)
         }
         ensureCurrent()
-        backend.uploadCourses(courses + stubs, semester)
+        backend.uploadTerm(courses + stubs, semester)
         if (reset) onReset(semester)
         for (courseNo in hiddenNos.sorted()) {
             ensureCurrent()
-            backend.deleteCourse("client:$semester:$courseNo")
+            backend.hideCourse("client:$semester:$courseNo")
         }
         if (reset) {
             // The reset took the term's override rows, names included, with
-            // its course rows; colours ride the upload, names do not. After
-            // the deletes, so a name that fails to go up leaves no hidden
-            // course on the server.
-            for (course in courses.filter { it.courseNo !in hiddenNos }.sortedBy { it.courseNo }) {
-                val names = customNames[course.courseNo] ?: continue
+            // its course rows; on /v3 colours ride the upload, names do not.
+            // After the deletes, so a name that fails to go up leaves no
+            // hidden course on the server.
+            val kept = courses.filter { it.courseNo !in hiddenNos }.sortedBy { it.courseNo }
+            for (course in kept) {
+                val names = customNames[course.courseNo].orEmpty().toSortedMap().filterValues { it.isNotEmpty() }
+                if (stamped) {
+                    sendStampedOverrides("client:$semester:${course.courseNo}", course.customColorHex, names, backend, ::ensureCurrent)
+                    continue
+                }
                 // The id the upload stored the row under, as the backend
                 // derives it; see CourseUploadPayload.
                 val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
-                for ((locale, name) in names.toSortedMap()) {
-                    if (name.isEmpty()) continue
+                for ((locale, name) in names) {
                     ensureCurrent()
                     backend.patchCustomName(moodleId, name, locale)
                 }
             }
         }
+    }
+}
+
+/**
+ * A course's [colorHex] and [names] (by locale) as `/v4` takes them after a reset of its term:
+ * each its own override of the course [courseKey], stamped at its send, so later than the reset
+ * Use Local sent before it, which clears every override stamped at or before it (D10; X5). The
+ * upload carries no colors there.
+ */
+private suspend fun sendStampedOverrides(
+    courseKey: String,
+    colorHex: String?,
+    names: Map<String, String>,
+    backend: CourseSyncBackend,
+    ensureCurrent: () -> Unit,
+) {
+    if (colorHex != null) {
+        ensureCurrent()
+        backend.patchStampedOverride(courseKey, colorHex = colorHex)
+    }
+    for ((locale, name) in names) {
+        ensureCurrent()
+        backend.patchStampedOverride(courseKey, name = name, locale = locale)
     }
 }
 
