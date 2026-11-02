@@ -226,6 +226,54 @@ class CourseAddsChannelTest {
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 
+    /**
+     * A retry reads its adds, their moments and the moments' order in one read of the queue, as it
+     * always did under its lock: another sync letting one of them go just after the read
+     * (`PendingCourseAdds.listed`) does not move it in the body, which lists the adds as that one
+     * read had them.
+     */
+    @Test
+    fun `on v3 a retry lists its adds as its one read had them, one let go just after included`() = runTest {
+        val first = Course(courseNo = "AA1010001", courseName = "First", isManual = true)
+        val second = Course(courseNo = "BB1010002", courseName = "Second", isManual = true)
+        cache.saveCourses(listOf(first, second), term, signIn)
+        cache.savePendingCourseAddTimes(mapOf(term to linkedMapOf(first.courseNo to 5_000L, second.courseNo to 6_000L)), signIn)
+        cache.savePendingCourseAdds(mapOf(term to listOf(first.courseNo, second.courseNo)), signIn)
+        val client = pushApiClientAt(v3, backend.client, prefs)
+        var read = false
+        val sends = CourseAddSends(
+            cache,
+            { courses, semester, forceKeys, pinned, addedAt -> client.uploadCoursesAnswered(courses, semester, pinned, forceKeys, addedAt = addedAt) },
+            MembershipOutbox(),
+            waiting = {
+                CourseAddsStore(cache).load().also {
+                    if (!read) {
+                        read = true
+                        // Another sync's snapshot lists the first as enrolled, and lets its add go.
+                        cache.savePendingCourseAdds(mapOf(term to listOf(second.courseNo)), signIn)
+                        cache.savePendingCourseAddTimes(mapOf(term to mapOf(second.courseNo to 6_000L)), signIn)
+                    }
+                }
+            },
+            settle = { _, _ -> true },
+        )
+
+        sends.asking(term, listOf(first.courseNo, second.courseNo), null) {
+            sends.sendRequested(CourseAdd(term, first.courseNo, 5_000L), signIn)
+        }
+
+        assertEquals(
+            listOf(
+                listOf(
+                    "POST", "$v3/sync/courses/upload", listOf(bearer, protocol2), json,
+                    """{"courses":[${row(first)},${row(second)}],"course_overrides":[],"force_keys":["${key(first)}","${key(second)}"],""" +
+                        """"adds":[{"course_key":"${key(first)}","hlc":5000000},{"course_key":"${key(second)}","hlc":6000000}]}""",
+                ),
+            ),
+            backend.sent.map { it.shape() },
+        )
+    }
+
     /** Refused as ahead of the backend's clock, an add goes once more without its time. */
     @Test
     fun `on v3 an add refused as ahead goes again unstamped`() = runTest {

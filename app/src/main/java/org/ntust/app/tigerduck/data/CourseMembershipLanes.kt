@@ -25,6 +25,18 @@ import org.ntust.app.tigerduck.util.logSummary
 /** A course added by hand to [semester] whose upload waits, with the moment it was asked, if it has one. */
 internal data class CourseAdd(val semester: String, val courseNo: String, val addedAtMs: Long?) {
     val field: String get() = membershipField(semester, courseNo)
+
+    /**
+     * Where the add's moment stood in the times file in the read that gave this add, the one
+     * read of both files under the lane's lock ([CourseAddsStore.load]): `/v3`'s body lists its
+     * adds in that order. Last when it has none or was not read so. Not part of the edit, so
+     * neither compared nor copied.
+     */
+    var momentAt: Int = Int.MAX_VALUE
+        private set
+
+    /** This add, as read with its moment at [at] in the times file. */
+    fun readWithMomentAt(at: Int?): CourseAdd = also { momentAt = at ?: Int.MAX_VALUE }
 }
 
 /** A course deleted from [semester] whose DELETE waits, with the moment it was asked. */
@@ -48,7 +60,8 @@ internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<Cou
     override suspend fun load(): List<CourseAdd> {
         val times = dataCache.loadPendingCourseAddTimes()
         return dataCache.loadPendingCourseAdds().flatMap { (semester, nos) ->
-            nos.distinct().map { CourseAdd(semester, it, times[semester]?.get(it)) }
+            val order = times[semester].orEmpty().keys.withIndex().associate { (at, courseNo) -> courseNo to at }
+            nos.distinct().map { CourseAdd(semester, it, times[semester]?.get(it)).readWithMomentAt(order[it]) }
         }
     }
 

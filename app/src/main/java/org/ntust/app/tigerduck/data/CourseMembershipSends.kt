@@ -91,7 +91,7 @@ internal class CourseAddSends(
         val (timed, untimed) = held.partition { it.addedAtMs != null }
         val source = asked.courses ?: cached
         val stamped = if (timed.isEmpty()) Taken() else {
-            upload(source.filter { course -> timed.any { it.courseNo == course.courseNo } }, semester, timed, signIn, momentOrder(semester))
+            upload(source.filter { course -> timed.any { it.courseNo == course.courseNo } }, semester, timed, signIn)
         }
         val unstamped = if (untimed.isEmpty()) Taken() else {
             upload(asked.courses ?: cached.filter { course -> untimed.any { it.courseNo == course.courseNo } }, semester, untimed, signIn)
@@ -128,26 +128,12 @@ internal class CourseAddSends(
         }
     }
 
-    /**
-     * Where each moment of [semester] stands in the times file, which `/v3`'s body lists the adds
-     * in, as the queue always sent them. Read apart from the adds: a moment never moves in that
-     * file (CourseAddsStore keeps each where it was first kept), so any read orders them alike.
-     */
-    private suspend fun momentOrder(semester: String): Map<String, Int> =
-        dataCache.loadPendingCourseAddTimes()[semester].orEmpty().keys.withIndex().associate { (at, courseNo) -> courseNo to at }
-
     // One upload of [adds], each forced past a tombstone in the adds' order, and each timed one with
-    // its moment, in [momentOrder]'s.
-    private suspend fun upload(
-        courses: List<Course>,
-        semester: String,
-        adds: List<CourseAdd>,
-        signIn: SignIn,
-        momentOrder: Map<String, Int> = emptyMap(),
-    ): Taken {
+    // its moment, in the order the times file had them in the read the adds came from
+    // ([CourseAdd.momentAt]), as `/v3`'s body always listed them.
+    private suspend fun upload(courses: List<Course>, semester: String, adds: List<CourseAdd>, signIn: SignIn): Taken {
         val courseNos = adds.map { it.courseNo }
-        val addedAt = adds.filter { it.addedAtMs != null }.sortedBy { momentOrder[it.courseNo] ?: Int.MAX_VALUE }
-            .associate { it.courseNo to it.addedAtMs!! }
+        val addedAt = adds.filter { it.addedAtMs != null }.sortedBy { it.momentAt }.associate { it.courseNo to it.addedAtMs!! }
         return try {
             val forceKeys = courseNos.map { PendingCourseAdds.forceKey(semester, it) }
             val answer = uploader.upload(courses, semester, forceKeys, signIn, addedAt) ?: return Taken(adds, unsent = true)
