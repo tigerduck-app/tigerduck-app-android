@@ -28,6 +28,7 @@ class ScoreTermOrderTest {
 
     private fun viewModel(report: ScoreReport) = ScoreViewModel(
         authState = MutableStateFlow(true),
+        accountChanges = MutableStateFlow(true),
         storedStudentId = { "B00015999" },
         storedPassword = { "password" },
         cachedSnapshot = { null },

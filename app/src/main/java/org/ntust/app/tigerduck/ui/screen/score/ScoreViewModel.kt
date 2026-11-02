@@ -47,7 +47,7 @@ import javax.inject.Inject
 class ScoreViewModel internal constructor(
     authState: StateFlow<Boolean>,
     /** Whether the account is signed in as it is now, then every change: [AccountSession.changes]. */
-    accountChanges: Flow<Boolean> = authState,
+    accountChanges: Flow<Boolean>,
     private val storedStudentId: () -> String?,
     private val storedPassword: () -> String?,
     /** The student's cached grades, with when they were fetched; see [NtustScoreService.cachedScoreReport]. */
