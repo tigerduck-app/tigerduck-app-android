@@ -157,18 +157,26 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Upsert a rule: POST if new (no id), PATCH if existing.
-     * Replaces [replacingIndex] in the local list on success.
+     * Upsert a rule: POST if new (no id), PATCH if existing. An existing rule replaces the one its
+     * ids name, wherever it stands by then ([replacingRule]); [replacingIndex], where the editor
+     * found it, is only where one gone goes back. A new rule takes [replacingIndex], or the end.
      */
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
         val signIn = editing() ?: return
-        if (shownApi == BackendApi.V4) return editList(signIn) { it.upserting(rule.withClientId(), replacingIndex) }
+        if (shownApi == BackendApi.V4) return editList(signIn) { it.replacingRule(rule.withClientId(), replacingIndex) }
         sendEdit(
             signIn,
             send = {
                 if (rule.id == null) api.createSubscription(rule, signIn) else api.updateSubscription(rule.id, rule, signIn)
             },
-            saved = { s, saved -> s.copy(rules = s.rules.upserting(saved, replacingIndex), saveState = SaveState.Saved) },
+            saved = { s, saved ->
+                val rules = if (rule.id == null) {
+                    s.rules.upserting(saved, replacingIndex)
+                } else {
+                    s.rules.replacingRule(saved, replacingIndex)
+                }
+                s.copy(rules = rules, saveState = SaveState.Saved)
+            },
             failed = { s, e -> s.copy(saveState = SaveState.Failed(e.message ?: "error")) },
         )
     }
@@ -195,6 +203,15 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 s2.copy(rules = restored, saveState = SaveState.Failed(e.message ?: "error"))
             },
         )
+    }
+
+    /**
+     * Deletes [rule], the editor's, wherever it stands now: named by its ids, as a refusal may have
+     * put a rule back before it since the editor opened. One gone already has nothing to delete.
+     */
+    fun deleteRule(rule: SubscriptionRule) {
+        val at = _state.value.rules.indexOfFirst { it.isSameRuleAs(rule) }
+        if (at >= 0) deleteRule(at)
     }
 
     /**
