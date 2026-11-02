@@ -11,6 +11,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.ntust.app.tigerduck.auth.AuthTokenManager
@@ -50,9 +51,10 @@ class SubscriptionPage : TestWatcher() {
 
     /**
      * Opens the page on the backend at [base], the API endpoint setting, and waits for the rules
-     * to show. The backend holds the first student's rules named [rules] before it opens.
+     * to show unless told not to ([shown]). The backend holds the first student's rules named
+     * [rules] before it opens.
      */
-    fun open(base: String, vararg rules: String): SubscriptionSettingsViewModel {
+    fun open(base: String, vararg rules: String, shown: Boolean = true): SubscriptionSettingsViewModel {
         prefs.announcementApiBaseUrlOverride = base
         // Never the real backend, even past this one.
         assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
@@ -61,7 +63,7 @@ class SubscriptionPage : TestWatcher() {
         val page = onMain {
             SubscriptionSettingsViewModel(api, BulletinRepository(), SystemPermissions(context), manager.session)
         }
-        eventually("the rules show") { page.state.value.loadState == SubscriptionSettingsViewModel.LoadState.Loaded }
+        if (shown) eventually("the rules show") { page.state.value.loadState == SubscriptionSettingsViewModel.LoadState.Loaded }
         return page
     }
 
@@ -72,7 +74,7 @@ class SubscriptionPage : TestWatcher() {
     fun eventually(what: String, condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 10_000
         while (!onMain(condition)) {
-            check(System.currentTimeMillis() < deadline) { "never: $what" }
+            if (System.currentTimeMillis() > deadline) fail("never: $what")
             Thread.sleep(5)
         }
     }

@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 
 /**
@@ -66,6 +67,15 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
+    /**
+     * The sign-in whose rules the page shows: the one its last load was read under, null until one
+     * lands. An edit of them goes under it, and an answer lands only while it stands. The sign-out
+     * closes the page only once it is on top, so one kept on another tab's back stack shows the
+     * departed student's rules: none of them may go with the next student's session, and no
+     * answer of theirs may land on the next student's page.
+     */
+    private var shownFor: SignIn? = null
+
     init {
         viewModelScope.launch { fetchTaxonomy() }
         load()
@@ -87,8 +97,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
                 val response = api.fetchSubscriptions(signIn)
-                _state.update {
-                    it.copy(rules = response.items, loadState = LoadState.Loaded)
+                land(signIn) {
+                    shownFor = signIn
+                    _state.update { it.copy(rules = response.items, loadState = LoadState.Loaded) }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -103,8 +114,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
      * Replaces [replacingIndex] in the local list on success.
      */
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
-        val signIn = signInNow()
+        val signIn = editing() ?: return
         sendEdit(
+            signIn,
             send = {
                 if (rule.id == null) api.createSubscription(rule, signIn) else api.updateSubscription(rule.id, rule, signIn)
             },
@@ -126,13 +138,14 @@ class SubscriptionSettingsViewModel @Inject constructor(
      * persisted, so remove it locally without a network call.
      */
     fun deleteRule(index: Int) {
+        val signIn = editing() ?: return
         val s = _state.value
         if (index !in s.rules.indices) return
         val rule = s.rules[index]
         _state.update { it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) }) }
         val id = rule.id ?: return
-        val signIn = signInNow()
         sendEdit(
+            signIn,
             send = { api.deleteSubscription(id, signIn) },
             saved = { s2, _ -> s2.copy(saveState = SaveState.Saved) },
             // Re-insert the rule on failure so the user can retry.
@@ -144,11 +157,12 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Sends one `/v3` edit, [send], and puts its answer on the page: [saved] with what the backend
-     * kept, or [failed] with why it refused. Saving until then, and idle again if the page goes
-     * first.
+     * Sends one `/v3` edit, [send], made under [signIn], and puts its answer on the page while that
+     * sign-in stands ([land]): [saved] with what the backend kept, or [failed] with why it refused.
+     * Saving until then, and idle again if the page goes first.
      */
     private fun <T> sendEdit(
+        signIn: SignIn,
         send: suspend () -> T,
         saved: (State, T) -> State,
         failed: (State, Exception) -> State,
@@ -161,11 +175,42 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 _state.update { it.copy(saveState = SaveState.Idle) }
                 throw e
             } catch (e: Exception) {
-                _state.update { failed(it, e) }
+                land(signIn) { _state.update { failed(it, e) } }
                 return@launch
             }
-            _state.update { saved(it, kept) }
+            land(signIn) { _state.update { saved(it, kept) } }
         }
+    }
+
+    /**
+     * The sign-in an edit of the rules on the page goes under: the one they were read under. Null
+     * while none has landed, and once that sign-in has ended, which starts the page over.
+     */
+    private fun editing(): SignIn? {
+        val signIn = shownFor ?: return null
+        if (signIn.isCurrent) return signIn
+        startOver()
+        return null
+    }
+
+    /**
+     * Puts an answer to a request of [signIn]'s on the page with [write], unless that sign-in has
+     * ended: in one step with the sign-out's end ([SignIn.ifCurrent]), so a sign-out either comes
+     * after the write or finds the page starting over.
+     */
+    private fun land(signIn: SignIn, write: () -> Unit) {
+        if (signIn.ifCurrent(write) == null) startOver()
+    }
+
+    /**
+     * Drops the rules of a sign-in that has ended, and what was waiting on them, and reads the
+     * rules again under the sign-in that stands. With none, the read fails, and the page offers to
+     * try again.
+     */
+    private fun startOver() {
+        shownFor = null
+        _state.update { it.copy(rules = emptyList(), saveState = SaveState.Idle) }
+        load()
     }
 
     /**
@@ -179,6 +224,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val editGeneration = mutableMapOf<Int, Int>()
 
     fun toggleEnabled(index: Int) {
+        val signIn = editing() ?: return
         val before = _state.value
         if (index !in before.rules.indices) return
         val previous = before.rules[index]
@@ -200,8 +246,8 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val generation = (editGeneration[id] ?: 0) + 1
         editGeneration[id] = generation
 
-        val signIn = signInNow()
         sendEdit(
+            signIn,
             send = { api.updateSubscription(id, toggled, signIn) },
             // A newer tap is already in flight; its response is the one
             // that should win, so drop this echo instead of overwriting.
