@@ -393,13 +393,14 @@ class UnsentMarksChannelTest {
 
     @Test
     fun `a clear the backend refused puts back the mark it kept, archived read as ignored`() = runTest {
-        assertTrue(cache.saveMarkedCompletedAssignments(setOf("7"), signIn))
+        // The clear's own write, as Home makes it: 7 in neither set, 8 left marked done.
+        assertTrue(cache.saveMarkedCompletedAssignments(setOf("8"), signIn))
         v4Backend.answer(v4MarkPath, 200, syncFixture("v4/answer-mark.json"))
 
         v4Marks().send("7", "none", signIn)
 
         assertEquals(setOf("7"), cache.loadIgnoredAssignments())
-        assertEquals(emptySet<String>(), cache.loadMarkedCompletedAssignments())
+        assertEquals(setOf("8"), cache.loadMarkedCompletedAssignments())
     }
 
     @Test
@@ -468,19 +469,72 @@ class UnsentMarksChannelTest {
         assertEquals(listOf("8"), cache.loadUnsentMarks().map { it.assignmentId })
     }
 
+    /**
+     * A newer tap whose mark Home saved before the older reply's backend mark was read, and which
+     * was queued only after the check for a newer tap: Home's save and the queue's keep are two
+     * steps, in either order. Its mark stays, and goes next.
+     */
     @Test
-    fun `the backend's mark is taken only if no other write of the marks came while they were read`() = runTest {
+    fun `the backend's mark is not taken over a newer tap saved before it and queued after the check`() = runTest {
+        // The first tap's own write, as Home makes it.
+        assertTrue(cache.saveIgnoredAssignments(setOf("7"), signIn))
+        val sent = mutableListOf<String>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val marks = UnsentMarks(
+            dataCache = cache,
+            writer = MarkWriter { _, status, _, _ ->
+                sent += status
+                if (sent.size == 1) {
+                    firstOut.complete(Unit)
+                    release.await()
+                    // The backend kept a later mark than the first tap's.
+                    WriteAnswer(sent = true, serverClockUs = null, applied = emptySet(), values = mapOf("local_status" to "locally_completed"))
+                } else {
+                    WriteAnswer(sent = true, serverClockUs = null, applied = setOf("local_status"), values = mapOf("local_status" to status))
+                }
+            },
+            records = { true },
+            sends = { true },
+            lastWriterWins = { true },
+            scope = backgroundScope,
+        )
+
+        val first = launch { marks.send("7", "ignored", signIn) }
+        firstOut.await()
+        // Cleared while the first was out: Home saves the mark first...
+        assertTrue(cache.replaceIgnoredAssignments(emptySet(), signIn))
+        release.complete(Unit)
+        // ...and the tap reaches the queue as the reply is read, behind the check's read of it.
+        val newer = launch { marks.send("7", "none", signIn) }
+        first.join()
+        newer.join()
+
+        assertEquals(listOf("ignored", "none"), sent)
+        assertEquals("the newer tap's mark stays", emptySet<String>(), cache.loadMarkedCompletedAssignments())
+        assertEquals(emptySet<String>(), cache.loadIgnoredAssignments())
+        assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
+    }
+
+    @Test
+    fun `the backend's mark is taken only if no other write of the marks came since the queue was read`() = runTest {
         var version = 0
         val adopted = mutableListOf<Pair<Set<String>, Set<String>>>()
         val read: suspend () -> Pair<Set<String>, Set<String>> = { setOf("7", "8") to emptySet() }
 
-        takeBackendMark("7", "locally_completed", { version }, read) { i, c -> adopted += i to c }
+        takeBackendMark("7", "locally_completed", "ignored", readAt = version, { version }, read) { i, c -> adopted += i to c }
         // A swipe of 8 saved while 7's were read: written, the read would undo it.
-        takeBackendMark("7", "locally_completed", { version }, { read().also { version++ } }) { i, c -> adopted += i to c }
+        takeBackendMark("7", "locally_completed", "ignored", readAt = version, { version }, { read().also { version++ } }) { i, c -> adopted += i to c }
+        // One saved after the queue was read, before the marks were: a newer tap's, perhaps.
+        takeBackendMark("7", "locally_completed", "ignored", readAt = version - 1, { version }, read) { i, c -> adopted += i to c }
         // Already so: nothing to write.
-        takeBackendMark("8", "ignored", { version }, read) { i, c -> adopted += i to c }
+        takeBackendMark("8", "ignored", "ignored", readAt = version, { version }, read) { i, c -> adopted += i to c }
+        // This phone's mark is not the one answered: a newer tap set it, which the queue may not hold yet.
+        takeBackendMark("7", "locally_completed", "none", readAt = version, { version }, read) { i, c -> adopted += i to c }
+        // An archived answer is the ignored mark this phone holds.
+        takeBackendMark("8", "none", "archived", readAt = version, { version }, read) { i, c -> adopted += i to c }
 
-        assertEquals(listOf(setOf("8") to setOf("7")), adopted)
+        assertEquals(listOf(setOf("8") to setOf("7"), setOf("7") to emptySet()), adopted)
     }
 
     @Test

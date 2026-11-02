@@ -269,16 +269,21 @@ class UnsentMarks internal constructor(
     }
 
     // LWW D12, a write response's winner: the backend kept a later mark than [mark], so this phone
-    // takes it, unless a newer tap of the assignment waits, whose own answer settles it. Adopted,
-    // so Home reads the marks again rather than writing the ones it holds over them.
+    // takes it, unless a newer tap of the assignment waits, whose own answer settles it. Home saves
+    // a tap's mark and the queue keeps the tap in two steps, in either order, so the queue alone
+    // cannot tell: the marks' version is read before the queue is, and the mark is taken only while
+    // no write came since and this phone's mark is still the one answered ([takeBackendMark]).
+    // Adopted, so Home reads the marks again rather than writing the ones it holds over them.
     private suspend fun takeWinner(mark: UnsentMark, answer: WriteAnswer, signIn: SignIn) {
         val applied = answer.applied ?: return
         if (WriteAnswer.LOCAL_STATUS in applied) return
         val status = answer.values[WriteAnswer.LOCAL_STATUS] as? String ?: return
         val id = mark.assignmentId ?: return
+        val answered = mark.status ?: return
+        val readAt = dataCache.assignmentMarksVersion.value
         if (lane.entries().any { it.assignmentId == id && !it.isSameTap(mark) }) return
         takeBackendMark(
-            id, status,
+            id, status, answered, readAt,
             version = { dataCache.assignmentMarksVersion.value },
             read = { dataCache.loadIgnoredAssignments() to dataCache.loadMarkedCompletedAssignments() },
             adopt = { ignored, completed -> dataCache.adoptAssignmentMarks(ignored, completed, signIn) },
@@ -315,27 +320,45 @@ class UnsentMarks internal constructor(
 
 /**
  * Puts [status], the backend's mark, on [id] in the ignored and marked-done sets [read] gives, and
- * writes them with [adopt]: only if they change, and only if no other write of the marks came
- * between the read and the write ([version] moved), which this one would undo. The next pull
- * takes the backend's mark then.
+ * writes them with [adopt], in place of [answered], the mark the backend's reply answered. Only if
+ * they change; only while [id]'s mark in them is still [answered], as one a newer tap set is not;
+ * and only if no other write of the marks came since [version] read [readAt], which this one would
+ * undo. The next pull takes the backend's mark otherwise.
  */
 internal suspend fun takeBackendMark(
     id: String,
     status: String,
+    answered: String,
+    readAt: Int,
     version: () -> Int,
     read: suspend () -> Pair<Set<String>, Set<String>>,
     adopt: suspend (ignored: Set<String>, completed: Set<String>) -> Unit,
 ) {
-    val readAt = version()
     val (ignored, completed) = read()
-    val (nextIgnored, nextCompleted) = when (status) {
-        AssignmentOverrideReconciler.STATUS_IGNORED, STATUS_ARCHIVED -> (ignored + id) to (completed - id)
+    if (markIn(id, ignored, completed) != markOf(answered)) return
+    val (nextIgnored, nextCompleted) = when (markOf(status)) {
+        AssignmentOverrideReconciler.STATUS_IGNORED -> (ignored + id) to (completed - id)
         AssignmentOverrideReconciler.STATUS_COMPLETED -> (ignored - id) to (completed + id)
         else -> (ignored - id) to (completed - id)
     }
     if (nextIgnored == ignored && nextCompleted == completed) return
     if (version() != readAt) return
     adopt(nextIgnored, nextCompleted)
+}
+
+// [status] as the two sets hold a mark: ignored (an older name for it, archived, included), marked
+// done, or neither.
+private fun markOf(status: String): String = when (status) {
+    AssignmentOverrideReconciler.STATUS_IGNORED, STATUS_ARCHIVED -> AssignmentOverrideReconciler.STATUS_IGNORED
+    AssignmentOverrideReconciler.STATUS_COMPLETED -> AssignmentOverrideReconciler.STATUS_COMPLETED
+    else -> AssignmentOverrideReconciler.STATUS_NONE
+}
+
+// [id]'s mark in the two sets, as [markOf] names it.
+private fun markIn(id: String, ignored: Set<String>, completed: Set<String>): String = when (id) {
+    in ignored -> AssignmentOverrideReconciler.STATUS_IGNORED
+    in completed -> AssignmentOverrideReconciler.STATUS_COMPLETED
+    else -> AssignmentOverrideReconciler.STATUS_NONE
 }
 
 // An older name for ignored, which the backend may still answer with, as a snapshot reads it.
