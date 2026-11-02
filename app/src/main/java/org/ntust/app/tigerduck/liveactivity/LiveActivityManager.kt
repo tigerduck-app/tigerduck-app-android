@@ -112,8 +112,8 @@ class LiveActivityManager internal constructor(
     private val refreshLock = Mutex()
 
     init {
-        // Kept for the life of the process, signed in or not, as the sign-in a refresh then runs
-        // on is the next one: a refresh while nobody is signed in only takes everything down.
+        // Kept for the life of the process, signed in or not: a refresh while nobody is signed in
+        // only takes everything down.
         scope.launch {
             // And on every write of the ignored, marked-done and ignored-course
             // sets: the resolver only sees what is still outstanding. And on a
@@ -172,11 +172,11 @@ class LiveActivityManager internal constructor(
         refreshLock.withLock { refreshLocked(quiet) }
 
     private suspend fun refreshLocked(quiet: Boolean) {
-        // authState, not a session-liveness check: everything below reads local
-        // JSON and the academic calendar, so what matters is whether a user
-        // is signed in at all — not whether an SSO cookie happens to be warm.
-        // The cookie jar is in-memory, so gating on it stopped the Live Update
-        // after every reboot or background kill until the user signed in again.
+        // Before the state: a sign-out in between ends what this refresh would post.
+        val signIn = session.current
+        // authState, not a session-liveness check: everything below reads local JSON and the
+        // academic calendar, so what matters is whether a user is signed in at all. The cookie
+        // jar is in-memory: gating on it stopped the Live Update after every reboot or kill.
         val signedIn = isSignedIn()
         // Before anything is loaded: the account the courses read below belong to. Read with the
         // sign-in state: logout clears the stored ID a moment before it lowers authState, and a
@@ -184,12 +184,10 @@ class LiveActivityManager internal constructor(
         val account = runCatching { storedStudentId() }
         val startedFor = account.getOrNull()
         val leaving = account.isSuccess && signedIn && startedFor == null && !isDemoSession()
-        // Classes do not meet on a school holiday, nor before 開學 — 選課 fills
-        // the timetable weeks ahead of the term, so having courses is not
-        // evidence that classes have started. Neither the chip nor the
-        // class-preparing alarm should surface one on such a day. Read once
-        // and used for both so a flip between the two calls cannot leave them
-        // disagreeing.
+        // Classes do not meet on a school holiday, nor before 開學 — 選課 fills the timetable
+        // weeks ahead of the term, so having courses is not evidence that classes have started.
+        // Neither the chip nor the class-preparing alarm should surface one on such a day. Read
+        // once and used for both so a flip between the two calls cannot leave them disagreeing.
         val calendar = academicCalendar.current()
         val optedIn = academicCalendar.optedInHolidayIds
         // 翹課 parked — see DataCache's skipped-dates section. Not read, so
@@ -248,9 +246,8 @@ class LiveActivityManager internal constructor(
             now = now,
             changes = changes,
         )
-        // Distinguishes "the resolver looked and found nothing" from the
-        // bail-outs above, which is the difference between a wrong timetable
-        // and a wrong clock when a simulated class fails to show.
+        // "The resolver looked and found nothing", not the bail-outs above: a wrong timetable,
+        // not a wrong clock, when a simulated class fails to show.
         if (BuildConfig.DEBUG && snapshot == null) {
             Log.d(
                 TAG,
@@ -258,7 +255,8 @@ class LiveActivityManager internal constructor(
                     "assignments=${assignments.size} quietToday=$quietToday",
             )
         }
-        val spelledOut = notifier.apply(snapshot, quiet)
+        // In one step with the sign-in's end: nothing goes up after it, or the sign-out's stop follows.
+        val spelledOut = signIn.ifCurrent { notifier.apply(snapshot, quiet) } ?: return
 
         scheduleBoundaryRefresh(
             snapshot, courses, assignments, skipped, changes, now, spelledOut, calendar.termFlipMillis(),

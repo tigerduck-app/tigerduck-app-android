@@ -16,12 +16,15 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -52,7 +55,11 @@ class LiveActivityManagerRestartTest {
     @After
     fun tearDown() = scope.cancel()
 
-    private fun manager(): LiveActivityManager {
+    private fun manager(
+        session: AccountSession = AccountSession(SignInSeries(), scope),
+        // Read last before the post, so a test can land a sign-out there.
+        courseChanges: () -> CourseChanges = { CourseChanges.EMPTY },
+    ): LiveActivityManager {
         val prefs = AppPreferences(context)
         val calendar = AcademicCalendarStore(context, OkHttpClient(), prefs)
         val dataCache = DataCache(context, calendar)
@@ -83,7 +90,9 @@ class LiveActivityManagerRestartTest {
             academicCalendar = calendar,
             boundaryScheduler = LiveActivityBoundaryScheduler(context),
             appScope = scope,
+            courseChanges = courseChanges,
             isDemoSession = { true },
+            session = session,
         )
     }
 
@@ -93,6 +102,43 @@ class LiveActivityManagerRestartTest {
     private fun awaitShowing(expected: Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (showing() != expected && System.currentTimeMillis() < deadline) Thread.sleep(20)
+    }
+
+    @Test
+    fun `a sign-out while a refresh reads its data puts nothing up`() {
+        val series = SignInSeries()
+        val manager = manager(AccountSession(series, scope)) {
+            // The state still reads signed in: the sign-out lowers it after the sign-in ends.
+            series.end()
+            CourseChanges.EMPTY
+        }
+
+        runBlocking { manager.refreshAndWait() }
+
+        assertFalse("the student who left is on the phone's status bar", showing())
+    }
+
+    @Test
+    fun `a same-student sign-in while a refresh reads its data leaves the post to the next refresh`() {
+        val series = SignInSeries()
+        val manager = manager(AccountSession(series, scope)) {
+            series.end()
+            series.open()
+            CourseChanges.EMPTY
+        }
+
+        runBlocking { manager.refreshAndWait() }
+
+        assertFalse(showing())
+    }
+
+    @Test
+    fun `a refresh under a sign-in that stands shows the Live Update`() {
+        val manager = manager(AccountSession(SignInSeries(), scope))
+
+        runBlocking { manager.refreshAndWait() }
+
+        assertTrue(showing())
     }
 
     @Test

@@ -145,14 +145,9 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
-    "kind": "long-file",
-    "count": 401
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
     "kind": "long-function",
     "name": "LiveActivityManager.refreshLocked(Boolean)",
-    "lines": 93
+    "lines": 91
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityNotifier.kt",
