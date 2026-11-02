@@ -12,13 +12,17 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import java.util.Date
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /** A status an assignment's page fetched reaches the cached list Home, the Live Update and the reminders read. */
 class AssignmentStatusWriterTest {
 
     private lateinit var cache: DataCache
     private lateinit var ledger: AssignmentStatusLedger
+    private val series = SignInSeries()
     private val published = mutableListOf<List<Assignment>>()
     private lateinit var writer: AssignmentStatusWriter
 
@@ -26,8 +30,8 @@ class AssignmentStatusWriterTest {
     fun setUp() {
         val context = JvmContext()
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
-        ledger = AssignmentStatusLedger { cache.userDataGeneration }
-        writer = AssignmentStatusWriter(ledger, cache) { published += it }
+        ledger = AssignmentStatusLedger()
+        writer = AssignmentStatusWriter(ledger, cache) { assignments, _ -> published += assignments }
     }
 
     private fun row(id: String, completed: Boolean = false) = Assignment(
@@ -35,12 +39,12 @@ class AssignmentStatusWriterTest {
         dueDate = Date(1_790_600_000_000L), isCompleted = completed,
     )
 
-    private fun answer(id: String, askedAtMs: Long, submitted: Boolean = true, generation: Int = cache.userDataGeneration) =
-        SubmissionStatusAnswer(id, submitted, if (submitted) 1_790_500_000_000L else null, askedAtMs, generation)
+    private fun answer(id: String, askedAtMs: Long, submitted: Boolean = true, signIn: SignIn = series.current) =
+        SubmissionStatusAnswer(id, submitted, if (submitted) 1_790_500_000_000L else null, askedAtMs, signIn)
 
     @Test
     fun `a status the page fetched reaches the cached assignment and is published, and the same one again writes nothing`() = runTest {
-        cache.saveAssignments(listOf(row("701"), row("702")))
+        cache.saveAssignments(listOf(row("701"), row("702")), testSignIn())
 
         assertTrue(writer.take(answer("701", askedAtMs = 10)))
 
@@ -56,8 +60,8 @@ class AssignmentStatusWriterTest {
 
     @Test
     fun `an answer asked for before the round's request is dropped`() = runTest {
-        cache.saveAssignments(listOf(row("701")))
-        ledger.reconcile(listOf(row("701")), mapOf("701" to answer("701", 100L, submitted = false)), cache.userDataGeneration)
+        cache.saveAssignments(listOf(row("701")), testSignIn())
+        ledger.reconcile(listOf(row("701")), mapOf("701" to answer("701", 100L, submitted = false)), series.current)
 
         assertFalse(writer.take(answer("701", askedAtMs = 50)))
 
@@ -67,13 +71,15 @@ class AssignmentStatusWriterTest {
 
     @Test
     fun `nothing is written for an account that signed out while Moodle answered`() = runTest {
-        cache.saveAssignments(listOf(row("701")))
-        val generation = cache.userDataGeneration
+        cache.saveAssignments(listOf(row("701")), testSignIn())
+        val departing = series.current
+        series.end()
         cache.clearAllUserData()
+        series.open()
         // The next account has an assignment of the same id, as a teammate would.
-        cache.saveAssignments(listOf(row("701")))
+        cache.saveAssignments(listOf(row("701")), series.current)
 
-        assertFalse(writer.take(answer("701", askedAtMs = 10, generation = generation)))
+        assertFalse(writer.take(answer("701", askedAtMs = 10, signIn = departing)))
 
         assertFalse(cache.loadAssignments().single().isCompleted)
         assertTrue(published.isEmpty())
@@ -81,7 +87,7 @@ class AssignmentStatusWriterTest {
 
     @Test
     fun `an assignment the cache does not list writes nothing`() = runTest {
-        cache.saveAssignments(listOf(row("701")))
+        cache.saveAssignments(listOf(row("701")), testSignIn())
 
         assertFalse(writer.take(answer("999", askedAtMs = 10)))
 
@@ -90,7 +96,7 @@ class AssignmentStatusWriterTest {
 
     @Test
     fun `an extension the page found, and nothing else, is written and published`() = runTest {
-        cache.saveAssignments(listOf(row("701")))
+        cache.saveAssignments(listOf(row("701")), testSignIn())
 
         assertTrue(writer.take(answer("701", askedAtMs = 10, submitted = false).copy(extensionDueMs = 1_790_900_000_000L)))
 

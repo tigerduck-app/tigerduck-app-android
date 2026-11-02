@@ -399,7 +399,7 @@ class PollRevisionOnceTest {
             changes(since)
         },
         lastKnownRevision = { lastKnown },
-        setLastKnownRevision = { lastKnown = it },
+        setLastKnownRevision = { revision, _ -> lastKnown = revision },
         currentSignIn = { series.current },
         fullSyncsInFlight = { inFlight },
         retryUnsent = { signIn ->

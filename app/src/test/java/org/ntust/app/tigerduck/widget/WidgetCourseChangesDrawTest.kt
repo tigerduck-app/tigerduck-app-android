@@ -51,6 +51,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import org.ntust.app.tigerduck.ui.component.CourseChangeInkLight
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -190,7 +191,7 @@ class WidgetCourseChangesDrawTest {
         AppClock.setOverride(ClockOverride(morning, frozen = true, savedAtRealMillis = 0L))
         val calendar = AcademicCalendarStore(app, OkHttpClient(), prefs)
         val cache = DataCache(app, calendar)
-        cache.saveCourses(listOf(moved))
+        cache.saveCourses(listOf(moved), testSignIn())
         val feeds = MutableStateFlow(CourseChanges.EMPTY)
         WidgetUpdater(
             context = app,

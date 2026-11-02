@@ -74,7 +74,6 @@ private val fingerprintGson = Gson()
 internal interface UploadLedgerStore {
     val fingerprint: String?
     val acceptedAtMs: Long
-    fun record(fingerprint: String, atMs: Long)
 }
 
 /**
@@ -103,12 +102,11 @@ internal class UploadLedger(
      * Runs [send] for a list with [fingerprint] when it is due, or whatever
      * the ledger holds when [always] (a forced re-add, a term the server has
      * emptied), and once [send] returns records it as accepted through
-     * [ifCurrent], which runs the record it is handed only while the sign-in
-     * the upload began under still stands, and under the lock a sign-out
-     * moves it under (`AuthTokenManager.runIfSignedIn`). Checking first and
-     * recording after left a gap a sign-out fell into: its clearing of the
-     * ledger landed between the two, and the departing account's list stayed
-     * for the next account to skip. Returns whether it sent. A [send] that
+     * [record], which writes only while the sign-in the upload began under
+     * still stands, atomic with the sign-out. Checking first and recording
+     * after left a gap a sign-out fell into: its clearing of the ledger
+     * landed between the two, and the departing account's list stayed for
+     * the next account to skip. Returns whether it sent. A [send] that
      * throws records nothing; one the server turned away
      * ([PushApiException.statusCode]) holds the same list back for
      * [REFUSED_UPLOAD_PAUSE_MS] from the answer, unless [always], while
@@ -116,7 +114,7 @@ internal class UploadLedger(
      */
     suspend fun sendIfDue(
         fingerprint: String,
-        ifCurrent: (record: () -> Unit) -> Unit,
+        record: (fingerprint: String, atMs: Long) -> Unit,
         always: Boolean = false,
         signIn: Int = 0,
         send: suspend () -> Unit,
@@ -136,7 +134,7 @@ internal class UploadLedger(
                 if (e.statusCode != null) refused[refusalKey] = clock()
                 throw e
             }
-            ifCurrent { store.record(fingerprint, now) }
+            record(fingerprint, now)
             true
         }
 

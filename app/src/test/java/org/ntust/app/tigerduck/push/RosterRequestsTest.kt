@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.push
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 
 /**
  * `/v3/sync/full`'s `roster_requests` (backend 3.10.1): the terms whose roster the backend asks
@@ -21,16 +22,21 @@ class RosterRequestsTest {
     @Test
     fun `a roster request goes to the school once, then again only after an hour or a new sign-in`() {
         val log = RosterRequestLog()
+        val series = SignInSeries()
+        val first = series.current
         val now = 1_800_000_000_000L
         val asked = listOf("1151", "1151")
         val hour = RosterRequestLog.RETRY_INTERVAL_MS
 
-        assertEquals(emptyList<String>(), log.termsToAsk(emptyList(), generation = 1, nowMs = now))
-        assertEquals(listOf("1151"), log.termsToAsk(asked, generation = 1, nowMs = now))
-        assertEquals(emptyList<String>(), log.termsToAsk(asked, generation = 1, nowMs = now + hour - 1))
-        assertEquals(listOf("1151"), log.termsToAsk(asked, generation = 2, nowMs = now + hour - 1))
-        assertEquals(listOf("1151"), log.termsToAsk(asked, generation = 2, nowMs = now + 2 * hour - 1))
+        assertEquals(emptyList<String>(), log.termsToAsk(emptyList(), first, nowMs = now))
+        assertEquals(listOf("1151"), log.termsToAsk(asked, first, nowMs = now))
+        assertEquals(emptyList<String>(), log.termsToAsk(asked, first, nowMs = now + hour - 1))
+        series.end()
+        series.open()
+        val second = series.current
+        assertEquals(listOf("1151"), log.termsToAsk(asked, second, nowMs = now + hour - 1))
+        assertEquals(listOf("1151"), log.termsToAsk(asked, second, nowMs = now + 2 * hour - 1))
         // A clock set back past the last ask does not hold it off.
-        assertEquals(listOf("1151"), log.termsToAsk(asked, generation = 2, nowMs = now))
+        assertEquals(listOf("1151"), log.termsToAsk(asked, second, nowMs = now))
     }
 }

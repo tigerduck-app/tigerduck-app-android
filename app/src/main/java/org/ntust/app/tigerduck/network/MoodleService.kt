@@ -9,6 +9,8 @@ import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.moodle.AssignmentStatusLedger
 import org.ntust.app.tigerduck.data.moodle.AssignmentStatusWriter
@@ -25,6 +27,7 @@ import org.ntust.app.tigerduck.network.model.MoodleSubmissionStatusEnvelope
 import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.MAX_CONCURRENT_SCHOOL_REQUESTS
 import org.ntust.app.tigerduck.util.SharedFetch
 import org.ntust.app.tigerduck.util.mapAtMost
@@ -41,6 +44,7 @@ class MoodleService @Inject constructor(
     private val dataCache: DataCache,
     private val prefs: AppPreferences,
     private val webservice: MoodleWebservice,
+    private val sessions: AccountSessions,
     @ApplicationScope appScope: CoroutineScope,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
@@ -70,8 +74,8 @@ class MoodleService @Inject constructor(
          * from the cache, confirmed or whose request failed, is not among them.
          */
         internal val statuses: Map<String, SubmissionStatusAnswer>,
-        /** The cache's generation the round ran under. */
-        internal val generation: Int,
+        /** The sign-in the round ran under. */
+        internal val signIn: SignIn,
     )
 
     /** The network half of [fetchAssignments]: what every caller asking for the same courses can share. */
@@ -86,8 +90,8 @@ class MoodleService @Inject constructor(
          * for all would let a page's answer asked for in between pass for newer than one asked after it.
          */
         val askedAtMs: Map<Int, Long>,
-        /** The cache's generation the round ran under; see [DataCache.userDataGeneration]. */
-        val generation: Int,
+        /** The sign-in the round ran under. */
+        val signIn: SignIn,
     )
 
     // Refreshes in progress that every assignment round starting meanwhile
@@ -183,11 +187,11 @@ class MoodleService @Inject constructor(
      * dropped courses are excluded), else fall back to semesterCode filtering
      * on first launch when the roster cache is still empty.
      *
-     * Null when no course was left to ask about, which the callers answer
-     * by keeping the assignments they have, as iOS does. Any
-     * list is Moodle's answer, and an empty one replaces them like any
-     * other: see [requestAssignments], which throws for everything else.
+     * Null when no course was left to ask about, which the callers answer by keeping the
+     * assignments they have, as iOS does. Any list is Moodle's answer, and an empty one replaces
+     * them like any other: see [requestAssignments], which throws for everything else.
      */
+    @OptIn(StartsAccountWork::class)
     suspend fun fetchAssignments(
         enrolledCourses: List<MoodleEnrolledCourse>,
         rosterCourseNos: Set<String>? = null,
@@ -213,7 +217,7 @@ class MoodleService @Inject constructor(
             // "Last synced" row would never move. No courses at all is not
             // dated: it is also what an upstream failing quietly looks like,
             // and what the class table passes when its enrolment fetch fails.
-            if (enrolledCourses.isNotEmpty()) markSynced(askedWith = token)
+            if (enrolledCourses.isNotEmpty()) markSynced(askedWith = token, sessions.school.current)
             return@withContext null
         }
         val localCourseNos = rosterNos + cachedCourseNos
@@ -269,11 +273,11 @@ class MoodleService @Inject constructor(
             val askedAt = round.askedAtMs[id] ?: return@mapNotNull null
             val (submitted, submittedAt) = submissionState(id, emptyMap(), status.lastattempt)
             SubmissionStatusAnswer(
-                id.toString(), submitted, submittedAt?.time, askedAt, round.generation,
+                id.toString(), submitted, submittedAt?.time, askedAt, round.signIn,
                 extensionDueMs = extensionDueDate(id, asked = true, status.lastattempt, emptyMap())?.time,
             )
         }.associateBy { it.assignmentId }
-        AssignmentsAnswer(assignments, statuses, round.generation)
+        AssignmentsAnswer(assignments, statuses, round.signIn)
     }
 
     /**
@@ -290,9 +294,10 @@ class MoodleService @Inject constructor(
      * refresh, was most of the requests a refresh made to Moodle by the
      * middle of a term. A pull to refresh still asks about everything.
      */
+    @OptIn(StartsAccountWork::class)
     private suspend fun fetchAssignmentsRound(courseIds: List<Int>): AssignmentsRound =
         withContext(Dispatchers.IO) {
-            val generation = dataCache.userDataGeneration
+            val signIn = sessions.school.current
             val recheck = recheckingRefreshes.get() > 0
             val confirmed =
                 if (recheck) emptyMap() else confirmedSubmissions(dataCache.loadAssignments())
@@ -318,32 +323,31 @@ class MoodleService @Inject constructor(
                 }.filterNotNull()
                 val statuses = answers.associate { (id, status, _) -> id to status }
                 closedNow = closedUnsubmitted(all, statuses, askedAt, closedBefore)
-                AssignmentsRound(courses, statuses, confirmed, answers.associate { (id, _, sentAt) -> id to sentAt }, generation)
+                AssignmentsRound(courses, statuses, confirmed, answers.associate { (id, _, sentAt) -> id to sentAt }, signIn)
             }
             // Only for the account that asked, as the stamp below.
             if (tokenService.currentToken() == askedWith) {
-                if (closedNow != closedBefore) dataCache.saveClosedAssignments(closedNow)
-                // The assignments' pages and the courses' lists read these; the generation check
-                // inside keeps a round that outlived a sign-out from writing the next account's.
-                dataCache.saveAssignmentRecords(assignmentRecords(round.courses), generation)
+                if (closedNow != closedBefore) dataCache.saveClosedAssignments(closedNow, signIn)
+                // The assignments' pages and the courses' lists read these; the sign-in keeps a
+                // round that outlived a sign-out from writing the next account's.
+                dataCache.saveAssignmentRecords(assignmentRecords(round.courses), signIn)
             }
             // Stamped here rather than at each caller, so every screen and
             // the worker date the data alike — see RefreshPolicies. Only
             // for a round that got an answer to every status call: a failed
             // one reads as "not submitted", and a stamp would keep the next
             // automatic fetch from correcting it.
-            if (round.statuses.size == asked) markSynced(askedWith)
+            if (round.statuses.size == asked) markSynced(askedWith, signIn)
             round
         }
 
     /**
-     * Dates the school data as of now, if the wstoken that asked is still
-     * the account's: an answer that outlived a sign-out cannot vouch for
-     * whoever signs in next.
+     * Dates the school data as of now, if the wstoken that asked is still the account's: an answer
+     * that outlived a sign-out cannot vouch for whoever signs in next.
      */
-    private fun markSynced(askedWith: String?) {
+    private fun markSynced(askedWith: String?, signIn: SignIn) {
         if (askedWith != null && tokenService.currentToken() == askedWith) {
-            prefs.markSchoolDataSynced(System.currentTimeMillis())
+            prefs.school.schoolDataSyncedAtMs.set(System.currentTimeMillis(), signIn)
         }
     }
 
@@ -360,18 +364,14 @@ class MoodleService @Inject constructor(
     private fun callGetAssignments(token: String, courseIds: List<Int>): List<MoodleAssignmentsCourse> =
         requestAssignments(client, token, courseIds)
 
-    private fun callGetSubmissionStatus(
-        token: String,
-        assignId: Int,
-        userId: Int,
-    ): MoodleSubmissionStatusEnvelope =
+    private fun callGetSubmissionStatus(token: String, assignId: Int, userId: Int): MoodleSubmissionStatusEnvelope =
         requestSubmissionStatus(client, token, assignId, userId)
 
     /**
      * The order of the status answers the cached assignments take, a round's and the pages';
      * see [storeAssignments] and [AssignmentStatusWriter].
      */
-    val statusLedger = AssignmentStatusLedger { dataCache.userDataGeneration }
+    val statusLedger = AssignmentStatusLedger()
 
     /**
      * Writes [assignments], a round's [answer] as the caller merged it, to the cache, with each
@@ -380,8 +380,8 @@ class MoodleService @Inject constructor(
      * the cache's lock, so a page's write cannot pass it.
      *
      * The list as written, which is what the caller shows, uploads and arms reminders from: the
-     * reconciliation can change what the caller merged. Null, and nothing written, once the data
-     * was wiped under the round, when the caller publishes nothing.
+     * reconciliation can change what the caller merged. Null, and nothing written, once the
+     * round's sign-in has ended, when the caller publishes nothing.
      */
     suspend fun storeAssignments(assignments: List<Assignment>, answer: AssignmentsAnswer): List<Assignment>? =
         storeAssignments(dataCache, statusLedger, assignments, answer)
@@ -410,7 +410,7 @@ class MoodleService @Inject constructor(
             assignments: List<Assignment>,
             answer: AssignmentsAnswer,
         ): List<Assignment>? =
-            dataCache.updateAssignments(answer.generation) { ledger.reconcile(assignments, answer.statuses, answer.generation) }
+            dataCache.updateAssignments(answer.signIn) { ledger.reconcile(assignments, answer.statuses, answer.signIn) }
 
         /**
          * What each round keeps of every assignment of the answer, the undated and the ones

@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -24,6 +25,7 @@ import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
 import java.io.IOException
 import java.lang.reflect.Type
 import java.util.Date
+import org.ntust.app.tigerduck.util.testSignIn
 
 /** An assignment's page: what it finds in the cache, and what it fetches of the submission. */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -76,7 +78,7 @@ class MoodleAccountAssignmentsTest {
     private val api = FakeApi()
     private val cache = MemoryCache()
     private var signedIn = true
-    private var generation = 7
+    private val signIn = testSignIn()
     private var clock = 1_000L
     private val records = MutableSharedFlow<List<org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord>>(replay = 1)
     private val listed = MutableSharedFlow<List<Assignment>>(replay = 1)
@@ -91,7 +93,7 @@ class MoodleAccountAssignmentsTest {
         records = records,
         listed = listed,
         takeStatus = { answer -> taken += answer },
-        generation = { generation },
+        currentSignIn = { signIn },
         monotonicNowMs = { clock++ },
     )
 
@@ -204,7 +206,7 @@ class MoodleAccountAssignmentsTest {
         assertTrue(answer.submitted)
         assertEquals(1_790_500_000_000L, answer.submittedAtMs)
         assertEquals("stamped before the request went out", before, answer.askedAtMs)
-        assertEquals(7, answer.generation)
+        assertSame(signIn, answer.signIn)
     }
 
     @Test

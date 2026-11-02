@@ -10,6 +10,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * [markForReenableCheck]: which categories switched back on wait for the
@@ -28,12 +29,12 @@ class ReenableMarksTest {
 
     // What HomeBackendSync.pull records once a full sync has run.
     private fun syncFully() {
-        prefs.syncedCategories += categoriesSwitchedOn(prefs)
+        prefs.school.syncedCategories.set(prefs.school.syncedCategories.get() + categoriesSwitchedOn(prefs), testSignIn())
     }
 
     // What turning TigerSync on does with every category's switch on.
     private fun turnTigerSyncOn(signedIn: Boolean = true) {
-        for (category in REENABLE_CATEGORIES) markForReenableCheck(prefs, category, signedIn)
+        for (category in REENABLE_CATEGORIES) markForReenableCheck(prefs, category, signedIn, testSignIn())
     }
 
     @Test
@@ -42,7 +43,7 @@ class ReenableMarksTest {
 
         turnTigerSyncOn()
 
-        assertEquals(REENABLE_CATEGORIES, prefs.pendingConflictCategories)
+        assertEquals(REENABLE_CATEGORIES, prefs.school.pendingConflictCategories.get())
     }
 
     @Test
@@ -53,8 +54,8 @@ class ReenableMarksTest {
 
         turnTigerSyncOn()
 
-        assertEquals(emptySet<String>(), prefs.pendingConflictCategories)
-        assertFalse(AssignmentOverrideReconciler.isHeldForReenable(prefs.pendingConflictCategories))
+        assertEquals(emptySet<String>(), prefs.school.pendingConflictCategories.get())
+        assertFalse(AssignmentOverrideReconciler.isHeldForReenable(prefs.school.pendingConflictCategories.get()))
     }
 
     @Test
@@ -70,7 +71,7 @@ class ReenableMarksTest {
         prefs.syncAssignments = true
         turnTigerSyncOn()
 
-        assertEquals(setOf("course_names"), prefs.pendingConflictCategories)
+        assertEquals(setOf("course_names"), prefs.school.pendingConflictCategories.get())
     }
 
     @Test
@@ -80,7 +81,7 @@ class ReenableMarksTest {
 
         turnTigerSyncOn(signedIn = false)
 
-        assertEquals(emptySet<String>(), prefs.pendingConflictCategories)
+        assertEquals(emptySet<String>(), prefs.school.pendingConflictCategories.get())
     }
 
     @Test
@@ -88,10 +89,10 @@ class ReenableMarksTest {
         // Off at the update, with whatever this phone changed since.
         prefs.syncCourses = false
 
-        DataMigration.settleReenableCheck(prefs, signedIn = true)
+        DataMigration.settleReenableCheck(prefs, signedIn = true, testSignIn())
 
         turnTigerSyncOn()
-        assertEquals(REENABLE_CATEGORIES, prefs.pendingConflictCategories)
+        assertEquals(REENABLE_CATEGORIES, prefs.school.pendingConflictCategories.get())
     }
 
     @Test
@@ -99,33 +100,33 @@ class ReenableMarksTest {
         // v2.3.1 went on applying the server's marks while its check waited,
         // so there is nothing of this phone's left to ask about; kept, it
         // would hold the marks until TigerSync was next opened.
-        prefs.pendingConflictCategories = setOf("assignments", "course_names")
+        prefs.school.pendingConflictCategories.set(setOf("assignments", "course_names"), testSignIn())
 
-        DataMigration.settleReenableCheck(prefs, signedIn = true)
+        DataMigration.settleReenableCheck(prefs, signedIn = true, testSignIn())
 
-        assertEquals(setOf("course_names"), prefs.pendingConflictCategories)
-        assertFalse(AssignmentOverrideReconciler.isHeldForReenable(prefs.pendingConflictCategories))
+        assertEquals(setOf("course_names"), prefs.school.pendingConflictCategories.get())
+        assertFalse(AssignmentOverrideReconciler.isHeldForReenable(prefs.school.pendingConflictCategories.get()))
     }
 
     @Test
     fun `a fresh install, or one signed out at the update, marks nothing before its first sync`() {
-        DataMigration.settleReenableCheck(prefs, signedIn = false)
+        DataMigration.settleReenableCheck(prefs, signedIn = false, testSignIn())
 
         // Signed in since.
         turnTigerSyncOn()
 
-        assertEquals(emptySet<String>(), prefs.pendingConflictCategories)
+        assertEquals(emptySet<String>(), prefs.school.pendingConflictCategories.get())
     }
 
     @Test
     fun `an install signed out at the update drops the checks an older build left pending`() {
         // Marked while signed out, the check failing for want of a session.
-        prefs.pendingConflictCategories = setOf("assignments", "courses")
+        prefs.school.pendingConflictCategories.set(setOf("assignments", "courses"), testSignIn())
 
-        DataMigration.settleReenableCheck(prefs, signedIn = false)
+        DataMigration.settleReenableCheck(prefs, signedIn = false, testSignIn())
 
-        assertEquals(emptySet<String>(), prefs.pendingConflictCategories)
-        assertFalse(AssignmentOverrideReconciler.isHeldForReenable(prefs.pendingConflictCategories))
+        assertEquals(emptySet<String>(), prefs.school.pendingConflictCategories.get())
+        assertFalse(AssignmentOverrideReconciler.isHeldForReenable(prefs.school.pendingConflictCategories.get()))
     }
 
     @Test
@@ -134,9 +135,9 @@ class ReenableMarksTest {
         // Turned off while the sync ran, so its marks step left the marks alone.
         prefs.syncAssignments = false
 
-        prefs.syncedCategories += categoriesSynced(switchedOn, REENABLE_CATEGORIES, prefs)
+        prefs.school.syncedCategories.set(categoriesSynced(switchedOn, REENABLE_CATEGORIES, prefs), testSignIn())
 
-        assertEquals(REENABLE_CATEGORIES - "assignments", prefs.syncedCategories)
+        assertEquals(REENABLE_CATEGORIES - "assignments", prefs.school.syncedCategories.get())
     }
 
     @Test
@@ -147,12 +148,12 @@ class ReenableMarksTest {
     @Test
     fun `a courses check an older build left pending stops holding the course list at the update`() {
         // Left by a build that kept reconciling the course list while it waited.
-        prefs.pendingConflictCategories = setOf("courses", "assignments")
+        prefs.school.pendingConflictCategories.set(setOf("courses", "assignments"), testSignIn())
 
-        DataMigration.dropStaleCoursesCheck(prefs)
+        DataMigration.dropStaleCoursesCheck(prefs, testSignIn())
 
-        assertEquals(setOf("assignments"), prefs.pendingConflictCategories)
-        assertTrue(CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.pendingConflictCategories))
+        assertEquals(setOf("assignments"), prefs.school.pendingConflictCategories.get())
+        assertTrue(CourseSyncReconciler.syncsCourseList(prefs.syncCourses, prefs.school.pendingConflictCategories.get()))
     }
 
     private fun taken(
@@ -170,9 +171,9 @@ class ReenableMarksTest {
         // and marks left alone: none of their server data was taken.
         val took = taken(marksTaken = false, courseListSynced = false, syncNames = false)
 
-        prefs.syncedCategories += categoriesSynced(categoriesSwitchedOn(prefs), took, prefs)
+        prefs.school.syncedCategories.set(categoriesSynced(categoriesSwitchedOn(prefs), took, prefs), testSignIn())
 
-        assertEquals(setOf("course_colors"), prefs.syncedCategories)
+        assertEquals(setOf("course_colors"), prefs.school.syncedCategories.get())
     }
 
     @Test

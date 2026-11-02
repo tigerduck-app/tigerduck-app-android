@@ -217,6 +217,6 @@ class UnsentMarks internal constructor(
 
         /** Whether marks go out: they sync, and no assignments re-enable check is pending. */
         fun sendsMarks(prefs: AppPreferences): Boolean =
-            recordsMarks(prefs) && REENABLE_CATEGORY !in prefs.pendingConflictCategories
+            recordsMarks(prefs) && REENABLE_CATEGORY !in prefs.school.pendingConflictCategories.get()
     }
 }

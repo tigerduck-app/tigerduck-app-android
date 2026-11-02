@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.shared.Course
 import java.io.IOException
 import java.time.LocalDate
 import java.time.LocalDateTime
+import org.ntust.app.tigerduck.util.testSignIn
 
 /** The user's classes the finder walks between follow the school's changes to the day it shows. */
 class FinderCourseChangesTest {
@@ -37,6 +38,7 @@ class FinderCourseChangesTest {
             holidays = emptyList(),
         )
         override fun account() = "B00000000"
+        override fun signIn() = testSignIn()
         override suspend fun courses() = classTable
         override fun credentials() = ClassroomUsageService.Credentials("B00000000", "not-a-password")
         override fun isCurrent(credentials: ClassroomUsageService.Credentials) = true

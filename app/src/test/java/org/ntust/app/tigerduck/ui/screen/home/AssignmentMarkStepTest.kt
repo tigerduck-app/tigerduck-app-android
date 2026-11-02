@@ -49,7 +49,7 @@ class AssignmentMarkStepTest {
         store = object : AssignmentMarkStep.MarkStore {
             override suspend fun ignored() = ignored
             override suspend fun completed() = completed.also { onRead() }
-            override suspend fun replace(ignored: Set<String>, completed: Set<String>) {
+            override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
                 writes++
                 this@AssignmentMarkStepTest.ignored = ignored
                 this@AssignmentMarkStepTest.completed = completed

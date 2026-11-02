@@ -203,9 +203,9 @@ class SettingsViewModel @Inject constructor(
     private val _reenableConflict = MutableStateFlow<ReenableConflict?>(null)
     val reenableConflict: StateFlow<ReenableConflict?> = _reenableConflict
 
-    fun markCategoryReenabled(category: String) {
-        markForReenableCheck(prefs, category, signedIn = authService.authState.value)
-    }
+    @OptIn(StartsAccountWork::class)
+    fun markCategoryReenabled(category: String) =
+        markForReenableCheck(prefs, category, signedIn = authService.authState.value, sessions.school.current)
 
     /** See [ReenableCheck.check]; a difference is asked about on this screen. */
     fun checkPendingConflicts() {
@@ -224,7 +224,7 @@ class SettingsViewModel @Inject constructor(
         // leaving Settings cannot strand it, and tied to this account: a sign-out ends it, and
         // drops any write still on its way.
         val held = heldUntilAnswered(conflict.categories)
-        val left = unanswered(prefs.pendingConflictCategories, conflict.categories)
+        val left = unanswered(prefs.school.pendingConflictCategories.get(), conflict.categories)
         val holdsCourseIgnores = "assignments" in held
         // Use Local's terms are latched before the courses check lets the course list go: a sync in
         // between would un-hide a course deleted here before Use Local sends its delete.
@@ -233,15 +233,14 @@ class SettingsViewModel @Inject constructor(
             semesters = semesterCatalog::availableSemesters,
             host = useLocalHost(signIn),
         ) {
-            prefs.pendingConflictCategories = held + left
+            prefs.school.pendingConflictCategories.set(held + left, signIn)
         }
-        val generation = dataCache.userDataGeneration
         reenableCheck.resolutions.start()
         // What the dialog did not cover is checked from this screen once the answer has been
         // applied: the check waits for it, and then settles the hold in its place
         // (ReenableResolutions.finish).
         if (left.isNotEmpty()) checkPendingConflicts()
-        appScope.launch(DataCache.Generation(generation)) {
+        appScope.launch {
             try {
                 coroutineScope {
                     val signOut = launch {
@@ -257,7 +256,7 @@ class SettingsViewModel @Inject constructor(
                 // Each Settings screen has its own view model, and an answer
                 // given on one is still being applied when the next one checks.
                 if (reenableCheck.resolutions.finish()) {
-                    prefs.pendingConflictCategories = prefs.pendingConflictCategories - held
+                    prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() - held, signIn)
                 }
             }
             if (holdsCourseIgnores) courseIgnoreSync.retryPending(signIn)
@@ -324,10 +323,10 @@ class SettingsViewModel @Inject constructor(
             }
         } else {
             if ("courses" in conflict.categories) {
-                dataCache.saveDeletedCourseNos(emptySet())
+                dataCache.saveDeletedCourseNos(emptySet(), signIn)
             }
             if ("course_names" in conflict.categories) {
-                dataCache.saveCourseCustomNames(emptyMap())
+                dataCache.saveCourseCustomNames(emptyMap(), signIn)
             }
             // The server's colours and names win, so changes still waiting
             // to go up are dropped; a category not here is left alone.
@@ -336,7 +335,7 @@ class SettingsViewModel @Inject constructor(
                 // The server's marks win, so taps still waiting to go up are dropped.
                 unsentMarks.forget(signIn)
                 // Adopted, not replaced: Home reads them again at once.
-                dataCache.adoptAssignmentMarks(emptySet(), emptySet())
+                dataCache.adoptAssignmentMarks(emptySet(), emptySet(), signIn)
             }
             val result = runCatching { syncApiClient.fetchFullSync() }.getOrNull()
             if (result != null) {
@@ -354,7 +353,7 @@ class SettingsViewModel @Inject constructor(
                         for ((semester, nos) in hides) {
                             for (no in nos) deleted = CourseTombstoneKeys.hide(no, semester, deleted)
                         }
-                        dataCache.saveDeletedCourseNos(deleted)
+                        dataCache.saveDeletedCourseNos(deleted, signIn)
                     }
                 }
                 if ("course_colors" in conflict.categories || "course_names" in conflict.categories) {
@@ -369,12 +368,12 @@ class SettingsViewModel @Inject constructor(
                             }
                             c
                         }
-                        dataCache.saveCourses(updated)
+                        dataCache.saveCourses(updated, signIn)
                     }
                 }
                 if ("course_names" in conflict.categories) {
                     // Onto the names as they stand, under their lock: a rename made meanwhile stays.
-                    dataCache.updateCourseCustomNames { current ->
+                    dataCache.updateCourseCustomNames(signIn) { current ->
                         val localNames = current.toMutableMap()
                         for (override in result.courseOverrides) {
                             val courseNo = override.courseNo ?: continue
@@ -390,7 +389,7 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
                 if ("assignments" in conflict.categories) {
-                    dataCache.adoptAssignmentMarks(result.ignoredIds, result.completedIds)
+                    dataCache.adoptAssignmentMarks(result.ignoredIds, result.completedIds, signIn)
                 }
             }
             if ("assignments" in conflict.categories && prefs.syncCourses) {
@@ -403,7 +402,7 @@ class SettingsViewModel @Inject constructor(
         override fun beginReset(semester: String) = dataCache.beginReset(semester)
         override fun endReset(semester: String) = dataCache.endReset(semester)
         override suspend fun stampReset(semester: String, atMs: Long) {
-            dataCache.saveSemesterResetAt(semester, atMs)
+            dataCache.saveSemesterResetAt(semester, atMs, signIn)
             // Its courses come back as new rows, which are not re-added elsewhere.
             courseIgnoreSync.forgetRowsSeen(setOf(semester), signIn)
         }

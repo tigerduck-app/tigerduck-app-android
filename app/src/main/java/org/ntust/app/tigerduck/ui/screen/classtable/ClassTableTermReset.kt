@@ -7,6 +7,7 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 
 internal class ClassTableTermReset(
@@ -25,7 +26,7 @@ internal class ClassTableTermReset(
      * the DELETE would leave an empty grid with the server still full, to be merged back as
      * hand-added rows.
      */
-    suspend fun run(semester: String, deleteOnServer: suspend () -> Unit): Set<String>? {
+    suspend fun run(semester: String, signIn: SignIn, deleteOnServer: suspend () -> Unit): Set<String>? {
         try {
             deleteOnServer()
         } catch (e: CancellationException) {
@@ -36,26 +37,26 @@ internal class ClassTableTermReset(
         }
         val stored = dataCache.loadDeletedCourseNos()
         val lifted = CourseTombstoneKeys.entriesResetting(semester, stored)
-        if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted)
+        if (lifted.isNotEmpty()) dataCache.saveDeletedCourseNos(stored - lifted, signIn)
         // The stamp is taken after the DELETE landed: a snapshot fetched
         // before this instant still carries the pre-reset roster — see
         // DataCache.saveSemesterResetAt.
-        dataCache.saveSemesterResetAt(semester, clock())
+        dataCache.saveSemesterResetAt(semester, clock(), signIn)
         // The server has forgotten every number in this term, so a
         // hand-typed course re-added later is unknown to it again — see
         // CourseSyncReconciler.reconcileSemester.
-        dataCache.updateServerKnownNos { it - semester }
+        dataCache.updateServerKnownNos(signIn) { it - semester }
         // Custom names are keyed by course number only, as on iOS, so a
         // course retaken in another term loses its name there as well.
         val held = dataCache.loadCourses(semester).mapTo(mutableSetOf()) { it.courseNo }
-        dataCache.updateCourseCustomNames { names -> names - held }
+        dataCache.updateCourseCustomNames(signIn) { names -> names - held }
         // The term's cache goes too: a reset means "start this term over",
         // and the roster the portal returns next is the whole of it.
         // Load-bearing for sync as well — with the old roster still on disk
         // next to an empty server term, a sync would push it back up, and
         // this device's upload releases its own reset tombstones, so the
         // reset would undo itself.
-        dataCache.saveCourses(emptyList(), semester)
+        dataCache.saveCourses(emptyList(), semester, signIn)
         return held
     }
 

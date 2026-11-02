@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseTombstone
@@ -114,19 +115,17 @@ object CourseSyncReconciler {
      * [pendingAddNos] are the courses added here by hand whose upload has not
      * landed, from `PendingCourseAdds.waitingIn`. Kept whatever the server
      * says until it does, as the iPhone keeps them (tigerduck-app#727): one the
-     * server once listed, then deleted and added back here, is known by then,
-     * and a tombstone or the server's silence would hide it for good, its add
-     * then let go unsent. The add forces its key past the tombstone once it
-     * lands.
+     * server once listed, then deleted and added back here, is known by then, and
+     * a tombstone or the server's silence would hide it for good, its add then let
+     * go unsent. The add forces its key past the tombstone once it lands.
      *
      * [restoredNos] are the courses a course selection answer brought back
      * from a deleted hand-added course's hide that no snapshot has listed
      * since, from `DataCache.restoredCoursesIn`: the roster upload naming
      * them may not have landed, so the server's silence is no delete
      * elsewhere. A tombstone still hides them: the backend leaves the one
-     * this device's delete wrote out of its snapshot, so one there is
-     * another device's. [tombstones] holds none of their hides: see
-     * [withoutRestored].
+     * this device's delete wrote out of its snapshot, so one there is another
+     * device's. [tombstones] holds none of their hides: see [withoutRestored].
      */
     fun reconcileSemester(
         semester: String,
@@ -678,10 +677,11 @@ object CourseSyncReconciler {
         dataCache: DataCache,
         overrides: List<CourseOverrideResult>,
         syncNames: Boolean,
+        signIn: SignIn,
         held: suspend () -> Set<String> = { emptySet() },
     ): Map<String, Map<String, String>>? {
         if (!syncNames) return null
-        return dataCache.updateCourseCustomNames { current ->
+        return dataCache.updateCourseCustomNames(signIn) { current ->
             mergeCustomNames(current, overrides, syncNames = true, held = held()) ?: current
         }
     }

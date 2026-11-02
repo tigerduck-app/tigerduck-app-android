@@ -21,6 +21,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -35,11 +36,13 @@ import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.io.File
 import java.util.Date
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -121,9 +124,9 @@ class AccountSwitchTest {
 
         // What the first student's sessions kept besides: DataCache through its own saves, a
         // bulletin snapshot and an imported class table.
-        dataCache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Calculus")), SEMESTER)
-        dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())))
-        dataCache.saveMoodleData(listOf("forum"), System.currentTimeMillis(), "forums-7", FIRST)
+        dataCache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Calculus")), SEMESTER, testSignIn())
+        dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())), testSignIn())
+        dataCache.saveMoodleData(listOf("forum"), System.currentTimeMillis(), "forums-7", FIRST, testSignIn())
         bulletinCache.save(emptyList())
         bulletinCache.saveFetchedAt(System.currentTimeMillis())
         val classmate = ClassTableShareCode(
@@ -207,7 +210,6 @@ class AccountSwitchTest {
     @Test
     fun `a write pinned before the sign-out leaves nothing after the wipe, whether it lands before or after`() = runBlocking {
         val w = world(signedInAsFirst())
-        val pinned = w.dataCache.writeGeneration()
         val signIn = w.sessions.school.signIns.current
 
         // Landing before the wipe: it is on disk, and the wipe takes it.
@@ -220,9 +222,7 @@ class AccountSwitchTest {
         // Landing after it: the sign-in has ended, so the write is dropped where it lands.
         assertFalse(w.dataCache.saveUnsentMarks(listOf(mark), signIn))
         assertFalse(w.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001")), signIn))
-        withContext(DataCache.Generation(pinned)) {
-            w.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())))
-        }
+        assertFalse(w.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())), signIn))
         assertEquals(emptyList<UnsentMark>(), w.dataCache.loadUnsentMarks())
         assertEquals(emptyList<String>(), account.filesUnder(account.cacheRoots.getValue("data")))
         assertEquals(emptyList<Assignment>(), w.dataCache.loadAssignments())
@@ -249,25 +249,48 @@ class AccountSwitchTest {
     }
 
     @Test
-    fun `another student's typed sign-in over a stored one signs nobody out and wipes nothing`() = runBlocking {
+    fun `another student's typed sign-in leaves nothing of the first`() = runBlocking {
         val credentialPrefs = signedInAsFirst()
+        account.fillPreferences()
+        credentialPrefs.edit().putString("ntust_student_id", FIRST).putString("ntust_password", "first-password").commit()
+        val firstLeft = account.held()
+        assertTrue(firstLeft.values.none { it == null })
+        val files = account.fillDataCache()
         val w = world(credentialPrefs)
-        userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.writeText("[]")
-        val generationBefore = w.dataCache.userDataGeneration
-        val signedInEmissions = mutableListOf<Boolean>()
-        val watching = effectsScope.launch { w.auth.authState.collect { signedInEmissions += it } }
+        val signInBefore = w.sessions.school.signIns.current
+        val signedInEmissions = CopyOnWriteArrayList<Boolean>()
+        val watching = effectsScope.launch { w.auth.accountState.collect { signedInEmissions += it.signedIn } }
         val signIns = effectsScope.async { w.auth.signIns.first() }
         delay(100)
 
         assertTrue(w.auth.login(SECOND, "second-password"))
-        withTimeout(10_000) { signIns.await() }
+        withTimeout(10_000) {
+            signIns.await()
+            w.browserClearings.first { it >= 1 }
+        }
         watching.cancel()
 
         assertEquals(SECOND, w.auth.storedStudentId)
-        // Never false in between: no sign-out ran, and so no wipe.
-        assertEquals(listOf(true), signedInEmissions)
-        assertEquals(generationBefore, w.dataCache.userDataGeneration)
-        assertTrue(userFile("unsent_marks.json").exists())
+        assertEquals("second-password", w.credentials.ntustPassword)
+        assertTrue("the first student's sign-in ended", !signInBefore.isCurrent)
+        assertTrue("the second's is open", w.sessions.school.signIns.current.isCurrent)
+        assertEquals("the account went off, and came back as the second student", listOf(true, false, true), signedInEmissions.toList())
+        assertEquals(emptyList<File>(), files.filter(File::exists))
+        assertEquals(emptySet<Pair<String, String>>(), firstLeft.filter { (at, value) -> prefs(at.first).all[at.second] == value }.keys)
+    }
+
+    @Test
+    fun `the same student typing their password again signs nobody out`() = runBlocking {
+        val credentialPrefs = signedInAsFirst()
+        val files = account.fillDataCache()
+        val w = world(credentialPrefs)
+        val signInBefore = w.sessions.school.signIns.current
+
+        assertTrue(w.auth.login(FIRST, "first-password-again"))
+
+        assertEquals(FIRST, w.auth.storedStudentId)
+        assertSame(signInBefore, w.sessions.school.signIns.current)
+        assertEquals(files, files.filter(File::exists))
     }
 
     @Test
@@ -280,7 +303,7 @@ class AccountSwitchTest {
         val signIn = first.sessions.school.signIns.current
         assertTrue(first.dataCache.saveUnsentMarks(listOf(mark), signIn))
         assertTrue(first.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001")), signIn))
-        first.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())))
+        first.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())), signIn)
 
         first.auth.logout()
         assertEquals(null, first.auth.storedStudentId)

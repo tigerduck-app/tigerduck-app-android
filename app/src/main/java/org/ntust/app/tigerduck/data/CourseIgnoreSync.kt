@@ -489,7 +489,7 @@ class CourseIgnoreSync internal constructor(
          */
         fun syncsCourseIgnores(prefs: AppPreferences): Boolean =
             prefs.cloudSyncEnabled && prefs.syncAssignments && prefs.syncCourses &&
-                REENABLE_CATEGORY !in prefs.pendingConflictCategories
+                REENABLE_CATEGORY !in prefs.school.pendingConflictCategories.get()
 
         /**
          * Whether a failed PATCH says the backend refused the change, as the

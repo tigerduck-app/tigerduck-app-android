@@ -55,7 +55,6 @@ class AuthService @Inject constructor(
     private val demoAccount: org.ntust.app.tigerduck.demo.DemoAccount,
     private val prefs: org.ntust.app.tigerduck.data.preferences.AppPreferences,
     private val classroomUsage: org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService,
-    private val heldShareLink: org.ntust.app.tigerduck.HeldShareLink,
 ) {
     /**
      * A demo session presents as signed in, with or without an account: `authState` is what every
@@ -108,9 +107,8 @@ class AuthService @Inject constructor(
     private val _signIns = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     /**
-     * Each sign-in by hand the school took, whoever it is: another student
-     * signing in over this one leaves [authState] true throughout, so what
-     * follows an account, such as the in-app browser's data, follows this too.
+     * Each sign-in by hand the school took, whoever it is: the same student's leaves [authState]
+     * true throughout, and what follows an account, such as the browser's data, follows this too.
      */
     val signIns: SharedFlow<Unit> = _signIns.asSharedFlow()
 
@@ -181,6 +179,7 @@ class AuthService @Inject constructor(
             credentials.ntustPassword = password
         },
         latch = storedPasswordLatch,
+        leaveStoredAccount = { logout() },
         // The store-review account signs in without a server — see DemoAccount.
         isDemoAccount = demoAccount::matches,
         enterDemo = demoAccount::enter,
@@ -196,15 +195,6 @@ class AuthService @Inject constructor(
     suspend fun attemptRelogin(): Boolean = authTokenManager.signInAgain()
 
     val storedStudentId: String? get() = credentials.ntustStudentId
-
-    /**
-     * Whether the account [studentId] named, read before some suspending
-     * work, is still the one signed in: false after a sign-out, or a sign-in
-     * as someone else, in the meantime. What that work read from the cache
-     * then belongs to the account that left.
-     */
-    fun isStillSignedInAs(studentId: String?): Boolean =
-        authState.value && storedStudentId == studentId
     internal val storedPassword: String? get() = credentials.ntustPassword
     val storedMoodleToken: String? get() = credentials.moodleToken
 
@@ -414,13 +404,11 @@ class AuthService @Inject constructor(
         must("holiday overrides") { prefs.forgetHolidayOverrides() }
         // The term picked in the class table was the departing student's. Cleared, the next
         // student's picker follows the newest term.
-        must("class table term") { prefs.classTableSelectedSemester = null }
-        // A share link held for a sign-in is not one for whoever signs in next.
-        once("held share link") { heldShareLink.drop() }
+        must("class table term") { prefs.school.classTableSelectedSemester.clear() }
         // A re-enable check compares this device's data, which is wiped below.
         // Left pending, it would hold the next session's assignment marks and
         // then offer Use Local, sending that emptied data over the server's.
-        must("re-enable check") { prefs.pendingConflictCategories = emptySet() }
+        must("re-enable check") { prefs.school.pendingConflictCategories.clear() }
         // A refusal belongs to the password leaving with the account; and an
         // automatic sign-in of that account still waiting for its answer
         // latches nothing for the next one.

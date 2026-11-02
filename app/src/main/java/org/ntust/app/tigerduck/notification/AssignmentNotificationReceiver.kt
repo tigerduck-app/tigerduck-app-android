@@ -18,6 +18,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.ntust.app.tigerduck.AppLink
 import org.ntust.app.tigerduck.R
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.AssignmentReminderPrefs
@@ -38,6 +40,9 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
 
     @Inject
     lateinit var reminderCheck: AssignmentReminderCheck
+
+    @Inject
+    lateinit var sessions: AccountSessions
 
     @Inject
     @ApplicationScope
@@ -64,12 +69,14 @@ class AssignmentNotificationReceiver : BroadcastReceiver() {
         // web, on another device or by a teammate. Shown only when the cache
         // and Moodle both still have it due; anything else drops it.
         val pending = goAsync()
+        @OptIn(StartsAccountWork::class)
+        val signIn = sessions.school.current
         appScope.launch(Dispatchers.IO) {
             try {
                 remindIfStillDue(
                     context,
                     appPreferences,
-                    verdict = { reminderCheck.verdict(assignmentId, armedDueAtMs) },
+                    verdict = { reminderCheck.verdict(assignmentId, armedDueAtMs, signIn) },
                 ) {
                     notificationChannels.ensureRegistered()
                     post(context, appPreferences.appLanguage, title, courseName, assignmentId, offset)

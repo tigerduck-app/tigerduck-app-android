@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleWebserviceError
 import org.ntust.app.tigerduck.network.SubmissionStatusProbe
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -46,9 +47,8 @@ class AssignmentReminderCheck internal constructor(
         statusWriter: AssignmentStatusWriter,
     ) : this(dataCache, scheduler, statusProbe, fixtures, reminderPrefs, statusWriter, SystemClock::elapsedRealtime)
 
-    suspend fun verdict(assignmentId: String, armedDueAtMs: Long?): ReminderVerdict {
-        // A sign-out while this runs wipes the data; nothing is written back after it.
-        val generation = dataCache.userDataGeneration
+    /** A sign-out while this runs wipes the data, and ends [signIn]: nothing is written back after it. */
+    suspend fun verdict(assignmentId: String, armedDueAtMs: Long?, signIn: SignIn): ReminderVerdict {
         val before = cached(assignmentId)
         AssignmentReminderPolicy.cacheDrop(before, armedDueAtMs)
             ?.let { return ReminderVerdict.Drop(it) }
@@ -63,7 +63,7 @@ class AssignmentReminderCheck internal constructor(
         var cached = cached(assignmentId)
         var decidedBy: ReminderStatusAnswer = answer
         if (moodleId != null && answer is ReminderStatusAnswer.Answered) {
-            when (val write = record(assignmentId, moodleId, answer, askedAtMs, generation)) {
+            when (val write = record(assignmentId, moodleId, answer, askedAtMs, signIn)) {
                 // What Moodle answered can move the student's own date. Work it says is handed
                 // in keeps the date: that is Moodle's to report, as handed in.
                 is StatusWrite.Written -> write.assignments.firstOrNull { it.assignmentId == assignmentId }
@@ -110,15 +110,15 @@ class AssignmentReminderCheck internal constructor(
         moodleId: Int,
         answer: ReminderStatusAnswer.Answered,
         askedAtMs: Long,
-        generation: Int,
+        signIn: SignIn,
     ): StatusWrite {
         val (submitted, submittedAt) = MoodleService.submissionState(moodleId, emptyMap(), answer.lastAttempt)
         val extension = MoodleService.extensionDueDate(moodleId, asked = true, answer.lastAttempt, emptyMap())
         val status = SubmissionStatusAnswer(
-            assignmentId, submitted, submittedAt?.time, askedAtMs, generation, extensionDueMs = extension?.time,
+            assignmentId, submitted, submittedAt?.time, askedAtMs, signIn, extensionDueMs = extension?.time,
         )
         val write = statusWriter.write(status)
-        if (write is StatusWrite.Written) scheduler.rescheduleOne(assignmentId, dataCache, reminderPrefs, generation)
+        if (write is StatusWrite.Written) scheduler.rescheduleOne(assignmentId, dataCache, reminderPrefs, signIn)
         return write
     }
 

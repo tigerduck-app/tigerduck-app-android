@@ -22,6 +22,9 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.auth.SignedInState
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -43,6 +46,7 @@ import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import java.time.LocalDateTime
 import java.util.Date
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -61,6 +65,7 @@ class HomeViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var cache: DataCache
     private lateinit var home: HomeViewModel
+    private val series = SignInSeries()
 
     @Before
     fun setUp() {
@@ -79,10 +84,11 @@ class HomeViewModelTest {
         }
         val colors = bare<CourseColorStore>().also { it.set("changeEvent", MutableSharedFlow<Unit>()) }
         val courses = bare<CourseService>().also { it.set("academicCalendar", calendar) }
+        val tokens = bare<AuthTokenManager>().also { it.set("session", AccountSession(series, CoroutineScope(SupervisorJob()))) }
         home = HomeViewModel(
             bare(), auth, cache, courses, bare(), AssignmentNotificationScheduler(context), prefs, colors, bare(),
             liveActivity(context, prefs, calendar), bare(), bare(),
-            bare(), bare(), bare(), bare(), bare(), LocalEdits(), bare(), bare(), bare(), bare(),
+            bare(), bare(), tokens, bare(), bare(), LocalEdits(), bare(), bare(), bare(), bare(),
         )
     }
 
@@ -126,11 +132,27 @@ class HomeViewModelTest {
             dispatcher.scheduler.runCurrent()
 
             // What the class table does for an add: its edit is saved, with no sync round after it.
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
 
             assertEquals(listOf("CS1001"), homeCourseNos())
         } finally {
             // Home's clock ticker never ends, and runTest waits for every coroutine on its scheduler.
+            home.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a sign-in that ended before Home's reload shows nothing of the files`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            series.end()
+
+            // The class table's save, then a round's end: neither may reach Home under an ended sign-in.
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "The account's that left")), testSignIn())
+            cache.notifyBackgroundSyncComplete()
+
+            assertEquals(emptyList<String>(), homeCourseNos())
+        } finally {
             home.viewModelScope.cancel()
         }
     }
@@ -142,7 +164,7 @@ class HomeViewModelTest {
             // A swipe still on its way to disk: Home holds the id, the file does not.
             home.markedCompletedIds.let { (it as MutableStateFlow<Set<String>>).value = setOf("7") }
 
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
             assertEquals(listOf("CS1001"), homeCourseNos())
 
             assertEquals(setOf("7"), home.markedCompletedIds.value)
@@ -159,7 +181,7 @@ class HomeViewModelTest {
             val tracker = RuntimeEnvironment.getApplication().getSharedPreferences("notification_tracker", 0)
             tracker.edit().putStringSet("scheduled_ids", setOf("armed")).commit()
 
-            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")))
+            cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Added in the class table")), testSignIn())
             assertEquals(listOf("CS1001"), homeCourseNos())
 
             assertEquals(setOf("armed"), tracker.getStringSet("scheduled_ids", null))

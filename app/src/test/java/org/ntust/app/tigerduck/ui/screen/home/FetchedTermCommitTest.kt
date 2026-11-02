@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermFetch
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermSource
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Home's and the background sync's commit of a fetch, [commitFetchedTerm], against a past term's
@@ -67,11 +68,11 @@ class FetchedTermCommitTest {
             latest = { cache.loadCourses(TERM) },
             waitingAdds = { emptySet() },
             droppedNos = { cache.loadSelectionDroppedNos()[TERM].orEmpty().toSet() },
-            recordFinalRoster = { cache.recordFinalRoster(TERM, it.roster, alsoListed = it.dropping) },
+            recordFinalRoster = { cache.recordFinalRoster(TERM, it.roster, alsoListed = it.dropping, testSignIn()) },
         ) { drawn ->
             fetch.fold(drawn, cache.loadCourses(TERM), emptyMap(), "zh", CourseTombstoneKeys.hiddenIn(TERM, cache.loadDeletedCourseNos()))
         }
-        cache.saveCourses(rebuilt!!, TERM)
+        cache.saveCourses(rebuilt!!, TERM, testSignIn())
     }
 
     /**
@@ -91,7 +92,7 @@ class FetchedTermCommitTest {
     /** Home's fetch, committed as fetchData commits it; the list it shows. */
     private suspend fun homeFetch(waitingAdds: Set<String> = emptySet(), duringLookups: suspend () -> Unit): List<Course> {
         val (term, fetched) = gainingFetch(duringLookups)
-        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, answer = null, waitingAdds = { waitingAdds }) { rows, current, hidden ->
+        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, answer = null, testSignIn(), waitingAdds = { waitingAdds }) { rows, current, hidden ->
             HomeCourseMerge.mergeRemote(rows, current, emptyMap(), "zh", hidden, onlyGains = term.onlyGains)
         }!!
     }
@@ -100,7 +101,7 @@ class FetchedTermCommitTest {
     private suspend fun workerFetch(waitingAdds: Set<String> = emptySet(), duringLookups: suspend () -> Unit): List<Course> {
         val (term, fetched) = gainingFetch(duringLookups)
         val unresolvedNos = term.courseNos.toSet() - fetched.mapTo(mutableSetOf()) { it.courseNo }
-        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, answer = null, waitingAdds = { waitingAdds }) { rows, current, hidden ->
+        return commitFetchedTerm(cache, TERM, fetched, term.onlyGains, answer = null, testSignIn(), waitingAdds = { waitingAdds }) { rows, current, hidden ->
             ClassTableCourseMerge.mergeFetched(
                 rows, current, emptyMap(), "zh", hidden,
                 alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
@@ -116,7 +117,7 @@ class FetchedTermCommitTest {
 
     @Test
     fun `Home's gaining fetch does not bring back a course a rebuild dropped while its lookups ran`() = runTest {
-        cache.saveCourses(listOf(portal(ENROLLED), portal(JUNK)), TERM)
+        cache.saveCourses(listOf(portal(ENROLLED), portal(JUNK)), TERM, testSignIn())
 
         val shown = homeFetch { rebuildDroppingJunk() }
 
@@ -128,7 +129,7 @@ class FetchedTermCommitTest {
 
     @Test
     fun `the background sync's gaining fetch neither brings back nor uploads a course a rebuild dropped while its lookups ran`() = runTest {
-        cache.saveCourses(listOf(portal(ENROLLED), portal(JUNK)), TERM)
+        cache.saveCourses(listOf(portal(ENROLLED), portal(JUNK)), TERM, testSignIn())
 
         val uploaded = workerFetch { rebuildDroppingJunk() }
 
@@ -146,7 +147,7 @@ class FetchedTermCommitTest {
     fun `a course added back by hand after the rebuild dropped it takes the fetch's answer, in Home and the background sync`() = runTest {
         for (commit in listOf(::homeFetch, ::workerFetch)) {
             cache = newCache()
-            cache.saveCourses(listOf(portal(ENROLLED), portal(JUNK), portal(WAITING)), TERM)
+            cache.saveCourses(listOf(portal(ENROLLED), portal(JUNK), portal(WAITING)), TERM, testSignIn())
 
             val committed = commit(setOf(WAITING)) {
                 rebuildTerm()
@@ -158,6 +159,7 @@ class FetchedTermCommitTest {
                         Course.fromSchedule(JUNK, JUNK, classroom = "TR-313", schedule = stale, isManual = true) +
                         Course.fromSchedule(WAITING, WAITING, classroom = "TR-313", schedule = stale, isManual = true, moodleIdNumber = "$TERM$WAITING"),
                     TERM,
+                    testSignIn(),
                 )
             }
 
@@ -184,12 +186,12 @@ class FetchedTermCommitTest {
     fun `a fetch only gaining leaves out a course a roster dropped on the server, but one added here, and an answer saves it`() = runTest {
         val fetched = listOf(answered(ENROLLED), answered(DROPPED), answered(ADDED_HERE))
         suspend fun commit(onlyGains: Boolean) = commitFetchedTerm(
-            cache, TERM, fetched, onlyGains, answer = null, waitingAdds = { emptySet() },
+            cache, TERM, fetched, onlyGains, answer = null, testSignIn(), waitingAdds = { emptySet() },
         ) { rows, current, hidden ->
             ClassTableCourseMerge.mergeFetched(rows, current, emptyMap(), "zh", hidden, alsoKeeps = { onlyGains })
         }!!
-        cache.saveCourses(listOf(portal(ENROLLED), Course(courseNo = ADDED_HERE, courseName = ADDED_HERE, isManual = true)), TERM)
-        cache.recordServerDrops(TERM, mapOf(DROPPED to null, ADDED_HERE to null))
+        cache.saveCourses(listOf(portal(ENROLLED), Course(courseNo = ADDED_HERE, courseName = ADDED_HERE, isManual = true)), TERM, testSignIn())
+        cache.recordServerDrops(TERM, mapOf(DROPPED to null, ADDED_HERE to null), testSignIn())
 
         assertEquals(listOf(ENROLLED, ADDED_HERE), commit(onlyGains = true).map { it.courseNo })
         assertEquals(listOf(ENROLLED, ADDED_HERE), cache.loadCourses(TERM).map { it.courseNo })
@@ -218,13 +220,14 @@ class FetchedTermCommitTest {
                     Course(courseNo = WAITING, courseName = WAITING, isManual = true, moodleIdNumber = "$TERM$WAITING"),
                 ),
                 TERM,
+                testSignIn(),
             )
 
             val committed = commit(setOf(WAITING)) {
-                cache.recordServerDrops(TERM, mapOf(ENROLLED to null, ADDED_HERE to null))
-                cache.saveSelectionDroppedNos(mapOf(TERM to listOf(DROPPED, WAITING)))
+                cache.recordServerDrops(TERM, mapOf(ENROLLED to null, ADDED_HERE to null), testSignIn())
+                cache.saveSelectionDroppedNos(mapOf(TERM to listOf(DROPPED, WAITING)), testSignIn())
                 // Another fetch's save, which this one did not draw.
-                cache.saveCourses(cache.loadCourses(TERM) + portal(KEPT), TERM)
+                cache.saveCourses(cache.loadCourses(TERM) + portal(KEPT), TERM, testSignIn())
             }
 
             assertEquals(listOf(KEPT, ADDED_HERE, WAITING), cache.loadCourses(TERM).map { it.courseNo })
@@ -242,14 +245,14 @@ class FetchedTermCommitTest {
     fun `course selection's answer saves every course it lists though the drops name each, in Home and the background sync`() = runTest {
         for (homeMerge in listOf(true, false)) {
             cache = newCache()
-            cache.saveCourses(listOf(portal(ENROLLED), portal(DROPPED), portal(JUNK)), TERM)
-            val answer = cache.recordSelectionRoster(TERM, listOf(ENROLLED, DROPPED))?.answer!!
+            cache.saveCourses(listOf(portal(ENROLLED), portal(DROPPED), portal(JUNK)), TERM, testSignIn())
+            val answer = cache.recordSelectionRoster(TERM, listOf(ENROLLED, DROPPED), testSignIn())?.answer!!
             // A full sync while the lookups ran, its drops of no known time, which no answer is newer than.
-            cache.recordServerDrops(TERM, mapOf(ENROLLED to null))
-            cache.saveSelectionDroppedNos(mapOf(TERM to listOf(DROPPED, JUNK)))
+            cache.recordServerDrops(TERM, mapOf(ENROLLED to null), testSignIn())
+            cache.saveSelectionDroppedNos(mapOf(TERM to listOf(DROPPED, JUNK)), testSignIn())
 
             val saved = commitFetchedTerm(
-                cache, TERM, listOf(answered(ENROLLED), answered(DROPPED)), onlyGains = false, answer,
+                cache, TERM, listOf(answered(ENROLLED), answered(DROPPED)), onlyGains = false, answer, testSignIn(),
                 waitingAdds = { emptySet() },
             ) { rows, current, hidden ->
                 if (homeMerge) HomeCourseMerge.mergeRemote(rows, current, emptyMap(), "zh", hidden, onlyGains = false)

@@ -18,7 +18,6 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.network.SemesterCodes
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -41,8 +40,6 @@ import org.ntust.app.tigerduck.util.logSummary
 import java.io.File
 import java.util.Date
 import javax.inject.Inject
-import kotlin.coroutines.AbstractCoroutineContextElement
-import kotlin.coroutines.CoroutineContext
 import javax.inject.Singleton
 
 /**
@@ -100,26 +97,6 @@ class DataCache @Inject constructor(
      */
     val assignmentMarksVersion: StateFlow<Int> = _assignmentMarksVersion.asStateFlow()
 
-    /**
-     * Bumped each time the user data is wiped, before anything is deleted.
-     * Work started for the account that left hands the value it began with
-     * to its writes, which then drop it: as a parameter, or as a
-     * [Generation] in its coroutine's context.
-     */
-    @Volatile
-    var userDataGeneration: Int = 0
-        private set
-
-    /**
-     * In a coroutine's context, the [userDataGeneration] its work began
-     * with: every write made there is dropped once the data has been wiped
-     * since, so work that outlives a sign-out cannot write into the next
-     * account's files.
-     */
-    class Generation(val value: Int) : AbstractCoroutineContextElement(Generation) {
-        companion object Key : CoroutineContext.Key<Generation>
-    }
-
     private val _marksAdoptedVersion = MutableStateFlow(0)
 
     /**
@@ -133,16 +110,15 @@ class DataCache @Inject constructor(
      * answer took (Use Server), and says so on [marksAdoptedVersion]. Not for
      * Home's own writes: reading those back could undo a newer swipe.
      */
-    suspend fun adoptAssignmentMarks(ignored: Set<String>, completed: Set<String>) {
-        saveIgnoredAssignments(ignored)
-        saveMarkedCompletedAssignments(completed)
-        _marksAdoptedVersion.update { it + 1 }
+    suspend fun adoptAssignmentMarks(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
+        val ignoredKept = saveIgnoredAssignments(ignored, signIn)
+        if (saveMarkedCompletedAssignments(completed, signIn) or ignoredKept) _marksAdoptedVersion.update { it + 1 }
     }
 
-    suspend fun replaceIgnoredAssignments(ids: Set<String>) = saveIgnoredAssignments(ids)
+    suspend fun replaceIgnoredAssignments(ids: Set<String>, signIn: SignIn) = saveIgnoredAssignments(ids, signIn)
 
-    suspend fun replaceMarkedCompletedAssignments(ids: Set<String>) =
-        saveMarkedCompletedAssignments(ids)
+    suspend fun replaceMarkedCompletedAssignments(ids: Set<String>, signIn: SignIn) =
+        saveMarkedCompletedAssignments(ids, signIn)
     private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
@@ -170,7 +146,8 @@ class DataCache @Inject constructor(
      * Manual courses have no remote source — if the cache is evicted they
      * can only be recovered from userDataDir.
      */
-    suspend fun saveCourses(courses: List<Course>, semester: String) = coursesMutex.withLock { writeCourses(courses, semester) }
+    suspend fun saveCourses(courses: List<Course>, semester: String, signIn: SignIn) =
+        coursesMutex.withLock { writeCourses(courses, semester, signIn) }
 
     /**
      * [semester]'s courses as [change] makes them of the list as it stands
@@ -182,10 +159,10 @@ class DataCache @Inject constructor(
      * by the delete's own save. What else [change] reads is read with no save
      * of a term meanwhile either.
      */
-    suspend fun updateCourses(semester: String, change: suspend (List<Course>, Set<String>) -> List<Course>) =
+    suspend fun updateCourses(semester: String, signIn: SignIn, change: suspend (List<Course>, Set<String>) -> List<Course>) =
         coursesMutex.withLock {
             val hidden = CourseTombstoneKeys.hiddenIn(semester, loadDeletedCourseNos())
-            writeCourses(change(loadCourses(semester), hidden), semester)
+            writeCourses(change(loadCourses(semester), hidden), semester, signIn)
         }
 
     /**
@@ -195,25 +172,27 @@ class DataCache @Inject constructor(
      * background sync's names and colours: a course added while it runs stays, and a pass that
      * changed nothing makes no write. Returns the list written, or null when there was none.
      */
-    suspend fun updateCoursesIfChanged(semester: String, change: suspend (List<Course>) -> List<Course>): List<Course>? =
+    suspend fun updateCoursesIfChanged(semester: String, signIn: SignIn, change: suspend (List<Course>) -> List<Course>): List<Course>? =
         coursesMutex.withLock {
             val current = loadCourses(semester)
             val updated = change(current)
-            if (updated == current) return@withLock null
-            writeCourses(updated, semester)
+            if (updated == current || !writeCourses(updated, semester, signIn)) return@withLock null
             updated
         }
 
     // Every write of a term's courses, one at a time; see updateCourses.
     private val coursesMutex = Mutex()
 
-    private suspend fun writeCourses(courses: List<Course>, semester: String) {
+    // Both files or, with [signIn] ended, neither that counts: the wipe that follows takes what landed.
+    private suspend fun writeCourses(courses: List<Course>, semester: String, signIn: SignIn): Boolean {
         absorbLegacyCourseCache()
         val (manual, remote) = courses.partition { it.isManual }
-        save(remote, coursesFilename(semester))
-        saveToUserData(manual, manualCoursesFilename(semester))
+        val written = save(remote, coursesFilename(semester), signIn) &&
+            saveToUserData(manual, manualCoursesFilename(semester), signIn)
+        if (!written) return false
         _coursesVersion.update { it + 1 }
         onCoursesSaved?.invoke()
+        return true
     }
 
     /**
@@ -273,6 +252,10 @@ class DataCache @Inject constructor(
      * the user-data file (even with `[]` for users with zero manual courses
      * at the time), which would otherwise mask a later legacy import that
      * does contain manual entries.
+     *
+     * A read, so it holds no sign-in. It needs none: from the cached file's read to the durable
+     * write it holds the cache's lock, which the wipe takes before it deletes either folder, so
+     * the wipe finds the copy made or finds nothing to copy.
      */
     private suspend fun migrateManualCoursesToUserData(semester: String) {
         val type = object : TypeToken<List<Course>>() {}.type
@@ -282,14 +265,15 @@ class DataCache @Inject constructor(
             requireContent = COURSE_NO_TOKEN,
         )
         if (!existing.isNullOrEmpty()) return
-        val cached = load<List<Course>>(
-            type,
-            coursesFilename(semester),
-            requireContent = COURSE_NO_TOKEN,
-        ) ?: return
-        val manual = cached.filter { it.isManual }
-        if (manual.isEmpty()) return
-        saveToUserData(manual, manualCoursesFilename(semester))
+        cacheMutex.withLock {
+            withContext(Dispatchers.IO) {
+                val cached = readJson<List<Course>>(File(cacheDir, coursesFilename(semester)), type, COURSE_NO_TOKEN)
+                val manual = cached.orEmpty().filter { it.isManual }
+                if (manual.isEmpty()) return@withContext
+                val target = File(userDataDir, manualCoursesFilename(semester))
+                userDataMutex.withLock { atomicWrite(target, gson.toJson(manual)) }
+            }
+        }
     }
 
     // --- Courses (current-semester aliases) ---
@@ -297,8 +281,8 @@ class DataCache @Inject constructor(
     // the user is studying right now" so we keep a no-arg convenience that
     // always maps to the actual current semester.
 
-    suspend fun saveCourses(courses: List<Course>) =
-        saveCourses(courses, currentSemesterCode())
+    suspend fun saveCourses(courses: List<Course>, signIn: SignIn) =
+        saveCourses(courses, currentSemesterCode(), signIn)
 
     suspend fun loadCourses(): List<Course> =
         loadCourses(currentSemesterCode())
@@ -348,9 +332,11 @@ class DataCache @Inject constructor(
 
     // --- Assignments ---
 
-    suspend fun saveAssignments(assignments: List<Assignment>) {
-        save(assignments, "assignments.json")
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveAssignments(assignments: List<Assignment>, signIn: SignIn): Boolean {
+        if (!save(assignments, "assignments.json", signIn)) return false
         _assignmentsVersion.update { it + 1 }
+        return true
     }
 
     suspend fun loadAssignments(): List<Assignment> {
@@ -363,19 +349,18 @@ class DataCache @Inject constructor(
      * written under one hold of the cache's lock: a save landing between a
      * separate load and save would be undone by that save. The list as
      * written, for the caller to show, upload and arm reminders from; null,
-     * and nothing written, when the data was wiped since [generation].
+     * and nothing written, once [signIn] has ended.
      *
      * [transform] runs only after that check and under the same lock, so a
      * sign-out cannot wipe the data while it runs.
      */
     suspend fun updateAssignments(
-        generation: Int? = null,
+        signIn: SignIn,
         transform: (List<Assignment>) -> List<Assignment>,
     ): List<Assignment>? {
-        val expected = generation ?: writeGeneration()
         val type = object : TypeToken<List<Assignment>>() {}.type
         val written = cacheMutex.withLock {
-            if (expected != userDataGeneration) return@withLock null
+            if (!signIn.isCurrent) return@withLock null
             withContext(Dispatchers.IO) {
                 val file = File(cacheDir, "assignments.json")
                 val current = readJson<List<Assignment>>(file, type) ?: emptyList()
@@ -393,13 +378,12 @@ class DataCache @Inject constructor(
     // hold the same classes: a bump of MOODLE_CACHE_SCHEMA drops them too.
 
     /**
-     * Keeps [records] as the round's answer; false, and nothing written, when the data was wiped
-     * since [generation], as after a sign-out the round outlived.
+     * Keeps [records] as the round's answer; false, and nothing written, once [signIn] has ended,
+     * as after a sign-out the round outlived.
      */
-    suspend fun saveAssignmentRecords(records: List<MoodleAssignmentRecord>, generation: Int? = null): Boolean {
-        val expected = generation ?: writeGeneration()
+    suspend fun saveAssignmentRecords(records: List<MoodleAssignmentRecord>, signIn: SignIn): Boolean {
         val written = cacheMutex.withLock {
-            if (expected != userDataGeneration) return@withLock false
+            if (!signIn.isCurrent) return@withLock false
             withContext(Dispatchers.IO) {
                 writeMoodleEnvelope(File(cacheDir, ASSIGNMENT_RECORDS_FILE), records, System.currentTimeMillis())
             }
@@ -444,8 +428,8 @@ class DataCache @Inject constructor(
     // a dead toggle means classes silently vanish with no way to get them back.
     // Turn the UI on first. See HomeViewModel._skippedDates.
 
-    suspend fun saveSkippedDates(data: Map<String, List<String>>) =
-        saveToUserData(data, "skipped_dates.json")
+    suspend fun saveSkippedDates(data: Map<String, List<String>>, signIn: SignIn) =
+        saveToUserData(data, "skipped_dates.json", signIn)
 
     suspend fun loadSkippedDates(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String, List<String>>>() {}.type
@@ -457,8 +441,8 @@ class DataCache @Inject constructor(
     // cache eviction. The ClassTableViewModel resolves the current locale's
     // entry into Course.customCourseName at load/display time.
 
-    suspend fun saveCourseCustomNames(names: Map<String, Map<String, String>>) =
-        courseNamesLock.withLock { saveToUserData(names, COURSE_CUSTOM_NAMES_FILE) }
+    suspend fun saveCourseCustomNames(names: Map<String, Map<String, String>>, signIn: SignIn) =
+        courseNamesLock.withLock { saveToUserData(names, COURSE_CUSTOM_NAMES_FILE, signIn) }
 
     // Held by every save of the custom names, and from the read to the write of every update.
     // The background sync takes it under the courses' lock, so a change made under it must
@@ -473,11 +457,12 @@ class DataCache @Inject constructor(
      * they stand after.
      */
     suspend fun updateCourseCustomNames(
+        signIn: SignIn,
         change: suspend (Map<String, Map<String, String>>) -> Map<String, Map<String, String>>,
     ): Map<String, Map<String, String>> = courseNamesLock.withLock {
         val before = loadCourseCustomNames()
         val after = change(before)
-        if (after != before) saveToUserData(after, COURSE_CUSTOM_NAMES_FILE)
+        if (after != before) saveToUserData(after, COURSE_CUSTOM_NAMES_FILE, signIn)
         after
     }
 
@@ -517,8 +502,8 @@ class DataCache @Inject constructor(
      * already grown one duplicated roster merge between them, and this is
      * load and save either side of one line of rule.
      *
-     * Nothing is written once the data has been wiped since [generation], the
-     * fetch's, or else since this call: the answer is the account's that left.
+     * Nothing is written once [signIn], the fetch's, has ended: the answer is
+     * the account's that left.
      *
      * Returns [RecordedSelection.Kept] with the answer as kept, the fetch's
      * version of the term, which [isLatestAnswer] checks before the fetch
@@ -529,11 +514,10 @@ class DataCache @Inject constructor(
     suspend fun recordSelectionRoster(
         semester: String,
         roster: List<String>,
-        generation: Int? = null,
+        signIn: SignIn,
         // Taken as the answer lands, before any wait for the lock, which would make it read newer.
         answeredAt: Long = System.currentTimeMillis(),
     ): RecordedSelection? {
-        val expected = generation ?: writeGeneration()
         if (roster.isEmpty()) return null
         // The answer, the hides it lifts and the drops it records under one hold of the lock: let go
         // of between them, a newer answer could land in the gap, and this one's drops after it
@@ -542,11 +526,11 @@ class DataCache @Inject constructor(
         return selectionDropsMutex.withLock {
             val keptAt = loadSelectionAnsweredAt()[semester]
             if (keptAt != null && keptAt > answeredAt) return@withLock RecordedSelection.Refused
-            val kept = saveToUserDataIf(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, expected) &&
-                recordAnswerLocked(semester, roster, answeredAt, expected)
+            val kept = saveToUserData(loadSelectionRosters() + (semester to roster), SELECTION_ROSTERS_FILE, signIn) &&
+                recordAnswerLocked(semester, roster, answeredAt, signIn)
             if (!kept) return@withLock RecordedSelection.Refused
-            liftHandAddedHides(semester, roster, expected)
-            recordDropsLocked(semester, roster, alsoListed = emptyList(), isFinal = false, expected)
+            liftHandAddedHides(semester, roster, signIn)
+            recordDropsLocked(semester, roster, alsoListed = emptyList(), isFinal = false, signIn)
             RecordedSelection.Kept(SelectionAnswer(roster.toSet(), answeredAt))
         }
     }
@@ -575,15 +559,14 @@ class DataCache @Inject constructor(
      *
      * As iOS `DataCache.recordSelectionRoster(isFinal: true)` (tigerduck-app#890).
      *
-     * Nothing is written once the data has been wiped since [generation], as
-     * [recordSelectionRoster].
+     * Nothing is written once [signIn] has ended, as [recordSelectionRoster].
      */
     suspend fun recordFinalRoster(
         semester: String,
         roster: List<String>,
         alsoListed: Collection<String>,
-        generation: Int? = null,
-    ) = recordDrops(semester, roster, alsoListed, isFinal = true, generation ?: writeGeneration())
+        signIn: SignIn,
+    ) = recordDrops(semester, roster, alsoListed, isFinal = true, signIn)
 
     // Every read, change and write of the drop list and the rosters, one at a time: a past term's
     // rebuild and another term's course selection answer each rewrite the whole file, and the later
@@ -598,15 +581,15 @@ class DataCache @Inject constructor(
         roster: List<String>,
         alsoListed: Collection<String>,
         isFinal: Boolean,
-        generation: Int,
-    ) = selectionDropsMutex.withLock { recordDropsLocked(semester, roster, alsoListed, isFinal, generation) }
+        signIn: SignIn,
+    ) = selectionDropsMutex.withLock { recordDropsLocked(semester, roster, alsoListed, isFinal, signIn) }
 
     private suspend fun recordDropsLocked(
         semester: String,
         roster: List<String>,
         alsoListed: Collection<String>,
         isFinal: Boolean,
-        generation: Int,
+        signIn: SignIn,
     ) {
         val stored = loadSelectionDroppedNos()
         val previous = stored[semester].orEmpty().toSet()
@@ -619,13 +602,13 @@ class DataCache @Inject constructor(
         if (updated == previous) return
         saveSelectionDroppedNos(
             if (updated.isEmpty()) stored - semester else stored + (semester to updated.toList()),
-            generation,
+            signIn,
         )
     }
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun saveSelectionDroppedNos(dropped: Map<String, List<String>>, generation: Int? = null): Boolean =
-        saveToUserDataIf(dropped, "selection_dropped.json", generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveSelectionDroppedNos(dropped: Map<String, List<String>>, signIn: SignIn): Boolean =
+        saveToUserData(dropped, "selection_dropped.json", signIn)
 
     // --- Server-Known Course Nos ---
     // Per semester, every course number a `/sync/full` snapshot has carried.
@@ -640,8 +623,8 @@ class DataCache @Inject constructor(
     // if eviction could drop it, an evicted device would re-arm immunity for
     // every course it holds and upload a term someone else had reset.
 
-    suspend fun saveServerKnownNos(known: Map<String, List<String>>) =
-        saveToUserData(known, "server_known_courses.json")
+    suspend fun saveServerKnownNos(known: Map<String, List<String>>, signIn: SignIn) =
+        saveToUserData(known, "server_known_courses.json", signIn)
 
     // Held from the read to the write of every update below.
     private val serverKnownLock = Mutex()
@@ -649,23 +632,16 @@ class DataCache @Inject constructor(
     /**
      * The server-known numbers changed by [change], read and written under one lock, so writers
      * that each add to them -- a sync's snapshot, an add the backend answered -- never undo one
-     * another's. With [signIn], nothing is written once it has ended; says whether it wrote, or
-     * had nothing to write.
+     * another's. Nothing is written once [signIn] has ended; says whether it wrote, or had nothing
+     * to write.
      */
     suspend fun updateServerKnownNos(
-        signIn: SignIn? = null,
+        signIn: SignIn,
         change: (Map<String, List<String>>) -> Map<String, List<String>>,
     ): Boolean = serverKnownLock.withLock {
         val before = loadServerKnownNos()
         val after = change(before)
-        when {
-            after == before -> true
-            signIn != null -> saveToUserDataUnder(after, "server_known_courses.json", signIn)
-            else -> {
-                saveServerKnownNos(after)
-                true
-            }
-        }
+        after == before || saveServerKnownNos(after, signIn)
     }
 
     suspend fun loadServerKnownNos(): Map<String, List<String>> {
@@ -709,13 +685,13 @@ class DataCache @Inject constructor(
 
     fun resettingSemesters(): Set<String> = resetting.toSet()
 
-    suspend fun saveSemesterResetAt(semester: String, atMs: Long) =
-        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json")
+    suspend fun saveSemesterResetAt(semester: String, atMs: Long, signIn: SignIn) =
+        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json", signIn)
 
     /** Drops stamps a newer snapshot has outlived — see [CourseSyncReconciler.resetStampsOutlived]. */
-    suspend fun clearSemesterResetAt(semesters: Set<String>) {
+    suspend fun clearSemesterResetAt(semesters: Set<String>, signIn: SignIn) {
         if (semesters.isEmpty()) return
-        saveToUserData(loadSemesterResetAt() - semesters, "semester_reset_at.json")
+        saveToUserData(loadSemesterResetAt() - semesters, "semester_reset_at.json", signIn)
     }
 
     suspend fun loadSemesterResetAt(): Map<String, Long> {
@@ -727,7 +703,8 @@ class DataCache @Inject constructor(
     // Stored in filesDir so courses hidden via sync or the delete gesture
     // stay gone even when Moodle/NTUST re-fetches re-add them.
 
-    suspend fun saveDeletedCourseNos(nos: Set<String>) = courseHidesMutex.withLock { writeDeletedCourseNos(nos) }
+    suspend fun saveDeletedCourseNos(nos: Set<String>, signIn: SignIn) =
+        courseHidesMutex.withLock { writeDeletedCourseNos(nos, signIn) }
 
     suspend fun loadDeletedCourseNos(): Set<String> {
         val type = object : TypeToken<List<String>>() {}.type
@@ -741,10 +718,10 @@ class DataCache @Inject constructor(
      * is written, so a hide lifted or written while it ran, by a course
      * selection answer or a delete, is not undone by its older read.
      */
-    suspend fun updateDeletedCourseNos(before: Set<String>, after: Set<String>) = courseHidesMutex.withLock {
+    suspend fun updateDeletedCourseNos(before: Set<String>, after: Set<String>, signIn: SignIn) = courseHidesMutex.withLock {
         val now = loadDeletedCourseNos()
         val updated = now + (after - before) - (before - after)
-        if (updated != now) writeDeletedCourseNos(updated)
+        if (updated != now) writeDeletedCourseNos(updated, signIn)
     }
 
     /**
@@ -757,10 +734,10 @@ class DataCache @Inject constructor(
      * of it, as it was not of the read: taken for the sync's own, it would be lifted by a snapshot
      * fetched before the delete that still lists the course.
      */
-    suspend fun pinLegacyCourseHides(read: Set<String>, rosters: Map<String, Set<String>>): Set<String> = courseHidesMutex.withLock {
+    suspend fun pinLegacyCourseHides(read: Set<String>, rosters: Map<String, Set<String>>, signIn: SignIn): Set<String> = courseHidesMutex.withLock {
         val now = loadDeletedCourseNos()
         val pinned = CourseTombstoneKeys.migrateLegacyEntries(now, rosters)
-        if (pinned != now) writeDeletedCourseNos(pinned)
+        if (pinned != now) writeDeletedCourseNos(pinned, signIn)
         // A bare hide gone from the store was lifted, unless another sync pinned it meanwhile.
         val stands = read.filterTo(mutableSetOf()) { entry ->
             ':' in entry || entry in now || CourseTombstoneKeys.migrateLegacyEntries(setOf(entry), rosters).any { it in now }
@@ -773,19 +750,17 @@ class DataCache @Inject constructor(
      * the courses being brought back kept in step; see [hideDeletedCourse]. A
      * mark goes once its hide does, and so does one whose hide was gone
      * before this write, as a damaged file leaves it; a course being brought
-     * back goes once it is hidden again. Nothing, once the data has been
-     * wiped since [generation], or else since this call.
+     * back goes once it is hidden again. Nothing, once [signIn] has ended.
      */
-    private suspend fun writeDeletedCourseNos(nos: Set<String>, generation: Int? = null) {
-        val expected = generation ?: writeGeneration()
+    private suspend fun writeDeletedCourseNos(nos: Set<String>, signIn: SignIn) {
         val before = loadDeletedCourseNos()
-        if (!saveToUserDataIf(nos.toList(), "deleted_courses.json", expected)) return
+        if (!saveToUserData(nos.toList(), "deleted_courses.json", signIn)) return
         val marks = loadHandAddedHides()
         val keptMarks = marks.filterTo(mutableSetOf()) { it in nos && it in before }
-        if (keptMarks != marks) saveToUserDataIf(keptMarks.toList(), HAND_ADDED_HIDES_FILE, expected)
+        if (keptMarks != marks) saveToUserData(keptMarks.toList(), HAND_ADDED_HIDES_FILE, signIn)
         val restored = loadRestoredCourses()
         val keptRestored = restored.filterKeys { it !in nos }
-        if (keptRestored != restored) saveToUserDataIf(keptRestored, RESTORED_COURSES_FILE, expected)
+        if (keptRestored != restored) saveToUserData(keptRestored, RESTORED_COURSES_FILE, signIn)
     }
 
     // --- Hides of deleted hand-added courses (scoped keys) ---
@@ -896,7 +871,7 @@ class DataCache @Inject constructor(
      * sync's commit comes wholly before it or finds the add noted. Call [courseAddSent] however
      * the add ends, once its upload is kept or sent (PendingCourseAdds.send).
      */
-    suspend fun addCourseBack(courseNo: String, semester: String) {
+    suspend fun addCourseBack(courseNo: String, semester: String, signIn: SignIn) {
         val key = CourseTombstoneKeys.key(semester, courseNo)
         val order = addsBack.incrementAndGet()
         addsUnderWay.merge(key, 1 to order) { held, _ -> held.first + 1 to order }
@@ -904,7 +879,7 @@ class DataCache @Inject constructor(
         courseHidesMutex.withLock {
             val hides = loadDeletedCourseNos()
             if (CourseTombstoneKeys.isHidden(courseNo, semester, hides)) {
-                writeDeletedCourseNos(CourseTombstoneKeys.unhide(courseNo, semester, hides))
+                writeDeletedCourseNos(CourseTombstoneKeys.unhide(courseNo, semester, hides), signIn)
             }
         }
     }
@@ -942,16 +917,16 @@ class DataCache @Inject constructor(
      * hide, unmarked, as it binds: a sync of another term lifts the bare
      * entry once that term lists the course.
      */
-    suspend fun hideDeletedCourse(courseNo: String, semester: String, course: Course?) = courseHidesMutex.withLock {
+    suspend fun hideDeletedCourse(courseNo: String, semester: String, course: Course?, signIn: SignIn) = courseHidesMutex.withLock {
         val hides = loadDeletedCourseNos()
         val key = CourseTombstoneKeys.key(semester, courseNo)
         if (key in hides) return@withLock
-        writeDeletedCourseNos(hides + key)
+        writeDeletedCourseNos(hides + key, signIn)
         if (courseNo in hides) return@withLock
         val addedHere = course != null && course.isManual && course.moodleIdNumber.isNullOrEmpty()
         val answer = loadSelectionRosters()[semester]
         if (addedHere && answer != null && courseNo !in answer) {
-            saveToUserData((loadHandAddedHides() + key).toList(), HAND_ADDED_HIDES_FILE)
+            saveToUserData((loadHandAddedHides() + key).toList(), HAND_ADDED_HIDES_FILE, signIn)
         }
     }
 
@@ -985,6 +960,7 @@ class DataCache @Inject constructor(
         after: Set<String>,
         tombstoned: Collection<String>,
         sync: CourseSync,
+        signIn: SignIn,
     ): Set<String> = courseHidesMutex.withLock {
         val now = loadDeletedCourseNos()
         val keys = tombstoned.mapTo(mutableSetOf()) { CourseTombstoneKeys.key(semester, it) }
@@ -995,10 +971,10 @@ class DataCache @Inject constructor(
         }
         val putBack = addedBack + (sync.broughtBack - keys)
         val updated = now + (after - before - putBack) - (before - after) + lifted
-        if (updated != now) writeDeletedCourseNos(updated)
+        if (updated != now) writeDeletedCourseNos(updated, signIn)
         val marks = loadHandAddedHides()
         val kept = marks - keys
-        if (kept != marks) saveToUserData(kept.toList(), HAND_ADDED_HIDES_FILE)
+        if (kept != marks) saveToUserData(kept.toList(), HAND_ADDED_HIDES_FILE, signIn)
         val prefix = CourseTombstoneKeys.key(semester, "")
         (updated - now).filter { it.startsWith(prefix) }.mapTo(mutableSetOf()) { it.removePrefix(prefix) }
     }
@@ -1032,7 +1008,7 @@ class DataCache @Inject constructor(
      * sync outlives one. The file would otherwise keep one per term and
      * course for good (tigerduck-app-android#461).
      */
-    suspend fun restoredCoursesListed(semester: String, listed: Collection<String>, fetchedAtMs: Long) =
+    suspend fun restoredCoursesListed(semester: String, listed: Collection<String>, fetchedAtMs: Long, signIn: SignIn) =
         courseHidesMutex.withLock {
             val restored = loadRestoredCourses()
             val keys = listed.mapTo(mutableSetOf()) { CourseTombstoneKeys.key(semester, it) }
@@ -1044,7 +1020,7 @@ class DataCache @Inject constructor(
                     course
                 }
             }.filterValues { it.listedAt == null || it.listedAt > oldest }
-            if (updated != restored) saveToUserData(updated, RESTORED_COURSES_FILE)
+            if (updated != restored) saveToUserData(updated, RESTORED_COURSES_FILE, signIn)
         }
 
     /**
@@ -1089,19 +1065,18 @@ class DataCache @Inject constructor(
      * Records, for a full sync, [semester]'s courses a roster dropped on the server, each by
      * when ([droppedAt], null when not known), but those the term's answer as it stands now
      * listed since: this phone's roster enrolls them again. The term's earlier ones go: the
-     * snapshot is newer. Nothing is written once the data has been wiped since [generation].
+     * snapshot is newer. Nothing is written once [signIn] has ended.
      */
-    suspend fun recordServerDrops(semester: String, droppedAt: Map<String, Long?>, generation: Int? = null) {
-        val expected = generation ?: writeGeneration()
+    suspend fun recordServerDrops(semester: String, droppedAt: Map<String, Long?>, signIn: SignIn) {
         selectionDropsMutex.withLock {
             val answer = selectionAnswerIn(semester)
             val dropped = droppedAt.filterNot { (courseNo, at) -> answer?.listsSince(courseNo, at) == true }.keys
             val stored = loadServerDropped()
             if (stored[semester].orEmpty().toSet() == dropped) return@withLock
-            saveToUserDataIf(
+            saveToUserData(
                 if (dropped.isEmpty()) stored - semester else stored + (semester to dropped.sorted()),
                 SERVER_DROPPED_FILE,
-                expected,
+                signIn,
             )
         }
     }
@@ -1120,15 +1095,15 @@ class DataCache @Inject constructor(
     // The answer's time, after the answer it dates: one cut short between the two leaves the
     // newer answer with the older time, which exempts no more than before. The answer's courses
     // are no longer dropped on the server for this phone, whose roster enrolls them again.
-    private suspend fun recordAnswerLocked(semester: String, roster: List<String>, answeredAt: Long, generation: Int): Boolean {
-        if (!saveToUserDataIf(loadSelectionAnsweredAt() + (semester to answeredAt), SELECTION_ANSWERED_AT_FILE, generation)) {
+    private suspend fun recordAnswerLocked(semester: String, roster: List<String>, answeredAt: Long, signIn: SignIn): Boolean {
+        if (!saveToUserData(loadSelectionAnsweredAt() + (semester to answeredAt), SELECTION_ANSWERED_AT_FILE, signIn)) {
             return false
         }
         val stored = loadServerDropped()
         val dropped = stored[semester] ?: return true
         val still = dropped - roster.toSet()
         if (still.size == dropped.size) return true
-        return saveToUserDataIf(if (still.isEmpty()) stored - semester else stored + (semester to still), SERVER_DROPPED_FILE, generation)
+        return saveToUserData(if (still.isEmpty()) stored - semester else stored + (semester to still), SERVER_DROPPED_FILE, signIn)
     }
 
     // An entry that is not a number reads as no time, the others as written.
@@ -1165,11 +1140,10 @@ class DataCache @Inject constructor(
      * one whose DELETE is still queued (PendingCourseDeletes): landing after
      * the roster upload, it would take the course off the server again. An
      * answer after it lands lifts that one. Noted for every sync under way,
-     * whose read is older ([commitSyncHides]). Nothing, once the data has
-     * been wiped since [generation].
+     * whose read is older ([commitSyncHides]). Nothing, once [signIn] has ended.
      */
-    private suspend fun liftHandAddedHides(semester: String, roster: List<String>, generation: Int) = courseHidesMutex.withLock {
-        if (generation != userDataGeneration) return@withLock
+    private suspend fun liftHandAddedHides(semester: String, roster: List<String>, signIn: SignIn) = courseHidesMutex.withLock {
+        if (!signIn.isCurrent) return@withLock
         val marks = loadHandAddedHides()
         if (marks.isEmpty()) return@withLock
         val hides = loadDeletedCourseNos()
@@ -1182,8 +1156,8 @@ class DataCache @Inject constructor(
         // Ahead of the hides: one held while its hide still stands is let go by the next write.
         val restoredAt = System.currentTimeMillis()
         val restored = loadRestoredCourses() + lifted.associateWith { RestoredCourse(restoredAt, listedAt = null) }
-        if (!saveToUserDataIf(restored, RESTORED_COURSES_FILE, generation)) return@withLock
-        writeDeletedCourseNos(hides - lifted, generation)
+        if (!saveToUserData(restored, RESTORED_COURSES_FILE, signIn)) return@withLock
+        writeDeletedCourseNos(hides - lifted, signIn)
     }
 
     /**
@@ -1206,9 +1180,11 @@ class DataCache @Inject constructor(
     // Stored in filesDir so the user's ignore decisions survive OS cache eviction
     // and remote re-fetches, mirroring skipped_dates.json handling.
 
-    suspend fun saveIgnoredAssignments(ids: Set<String>) {
-        saveToUserData(ids.toList(), "ignored_assignments.json")
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveIgnoredAssignments(ids: Set<String>, signIn: SignIn): Boolean {
+        if (!saveToUserData(ids.toList(), "ignored_assignments.json", signIn)) return false
         _assignmentMarksVersion.update { it + 1 }
+        return true
     }
 
     suspend fun loadIgnoredAssignments(): Set<String> {
@@ -1223,7 +1199,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun saveIgnoredCourses(keys: Set<String>, signIn: SignIn): Boolean {
-        if (!saveToUserDataUnder(keys.sorted(), "ignored_courses.json", signIn)) return false
+        if (!saveToUserData(keys.sorted(), "ignored_courses.json", signIn)) return false
         _assignmentMarksVersion.update { it + 1 }
         return true
     }
@@ -1239,7 +1215,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseIgnores(changes: List<PendingCourseIgnore>, signIn: SignIn): Boolean =
-        saveToUserDataUnder(changes, "pending_course_ignores.json", signIn)
+        saveToUserData(changes, "pending_course_ignores.json", signIn)
 
     /** Rows without a usable [PendingCourseIgnore.key] are left out. */
     suspend fun loadPendingCourseIgnores(): List<PendingCourseIgnore> {
@@ -1256,7 +1232,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun saveCourseRowsSeen(rows: Map<String, Long>, signIn: SignIn): Boolean =
-        saveToUserDataUnder(rows, "course_rows_seen.json", signIn)
+        saveToUserData(rows, "course_rows_seen.json", signIn)
 
     suspend fun loadCourseRowsSeen(): Map<String, Long> {
         val type = object : TypeToken<Map<String, Long?>>() {}.type
@@ -1272,9 +1248,11 @@ class DataCache @Inject constructor(
     // won't) record a submission. Persisted in filesDir alongside the ignore
     // list so it survives remote re-fetches.
 
-    suspend fun saveMarkedCompletedAssignments(ids: Set<String>) {
-        saveToUserData(ids.toList(), "marked_completed_assignments.json")
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveMarkedCompletedAssignments(ids: Set<String>, signIn: SignIn): Boolean {
+        if (!saveToUserData(ids.toList(), "marked_completed_assignments.json", signIn)) return false
         _assignmentMarksVersion.update { it + 1 }
+        return true
     }
 
     suspend fun loadMarkedCompletedAssignments(): Set<String> {
@@ -1289,7 +1267,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun saveUnsentMarks(marks: List<UnsentMark>, signIn: SignIn): Boolean =
-        saveToUserDataUnder(marks, "unsent_marks.json", signIn)
+        saveToUserData(marks, "unsent_marks.json", signIn)
 
     /** Rows without an id or a status are left out. */
     suspend fun loadUnsentMarks(): List<UnsentMark> {
@@ -1307,7 +1285,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseAdds(pending: Map<String, List<String>>, signIn: SignIn): Boolean =
-        saveToUserDataUnder(pending, "pending_course_adds.json", signIn)
+        saveToUserData(pending, "pending_course_adds.json", signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseAdds(): Map<String, List<String>> {
@@ -1328,7 +1306,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseAddTimes(times: Map<String, Map<String, Long>>, signIn: SignIn): Boolean =
-        saveToUserDataUnder(times, "pending_course_add_times.json", signIn)
+        saveToUserData(times, "pending_course_add_times.json", signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseAddTimes(): Map<String, Map<String, Long>> {
@@ -1352,7 +1330,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseDeletes(pending: Map<String, Map<String, Long>>, signIn: SignIn): Boolean =
-        saveToUserDataUnder(pending, "pending_course_deletes.json", signIn)
+        saveToUserData(pending, "pending_course_deletes.json", signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseDeletes(): Map<String, Map<String, Long>> {
@@ -1375,7 +1353,7 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseOverrides(pending: List<PendingCourseOverride>, signIn: SignIn): Boolean =
-        saveToUserDataUnder(pending, "pending_course_overrides.json", signIn)
+        saveToUserData(pending, "pending_course_overrides.json", signIn)
 
     /** Rows too damaged to send ([PendingCourseOverride.key] null) are left out. */
     suspend fun loadPendingCourseOverrides(): List<PendingCourseOverride> {
@@ -1397,9 +1375,9 @@ class DataCache @Inject constructor(
      */
     data class ScoreReportSnapshot(val report: ScoreReport?, val cachedAt: Date?)
 
-    /** False, and nothing written, when the data was wiped since [generation]. */
-    suspend fun saveScoreReport(report: ScoreReport, studentId: String, generation: Int? = null): Boolean =
-        saveIf(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId), generation ?: writeGeneration())
+    /** False, and nothing written, once [signIn] has ended. */
+    suspend fun saveScoreReport(report: ScoreReport, studentId: String, signIn: SignIn): Boolean =
+        save(ScoreReportSnapshot(report, Date()), scoreReportFilename(studentId), signIn)
 
     suspend fun loadScoreReport(studentId: String): ScoreReportSnapshot? {
         val type = object : TypeToken<ScoreReportSnapshot>() {}.type
@@ -1426,8 +1404,8 @@ class DataCache @Inject constructor(
         val cachedAt: Long,
     )
 
-    suspend fun saveCourseLookups(map: Map<String, CourseLookupEntry>) =
-        save(map, "course_lookups.json")
+    suspend fun saveCourseLookups(map: Map<String, CourseLookupEntry>, signIn: SignIn) =
+        save(map, "course_lookups.json", signIn)
 
     suspend fun loadCourseLookups(): Map<String, CourseLookupEntry> {
         val type = object : TypeToken<Map<String, CourseLookupEntry>>() {}.type
@@ -1443,8 +1421,8 @@ class DataCache @Inject constructor(
     // wiped on logout via [clearAllUserData] so it can't survive an
     // account switch.
 
-    suspend fun saveMoodleCourseIds(map: Map<String, Int>) =
-        save(map, "moodle_course_ids.json")
+    suspend fun saveMoodleCourseIds(map: Map<String, Int>, signIn: SignIn) =
+        save(map, "moodle_course_ids.json", signIn)
 
     suspend fun loadMoodleCourseIds(): Map<String, Int> {
         val type = object : TypeToken<Map<String, Int>>() {}.type
@@ -1465,10 +1443,9 @@ class DataCache @Inject constructor(
     /** A copy of a course's Moodle data, as [saveMoodleData] kept it. */
     data class MoodleCached<T>(val value: T, val fetchedAtMs: Long)
 
-    suspend fun saveMoodleData(value: Any, fetchedAtMs: Long, name: String, account: String) {
-        val generation = writeGeneration()
+    suspend fun saveMoodleData(value: Any, fetchedAtMs: Long, name: String, account: String, signIn: SignIn) {
         cacheMutex.withLock {
-            if (generation != userDataGeneration) return@withLock
+            if (!signIn.isCurrent) return@withLock
             withContext(Dispatchers.IO) { writeMoodleEnvelope(moodleFile(name, account), value, fetchedAtMs) }
         }
     }
@@ -1583,8 +1560,8 @@ class DataCache @Inject constructor(
     // round does not ask Moodle about them again; see
     // MoodleService.assignmentsToAsk. Moodle's own data, so in the cache.
 
-    suspend fun saveClosedAssignments(closed: Map<Int, Long>) =
-        save(closed.mapKeys { it.key.toString() }, "closed_assignments.json")
+    suspend fun saveClosedAssignments(closed: Map<Int, Long>, signIn: SignIn) =
+        save(closed.mapKeys { it.key.toString() }, "closed_assignments.json", signIn)
 
     suspend fun loadClosedAssignments(): Map<Int, Long> {
         val type = object : TypeToken<Map<String, Long?>>() {}.type
@@ -1596,8 +1573,8 @@ class DataCache @Inject constructor(
 
     // --- Calendar Events ---
 
-    suspend fun saveCalendarEvents(events: List<CalendarEvent>) =
-        save(events, "calendar_events.json")
+    suspend fun saveCalendarEvents(events: List<CalendarEvent>, signIn: SignIn) =
+        save(events, "calendar_events.json", signIn)
 
     suspend fun loadCalendarEvents(): List<CalendarEvent> {
         val type = object : TypeToken<List<CalendarEvent>>() {}.type
@@ -1628,7 +1605,6 @@ class DataCache @Inject constructor(
         selectionDropsMutex.withLock {
             cacheMutex.withLock {
                 userDataMutex.withLock {
-                    userDataGeneration++
                     withContext(Dispatchers.IO) {
                         listOf(cacheDir, userDataDir).forEach { dir ->
                             dir.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
@@ -1645,10 +1621,10 @@ class DataCache @Inject constructor(
     suspend fun clearAllUserData() {
         // Outside the folders' locks, as a recording takes them: see selectionDropsMutex.
         selectionDropsMutex.withLock {
+            // The sign-in ended before this began, and a write asks it under the lock of the folder
+            // it writes to: one past that check is done before its folder is wiped, and no later
+            // one passes it.
             cacheMutex.withLock {
-                // First, under the cache's lock: a write checks it under the lock
-                // of the folder it writes to, and both folders are wiped after.
-                userDataGeneration++
                 withContext(Dispatchers.IO) {
                     listOf(
                         "courses.json",
@@ -1730,12 +1706,10 @@ class DataCache @Inject constructor(
         dir.listFiles { _, name -> name.endsWith(TEMP_SUFFIX) }?.forEach { it.delete() }
     }
 
-    private suspend fun <T> save(value: T, filename: String) { saveIf(value, filename, writeGeneration()) }
-
-    // As saveToUserDataIf, in the cache folder.
-    private suspend fun <T> saveIf(value: T, filename: String, generation: Int): Boolean =
+    // As saveToUserData, in the cache folder.
+    private suspend fun <T> save(value: T, filename: String, signIn: SignIn): Boolean =
         cacheMutex.withLock {
-            if (generation != userDataGeneration) return@withLock false
+            if (!signIn.isCurrent) return@withLock false
             withContext(Dispatchers.IO) { atomicWrite(File(cacheDir, filename), gson.toJson(value)) }
             true
         }
@@ -1749,28 +1723,9 @@ class DataCache @Inject constructor(
             withContext(Dispatchers.IO) { readJson<T>(File(cacheDir, filename), type, requireContent) }
         }
 
-    private suspend fun <T> saveToUserData(value: T, filename: String) { saveToUserDataIf(value, filename, writeGeneration()) }
-
-    /**
-     * The generation a write made here would carry: the [Generation] of the work this coroutine
-     * does, or the current one outside such work. An outbox takes this, not [userDataGeneration],
-     * so a sync pinned to an account that has since signed out cannot write to the next one's.
-     */
-    suspend fun writeGeneration(): Int =
-        currentCoroutineContext()[Generation]?.value ?: userDataGeneration
-
-    // Checked under the folder's lock, which the wipe takes before deleting
-    // anything in it, so a write cannot land after a sign-out has wiped it.
-    private suspend fun <T> saveToUserDataIf(value: T, filename: String, generation: Int): Boolean =
-        userDataMutex.withLock {
-            if (generation != userDataGeneration) return@withLock false
-            withContext(Dispatchers.IO) { atomicWrite(File(userDataDir, filename), gson.toJson(value)) }
-            true
-        }
-
-    // As saveToUserDataIf, for a write that carries its sign-in. A sign-out ends the sign-in before
-    // the wipe takes the folder's lock, so a write past this check is done before the wipe starts.
-    private suspend fun <T> saveToUserDataUnder(value: T, filename: String, signIn: SignIn): Boolean =
+    // Checked under the folder's lock. A sign-out ends the sign-in before the wipe takes that lock,
+    // so a write past this check is done before the wipe starts, and a later one cannot pass it.
+    private suspend fun <T> saveToUserData(value: T, filename: String, signIn: SignIn): Boolean =
         userDataMutex.withLock {
             if (!signIn.isCurrent) return@withLock false
             withContext(Dispatchers.IO) { atomicWrite(File(userDataDir, filename), gson.toJson(value)) }

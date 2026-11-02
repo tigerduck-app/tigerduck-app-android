@@ -32,7 +32,7 @@ class HomeBackendSyncHidesTest {
         val text = source()
         val migration = text.substringAfter("private suspend fun migratedTombstones(").substringBefore("\n    }\n")
 
-        assertTrue("the legacy migration pins the hides as they are when it writes", "dataCache.pinLegacyCourseHides(stored, rosters)" in migration)
+        assertTrue("the legacy migration pins the hides as they are when it writes", "dataCache.pinLegacyCourseHides(stored, rosters, signIn)" in migration)
         assertFalse("nothing writes a whole older set back", "dataCache.saveDeletedCourseNos(tombstones)" in text)
         assertFalse("not even the migration", "dataCache.saveDeletedCourseNos(migrated)" in text)
     }

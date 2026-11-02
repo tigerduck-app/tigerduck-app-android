@@ -55,7 +55,7 @@ class AnnouncementsSyncedAtTest {
     private val context = RuntimeEnvironment.getApplication()
     private val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
     private val cache = BulletinCache(context)
-    private val credentials = testCredentials(context)
+    private val sessions = testSessions(context)
     // The process's, for the tests of an endpoint move, which lets go of it.
     private val repository = BulletinRepository()
 
@@ -100,7 +100,7 @@ class AnnouncementsSyncedAtTest {
         val api = BulletinApiClient(client, prefs, AuthTokenManager(tokens, client, prefs, "device-1"))
         return AnnouncementsViewModel(
             SavedStateHandle(), api, cache, repository, BulletinReadStateStore(context),
-            testDemoAccount(context, prefs, cache), credentials, AppReturns(now = { 0L }, register = {}),
+            testDemoAccount(context, prefs, cache), sessions, AppReturns(now = { 0L }, register = {}),
         )
     }
 
@@ -114,12 +114,13 @@ class AnnouncementsSyncedAtTest {
     }
 
     /**
-     * What [org.ntust.app.tigerduck.auth.AuthService.logout] does to the bulletins: the school
-     * account's generation moves, and the cached list goes with its date.
+     * What [org.ntust.app.tigerduck.auth.AuthService.logout] does to the bulletins: the school's
+     * sign-in ends, and the cached list goes with its date.
      */
     private fun signOut() {
-        credentials.signOutSchoolAccount()
+        sessions.school.signIns.end()
         runBlocking { cache.clear() }
+        sessions.school.open()
     }
 
     /**

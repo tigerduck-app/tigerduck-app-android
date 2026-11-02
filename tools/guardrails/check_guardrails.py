@@ -114,10 +114,10 @@ DEMO_HOMES = re.compile(
     r"(?:demo/|auth/session/|shared/account/|debug/DemoModeInterceptor\.kt$|debug/DebugFixtureStore\.kt$"
     r"|mail/MailDemo\.kt$|emptyclassroom/ClassroomDemoData\.kt$)")
 SIGN_IN_HOMES = re.compile(
-    r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|demo/|liveactivity/"
+    r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|ShareCodeLink\.kt$|demo/|liveactivity/"
     r"|notification/.*(?:Worker|Receiver)\.kt$|push/PushRegistrationService\.kt$"
     r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/sync/MailChecker\.kt$"
-    r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/moodle/"
+    r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/CourseService\.kt$|network/moodle/"
     r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
 # Kinds that are counts of lines and, apart from these, take no baseline entry
 # the flag cannot record.

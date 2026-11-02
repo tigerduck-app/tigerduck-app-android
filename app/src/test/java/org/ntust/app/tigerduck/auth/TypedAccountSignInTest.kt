@@ -73,6 +73,9 @@ class TypedAccountSignInTest {
     /** The school session whose wipe a sign-in waits for. */
     private val session = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob()))
 
+    /** Runs as the stored account is signed out, in place of the wipe it starts. */
+    private var onLeave: () -> Unit = { session.open() }
+
     /** What AuthService.logout does to what the sign-in reads and writes. */
     private fun signOut() {
         synchronized(accountLock) {
@@ -109,6 +112,12 @@ class TypedAccountSignInTest {
             steps += "store"
         },
         latch = latch,
+        leaveStoredAccount = {
+            steps += "leave"
+            synchronized(accountLock) { session.signIns.end() }
+            signOut()
+            onLeave()
+        },
         isDemoAccount = { _, password -> password == DEMO_PASSWORD },
         enterDemo = {
             steps += "demo"
@@ -195,11 +204,11 @@ class TypedAccountSignInTest {
     }
 
     @Test
-    fun `another student's sign-in over a stored one signs nobody out and keeps the generation`() = runTest {
-        // Today's result, which T2.10 changes: the stored account is overwritten in place.
+    fun `another student's sign-in signs the stored one out once the school accepts, then stores`() = runTest {
         stored = OTHER_STUDENT to OLD_PASSWORD
         signedIn = true
         var sameStudentSeen: Boolean? = null
+        onPost = { steps += "school" }
 
         val outcome = typedSignIn().signIn(STUDENT, NEW_PASSWORD, prepareSignedIn = { steps += "prepare" }) { _, sameStudent ->
             sameStudentSeen = sameStudent
@@ -208,10 +217,117 @@ class TypedAccountSignInTest {
 
         assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, outcome)
         assertEquals(STUDENT to NEW_PASSWORD, stored)
-        assertEquals("no sign-out ran", 0, generation)
-        assertTrue("the account stayed shown", signedIn)
+        assertEquals("one sign-out ran", 1, generation)
+        assertTrue("the second student shows", signedIn)
         assertEquals(false, sameStudentSeen)
-        assertEquals(listOf("owed", "store", "prepare", "shown"), steps)
+        assertEquals(listOf("school", "leave", "owed", "store", "prepare", "shown"), steps)
+    }
+
+    @Test
+    fun `a wrong password leaves the stored student signed in`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        signedIn = true
+        accepts = false
+
+        val outcome = runCatching { typedSignIn().signIn(STUDENT, NEW_PASSWORD, prepareSignedIn = {}) { _, _ -> SignInAttempt.SIGNED_IN } }
+
+        assertTrue(outcome.isFailure || outcome.getOrNull() == TypedAccountSignIn.Outcome.NOT_SIGNED_IN)
+        assertEquals(OTHER_STUDENT to OLD_PASSWORD, stored)
+        assertEquals("no sign-out ran", 0, generation)
+        assertTrue(signedIn)
+        assertEquals(emptyList<String>(), steps)
+    }
+
+    @Test
+    fun `the sign-in waits for the sign-out's wipe before it stores`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        // The wipe runs on the application scope, and takes its time.
+        val left = CompletableDeferred<Unit>()
+        onLeave = { left.complete(Unit) }
+        val signingIn = launch { signIn() }
+        left.await()
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("nothing stored during the wipe, the wipe would take it", listOf("leave"), steps)
+        assertEquals(null, stored)
+
+        session.open()
+        signingIn.join()
+
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+        assertEquals(listOf("leave", "owed", "store", "prepare", "shown", "rest"), steps)
+    }
+
+    @Test
+    fun `a sign-in cancelled during the wipe leaves nobody stored, and the next one free`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        val left = CompletableDeferred<Unit>()
+        onLeave = { left.complete(Unit) }
+        val signingIn = launch { signIn() }
+        left.await()
+        testScheduler.advanceUntilIdle()
+
+        signingIn.cancelAndJoin()
+        session.open()
+
+        assertEquals(null, stored)
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, signIn())
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+    }
+
+    @Test
+    fun `a sign-out landing during the wipe of the one this sign-in started is waited out too`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        val left = CompletableDeferred<Unit>()
+        onLeave = {
+            // A second sign-out, the session closed again as the first opens it.
+            session.open()
+            synchronized(accountLock) { session.signIns.end() }
+            signOut()
+            left.complete(Unit)
+        }
+        val signingIn = launch { signIn() }
+        left.await()
+        testScheduler.advanceUntilIdle()
+        assertEquals(null, stored)
+
+        session.open()
+        signingIn.join()
+
+        assertEquals(STUDENT to NEW_PASSWORD, stored)
+    }
+
+    @Test
+    fun `a sign-out that overtook the school's answer signs nobody else out, and stores nothing`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+        onPost = { signOut() }
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, signIn())
+
+        assertEquals("the sign-in leaves nothing itself", emptyList<String>(), steps)
+        assertEquals(null, stored)
+    }
+
+    @Test
+    fun `the same student's sign-in, and one with nobody stored, sign nobody out`() = runTest {
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, signIn())
+        stored = null
+
+        assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, signIn())
+
+        assertFalse("leave" in steps)
+        assertEquals(0, generation)
+    }
+
+    @Test
+    fun `the demo account over a stored student signs that student out first`() = runTest {
+        stored = OTHER_STUDENT to OLD_PASSWORD
+
+        assertEquals(TypedAccountSignIn.Outcome.DEMO, signIn(password = DEMO_PASSWORD))
+
+        assertEquals(STUDENT to DEMO_PASSWORD, stored)
+        assertEquals(1, generation)
+        assertEquals(listOf("leave", "owed", "demo", "store", "prepare", "shown"), steps)
     }
 
     @Test

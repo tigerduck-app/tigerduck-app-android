@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.notification
 
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.push.CourseOverrideResult
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 
@@ -35,11 +36,12 @@ internal object BackgroundCourseOverrides {
         syncColors: Boolean,
         syncNames: Boolean,
         locale: String,
+        signIn: SignIn,
     ): CourseSyncReconciler.ColorOutcome? {
         var applied: CourseSyncReconciler.ColorOutcome? = null
-        val written = dataCache.updateCoursesIfChanged(semester) { cached ->
+        val written = dataCache.updateCoursesIfChanged(semester, signIn) { cached ->
             if (cached.isEmpty()) return@updateCoursesIfChanged cached
-            val names = CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, held)
+            val names = CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, signIn, held)
             val named = if (names != null) CourseNameOverrides.stamp(cached, names, locale) else cached
             val outcome = CourseSyncReconciler.applyColorOverrides(named, overrides, syncColors, held())
             val updated = outcome?.courses ?: named

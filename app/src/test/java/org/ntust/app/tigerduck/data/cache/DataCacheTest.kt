@@ -58,7 +58,7 @@ class DataCacheTest {
     @Test
     fun `an assignment's extension is kept, and a cache with none reads as none`() = runTest {
         val extended = assignment("extended").copy(extensionDueDate = Date(1_700_300_000_000))
-        cache.saveAssignments(listOf(extended, assignment("plain")))
+        cache.saveAssignments(listOf(extended, assignment("plain")), testSignIn())
 
         // The plain one is written with no extension key at all, as a cache from before it was.
         val json = java.io.File(context.cacheDir, "TigerDuckCache/assignments.json").readText()
@@ -77,10 +77,10 @@ class DataCacheTest {
                 assignment("submitted", completed = true),
                 assignment("ignored"),
                 assignment("marked"),
-            )
+            ), testSignIn()
         )
-        cache.saveIgnoredAssignments(setOf("ignored"))
-        cache.saveMarkedCompletedAssignments(setOf("marked"))
+        cache.saveIgnoredAssignments(setOf("ignored"), testSignIn())
+        cache.saveMarkedCompletedAssignments(setOf("marked"), testSignIn())
 
         assertEquals(listOf("open"), cache.loadOutstandingAssignments().map { it.assignmentId })
     }
@@ -91,7 +91,7 @@ class DataCacheTest {
             listOf(
                 assignment("open"),
                 assignment("course-ignored").copy(courseNo = "IGNORED"),
-            )
+            ), testSignIn()
         )
         cache.saveIgnoredCourses(setOf(CourseIgnores.key(cache.currentSemesterCode(), "IGNORED")), testSignIn())
 
@@ -100,7 +100,7 @@ class DataCacheTest {
 
     @Test
     fun `an assignment kept from an earlier term stays under that term's course ignore`() = runTest {
-        cache.saveAssignments(listOf(assignment("kept").copy(courseNo = "OLD", semester = "1091")))
+        cache.saveAssignments(listOf(assignment("kept").copy(courseNo = "OLD", semester = "1091")), testSignIn())
         cache.saveIgnoredCourses(setOf(CourseIgnores.key("1091", "OLD")), testSignIn())
 
         assertEquals(emptyList<String>(), cache.loadOutstandingAssignments().map { it.assignmentId })
@@ -188,32 +188,23 @@ class DataCacheTest {
 
     @Test
     fun `work begun before a sign-out writes nothing after it`() = runTest {
-        val generation = cache.userDataGeneration
+        val series = SignInSeries()
+        val signIn = series.current
+        series.end()
         cache.clearAllUserData()
 
-        withContext(DataCache.Generation(generation)) {
-            cache.saveAssignments(listOf(assignment("left behind")))
-            cache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "Old name")))
-        }
+        cache.saveAssignments(listOf(assignment("left behind")), signIn)
+        cache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "Old name")), signIn)
 
         assertEquals(emptyList<Assignment>(), cache.loadAssignments())
         assertEquals(emptyMap<String, Map<String, String>>(), cache.loadCourseCustomNames())
     }
 
     @Test
-    fun `work tied to the account still signed in writes as usual`() = runTest {
-        withContext(DataCache.Generation(cache.userDataGeneration)) {
-            cache.saveAssignments(listOf(assignment("current")))
-        }
-
-        assertEquals(listOf("current"), cache.loadAssignments().map { it.assignmentId })
-    }
-
-    @Test
     fun `updating the assignments stores what the change makes of them`() = runTest {
-        cache.saveAssignments(listOf(assignment("a"), assignment("b")))
+        cache.saveAssignments(listOf(assignment("a"), assignment("b")), testSignIn())
 
-        val written = cache.updateAssignments { all ->
+        val written = cache.updateAssignments(testSignIn()) { all ->
             all.map { if (it.assignmentId == "a") it.copy(isCompleted = true) else it }
         }
 
@@ -223,11 +214,11 @@ class DataCacheTest {
 
     @Test
     fun `a save made while the assignments update lands after it, not undone by it`() = runBlocking {
-        cache.saveAssignments(listOf(assignment("read")))
+        cache.saveAssignments(listOf(assignment("read")), testSignIn())
         val changing = CountDownLatch(1)
         val finish = CountDownLatch(1)
         val update = async(Dispatchers.IO) {
-            cache.updateAssignments { all ->
+            cache.updateAssignments(testSignIn()) { all ->
                 changing.countDown()
                 assertTrue("never told to finish", finish.await(WAIT_SECONDS, TimeUnit.SECONDS))
                 all.map { it.copy(isCompleted = true) }
@@ -239,7 +230,7 @@ class DataCacheTest {
         // Undispatched, it runs here until it first suspends: on the lock the update
         // holds, or, were the read and the write locked apart, inside its own write.
         val save = launch(start = CoroutineStart.UNDISPATCHED) {
-            cache.saveAssignments(listOf(assignment("saved")))
+            cache.saveAssignments(listOf(assignment("saved")), testSignIn())
         }
         finish.countDown()
         withTimeout(WAIT_SECONDS * 1000) {
@@ -252,12 +243,15 @@ class DataCacheTest {
 
     @Test
     fun `an update begun before a sign-out writes nothing after it`() = runTest {
-        val generation = cache.userDataGeneration
+        val series = SignInSeries()
+        val signIn = series.current
+        series.end()
         cache.clearAllUserData()
-        cache.saveAssignments(listOf(assignment("next account")))
+        series.open()
+        cache.saveAssignments(listOf(assignment("next account")), series.current)
 
         var changed = false
-        val written = cache.updateAssignments(generation) { all ->
+        val written = cache.updateAssignments(signIn) { all ->
             changed = true
             all.map { it.copy(isCompleted = true) }
         }
@@ -271,8 +265,8 @@ class DataCacheTest {
     fun `writing a term's courses tells readers of other terms to look again`() = runTest {
         val before = cache.coursesVersion.value
 
-        cache.saveCourses(listOf(Course(courseNo = "CS1010001", courseName = "A")), "1151")
-        cache.updateCourses("1142") { courses, _ -> courses }
+        cache.saveCourses(listOf(Course(courseNo = "CS1010001", courseName = "A")), "1151", testSignIn())
+        cache.updateCourses("1142", testSignIn()) { courses, _ -> courses }
 
         assertEquals(before + 2, cache.coursesVersion.value)
     }
@@ -281,8 +275,8 @@ class DataCacheTest {
     fun `writing the ignored or marked-done set tells readers to look again`() = runTest {
         val before = cache.assignmentMarksVersion.value
 
-        cache.replaceIgnoredAssignments(setOf("a"))
-        cache.replaceMarkedCompletedAssignments(setOf("b"))
+        cache.replaceIgnoredAssignments(setOf("a"), testSignIn())
+        cache.replaceMarkedCompletedAssignments(setOf("b"), testSignIn())
 
         assertEquals(before + 2, cache.assignmentMarksVersion.value)
     }
@@ -295,19 +289,32 @@ class DataCacheTest {
         // swipe.
         val before = cache.marksAdoptedVersion.value
 
-        cache.adoptAssignmentMarks(ignored = setOf("a"), completed = setOf("b"))
-        cache.saveIgnoredAssignments(setOf("c"))
-        cache.saveMarkedCompletedAssignments(setOf("d"))
+        cache.adoptAssignmentMarks(ignored = setOf("a"), completed = setOf("b"), testSignIn())
+        cache.saveIgnoredAssignments(setOf("c"), testSignIn())
+        cache.saveMarkedCompletedAssignments(setOf("d"), testSignIn())
 
         assertEquals(before + 1, cache.marksAdoptedVersion.value)
-        cache.adoptAssignmentMarks(ignored = setOf("a"), completed = setOf("b"))
+        cache.adoptAssignmentMarks(ignored = setOf("a"), completed = setOf("b"), testSignIn())
         assertEquals(setOf("a"), cache.loadIgnoredAssignments())
         assertEquals(setOf("b"), cache.loadMarkedCompletedAssignments())
     }
 
     @Test
+    fun `marks refused under an ended sign-in are not announced as adopted`() = runTest {
+        val before = cache.marksAdoptedVersion.value
+
+        val series = SignInSeries()
+        val signIn = series.current
+        series.end()
+
+        cache.adoptAssignmentMarks(ignored = setOf("a"), completed = setOf("b"), signIn)
+
+        assertEquals(before, cache.marksAdoptedVersion.value)
+    }
+
+    @Test
     fun `the closed assignments round-trip and go with the account`() = runTest {
-        cache.saveClosedAssignments(mapOf(7 to 1_800_000_000_000L))
+        cache.saveClosedAssignments(mapOf(7 to 1_800_000_000_000L), testSignIn())
 
         assertEquals(mapOf(7 to 1_800_000_000_000L), cache.loadClosedAssignments())
         cache.clearAllUserData()
@@ -316,11 +323,11 @@ class DataCacheTest {
 
     @Test
     fun `a save made while the custom names update lands after it, not undone by it`() = runBlocking {
-        cache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "Read")))
+        cache.saveCourseCustomNames(mapOf("CS1001301" to mapOf("zh" to "Read")), testSignIn())
         val changing = CountDownLatch(1)
         val finish = CountDownLatch(1)
         val update = async(Dispatchers.IO) {
-            cache.updateCourseCustomNames { names ->
+            cache.updateCourseCustomNames(testSignIn()) { names ->
                 changing.countDown()
                 assertTrue("never told to finish", finish.await(WAIT_SECONDS, TimeUnit.SECONDS))
                 names + ("CS1002301" to mapOf("zh" to "From the server"))
@@ -330,7 +337,7 @@ class DataCacheTest {
 
         // Use Server's clear, saved while the update holds the names it read. Given time to land,
         // which it does at once were the update's read and write locked apart.
-        val save = launch(start = CoroutineStart.UNDISPATCHED) { cache.saveCourseCustomNames(emptyMap()) }
+        val save = launch(start = CoroutineStart.UNDISPATCHED) { cache.saveCourseCustomNames(emptyMap(), testSignIn()) }
         withTimeoutOrNull(LANDING_MS) { save.join() }
         finish.countDown()
         withTimeout(WAIT_SECONDS * 1000) {
@@ -344,11 +351,11 @@ class DataCacheTest {
     @Test
     fun `a course saved while a courses update is under way lands after it, not undone by it`() = runBlocking {
         val read = Course(courseNo = "CS1001301", courseName = "Read")
-        cache.saveCourses(listOf(read), "1151")
+        cache.saveCourses(listOf(read), "1151", testSignIn())
         val changing = CountDownLatch(1)
         val finish = CountDownLatch(1)
         val update = async(Dispatchers.IO) {
-            cache.updateCoursesIfChanged("1151") { courses ->
+            cache.updateCoursesIfChanged("1151", testSignIn()) { courses ->
                 changing.countDown()
                 assertTrue("never told to finish", finish.await(WAIT_SECONDS, TimeUnit.SECONDS))
                 courses.map { it.copy(customCourseName = "Named") }
@@ -359,7 +366,7 @@ class DataCacheTest {
         // The class table saving a course added while the update holds the list it read; given
         // time to land, as above.
         val added = listOf(read, Course(courseNo = "CS1002301", courseName = "Added"))
-        val save = launch(start = CoroutineStart.UNDISPATCHED) { cache.saveCourses(added, "1151") }
+        val save = launch(start = CoroutineStart.UNDISPATCHED) { cache.saveCourses(added, "1151", testSignIn()) }
         withTimeoutOrNull(LANDING_MS) { save.join() }
         finish.countDown()
         withTimeout(WAIT_SECONDS * 1000) {
@@ -372,13 +379,13 @@ class DataCacheTest {
 
     @Test
     fun `a courses update writes only when its change changes the list`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = "CS1001301", courseName = "A")), "1151")
+        cache.saveCourses(listOf(Course(courseNo = "CS1001301", courseName = "A")), "1151", testSignIn())
         val before = cache.coursesVersion.value
 
-        assertNull(cache.updateCoursesIfChanged("1151") { courses -> courses.map { it.copy() } })
+        assertNull(cache.updateCoursesIfChanged("1151", testSignIn()) { courses -> courses.map { it.copy() } })
         assertEquals("nothing written", before, cache.coursesVersion.value)
 
-        val written = cache.updateCoursesIfChanged("1151") { courses -> courses.map { it.copy(customCourseName = "B") } }
+        val written = cache.updateCoursesIfChanged("1151", testSignIn()) { courses -> courses.map { it.copy(customCourseName = "B") } }
         assertEquals("and hands back the list as written", cache.loadCourses("1151"), written)
         assertEquals(before + 1, cache.coursesVersion.value)
     }
@@ -396,7 +403,7 @@ class DataCacheTest {
     fun `a term's portal courses count as cached only while their file holds some`() = runTest {
         assertFalse("nothing cached", cache.hasPortalCourses("1151"))
 
-        cache.saveCourses(listOf(Course(courseNo = "MY1", courseName = "Mine", isManual = true)), "1151")
+        cache.saveCourses(listOf(Course(courseNo = "MY1", courseName = "Mine", isManual = true)), "1151", testSignIn())
         assertFalse("hand-typed alone", cache.hasPortalCourses("1151"))
 
         cache.saveCourses(
@@ -405,6 +412,7 @@ class DataCacheTest {
                 Course(courseNo = "MY1", courseName = "Mine", isManual = true),
             ),
             "1151",
+            testSignIn(),
         )
         assertTrue(cache.hasPortalCourses("1151"))
 

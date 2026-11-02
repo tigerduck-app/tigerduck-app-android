@@ -10,10 +10,17 @@ import kotlin.coroutines.cancellation.CancellationException
  * [schoolSignIn] posts the credentials to the school. Once the school takes them,
  * [signInInteractively] runs the rest as the sign-in under way, and the first thing it does is
  * [storeAccount]: the credentials become the stored account and the stored-password latch lifts.
- * Nothing that can suspend comes between the school's answer and that store, so a sign-in
- * cancelled at any point leaves either the old password with its refusal latched or the new one
- * without it, never the refused password stored and unlatched: the school's acceptance lifts
- * nothing by itself (SsoLoginService.signIn).
+ * For the same student nothing that can suspend comes between the school's answer and that store,
+ * so a sign-in cancelled at any point leaves either the old password with its refusal latched or
+ * the new one without it, never the refused password stored and unlatched: the school's acceptance
+ * lifts nothing by itself (SsoLoginService.signIn).
+ *
+ * Another student stored is signed out in between ([leaveStoredAccount]), after the school
+ * accepts, so a wrong password leaves that student signed in. The sign-out's wipe runs, this
+ * sign-in waits for it, and goes on as a sign-in over nobody: as iOS (ADR 0026), the sign-in of
+ * the student who left ends here, and nothing of theirs is left for the next one. The sign-out
+ * clears the session cookies the post just got; the next fetch signs in again from the stored
+ * credentials. Cancelled in that wait, it leaves nobody stored.
  *
  * The account then shows as signed in ([markSignedIn]). The library and the school mail are signed
  * in to by themselves: a school sign-in signs neither in (decided for Android on 2026-10-22). The
@@ -47,6 +54,8 @@ internal class TypedAccountSignIn(
     private val storedStudentId: () -> String?,
     private val writeAccount: (studentId: String, password: String) -> Unit,
     private val latch: StoredPasswordLatch,
+    /** Signs the stored account out, as any sign-out does. Its wipe runs after this returns. */
+    private val leaveStoredAccount: suspend () -> Unit,
     /** Whether these are the demo account's credentials. Reads the bundled file and nothing else. */
     private val isDemoAccount: (studentId: String, password: String) -> Boolean,
     /** Signs the demo account in on the device. */
@@ -81,9 +90,20 @@ internal class TypedAccountSignIn(
         prepareSignedIn: suspend () -> Unit,
         afterShown: suspend (signInGeneration: Int, sameStudent: Boolean) -> SignInAttempt,
     ): Outcome {
-        val generation = generationOnceOpen()
+        var generation = generationOnceOpen()
+
+        // A sign-out that overtook this sign-in has taken the account already, and the next check stops it.
+        suspend fun overStoredAccount() {
+            var another = false
+            unlessSignedOutSince(generation) { another = storedStudentId().let { it != null && it != studentId } }
+            if (!another) return
+            leaveStoredAccount()
+            generation = generationOnceOpen()
+        }
+
         // Checked before anything goes out, so these credentials never reach NTUST.
         if (isDemoAccount(studentId, password)) {
+            overStoredAccount()
             // Demo mode is on disk once it goes on.
             accountChanging()
             enterDemo()
@@ -95,6 +115,7 @@ internal class TypedAccountSignIn(
             return Outcome.DEMO
         }
         if (!schoolSignIn(studentId, password)) return Outcome.NOT_SIGNED_IN
+        overStoredAccount()
         var outcome = Outcome.NOT_SIGNED_IN
         signInInteractively { signIn ->
             // Read before it is overwritten: a stored Moodle token is this student's only if

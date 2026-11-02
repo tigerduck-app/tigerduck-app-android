@@ -12,7 +12,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertNotNull
-import org.ntust.app.tigerduck.HeldShareLink
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.session.AccountSessions
@@ -112,8 +111,8 @@ internal fun accountWorld(
     val dataCache = DataCache(context, academicCalendar)
     val bulletinCache = BulletinCache(context)
     val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
-    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported)
-    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures))
+    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions)
+    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)
     val latch = PersistedStoredPasswordLatch(context, credentials)
     val sso = SsoLoginService(sessionManager, latch) { school }
     val tokens = AuthTokenManager(credentials.v3Tokens, refusing, appPrefs, "device-1", session = sessions.school)
@@ -140,7 +139,7 @@ internal fun accountWorld(
         scope = idleScope,
         now = System::currentTimeMillis,
     )
-    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, idleScope)
+    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, sessions, idleScope)
     val uiLanguage = UiLanguageMonitor(appPrefs)
     val pushApi = PushApiClient(backend ?: refusing, appPrefs, tokens)
     val liveUpdate = LiveActivityPreferences(context)
@@ -169,7 +168,7 @@ internal fun accountWorld(
         courseService = courseService,
         moodleService = MoodleService(
             sessionManager, moodleTokens, courseService, dataCache, appPrefs,
-            MoodleWebservice(sessionManager, moodleTokens), idleScope,
+            MoodleWebservice(sessionManager, moodleTokens), sessions, idleScope,
         ),
         dataCache = dataCache,
         bulletinCache = bulletinCache,
@@ -180,7 +179,6 @@ internal fun accountWorld(
         demoAccount = demoAccount,
         prefs = appPrefs,
         classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
-        heldShareLink = HeldShareLink(),
     )
     // The in-app browser's WebView storage, counted each time it is cleared.
     val browserClearings = MutableStateFlow(0)

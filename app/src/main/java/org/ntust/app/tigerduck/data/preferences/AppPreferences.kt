@@ -264,46 +264,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             if (value != previous) _syncLiveActivityChanged.tryEmit(Unit)
         }
 
-    var pendingConflictCategories: Set<String>
-        get() = prefs.getStringSet("pendingConflictCategories", emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet("pendingConflictCategories", value).apply()
-
-    /**
-     * The re-enable check's categories, named as in [pendingConflictCategories],
-     * whose data a full sync has applied on this phone for the signed-in
-     * account. Only these are marked for the check when switched back on: for
-     * any other, the phone holds none of the account's data to compare. Added
-     * to by `HomeBackendSync.pull`, filled by `DataMigration.migrate3to4`, and
-     * cleared at sign-out by [clearSyncStamps].
-     */
-    var syncedCategories: Set<String>
-        get() = prefs.getStringSet("syncedCategories", emptySet()) ?: emptySet()
-        set(value) = prefs.edit().putStringSet("syncedCategories", value).apply()
-
-    /**
-     * Whether a full sync has taken the signed-in account's assignment marks
-     * on this phone, or sent them up as its first sync, so that from now on a
-     * server holding no marks is the truth — see
-     * `AssignmentOverrideReconciler.isFirstUpload`. False on an install that
-     * predates it, which therefore runs that first sync once more. Cleared at
-     * sign-out by [clearSyncStamps]. Turning sync off keeps it: turning it
-     * back on marks the category for the re-enable check, and syncs leave the
-     * marks alone until that is settled.
-     */
-    var assignmentMarksSyncedOnce: Boolean
-        get() = prefs.getBoolean("assignmentMarksSyncedOnce", false)
-        set(value) = prefs.edit().putBoolean("assignmentMarksSyncedOnce", value).apply()
-
-    /**
-     * The server's `courses_reset_at` as the last full sync read it, for the
-     * next one to tell a new reset from one already applied; empty once a
-     * sync found none, and null before the signed-in account's first sync
-     * here — see `CourseSyncReconciler.coursesReset`. Cleared at sign-out by
-     * [clearSyncStamps].
-     */
-    var lastSeenCoursesResetAt: String?
-        get() = prefs.getString("lastSeenCoursesResetAt", null)
-        set(value) = prefs.edit().putString("lastSeenCoursesResetAt", value).apply()
+    /** The school account's keys, which write only with a sign-in; see [SchoolKeys]. */
+    val school = SchoolKeys(prefs) { _schoolDataSyncedAtMs.value = it }
 
     /**
      * This phone's clock at an older build's last full sync, epoch ms, or 0:
@@ -950,31 +912,14 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             prefs.edit().putString("homeSections", gson.toJson(value)).apply()
         }
 
-    var ssoLoginTimestamp: Long
-        get() = prefs.getLong("ssoLoginTimestamp", 0L)
-        set(value) = prefs.edit().putLong("ssoLoginTimestamp", value).apply()
-
     fun clearSsoTimestamp() {
         prefs.edit().remove("ssoLoginTimestamp").apply()
     }
 
-    /**
-     * When Moodle last answered a whole round of assignments, epoch ms; 0
-     * for never, or not since the last sign-out. The age of what Home, the
-     * class table and the calendar show, and what the background worker
-     * measures its assignment refresh against — see
-     * [org.ntust.app.tigerduck.ui.RefreshPolicies].
-     *
-     * A flow, for the "Last synced" row that shows it.
-     */
+    /** [SchoolKeys.schoolDataSyncedAtMs] as a flow, for the "Last synced" row that shows it. */
     private val _schoolDataSyncedAtMs =
         MutableStateFlow(prefs.getLong("schoolDataSyncedAtMs", 0L))
     val schoolDataSyncedAtMs: StateFlow<Long> = _schoolDataSyncedAtMs.asStateFlow()
-
-    fun markSchoolDataSynced(atMs: Long) {
-        prefs.edit().putLong("schoolDataSyncedAtMs", atMs).apply()
-        _schoolDataSyncedAtMs.value = atMs
-    }
 
     /**
      * When the library last issued the signed-in library account a QR code,
@@ -1000,8 +945,8 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
 
     /**
      * On sign-out, this stamp, the background worker's two below,
-     * [syncedCategories], [assignmentMarksSyncedOnce],
-     * [lastSeenCoursesResetAt] and the upload ledgers: what they record
+     * [SchoolKeys.syncedCategories], [SchoolKeys.assignmentMarksSyncedOnce],
+     * [SchoolKeys.lastSeenCoursesResetAt] and the upload ledgers: what they record
      * belonged to the account that left, and the next account's worker must
      * not wait out the old one's hour before its first sync.
      */
@@ -1021,20 +966,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         forgetLegacyLastCourseSyncAt()
         _schoolDataSyncedAtMs.value = 0L
     }
-
-    /**
-     * The assignment list the backend last accepted from this phone, as a
-     * fingerprint, and when; see `push.UploadLedger`. Forgotten at sign-out
-     * by [clearSyncStamps] and when a sync switch comes back on by
-     * [forgetUploads].
-     */
-    var assignmentsUploadFingerprint: String?
-        get() = prefs.getString("assignmentsUploadFingerprint", null)
-        set(value) = prefs.edit().putString("assignmentsUploadFingerprint", value).apply()
-
-    var assignmentsUploadedAtMs: Long
-        get() = prefs.getLong("assignmentsUploadedAtMs", 0L)
-        set(value) = prefs.edit().putLong("assignmentsUploadedAtMs", value).apply()
 
     /**
      * The course list of [semester] the backend last accepted from this
@@ -1103,28 +1034,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
             .removeCourseUploads(null)
             .apply()
     }
-
-    /** When the background worker last synced with the backend, epoch ms. */
-    var backgroundOverridesSyncedAtMs: Long
-        get() = prefs.getLong("backgroundOverridesSyncedAtMs", 0L)
-        set(value) = prefs.edit().putLong("backgroundOverridesSyncedAtMs", value).apply()
-
-    /**
-     * When the background worker last refreshed the timetable, epoch ms. Its
-     * own clock, unlike assignments': only the worker reads it, and only if
-     * the class table asks for background refreshes.
-     */
-    var backgroundCoursesSyncedAtMs: Long
-        get() = prefs.getLong("backgroundCoursesSyncedAtMs", 0L)
-        set(value) = prefs.edit().putLong("backgroundCoursesSyncedAtMs", value).apply()
-
-    /**
-     * The term the background worker last fetched courses in, by the app's clock; null before the
-     * first. Its first run in another term fetches that term's courses.
-     */
-    var backgroundCoursesTerm: String?
-        get() = prefs.getString("backgroundCoursesTerm", null)
-        set(value) = prefs.edit().putString("backgroundCoursesTerm", value).apply()
 
     /**
      * Debug-only escape hatch from the Developer section: when true,
@@ -1224,30 +1133,6 @@ class AppPreferences @Inject constructor(@ApplicationContext context: Context) :
         prefs.edit().putString(key, created).apply()
         return created
     }
-
-    /** Semester the user last viewed in the class table. Null until first pick. */
-    var classTableSelectedSemester: String?
-        get() = prefs.getString("classTableSelectedSemester", null)
-        set(value) {
-            val editor = prefs.edit()
-            if (value == null) editor.remove("classTableSelectedSemester")
-            else editor.putString("classTableSelectedSemester", value)
-            editor.apply()
-        }
-
-    /**
-     * The building the empty-classroom finder last showed at the user's pick, by the booking
-     * site's code (e.g. "TR"). Null until the first pick; cleared at sign-out, so the next
-     * account opens on its own building.
-     */
-    var emptyClassroomBuilding: String?
-        get() = prefs.getString("emptyClassroomBuilding", null)
-        set(value) {
-            val editor = prefs.edit()
-            if (value == null) editor.remove("emptyClassroomBuilding")
-            else editor.putString("emptyClassroomBuilding", value)
-            editor.apply()
-        }
 
     /**
      * Holidays the user asked to keep receiving class reminders on.
