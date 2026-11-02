@@ -161,6 +161,30 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   `bearer-home` check fails a `"Bearer ` literal anywhere but there, the guard that
   reads it (`SessionHostGuard`) and the departing unregister's one line in
   `PushApiClient`, the only request with no sign-in. It takes no baseline entries.
+- `AccountSession` and `SignIn` (`app/.../auth/session/AccountSession.kt`,
+  `shared/.../account/SignIn.kt`): one session per account (school, mail, library)
+  for the life of the process, and one `SignIn` per sign-in, which answers
+  `isCurrent` itself. A store write or a backend request of account data takes the
+  `SignIn` it was read for, so it does not compile without one, and the store drops
+  a stale one. `sign-in-read` holds who may read one. `AccountSession.isDemo` is the
+  one answer to whether the account is the demo, which `demo-check` holds;
+  `DemoStaysOnTheDeviceTest` pins the safety nets behind it: `DemoModeInterceptor`
+  on every OkHttp client but the two it names, and `MailRepository`'s check, which
+  keeps IMAP and SMTP shut.
+- `AccountKey` (`app/.../data/preferences/AccountKey.kt`, the school's in
+  `SchoolKeys.kt`): a school preference writes only with a `SignIn`. Its stored
+  property is private, so a write without one does not compile.
+- `SchoolStores` (`app/.../auth/session/SchoolStores.kt`): the school's stores,
+  `AccountScoped` at once and `LateAccountScoped` late, in the order its sign-out
+  clears them, built only at a sign-out so a store unused this process is cleared
+  too. `AccountStateInventoryTest` fails on an account store on no list, and on a
+  school row whose clearer nothing the school's sign-out reaches.
+- `SignOutPlans` (`app/.../auth/session/SignOutPlans.kt`): every sign-out,
+  `signOut(reason)`, each account's in the order it always ran, the reason on each
+  `SignedOut` it tells. It is the only caller of each account's end: the
+  `sign-out-start` check fails the token manager's logout, School Mail's or the
+  library's sign-out, or a drop of the school's or the library's credentials
+  anywhere else. It takes no baseline entries.
 
 ## Greptile
 
