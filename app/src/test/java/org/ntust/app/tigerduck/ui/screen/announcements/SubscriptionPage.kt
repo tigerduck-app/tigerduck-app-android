@@ -3,9 +3,14 @@
 package org.ntust.app.tigerduck.ui.screen.announcements
 
 import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
@@ -40,9 +45,19 @@ class SubscriptionPage : TestWatcher() {
     val api = BulletinApiClient(backend.client, prefs, manager)
     private lateinit var main: ExecutorCoroutineDispatcher
 
+    /**
+     * The app's `/v4` saves, one for every page this test opens, as the process has one. Its
+     * worker runs on the pages' thread here, so what it has done is settled once that thread has
+     * run what is queued on it.
+     */
+    lateinit var saves: SubscriptionListSaves
+        private set
+    private val stores = HashMap<SubscriptionSettingsViewModel, ViewModelStore>()
+
     override fun starting(description: Description) {
         main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
         Dispatchers.setMain(main)
+        saves = SubscriptionListSaves(api, CoroutineScope(SupervisorJob() + main))
     }
 
     override fun finished(description: Description) {
@@ -61,12 +76,30 @@ class SubscriptionPage : TestWatcher() {
         assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         tokens.save(FIRST, "refresh-a", Long.MAX_VALUE)
         backend.seed(FIRST, *rules)
+        return reopen(shown)
+    }
+
+    /**
+     * Opens the page once more, on the backend and under the sign-in already set, as the app
+     * builds one: a view model of its own back stack entry ([close] clears it). Waits for the
+     * rules to show unless told not to ([shown]).
+     */
+    fun reopen(shown: Boolean = true): SubscriptionSettingsViewModel {
         val page = onMain {
-            SubscriptionSettingsViewModel(api, BulletinRepository(), SystemPermissions(context), manager.session)
+            val store = ViewModelStore()
+            val factory = object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                    SubscriptionSettingsViewModel(api, BulletinRepository(), SystemPermissions(context), manager.session, saves) as T
+            }
+            ViewModelProvider(store, factory)[SubscriptionSettingsViewModel::class.java].also { stores[it] = store }
         }
         if (shown) eventually("the rules show") { page.state.value.loadState == SubscriptionSettingsViewModel.LoadState.Loaded }
         return page
     }
+
+    /** The student leaves [page]: its back stack entry goes, which clears its view model and cancels its scope. */
+    fun close(page: SubscriptionSettingsViewModel) = onMain { stores.remove(page)?.clear() }
 
     /** Runs [block] on the page's thread, as a tap does, and returns once it has. */
     fun <T> onMain(block: () -> T): T = runBlocking(main) { block() }
@@ -81,17 +114,27 @@ class SubscriptionPage : TestWatcher() {
     }
 
     /**
-     * Waits until [page] has handled [count] answers to its reads and saves since it opened, the
-     * first read's among them, and fails if it handled more: an answer is read on OkHttp's thread
-     * and handled on the page's a moment later, which only the page itself can tell.
+     * Waits until [page] has handled [count] answers to its reads and `/v3` saves since it opened,
+     * the first read's among them, and fails if it handled more: an answer is read on OkHttp's
+     * thread and handled on the page's a moment later, which only the page itself can tell.
      */
     fun awaitAnswers(page: SubscriptionSettingsViewModel, count: Int) {
         eventually("the page handles $count answers") { page.probe.answersHandled.get() >= count }
         assertEquals("answers the page handled", count, onMain { page.probe.answersHandled.get() })
     }
 
-    /** How many `/v4` saves of the list [page] has begun, read on its thread once it has run what is queued there. */
-    fun savesBegun(page: SubscriptionSettingsViewModel): Int = onMain { page.probe.savesBegun.get() }
+    /**
+     * Waits until the app's `/v4` saves have handled [count] answers or refusals, and fails if
+     * they handled more; then until the pages have shown what those left.
+     */
+    fun awaitSaves(count: Int) {
+        eventually("the saves handle $count answers") { saves.probe.answersHandled.get() >= count }
+        assertEquals("answers the saves handled", count, onMain { saves.probe.answersHandled.get() })
+        onMain { }
+    }
+
+    /** How many `/v4` saves the app has begun, once the pages' thread has run what is queued there. */
+    fun savesBegun(): Int = onMain { saves.probe.savesBegun.get() }
 
     /** The first student signs out, and the second ([SECOND]) signs in with a session of their own. */
     fun nextStudentSignsIn(vararg rules: String) {

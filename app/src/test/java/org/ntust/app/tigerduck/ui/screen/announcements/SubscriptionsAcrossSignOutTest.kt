@@ -59,10 +59,10 @@ class SubscriptionsAcrossSignOutTest {
      */
     private fun SubscriptionSettingsViewModel.leftAloneThenStartsOver(
         before: Triple<List<SubscriptionRule>, LoadState, SaveState>,
-        answers: Int,
         read: String,
     ) {
-        page.awaitAnswers(this, answers)
+        // The page's own answers on `/v3`; on `/v4`, its read's and the app's saves' one.
+        if (read == V3_READ) page.awaitAnswers(this, 2) else page.awaitSaves(1)
         assertEquals("the answer left the page alone", before, seen())
         assertEquals(emptyList<String>(), sentAsSecond())
 
@@ -82,7 +82,7 @@ class SubscriptionsAcrossSignOutTest {
         page.nextStudentSignsIn("Grants")
         post.release()
 
-        vm.leftAloneThenStartsOver(before, answers = 2, V3_READ)
+        vm.leftAloneThenStartsOver(before, V3_READ)
     }
 
     @Test
@@ -96,7 +96,7 @@ class SubscriptionsAcrossSignOutTest {
         page.nextStudentSignsIn("Grants")
         patch.release()
 
-        vm.leftAloneThenStartsOver(before, answers = 2, V3_READ)
+        vm.leftAloneThenStartsOver(before, V3_READ)
     }
 
     @Test
@@ -110,7 +110,7 @@ class SubscriptionsAcrossSignOutTest {
         page.nextStudentSignsIn("Grants")
         delete.release(503 to "{}")
 
-        vm.leftAloneThenStartsOver(before, answers = 2, V3_READ)
+        vm.leftAloneThenStartsOver(before, V3_READ)
     }
 
     @Test
@@ -153,7 +153,7 @@ class SubscriptionsAcrossSignOutTest {
         page.nextStudentSignsIn("Grants")
         put.release()
 
-        vm.leftAloneThenStartsOver(before, answers = 2, V4_READ)
+        vm.leftAloneThenStartsOver(before, V4_READ)
     }
 
     @Test
@@ -168,8 +168,10 @@ class SubscriptionsAcrossSignOutTest {
         page.nextStudentSignsIn("Grants")
         put.release()
 
-        // The read, the first save's answer, and the waiting save, refused before it is sent.
-        vm.leftAloneThenStartsOver(before, answers = 3, V4_READ)
+        // The first save's answer is handled, and the waiting save dropped, unsent.
+        vm.leftAloneThenStartsOver(before, V4_READ)
+        assertEquals(1, page.saves.probe.dropped.get())
+        assertEquals(1, page.savesBegun())
         assertEquals(1, page.backend.sent(V4_SAVE).size)
         assertEquals(listOf("Scholarships" to false, "Lectures" to true), page.backend.held(FIRST))
         assertEquals(listOf("Grants" to true), page.backend.held(SECOND))
@@ -186,7 +188,7 @@ class SubscriptionsAcrossSignOutTest {
         page.nextStudentSignsIn("Grants")
         put.release(503 to "{}")
 
-        vm.leftAloneThenStartsOver(before, answers = 2, V4_READ)
+        vm.leftAloneThenStartsOver(before, V4_READ)
     }
 
     /**
@@ -262,7 +264,7 @@ class SubscriptionsAcrossSignOutTest {
         page.manager.logout()
         put.release()
 
-        page.awaitAnswers(vm, 2)
+        page.awaitSaves(1)
         assertEquals("the answer left the page alone", before, vm.seen())
         assertEquals(listOf(V4_READ, V4_SAVE), page.backend.routes())
     }

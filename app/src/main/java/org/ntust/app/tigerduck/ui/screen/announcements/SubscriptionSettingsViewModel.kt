@@ -5,7 +5,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,6 +49,12 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val repository: BulletinRepository,
     val systemPermissions: SystemPermissions,
     private val session: AccountSession,
+    /**
+     * The app's `/v4` saves of the list, which outlive the page. The default is one of its own,
+     * for tests that are not about it.
+     */
+    private val listSaves: SubscriptionListSaves =
+        SubscriptionListSaves(api, CoroutineScope(SupervisorJob() + Dispatchers.Default)),
 ) : ViewModel() {
 
     @OptIn(StartsAccountWork::class)
@@ -87,27 +96,22 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private var shownApi = BackendApi.V3
 
     /**
-     * What the page has done with its requests, counted for tests: an answer is read on another
-     * thread and handled on the page's a moment later, so a test waits on these, not on time.
-     * Nothing in the app reads them.
+     * What the page has done with its requests, counted on its thread for tests: an answer is read
+     * on another thread and handled on the page's a moment later, so a test waits on these, not on
+     * time. Nothing in the app reads them. The `/v4` saves count their own ([SubscriptionListSaves]).
      */
     @VisibleForTesting
     internal class Probe {
-        /** `/v4` saves of the list begun, each one PUT unless its header is refused first. */
-        val savesBegun = AtomicInteger()
-
-        /** Answers to the page's reads and saves handled, refusals too, whether they landed or not. */
+        /** Answers to the page's reads and `/v3` saves handled, refusals too, whether they landed or not. */
         val answersHandled = AtomicInteger()
     }
 
     @VisibleForTesting
     internal val probe = Probe()
 
-    /** `/v4`'s saves of the whole list, one at a time. */
-    private val listSaves = SubscriptionListSaves(viewModelScope, api, _state, ::answered, probe)
-
     init {
         viewModelScope.launch { fetchTaxonomy() }
+        viewModelScope.launch { listSaves.ledger.collect(::mirror) }
         load()
     }
 
@@ -133,8 +137,13 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 land(signIn) {
                     shownFor = signIn
                     shownApi = speaks
-                    listSaves.acknowledged = rules
-                    _state.update { it.copy(rules = rules, loadState = LoadState.Loaded) }
+                    if (speaks == BackendApi.V4) {
+                        // What the page shows, and how the saves stand, are the app's saves' ledger.
+                        val ledger = listSaves.loaded(signIn, rules)
+                        _state.update { it.copy(rules = ledger.rules, loadState = LoadState.Loaded, saveState = ledger.save) }
+                    } else {
+                        _state.update { it.copy(rules = rules, loadState = LoadState.Loaded) }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -152,7 +161,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
         val signIn = editing() ?: return
         if (shownApi == BackendApi.V4) {
-            return listSaves.edit(signIn) { rules ->
+            return editList(signIn) { rules ->
                 val listed = rule.withClientId()
                 if (replacingIndex != null && replacingIndex in rules.indices) {
                     rules.toMutableList().also { it[replacingIndex] = listed }
@@ -188,7 +197,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val s = _state.value
         if (index !in s.rules.indices) return
         if (shownApi == BackendApi.V4) {
-            return listSaves.edit(signIn) { rules -> rules.filterIndexed { at, _ -> at != index } }
+            return editList(signIn) { rules -> rules.filterIndexed { at, _ -> at != index } }
         }
         val rule = s.rules[index]
         _state.update { it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) }) }
@@ -231,6 +240,22 @@ class SubscriptionSettingsViewModel @Inject constructor(
         }
     }
 
+    /** `/v4`: [edit] of the list on the page, shown at once and saved by the app's saves. */
+    private fun editList(signIn: SignIn, edit: (List<SubscriptionRule>) -> List<SubscriptionRule>) {
+        val ledger = listSaves.edit(signIn, edit(_state.value.rules))
+        _state.update { it.copy(rules = ledger.rules, saveState = ledger.save) }
+    }
+
+    /**
+     * `/v4`: shows the app's saves' ledger whenever it moves, while it is the ledger of the
+     * sign-in whose rules the page shows: an answer or a refusal, landed while the page was open
+     * or, for a page opened again, before.
+     */
+    private fun mirror(ledger: SubscriptionListSaves.Ledger?) {
+        if (ledger == null || shownApi != BackendApi.V4 || ledger.signIn !== shownFor) return
+        _state.update { it.copy(rules = ledger.rules, saveState = ledger.save) }
+    }
+
     /**
      * The sign-in an edit of the rules on the page goes under: the one they were read under. Null
      * while none has landed, and once that sign-in has ended, which starts the page over.
@@ -253,10 +278,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Puts the answer to a save of [signIn]'s on the page with [write] while that sign-in stands,
-     * in one step with the sign-out's end. Past it the answer touches nothing, and starts nothing
-     * over: the page may show the next student's rules by then, with a save of theirs waiting.
-     * Only an edit of the rules a sign-out left starts the page over ([editing]).
+     * Puts the answer to a `/v3` save of [signIn]'s on the page with [write] while that sign-in
+     * stands, in one step with the sign-out's end. Past it the answer touches nothing, nor starts
+     * the page over: it may show the next student's rules by then. `/v4`'s do the same.
      */
     private fun answered(signIn: SignIn, write: () -> Unit) {
         signIn.ifCurrent(write)
@@ -266,8 +290,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     /**
      * Drops the rules of a sign-in that has ended, and reads the rules again under the sign-in that
      * stands. With none, the read fails, and the page offers to try again. No edit is made of the
-     * emptied list, so no save sends it: a save carries the list its edit left. One of the ended
-     * sign-in's still waiting is refused before it is sent, and its refusal touches nothing.
+     * emptied list, so no save sends it: a save carries the list its edit left.
      */
     private fun startOver() {
         shownFor = null
@@ -290,7 +313,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val before = _state.value
         if (index !in before.rules.indices) return
         if (shownApi == BackendApi.V4) {
-            return listSaves.edit(signIn) { rules ->
+            return editList(signIn) { rules ->
                 rules.mapIndexed { at, rule -> if (at == index) rule.copy(enabled = !rule.enabled) else rule }
             }
         }
@@ -365,6 +388,8 @@ class SubscriptionSettingsViewModel @Inject constructor(
 
     fun clearSaveState() {
         _state.update { it.copy(saveState = SaveState.Idle) }
+        // The app's saves keep how the last one went for a page opened again; this one showed it.
+        if (shownApi == BackendApi.V4) shownFor?.let(listSaves::outcomeSeen)
     }
 }
 
