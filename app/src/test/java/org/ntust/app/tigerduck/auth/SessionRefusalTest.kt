@@ -1,21 +1,26 @@
 package org.ntust.app.tigerduck.auth
 
 import kotlinx.coroutines.test.runTest
+import org.json.JSONException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
+import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.syncApiClientAt
 import org.ntust.app.tigerduck.push.syncFixture
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.SimulatedFailure
 import org.ntust.app.tigerduck.util.testSignIn
 import java.io.IOException
+import java.net.ConnectException
 
 /**
  * A request the backend answers with a 401 for a session it ended early goes once more after a
@@ -25,6 +30,9 @@ class SessionRefusalTest {
 
     private var relogins = 0
 
+    /** What the snapshot's fetch throws for a 401. */
+    private fun refused() = PushApiException("sync/full failed: HTTP 401", 401)
+
     private fun relogin(succeeds: Boolean): suspend (SignIn) -> Boolean = {
         relogins++
         succeeds
@@ -32,10 +40,42 @@ class SessionRefusalTest {
 
     @Test
     fun `a 401 or a revoked session reads as refused, anything else not`() {
-        assertTrue(IOException("full sync failed: HTTP 401").isSessionRefused())
-        assertTrue(IOException("HTTP 403 session_revoked").isSessionRefused())
+        assertTrue(PushApiException("sync/full failed: HTTP 401", 401).isSessionRefused())
+        assertTrue(BackendException(BackendError(401, "session_revoked"), "refused").isSessionRefused())
+        assertFalse(PushApiException("sync/full failed: HTTP 503", 503).isSessionRefused())
         assertFalse(IOException("HTTP 503").isSessionRefused())
         assertFalse(IOException().isSessionRefused())
+    }
+
+    /**
+     * Only the backend's answer says a session is refused, never a failure's words: Android's
+     * org.json quotes the text it could not read, and a snapshot cut short holds revisions, ids
+     * and course numbers, any of which can read 401; a failed connection names an address.
+     * Each of these sent the request a second time.
+     */
+    @Test
+    fun `a failure that only quotes 401 or session_revoked is not refused, and goes once`() = runTest {
+        val quoting = listOf(
+            JSONException("Unterminated object at character 31 of {\"current_revision\": 401, \"courses\""),
+            ConnectException("Failed to connect to api.example.test/2001:db8::a401:443"),
+            IOException("HTTP 403 session_revoked"),
+            PushApiException("register failed: HTTP 500 {\"detail\":\"session_revoked\"}"),
+        )
+        for (failure in quoting) {
+            var sends = 0
+
+            val thrown = runCatching {
+                retryingAfterRelogin(testSignIn(), relogin(succeeds = true)) {
+                    sends++
+                    throw failure
+                }
+            }.exceptionOrNull()
+
+            assertFalse("$failure", failure.isSessionRefused())
+            assertSame(failure, thrown)
+            assertEquals("$failure", 1, sends)
+        }
+        assertEquals(0, relogins)
     }
 
     /** What the snapshot's fetch throws for [status] and [body], at an endpoint ending in [version]. */
@@ -88,7 +128,7 @@ class SessionRefusalTest {
         var sends = 0
 
         val answer = retryingAfterRelogin(testSignIn(), relogin(succeeds = true)) {
-            if (++sends == 1) throw IOException("HTTP 401") else "snapshot"
+            if (++sends == 1) throw refused() else "snapshot"
         }
 
         assertEquals("snapshot", answer)
@@ -98,7 +138,7 @@ class SessionRefusalTest {
 
     @Test
     fun `a refused session whose sign-in fails keeps its failure`() = runTest {
-        val refused = IOException("HTTP 401")
+        val refused = refused()
 
         val failure = runCatching { retryingAfterRelogin(testSignIn(), relogin(succeeds = false)) { throw refused } }.exceptionOrNull()
 
@@ -123,11 +163,11 @@ class SessionRefusalTest {
         val failure = runCatching {
             retryingAfterRelogin(testSignIn(), relogin(succeeds = true)) {
                 sends++
-                throw IOException("HTTP 401")
+                throw refused()
             }
         }.exceptionOrNull()
 
-        assertEquals("HTTP 401", failure?.message)
+        assertEquals(401, (failure as? PushApiException)?.statusCode)
         assertEquals(2, sends)
         assertEquals(1, relogins)
     }

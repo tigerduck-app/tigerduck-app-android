@@ -5,12 +5,12 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Whether the backend answered with a 401 ([org.ntust.app.tigerduck.network.backend.BackendError.refusesSession]),
- * or said the session was revoked: the session it ended before its access token ran out keeps
- * drawing these until the app signs in again.
+ * Whether the backend refused the session the request went with: a 401, whatever code it gives
+ * ([org.ntust.app.tigerduck.network.backend.BackendError.refusesSession]). The session it ended
+ * before its access token ran out keeps drawing these until the app signs in again. Read from the
+ * refusal the failure carries, never from its message, which can quote a body or an address.
  */
-internal fun Throwable.isSessionRefused(): Boolean = backendError()?.refusesSession == true ||
-    message?.contains("401") == true || message?.contains("session_revoked") == true
+internal fun Throwable.isSessionRefused(): Boolean = backendError()?.refusesSession == true
 
 /**
  * Runs [request], and once more after [relogin] signs in again when the backend refused the
