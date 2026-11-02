@@ -417,13 +417,27 @@ class AccountStateInventoryTest {
 
     @Test
     fun `a late store taken off its list leaves its files to no list`() {
-        val problems = edited("SchoolStores.kt", "listOf(importedClassTables.get(), dataCache.get())", "listOf(importedClassTables.get())")
+        val problems = edited(
+            "SchoolStores.kt",
+            "listOf(importedClassTables.get(), outbox.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), outbox.get())",
+        )
             .problems()
         assertTrue(problems.toString(), "`DataCache` is an account store on no list of SchoolStores" in problems)
         assertTrue(
             problems.toString(),
             "cache `courses.json`: `clearAllUserData` in DataCache.kt is reached by no list of the school's sign-out" in problems,
         )
+    }
+
+    @Test
+    fun `the outbox taken off the late list fails`() {
+        val problems = edited(
+            "SchoolStores.kt",
+            "listOf(importedClassTables.get(), outbox.get(), dataCache.get())",
+            "listOf(importedClassTables.get(), dataCache.get())",
+        ).problems()
+        assertEquals(listOf("`Outbox` is an account store on no list of SchoolStores"), problems)
     }
 
     // A clearer that still clears, but that nothing the sign-out runs calls any more.

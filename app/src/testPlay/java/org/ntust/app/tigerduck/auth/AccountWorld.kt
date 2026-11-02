@@ -60,6 +60,7 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.widget.WidgetBoundaryScheduler
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 import java.io.File
@@ -105,6 +106,8 @@ internal fun accountWorld(
     backend: OkHttpClient? = null,
     /** The backend's stand-in for its logins; refused without one. */
     backendLogin: OkHttpClient? = null,
+    /** The outbox the school's sign-out clears; one with no channel, as the app's is today. */
+    outbox: Outbox = Outbox(emptySet()),
     /** Runs as the school takes a password, before its answer comes back. */
     schoolAnswering: () -> Unit = {},
 ): AccountWorld {
@@ -201,7 +204,7 @@ internal fun accountWorld(
             classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, sessions.school, appPrefs)),
             prefs = appPrefs,
             sessionManager = sessionManager,
-            stores = SchoolStores({ BulletinReadStateStore(context) }, { appPrefs }, { latch }, { imported }, { dataCache }),
+            stores = SchoolStores({ BulletinReadStateStore(context) }, { appPrefs }, { latch }, { imported }, { outbox }, { dataCache }),
             pushRegistration = pushRegistration,
             demoAccount = demoAccount,
             bulletinCache = bulletinCache,

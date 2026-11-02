@@ -5,6 +5,7 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import javax.inject.Inject
 
 /**
@@ -21,13 +22,17 @@ class SchoolStores @Inject constructor(
     private val prefs: dagger.Lazy<AppPreferences>,
     private val storedPasswordLatch: dagger.Lazy<StoredPasswordLatch>,
     private val importedClassTables: dagger.Lazy<ImportedClassTableStore>,
+    private val outbox: dagger.Lazy<Outbox>,
     private val dataCache: dagger.Lazy<DataCache>,
 ) {
     /** Cleared at once, each a step of its own, before the account shows as signed out. */
     val atOnce: List<AccountScoped>
         get() = listOf(bulletinReadStateStore.get(), prefs.get(), storedPasswordLatch.get())
 
-    /** Cleared after, one by one, on the application scope; the widgets are drawn again once they are done. */
+    /**
+     * Cleared after, one by one, on the application scope; the widgets are drawn again once they are
+     * done. The outbox forgets what it holds in memory before DataCache takes the queues' files.
+     */
     val late: List<LateAccountScoped>
-        get() = listOf(importedClassTables.get(), dataCache.get())
+        get() = listOf(importedClassTables.get(), outbox.get(), dataCache.get())
 }
