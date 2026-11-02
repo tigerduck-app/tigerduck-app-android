@@ -63,7 +63,7 @@ class CredentialManagerLibraryTest {
         credentials.clearLibraryCredentials(SignOutReason.LIBRARY)
 
         assertFalse(before.isCurrent)
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
         assertTrue(session.current.isCurrent)
     }
 
@@ -74,7 +74,7 @@ class CredentialManagerLibraryTest {
         credentials.clearAll(SignOutReason.FULL_RESET)
 
         assertFalse(before.isCurrent)
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
     }
 
     @Test

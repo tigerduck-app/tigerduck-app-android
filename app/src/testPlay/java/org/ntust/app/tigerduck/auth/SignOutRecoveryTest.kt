@@ -224,7 +224,7 @@ class SignOutRecoveryTest {
                 assertFalse(row, signOutCutShort)
                 assertEquals(row, FIRST, w.credentials.ntustStudentId)
                 assertTrue(row, w.auth.authState.value)
-                assertTrue(row, w.sessions.school.isOpen)
+                assertTrue(row, w.sessions.school.signIns.isOpen.value)
             } else {
                 assertTrue(row, signOutCutShort)
                 assertNothingOfTheFirstLeft(w, firstLeft, row)
@@ -395,7 +395,7 @@ class SignOutRecoveryTest {
         assertFalse(w.auth.authState.value)
         assertEquals("and the wipe", emptyList<String>(), listOf("cache", "data").flatMap { account.filesUnder(account.cacheRoots.getValue(it)) })
         assertTrue("the marker stays for the next start", owed.owed)
-        assertFalse("and the next sign-in waits for it", w.sessions.school.isOpen)
+        assertFalse("and the next sign-in waits for it", w.sessions.school.signIns.isOpen.value)
 
         val (next, signOutCutShort) = nextStart()
 
@@ -436,7 +436,7 @@ class SignOutRecoveryTest {
             wipesDone()
 
             val last = start == 2
-            assertEquals("try ${start + 1}", last, w.sessions.school.isOpen)
+            assertEquals("try ${start + 1}", last, w.sessions.school.signIns.isOpen.value)
             assertEquals("try ${start + 1}", !last, owed.owed)
         }
     }
@@ -451,7 +451,7 @@ class SignOutRecoveryTest {
 
         assertNull(w.credentials.v3Tokens.accessToken)
         assertTrue(owed.owed)
-        assertFalse(w.sessions.school.isOpen)
+        assertFalse(w.sessions.school.signIns.isOpen.value)
 
         val (next, signOutCutShort) = nextStart()
 

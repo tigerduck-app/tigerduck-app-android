@@ -178,7 +178,7 @@ class AccountSessionTest {
 
         assertFalse(prepared)
         assertFalse(school.isDemo)
-        assertFalse("still closed for the wipe", school.isOpen)
+        assertFalse("still closed for the wipe", school.signIns.isOpen.value)
     }
 
     @Test

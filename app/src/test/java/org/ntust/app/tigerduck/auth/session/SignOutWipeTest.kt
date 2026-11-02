@@ -62,7 +62,7 @@ class SignOutWipeTest {
         }
 
         private fun at(stage: Stage) {
-            if (begun > wiped && session.isOpen) openTooEarly += stage
+            if (begun > wiped && session.signIns.isOpen.value) openTooEarly += stage
             if (stage == landsAt && !landed) {
                 landed = true
                 signOut()
@@ -100,7 +100,7 @@ class SignOutWipeTest {
             assertEquals("the session is never open with a sign-out under way, second at $stage", emptyList<Stage>(), openTooEarly)
             assertEquals("each sign-out wiped, second at $stage", 2, wiped)
             assertEquals("a wipe ran after the last clearing, second at $stage", 2, clearedAtLastWipe)
-            assertTrue("it opens in the end, second at $stage", session.isOpen)
+            assertTrue("it opens in the end, second at $stage", session.signIns.isOpen.value)
             assertFalse("and the marker goes then, second at $stage", owed.owed)
         }
     }
@@ -183,7 +183,7 @@ class SignOutWipeTest {
         withTimeout(5_000) { held.session.awaitOpen() }
 
         held.signOut()
-        assertFalse(held.session.isOpen)
+        assertFalse(held.session.signIns.isOpen.value)
         held.gates[1].complete(Unit)
         withTimeout(5_000) { held.session.awaitOpen() }
         assertEquals(2, held.wiped.get())
@@ -196,7 +196,7 @@ class SignOutWipeTest {
             val openFound = AtomicReference<String?>(null)
             val wiped = AtomicInteger(0)
             fun assertClosed(where: String) {
-                if (session.isOpen) openFound.set(where)
+                if (session.signIns.isOpen.value) openFound.set(where)
             }
             val wipe = SignOutWipe(
                 wipe = {
@@ -246,7 +246,7 @@ class SignOutWipeTest {
         ending.cancel()
         delay(50)
 
-        assertFalse(session.isOpen)
+        assertFalse(session.signIns.isOpen.value)
         assertTrue(owed.owed)
     }
 
@@ -297,7 +297,7 @@ class SignOutWipeTest {
         assertEquals(0, askedWhoIsStored.get())
         assertEquals(0, clearings)
         assertEquals(0, wipes)
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
         assertTrue("the same sign-in goes on", before === session.signIns.current && before.isCurrent)
         assertFalse(owed.owed)
     }
@@ -311,14 +311,14 @@ class SignOutWipeTest {
         assertTrue(wipe.recover({ STUDENT }, ::clearing))
 
         assertEquals(1, clearings)
-        assertFalse("closed until the wipe, which the caller starts after the migration", session.isOpen)
+        assertFalse("closed until the wipe, which the caller starts after the migration", session.signIns.isOpen.value)
         assertTrue(owed.owed)
         assertEquals(0, wipes)
 
         wipe.finish()
 
         assertEquals(1, wipes)
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
         assertFalse(owed.owed)
     }
 
@@ -341,7 +341,7 @@ class SignOutWipeTest {
 
         assertEquals(0, clearings)
         assertEquals(0, wipes)
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
         assertFalse(owed.owed)
     }
 
@@ -361,7 +361,7 @@ class SignOutWipeTest {
         val session = start(cleared = false)
 
         assertEquals(1, wipes)
-        assertFalse(session.isOpen)
+        assertFalse(session.signIns.isOpen.value)
         assertTrue(owed.owed)
     }
 
@@ -372,7 +372,7 @@ class SignOutWipeTest {
 
         val session = start(cleared = true)
 
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
         assertFalse(owed.owed)
     }
 
@@ -380,11 +380,11 @@ class SignOutWipeTest {
     fun `a clearing that keeps failing holds the sign-in for two starts, and the third opens it`() {
         owed.mark(STUDENT)
 
-        assertFalse(start(cleared = false).isOpen)
-        assertFalse(start(cleared = false).isOpen)
+        assertFalse(start(cleared = false).signIns.isOpen.value)
+        assertFalse(start(cleared = false).signIns.isOpen.value)
         val third = start(cleared = false)
 
-        assertTrue(third.isOpen)
+        assertTrue(third.signIns.isOpen.value)
         assertFalse(owed.owed)
     }
 
@@ -395,12 +395,12 @@ class SignOutWipeTest {
 
         wipe.begin(STUDENT)
         wipe.finish(cleared = false)
-        assertFalse(session.isOpen)
+        assertFalse(session.signIns.isOpen.value)
         assertTrue(owed.owed)
 
         wipe.begin(null)
         wipe.finish()
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
         assertFalse(owed.owed)
     }
 

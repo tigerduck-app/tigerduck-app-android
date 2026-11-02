@@ -499,9 +499,9 @@ class MailAccountTest {
             credentials, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope, session = session,
         )
         account.signIn("b10000001", "pw")
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
         account.signOut(SignOutReason.MAIL)
-        assertTrue(session.isOpen)
+        assertTrue(session.signIns.isOpen.value)
     }
 
     @Test
