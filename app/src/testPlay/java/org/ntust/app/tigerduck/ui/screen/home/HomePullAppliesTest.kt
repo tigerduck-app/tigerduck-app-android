@@ -23,6 +23,8 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.shared.Course
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -31,7 +33,8 @@ import org.robolectric.annotation.Config
 /**
  * What Home's full sync takes from the snapshot into what Home shows: the marks, recorded as taken
  * once for the account; the ignored courses; and the colors, only while their switch is on and no
- * re-enable check holds them. Made-up accounts and course numbers.
+ * re-enable check holds them. Also the conflict dialog's "keep the server's". Made-up accounts and
+ * course numbers.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -124,6 +127,24 @@ class HomePullAppliesTest {
         w.appPrefs.syncCourseColors = true
         backend.answer("GET /sync/full", 200, snapshot())
         rig.sync.pull(state, signIn)
+        assertEquals(listOf<String?>("#123456"), state.allCourses.value.map { it.customColorHex })
+    }
+
+    /** The conflict dialog's "keep the server's": the snapshot that was contested, marks and colors. */
+    @Test
+    fun `Use Server takes the contested snapshot's marks and colors`() = runBlocking {
+        val signIn = w.sessions.school.signIns.current
+        val contested = BackendSyncResult(
+            ignoredIds = setOf("7"),
+            completedIds = emptySet(),
+            courseOverrides = listOf(CourseOverrideResult(moodleCourseId = MOODLE_ID, courseNo = COURSE, colorHex = "#123456", semester = TERM)),
+            serverCourseNos = setOf(COURSE),
+            currentRevision = 42,
+        )
+
+        rig.sync.applyResolution(state, contested, emptyList(), keepLocal = false, signIn = signIn)
+
+        assertEquals(setOf("7"), state.ignoredAssignmentIds.value)
         assertEquals(listOf<String?>("#123456"), state.allCourses.value.map { it.customColorHex })
     }
 
