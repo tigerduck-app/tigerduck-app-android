@@ -304,28 +304,36 @@ class CourseAddsChannelTest {
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 
-    /** A caller that leaves while its upload is out does not cut it short, and its answer is kept (spec §5.3). */
+    /**
+     * A caller that leaves while its upload is out does not cut it short, its answer is kept, and
+     * the send lock stays held until then, so a DELETE waiting for it does not start beside the
+     * upload (spec §5.3).
+     */
     @Test
-    fun `a caller cancelled during its upload leaves it to finish, and its answer is stored`() = runTest {
+    fun `a caller cancelled during its upload leaves it to finish under the lock, and its answer is stored`() = runTest {
         cache.saveCourses(listOf(typed), term, signIn)
+        val events = mutableListOf<String>()
         val out = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        var uploads = 0
         val adds = PendingCourseAdds(cache, { courses, _, _, _, _ ->
-            uploads++
             out.complete(Unit)
             release.await()
+            events += "upload"
             CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
         })
 
         val caller = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn) }
         out.await()
+        val delete = launch { adds.removing { events += "DELETE" } }
+        runCurrent()
         caller.cancelAndJoin()
+        runCurrent()
+        assertEquals("the DELETE waits for the upload its caller left", emptyList<String>(), events)
         release.complete(Unit)
-        settle { cache.loadPendingCourseAdds().isEmpty() }
+        delete.join()
+        settle { cache.loadPendingCourseAdds().isEmpty() && cache.loadPendingCourseAddTimes().isEmpty() }
 
-        assertEquals(1, uploads)
-        assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
+        assertEquals(listOf("upload", "DELETE"), events)
     }
 
     // As an older build left the adds: written before this build first ran, one of them with no time.

@@ -240,26 +240,35 @@ class CourseDeletesChannelTest {
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
     }
 
-    /** A caller that leaves while its DELETE is out does not cut it short, and its answer is kept (spec §5.3). */
+    /**
+     * A caller that leaves while its DELETE is out does not cut it short, its answer is kept, and
+     * the send lock stays held until then, so an upload waiting for it does not start beside the
+     * DELETE (spec §5.3).
+     */
     @Test
-    fun `a caller cancelled during its DELETE leaves it to finish, and its answer is stored`() = runTest {
+    fun `a caller cancelled during its DELETE leaves it to finish under the lock, and its answer is stored`() = runTest {
+        val events = mutableListOf<String>()
         val out = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
-        var deleted = 0
         val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null })
         val deletes = PendingCourseDeletes(cache, adds, { _, _, _ ->
-            deleted++
             out.complete(Unit)
             release.await()
+            events += "DELETE"
         })
 
         val caller = launch { deletes.send(term, typed, 10L, signIn) }
         out.await()
+        val upload = launch { adds.uploading { events += "upload" } }
+        runCurrent()
         caller.cancelAndJoin()
+        runCurrent()
+        assertEquals("the upload waits for the DELETE its caller left", emptyList<String>(), events)
         release.complete(Unit)
+        upload.join()
         settle { queued().isEmpty() }
 
-        assertEquals(1, deleted)
+        assertEquals(listOf("DELETE", "upload"), events)
     }
 
     /** Review Focus 1: a delete an older build kept goes out once on `/v4`, with the moment it was asked. */
@@ -305,26 +314,34 @@ class CourseDeletesChannelTest {
 
     /**
      * The newest ask of a course's delete is the one that goes: asked again without its row, it
-     * goes with no kind, not the kind an older ask was told. A sign-out's forgetting takes the
-     * kinds told, with the rest of what the channel holds in memory.
+     * goes with no kind, not the kind an older ask was told.
      */
     @Test
-    fun `on v4 a delete goes with the kind of its newest ask, and none once its memory is forgotten`() = runTest {
+    fun `on v4 a delete goes with the kind of its newest ask`() = runTest {
         val (deletes, _) = v4Deletes()
         val handAdded = Course(courseNo = typed, courseName = "Typed", isManual = true)
         prefs.syncCourses = false
         deletes.keep(term, typed, 1_790_000_000_001L, signIn, handAdded)
         deletes.send(term, typed, 1_790_000_000_002L, signIn)
-        deletes.keep(term, other, 1_790_000_000_003L, signIn, handAdded.copy(courseNo = other))
+
+        prefs.syncCourses = true
+        deletes.retry(signIn)
+
+        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000002000"), backend.sent.map { it.url })
+    }
+
+    /** A sign-out's forgetting takes the kinds told, with the rest of what the channel holds in memory. */
+    @Test
+    fun `on v4 a delete goes with no kind once the channel's memory is forgotten`() = runTest {
+        val (deletes, _) = v4Deletes()
+        prefs.syncCourses = false
+        deletes.keep(term, typed, 1_790_000_000_001L, signIn, Course(courseNo = typed, courseName = "Typed", isManual = true))
         deletes.forgetMemory()
 
         prefs.syncCourses = true
         deletes.retry(signIn)
 
-        assertEquals(
-            listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000002000", "$v4/sync/courses/client:$term:$other?hlc=1790000000003000"),
-            backend.sent.map { it.url },
-        )
+        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000001000"), backend.sent.map { it.url })
     }
 
     /** LWW D12: on `/v4` a delete is kept while course sync is off, and goes once it is on. */
