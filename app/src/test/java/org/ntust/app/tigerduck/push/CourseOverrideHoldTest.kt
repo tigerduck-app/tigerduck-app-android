@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A course override PATCH reads [PushApiClient.patchCourseOverride]'s `allowed` once more right
@@ -23,6 +24,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 class CourseOverrideHoldTest {
 
     private val backend = ScriptedBackend()
+    private val signIn = testSignIn()
     private lateinit var api: PushApiClient
     private lateinit var prefs: AppPreferences
 
@@ -42,11 +44,11 @@ class CourseOverrideHoldTest {
         // TigerSync is off for good on F-Droid, where no override PATCH goes out at all.
         assumeTrue(prefs.cloudSyncEnabled)
         var allowed = true
-        assertTrue(api.patchCourseOverride("1151CS1", colorHex = "#FF0000", allowed = { allowed }))
+        assertTrue(api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000", allowed = { allowed }))
         assertEquals(listOf("PATCH /sync/courses/1151CS1/override"), backend.endpoints())
 
         allowed = false
-        assertFalse(api.patchCourseOverride("1151CS1", colorHex = "#00FF00", allowed = { allowed }))
+        assertFalse(api.patchCourseOverride("1151CS1", signIn, colorHex = "#00FF00", allowed = { allowed }))
         assertEquals("nothing more went out", 1, backend.endpoints().size)
     }
 }

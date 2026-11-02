@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.network.BulletinApiClient
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
@@ -35,7 +37,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val api: BulletinApiClient,
     private val repository: BulletinRepository,
     val systemPermissions: SystemPermissions,
+    private val session: AccountSession,
 ) : ViewModel() {
+
+    @OptIn(StartsAccountWork::class)
+    private fun signInNow() = session.current
 
     sealed interface LoadState {
         data object Loading : LoadState
@@ -76,10 +82,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
 
     fun load() {
         loadJob?.cancel()
+        val signIn = signInNow()
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
-                val response = api.fetchSubscriptions()
+                val response = api.fetchSubscriptions(signIn)
                 _state.update {
                     it.copy(rules = response.items, loadState = LoadState.Loaded)
                 }
@@ -96,13 +103,14 @@ class SubscriptionSettingsViewModel @Inject constructor(
      * Replaces [replacingIndex] in the local list on success.
      */
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
+        val signIn = signInNow()
         viewModelScope.launch {
             _state.update { it.copy(saveState = SaveState.Saving) }
             try {
                 val saved = if (rule.id == null) {
-                    api.createSubscription(rule)
+                    api.createSubscription(rule, signIn)
                 } else {
-                    api.updateSubscription(rule.id, rule)
+                    api.updateSubscription(rule.id, rule, signIn)
                 }
                 _state.update { s ->
                     val rules = s.rules.toMutableList()
@@ -132,10 +140,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val rule = s.rules[index]
         _state.update { it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) }) }
         val id = rule.id ?: return
+        val signIn = signInNow()
         viewModelScope.launch {
             _state.update { it.copy(saveState = SaveState.Saving) }
             try {
-                api.deleteSubscription(id)
+                api.deleteSubscription(id, signIn)
                 _state.update { it.copy(saveState = SaveState.Saved) }
             } catch (e: CancellationException) {
                 _state.update { it.copy(saveState = SaveState.Idle) }
@@ -182,10 +191,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val generation = (editGeneration[id] ?: 0) + 1
         editGeneration[id] = generation
 
+        val signIn = signInNow()
         viewModelScope.launch {
             _state.update { it.copy(saveState = SaveState.Saving) }
             try {
-                val saved = api.updateSubscription(id, toggled)
+                val saved = api.updateSubscription(id, toggled, signIn)
                 // A newer tap is already in flight; its response is the one
                 // that should win, so drop this echo instead of overwriting.
                 if (editGeneration[id] != generation) return@launch

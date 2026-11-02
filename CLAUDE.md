@@ -149,6 +149,11 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   a decision to name in the PR body. `check_guardrails.py --introduce KIND`
   lets a ratchet land with its counts; a function whose parameter types
   changed keeps its baseline entry.
+- `AuthTokenManager.requireAuthHeader(SignIn)`: the only way to a backend request's
+  header, so a request of account data does not compile without its sign-in. The
+  `bearer-home` check fails a `"Bearer ` literal anywhere but there, the guard that
+  reads it (`SessionHostGuard`) and the departing unregister's one line in
+  `PushApiClient`, the only request with no sign-in. It takes no baseline entries.
 
 ## Greptile
 

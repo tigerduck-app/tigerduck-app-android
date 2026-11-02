@@ -34,6 +34,10 @@ Offense kinds (counts in the baseline):
   sign-in-read    lines that name StartsAccountWork outside the layers that may
                   start account work. Every other layer is handed the sign-in.
                   The baseline has no entries of this kind and takes none.
+  bearer-home     lines that write a "Bearer " header outside the token manager,
+                  the guard that reads it, and the one line of the departing
+                  unregister, the only request with no sign-in. Takes no
+                  baseline entries either.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -68,6 +72,7 @@ MAX_FILE_LINES = 400
 MAX_FUNCTION_LINES = 80
 BASELINE_IN_REPO = "tools/guardrails/baseline.json"
 
+PUSH_API = "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt"
 TAIPEI_HOME = "shared/src/main/java/org/ntust/app/tigerduck/shared/time/TaipeiClock.kt"
 TERM_HOME = "shared/src/main/java/org/ntust/app/tigerduck/shared/time/AcademicTerm.kt"
 PREFERENCES = "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPreferences.kt"
@@ -119,6 +124,8 @@ SIGN_IN_HOMES = re.compile(
     r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/sync/MailChecker\.kt$"
     r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/CourseService\.kt$|network/moodle/"
     r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
+BEARER_HOMES = re.compile(r"(?:auth/AuthTokenManager\.kt$|auth/SessionHostGuard\.kt$)")
+BEARER_LITERAL = '"Bearer '
 # Kinds that are counts of lines and, apart from these, take no baseline entry
 # the flag cannot record.
 INTRODUCIBLE = ("account-counter", "demo-check")
@@ -532,7 +539,7 @@ def term_sorts(code):
 # ---------------------------------------------------------------- scan
 
 KINDS = ("long-file", "long-function", "taipei-literal", "fdroid-literal", "term-sort",
-         "top-app-bar", "account-counter", "demo-check", "sign-in-read")
+         "top-app-bar", "account-counter", "demo-check", "sign-in-read", "bearer-home")
 
 
 def is_test_set(name):
@@ -606,6 +613,10 @@ def scan(root):
         add(rel, "fdroid-literal", sum(
             line.count('"fdroid"') for line in kept.split("\n")
             if not (rel == PREFERENCES and "BuildConfig" in line)))
+        if not in_home(rel, BEARER_HOMES):
+            bearers = sum(1 for line in kept.split("\n") if BEARER_LITERAL in line)
+            # One line there: the unregister, which holds its session and no sign-in.
+            add(rel, "bearer-home", bearers - 1 if rel == PUSH_API else bearers)
     return found
 
 

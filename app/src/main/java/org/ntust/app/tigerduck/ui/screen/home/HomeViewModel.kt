@@ -627,7 +627,7 @@ class HomeViewModel @Inject constructor(
     private val revisionPoller = RevisionPoller(
         scope = viewModelScope,
         poll = ::pollRevision,
-        relogin = authService::attemptRelogin,
+        relogin = { authService.attemptRelogin(signInNow()) },
         now = SystemClock::elapsedRealtime,
     )
 

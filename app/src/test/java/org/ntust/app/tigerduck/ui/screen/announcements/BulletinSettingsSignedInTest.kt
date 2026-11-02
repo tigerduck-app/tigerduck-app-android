@@ -105,7 +105,7 @@ class BulletinSettingsSignedInTest {
 
     private fun settingsPage(signedIn: Boolean): Int {
         var closed = 0
-        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context), testSessions(context).school)
         composeRule.setContent {
             MaterialTheme { SubscriptionSettingsScreen(signedIn = signedIn, onBack = { closed++ }, viewModel = vm) }
         }
@@ -132,7 +132,7 @@ class BulletinSettingsSignedInTest {
     fun `signed out under another page, the push settings close once back on top`() {
         var signedIn by mutableStateOf(true)
         lateinit var nav: NavHostController
-        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context), testSessions(context).school)
         composeRule.setContent {
             nav = rememberNavController()
             MaterialTheme {
@@ -163,7 +163,7 @@ class BulletinSettingsSignedInTest {
         var signedIn by mutableStateOf(true)
         var closes = 0
         lateinit var nav: NavHostController
-        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context))
+        val vm = SubscriptionSettingsViewModel(api(), BulletinRepository(), SystemPermissions(context), testSessions(context).school)
         composeRule.setContent {
             nav = rememberNavController()
             MaterialTheme {

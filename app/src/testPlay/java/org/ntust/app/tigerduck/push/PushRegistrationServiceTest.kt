@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import okhttp3.MediaType.Companion.toMediaType
@@ -66,6 +67,16 @@ class PushRegistrationServiceTest {
     private lateinit var tokens: V3TokenStore
     private val backend = FakeBackend()
 
+    /** The token manager of the last [service]. */
+    private lateinit var auth: AuthTokenManager
+
+    /** The sign-out and its wipe, and the next student with a session of their own. */
+    private fun nextStudentSignsIn() {
+        auth.logout()
+        auth.session.open()
+        tokens.save("access-b", "refresh-b", expiresAt = Long.MAX_VALUE)
+    }
+
     @Before
     fun setUp() {
         context = RuntimeEnvironment.getApplication()
@@ -91,6 +102,7 @@ class PushRegistrationServiceTest {
     ): PushRegistrationService {
         if (signedIn) signIn()
         val auth = AuthTokenManager(tokens, backend.client, prefs, deviceUuid = "device-1")
+        this@PushRegistrationServiceTest.auth = auth
         if (signsIn) {
             auth.signInWithStoredAccount = { signIn ->
                 runCatching {
@@ -137,6 +149,76 @@ class PushRegistrationServiceTest {
         update("fcm-1")
         awaitRegistrations()
         assertNotNull("the registration failed", diagnostic.value.lastError)
+    }
+
+    // Which sign-in a request goes under
+
+    /** Read before the sign-in it may set off: after it, the POST would go as the next student. */
+    @Test
+    fun `a registration whose sign-in a sign-out overtook goes unsent`() = runTest {
+        val service = service(signedIn = false)
+        auth.signInWithStoredAccount = {
+            nextStudentSignsIn()
+            SignInAttempt.SIGNED_IN
+        }
+
+        service.update("fcm-1")
+        service.awaitRegistrations()
+
+        assertEquals(emptyList<Any>(), backend.received(REGISTER))
+    }
+
+    /** Read before the token: a token read after a sign-out is the next student's. */
+    @Test
+    fun `the Moodle credentials go under the sign-in read before the token`() = runTest {
+        val service = service()
+
+        service.refreshMoodleCredentials {
+            nextStudentSignsIn()
+            "made-up-next-token"
+        }
+
+        assertEquals(emptyList<Any>(), backend.received(CREDENTIALS))
+    }
+
+    @Test
+    fun `the Moodle credentials go with the sign-in that stands`() = runTest {
+        val service = service()
+
+        service.refreshMoodleCredentials { "made-up-token" }
+
+        assertEquals(1, backend.received(CREDENTIALS).size)
+    }
+
+    @Test
+    fun `the push opt-out reads its sign-in before the sign-in it may set off`() = runTest {
+        val service = service(signedIn = false)
+        auth.signInWithStoredAccount = {
+            nextStudentSignsIn()
+            SignInAttempt.SIGNED_IN
+        }
+
+        service.updateServerPushOptOut(true)
+
+        assertEquals(emptyList<Any>(), backend.received(PREFERENCES))
+    }
+
+    /** It waits for the PATCH before it, and a sign-out can land in that wait. */
+    @Test
+    fun `a TigerSync flip that waited its turn goes unsent past its sign-in`() = runTest {
+        val service = service()
+        val onTheWire = backend.hold(PREFERENCES)
+        val first = launch { service.updateCloudSyncEnabled(false) }
+        onTheWire.arrived.await()
+        val second = launch { runCatching { service.updateCloudSyncEnabled(true) } }
+        testScheduler.runCurrent()
+
+        nextStudentSignsIn()
+        onTheWire.release(200)
+        first.join()
+        second.join()
+
+        assertEquals("the next student's device row is left alone", 1, backend.received(PREFERENCES).size)
     }
 
     // Turning TigerSync on
@@ -453,6 +535,7 @@ class PushRegistrationServiceTest {
         const val ANNOUNCE = "POST /devices/anonymous"
         const val REGISTER = "POST /devices/register"
         const val PREFERENCES = "PATCH /devices/preferences"
+        const val CREDENTIALS = "PATCH /auth/credentials"
     }
 }
 
@@ -498,6 +581,7 @@ private class FakeBackend {
             path.endsWith("/devices/anonymous") -> "/devices/anonymous"
             path.endsWith("/devices/register") -> "/devices/register"
             path.endsWith("/auth/login") -> "/auth/login"
+            path.endsWith("/auth/credentials") -> "/auth/credentials"
             // Its path holds the install's device id.
             path.endsWith("/preferences") -> "/devices/preferences"
             else -> path

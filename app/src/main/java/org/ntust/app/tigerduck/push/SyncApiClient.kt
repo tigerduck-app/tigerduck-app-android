@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -158,9 +159,8 @@ class SyncApiClient @Inject constructor(
     private val prefs: AppPreferences,
     baseClient: OkHttpClient,
 ) {
-    // Resolve per-call so the debug API-endpoint override applies immediately,
-    // matching PushApiClient — pinning at construction made auth/full-sync
-    // traffic ignore an override that push traffic honored.
+    // Resolve per-call so the debug API-endpoint override applies at once, as PushApiClient
+    // does: pinned at construction, auth and full-sync traffic ignored what push honored.
     private val baseUrl: String
         get() = resolveAnnouncementEndpoint(prefs).url.trimEnd('/')
 
@@ -170,8 +170,8 @@ class SyncApiClient @Inject constructor(
 
     private val api = BackendServices(SyncApi::class.java, client)
 
-    suspend fun fetchRevision(): Long = withContext(Dispatchers.IO) {
-        val authHeader = authTokenManager.requireAuthHeader()
+    suspend fun fetchRevision(signIn: SignIn): Long = withContext(Dispatchers.IO) {
+        val authHeader = authTokenManager.requireAuthHeader(signIn)
         api.at(baseUrl).revision(authHeader).execute().use { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("sync/revision failed: HTTP ${response.code}", response.code)
@@ -186,8 +186,8 @@ class SyncApiClient @Inject constructor(
      * no longer keeps them (410 `sync_revision_expired`), so only a full sync
      * can catch up. See `ChangeFeedPlan`.
      */
-    suspend fun fetchChanges(sinceRevision: Long): SyncChangesPage? = withContext(Dispatchers.IO) {
-        val authHeader = authTokenManager.requireAuthHeader()
+    suspend fun fetchChanges(sinceRevision: Long, signIn: SignIn): SyncChangesPage? = withContext(Dispatchers.IO) {
+        val authHeader = authTokenManager.requireAuthHeader(signIn)
         api.at(baseUrl).changes(authHeader, sinceRevision).execute().use { response ->
             if (response.code == HTTP_GONE) return@withContext null
             if (!response.isSuccessful) {
@@ -197,8 +197,8 @@ class SyncApiClient @Inject constructor(
         }
     }
 
-    suspend fun fetchFullSync(): BackendSyncResult = withContext(Dispatchers.IO) {
-        val authHeader = authTokenManager.requireAuthHeader()
+    suspend fun fetchFullSync(signIn: SignIn): BackendSyncResult = withContext(Dispatchers.IO) {
+        val authHeader = authTokenManager.requireAuthHeader(signIn)
         val fetchedAtMs = System.currentTimeMillis()
         api.at(baseUrl).full(authHeader).execute().use { response ->
             if (!response.isSuccessful) {

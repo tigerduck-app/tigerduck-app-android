@@ -114,7 +114,7 @@ class SyncWiringTest {
             val body = body(rel, name)
             val begin = body.indexOf("val courseSync = dataCache.beginCourseSync()")
             val fetching = body.indexOf("courseSync.fetching()")
-            val fetch = body.indexOf("syncApiClient.fetchFullSync()")
+            val fetch = body.indexOf("syncApiClient.fetchFullSync(")
             assertTrue("$rel $name no longer begins its course sync before the fetch", begin in 0 until fetch)
             assertTrue("$rel $name no longer marks its course sync's fetch", fetching in begin until fetch)
             assertTrue("$rel $name no longer ends its course sync", "} finally {\n            dataCache.endCourseSync(courseSync)" in body)
@@ -124,6 +124,14 @@ class SyncWiringTest {
         assertTrue(
             "the worker no longer marks each attempt's fetch",
             worker.indexOf("retryingAfterRelogin(") in 0 until worker.indexOf("courseSync.fetching()"),
+        )
+        // The retry is the same request: the replay goes under the sign-in the run began with.
+        assertCalls(
+            "notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend",
+            "retryingAfterRelogin(signIn, authService::attemptRelogin) { pinned ->",
+            "syncApiClient.fetchFullSync(pinned)",
+            // What a run its sign-out overtook says of the backend, it says for the next account.
+            "if (signIn.isCurrent) prefs.setLastSyncSource(SyncSource.LOCAL)",
         )
         // A course reset elsewhere takes the hand-added courses and their adds, those under way too.
         assertCalls("ui/screen/home/HomeBackendSync.kt", "applyCourseReset", "courseSync.supersedeAddsBack()")
@@ -186,7 +194,7 @@ class SyncWiringTest {
         assertCalls("push/PushRegistrationService.kt", "endRegistration", "leftSwitchBehind(appPreferences.cloudSyncEnabled)")
         assertCalls(
             "push/PushRegistrationService.kt", "updateCloudSyncEnabled",
-            "switchPatches.send(request, enabled)", "leftSwitchBehind(appPreferences.cloudSyncEnabled)",
+            "switchPatches.send(request, enabled, signIn)", "leftSwitchBehind(appPreferences.cloudSyncEnabled)",
         )
     }
 
@@ -215,7 +223,7 @@ class SyncWiringTest {
         )) {
             val body = body(rel, name)
             val retry = body.indexOf(sends)
-            val fetch = body.indexOf("syncApiClient.fetchFullSync()")
+            val fetch = body.indexOf("syncApiClient.fetchFullSync(")
             val listed = body.indexOf("pendingCourseAdds.listed(result.serverCourses, signIn)")
             assertTrue("$rel $name no longer sends the waiting course adds before the snapshot", retry in 0 until fetch)
             assertTrue("$rel $name no longer lets go of the course adds the snapshot lists", listed > fetch)
@@ -285,7 +293,7 @@ class SyncWiringTest {
         assertCalls("ui/screen/home/HomeBackendSync.kt", "retryUnsent", "pendingHolidayOverrides.retry(signIn)")
         val body = body("ui/screen/home/HomeBackendSync.kt", "pull")
         val retry = body.indexOf("retryUnsent(signIn)")
-        val fetch = body.indexOf("syncApiClient.fetchFullSync()")
+        val fetch = body.indexOf("syncApiClient.fetchFullSync(")
         val merged = body.indexOf("HolidayOverrideApply.apply(")
         assertTrue("Home's sync no longer sends the waiting holiday choices before the snapshot", retry in 0 until fetch)
         assertTrue("Home's sync no longer keeps the waiting holiday choices over the snapshot", merged > fetch)
@@ -421,7 +429,7 @@ class SyncWiringTest {
         )) {
             val body = body(rel, name)
             val retry = body.indexOf(sends)
-            val fetch = body.indexOf("syncApiClient.fetchFullSync()")
+            val fetch = body.indexOf("syncApiClient.fetchFullSync(")
             val held = body.indexOf("pendingCourseOverrides.held(result.fetchedAtMs)")
             assertTrue("$rel $name no longer sends the waiting colours and names before the snapshot", retry in 0 until fetch)
             assertTrue("$rel $name no longer holds the waiting colours and names against the snapshot", held > fetch)
@@ -746,7 +754,7 @@ class SyncWiringTest {
         assertCalls("notification/BackgroundSyncWorker.kt", "answerRosterRequests", "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)")
         assertCalls("push/SyncApiClient.kt", "fetchFullSync", "rosterRequests = parseRosterRequests(json)")
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
-        assertTrue("TermCourseSync no longer pins its upload", "pushApiClient.uploadCourses(courses, semester, signIn = signIn," in sync)
+        assertTrue("TermCourseSync no longer pins its upload", "pushApiClient.uploadCourses(courses, semester, signIn," in sync)
     }
 
     /**

@@ -1352,7 +1352,7 @@ class ClassTableViewModel @Inject constructor(
             } else {
                 pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn)
             }
-            runCatching { pushApiClient.uploadCourses(updated, semester) }
+            runCatching { pushApiClient.uploadCourses(updated, semester, signIn) }
                 .onFailure { e -> Log.w("ClassTable", "uploadCourses after delete failed: ${e.logSummary()}") }
         }
         localEdits.noteEdit()
@@ -1570,7 +1570,7 @@ class ClassTableViewModel @Inject constructor(
         val moodleIds = dataCache.loadCourses(semester).mapNotNull { it.moodleIdNumber }
         // With no course add sent between the DELETE and the wipe; see PendingCourseAdds.removing.
         val held = pendingCourseAdds.removing {
-            termReset.run(semester, signIn) { pushApiClient.deleteAllCourses(semester) }
+            termReset.run(semester, signIn) { pushApiClient.deleteAllCourses(semester, signIn) }
                 // The wipe took the term's rows, queued single deletes included.
                 // Before the lock goes: a retry waiting behind the wipe would
                 // otherwise send one after the refetch re-uploads the roster.
@@ -1927,7 +1927,7 @@ class ClassTableViewModel @Inject constructor(
             val upload = CourseUpload.of(
                 merged, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
             )
-            runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn = signIn, rosterTerms = upload.rosterTerms) }
+            runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }
                 .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             widgetUpdater.requestUpdate()
         }

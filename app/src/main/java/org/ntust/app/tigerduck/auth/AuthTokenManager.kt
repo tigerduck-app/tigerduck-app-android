@@ -172,21 +172,11 @@ class AuthTokenManager(
         return url.encodedPath == path || url.encodedPath.startsWith("$path/")
     }
 
-    suspend fun authHeader(): String? {
-        val access = validAccessToken() ?: return null
-        return "Bearer $access"
-    }
-
     /**
-     * [authHeader] for a request that needs a session. Without one the request
-     * is not sent, as the backend could only refuse it with 401.
-     */
-    suspend fun requireAuthHeader(): String = authHeader() ?: throw NotSignedInException()
-
-    /**
-     * [requireAuthHeader] pinned to [signIn]: once that sign-in has ended, none, rather than the
-     * next account's token. For work that read its data as one account and sends it later. A
-     * sign-in it may start is the session's own: this [signIn] gets a token only while it stands.
+     * The header of a request of [signIn]'s, signing in first when there is no session. Without
+     * one the request is not sent, as the backend could only refuse it with 401; and once [signIn]
+     * has ended none either, rather than the next account's token. A sign-in it may start is the
+     * session's own: this [signIn] gets a token only while it stands.
      */
     suspend fun requireAuthHeader(signIn: SignIn): String {
         if (!signIn.isCurrent || !signInIfSignedOut()) throw NotSignedInException()
@@ -197,7 +187,7 @@ class AuthTokenManager(
     /**
      * Signs in when there is no session, and says whether there is one now.
      * Runs on each return to the app, before a registration or a sync, and
-     * from [authHeader].
+     * from [requireAuthHeader].
      */
     suspend fun signInIfSignedOut(): Boolean {
         if (!isLoggedIn) signInAutomatically()
@@ -211,9 +201,13 @@ class AuthTokenManager(
      * (tigerduck-backend#213), so a request refused with a pair a relogin or a refresh has since
      * replaced would otherwise end that relogin's session, and with steady traffic every refused
      * request would end the last one's. Then the caller retries with the stored pair instead.
+     *
+     * For a refusal of a request of [signIn]'s. Once that has ended, the pair stored is another
+     * sign-in's, which the refusal says nothing of, and there is nothing to retry: false.
      */
-    suspend fun signInAgain(): Boolean {
+    suspend fun signInAgain(signIn: SignIn): Boolean {
         val replacing = synchronized(signInLock) {
+            if (!signIn.isCurrent) return false
             val refresh = tokens.refreshToken
             // Stored and not refused: the caller retries with it.
             if (refresh != null && tokens.accessToken.let { it != null && it != refusedAccess }) return true
@@ -599,15 +593,6 @@ class AuthTokenManager(
         synchronized(signInLock) {
             if (signIn.isCurrent && tokens.refreshToken == sent) tokens.clear()
         }
-    }
-
-    @OptIn(StartsAccountWork::class)
-    private suspend fun validAccessToken(): String? {
-        // Read first: after a sign-out while this waits for a sign-in or a
-        // refresh, the session stored is the next account's, not this request's.
-        val signIn = session.current
-        if (!signInIfSignedOut()) return null
-        return validTokenIfSignedIn(signIn) ?: refresh(signIn)
     }
 
     // The stored access token while it has more than 30 s left and is still

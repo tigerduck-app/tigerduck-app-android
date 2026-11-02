@@ -46,18 +46,18 @@ internal class PushCourseSyncBackend(
 
     override suspend fun deleteAllCourses(semester: String) {
         ensureSends()
-        api.deleteAllCourses(semester)
+        api.deleteAllCourses(semester, signIn)
     }
 
     override suspend fun uploadCourses(courses: List<Course>, semester: String) {
         ensureSends()
         // Null: switched off between the check and the request.
-        api.uploadCourses(courses, semester) ?: throw CourseSyncOffException()
+        api.uploadCourses(courses, semester, signIn) ?: throw CourseSyncOffException()
     }
 
     override suspend fun deleteCourse(courseKey: String) {
         ensureSends()
-        api.deleteCourse(courseKey)
+        api.deleteCourse(courseKey, signIn)
     }
 
     override suspend fun patchCustomName(moodleId: String, name: String, locale: String) {

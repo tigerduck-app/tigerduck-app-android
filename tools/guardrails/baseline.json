@@ -2,7 +2,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/MainActivity.kt",
     "kind": "long-file",
-    "count": 870
+    "count": 866
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/MainActivity.kt",
@@ -35,7 +35,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthTokenManager.kt",
     "kind": "long-file",
-    "count": 916
+    "count": 901
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
@@ -343,7 +343,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/NotificationSettingsSync.kt",
     "kind": "long-file",
-    "count": 2422
+    "count": 2374
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/NotificationSettingsSync.kt",
@@ -354,7 +354,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/NotificationSettingsSync.kt",
     "kind": "long-function",
-    "name": "NotificationSettingsSync.pushNow(Int)",
+    "name": "NotificationSettingsSync.pushNow(Int, SettingsDocumentTransport)",
     "lines": 87
   },
   {
@@ -365,7 +365,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "long-file",
-    "count": 664
+    "count": 663
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
@@ -380,12 +380,12 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
     "kind": "long-file",
-    "count": 1061
+    "count": 1058
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
     "kind": "long-function",
-    "name": "PushRegistrationService.registerWith(String?)",
+    "name": "PushRegistrationService.registerWith(String?, SignIn)",
     "lines": 91
   },
   {

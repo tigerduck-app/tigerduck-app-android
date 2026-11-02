@@ -124,7 +124,7 @@ class QueueUpgradeTest {
         val sent = mutableListOf<List<Any?>>()
         val ignores = CourseIgnoreSync(
             cache,
-            sender = { moodleId, ignore, moodleCourseId, madeAtMs ->
+            sender = { moodleId, ignore, moodleCourseId, _, madeAtMs ->
                 sent += listOf(moodleId, ignore, moodleCourseId, madeAtMs)
                 true
             },

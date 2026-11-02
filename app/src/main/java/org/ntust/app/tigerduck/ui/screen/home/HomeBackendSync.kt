@@ -188,14 +188,13 @@ class HomeBackendSync @Inject constructor(
             val beforeFetch = pendingCourseDeletes.stamp()
             // An add back made from here on is newer than a course reset the snapshot reads.
             courseSync.fetching()
-            val result = syncApiClient.fetchFullSync()
+            val result = syncApiClient.fetchFullSync(signIn)
             pendingCourseAdds.listed(result.serverCourses, signIn)
             // One reading of the switches, for the steps below and for what
             // this sync records as synced: one flipped meanwhile counts from the next.
             val switchedOn = categoriesSwitchedOn(prefs)
-            // Recorded at once, for this sign-in only: a later step that
-            // fails must not leave the next sync reading an empty server as
-            // this phone's first.
+            // Recorded at once, for this sign-in only: a later step that fails must
+            // not leave the next sync reading an empty server as this phone's first.
             val marksTaken = markStep.pull(state, result, "assignments" in switchedOn, signIn)
             if (marksTaken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
             courseIgnoreSync.applySnapshot(result, signIn)?.let { keys -> signIn.ifCurrent { state.ignoredCourseKeys.value = keys } }
@@ -215,13 +214,12 @@ class HomeBackendSync @Inject constructor(
                 state.allCourses.value.isNotEmpty()
             }
             applyCourseReset(result, beforeFetch, courseSync, signIn)
-            // Not gated on any of the per-category sync toggles: a holiday
-            // exception is a notification setting, not course or assignment
-            // data, and the categories the user can turn off do not cover
-            // it. Null means an older backend that does not send the
-            // section, so the local set stands. A choice whose PUT has not
-            // landed stays as this phone has it, and a snapshot that may
-            // predate one is not applied: see PendingHolidayOverrides.merged.
+            // Not gated on any of the per-category sync toggles: a holiday exception
+            // is a notification setting, not course or assignment data, and the
+            // categories the user can turn off do not cover it. Null means an older
+            // backend that does not send the section, so the local set stands. A choice
+            // whose PUT has not landed stays as this phone has it, and a snapshot that
+            // may predate one is not applied: see PendingHolidayOverrides.merged.
             result.holidayOverrides?.let { snapshot ->
                 HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
             }
@@ -303,13 +301,15 @@ class HomeBackendSync @Inject constructor(
             // a relogin. Same guard BackgroundSyncWorker took in cd644d04.
             throw e
         } catch (e: Exception) {
+            // A run past its sign-out says nothing of the backend: the status is the next account's.
+            if (!signIn.isCurrent) return
             ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.BACKEND)
             prefs.setLastSyncSource(SyncSource.LOCAL)
             if (!retried && e.isSessionRefused()) {
                 // Delegates to AuthService so the relogin harvests a fresh
                 // Moodle token — the backend rejects stale stored tokens with
                 // 401 invalid_token.
-                if (authService.attemptRelogin()) {
+                if (authService.attemptRelogin(signIn)) {
                     pull(state, signIn, retried = true)
                 }
             }
@@ -382,7 +382,7 @@ class HomeBackendSync @Inject constructor(
         if (keepLocal) {
             for (c in conflicts) {
                 val mid = c.id.toIntOrNull() ?: continue
-                runCatching { pushApiClient.patchAssignmentOverride(mid, c.localStatus) }
+                runCatching { pushApiClient.patchAssignmentOverride(mid, c.localStatus, signIn) }
             }
         } else {
             markStep.keepServer(state, result, signIn)
@@ -578,7 +578,7 @@ class HomeBackendSync @Inject constructor(
                 // Sent whatever the upload ledger remembers (resend): the
                 // server has nothing for the term, so a reset elsewhere took
                 // the list it last accepted, and that same list has to go again.
-                runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, resend = true) }
+                runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, signIn, resend = true) }
                     .onSuccess { accepted ->
                         // The server has now seen these numbers: from here
                         // on their absence is a deletion, not a pending

@@ -27,10 +27,10 @@ import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginService
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushRegistrationService
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.cancellation.CancellationException
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.util.logSummary
 
@@ -189,11 +189,11 @@ class AuthService @Inject constructor(
     )
 
     /**
-     * Signs in to the backend again after it refused the session, as the
-     * automatic sign-in: it shares an attempt that is under way, and makes
-     * none in the pause after one that failed. Says whether it signed in.
+     * Signs in to the backend again after it refused a request of [signIn]'s, as the
+     * automatic sign-in: it shares an attempt that is under way, and makes none in the
+     * pause after one that failed. Says whether it signed in; false once [signIn] has ended.
      */
-    suspend fun attemptRelogin(): Boolean = authTokenManager.signInAgain()
+    suspend fun attemptRelogin(signIn: SignIn): Boolean = authTokenManager.signInAgain(signIn)
 
     val storedStudentId: String? get() = credentials.ntustStudentId
     internal val storedPassword: String? get() = credentials.ntustPassword

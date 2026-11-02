@@ -69,12 +69,11 @@ class PushApiClient @Inject constructor(
     private val uploads = BackendServices(PushApi::class.java) { request -> uploadCall(request) }
 
     /**
-     * The Bearer Authorization header, signing in first when there is no
-     * session. Without one it throws [NotSignedInException] and the request
-     * is not sent.
+     * The Bearer Authorization header of a request of [signIn]'s, signing in
+     * first when there is no session. Without one, or once [signIn] has ended,
+     * it throws [NotSignedInException] and the request is not sent.
      */
-    private suspend fun authHeader(signIn: SignIn? = null): String =
-        if (signIn == null) authTokenManager.requireAuthHeader() else authTokenManager.requireAuthHeader(signIn)
+    private suspend fun authHeader(signIn: SignIn): String = authTokenManager.requireAuthHeader(signIn)
 
     /**
      * Register the device with no account attached.
@@ -95,10 +94,10 @@ class PushApiClient @Inject constructor(
             }
         }
 
-    suspend fun register(req: DeviceRegisterRequest): DeviceRegisterResponse =
+    suspend fun register(req: DeviceRegisterRequest, signIn: SignIn): DeviceRegisterResponse =
         withContext(Dispatchers.IO) {
             val service = api.at(baseUrl)
-            service.registeredDevice(authHeader(), req).execute().use { response ->
+            service.registeredDevice(authHeader(signIn), req).execute().use { response ->
                 val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw PushApiException("register failed: HTTP ${response.code} $text")
@@ -147,11 +146,11 @@ class PushApiClient @Inject constructor(
      *
      * A no-op when cloud sync is off or on fdroid: the local preference has
      * already been written by then, and this call is only about agreement
-     * between devices, not about whether the guard works. With [signIn], sent
-     * only as that sign-in: see `PendingHolidayOverrides`. Says whether it was
-     * sent, so a skipped PUT is not taken for one that landed. [madeAtMs] is sent as `hlc`.
+     * between devices, not about whether the guard works. Sent only as
+     * [signIn]: see `PendingHolidayOverrides`. Says whether it was sent, so a
+     * skipped PUT is not taken for one that landed. [madeAtMs] is sent as `hlc`.
      */
-    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: SignIn? = null, madeAtMs: Long? = null): Boolean =
+    suspend fun putHolidayOverride(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long? = null): Boolean =
         withContext(Dispatchers.IO) {
             if (!isSyncCapable) return@withContext false
             val service = api.at(baseUrl)
@@ -168,6 +167,7 @@ class PushApiClient @Inject constructor(
 
     suspend fun updateDevicePreferences(
         deviceId: String,
+        signIn: SignIn,
         serverPushEnabled: Boolean? = null,
         syncCourses: Boolean? = null,
         syncCourseColors: Boolean? = null,
@@ -198,7 +198,7 @@ class PushApiClient @Inject constructor(
             throw PushApiException("updateDevicePreferences refused: fdroid cannot change sync or push preferences")
         }
         val service = api.at(baseUrl)
-        service.devicePreferences(authHeader(), deviceId, payload).execute().use { response ->
+        service.devicePreferences(authHeader(signIn), deviceId, payload).execute().use { response ->
             val text = response.body.string()
             if (!response.isSuccessful) {
                 throw PushApiException("updateDevicePreferences failed: HTTP ${response.code} $text")
@@ -211,6 +211,7 @@ class PushApiClient @Inject constructor(
 
     suspend fun updateCredentials(
         moodleToken: String,
+        signIn: SignIn,
         moodlePrivateToken: String? = null,
     ) = withContext(Dispatchers.IO) {
         val payload = mapOf(
@@ -218,7 +219,7 @@ class PushApiClient @Inject constructor(
             "moodle_private_token" to moodlePrivateToken.takeUnless { resolveAnnouncementEndpoint(prefs).overrideApplied },
         )
         val service = api.at(baseUrl)
-        service.credentials(authHeader(), payload).execute().use { response ->
+        service.credentials(authHeader(signIn), payload).execute().use { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("updateCredentials failed: HTTP ${response.code}")
             }
@@ -226,14 +227,14 @@ class PushApiClient @Inject constructor(
     }
 
     /**
-     * [signIn], when given, pins the request to that sign-in: after a sign-out
-     * it goes without a token rather than with the next account's. [madeAtMs] is sent as `hlc`.
+     * [signIn] pins the request to that sign-in: after a sign-out it goes unsent
+     * rather than with the next account's token. [madeAtMs] is sent as `hlc`.
      * Says whether it went out: false when the switch stopped it, so the mark waits.
      */
     suspend fun patchAssignmentOverride(
         assignmentId: Int,
         localStatus: String,
-        signIn: SignIn? = null,
+        signIn: SignIn,
         madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
         val syncs = { isSyncCapable && prefs.syncAssignments }
@@ -254,15 +255,15 @@ class PushApiClient @Inject constructor(
      * Returns whether anything went out: false when TigerSync, or the switch
      * for colours or names, is off, or when [allowed] says no right before
      * the request goes, after the header is made. Throws when the request
-     * fails. [signIn], when given, pins the request to that sign-in, as
+     * fails. [signIn] pins the request to that sign-in, as
      * [patchAssignmentOverride]'s is. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseOverride(
         courseId: Any,
+        signIn: SignIn,
         colorHex: String? = null,
         customName: String? = null,
         locale: String? = null,
-        signIn: SignIn? = null,
         allowed: () -> Boolean = { true },
         madeAtMs: Long? = null,
     ): Boolean = withContext(Dispatchers.IO) {
@@ -295,12 +296,14 @@ class PushApiClient @Inject constructor(
      * Returns whether the backend stored it: false when the answer has no
      * `ignore_assignments`, as from a backend that predates the field and
      * drops it unread, and null when course or assignment sync is off and
-     * nothing went out. Throws when the request fails. [madeAtMs] is sent as `hlc`.
+     * nothing went out. Throws when the request fails, and refuses once [signIn]
+     * has ended. [madeAtMs] is sent as `hlc`.
      */
     suspend fun patchCourseIgnore(
         moodleId: String,
         ignore: Boolean?,
         moodleCourseId: Int?,
+        signIn: SignIn,
         madeAtMs: Long? = null,
     ): Boolean? = withContext(Dispatchers.IO) {
         val syncs = { isSyncCapable && prefs.syncAssignments && prefs.syncCourses }
@@ -310,7 +313,7 @@ class PushApiClient @Inject constructor(
         if (moodleCourseId != null && moodleCourseId >= 1) payload["moodle_course_id"] = moodleCourseId
         if (payload.isEmpty()) return@withContext null
         val service = api.at(baseUrl)
-        val header = authHeader()
+        val header = authHeader(signIn)
         executeStamped(madeAtMs, syncs, { hlc -> service.courseIgnore(header, moodleId, payload.stampedWith(hlc)) }) { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("patchCourseIgnore failed: HTTP ${response.code}", response.code)
@@ -390,7 +393,7 @@ class PushApiClient @Inject constructor(
             signIn = signIn,
         ) {
             val service = api.at(base)
-            service.assignmentsUpload(authTokenManager.requireAuthHeader(signIn), json.toRequestBody(jsonType)).execute().use { response ->
+            service.assignmentsUpload(authHeader(signIn), json.toRequestBody(jsonType)).execute().use { response ->
                 if (!response.isSuccessful) {
                     throw PushApiException("uploadAssignments failed: HTTP ${response.code}", response.code)
                 }
@@ -436,7 +439,7 @@ class PushApiClient @Inject constructor(
      * A list skipped as unchanged answers with none: the server accepted
      * them lately, and said so then.
      *
-     * [signIn], when given, pins the request to that sign-in, as
+     * [signIn] pins the request, and the ledger's record, to that sign-in, as
      * [patchAssignmentOverride]'s is.
      *
      * [rosterTerms] names the terms the list is the school's whole roster
@@ -455,19 +458,19 @@ class PushApiClient @Inject constructor(
     suspend fun uploadCourses(
         courses: List<Course>,
         semester: String,
+        signIn: SignIn,
         forceKeys: List<String> = emptyList(),
-        signIn: SignIn? = null,
         resend: Boolean = false,
         rosterTerms: List<String> = emptyList(),
         addedAt: Map<String, Long> = emptyMap(),
-    ): List<String>? = uploadCoursesAnswered(courses, semester, forceKeys, signIn, resend, rosterTerms, addedAt)?.settled
+    ): List<String>? = uploadCoursesAnswered(courses, semester, signIn, forceKeys, resend, rosterTerms, addedAt)?.settled
 
     /** [uploadCourses], with the timed adds the backend refused told apart; see [CourseUploadAnswer]. */
     suspend fun uploadCoursesAnswered(
         courses: List<Course>,
         semester: String,
+        signIn: SignIn,
         forceKeys: List<String> = emptyList(),
-        signIn: SignIn? = null,
         resend: Boolean = false,
         rosterTerms: List<String> = emptyList(),
         addedAt: Map<String, Long> = emptyMap(),
@@ -485,10 +488,6 @@ class PushApiClient @Inject constructor(
         // Resolved once, for the fingerprint and the request alike, so the
         // ledger remembers what this backend accepted; see uploadFingerprint.
         val base = baseUrl
-        // The sign-in the ledger's record is pinned to, as the assignment
-        // upload's is; the request's own header is pinned only when the
-        // caller pinned it ([signIn]), as before.
-        val startedIn = signIn ?: authTokenManager.session.signIns.current
         // What the accepted list enrolled as the term's roster, for serverDropped.
         val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
@@ -497,13 +496,13 @@ class PushApiClient @Inject constructor(
             // The pair in one step, so a sign-out's clear cannot fall between
             // the check and the record; see UploadLedger.sendIfDue.
             record = { fingerprint, atMs ->
-                startedIn.ifCurrent {
+                signIn.ifCurrent {
                     prefs.recordCoursesUpload(semester, fingerprint, atMs)
                     prefs.recordCoursesUploadRoster(semester, roster)
                 }
             },
             always = resend || forceKeys.isNotEmpty(),
-            signIn = startedIn,
+            signIn = signIn,
         ) {
             // Through uploadCall, with its deadline for the whole call.
             val service = uploads.at(base)
@@ -559,7 +558,7 @@ class PushApiClient @Inject constructor(
      * another sign-in goes without a token, not with the next account's,
      * which could take that account's own course off.
      */
-    suspend fun deleteCourse(courseKey: String, signIn: SignIn? = null, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
+    suspend fun deleteCourse(courseKey: String, signIn: SignIn, hiddenAt: Long? = null) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val service = api.at(baseUrl)
         val header = authHeader(signIn)
@@ -589,11 +588,11 @@ class PushApiClient @Inject constructor(
      * timetable is now per term; see `DELETE /sync/courses` in the backend's
      * `routes/sync/courses.py`.
      */
-    suspend fun deleteAllCourses(semester: String? = null) = withContext(Dispatchers.IO) {
+    suspend fun deleteAllCourses(semester: String?, signIn: SignIn) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncCourses) return@withContext
         val service = api.at(baseUrl)
         val call = service.removeCourses(
-            authHeader(),
+            authHeader(signIn),
             semester?.let { java.net.URLEncoder.encode(it, "UTF-8") },
             EmptyBody,
         )

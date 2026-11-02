@@ -33,6 +33,7 @@ import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The backend sign-in [AuthTokenManager] makes on its own: before a request that needs a session
@@ -66,7 +67,7 @@ class AutomaticSignInTest {
     fun `a protected request with no session signs in first and goes out with the new session`() = runTest {
         val api = PushApiClient(backend.client, prefs, manager())
 
-        api.register(registerRequest())
+        api.register(registerRequest(), testSignIn())
 
         assertEquals(listOf(LOGIN, REGISTER), backend.endpoints())
         assertEquals("Bearer access-2", backend.received(REGISTER).single().authorization)
@@ -77,7 +78,7 @@ class AutomaticSignInTest {
         backend.answer(LOGIN, 503)
         val api = PushApiClient(backend.client, prefs, manager())
 
-        val failure = runCatching { api.register(registerRequest()) }.exceptionOrNull()
+        val failure = runCatching { api.register(registerRequest(), testSignIn()) }.exceptionOrNull()
 
         assertTrue("got $failure", failure is NotSignedInException)
         assertEquals(listOf(LOGIN), backend.endpoints())
@@ -87,11 +88,12 @@ class AutomaticSignInTest {
     fun `no client sends a request that needs a session without one`() = runTest {
         accountStored = false
         val manager = manager()
+        val signIn = manager.session.signIns.current
         val requests: List<suspend () -> Unit> = listOf(
-            { PushApiClient(backend.client, prefs, manager).updateCredentials("moodle") },
-            { BulletinApiClient(backend.client, prefs, manager).fetchSubscriptions() },
-            { SettingsDocumentApiClient(backend.client, prefs, manager).read<JsonObject>("notification") },
-            { SyncApiClient(manager, prefs, backend.client).fetchFullSync() },
+            { PushApiClient(backend.client, prefs, manager).updateCredentials("moodle", signIn) },
+            { BulletinApiClient(backend.client, prefs, manager).fetchSubscriptions(signIn) },
+            { SettingsDocumentApiClient(backend.client, prefs, manager).read<JsonObject>("notification", signIn) },
+            { SyncApiClient(manager, prefs, backend.client).fetchFullSync(signIn) },
         )
 
         val failures = requests.map { request -> runCatching { request() }.exceptionOrNull() }

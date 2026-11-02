@@ -23,7 +23,7 @@ import javax.inject.Singleton
 
 /** Sends one course's setting; see [PushApiClient.patchCourseIgnore]. */
 internal fun interface CourseIgnoreSender {
-    suspend fun send(moodleId: String, ignore: Boolean?, moodleCourseId: Int?, madeAtMs: Long?): Boolean?
+    suspend fun send(moodleId: String, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): Boolean?
 }
 
 /**
@@ -354,7 +354,7 @@ class CourseIgnoreSync internal constructor(
         }
         if (!current) return@withLock
         val stored = try {
-            sender.send(moodleId, change.ignore, change.moodleCourseId, change.madeAtMs)
+            sender.send(moodleId, change.ignore, change.moodleCourseId, signIn, change.madeAtMs)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -405,7 +405,7 @@ class CourseIgnoreSync internal constructor(
             sendMutex.withLock {
                 if (!signIn.isCurrent) return
                 try {
-                    sender.send(o.moodleCourseId, null, numericId, null)
+                    sender.send(o.moodleCourseId, null, numericId, signIn, null)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {

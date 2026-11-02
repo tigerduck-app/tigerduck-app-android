@@ -618,12 +618,27 @@ class AuthTokenManagerRefreshTest {
         storePair(expiresAt = clock + 900_000)
         val manager = manager()
 
-        assertTrue(manager.signInAgain())
+        assertTrue(manager.signInAgain(manager.session.signIns.current))
         assertEquals(0, relogins)
 
         manager.noteRefused("access-1")
-        manager.signInAgain()
+        manager.signInAgain(manager.session.signIns.current)
         assertEquals(1, relogins)
+    }
+
+    /** The pair stored is whoever signed in since: a refusal of the last one's says nothing of it. */
+    @Test
+    fun `a relogin for a sign-in that ended signs nobody in, and there is nothing to retry`() = runBlocking {
+        storePair(expiresAt = clock + 900_000)
+        val manager = manager()
+        val signIn = manager.session.signIns.current
+        manager.noteRefused("access-1")
+        manager.logout()
+        manager.session.open()
+
+        assertFalse(manager.signInAgain(signIn))
+
+        assertEquals(0, relogins)
     }
 
     /**
@@ -646,7 +661,7 @@ class AuthTokenManagerRefreshTest {
         }
         manager.noteRefused("access-1")
 
-        assertTrue(manager.signInAgain())
+        assertTrue(manager.signInAgain(manager.session.signIns.current))
 
         assertEquals(0, logins.get())
         assertEquals("refresh-2", tokens.refreshToken)
@@ -661,7 +676,7 @@ class AuthTokenManagerRefreshTest {
         manager.noteRefused("access-1")
         repeat(10) { manager.noteRefused("access-old-$it") }
 
-        manager.signInAgain()
+        manager.signInAgain(manager.session.signIns.current)
 
         assertEquals(1, relogins)
     }
@@ -678,7 +693,7 @@ class AuthTokenManagerRefreshTest {
         val url = resolveAnnouncementEndpoint(AppPreferences(context)).url + "/sync/revision"
         client.newCall(Request.Builder().url(url).header("Authorization", "Bearer access-1").build()).execute().close()
 
-        manager.signInAgain()
+        manager.signInAgain(manager.session.signIns.current)
 
         assertEquals(1, relogins)
     }

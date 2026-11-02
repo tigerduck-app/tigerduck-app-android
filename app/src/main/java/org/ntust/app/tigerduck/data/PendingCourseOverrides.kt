@@ -84,7 +84,7 @@ class PendingCourseOverrides internal constructor(
         dataCache = dataCache,
         sender = CourseOverrideSender { moodleId, colorHex, customName, locale, signIn, stillAllowed, madeAtMs ->
             pushApiClient.patchCourseOverride(
-                moodleId, colorHex, customName, locale, signIn, stillAllowed, madeAtMs,
+                moodleId, signIn, colorHex, customName, locale, stillAllowed, madeAtMs,
             )
         },
         records = { color -> records(prefs, color) },

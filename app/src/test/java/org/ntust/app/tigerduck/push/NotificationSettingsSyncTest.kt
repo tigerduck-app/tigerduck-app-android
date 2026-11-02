@@ -30,6 +30,8 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivityPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 
 /**
  * Covers [pushLiveActivitySettings] — the write half of the `notification`
@@ -931,11 +933,15 @@ class NotificationSettingsSyncTest {
         val syncAssignmentRemindersChanged =
             MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
         /**
-         * Runs while a PUT resolves its bearer — `AuthTokenManager.authHeader()`,
+         * Runs while a PUT resolves its bearer — `AuthTokenManager.requireAuthHeader()`,
          * which can refresh the token or run a full relogin. Whichever account
          * holds the session once it returns is the one the PUT goes to.
          */
         var resolvingBearer: () -> Unit = {}
+        val signIns = SignInSeries()
+
+        /** The sign-in each request carried, in order. */
+        val requestsUnder = mutableListOf<SignIn>()
         private var signedInAs: String? = null
 
         /** The school account stored, which outlasts a lapsed backend session ([signedInAs]). */
@@ -952,18 +958,25 @@ class NotificationSettingsSyncTest {
         }
 
         val sync = NotificationSettingsSync(
-            transport = object : SettingsDocumentTransport {
-                override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? = session().read()
+            documents = { signIn ->
+                object : SettingsDocumentTransport {
+                    override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? {
+                        requestsUnder += signIn
+                        return session().read()
+                    }
 
-                override suspend fun write(
-                    document: JsonObject,
-                    baseRevision: Long?,
-                    isCurrent: () -> Boolean,
-                ): SettingsWriteResult<JsonObject> {
-                    resolvingBearer()
-                    return session().write(document, baseRevision, isCurrent)
+                    override suspend fun write(
+                        document: JsonObject,
+                        baseRevision: Long?,
+                        isCurrent: () -> Boolean,
+                    ): SettingsWriteResult<JsonObject> {
+                        requestsUnder += signIn
+                        resolvingBearer()
+                        return session().write(document, baseRevision, isCurrent)
+                    }
                 }
             },
+            currentSignIn = { signIns.current },
             liveActivityPreferences = prefs,
             assignmentStore = assignments,
             assignmentAlarms = alarms,
@@ -1007,6 +1020,7 @@ class NotificationSettingsSyncTest {
 
         /** Each of AuthService's sign-in paths: the v3 session exists, then the catch-up. */
         fun signIn(account: String) {
+            signIns.open()
             schoolAccount = account
             signedInAs = account
             sync.pushIfUnconfirmed()
@@ -1014,6 +1028,7 @@ class NotificationSettingsSyncTest {
 
         /** AuthService.logout(): the tokens are wiped, then the queue is cancelled. */
         fun logOut() {
+            signIns.end()
             schoolAccount = null
             signedInAs = null
             sync.cancelPendingPushes()
@@ -1222,7 +1237,7 @@ class NotificationSettingsSyncTest {
         val device = Device(backgroundScope)
         device.signIn("A")
         device.server("A").document = json("""{"live_activity": {"class_preparing_lead_seconds": 3600}}""")
-        // A lapsed refresh token sends AuthTokenManager.authHeader() into the
+        // A lapsed refresh token sends AuthTokenManager.requireAuthHeader() into the
         // automatic sign-in while the pull's own request is being built, and
         // the sign-in ends with the catch-up every sign-in makes.
         device.server("A").beforeRead = { device.sync.pushIfUnconfirmed() }
@@ -1275,6 +1290,37 @@ class NotificationSettingsSyncTest {
             logOut()
             signIn("B")
         }
+    }
+
+    /** The client refuses a request of a sign-in that ended: this is the one that says which. */
+    @Test
+    fun `a push carries the sign-in it began in, through a sign-out of the same student`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        val began = device.signIns.current
+        device.prefs.classPreparingLeadTimeSec = 1_800
+        device.resolvingBearer = {
+            device.resolvingBearer = {}
+            device.logOut()
+            device.signIn("A")
+        }
+
+        device.sync.markUnconfirmedAndPush()
+        runQueue()
+
+        assertEquals("the read and the write", listOf(began, began), device.requestsUnder)
+    }
+
+    @Test
+    fun `a pull carries the sign-in it began in`() = runTest {
+        val device = Device(backgroundScope)
+        device.signIn("A")
+        runQueue()
+        device.requestsUnder.clear()
+
+        device.sync.pullNow()
+
+        assertEquals(listOf(device.signIns.current), device.requestsUnder)
     }
 
     @Test

@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Answers whose body breaks off: the clients read the status first and the
@@ -78,7 +79,7 @@ class BrokenAnswerTest {
         status = 401
         val client = SyncApiClient(tokenManager, prefs, backend)
 
-        val failure = runCatching { client.fetchRevision() }.exceptionOrNull()
+        val failure = runCatching { client.fetchRevision(testSignIn()) }.exceptionOrNull()
 
         assertEquals(401, (failure as? PushApiException)?.statusCode)
     }
@@ -88,11 +89,12 @@ class BrokenAnswerTest {
         // TigerSync is off for good on F-Droid, where no upload goes out at all.
         assumeTrue(prefs.cloudSyncEnabled)
         val api = PushApiClient(backend, prefs, tokenManager)
+        val signIn = testSignIn()
         val roster = listOf(Course(courseNo = "CS1", courseName = "CS1"))
 
-        assertEquals(emptyList<String>(), api.uploadCourses(roster, "1151"))
+        assertEquals(emptyList<String>(), api.uploadCourses(roster, "1151", signIn))
         // Recorded as accepted: the same list doesn't go again.
-        api.uploadCourses(roster, "1151")
+        api.uploadCourses(roster, "1151", signIn)
         assertEquals(1, sent)
     }
 }

@@ -8,6 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * TigerSync turned off and straight back on sent its two PATCHes at once, and
@@ -16,22 +17,23 @@ import org.junit.Test
 class SwitchPatchesTest {
 
     private val sent = mutableListOf<Boolean>()
+    private val signIn = testSignIn()
 
     @Test
     fun `a flip waits for the PATCH before it, so the latest lands last`() = runTest {
         val release = CompletableDeferred<Unit>()
         var calls = 0
-        val patches = SwitchPatches { enabled ->
+        val patches = SwitchPatches { enabled, _ ->
             // The first PATCH is slow to land.
             if (calls++ == 0) release.await()
             sent += enabled
         }
 
         val off = patches.request()
-        val first = launch { patches.send(off, false) }
+        val first = launch { patches.send(off, false, signIn) }
         yield()
         val on = patches.request()
-        val second = launch { patches.send(on, true) }
+        val second = launch { patches.send(on, true, signIn) }
         yield()
         release.complete(Unit)
         first.join()
@@ -43,20 +45,20 @@ class SwitchPatchesTest {
 
     @Test
     fun `a flip a later one overtook before it went is not sent`() = runTest {
-        val patches = SwitchPatches { sent += it }
+        val patches = SwitchPatches { enabled, _ -> sent += enabled }
 
         val off = patches.request()
         val on = patches.request()
 
-        assertFalse(patches.send(off, false))
-        assertTrue(patches.send(on, true))
+        assertFalse(patches.send(off, false, signIn))
+        assertTrue(patches.send(on, true, signIn))
         assertEquals(listOf(true), sent)
         assertFalse(patches.isLatest(off))
     }
 
     @Test
     fun `turning TigerSync on is recorded only if it was not turned off meanwhile`() {
-        val patches = SwitchPatches { sent += it }
+        val patches = SwitchPatches { enabled, _ -> sent += enabled }
 
         val on = patches.request()
         assertTrue(patches.isLatest(on))

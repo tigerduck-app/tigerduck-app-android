@@ -64,7 +64,7 @@ class ClassTableWiringTest {
     /** tigerduck-app-android#241. */
     @Test
     fun `a reset goes through the backend first, and says so when the backend could not take it`() {
-        assertCalls("wipeTerm", "termReset.run(semester, signIn) { pushApiClient.deleteAllCourses(semester) }")
+        assertCalls("wipeTerm", "termReset.run(semester, signIn) { pushApiClient.deleteAllCourses(semester, signIn) }")
         assertCalls("resetCourses", "if (wiped) fetchData() else _resetFailedEvent.tryEmit(semester)")
     }
 
@@ -398,7 +398,7 @@ class ClassTableWiringTest {
             "is ClassTableTermSource.Selection -> source.rosterNos",
             "is ClassTableTermSource.Rebuild -> rebuiltRoster",
             "hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos())",
-            "pushApiClient.uploadCourses(upload.courses, semester, signIn = signIn, rosterTerms = upload.rosterTerms)",
+            "pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms)",
         )
         assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("val upload = CourseUpload.of("))
     }
@@ -415,7 +415,7 @@ class ClassTableWiringTest {
         assertTrue("fetchData no longer reads the sign-in before its fetch", pinned in 0 until fetch.indexOf("courseService.fetchEnrolledCourseNos("))
         assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn,", "warmTerms(studentId, password, moodleAll, transcript, signIn)")
         assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn)")
-        assertCalls("fetchTermCourses", "signIn = signIn")
+        assertCalls("fetchTermCourses", "pushApiClient.uploadCourses(upload.courses, semester, signIn,")
     }
 
     /** Someone else's class table is looked up as shared; only the user's own terms are rebuilt. */

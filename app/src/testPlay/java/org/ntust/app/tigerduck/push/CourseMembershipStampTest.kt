@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A course hide or add that waited on this phone goes with the time it was made (#591), which
@@ -26,6 +27,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 class CourseMembershipStampTest {
 
     private val backend = ScriptedBackend()
+    private val signIn = testSignIn()
     private lateinit var api: PushApiClient
 
     @Before
@@ -47,7 +49,7 @@ class CourseMembershipStampTest {
 
     @Test
     fun `a queued hide goes with its time, in microseconds, and no protocol header`() = runTest {
-        api.deleteCourse(KEY, hiddenAt = AT)
+        api.deleteCourse(KEY, signIn, hiddenAt = AT)
 
         val sent = backend.received(DELETE).single()
         assertEquals("hlc=$HLC", sent.query)
@@ -58,7 +60,7 @@ class CourseMembershipStampTest {
     fun `a hide refused as ahead of the clock goes again without its time`() = runTest {
         backend.answer(DELETE, 409, """{"detail":"clock_ahead"}""")
 
-        api.deleteCourse(KEY, hiddenAt = AT)
+        api.deleteCourse(KEY, signIn, hiddenAt = AT)
 
         assertEquals(listOf("hlc=$HLC", ""), backend.received(DELETE).map { it.query })
     }
@@ -67,7 +69,7 @@ class CourseMembershipStampTest {
     fun `a hide refused with another 409 fails and is not sent again`() = runTest {
         backend.answer(DELETE, 409, """{"detail":"conflict"}""")
 
-        assertTrue(runCatching { api.deleteCourse(KEY, hiddenAt = AT) }.isFailure)
+        assertTrue(runCatching { api.deleteCourse(KEY, signIn, hiddenAt = AT) }.isFailure)
 
         assertEquals(1, backend.received(DELETE).size)
     }
@@ -76,7 +78,7 @@ class CourseMembershipStampTest {
 
     @Test
     fun `a queued add goes alone under protocol 2 with its time`() = runTest {
-        val accepted = api.uploadCourses(listOf(course()), TERM, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
+        val accepted = api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
 
         val sent = backend.received(UPLOAD).single()
         assertEquals("2", sent.protocol)
@@ -93,7 +95,7 @@ class CourseMembershipStampTest {
     fun `an add refused as ahead of the clock goes again unstamped, its key still forced`() = runTest {
         backend.answer(UPLOAD, 409, """{"detail":"clock_ahead"}""")
 
-        api.uploadCourses(listOf(course()), TERM, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
+        api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
 
         val retried = backend.received(UPLOAD).last()
         assertEquals(2, backend.received(UPLOAD).size)
@@ -108,7 +110,7 @@ class CourseMembershipStampTest {
     fun `an add the backend answered but did not apply counts as settled`() = runTest {
         backend.answer(UPLOAD, 200, """{"accepted_keys":[],"adds":[{"course_key":"$KEY","applied":false,"hlc":1}]}""")
 
-        val answer = api.uploadCoursesAnswered(listOf(course()), TERM, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
+        val answer = api.uploadCoursesAnswered(listOf(course()), TERM, signIn, forceKeys = listOf(KEY), addedAt = mapOf(NO to AT))
 
         assertEquals(emptyList<String>(), answer!!.accepted)
         assertEquals(listOf(NO), answer.refusedAdds)
@@ -117,7 +119,7 @@ class CourseMembershipStampTest {
 
     @Test
     fun `an upload with no add times goes as before, without the header`() = runTest {
-        api.uploadCourses(listOf(course()), TERM, forceKeys = listOf(KEY))
+        api.uploadCourses(listOf(course()), TERM, signIn, forceKeys = listOf(KEY))
 
         val sent = backend.received(UPLOAD).single()
         assertNull(sent.protocol)

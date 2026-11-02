@@ -188,9 +188,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
             prefs.setLastSyncSource(SyncSource.NONE)
             return
         }
-        // No v3 JWT, and signing in got none: NONE, not LOCAL —
-        // LOCAL would light the "sync from local only" indicator even though no
-        // sync was ever attempted. Mirrors HomeBackendSync.pull.
+        // No v3 JWT, and signing in got none: NONE, not LOCAL, which would light the
+        // "sync from local only" indicator with no sync attempted. As HomeBackendSync.pull.
         if (!authTokenManager.signInIfSignedOut()) {
             prefs.setLastSyncSource(SyncSource.NONE)
             return
@@ -210,11 +209,11 @@ class BackgroundSyncWorker @AssistedInject constructor(
             // A session the backend ended before its access token ran out
             // draws a 401 until a sign-in, and the uploads below would draw
             // one too; as Home's full sync, this signs in again once.
-            val result = retryingAfterRelogin(authService::attemptRelogin) {
+            val result = retryingAfterRelogin(signIn, authService::attemptRelogin) { pinned ->
                 // An add back made from here on is newer than a course reset the snapshot reads:
                 // marked for each attempt, as the one after a relogin is the snapshot's.
                 courseSync.fetching()
-                syncApiClient.fetchFullSync()
+                syncApiClient.fetchFullSync(pinned)
             }
             pendingCourseAdds.listed(result.serverCourses, signIn)
             // With the Assignments switch off, the re-enable check pending,
@@ -280,7 +279,8 @@ class BackgroundSyncWorker @AssistedInject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            prefs.setLastSyncSource(SyncSource.LOCAL)
+            // A run past its sign-out says nothing of the backend: the source is the next account's.
+            if (signIn.isCurrent) prefs.setLastSyncSource(SyncSource.LOCAL)
             Log.w(TAG, "override sync failed: ${e.logSummary()}")
         } finally {
             dataCache.endCourseSync(courseSync)
@@ -368,7 +368,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         if (outcome.uploadLocal) {
             // resend: the server has nothing for the term, whatever list the
             // upload ledger remembers it accepting; see HomeBackendSync.
-            runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, resend = true) }
+            runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, signIn, resend = true) }
                 .onSuccess { accepted -> if (!accepted.isNullOrEmpty()) known = known + accepted }
                 .onFailure { e -> Log.w(TAG, "[Sync] auto-upload failed: ${e.logSummary()}") }
             Log.i(TAG, "[Sync] backend empty, auto-uploaded ${outcome.toUpload.size} courses")

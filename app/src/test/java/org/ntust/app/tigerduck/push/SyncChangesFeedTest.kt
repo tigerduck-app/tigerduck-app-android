@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The change feed a revision poll reads ([SyncApiClient.fetchChanges]),
@@ -45,7 +46,7 @@ class SyncChangesFeedTest {
                           {"revision":7,"entity_type":"course_override","entity_id":"2","operation":"upsert","payload":{}}]}""",
         )
 
-        val page = client.fetchChanges(sinceRevision = 5)
+        val page = client.fetchChanges(sinceRevision = 5, testSignIn())
 
         assertEquals(
             SyncChangesPage(7, 7, hasMore = false, listOf(SyncChange(6, "assignment"), SyncChange(7, "course_override"))),
@@ -60,14 +61,14 @@ class SyncChangesFeedTest {
     fun `changes the server no longer keeps read as none`() = runTest {
         backend.answer(FEED, 410, """{"error":"sync_revision_expired","full_sync_required":true}""")
 
-        assertNull(client.fetchChanges(sinceRevision = 5))
+        assertNull(client.fetchChanges(sinceRevision = 5, testSignIn()))
     }
 
     @Test
     fun `another refusal says which`() = runTest {
         backend.answer(FEED, 503)
 
-        val failure = runCatching { client.fetchChanges(sinceRevision = 5) }.exceptionOrNull()
+        val failure = runCatching { client.fetchChanges(sinceRevision = 5, testSignIn()) }.exceptionOrNull()
 
         assertEquals(503, (failure as? PushApiException)?.statusCode)
     }
