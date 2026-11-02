@@ -132,6 +132,17 @@ class ApiBaseTest {
     }
 
     @Test
+    fun `trailing slashes are trimmed as BackendServices trims them before it sends`() {
+        assertEquals(BackendApi.V4, BackendApi.of("https://api.example.test/v4//"))
+        assertEquals("https://api.example.test/v4//", ApiBase.of("https://api.example.test/v3//", BackendApi.V4))
+        assertEquals("https://api.example.test", ApiBase.backendKey("https://api.example.test/v3//"))
+        assertEquals(true, ApiBase.sameBackend("https://api.example.test/v3//", "https://api.example.test/v3"))
+        assertEquals(true, ApiBase.sameBackend("https://api.example.test/v3///", "https://api.example.test/v4"))
+        assertEquals(false, ApiBase.sameBackend("https://api.example.test/v3//", "https://api.example.test"))
+        assertEquals(true, ApiBase.serves("https://api.example.test/v3//", "https://api.example.test/v4/sync/full".toHttpUrl()))
+    }
+
+    @Test
     fun `a backend serves its own paths at either version and no others`() {
         val answers = mapOf(
             "https://api.example.test/v3/sync/full" to true,

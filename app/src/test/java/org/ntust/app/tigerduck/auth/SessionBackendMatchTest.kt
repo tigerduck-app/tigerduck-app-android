@@ -154,6 +154,31 @@ class SessionBackendMatchTest {
     }
 
     @Test
+    fun `a debt an older build stored with trailing slashes is its backend's`() = runTest {
+        val (manager, _) = signedInAt("https://api.example.test/v3")
+        val stored = "https://api.example.test/v3//"
+        val ended = MemoryStore(debtTo(stored))
+
+        OwedUnregister(ended).signingIn(STUDENT, "https://api.example.test/v3") { Unit }
+
+        assertNull("a sign-in at its backend ends it", ended.pending)
+        assertEquals(true, manager.hasSessionAt(stored))
+        // Once a session from that backend stands, the debt is not sent: its DELETE, which goes to
+        // `…/v3/devices/{id}` whatever the trailing slashes, would remove that session's device.
+        val sent = mutableListOf<String>()
+        val unregister = DepartingDeviceUnregister(
+            owed = OwedUnregister(MemoryStore(debtTo(stored))),
+            deleteDevice = { base, _, _, _ -> 204.also { sent += base } },
+            refresh = { _, _, _ -> DepartingRefresh.Refused },
+            sessionAt = manager::hasSessionAt,
+            now = { 0 },
+            endpoint = { "https://api.example.test/v3" },
+        )
+        assertEquals(DepartingDeviceUnregister.Outcome.DONE, unregister.send())
+        assertEquals(emptyList<String>(), sent)
+    }
+
+    @Test
     fun `a debt to a plain-HTTP backend waits while the setting names another`() = runTest {
         val outcomes = listOf(
             "http://192.168.1.5:40000/v3" to "http://192.168.1.5:40000/v3/",

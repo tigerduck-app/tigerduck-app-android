@@ -20,9 +20,10 @@ enum class BackendApi(val segment: String) {
         internal fun named(base: String): BackendApi? = base.toHttpUrlOrNull()?.let(::named)
 
         internal fun named(url: HttpUrl): BackendApi? {
-            // A base spelled with a trailing slash ends in an empty segment.
-            val segments = url.encodedPathSegments.let { if (it.size > 1 && it.last().isEmpty()) it.dropLast(1) else it }
-            return entries.firstOrNull { it.segment == segments.last() }
+            // Past every trailing slash, as BackendServices trims them all before it sends: a base
+            // spelled `…/v3//` is sent to as `…/v3`.
+            val last = url.encodedPathSegments.dropLastWhile { it.isEmpty() }.lastOrNull() ?: return null
+            return entries.firstOrNull { it.segment == last }
         }
     }
 }
@@ -69,8 +70,12 @@ object ApiBase {
      * segment. A base without one is not the same backend as one with: `…/api` and `…/api/v3` are
      * two address spaces, which nothing before phase 3 took for one either.
      */
-    fun sameBackend(a: String, b: String): Boolean =
-        backendKey(a) == backendKey(b) && (BackendApi.named(a) == null) == (BackendApi.named(b) == null)
+    fun sameBackend(a: String, b: String): Boolean = identity(a) == identity(b)
+
+    // The backend [base] names and whether it names a version, both read from one spelling, the
+    // canonical one, whose trailing slashes are trimmed as BackendServices trims them.
+    private fun identity(base: String): Pair<String, Boolean> =
+        backendKey(base) to (BackendApi.named(canonicalBackend(base)) != null)
 
     /**
      * Whether [url] is a request to the backend [base] names: the same scheme, host and port, and a
