@@ -45,6 +45,7 @@ import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
+import org.ntust.app.tigerduck.mail.openSignIn
 import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.HeldSendStore
 import org.ntust.app.tigerduck.mail.store.MailCache
@@ -918,7 +919,7 @@ class SchoolMailComposeViewModelTest {
     @Test
     fun `one whose send had started opens with the warning that it may have gone out, and sends nothing itself`() {
         signedIn()
-        heldSends.save("m1", owner, keptFields, emptyList()) { true }
+        heldSends.keep("m1", owner, keptFields, emptyList(), openSignIn())
         heldSends.markSending("m1")
 
         val vm = reopened("m1")
@@ -949,8 +950,8 @@ class SchoolMailComposeViewModelTest {
     @Test
     fun `a reopened mail saved as a draft, or discarded, is no longer kept`() {
         signedIn()
-        heldSends.save("m1", owner, keptFields, emptyList()) { true }
-        heldSends.save("m2", owner, keptFields, emptyList()) { true }
+        heldSends.keep("m1", owner, keptFields, emptyList(), openSignIn())
+        heldSends.keep("m2", owner, keptFields, emptyList(), openSignIn())
 
         reopened("m1").saveDraft()
         reopened("m2").discard()
@@ -983,7 +984,7 @@ class SchoolMailComposeViewModelTest {
     @Test
     fun `a composer the system rebuilt from saved state opens afresh, leaving the kept mail to the one the app opens`() {
         signedIn()
-        heldSends.save("m1", owner, keptFields, emptyList()) { true }
+        heldSends.keep("m1", owner, keptFields, emptyList(), openSignIn())
         // Its saved state, as the system hands it back after ending the app.
         val saved = SavedStateHandle(mapOf("mode" to "NEW", "folder" to "", "uid" to -1L, "held" to "m1", "composerOpened" to true))
 
@@ -995,10 +996,104 @@ class SchoolMailComposeViewModelTest {
         assertEquals("m1", afterRestart().orphan(owner)?.id)
     }
 
+    private fun typeThePasswordAgain() = assertNull(runBlocking { account.signIn("b10000001", "pw") })
+
+    @Test
+    fun `a mail whose sign-in ended during the hold is never marked as sending`() {
+        signedIn()
+        var stamps = 0
+        heldSends = HeldSendStore(heldRoot, clock = { stamps++; 1_000L })
+        val vm = heldVm()
+        vm.send()
+        assertEquals("kept once", 1, stamps)
+
+        typeThePasswordAgain()
+        runOutTheHold()
+
+        assertEquals("marked as sending", 1, stamps)
+        assertTrue(repo.sent.isEmpty())
+        assertFalse(vm.state.value.sending)
+    }
+
+    @Test
+    fun `a mail whose sign-in ends as it is marked sending does not go out, and reports no failure`() {
+        signedIn()
+        val io = HeldDispatcher()
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, io, heldSends)
+            .also { it.prefill(labels); it.setTo("amy@mail.ntust.edu.tw"); it.setSubject("Hi") }
+        vm.send()
+        io.drain()
+        runOutTheHold()
+
+        typeThePasswordAgain()
+        repeat(3) {
+            io.drain()
+            main.dispatcher.scheduler.runCurrent()
+        }
+
+        assertTrue(repo.sent.isEmpty())
+        assertNull(vm.state.value.error)
+        assertFalse(vm.state.value.sending)
+        assertNull(afterRestart().orphan(owner))
+    }
+
+    @Test
+    fun `a mail whose sign-in ends while its originals are staged does not go out`() {
+        signedIn()
+        repo.add("INBOX", mailSummary(5, hasAttachments = true))
+        repo.bodies[5] = MailBody(null, "body", listOf(MailAttachment("2", "a.pdf", "application/pdf", 12, null)), emptyMap())
+        val vm = vm(ComposeMode.FORWARD, "INBOX", 5)
+        vm.setTo("x@y.tw")
+        repo.onWriteAttachment = {
+            repo.onWriteAttachment = null
+            typeThePasswordAgain()
+        }
+
+        vm.send()
+        main.dispatcher.scheduler.runCurrent()
+
+        assertTrue(repo.sent.isEmpty())
+    }
+
+    @Test
+    fun `a kept mail read across a password typed again is let go for the next composer`() {
+        signedIn()
+        heldSends.keep("m1", owner, keptFields, emptyList(), openSignIn())
+        val io = HeldDispatcher()
+        val store = afterRestart()
+        val vm = SchoolMailComposeViewModel(
+            SavedStateHandle(mapOf("mode" to "NEW", "folder" to "", "uid" to -1L, "mailto" to "", "held" to "m1")),
+            repo, account, cache, noPicks, notices, io, store,
+        ).also { it.prefill(labels) }
+
+        typeThePasswordAgain()
+        repeat(3) {
+            io.drain()
+            main.dispatcher.scheduler.runCurrent()
+        }
+
+        assertEquals(emptyList<String>(), vm.state.value.to.entries)
+        assertEquals("m1", store.adopt("m1", owner)?.id)
+    }
+
+    @Test
+    fun `contacts read under a sign-in a password typed again ended are not suggested`() {
+        signedIn()
+        repo.correspondence = listOf(mailSummary(1, from = MailAddress("王大明", "wang@example.com")))
+        val io = HeldDispatcher()
+        val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, io, heldSends).also { it.sendHoldMs = 0 }
+
+        typeThePasswordAgain()
+        io.drain()
+
+        vm.updateRecipients(RecipientSlot.TO) { it.typed(emptyList(), "wang") }
+        assertEquals(emptyList<MailAddress>(), vm.state.value.suggestions(RecipientSlot.TO))
+    }
+
     @Test
     fun `a kept mail read as another student signs in is not shown`() {
         signedIn()
-        heldSends.save("m1", owner, keptFields, emptyList()) { true }
+        heldSends.keep("m1", owner, keptFields, emptyList(), openSignIn())
         val io = HeldDispatcher()
         val vm = SchoolMailComposeViewModel(
             SavedStateHandle(mapOf("mode" to "NEW", "folder" to "", "uid" to -1L, "mailto" to "", "held" to "m1")),
@@ -1015,7 +1110,7 @@ class SchoolMailComposeViewModelTest {
     @Test
     fun `a composer closed while it reads a kept mail leaves it for the next one to open`() {
         signedIn()
-        heldSends.save("m1", owner, keptFields, emptyList()) { true }
+        heldSends.keep("m1", owner, keptFields, emptyList(), openSignIn())
         val store = afterRestart()
         val io = HeldDispatcher()
         val owners = ViewModelStore()
@@ -1061,7 +1156,7 @@ class SchoolMailComposeViewModelTest {
         signedIn()
         val picked = HeldSendStore.Keep("p1", "notes.txt", "text/plain", 9, open = { "lab notes".byteInputStream() })
         val carried = HeldSendStore.Keep("orig-2", "slides.pdf", "application/pdf", 900, original = HeldSendStore.Original("INBOX", 42, "2"))
-        heldSends.save("m1", owner, keptFields, listOf(picked, carried)) { true }
+        heldSends.keep("m1", owner, keptFields, listOf(picked, carried), openSignIn())
         afterRestart().orphan(owner)!!.attachments[0].copy!!.delete()
 
         val state = reopened("m1").state.value

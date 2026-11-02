@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.mail.model.MailFlags
 import org.ntust.app.tigerduck.mail.model.MailPage
 import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.smtp.SentCopy
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.io.OutputStream
 
 /** Synchronous, in-memory [SchoolMailRepository] for ViewModel tests. `beforeSeq` is an offset token here. */
@@ -23,8 +24,10 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     private val _changes = MutableSharedFlow<MailChange>(extraBufferCapacity = 64)
     override val changes: SharedFlow<MailChange> = _changes.asSharedFlow()
 
-    /** The account a write is told under, read as the real repository does: before the write, through [accountGeneration]. */
-    private fun generation(): Int = accountGeneration?.invoke() ?: 0
+    /** The account a write is told under, read as the real repository does: before the write, through [currentSignIn]. */
+    private fun signIn(): SignIn = currentSignIn?.invoke() ?: unwired
+
+    private val unwired = openSignIn()
 
     /** Set, [setSeen] waits on it after reading the account: the write held on the connection while the test acts. */
     var seenGate: CompletableDeferred<Unit>? = null
@@ -73,11 +76,11 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     var loadGate: CompletableDeferred<Unit>? = null
 
     /**
-     * The account a page is fetched for, when a test wires it to [MailAccount.accountGeneration]:
+     * The account a page is fetched for, when a test wires it to [MailAccount.currentSignIn]:
      * as the real repository ([org.ntust.app.tigerduck.mail.store.MailCache.saveFolderIf]), a first
      * page whose account moved while it was out is not cached. Unwired, every first page is.
      */
-    var accountGeneration: (() -> Int)? = null
+    var currentSignIn: (() -> SignIn)? = null
 
     /** Set, every [folders] waits on it first: the folder list's LIST held out while the test acts. */
     var foldersGate: CompletableDeferred<Unit>? = null
@@ -264,7 +267,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     /** Simulates the repository dropping a folder's cache once [MailError.FolderChanged] fires for it, and saying so. */
     fun dropCache(folder: String) {
         cachedPages.remove(folder)
-        _changes.tryEmit(MailChange.Changed(folder, generation()))
+        _changes.tryEmit(MailChange.Changed(folder, signIn()))
     }
 
     /** Every `(folder, obsolete validity)` handed to [dropCachedPage], in order. */
@@ -288,7 +291,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         try {
             if (!background) loadGate?.await()
             unlessAbandoned(stillWanted)
-            val generation = accountGeneration?.invoke()
+            val signIn = currentSignIn?.invoke()
             foldersTouched += folder
             pageLimits += folder to limit
             loadsSent += folder
@@ -318,8 +321,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
             answerGate?.await()
             // Mirrors MailRepository.loadPage: a first page replaces the cache, except for a
             // background warm that would leave less of the same mailbox behind than is there --
-            // and except for an account that moved while the page was out ([accountGeneration]).
-            if (beforeSeq == null && generation == accountGeneration?.invoke()) {
+            // and except for an account that moved while the page was out ([currentSignIn]).
+            if (beforeSeq == null && signIn == currentSignIn?.invoke()) {
                 val cached = cachedPages[folder]
                 val shortens = background && cached != null &&
                     cached.uidValidity == page.uidValidity && cached.messages.size > page.messages.size
@@ -373,17 +376,17 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun setSeen(folder: String, uid: Long, seen: Boolean) {
-        val generation = generation()
+        val signIn = signIn()
         seenGate?.await()
         seenError?.let { throw it }
         foldersTouched += folder
         seenCalls += Triple(folder, uid, seen)
         update(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) }
-        _changes.emit(MailChange.Seen(folder, uid, seen, generation))
+        _changes.emit(MailChange.Seen(folder, uid, seen, signIn))
     }
 
     override suspend fun move(folder: String, uid: Long, target: String, uidValidity: Long?, stillWanted: () -> Boolean) {
-        val generation = generation()
+        val signIn = signIn()
         writeQueueGate?.await()
         unlessAbandoned(stillWanted)
         refuseUnder(uidValidity)
@@ -397,8 +400,8 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         // Filed in the target under a UID of the target's own, as the server does: what a list of
         // the target can only fetch ([MailChange.Changed] below).
         moving?.let { mail.getOrPut(target) { mutableListOf() } += it.copy(uid = movedUids++) }
-        _changes.emit(MailChange.Removed(folder, uid, generation))
-        _changes.emit(MailChange.Changed(target, generation))
+        _changes.emit(MailChange.Removed(folder, uid, signIn))
+        _changes.emit(MailChange.Changed(target, signIn))
     }
 
     /**
@@ -427,7 +430,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
     }
 
     override suspend fun delete(folder: String, uid: Long, uidValidity: Long?, stillWanted: () -> Boolean) {
-        val generation = generation()
+        val signIn = signIn()
         writeQueueGate?.await()
         unlessAbandoned(stillWanted)
         refuseUnder(uidValidity)
@@ -437,7 +440,7 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         deleteError?.let { throw it }
         deleted += folder to uid
         mail[folder]?.removeAll { it.uid == uid }
-        _changes.emit(MailChange.Removed(folder, uid, generation))
+        _changes.emit(MailChange.Removed(folder, uid, signIn))
     }
 
     /** Thrown by [search] for a folder, after it is recorded as touched and sent. */
@@ -561,22 +564,22 @@ class FakeSchoolMailRepository : SchoolMailRepository {
         sendError?.let { throw it }
         sentAttachments += mail.attachments.map { it.fileName to it.open().use { s -> s.readBytes().decodeToString() } }
         sent += mail to answered
-        if (sentCopy == SentCopy.Filed) resolved.nameOf(SpecialFolder.SENT)?.let { _changes.emit(MailChange.Changed(it, generation())) }
+        if (sentCopy == SentCopy.Filed) resolved.nameOf(SpecialFolder.SENT)?.let { _changes.emit(MailChange.Changed(it, signIn())) }
         return sentCopy
     }
 
     override suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?) {
         drafts += mail to replacingUid
         resolved.nameOf(SpecialFolder.DRAFTS)?.let { folder ->
-            _changes.emit(MailChange.Changed(folder, generation()))
-            if (replacingUid != null) _changes.emit(MailChange.Removed(folder, replacingUid, generation()))
+            _changes.emit(MailChange.Changed(folder, signIn()))
+            if (replacingUid != null) _changes.emit(MailChange.Removed(folder, replacingUid, signIn()))
         }
     }
 
     override suspend fun discardDraft(uid: Long) {
         discardDraftError?.let { throw it }
         discardedDrafts += uid
-        resolved.nameOf(SpecialFolder.DRAFTS)?.let { _changes.emit(MailChange.Removed(it, uid, generation())) }
+        resolved.nameOf(SpecialFolder.DRAFTS)?.let { _changes.emit(MailChange.Removed(it, uid, signIn())) }
     }
 
     override fun selfAddress() = self

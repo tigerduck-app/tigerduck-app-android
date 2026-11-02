@@ -532,12 +532,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun logoutLibrary() {
-        demoAccount.signOutLibrary()
-        credentials.clearLibraryCredentials()
-        appState.librarySession.refresh()
-        viewModelScope.launch { wearBridge.publishLibraryCredentials() }
-    }
+    fun logoutLibrary() = appState.librarySession.signOut()
 
     val libraryUsername: String?
         get() = demoAccount.libraryUsername ?: credentials.libraryUsername

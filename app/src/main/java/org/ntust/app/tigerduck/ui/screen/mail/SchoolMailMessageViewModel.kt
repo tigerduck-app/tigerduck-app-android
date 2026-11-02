@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
@@ -49,6 +50,7 @@ import java.util.UUID
 import javax.inject.Inject
 
 /** One mail (spec §6.3, §9): three views, warnings, attachments, and the actions that close it. */
+@OptIn(StartsAccountWork::class)
 @HiltViewModel
 class SchoolMailMessageViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
@@ -263,9 +265,8 @@ class SchoolMailMessageViewModel @Inject constructor(
     fun load() {
         if (_state.value.content is Content.Ready) return
         viewModelScope.launch {
-            // The sign-in a rejection is for: one that comes back once it has left is not the next
-            // one's (spec §7.4), as the repository's own record of it already holds.
-            val generation = account.accountGeneration
+            // The sign-in a rejection is for: one that has left is not the next one's (spec §7.4).
+            val signIn = account.currentSignIn
             update { it.copy(content = Content.Loading) }
             try {
                 // Ahead of the background download: otherwise one of its batches went before the
@@ -305,7 +306,7 @@ class SchoolMailMessageViewModel @Inject constructor(
                 markSeen(summary)
                 resolvePendingSave()
             } catch (e: MailError) {
-                if (e is MailError.AuthFailed) account.onAuthFailure(generation)
+                if (e is MailError.AuthFailed) account.onAuthFailure(signIn)
                 update { it.copy(content = Content.Failed(e)) }
                 resolvePendingSave()
             }
@@ -429,13 +430,13 @@ class SchoolMailMessageViewModel @Inject constructor(
 
     private suspend fun loadSource() {
         // As in [load]: the sign-in a rejection is for.
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         update { it.copy(sourceLoading = true, sourceError = null) }
         try {
             val raw = repository.rawSource(folder, uid)
             update { it.copy(source = TextCleaning.stripBidi(raw), sourceLoading = false) }
         } catch (e: MailError) {
-            if (e is MailError.AuthFailed) account.onAuthFailure(generation)
+            if (e is MailError.AuthFailed) account.onAuthFailure(signIn)
             // In place of the source, not as a toast: a toast left a blank view behind it, and
             // the way back was to switch views and back again.
             update { it.copy(sourceLoading = false, sourceError = e) }
@@ -712,7 +713,7 @@ class SchoolMailMessageViewModel @Inject constructor(
      * sign-in rejected. The list drops the same ([SchoolMailListViewModel]).
      */
     private fun act(block: suspend () -> Unit) {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         viewModelScope.launch {
             try {
                 block()
@@ -720,9 +721,8 @@ class SchoolMailMessageViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 val error = MailErrors.classify(e)
-                if (error is MailError.Abandoned || account.accountGeneration != generation) return@launch
-                // Marked for that sign-in alone, in one step with any sign-in since.
-                if (error is MailError.AuthFailed) account.onAuthFailure(generation)
+                if (error is MailError.Abandoned || !signIn.isCurrent) return@launch
+                if (error is MailError.AuthFailed) account.onAuthFailure(signIn)
                 update { it.copy(actionError = error) }
             }
         }

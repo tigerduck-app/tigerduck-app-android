@@ -11,6 +11,8 @@ import org.junit.rules.TemporaryFolder
 import org.ntust.app.tigerduck.mail.store.HeldSendStore.Fields
 import org.ntust.app.tigerduck.mail.store.HeldSendStore.Keep
 import java.io.File
+import org.ntust.app.tigerduck.mail.openSignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 
 class HeldSendStoreTest {
     @get:Rule val tmp = TemporaryFolder()
@@ -33,7 +35,7 @@ class HeldSendStoreTest {
 
     @Test
     fun `a held mail comes back after the app restarts, with copies of the files picked`() {
-        assertTrue(store().save("m1", me, fields, listOf(picked, carried)) { true })
+        assertTrue(store().keep("m1", me, fields, listOf(picked, carried), openSignIn()))
 
         val back = store().orphan(me)!!
 
@@ -47,7 +49,7 @@ class HeldSendStoreTest {
 
     @Test
     fun `a picked file whose copy is gone comes back named as missing, the rest as they were`() {
-        assertTrue(store().save("m1", me, fields, listOf(picked, carried)) { true })
+        assertTrue(store().keep("m1", me, fields, listOf(picked, carried), openSignIn()))
         val copy = store().orphan(me)!!.attachments[0].copy!!
         copy.delete()
 
@@ -60,7 +62,7 @@ class HeldSendStoreTest {
     @Test
     fun `one whose send had started comes back saying since when`() {
         val store = store()
-        store.save("m1", me, fields, emptyList()) { true }
+        store.keep("m1", me, fields, emptyList(), openSignIn())
 
         store.markSending("m1")
 
@@ -70,7 +72,7 @@ class HeldSendStoreTest {
     @Test
     fun `a mail a composer of this process holds is not an orphan, until the process is gone`() {
         val store = store()
-        store.save("m1", me, fields, emptyList()) { true }
+        store.keep("m1", me, fields, emptyList(), openSignIn())
 
         assertNull(store.orphan(me))
         assertNotNull(store().orphan(me))
@@ -78,7 +80,7 @@ class HeldSendStoreTest {
 
     @Test
     fun `a composer adopting a mail holds it for this process`() {
-        store().save("m1", me, fields, emptyList()) { true }
+        store().keep("m1", me, fields, emptyList(), openSignIn())
         val store = store()
 
         assertEquals(fields, store.adopt("m1", me)?.fields)
@@ -91,8 +93,8 @@ class HeldSendStoreTest {
     fun `a sign-out empties only the departing student's held mail`() {
         val next = "b00015998@mail.ntust.edu.tw"
         val store = store()
-        store.save("mine", me, fields, emptyList()) { true }
-        store.save("next", next, fields, emptyList()) { true }
+        store.keep("mine", me, fields, emptyList(), openSignIn())
+        store.keep("next", next, fields, emptyList(), openSignIn())
 
         store.clear(me)
 
@@ -103,14 +105,15 @@ class HeldSendStoreTest {
     @Test
     fun `a sign-out's late cleanup leaves a mail a sign-in since has kept`() {
         val store = store()
-        store.save("before", me, fields, emptyList(), generation = 1) { true }
+        val left = openSignIn()
+        store.keep("before", me, fields, emptyList(), left)
         // The same student signed in again, and kept a mail, before the cleanup ran.
-        store.save("since", me, fields, emptyList(), generation = 3) { true }
+        store.keep("since", me, fields, emptyList(), openSignIn())
         // And one this process did not keep: from before a restart.
         File(root, "earlier").mkdirs()
-        HeldSendStore(root).save("earlier", me, fields, emptyList(), generation = 9) { true }
+        HeldSendStore(root).keep("earlier", me, fields, emptyList(), openSignIn())
 
-        store.clear(me, below = 2)
+        store.clear(me) { it == left }
 
         assertFalse(File(root, "before").exists())
         assertFalse(File(root, "earlier").exists())
@@ -118,9 +121,24 @@ class HeldSendStoreTest {
     }
 
     @Test
+    fun `a sign-in that has ended keeps nothing, not even over what it kept`() {
+        val store = store()
+        val signIns = SignInSeries()
+        val ending = signIns.current
+        assertTrue(store.keep("m1", me, fields, emptyList(), ending))
+
+        signIns.end()
+
+        assertFalse(store.keep("m2", me, fields, emptyList(), ending))
+        assertFalse(File(root, "m2").exists())
+        assertFalse(store.keep("m1", me, fields.copy(subject = "changed"), emptyList(), ending))
+        assertEquals(fields, store().orphan(me)?.fields)
+    }
+
+    @Test
     fun `marking a mail as sending says whether it was marked`() {
         val store = store()
-        store.save("m1", me, fields, emptyList()) { true }
+        store.keep("m1", me, fields, emptyList(), openSignIn())
 
         assertTrue(store.markSending("m1"))
         File(root, "m1").deleteRecursively()
@@ -129,7 +147,7 @@ class HeldSendStoreTest {
 
     @Test
     fun `another student's held mail is never handed out, and goes when looked for`() {
-        store().save("m1", me, fields, listOf(picked)) { true }
+        store().keep("m1", me, fields, listOf(picked), openSignIn())
 
         assertNull(store().orphan("b00015998@mail.ntust.edu.tw"))
         assertNull(store().orphan(me))
@@ -150,11 +168,11 @@ class HeldSendStoreTest {
     @Test
     fun `a sign-out empties it, and a save for an account that left is refused`() {
         val store = store()
-        store.save("m1", me, fields, listOf(picked)) { true }
+        store.keep("m1", me, fields, listOf(picked), openSignIn())
 
         store.clear(null)
 
-        assertFalse(store.save("m2", me, fields, emptyList()) { false })
+        assertFalse(store.keep("m2", me, fields, emptyList(), SignInSeries().apply { end() }.current))
         assertNull(store().orphan(me))
         assertEquals(emptyList<String>(), root.list().orEmpty().toList())
     }
@@ -162,7 +180,7 @@ class HeldSendStoreTest {
     @Test
     fun `a forgotten mail is no longer handed out, its copies kept for the composer until it lets go`() {
         val store = store()
-        store.save("m1", me, fields, listOf(picked)) { true }
+        store.keep("m1", me, fields, listOf(picked), openSignIn())
         val copy = store().orphan(me)!!.attachments[0].copy!!
 
         store.forget("m1")
@@ -176,7 +194,7 @@ class HeldSendStoreTest {
     @Test
     fun `a composer letting go of a mail still to resolve leaves it for after a restart`() {
         val store = store()
-        store.save("m1", me, fields, emptyList()) { true }
+        store.keep("m1", me, fields, emptyList(), openSignIn())
 
         store.release("m1")
 
@@ -187,12 +205,12 @@ class HeldSendStoreTest {
     fun `saving again keeps the copies it still names and drops the others`() {
         val store = store()
         val other = Keep("p2", "draft.txt", "text/plain", 3, open = { "abc".byteInputStream() })
-        store.save("m1", me, fields, listOf(picked, other)) { true }
+        store.keep("m1", me, fields, listOf(picked, other), openSignIn())
         val kept = store().orphan(me)!!.attachments
         val stays = kept[0].copy!!
 
         // Saved again from the composer, whose first attachment reads the copy, the second removed.
-        store.save("m1", me, fields.copy(subject = "Re: Lab (2)"), listOf(Keep.of(kept[0]))) { true }
+        store.keep("m1", me, fields.copy(subject = "Re: Lab (2)"), listOf(Keep.of(kept[0])), openSignIn())
 
         val back = store().orphan(me)!!
         assertEquals("Re: Lab (2)", back.fields.subject)
@@ -205,9 +223,9 @@ class HeldSendStoreTest {
     fun `the oldest of two comes back first`() {
         var now = 1L
         val store = HeldSendStore(root, clock = { now })
-        store.save("new", me, fields, emptyList()) { true }
+        store.keep("new", me, fields, emptyList(), openSignIn())
         now = 0L
-        store.save("old", me, fields, emptyList()) { true }
+        store.keep("old", me, fields, emptyList(), openSignIn())
 
         assertEquals("old", HeldSendStore(root).orphan(me)?.id)
     }
