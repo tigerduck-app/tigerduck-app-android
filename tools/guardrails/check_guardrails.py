@@ -48,6 +48,22 @@ Offense kinds (counts in the baseline):
                   dropped, anywhere but SignOutPlans.kt and those accounts'
                   own homes. One plan runs every sign-out, in order. Takes no
                   baseline entries either.
+  sync-switch-read lines that name a sync switch or the re-enable hold
+                  (cloudSyncEnabled, syncCourses, syncCourseColors,
+                  syncCourseNames, syncAssignments, pendingConflictCategories)
+                  outside SyncPolicy and the files that store or send them.
+                  SyncPolicy answers whether a category keeps, sends or applies.
+  sync-write      calls of a backend sync write (the override PATCHes, the
+                  holiday PUT, the course deletes and uploads, the assignment
+                  upload, and their ...Answered forms) outside push/, sync/
+                  and the queues. A write leaves through its channel's outbox.
+  status-in-message contains() of a status code or a backend error code on a
+                  message. BackendError reads the code once. It has no home.
+  full-sync-fetch calls of fetchFullSync outside SyncApiClient and the
+                  Synchronizer, which runs every full sync.
+  api-version-literal string literals that are "v3" or "v4", or hold /v3 or
+                  /v4 as a path segment, outside ApiBase, which turns a base
+                  from one version to the other. Takes no baseline entries.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -148,11 +164,35 @@ SIGN_OUT_HOMES = re.compile(
     r"(?:auth/session/SignOutPlans\.kt$|mail/MailAccount\.kt$|library/LibrarySession\.kt$"
     r"|data/preferences/CredentialManager\.kt$)")
 BEARER_HOMES = re.compile(r"(?:auth/AuthTokenManager\.kt$|auth/SessionHostGuard\.kt$)")
+SYNC_SWITCH = re.compile(
+    r"\b(?:cloudSyncEnabled|syncCourses|syncCourseColors|syncCourseNames|syncAssignments"
+    r"|pendingConflictCategories)\b")
+SYNC_SWITCH_HOMES = re.compile(
+    r"(?:sync/SyncPolicy\.kt$|data/preferences/AppPreferences\.kt$|data/preferences/SchoolKeys\.kt$"
+    r"|push/PushApiModels\.kt$)")
+# A call: "fun " before the name is its declaration, as in PushApi's interface. A name
+# that merely starts with one (deleteCourseCaches) is not one of the writes.
+SYNC_WRITE = re.compile(
+    r"(?<!fun )\b(?:patchAssignmentOverride|patchCourseOverride|patchCourseIgnore|putHolidayOverride"
+    r"|deleteCourse|deleteAllCourses|uploadCourses|uploadAssignments)(?:Answered)?\s*\(")
+QUEUES = r"(?:UnsentMarks|PendingHolidayOverrides|PendingCourseOverrides|CourseIgnoreSync" \
+         r"|PendingCourseAdds|PendingCourseDeletes|CourseIgnoreQueue)"
+SYNC_WRITE_HOMES = re.compile(r"(?:push/|sync/|data/" + QUEUES + r"\.kt$)")
+STATUS_IN_MESSAGE = re.compile(
+    r'\bcontains\s*\(\s*"(?:\d{3}|session_revoked|clock_ahead|hlc_required)"')
+FULL_SYNC_FETCH = re.compile(r"(?<!fun )\bfetchFullSync\s*\(")
+FULL_SYNC_HOMES = re.compile(r"(?:push/SyncApiClient\.kt$|sync/Synchronizer\.kt$)")
+# On a literal's own text, a template standing as TEMPLATE: "v3" itself, or v3 or v4
+# as a whole path segment, "/v4", "https://h/v3/", "$base/v4?x" or "${base}/v3".
+TEMPLATE = "\x00"
+API_VERSION = re.compile(r"(?:^|/)v[34](?=$|[/?#$\x00])")
+API_VERSION_HOMES = re.compile(r"network/backend/ApiBase\.kt$")
 BEARER_LITERAL = '"Bearer '
 UNREGISTER_BEARER = 'removeDevice("Bearer '
-# Kinds that are counts of lines and, apart from these, take no baseline entry
+# Kinds that are counts of lines or calls and, apart from these, take no baseline entry
 # the flag cannot record.
-INTRODUCIBLE = ("account-counter", "demo-check")
+INTRODUCIBLE = ("account-counter", "demo-check", "sync-switch-read", "sync-write",
+                "status-in-message", "full-sync-fetch")
 
 
 def in_home(rel, homes):
@@ -185,6 +225,16 @@ DEFAULT_BASELINE = os.path.join(HERE, "baseline.json")
 
 # ---------------------------------------------------------------- lexing
 
+def string_literals(text):
+    """The text of every string literal in text, a template in it standing as TEMPLATE.
+
+    A literal inside a template is a literal of its own. Comments hold none.
+    """
+    found = []
+    _code(text, 0, False, [], False, found)
+    return found
+
+
 def lex(text, keep_strings=False):
     """Returns text with comments and string text blanked, same length.
 
@@ -203,7 +253,7 @@ def _blank(chunk, raw):
     return "".join(("\r" if raw else "\n") if c == "\n" else " " for c in chunk)
 
 
-def _code(text, i, keep, out, in_template):
+def _code(text, i, keep, out, in_template, literals=None):
     n, depth = len(text), 0
     while i < n:
         c = text[i]
@@ -226,9 +276,9 @@ def _code(text, i, keep, out, in_template):
             out.append(_blank(text[i:j], False))
             i = j
         elif text.startswith('"""', i):
-            i = _string(text, i, keep, out, True)
+            i = _string(text, i, keep, out, True, literals)
         elif c == '"':
-            i = _string(text, i, keep, out, False)
+            i = _string(text, i, keep, out, False, literals)
         elif c == "'":
             m = re.match(r"'(\\.[^']*|[^\\'])'", text[i:i + 12])
             if m:
@@ -253,30 +303,40 @@ def _code(text, i, keep, out, in_template):
     return i
 
 
-def _string(text, i, keep, out, raw):
+def _string(text, i, keep, out, raw, literals=None):
     quote = '"""' if raw else '"'
     out.append(quote)
     i += len(quote)
     n = len(text)
+    own = []
+
+    def done(at):
+        if literals is not None:
+            literals.append("".join(own))
+        return at
+
     while i < n:
         if text.startswith(quote, i):
             out.append(quote)
-            return i + len(quote)
+            return done(i + len(quote))
         c = text[i]
         if not raw and c == "\n":
-            return i  # unterminated; let the code go on
+            return done(i)  # unterminated; let the code go on
         if not raw and c == "\\":
             out.append(text[i:i + 2] if keep else "  ")
+            own.append(text[i:i + 2])
             i += 2
         elif text.startswith("${", i):
             out.append("${" if keep else "  ")
-            i = _code(text, i + 2, keep, out, True)
+            own.append(TEMPLATE)
+            i = _code(text, i + 2, keep, out, True, literals)
             out.append("}" if keep else " ")
             i += 1
         else:
             out.append(c if keep else _blank(c, raw) if c == "\n" else " ")
+            own.append(c)
             i += 1
-    return i
+    return done(i)
 
 
 # ---------------------------------------------------------------- scanning helpers
@@ -564,7 +624,8 @@ def term_sorts(code):
 
 KINDS = ("long-file", "long-function", "taipei-literal", "fdroid-literal", "term-sort",
          "top-app-bar", "account-counter", "demo-check", "sign-in-read", "bearer-home",
-         "sign-out-reactor", "sign-out-start")
+         "sign-out-reactor", "sign-out-start", "sync-switch-read", "sync-write",
+         "status-in-message", "full-sync-fetch", "api-version-literal")
 
 
 def is_test_set(name):
@@ -632,6 +693,15 @@ def scan(root):
             add(rel, "demo-check", matching_lines(code, DEMO_CHECK))
         if not in_home(rel, SIGN_IN_HOMES):
             add(rel, "sign-in-read", sign_in_reads(code))
+        if not in_home(rel, SYNC_SWITCH_HOMES):
+            add(rel, "sync-switch-read", matching_lines(code, SYNC_SWITCH))
+        if not in_home(rel, SYNC_WRITE_HOMES):
+            add(rel, "sync-write", len(SYNC_WRITE.findall(code)))
+        if not in_home(rel, FULL_SYNC_HOMES):
+            add(rel, "full-sync-fetch", len(FULL_SYNC_FETCH.findall(code)))
+        if not in_home(rel, API_VERSION_HOMES):
+            add(rel, "api-version-literal",
+                sum(1 for literal in string_literals(text) if API_VERSION.search(literal)))
 
         # Literals are matched with strings kept and comments blanked, so a
         # KDoc that mentions the zone does not count.
@@ -645,6 +715,7 @@ def scan(root):
             # One call there: the unregister, which holds its session and no sign-in.
             rest = kept.replace(UNREGISTER_BEARER, "", 1) if rel == PUSH_API else kept
             add(rel, "bearer-home", rest.count(BEARER_LITERAL))
+        add(rel, "status-in-message", len(STATUS_IN_MESSAGE.findall(kept)))
     return found
 
 

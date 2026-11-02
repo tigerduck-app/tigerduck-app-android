@@ -676,5 +676,142 @@ class GuardrailsTest(unittest.TestCase):
         self.assertEqual(self.counts("sign-out-start"), {})
 
 
+    # --- phase 3's sync ratchets
+
+    def test_sync_switch_read_hits_each_switch_and_misses_comments_and_strings(self):
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt",
+                   "if (!prefs.cloudSyncEnabled) return\nval a = prefs.syncCourses\n"
+                   "val b = prefs.syncCourseColors || prefs.syncCourseNames\nval c = prefs.syncAssignments\n"
+                   "val d = prefs.school.pendingConflictCategories.get()\n"
+                   "// prefs.syncCourses\nval s = \"syncAssignments\"\n"
+                   "val t = effectiveCloudSyncEnabled(true)\nval u = prefs.syncCoursesSeen\n"
+                   "ServerStatusTracker.setCloudSyncEnabled(x)\n")
+        self.assertEqual(self.counts("sync-switch-read"), {APP + "ui/screen/home/HomeBackendSync.kt": 5})
+
+    def test_sync_switch_read_honors_its_homes(self):
+        line = "val a = prefs.cloudSyncEnabled && prefs.syncCourses\n"
+        for home in ("sync/SyncPolicy.kt", "data/preferences/AppPreferences.kt",
+                     "data/preferences/SchoolKeys.kt", "push/PushApiModels.kt"):
+            self.write(APP + home, line)
+        self.assertEqual(self.counts("sync-switch-read"), {})
+        self.write(APP + "push/PushApiClient.kt", line)
+        self.write(APP + "sync/SyncPolicyHelper.kt", line)
+        self.assertEqual(self.counts("sync-switch-read"),
+                         {APP + "push/PushApiClient.kt": 1, APP + "sync/SyncPolicyHelper.kt": 1})
+
+    def test_sync_write_counts_calls_and_misses_declarations_comments_and_strings(self):
+        self.write(APP + "ui/screen/settings/KeepLocalCourses.kt",
+                   "pushApiClient.patchAssignmentOverride(1, \"done\", signIn)\n"
+                   "client.patchCourseOverride(id, signIn, colorHex = c)\n"
+                   "client.patchCourseIgnore(id, true, null, signIn); client.putHolidayOverride(3, true, signIn)\n"
+                   "client.deleteCourse(key, signIn)\nclient.deleteAllCourses(term, signIn)\n"
+                   "client.uploadCourses(list, term, signIn)\nclient.uploadCoursesAnswered(list, term, signIn)\n"
+                   "client.uploadAssignments (list, signIn)\nclient.patchAssignmentOverrideAnswered(1, s, signIn, null)\n"
+                   "// client.deleteCourse(key, signIn)\nval s = \"deleteCourse(\"\n"
+                   "suspend fun deleteCourse(key: String): Boolean\nfun uploadCourses(list: List<Course>) = Unit\n"
+                   "val f = client::deleteCourse\nval g = undeleteCourse(key)\ndeleteCourseCaches(cacheDir)\n")
+        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/settings/KeepLocalCourses.kt": 10})
+
+    def test_sync_write_honors_its_homes(self):
+        line = "client.deleteCourse(key, signIn)\n"
+        homes = ("push/PushApiClient.kt", "push/deep/Requests.kt", "sync/outbox/OutboxLane.kt",
+                 "data/UnsentMarks.kt", "data/PendingHolidayOverrides.kt", "data/PendingCourseOverrides.kt",
+                 "data/CourseIgnoreSync.kt", "data/PendingCourseAdds.kt", "data/PendingCourseDeletes.kt",
+                 "data/CourseIgnoreQueue.kt")
+        for home in homes:
+            self.write(APP + home, line)
+        self.assertEqual(self.counts("sync-write"), {})
+        self.write(APP + "data/CourseIgnoreReconciler.kt", line)
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt", line)
+        self.write(APP + "notification/BackgroundSyncWorker.kt", line + line)
+        self.assertEqual(self.counts("sync-write"), {
+            APP + "data/CourseIgnoreReconciler.kt": 1, APP + "ui/screen/home/HomeBackendSync.kt": 1,
+            APP + "notification/BackgroundSyncWorker.kt": 2,
+        })
+
+    def test_status_in_message_hits_each_sniff_and_misses_comments(self):
+        self.write(APP + "auth/SessionRefusal.kt",
+                   "fun f(e: Throwable) = e.message?.contains(\"401\") == true ||\n"
+                   "    e.message?.contains(\"session_revoked\") == true\n"
+                   "val a = body.contains(\"clock_ahead\") || body.contains( \"hlc_required\" )\n"
+                   "val b = message.contains(\"404\", ignoreCase = true)\n"
+                   "// message?.contains(\"401\")\n/* body.contains(\"clock_ahead\") */\n"
+                   "val c = reply.startsWith(\"250\")\nval d = message.contains(\"4011\")\n"
+                   "val e = message.contains(\"HTTP 401\")\nval g = message.contains(\"session_revoked_x\")\n")
+        self.assertEqual(self.counts("status-in-message"), {APP + "auth/SessionRefusal.kt": 5})
+
+    def test_status_in_message_has_no_home(self):
+        line = "val a = message.contains(\"401\")\n"
+        for anywhere in ("network/backend/BackendError.kt", "auth/SessionRefusal.kt", "push/EditStamp.kt"):
+            self.write(APP + anywhere, line)
+        self.assertEqual(len(self.counts("status-in-message")), 3)
+
+    def test_full_sync_fetch_counts_calls_outside_its_homes(self):
+        call = "val result = syncApiClient.fetchFullSync(signIn)\n"
+        self.write(APP + "push/SyncApiClient.kt",
+                   "suspend fun fetchFullSync(signIn: SignIn): BackendSyncResult = TODO()\n" + call)
+        self.write(APP + "sync/Synchronizer.kt", call)
+        self.assertEqual(self.counts("full-sync-fetch"), {})
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt",
+                   call + "// syncApiClient.fetchFullSync(signIn)\nval s = \"fetchFullSync(\"\n")
+        self.write(APP + "notification/BackgroundSyncWorker.kt", call + "val r = api.fetchFullSync (signIn)\n")
+        self.write(APP + "push/OtherClient.kt", call)
+        # A declaration is not a call, in a home or not: an interface the client implements.
+        self.write(APP + "push/FullSyncSource.kt",
+                   "interface FullSyncSource {\n    suspend fun fetchFullSync(signIn: SignIn): BackendSyncResult\n}\n")
+        self.assertEqual(self.counts("full-sync-fetch"), {
+            APP + "ui/screen/home/HomeBackendSync.kt": 1,
+            APP + "notification/BackgroundSyncWorker.kt": 2,
+            APP + "push/OtherClient.kt": 1,
+        })
+
+    def test_api_version_literal_hits_a_version_segment_and_misses_the_rest(self):
+        self.write(APP + "network/EndpointSettings.kt",
+                   "val a = \"https://h/v4\"\nval b = \"v3\"\nval c = \"https://api.tigerduck.app/v3/\"\n"
+                   "val d = \"$base/v4/sync?x=1\"\nval e = \"${base}/v3\"\nval f = \"/v3${path}\"\n"
+                   "const val LIVE_ACTIVITY = \"live_activity_v3\"\n"
+                   "// GET /v3/sync\n/** The base (`…/v3`). */\nval g = \"/v30/a\"\nval h = \"v3x\"\n"
+                   "val i = \"a/v4b\"\nval j = 1 /v3\nval k = \"see v4 notes\"\nval l = @GET(\"v4/sync\")\n")
+        self.assertEqual(self.counts("api-version-literal"), {APP + "network/EndpointSettings.kt": 7})
+
+    def test_api_version_literal_in_a_raw_string_and_a_template_counts(self):
+        self.write(APP + "network/A.kt",
+                   'val a = """\n  https://h/v3\n"""\nval b = "${if (x) "v4" else "x"}/a"\n')
+        self.assertEqual(self.counts("api-version-literal"), {APP + "network/A.kt": 2})
+
+    def test_api_version_literal_has_one_home_and_takes_no_baseline(self):
+        self.write(APP + "network/backend/ApiBase.kt",
+                   'enum class BackendApi(val segment: String) { V3("v3"), V4("v4") }\nval b = "https://h/v3"\n')
+        self.write_baseline([])
+        self.assertEqual(self.counts("api-version-literal"), {})
+        self.assertEqual(self.run_cli(), 0)
+        self.write(APP + "network/backend/Other.kt", 'val a = "v4"\n')
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "api-version-literal"), 1)
+        self.assertEqual(self.run_cli("--update-baseline"), 1)
+
+    def test_the_four_counting_sync_kinds_can_be_introduced(self):
+        self.write(APP + "ui/A.kt",
+                   "val a = prefs.syncCourses\nclient.deleteCourse(k, s)\n"
+                   "val b = m.contains(\"401\")\nval c = api.fetchFullSync(s)\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        for kind in ("sync-switch-read", "sync-write", "status-in-message", "full-sync-fetch"):
+            self.assertEqual(self.run_cli("--introduce", kind), 0, kind)
+        self.assertEqual(self.run_cli(), 0)
+        self.assertEqual(sorted(e["kind"] for e in self.read_baseline()),
+                         ["full-sync-fetch", "status-in-message", "sync-switch-read", "sync-write"])
+        # Each is held like the rest: one more fails.
+        self.write(APP + "ui/A.kt",
+                   "val a = prefs.syncCourses\nclient.deleteCourse(k, s)\n"
+                   "val b = m.contains(\"401\")\nval c = api.fetchFullSync(s)\nval d = prefs.syncAssignments\n")
+        self.assertEqual(self.run_cli(), 1)
+
+    def test_every_sync_kind_is_named_for_against_ref(self):
+        for kind in ("sync-switch-read", "sync-write", "status-in-message", "full-sync-fetch",
+                     "api-version-literal"):
+            self.assertIn(kind, cg.KINDS)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -185,6 +185,33 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   `sign-out-start` check fails the token manager's logout, School Mail's or the
   library's sign-out, or a drop of the school's or the library's credentials
   anywhere else. It takes no baseline entries.
+- `SyncCategory` (`app/.../sync/SyncCategory.kt`, coming): the four sync categories,
+  each with today's stored string and the backend's `sync_*` name. A `when` on it has
+  no `else`, so a new category does not compile until every rule answers for it.
+- `SyncPolicy` (`app/.../sync/SyncPolicy.kt`, coming): whether a category keeps,
+  sends or applies, from the master switch, the flavor, the category switches, the
+  re-enable hold and last writer wins, read once through `SyncPolicies.current`. The
+  `sync-switch-read` ratchet counts lines naming a switch or the hold anywhere but
+  there and the files that store or send them.
+- `SyncClock` (`app/.../sync/SyncClock.kt`, coming): every edit's TigerSync stamp, in
+  whole milliseconds, capped by the backend clock it last heard (`tigersync-clock`).
+  `SyncClockTest` pins that spec's scenarios.
+- `ApiBase` and `BackendError` (`app/.../network/backend/`, coming): which API a
+  base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
+  backend whatever its version segment says; and the backend's error code, read once
+  from either version. `api-version-literal` fails a `"v3"` or `"v4"` literal, or a
+  `/v3` or `/v4` path segment in one, outside `ApiBase.kt`, and takes no baseline
+  entries. `status-in-message` counts a status or error code searched for in a
+  message.
+- `Outbox` (`app/.../sync/outbox/`, coming): every unsent edit, one lane per channel
+  with one request in flight, drained in a pinned order. The `sync-write` ratchet
+  counts calls of a backend sync write outside `push/`, `sync/` and the queues.
+- `Synchronizer`, with `FirstPullGate` and `RefreshOrder` (`app/.../sync/`, coming):
+  one full sync for Home and the background worker, its reconcilers in a pinned order;
+  nothing derived from school data goes up before a process's first pull; a refresh
+  applies the pull before the school's data, then pushes. The `full-sync-fetch` ratchet counts
+  `fetchFullSync` calls outside `SyncApiClient` and the `Synchronizer`, and the
+  reconciler and refresh order tests hold the orders.
 
 ## Greptile
 
