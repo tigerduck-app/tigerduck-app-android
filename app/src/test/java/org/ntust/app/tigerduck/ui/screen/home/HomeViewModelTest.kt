@@ -9,7 +9,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -152,6 +155,11 @@ class HomeViewModelTest {
             dispatcher.scheduler.runCurrent()
             // What the student who left has on the page.
             home.markedCompletedIds.let { (it as MutableStateFlow<Set<String>>).value = setOf("7") }
+            // The page stops as it clears: the sign-in's load reaches what this test leaves bare.
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                home.markedCompletedIds.first { it.isEmpty() }
+                home.viewModelScope.cancel()
+            }
 
             signedIn.set(false) { session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, series.current, null)) }
             signedIn.set(true) { session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false)) }
