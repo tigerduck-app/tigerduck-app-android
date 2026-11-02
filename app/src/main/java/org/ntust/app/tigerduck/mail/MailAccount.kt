@@ -176,6 +176,13 @@ class MailAccount @Inject constructor(
     // The whole-app demo account is signed in: no real mail sign-in may reach the server.
     private val appDemo: Boolean get() = session.demoFromElsewhere
 
+    /**
+     * Whose mail the phone keeps for the compose screen ([HeldSendStore]): [ownAddress], and nobody's
+     * under the whole-app demo. What is written there is not the real student's stored under it,
+     * and theirs stays out of the demo's sight until the demo is over.
+     */
+    val heldMailOwner: String? get() = if (appDemo) null else ownAddress
+
     fun credentialsOrNull(): MailCredentials? {
         val id = credentials.mailStudentId
         val password = credentials.mailPassword

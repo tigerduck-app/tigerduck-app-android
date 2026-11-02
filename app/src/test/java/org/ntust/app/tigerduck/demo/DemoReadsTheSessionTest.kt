@@ -57,6 +57,11 @@ class DemoReadsTheSessionTest {
     }
 
     @Test
+    fun `a start in the demo offers no kept mail of the real student's`() {
+        assertTrue("heldMailRoute(heldSends, mailAccount.heldMailOwner)" in source("MainActivity.kt"))
+    }
+
+    @Test
     fun `what is decided once per process is sampled once, from the session`() {
         assertEquals(1, Regex("""private val demoMode = sessions\.school\.isDemo""").findAll(source("auth/AuthService.kt")).count())
         assertEquals(1, Regex("""private val demoMode = session\.isDemo""").findAll(source("ui/AppState.kt")).count())

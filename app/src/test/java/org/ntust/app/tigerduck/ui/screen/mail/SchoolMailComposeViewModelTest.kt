@@ -26,6 +26,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
@@ -50,6 +52,7 @@ import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.HeldSendStore
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.ComposeError
 import org.ntust.app.tigerduck.ui.screen.mail.SchoolMailComposeViewModel.RecipientSlot
 import java.io.ByteArrayInputStream
@@ -862,6 +865,62 @@ class SchoolMailComposeViewModelTest {
     private fun runOutTheHold() {
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS)
         main.dispatcher.scheduler.runCurrent()
+    }
+
+    /** The school's session, in the demo over the real mail account signed in here. */
+    private fun demoOverRealMail(): AccountSession {
+        val school = AccountSession(SignInSeries(), appScope)
+        account = MailAccount(
+            InMemoryCredentialStore(), InMemoryMailStateStore(), FakeMailServer().factory(), cache, FakeDemoGate(), schoolMailSite(),
+            RecordingScheduler(), RecordingNotifier(), appScope,
+            session = AccountSession(SignInSeries(), appScope, alsoDemoWhile = school, account = Account.MAIL),
+        )
+        notices = SentCopyNotices(account, appScope)
+        signedIn()
+        return school
+    }
+
+    @Test
+    fun `a mail written in the school's demo is not kept as the real student's`() {
+        val school = demoOverRealMail()
+        school.signIns.startDemo()
+        val vm = heldVm()
+
+        vm.send()
+
+        assertTrue("it is held all the same", vm.state.value.holding)
+        assertNull(afterRestart().orphan(owner))
+        runOutTheHold()
+        assertEquals("and goes where the demo sends", 1, repo.sent.size)
+    }
+
+    @Test
+    fun `a real student's kept mail stays out of the school's demo, and is theirs again after it`() {
+        val school = demoOverRealMail()
+        heldSends.keep("m1", owner, keptFields, emptyList(), openSignIn())
+        school.signIns.startDemo()
+
+        assertNull(account.heldMailOwner)
+        assertEquals("an empty form", "", reopened("m1").state.value.subject)
+        assertNotNull("still kept", afterRestart().orphan(owner))
+
+        school.signIns.leaveDemo()
+
+        assertEquals(owner, account.heldMailOwner)
+        assertEquals("Hi", reopened("m1").state.value.subject)
+    }
+
+    @Test
+    fun `a demo mailbox of its own keeps its mail as any account does`() {
+        val server = FakeMailServer()
+        account = MailAccount(
+            InMemoryCredentialStore(), InMemoryMailStateStore(), server.factory(), cache, FakeDemoGate(), schoolMailSite(),
+            RecordingScheduler(), RecordingNotifier(), appScope,
+        )
+        notices = SentCopyNotices(account, appScope)
+        assertNull(runBlocking { account.signIn("B10000099", "demo") })
+
+        assertEquals(account.ownAddress, account.heldMailOwner)
     }
 
     @Test

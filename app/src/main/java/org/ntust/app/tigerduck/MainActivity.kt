@@ -565,7 +565,7 @@ class MainActivity : AppCompatActivity() {
     private fun reopenHeldMail() {
         lifecycleScope.launch {
             // The account's address and the kept mail are reads of the disk.
-            val route = withContext(Dispatchers.IO) { heldMailRoute(heldSends, mailAccount.ownAddress) } ?: return@launch
+            val route = withContext(Dispatchers.IO) { heldMailRoute(heldSends, mailAccount.heldMailOwner) } ?: return@launch
             if (widgetStartRoute.value == null) widgetStartRoute.value = route
         }
     }
