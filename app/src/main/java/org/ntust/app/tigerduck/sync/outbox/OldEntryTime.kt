@@ -4,6 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.di.IoDispatcher
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,12 +28,13 @@ import javax.inject.Singleton
 @Singleton
 class OldEntryTime internal constructor(
     private val prefs: SharedPreferences,
+    private val io: CoroutineDispatcher = Dispatchers.IO,
     private val wallClock: () -> Long,
 ) {
     /** Built as the process starts, as `TigerDuckApp`'s field, so the first run is recorded before anything writes a queue. */
     @Inject
-    constructor(@ApplicationContext context: Context) :
-        this(context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE), System::currentTimeMillis) {
+    constructor(@ApplicationContext context: Context, @IoDispatcher io: CoroutineDispatcher) :
+        this(context.getSharedPreferences(PREFS_FILE, Context.MODE_PRIVATE), io, System::currentTimeMillis) {
         recordFirstRun()
     }
 
@@ -48,7 +53,11 @@ class OldEntryTime internal constructor(
     val firstRunMs: Long?
         get() = synchronized(lock) { knownOrStored() }
 
-    /** Records now as this build's first run, unless one is recorded; on disk before it returns, or owed. */
+    /**
+     * Records now as this build's first run, unless one is recorded; on disk before it returns, or
+     * owed. On the caller's thread: it runs once, as the process starts, before anything can write a
+     * queue, and that order counts for more than the thread.
+     */
     internal fun recordFirstRun() {
         synchronized(lock) {
             if (knownOrStored() == null) {
@@ -62,17 +71,18 @@ class OldEntryTime internal constructor(
     /**
      * The old-entry time of an entry in [file], read before this build writes it; null [file] for a
      * store whose time is not the entries' own, as a preferences file other edits write, where only
-     * the first run counts.
+     * the first run counts. The file's time and a first run still owed to the disk are disk work, done
+     * on [io]: a queue reads this as a tap or a page's load reads it, on the main thread.
      */
-    fun oldEntryTimeMs(file: File?): Long {
+    suspend fun oldEntryTimeMs(file: File?): Long = withContext(io) {
         val fileMs = file?.lastModified()?.takeIf { it > 0 }
         val firstRun = synchronized(lock) {
             payDisk()
             knownOrStored()
         }
-        val earliest = listOfNotNull(fileMs, firstRun).minOrNull() ?: return 0L
+        val earliest = listOfNotNull(fileMs, firstRun).minOrNull() ?: return@withContext 0L
         // A clock set ahead when either was written must not put an old edit after a new one.
-        return minOf(earliest, wallClock())
+        minOf(earliest, wallClock())
     }
 
     // Under lock.

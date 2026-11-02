@@ -104,5 +104,5 @@ class InMemoryAttempts<E>(private val field: (E) -> String) : AttemptBook<E> {
 class UntimedEntries<E>(
     val timeOf: (E) -> Long?,
     val withTime: (E, Long) -> E,
-    val oldEntryTimeMs: () -> Long,
+    val oldEntryTimeMs: suspend () -> Long,
 )

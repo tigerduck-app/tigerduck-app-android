@@ -1,7 +1,10 @@
 package org.ntust.app.tigerduck.sync.outbox
 
 import android.content.SharedPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -15,6 +18,7 @@ import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
+import java.util.concurrent.Executors
 
 /**
  * The old-entry time (X1): an edit an older build queued with no time is given the earliest moment
@@ -25,7 +29,8 @@ class OldEntryTimeTest {
 
     private val prefs = JvmContext().getSharedPreferences("tigerduck_outbox", 0)
     private var now = 5_000L
-    private val times = OldEntryTime(prefs) { now }
+    // Inline, so a test's virtual time sees every step; the test below of where the disk work runs gives its own.
+    private val times = OldEntryTime(prefs, Dispatchers.Unconfined) { now }
     private val file: File = File.createTempFile("unsent_marks", ".json")
     private val series = SignInSeries()
 
@@ -201,14 +206,17 @@ class OldEntryTimeTest {
         assertEquals(5_000L, nextProcess.firstRunMs)
     }
 
-    /** [real], with a disk that refuses the next [failures] commits, writing nothing for them. */
+    /** [real], with a disk that refuses the next [failures] commits, writing nothing for them; [committedOn] names each commit's thread. */
     private class FullDisk(private val real: SharedPreferences, var failures: Int) : SharedPreferences by real {
+        val committedOn = mutableListOf<String>()
+
         override fun edit(): SharedPreferences.Editor {
             val edit = real.edit()
             return object : SharedPreferences.Editor by edit {
                 override fun putLong(key: String?, value: Long): SharedPreferences.Editor = apply { edit.putLong(key, value) }
 
                 override fun commit(): Boolean {
+                    committedOn += threadName()
                     if (failures == 0) return edit.commit()
                     failures--
                     return false
@@ -226,7 +234,7 @@ class OldEntryTimeTest {
         assertNull("not on disk yet", OldEntryTime(prefs) { now }.firstRunMs)
 
         now = 7_000
-        assertEquals(5_000L, times.oldEntryTimeMs(null))
+        assertEquals(5_000L, runBlocking { times.oldEntryTimeMs(null) })
         assertNull("the disk refused it again", OldEntryTime(prefs) { now }.firstRunMs)
         times.recordFirstRun()
 
@@ -235,13 +243,41 @@ class OldEntryTimeTest {
         val nextProcess = OldEntryTime(prefs) { now }
         nextProcess.recordFirstRun()
         assertEquals(5_000L, nextProcess.firstRunMs)
-        assertEquals(5_000L, nextProcess.oldEntryTimeMs(null))
+        assertEquals(5_000L, runBlocking { nextProcess.oldEntryTimeMs(null) })
+    }
+
+    @Test
+    fun `the owed write and the file's time are done off the caller's thread`() {
+        val io = Executors.newSingleThreadExecutor { Thread(it, "outbox-test-io") }.asCoroutineDispatcher()
+        try {
+            val disk = FullDisk(prefs, failures = 1)
+            val times = OldEntryTime(disk, io) { now }
+            // At the process's start, on the caller's thread, before anything writes a queue; the disk refuses it.
+            times.recordFirstRun()
+            disk.committedOn.clear()
+            file.setLastModified(1_000)
+            val readOn = mutableListOf<String>()
+            val queueFile = object : File(file.path) {
+                override fun lastModified(): Long {
+                    readOn += threadName()
+                    return super.lastModified()
+                }
+            }
+
+            assertEquals(1_000L, runBlocking { times.oldEntryTimeMs(queueFile) })
+
+            assertEquals("the owed write", listOf("outbox-test-io"), disk.committedOn)
+            assertEquals("the file's time", listOf("outbox-test-io"), readOn)
+            assertEquals("and it landed", 5_000L, OldEntryTime(prefs) { now }.firstRunMs)
+        } finally {
+            io.close()
+        }
     }
 
     @Test
     fun `built as the app builds it, it has recorded the first run`() {
         val before = System.currentTimeMillis()
-        val built = OldEntryTime(JvmContext())
+        val built = OldEntryTime(JvmContext(), Dispatchers.Unconfined)
 
         val recorded = built.firstRunMs
         assertTrue("$recorded", recorded != null && recorded in before..System.currentTimeMillis())
@@ -264,6 +300,9 @@ class OldEntryTimeTest {
         times.recordFirstRun()
         now = 3_000
 
-        assertEquals(3_000L, times.oldEntryTimeMs(file))
+        assertEquals(3_000L, runBlocking { times.oldEntryTimeMs(file) })
     }
 }
+
+/** The thread this runs on, without the coroutine a debug build names after it. */
+private fun threadName(): String = Thread.currentThread().name.substringBefore(" @coroutine")
