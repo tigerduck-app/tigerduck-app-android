@@ -1,10 +1,14 @@
 package org.ntust.app.tigerduck.ui.screen.announcements
 
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,17 +18,24 @@ import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.BulletinRepository
 import org.ntust.app.tigerduck.network.BulletinApiClient
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.notification.SystemPermissions
+import org.ntust.app.tigerduck.shared.account.SignIn
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 /**
  * Drives SubscriptionSettingsScreen.
  *
  * Behaviour mirrors iOS BulletinNotificationSettingsView:
- *  - Rules are saved immediately on each upsert / delete / toggle via v3
- *    CRUD endpoints (POST, PATCH, DELETE on /bulletin-subscriptions).
+ *  - Rules are saved immediately on each upsert / delete / toggle. On `/v3`
+ *    each edit is its own request to its rule (POST, PATCH, DELETE on
+ *    /bulletin-subscriptions). On `/v4`, which has no per-rule route, the
+ *    edit shows at once and the whole list goes in one PUT, each rule by the
+ *    `client_id` this device made for it, one save at a time
+ *    ([SubscriptionListSaves]).
  *  - The "default seed" path applies a starter rule from the taxonomy's
  *    `default_tags` when the rule list is empty and the user explicitly opts
  *    in. iOS uses the same `seedDefault(from:)` shape.
@@ -38,6 +49,12 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val repository: BulletinRepository,
     val systemPermissions: SystemPermissions,
     private val session: AccountSession,
+    /**
+     * The app's `/v4` saves of the list, which outlive the page. The default is one of its own,
+     * for tests that are not about it.
+     */
+    private val listSaves: SubscriptionListSaves =
+        SubscriptionListSaves(api, CoroutineScope(SupervisorJob() + Dispatchers.Default)),
 ) : ViewModel() {
 
     @OptIn(StartsAccountWork::class)
@@ -66,8 +83,35 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
+    /**
+     * The sign-in whose rules the page shows: the one its last load was read under, null until one
+     * lands. An edit of them goes under it, and an answer lands only while it stands. The sign-out
+     * closes the page only once it is on top, so one kept on another tab's back stack shows the
+     * departed student's rules: none of them may go with the next student's session, and no
+     * answer to a save of theirs may touch the page, which may show the next student's by then.
+     */
+    private var shownFor: SignIn? = null
+
+    /** The API the rules on the page were read from, which decides how an edit of them is saved. */
+    private var shownApi = BackendApi.V3
+
+    /**
+     * What the page has done with its requests, counted on its thread for tests: an answer is read
+     * on another thread and handled on the page's a moment later, so a test waits on these, not on
+     * time. Nothing in the app reads them. The `/v4` saves count their own ([SubscriptionListSaves]).
+     */
+    @VisibleForTesting
+    internal class Probe {
+        /** Answers to the page's reads and `/v3` saves handled, refusals too, whether they landed or not. */
+        val answersHandled = AtomicInteger()
+    }
+
+    @VisibleForTesting
+    internal val probe = Probe()
+
     init {
         viewModelScope.launch { fetchTaxonomy() }
+        viewModelScope.launch { listSaves.ledger.collect(::mirror) }
         load()
     }
 
@@ -83,51 +127,58 @@ class SubscriptionSettingsViewModel @Inject constructor(
     fun load() {
         loadJob?.cancel()
         val signIn = signInNow()
+        val speaks = api.subscriptionsApi()
+        // A read that answers after a save has settled may predate that save's answer.
+        val readAt = listSaves.settled(signIn)
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
                 val response = api.fetchSubscriptions(signIn)
-                _state.update {
-                    it.copy(rules = response.items, loadState = LoadState.Loaded)
+                // The list's PUT keeps each rule by its client_id, so every rule on the page has one.
+                val rules = if (speaks == BackendApi.V4) response.items.map { it.withClientId() } else response.items
+                land(signIn) {
+                    shownFor = signIn
+                    shownApi = speaks
+                    if (speaks == BackendApi.V4) {
+                        // What the page shows, and how the saves stand, are the app's saves' ledger.
+                        val ledger = listSaves.loaded(signIn, rules, readAt)
+                        _state.update { it.copy(rules = ledger.rules, loadState = LoadState.Loaded, saveState = ledger.save) }
+                    } else {
+                        _state.update { it.copy(rules = rules, loadState = LoadState.Loaded) }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
             }
+            probe.answersHandled.incrementAndGet()
         }
     }
 
     /**
-     * Upsert a rule: POST if new (no id), PATCH if existing.
-     * Replaces [replacingIndex] in the local list on success.
+     * Upsert a rule: POST if new (no id), PATCH if existing. An existing rule replaces the one its
+     * ids name, wherever it stands by then ([replacingRule]); [replacingIndex], where the editor
+     * found it, is only where one gone goes back. A new rule takes [replacingIndex], or the end.
      */
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
-        val signIn = signInNow()
-        viewModelScope.launch {
-            _state.update { it.copy(saveState = SaveState.Saving) }
-            try {
-                val saved = if (rule.id == null) {
-                    api.createSubscription(rule, signIn)
+        val signIn = editing() ?: return
+        if (shownApi == BackendApi.V4) return editList(signIn) { it.replacingRule(rule.withClientId(), replacingIndex) }
+        sendEdit(
+            signIn,
+            send = {
+                if (rule.id == null) api.createSubscription(rule, signIn) else api.updateSubscription(rule.id, rule, signIn)
+            },
+            saved = { s, saved ->
+                val rules = if (rule.id == null) {
+                    s.rules.upserting(saved, replacingIndex)
                 } else {
-                    api.updateSubscription(rule.id, rule, signIn)
+                    s.rules.replacingRule(saved, replacingIndex)
                 }
-                _state.update { s ->
-                    val rules = s.rules.toMutableList()
-                    if (replacingIndex != null && replacingIndex in rules.indices) {
-                        rules[replacingIndex] = saved
-                    } else {
-                        rules += saved
-                    }
-                    s.copy(rules = rules, saveState = SaveState.Saved)
-                }
-            } catch (e: CancellationException) {
-                _state.update { it.copy(saveState = SaveState.Idle) }
-                throw e
-            } catch (e: Exception) {
-                _state.update { it.copy(saveState = SaveState.Failed(e.message ?: "error")) }
-            }
-        }
+                s.copy(rules = rules, saveState = SaveState.Saved)
+            },
+            failed = { s, e -> s.copy(saveState = SaveState.Failed(e.message ?: "error")) },
+        )
     }
 
     /**
@@ -135,28 +186,116 @@ class SubscriptionSettingsViewModel @Inject constructor(
      * persisted, so remove it locally without a network call.
      */
     fun deleteRule(index: Int) {
+        val signIn = editing() ?: return
         val s = _state.value
         if (index !in s.rules.indices) return
+        if (shownApi == BackendApi.V4) return editList(signIn) { it.removing(index) }
         val rule = s.rules[index]
-        _state.update { it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) }) }
+        _state.update { it.copy(rules = it.rules.removing(index)) }
         val id = rule.id ?: return
-        val signIn = signInNow()
+        sendEdit(
+            signIn,
+            send = { api.deleteSubscription(id, signIn) },
+            saved = { s2, _ -> s2.copy(saveState = SaveState.Saved) },
+            // Re-insert the rule on failure so the user can retry.
+            failed = { s2, e ->
+                val restored = s2.rules.toMutableList().also { it.add(index.coerceAtMost(it.size), rule) }
+                s2.copy(rules = restored, saveState = SaveState.Failed(e.message ?: "error"))
+            },
+        )
+    }
+
+    /**
+     * Deletes [rule], the editor's, wherever it stands now: named by its ids, as a refusal may have
+     * put a rule back before it since the editor opened. One gone already has nothing to delete.
+     */
+    fun deleteRule(rule: SubscriptionRule) {
+        val at = _state.value.rules.indexOfFirst { it.isSameRuleAs(rule) }
+        if (at >= 0) deleteRule(at)
+    }
+
+    /**
+     * Sends one `/v3` edit, [send], made under [signIn], and puts its answer on the page while that
+     * sign-in stands ([answered]): [saved] with what the backend kept, or [failed] with why it
+     * refused. Saving until then, and idle again if the page goes first.
+     */
+    private fun <T> sendEdit(
+        signIn: SignIn,
+        send: suspend () -> T,
+        saved: (State, T) -> State,
+        failed: (State, Exception) -> State,
+    ) {
         viewModelScope.launch {
             _state.update { it.copy(saveState = SaveState.Saving) }
-            try {
-                api.deleteSubscription(id, signIn)
-                _state.update { it.copy(saveState = SaveState.Saved) }
+            val kept = try {
+                send()
             } catch (e: CancellationException) {
                 _state.update { it.copy(saveState = SaveState.Idle) }
                 throw e
             } catch (e: Exception) {
-                // Re-insert the rule on failure so the user can retry.
-                _state.update { s2 ->
-                    val restored = s2.rules.toMutableList().also { it.add(index.coerceAtMost(it.size), rule) }
-                    s2.copy(rules = restored, saveState = SaveState.Failed(e.message ?: "error"))
-                }
+                answered(signIn) { _state.update { failed(it, e) } }
+                return@launch
             }
+            answered(signIn) { _state.update { saved(it, kept) } }
         }
+    }
+
+    /** `/v4`: [edit] of the list on the page, shown at once and saved by the app's saves. */
+    private fun editList(signIn: SignIn, edit: (List<SubscriptionRule>) -> List<SubscriptionRule>) {
+        val ledger = listSaves.edit(signIn, edit(_state.value.rules))
+        _state.update { it.copy(rules = ledger.rules, saveState = ledger.save) }
+    }
+
+    /**
+     * `/v4`: shows the app's saves' ledger whenever it moves, while it is the ledger of the
+     * sign-in whose rules the page shows: an answer or a refusal, landed while the page was open
+     * or, for a page opened again, before.
+     */
+    private fun mirror(ledger: SubscriptionListSaves.Ledger?) {
+        if (ledger == null || shownApi != BackendApi.V4 || ledger.signIn !== shownFor) return
+        _state.update { it.copy(rules = ledger.rules, saveState = ledger.save) }
+    }
+
+    /**
+     * The sign-in an edit of the rules on the page goes under: the one they were read under. Null
+     * while none has landed, and once that sign-in has ended, which starts the page over.
+     */
+    private fun editing(): SignIn? {
+        val signIn = shownFor ?: return null
+        if (signIn.isCurrent) return signIn
+        startOver()
+        return null
+    }
+
+    /**
+     * Puts the answer to a read of [signIn]'s on the page with [write], unless that sign-in has
+     * ended: in one step with the sign-out's end ([SignIn.ifCurrent]), so a sign-out either comes
+     * after the write or finds the page reading again under the sign-in that stands. No read of
+     * another sign-in's is out by then: each read cancels the one before.
+     */
+    private fun land(signIn: SignIn, write: () -> Unit) {
+        if (signIn.ifCurrent(write) == null) startOver()
+    }
+
+    /**
+     * Puts the answer to a `/v3` save of [signIn]'s on the page with [write] while that sign-in
+     * stands, in one step with the sign-out's end. Past it the answer touches nothing, nor starts
+     * the page over: it may show the next student's rules by then. `/v4`'s do the same.
+     */
+    private fun answered(signIn: SignIn, write: () -> Unit) {
+        signIn.ifCurrent(write)
+        probe.answersHandled.incrementAndGet()
+    }
+
+    /**
+     * Drops the rules of a sign-in that has ended, and reads the rules again under the sign-in that
+     * stands. With none, the read fails, and the page offers to try again. No edit is made of the
+     * emptied list, so no save sends it: a save carries the list its edit left.
+     */
+    private fun startOver() {
+        shownFor = null
+        _state.update { it.copy(rules = emptyList(), saveState = SaveState.Idle) }
+        load()
     }
 
     /**
@@ -170,8 +309,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
     private val editGeneration = mutableMapOf<Int, Int>()
 
     fun toggleEnabled(index: Int) {
+        val signIn = editing() ?: return
         val before = _state.value
         if (index !in before.rules.indices) return
+        if (shownApi == BackendApi.V4) return editList(signIn) { it.toggling(index) }
         val previous = before.rules[index]
         val toggled = previous.copy(enabled = !previous.enabled)
 
@@ -191,36 +332,28 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val generation = (editGeneration[id] ?: 0) + 1
         editGeneration[id] = generation
 
-        val signIn = signInNow()
-        viewModelScope.launch {
-            _state.update { it.copy(saveState = SaveState.Saving) }
-            try {
-                val saved = api.updateSubscription(id, toggled, signIn)
-                // A newer tap is already in flight; its response is the one
-                // that should win, so drop this echo instead of overwriting.
-                if (editGeneration[id] != generation) return@launch
-                _state.update { st -> st.copy(rules = st.replacing(id, saved), saveState = SaveState.Saved) }
-            } catch (e: CancellationException) {
-                _state.update { it.copy(saveState = SaveState.Idle) }
-                throw e
-            } catch (e: Exception) {
-                if (editGeneration[id] != generation) return@launch
+        sendEdit(
+            signIn,
+            send = { api.updateSubscription(id, toggled, signIn) },
+            // A newer tap is already in flight; its response is the one
+            // that should win, so drop this echo instead of overwriting.
+            saved = { st, saved ->
+                if (editGeneration[id] != generation) {
+                    st
+                } else {
+                    st.copy(rules = st.rules.replacingId(id, saved), saveState = SaveState.Saved)
+                }
+            },
+            failed = { st, e ->
                 // Put back what the server last agreed to, so the switch does
                 // not sit on a state that was never persisted.
-                _state.update { st ->
-                    st.copy(
-                        rules = st.replacing(id, previous),
-                        saveState = SaveState.Failed(e.message ?: "error"),
-                    )
+                if (editGeneration[id] != generation) {
+                    st
+                } else {
+                    st.copy(rules = st.rules.replacingId(id, previous), saveState = SaveState.Failed(e.message ?: "error"))
                 }
-            }
-        }
-    }
-
-    private fun State.replacing(id: Int, rule: SubscriptionRule): List<SubscriptionRule> {
-        val at = rules.indexOfFirst { it.id == id }
-        if (at < 0) return rules
-        return rules.toMutableList().also { it[at] = rule }
+            },
+        )
     }
 
     /**
@@ -231,19 +364,13 @@ class SubscriptionSettingsViewModel @Inject constructor(
     fun applyDefaultRules() {
         val s = _state.value
         if (s.rules.isNotEmpty()) return
-        val tax = s.taxonomy ?: return
-        if (tax.defaultTags.isEmpty()) return
-        val seeded = SubscriptionRule(
-            name = null,
-            orgs = emptyList(),
-            tags = tax.defaultTags,
-            mode = "OR",
-            enabled = true,
-        )
-        upsertRule(seeded, replacingIndex = null)
+        upsertRule(s.taxonomy?.defaultRule() ?: return, replacingIndex = null)
     }
 
     fun clearSaveState() {
         _state.update { it.copy(saveState = SaveState.Idle) }
+        // The app's saves keep how the last one went for a page opened again; this one showed it.
+        if (shownApi == BackendApi.V4) shownFor?.let(listSaves::outcomeSeen)
     }
 }
+
