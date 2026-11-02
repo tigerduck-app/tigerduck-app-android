@@ -286,7 +286,9 @@ internal sealed interface ChangeFeedPlan {
  * rather than fetch it a second time, as on a return, when the poll and Home's
  * own sync start together, and so does one, or a sign-out, that overtakes the
  * feed's read. One that did not move the watermark failed, and backs off like
- * any other failure instead of being retried every 10 seconds.
+ * any other failure instead of being retried every 10 seconds. A 401 that
+ * outlives the poll's sign-in was the last student's: it starts no relogin and
+ * stops no polling for the one here now.
  */
 internal suspend fun pollRevisionOnce(
     syncEnabled: () -> Boolean,
@@ -338,7 +340,11 @@ internal suspend fun pollRevisionOnce(
         throw e
     } catch (e: PushApiException) {
         Log.w(TAG, "[poll] failed: ${e.logSummary()}")
-        if (e.statusCode == 401) RevisionPollOutcome.UNAUTHORIZED else RevisionPollOutcome.FAILED
+        when {
+            e.statusCode != 401 -> RevisionPollOutcome.FAILED
+            startedIn.isCurrent -> RevisionPollOutcome.UNAUTHORIZED
+            else -> RevisionPollOutcome.UNCHANGED
+        }
     } catch (e: Exception) {
         Log.w(TAG, "[poll] failed: ${e.logSummary()}")
         RevisionPollOutcome.FAILED

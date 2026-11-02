@@ -484,6 +484,16 @@ class PollRevisionOnceTest {
     }
 
     @Test
+    fun `a 401 that outlives the poll's sign-in says nothing of the one here now`() = kotlinx.coroutines.test.runTest {
+        serverRevision = {
+            signOutAndBackIn()
+            throw org.ntust.app.tigerduck.push.PushApiException("HTTP 401", 401)
+        }
+
+        assertEquals(UNCHANGED, poll())
+    }
+
+    @Test
     fun `changes to assignments and bulletins alone move the watermark once what waits is sent, with no full sync`() =
         kotlinx.coroutines.test.runTest {
             serverRevision = { 7L }

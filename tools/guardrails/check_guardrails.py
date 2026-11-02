@@ -126,6 +126,7 @@ SIGN_IN_HOMES = re.compile(
     r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
 BEARER_HOMES = re.compile(r"(?:auth/AuthTokenManager\.kt$|auth/SessionHostGuard\.kt$)")
 BEARER_LITERAL = '"Bearer '
+UNREGISTER_BEARER = 'removeDevice("Bearer '
 # Kinds that are counts of lines and, apart from these, take no baseline entry
 # the flag cannot record.
 INTRODUCIBLE = ("account-counter", "demo-check")
@@ -614,9 +615,9 @@ def scan(root):
             line.count('"fdroid"') for line in kept.split("\n")
             if not (rel == PREFERENCES and "BuildConfig" in line)))
         if not in_home(rel, BEARER_HOMES):
-            bearers = sum(1 for line in kept.split("\n") if BEARER_LITERAL in line)
-            # One line there: the unregister, which holds its session and no sign-in.
-            add(rel, "bearer-home", bearers - 1 if rel == PUSH_API else bearers)
+            # One call there: the unregister, which holds its session and no sign-in.
+            rest = kept.replace(UNREGISTER_BEARER, "", 1) if rel == PUSH_API else kept
+            add(rel, "bearer-home", rest.count(BEARER_LITERAL))
     return found
 
 

@@ -593,11 +593,16 @@ class GuardrailsTest(unittest.TestCase):
     def test_bearer_home_holds_the_literal_to_its_homes_and_takes_no_baseline(self):
         self.write(APP + "auth/AuthTokenManager.kt", 'fun h() = "Bearer $access"\n')
         self.write(APP + "auth/SessionHostGuard.kt", 'const val BEARER = "Bearer "\n')
-        self.write(APP + "push/PushApiClient.kt", 'val u = remove("Bearer $accessToken")\n')
+        self.write(APP + "push/PushApiClient.kt", 'val u = removeDevice("Bearer $accessToken", id)\n')
         self.write(APP + "push/SyncApiClient.kt", '// Takes the "Bearer " header.\nval n = 1\n')
         self.assertEqual(self.counts("bearer-home"), {})
-        # The unregister is one line of that file, not the file.
-        self.write(APP + "push/PushApiClient.kt", 'val u = remove("Bearer $accessToken")\nval v = patch("Bearer $t")\n')
+        # The unregister is one call of that file, not the file: another request counts alone,
+        # or on the same line.
+        self.write(APP + "push/PushApiClient.kt", 'val v = patch("Bearer $t")\n')
+        self.assertEqual(self.counts("bearer-home"), {APP + "push/PushApiClient.kt": 1})
+        self.write(APP + "push/PushApiClient.kt", 'val v = patch("Bearer $t", "Bearer $u")\n')
+        self.assertEqual(self.counts("bearer-home"), {APP + "push/PushApiClient.kt": 2})
+        self.write(APP + "push/PushApiClient.kt", 'val u = removeDevice("Bearer $accessToken", id)\nval v = patch("Bearer $t")\n')
         self.write(APP + "network/BulletinApiClient.kt", 'val h = "Bearer " + token\n')
         self.assertEqual(self.counts("bearer-home"),
                          {APP + "push/PushApiClient.kt": 1, APP + "network/BulletinApiClient.kt": 1})
