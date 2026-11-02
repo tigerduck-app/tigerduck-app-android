@@ -165,7 +165,7 @@ class AccountSessionTest {
         latch = InMemoryStoredPasswordLatch(),
         leaveStoredAccount = {},
         isDemoAccount = { _, _ -> false },
-        enterDemo = {},
+        enterDemo = { true },
         accountChanging = {},
         markSignedIn = { signIn -> signIn.isCurrent.also { if (it) shown = true } },
     )

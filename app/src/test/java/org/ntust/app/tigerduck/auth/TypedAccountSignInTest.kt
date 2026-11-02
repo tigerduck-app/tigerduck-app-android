@@ -120,9 +120,10 @@ class TypedAccountSignInTest {
             onLeave()
         },
         isDemoAccount = { _, password -> password == DEMO_PASSWORD },
-        enterDemo = {
+        enterDemo = { from ->
             steps += "demo"
             onDemo()
+            from.isCurrent
         },
         accountChanging = { steps += "owed" },
         markSignedIn = { signIn ->
@@ -389,6 +390,16 @@ class TypedAccountSignInTest {
         assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, outcome)
         assertEquals(null, stored)
         assertFalse(signedIn)
+    }
+
+    @Test
+    fun `a sign-out that ended the sign-in before the demo went on stores nothing and shows nothing`() = runTest {
+        onDemo = { signOut() }
+
+        val outcome = signIn(password = DEMO_PASSWORD)
+
+        assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, outcome)
+        assertEquals(listOf("owed", "demo"), steps)
     }
 
     private fun answer(request: Request): Response {

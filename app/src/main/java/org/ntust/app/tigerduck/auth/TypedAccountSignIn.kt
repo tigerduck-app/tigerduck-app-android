@@ -57,8 +57,8 @@ internal class TypedAccountSignIn(
     private val leaveStoredAccount: suspend () -> Unit,
     /** Whether these are the demo account's credentials. Reads the bundled file and nothing else. */
     private val isDemoAccount: (studentId: String, password: String) -> Boolean,
-    /** Signs the demo account in on the device. */
-    private val enterDemo: suspend () -> Unit,
+    /** Signs the demo account in on the device, unless the [SignIn] has ended; says whether it did. */
+    private val enterDemo: suspend (SignIn) -> Boolean,
     /**
      * Writes, before anything of the new account reaches disk, what a process death right after
      * must not lose: the in-app browser's clearing, which the account change then owes.
@@ -109,7 +109,7 @@ internal class TypedAccountSignIn(
             overStoredAccount()
             // Demo mode is on disk once it goes on.
             accountChanging()
-            enterDemo()
+            if (!enterDemo(started)) return Outcome.NOT_SIGNED_IN
             if (!unlessSignedOutSince(started) { storeAccount(studentId, password) }) {
                 return Outcome.NOT_SIGNED_IN
             }

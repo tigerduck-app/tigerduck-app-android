@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.MoodleCourseIds
 import org.ntust.app.tigerduck.network.moodle.MoodleCourseApi
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.util.logSummary
@@ -102,18 +103,23 @@ class DemoAccount @Inject constructor(
     }
 
     /**
-     * Switch to the demo account. Demo mode goes on first, so nothing that
-     * starts after this can reach a server and overwrite the data written
-     * next.
+     * Switch to the demo account, unless a sign-out has ended [from], the sign-in this one started
+     * in; says whether it did. Demo mode goes on first, so nothing that starts after this can
+     * reach a server and overwrite the data written next. All that the demo's sign-out takes away
+     * goes on in one step against that sign-out's end of [from]: it came first, and nothing is
+     * left behind it, or it clears all of this after.
      */
-    suspend fun enter() {
-        val fixture = load(currentLang()) ?: return
-        store.demoMode = true
-        store.studentIdOverride = fixture.studentId
-        store.libraryQrContent = fixture.libraryQrContent
-        store.libraryFakeSignedIn = fixture.libraryFakeSignedIn
-        ServerStatusTracker.enterDemoMode()
+    suspend fun enter(from: SignIn): Boolean {
+        val fixture = load(currentLang()) ?: return true
+        from.ifCurrent {
+            store.demoMode = true
+            store.studentIdOverride = fixture.studentId
+            store.libraryQrContent = fixture.libraryQrContent
+            store.libraryFakeSignedIn = fixture.libraryFakeSignedIn
+            ServerStatusTracker.enterDemoMode()
+        } ?: return false
         write(fixture)
+        return true
     }
 
     /**

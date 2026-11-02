@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.demo
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.work.testing.WorkManagerTestInitHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -16,6 +17,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -29,6 +31,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.concurrent.thread
 
 /**
  * Who sees the demo, and from when to when: the real [org.ntust.app.tigerduck.auth.AuthService]
@@ -165,7 +169,68 @@ class DemoSessionTest {
         assertEquals(null, world.fixtures.studentIdOverride)
     }
 
+    /**
+     * Runs [action] once, as [key] of the preferences [file] is written, inside that write: the
+     * listeners of a write on the main thread, which this test is, run in it. What [action] does
+     * may write the same file again.
+     */
+    private fun onceAsWritten(file: String, key: String, action: () -> Unit): SharedPreferences.OnSharedPreferenceChangeListener {
+        val fired = AtomicBoolean()
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changed ->
+            if (changed == key && fired.compareAndSet(false, true)) action()
+        }
+        context.getSharedPreferences(file, Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(listener)
+        return listener
+    }
+
+    @Test
+    fun `a sign-out landing just before the demo goes on leaves no demo behind`() = runBlocking {
+        val world = world()
+        // The step right before the demo goes on: what the account change owes the browser.
+        val hold = onceAsWritten(BROWSER_PREFS, BROWSER_KEY) { world.auth.logout() }
+
+        assertFalse(world.demoSignIn())
+        world.wipeDone()
+
+        assertFalse("every request would be refused, with nobody signed in", world.fixtures.demoMode)
+        assertFalse(world.sessions.school.isDemo)
+        assertFalse(world.auth.authState.value)
+        assertEquals(null, world.credentials.ntustStudentId)
+        assertEquals(null, world.fixtures.studentIdOverride)
+        assertFalse(world.fixtures.libraryFakeSignedIn)
+        assertEquals(emptyList<Any>(), world.dataCache.loadCourses())
+        assertNotNull(hold)
+    }
+
+    @Test
+    fun `a sign-out landing as the demo goes on leaves nothing of it`() = runBlocking {
+        val world = world()
+        // From a thread of its own, as the sign-in is in the step that holds a sign-out off: given
+        // a moment rather than waited for, so that with no such step it runs all the way here.
+        var signOut: Thread? = null
+        val hold = onceAsWritten(FIXTURE_PREFS, DEMO_MODE_KEY) {
+            signOut = thread { world.auth.logout() }.also { it.join(MOMENT_MS) }
+        }
+
+        world.demoSignIn()
+        signOut!!.join(WAIT_MS)
+        world.wipeDone()
+
+        assertFalse(world.fixtures.demoMode)
+        assertFalse(world.sessions.school.isDemo)
+        assertFalse(world.auth.authState.value)
+        assertEquals(null, world.credentials.ntustStudentId)
+        assertEquals("the demo student", null, world.fixtures.studentIdOverride)
+        assertEquals(emptyList<Any>(), world.dataCache.loadCourses())
+        assertNotNull(hold)
+    }
+
     private companion object {
         const val WAIT_MS = 10_000L
+        const val MOMENT_MS = 300L
+        const val FIXTURE_PREFS = "debug_fixture"
+        const val DEMO_MODE_KEY = "demo_mode"
+        const val BROWSER_PREFS = "tigerduck_browser_cleanup"
+        const val BROWSER_KEY = "request"
     }
 }
