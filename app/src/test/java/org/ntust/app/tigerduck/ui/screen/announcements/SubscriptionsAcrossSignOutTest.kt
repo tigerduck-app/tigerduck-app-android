@@ -223,6 +223,34 @@ class SubscriptionsAcrossSignOutTest {
         assertEquals(listOf("Scholarships" to false, "Lectures" to true), page.backend.held(FIRST))
     }
 
+    /**
+     * The departed student's save is still out when the next student, on the kept page, reads
+     * their rules, edits them and reads them again: their save waits behind the departed one's,
+     * and the read keeps their newest list.
+     */
+    @Test
+    fun `on v4 a read while the next student's save waits behind a departed one's keeps their newest list`() {
+        val vm = page.open(V4, "Scholarships")
+        val put = page.backend.hold(V4_SAVE)
+        page.onMain { vm.toggleEnabled(0) }
+        put.awaitArrival()
+        page.nextStudentSignsIn("Grants", "Talks")
+        page.onMain { vm.toggleEnabled(0) }
+        page.eventually("the page reads the second student's rules") {
+            vm.state.value.loadState == LoadState.Loaded && vm.shown() == listOf("Grants" to true, "Talks" to true)
+        }
+        page.onMain { vm.toggleEnabled(1) }
+
+        page.onMain { vm.load() }
+        // The first read, the second student's, and this one.
+        page.awaitAnswers(vm, 3)
+
+        assertEquals("the read keeps the newest list", listOf("Grants" to true, "Talks" to false), vm.shown())
+        put.release()
+        page.eventually("both saves are answered") { page.backend.events.count { it.startsWith("< $V4_SAVE") } == 2 }
+        assertEquals(listOf("Grants" to true, "Talks" to false), page.backend.held(SECOND))
+    }
+
     @Test
     fun `on v4 rules read across a sign-out never show`() {
         val read = page.backend.hold(V4_READ)

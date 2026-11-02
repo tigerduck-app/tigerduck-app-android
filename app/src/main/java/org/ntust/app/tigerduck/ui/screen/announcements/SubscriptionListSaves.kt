@@ -70,10 +70,11 @@ class SubscriptionListSaves @Inject constructor(
     /** A save of [rules], the list edit number [edit] left, under [signIn], the sign-in it was shown for. */
     private class Save(val signIn: SignIn, val rules: List<SubscriptionRule>, val edit: Int)
 
-    // Guards waiting and the ledger's writes. Taken inside a sign-in's lock (SignIn.ifCurrent),
-    // never around one.
+    // Guards waiting, out and the ledger's writes. Taken inside a sign-in's lock
+    // (SignIn.ifCurrent), never around one.
     private val lock = Any()
     private var waiting: Save? = null
+    private var out: Save? = null
     private val _ledger = MutableStateFlow<Ledger?>(null)
 
     /** The ledger of the sign-in last read or edited; a page shows it while it is its sign-in's. */
@@ -87,11 +88,19 @@ class SubscriptionListSaves @Inject constructor(
 
     /**
      * A read of [signIn]'s list answered [rules], the backend's: the ledger takes them as what the
-     * backend holds and as the list shown. A ledger of another sign-in, which has ended, gives way.
+     * backend holds. While a save of that sign-in is waiting or out, the list shown stays the
+     * newest the student made: the read may predate it, and an edit built on the read would drop
+     * what the waiting save holds. Once the saves have settled, the read is the list shown. A
+     * ledger of another sign-in, which has ended, gives way.
      */
     fun loaded(signIn: SignIn, rules: List<SubscriptionRule>): Ledger = synchronized(lock) {
         val held = _ledger.value?.takeIf { it.signIn === signIn }
-        val next = held?.copy(rules = rules, agreed = rules) ?: Ledger(signIn, rules, rules, SaveState.Idle, 0)
+        val saving = waiting?.signIn === signIn || out?.signIn === signIn
+        val next = when {
+            held == null -> Ledger(signIn, rules, rules, SaveState.Idle, 0)
+            saving -> held.copy(agreed = rules)
+            else -> held.copy(rules = rules, agreed = rules)
+        }
         next.also { _ledger.value = it }
     }
 
@@ -131,6 +140,7 @@ class SubscriptionListSaves @Inject constructor(
             probe.dropped.incrementAndGet()
             return null
         }
+        out = save
         save
     }
 
@@ -148,7 +158,15 @@ class SubscriptionListSaves @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
-        save.signIn.ifCurrent { synchronized(lock) { settle(save, answer) } }
+        // The save is no longer out once its answer lands, in the same step, so a read never
+        // finds it settled before its answer is on the ledger.
+        val landed = save.signIn.ifCurrent {
+            synchronized(lock) {
+                out = null
+                settle(save, answer)
+            }
+        }
+        if (landed == null) synchronized(lock) { out = null }
         probe.answersHandled.incrementAndGet()
     }
 

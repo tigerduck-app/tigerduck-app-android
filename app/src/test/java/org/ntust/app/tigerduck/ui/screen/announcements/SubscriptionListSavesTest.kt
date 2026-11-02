@@ -114,28 +114,6 @@ class SubscriptionListSavesTest {
     }
 
     /**
-     * A save sends the list its edit left, not the page's list when it goes: a read that lands
-     * while it waits shows the backend's list without that edit, and the edit must still go up.
-     */
-    @Test
-    fun `on v4 a waiting save sends its edit's list, whatever the page reads meanwhile`() {
-        val vm = page.open(V4, "Scholarships", "Lectures")
-        val first = page.backend.hold(PUT)
-        page.onMain { vm.toggleEnabled(0) }
-        first.awaitArrival()
-        page.onMain { vm.toggleEnabled(1) }
-
-        page.onMain { vm.load() }
-        page.awaitAnswers(vm, 2)
-        assertEquals("the read shows the backend's list", listOf("Scholarships" to true, "Lectures" to true), vm.shown())
-        first.release()
-        page.eventually("both saves are answered") { page.backend.events.count { it.startsWith("< $PUT") } == 2 }
-
-        assertEquals(listOf(listOf(false, true), listOf(false, false)), puts().map { put -> put.map { it.third } })
-        assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
-    }
-
-    /**
      * Off, then on and off again while the first save is out: the list is back to what that save
      * sent, but the student edited it since. The first save is refused, and the last edit, off,
      * stays on the page and goes up.
@@ -255,6 +233,73 @@ class SubscriptionListSavesTest {
         assertEquals(listOf("Scholarships" to true), again.shown())
         page.onMain { again.clearSaveState() }
         assertEquals(SaveState.Idle, page.reopen().state.value.saveState)
+    }
+
+    /**
+     * Both rules disabled, the first one's save still out and the second's waiting, and the page
+     * reads the list again before either lands: the backend still holds both enabled. The page
+     * keeps the newest list, so disabling the first rule again, as the editor's Done does with
+     * its switch off, keeps the second rule disabled too, and both go up disabled.
+     */
+    @Test
+    fun `a read while saves are out keeps the newest list on the page`() {
+        val vm = page.open(V4, "Scholarships", "Lectures")
+        val first = page.backend.hold(PUT)
+        page.onMain { vm.toggleEnabled(0) }
+        first.awaitArrival()
+        page.onMain { vm.toggleEnabled(1) }
+
+        page.onMain { vm.load() }
+        page.awaitAnswers(vm, 2)
+        assertEquals("the read keeps the newest list", listOf("Scholarships" to false, "Lectures" to false), vm.shown())
+        page.onMain { vm.upsertRule(vm.state.value.rules[0].copy(enabled = false), replacingIndex = 0) }
+        first.release()
+
+        page.eventually("both saves are answered") { page.backend.events.count { it.startsWith("< $PUT") } == 2 }
+        assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
+        page.eventually("the last save shows") { vm.state.value.saveState == SaveState.Saved }
+        assertEquals(listOf("Scholarships" to false, "Lectures" to false), vm.shown())
+    }
+
+    /**
+     * The backend's list changed since the page read it, as a save whose answer was lost leaves
+     * it, and the page reads it again while a save is out: the read is what the backend holds,
+     * so a refusal of that save puts it back, not the list of the read before.
+     */
+    @Test
+    fun `a refusal after a read while a save was out puts back what that read found`() {
+        val vm = page.open(V4, "Scholarships")
+        val first = page.backend.hold(PUT)
+        page.onMain { vm.toggleEnabled(0) }
+        first.awaitArrival()
+        page.backend.seed(FIRST, "Grants")
+
+        page.onMain { vm.load() }
+        page.awaitAnswers(vm, 2)
+        assertEquals("the read keeps the newest list", listOf("Scholarships" to false), vm.shown())
+        first.release(503 to "{}")
+        page.awaitSaves(1)
+
+        assertTrue("got ${vm.state.value.saveState}", vm.state.value.saveState is SaveState.Failed)
+        assertEquals(listOf("Scholarships" to true, "Grants" to true), vm.shown())
+    }
+
+    /** As above, through a page opened again while the first page's save is out. */
+    @Test
+    fun `a page opened again while a save is out shows that save's list`() {
+        val left = page.open(V4, "Scholarships", "Lectures")
+        val first = page.backend.hold(PUT)
+        page.onMain { left.toggleEnabled(0) }
+        first.awaitArrival()
+        page.close(left)
+
+        val again = page.reopen()
+
+        assertEquals("the page shows the list being saved", listOf("Scholarships" to false, "Lectures" to true), again.shown())
+        page.onMain { again.toggleEnabled(1) }
+        first.release()
+        page.eventually("both saves are answered") { page.backend.events.count { it.startsWith("< $PUT") } == 2 }
+        assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
     }
 
     private companion object {
