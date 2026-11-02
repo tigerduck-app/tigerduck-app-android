@@ -34,9 +34,9 @@ class SyncClock internal constructor(
     constructor(store: SyncClockStore, prefs: AppPreferences) :
         this(store, { BackendApi.of(resolveAnnouncementEndpoint(prefs).url) }, System::currentTimeMillis)
 
-    // A leaf: nothing under it takes another lock or calls out but to the store, so a write the
-    // store makes at once, under it, keeps the values in the order they were made and waits on
-    // nothing else.
+    // A leaf: nothing done under it takes another of the app's locks (restampAfterClockAhead reads
+    // the endpoint setting under it, which takes none), so a write the store makes at once, under
+    // it, keeps the values in the order they were made and waits on nothing else.
     private val lock = Any()
 
     // Under lock: what the store holds, read before this process's first stamp or hearing, and
@@ -49,9 +49,9 @@ class SyncClock internal constructor(
         BackendApi.V4 -> synchronized(lock) {
             val now = wallClock()
             val state = state()
-            // Past what the wall clock alone gives, a stamp must outlive a process death: the next
-            // launch, its wall clock still behind it, would stamp at or below it.
-            state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + 1) }
+            // Well past the wall clock, a stamp must outlive a process death: the next launch, its
+            // wall clock still behind it, would stamp at or below it.
+            state.stampMs(now).also { save(state.copy(lastIssuedMs = it), durable = it > now + SyncClockState.DURABLE_LEAD_MS) }
         }
     }
 
@@ -63,7 +63,7 @@ class SyncClock internal constructor(
             val state = state()
             val raised = serverClockUs > state.lastSeenUs
             val next = state.copy(lastSeenUs = maxOf(state.lastSeenUs, serverClockUs), heardUs = serverClockUs, heardAtMs = now)
-            save(next, durable = raised && next.lastSeenMs > now)
+            save(next, durable = raised && next.lastSeenUs > (now + SyncClockState.DURABLE_LEAD_MS) * 1_000)
         }
     }
 
@@ -76,7 +76,9 @@ class SyncClock internal constructor(
         synchronized(lock) {
             val now = wallClock()
             val state = state()
-            if (clockUs > state.lastSeenUs) state.copy(lastSeenUs = clockUs).let { save(it, durable = it.lastSeenMs > now) }
+            if (clockUs > state.lastSeenUs) {
+                save(state.copy(lastSeenUs = clockUs), durable = clockUs > (now + SyncClockState.DURABLE_LEAD_MS) * 1_000)
+            }
         }
     }
 
@@ -98,8 +100,9 @@ class SyncClock internal constructor(
     // Under lock.
     private fun state(): SyncClockState = known ?: store.load().also { known = it }
 
-    // Under lock, so the store's writes go in the order the values were made. A value ahead of
-    // the wall clock is [durable]: written before the clock goes on.
+    // Under lock, so the store's writes go in the order the values were made. A value more than
+    // [SyncClockState.DURABLE_LEAD_MS] ahead of the wall clock is [durable]: written before the
+    // clock goes on.
     private fun save(state: SyncClockState, durable: Boolean) {
         known = state
         store.save(state, durable)
@@ -141,8 +144,13 @@ internal data class SyncClockState(
         return maxOf(now, lastSeenMs, lastIssuedMs) + 1
     }
 
-    private companion object {
+    internal companion object {
         // The backend refuses a stamp later than its time plus five seconds (LWW D5).
         const val SKEW_ALLOWED_MS = 5_000L
+
+        // How far ahead of the wall clock a value must be to be written at once. A lost write
+        // matters only if the process dies and starts again within that lead, and a restart takes
+        // longer, so the wall clock alone passes a lost value nearer than this.
+        const val DURABLE_LEAD_MS = 1_000L
     }
 }

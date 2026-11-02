@@ -13,11 +13,12 @@ import javax.inject.Inject
  * heard or issued, which is a build before the clock's; so do values past any plausible time
  * ([isPlausibleClockUs]), which only a broken file holds.
  *
- * A write is [save]d with `commit()` when its value is ahead of the wall clock, and with `apply()`
- * otherwise. A lost write of a value behind the wall clock costs nothing: the next launch's wall
- * clock is already past it, unless the wall clock has gone back as well. One ahead of it, lost,
- * would let the next launch stamp at or below a stamp already issued, or below a backend time
- * already seen, which happens only while the backend's clock or the last stamp runs ahead.
+ * A write is [save]d with `commit()` when its value is more than
+ * [SyncClockState.DURABLE_LEAD_MS] ahead of the wall clock, and with `apply()` otherwise. A lost
+ * write of a value nearer than that costs nothing: by the next launch the wall clock is past it,
+ * unless the wall clock has gone back as well. One further ahead, lost, would let the next launch
+ * stamp at or below a stamp already issued, or below a backend time already seen, which happens
+ * only while the backend's clock or the last stamp runs that far ahead.
  */
 class SyncClockStore(private val prefs: SharedPreferences) {
     @Inject

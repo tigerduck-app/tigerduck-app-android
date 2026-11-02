@@ -78,6 +78,34 @@ class SyncClockDurabilityTest {
         assertEquals(1, launch.prefs.commits)
     }
 
+    @Test
+    fun `a backend a few milliseconds ahead costs no write at once`() {
+        val launch = Launch()
+        repeat(5) { response ->
+            now = T + response * 200L
+            launch.clock.heard(us(now + 50))
+            launch.clock.heardInSnapshot(us(now + 60))
+            launch.clock.stampMs()
+        }
+
+        assertEquals(0, launch.prefs.commits)
+    }
+
+    @Test
+    fun `a value just over a second ahead is written at once`() {
+        Launch().run {
+            clock.heard(us(T + 1_001))
+            assertEquals("the header", 1, prefs.commits)
+            assertEquals(T + 1_002, clock.stampMs())
+            assertEquals("the stamp", 2, prefs.commits)
+        }
+        disk.clear()
+        Launch().run {
+            clock.heardInSnapshot(us(T + 1_001))
+            assertEquals("the snapshot", 1, prefs.commits)
+        }
+    }
+
     private fun us(ms: Long) = ms * 1_000
 
     private companion object {
