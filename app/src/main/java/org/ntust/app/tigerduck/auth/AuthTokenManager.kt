@@ -15,7 +15,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.HttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -27,6 +26,7 @@ import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.BackendServices
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import org.ntust.app.tigerduck.network.canonicalBackend
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.OwedUnregister
@@ -135,11 +135,12 @@ class AuthTokenManager(
     val isLoggedIn: Boolean get() = tokens.refreshToken != null
 
     /**
-     * Whether this phone holds a session from [base]. Signing in moves the device to the account
-     * at that backend alone, so an unregister a sign-out owes another backend still stands.
+     * Whether this phone holds a session from [base], at any of its API versions. Signing in moves
+     * the device to the account at that backend alone, so an unregister a sign-out owes another
+     * backend still stands.
      */
     fun hasSessionAt(base: String): Boolean = synchronized(signInLock) {
-        tokens.refreshToken != null && storedIssuer() == canonicalBackend(base)
+        tokens.refreshToken != null && ApiBase.sameBackend(storedIssuer(), base)
     }
 
     // The access tokens this process stored or handed out, with the backend each came from, for
@@ -151,25 +152,24 @@ class AuthTokenManager(
     }
 
     // Under signInLock. A pair stored before its backend was recorded is the endpoint's, as
-    // departingSession takes it.
-    private fun storedIssuer(): String = tokens.issuedBy?.let(::canonicalBackend) ?: baseUrl
+    // departingSession takes it. Read at the API the app speaks: a pair `/v3` issued is `/v4`'s too.
+    private fun storedIssuer(): String = tokens.issuedBy?.let { ApiBase.of(canonicalBackend(it)) } ?: baseUrl
 
     // Under signInLock.
     private fun issued(access: String): String = access.also { issuers[it] = storedIssuer() }
 
     /**
-     * Whether [accessToken] may go to [url]: only to the backend that issued it, and an access
-     * token this phone never held nowhere. The backend clients' last check before a request
-     * leaves ([SessionHostGuard]), so a request that read its address and its header at different
-     * times, around a change of the API endpoint setting, still goes nowhere else.
+     * Whether [accessToken] may go to [url]: only to the backend that issued it, at either of its
+     * API versions ([ApiBase.serves]), and an access token this phone never held nowhere. The
+     * backend clients' last check before a request leaves ([SessionHostGuard]), so a request that
+     * read its address and its header at different times, around a change of the API endpoint
+     * setting, still goes nowhere else.
      */
     fun mayPresent(accessToken: String, url: HttpUrl): Boolean {
         val issuer = synchronized(signInLock) {
             issuers[accessToken] ?: storedIssuer().takeIf { tokens.accessToken == accessToken }
-        }?.toHttpUrlOrNull() ?: return false
-        if (url.scheme != issuer.scheme || url.host != issuer.host || url.port != issuer.port) return false
-        val path = issuer.encodedPath.trimEnd('/')
-        return url.encodedPath == path || url.encodedPath.startsWith("$path/")
+        } ?: return false
+        return ApiBase.serves(issuer, url)
     }
 
     /**
@@ -417,8 +417,8 @@ class AuthTokenManager(
             return DepartingRefresh.Unavailable
         }
         return withContext(Dispatchers.IO) {
-            // To the backend that issued the session, whatever the endpoint setting says now.
-            val base = departing.baseUrl
+            // To the backend that issued the session, at the API the app speaks, whatever the setting says.
+            val base = ApiBase.of(departing.baseUrl)
             val sends = maxOf(sendsWithoutReply, sendsWithoutReply(token))
             val outcome = takeUnstoredPair(token)
                 ?: if (sends >= MAX_REFRESH_TOKEN_SENDS) {

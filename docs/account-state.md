@@ -120,6 +120,7 @@ Scopes:
 | prefs | `tigerduck_permissions` | keys | |
 | prefs | `tigerduck_prefs` | keys | |
 | prefs | `tigerduck_sync` | school | `AppPreferences.kt` `forgetLegacyLastCourseSyncAt` |
+| prefs | `tigerduck_sync_clock` | keys | |
 | prefs | `tls_pin_acceptances` | keys | |
 | prefs | `wear_bridge_state` | keys | |
 
@@ -341,6 +342,10 @@ into `library_password_refusals` when it opens.
 | tigerduck_permissions | `declined_*` | device | |
 | tigerduck_permissions | `granted_*` | device | |
 | tigerduck_permissions | `muted_*` | device | |
+| tigerduck_sync_clock | `heardAtMs` | device | |
+| tigerduck_sync_clock | `heardUs` | device | |
+| tigerduck_sync_clock | `lastIssuedMs` | device | |
+| tigerduck_sync_clock | `lastSeenUs` | device | |
 | tls_pin_acceptances | `acceptances` | device | |
 | tls_pin_acceptances | `cancelledAt.*` | device | |
 | wear_bridge_state | `libraryCredentialEpoch` | device | |
@@ -352,6 +357,12 @@ alarm may still hold is handed out again. `stored_password_rejected` is the refu
 before the count; the latch takes it up into `stored_password_refusals` when it opens. A site's
 zoom and desktop choice go with the in-app browser's clearing (`BrowserDataCleaner.clear()`),
 which `AccountSessionEffects` runs after each sign-out and sign-in.
+
+`tigerduck_sync_clock` is TigerSync's clock (`SyncClock`): the last stamp this device issued, the
+last backend clock value it saw, and the last `X-TigerSync-Clock` heard with the time it came. It
+is the device's, not an account's, and is kept across a sign-out by the clock spec
+(`tigersync-clock`, "The clock state survives relaunch"): a stamp after a sign-out must still come
+after every value this device issued or saw. A full reset leaves it too.
 
 ## DataCache
 

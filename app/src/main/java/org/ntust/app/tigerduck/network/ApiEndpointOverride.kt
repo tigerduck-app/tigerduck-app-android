@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.network
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.ApiBase
 import java.net.URI
 
 /**
@@ -36,13 +37,17 @@ internal data class ResolvedAnnouncementEndpoint(
  * and the API-endpoint screen (so its "effective endpoint" line and
  * "active override" status cannot diverge from what the client actually
  * sends).
+ *
+ * The base speaks the API the app does ([ApiBase.of]): the default, and a
+ * setting stored as `…/v3`, move with it. The setting itself is never
+ * rewritten.
  */
 internal fun resolveAnnouncementEndpoint(prefs: AppPreferences): ResolvedAnnouncementEndpoint =
     resolveAnnouncementEndpoint(prefs.announcementApiBaseUrlOverride)
 
 /** What [resolveAnnouncementEndpoint] answers with [stored] as the setting; null is the default. */
 internal fun resolveAnnouncementEndpoint(stored: String?): ResolvedAnnouncementEndpoint {
-    val default = BuildConfig.PUSH_BASE_URL.let { canonical(it) ?: it.trimEnd('/') }
+    val default = ApiBase.of(BuildConfig.PUSH_BASE_URL.let { canonical(it) ?: it.trimEnd('/') })
     val override = stored?.trimEnd('/')
         ?: return ResolvedAnnouncementEndpoint(default, overrideApplied = false)
     val ok = OverrideValidator.validate(override) as? OverrideValidator.Result.Ok
@@ -53,21 +58,21 @@ internal fun resolveAnnouncementEndpoint(stored: String?): ResolvedAnnouncementE
     // don't crash every request with no path back to this screen.
     val normalized = canonical(ok.normalized)
         ?: return ResolvedAnnouncementEndpoint(default, overrideApplied = false)
-    return ResolvedAnnouncementEndpoint(normalized, overrideApplied = true)
+    return ResolvedAnnouncementEndpoint(ApiBase.of(normalized), overrideApplied = true)
 }
 
 /**
  * [url] as OkHttp spells it, which is how its requests carry it: lower-case host, no default
  * port, no trailing slash. A backend named two ways is one backend to the session it issued and
- * to the unregister its sign-out owes, which are matched to it by this. Null when OkHttp cannot
- * parse it.
+ * to the unregister its sign-out owes, which [ApiBase] matches to it in this spelling. Null when
+ * OkHttp cannot parse it.
  */
 private fun canonical(url: String): String? = url.trimEnd('/').toHttpUrlOrNull()?.toString()?.trimEnd('/')
 
 /**
- * The backend [url] names, in the one spelling [resolveAnnouncementEndpoint] gives it: for
- * comparing with an address stored before that spelling was, as a session's issuer or an owed
- * unregister's backend may have been.
+ * The backend [url] names, in the one spelling [resolveAnnouncementEndpoint] gives it, for an
+ * address stored before that spelling was, as a session's issuer or an owed unregister's backend
+ * may have been. Two bases are compared by [ApiBase.sameBackend], which spells them so.
  */
 internal fun canonicalBackend(url: String): String = canonical(url) ?: url.trimEnd('/')
 

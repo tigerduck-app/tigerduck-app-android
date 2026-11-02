@@ -130,11 +130,11 @@ Each rule below lives in one place. A second copy fails
 `python3 tools/guardrails/check_guardrails.py --update-baseline` after fixing
 some. The same check fails a new Kotlin file over 400 lines or function over 80.
 
-- `TaipeiClock` (`shared/.../time/TaipeiClock.kt`, coming): the `"Asia/Taipei"`
+- `TaipeiClock` (`shared/.../time/TaipeiClock.kt`): the `"Asia/Taipei"`
   zone and Taipei's day and clock. No other file writes the literal.
-- `AcademicTerm` (`shared/.../time/AcademicTerm.kt`, coming): parsing and
+- `AcademicTerm` (`shared/.../time/AcademicTerm.kt`): parsing and
   ordering of term codes. No other file sorts by a semester or term string.
-- `ClassTimeline` (`shared/.../timeline/`, coming): which class is ongoing or
+- `ClassTimeline` (`shared/.../timeline/`): which class is ongoing or
   next, with D2's end rule (`start <= now < end`), for every screen.
 - `AppPreferences` reads `BuildConfig` for the `"fdroid"` flavor; no other file
   compares against the literal.
@@ -193,10 +193,10 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   re-enable hold and last writer wins, read once through `SyncPolicies.current`. The
   `sync-switch-read` ratchet counts lines naming a switch or the hold anywhere but
   there and the files that store or send them.
-- `SyncClock` (`app/.../sync/SyncClock.kt`, coming): every edit's TigerSync stamp, in
+- `SyncClock` (`app/.../sync/SyncClock.kt`): every edit's TigerSync stamp, in
   whole milliseconds, capped by the backend clock it last heard (`tigersync-clock`).
   `SyncClockTest` pins that spec's scenarios.
-- `ApiBase` and `BackendError` (`app/.../network/backend/`, coming): which API a
+- `ApiBase` and `BackendError` (`app/.../network/backend/`): which API a
   base speaks (`BackendApi.of`), the one place `/v3` turns into `/v4`, and one
   backend whatever its version segment says; and the backend's error code, read once
   from either version. `api-version-literal` fails a `"v3"` or `"v4"` literal, or a
