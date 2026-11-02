@@ -412,14 +412,14 @@ class SettingsViewModel @Inject constructor(
         // The terms latched on the tap; the catalogue may have moved since.
         val semesters = latch.semesters
         val portalCached = semesters.filterTo(mutableSetOf()) { dataCache.hasPortalCourses(it) }
+        // Before the names are read: a rename made from here on is the newer (PushCourseSyncBackend).
+        val version = pendingCourseOverrides.reserveVersion()
         return useLocalCourses(
             terms = semesters.map { it to dataCache.loadCourses(it) },
             hiding = dataCache.loadDeletedCourseNos(),
-            backend = PushCourseSyncBackend(pushApiClient, prefs, pendingCourseOverrides, signIn),
-            // A term's reset takes its courses' names off the server with
-            // them. With name sync off here nothing can be sent back (the
-            // PATCH honours the switch), so names other devices set on that
-            // term's courses are lost: the price of Use Local resetting a term.
+            backend = PushCourseSyncBackend(pushApiClient, prefs, pendingCourseOverrides, signIn, version),
+            // A reset takes its term's names off the server; with name sync off none goes back (the
+            // PATCH honours the switch), and names set elsewhere on the term are lost.
             customNames = if (prefs.syncCourseNames) dataCache.loadCourseCustomNames() else emptyMap(),
             portalCached = { it in portalCached },
             latch = latch,

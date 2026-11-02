@@ -72,7 +72,7 @@ class UseLocalRequestsTest {
         keepLocalCourses(
             terms = listOf("1151" to listOf(colored, manual, hidden)),
             hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn),
+            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion()),
             customNames = mapOf("CS1" to mapOf("zh" to "微積分", "en" to "Calc"), "CS2" to mapOf("en" to "Gone")),
         )
 
@@ -103,7 +103,7 @@ class UseLocalRequestsTest {
         keepLocalCourses(
             terms = listOf("1151" to listOf(manual)),
             hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn),
+            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion()),
             customNames = mapOf("MY1" to mapOf("en" to "Mine")),
             portalCached = { false },
         )
@@ -116,13 +116,19 @@ class UseLocalRequestsTest {
     }
 
     /** A phone whose clock runs behind a backend it has heard: the stamps it gives are past its wall clock. */
-    private fun behindTheBackend(setUp: (AppPreferences) -> Unit = {}): Pair<PushCourseSyncBackend, RecordingBackend> =
+    private suspend fun behindTheBackend(setUp: (AppPreferences) -> Unit = {}): Pair<PushCourseSyncBackend, RecordingBackend> =
         onV4(setUp).let { it.courses to it.backend }
 
-    /** Use Local's backend on `/v4`, what it sends, and the cache its course outbox keeps. */
-    private class OnV4(val courses: PushCourseSyncBackend, val backend: RecordingBackend, val cache: DataCache)
+    /** Use Local's backend on `/v4`, what it sends, its course outbox and the cache that keeps it. */
+    private class OnV4(
+        val courses: PushCourseSyncBackend,
+        val backend: RecordingBackend,
+        val cache: DataCache,
+        val outbox: PendingCourseOverrides,
+    )
 
-    private fun onV4(setUp: (AppPreferences) -> Unit = {}): OnV4 {
+    /** Built as Settings builds it, with the outbox version reserved before the names are read. */
+    private suspend fun onV4(setUp: (AppPreferences) -> Unit = {}): OnV4 {
         val v4 = RecordingBackend()
         val v4Context = JvmContext()
         val v4Prefs = AppPreferences(v4Context).also(setUp)
@@ -130,7 +136,8 @@ class UseLocalRequestsTest {
         clock.heardInSnapshot(BACKEND_US)
         val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
-        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, PendingCourseOverrides(cache, v4Api, v4Prefs), signIn), v4, cache)
+        val outbox = PendingCourseOverrides(cache, v4Api, v4Prefs)
+        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion()), v4, cache, outbox)
     }
 
     private fun hlcOf(sent: RecordingBackend.Sent): Long? =
@@ -219,6 +226,21 @@ class UseLocalRequestsTest {
         // Kept as /v3 keeps it, by the Moodle id the upload stored the row under, for the hold's answer to send.
         assertEquals(
             listOf(Triple("1142CS9", "Old name", "en")),
+            v4.cache.loadPendingCourseOverrides().map { Triple(it.moodleId, it.customName, it.locale) },
+        )
+    }
+
+    @Test
+    fun `on v4 a held name read before a rename does not replace the rename waiting in the outbox`() = runTest {
+        // The version is reserved, and the names read, as Use Local starts.
+        val v4 = onV4 { prefs -> assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn)) }
+        // While the reset and the upload are out, the student renames the course: held, it waits.
+        v4.outbox.send("1142CS9", customName = "New name", locale = "en", signIn = signIn)
+
+        v4.courses.patchStampedOverride("1142", "CS9", "1142CS9", name = "Old name", locale = "en")
+
+        assertEquals(
+            listOf(Triple("1142CS9", "New name", "en")),
             v4.cache.loadPendingCourseOverrides().map { Triple(it.moodleId, it.customName, it.locale) },
         )
     }

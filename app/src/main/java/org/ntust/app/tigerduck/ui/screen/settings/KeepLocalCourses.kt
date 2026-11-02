@@ -75,6 +75,12 @@ internal class PushCourseSyncBackend(
     prefs: AppPreferences,
     private val overrides: PendingCourseOverrides,
     private val signIn: SignIn,
+    /**
+     * A version of the course outbox reserved before Use Local read the names it sends
+     * ([PendingCourseOverrides.reserveVersion]): a name queued at it does not replace a rename
+     * the student made since.
+     */
+    private val namesVersion: Long,
 ) : CourseSyncBackend {
     private val policies = SyncPolicies(prefs)
 
@@ -135,11 +141,12 @@ internal class PushCourseSyncBackend(
         }
         // A name that did not go waits in the course outbox, as every name does on /v3: kept, held
         // while the names check is open, and sent once the student's answer lifts the hold. The
-        // reset took the server's copy, and nothing else would put it back. The outbox's own /v4
-        // form, the course's key and its stamp, comes with its channel (wave 3); until then its
-        // entry waits on a /v4 base as a CourseKeyUnknownException.
+        // reset took the server's copy, and nothing else would put it back. Queued at the version
+        // reserved before the name was read, so a rename made since stays the one waiting. The
+        // outbox's own /v4 form, the course's key and its stamp, comes with its channel (wave 3);
+        // until then its entry waits on a /v4 base as a CourseKeyUnknownException.
         if (name != null && !answer.sent) {
-            overrides.send(moodleId, customName = name, locale = locale, signIn = signIn)
+            overrides.queue(listOf(PendingCourseOverrides.Change(moodleId, customName = name, locale = locale)), namesVersion, signIn)
         }
     }
 

@@ -552,6 +552,16 @@ class SyncWiringTest {
         assertTrue("resolve no longer queues what Use Local sends at the reserved version", queued > reserved && "version, signIn,\n" in body)
     }
 
+    /** A name Use Local queues on v4 behind the names hold must not replace a rename made while it ran. */
+    @Test
+    fun `Use Local for courses reserves the names' version before reading them, and hands it to its backend`() {
+        val body = body("ui/screen/settings/SettingsViewModel.kt", "sendLocalCourses")
+        val reserved = body.indexOf("val version = pendingCourseOverrides.reserveVersion()")
+        val read = body.indexOf("dataCache.loadCourseCustomNames()")
+        assertTrue("sendLocalCourses no longer reserves the names' version before reading them", reserved in 0 until read)
+        assertTrue("sendLocalCourses no longer hands the version to its backend", "pendingCourseOverrides, signIn, version)" in body)
+    }
+
     /** tigerduck-app-android#380: a course gone from this phone would be PATCHed, and refused, at every sync. */
     @Test
     fun `the syncs forget the waiting colours and names of the courses they prune or a reset elsewhere wipes`() {

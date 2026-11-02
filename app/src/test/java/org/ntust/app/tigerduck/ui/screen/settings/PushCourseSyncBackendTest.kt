@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -43,7 +44,8 @@ class PushCourseSyncBackendTest {
         val tokenManager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
         val api = PushApiClient(backend.client, prefs, tokenManager)
         val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
-        courses = PushCourseSyncBackend(api, prefs, PendingCourseOverrides(cache, api, prefs), testSignIn())
+        val overrides = PendingCourseOverrides(cache, api, prefs)
+        courses = PushCourseSyncBackend(api, prefs, overrides, testSignIn(), runBlocking { overrides.reserveVersion() })
     }
 
     private suspend fun fails(request: suspend () -> Unit): Boolean = runCatching { request() }.isFailure
