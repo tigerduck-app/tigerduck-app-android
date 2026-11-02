@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.auth.session
 import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.InMemoryStoredPasswordLatch
@@ -10,6 +11,7 @@ import org.ntust.app.tigerduck.data.BulletinReadStateStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
 
@@ -33,6 +35,7 @@ class SchoolStoresTest {
         counted("preferences") { prefs },
         counted("latch") { InMemoryStoredPasswordLatch() },
         counted("imported") { ImportedClassTableStore({ File(context.filesDir, "imported.json") }, { null }, Dispatchers.Unconfined) },
+        counted("outbox") { Outbox(emptySet()) },
         counted("cache") { DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs)) },
     )
 
@@ -44,7 +47,7 @@ class SchoolStoresTest {
         stores.atOnce
         assertEquals(listOf("read state", "preferences", "latch"), built)
         stores.late
-        assertEquals(listOf("read state", "preferences", "latch", "imported", "cache"), built)
+        assertEquals(listOf("read state", "preferences", "latch", "imported", "outbox", "cache"), built)
     }
 
     @Test
@@ -53,6 +56,14 @@ class SchoolStoresTest {
             listOf(BulletinReadStateStore::class, AppPreferences::class, InMemoryStoredPasswordLatch::class),
             stores().atOnce.map { it::class },
         )
-        assertEquals(listOf(ImportedClassTableStore::class, DataCache::class), stores().late.map { it::class })
+        assertEquals(listOf(ImportedClassTableStore::class, Outbox::class, DataCache::class), stores().late.map { it::class })
+    }
+
+    @Test
+    fun `the outbox is on the school's late list, before DataCache`() {
+        val late = stores().late.map { it::class }
+
+        assertTrue(Outbox::class in late)
+        assertTrue("its memory goes while the queue files are still there", late.indexOf(Outbox::class) < late.indexOf(DataCache::class))
     }
 }

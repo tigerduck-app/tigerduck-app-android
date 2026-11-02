@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.sync.outbox
 
+import org.ntust.app.tigerduck.auth.session.LateAccountScoped
 import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -8,9 +9,13 @@ import javax.inject.Singleton
  * Every unsent edit, in its channel ([OutboxChannel]): each channel registers itself in its own
  * file, and this sends them all in one pinned order, [OutboxChannelId]'s, which is the order the
  * syncs sent the queues in before there was one outbox.
+ *
+ * One of the school's stores ([org.ntust.app.tigerduck.auth.session.SchoolStores.late], before
+ * DataCache): the queues' files are DataCache's, and its clearing takes them; what a sign-out
+ * leaves to the outbox is what its channels hold in memory for the account.
  */
 @Singleton
-class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChannel>) {
+class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChannel>) : LateAccountScoped {
 
     private val channels: List<OutboxChannel> = channels.sortedBy { it.id }.also { sorted ->
         val ids = sorted.map { it.id }
@@ -38,4 +43,9 @@ class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChann
 
     /** Every field an edit waits for, in any channel: [holds] for many fields at once. */
     suspend fun heldFields(): Set<String> = channels.flatMapTo(HashSet()) { it.heldFields() }
+
+    /** At the school's sign-out: each channel forgets its parked-retry flags and the attempts it counted in memory. */
+    override suspend fun forgetAccount() {
+        for (channel in channels) channel.forgetMemory()
+    }
 }

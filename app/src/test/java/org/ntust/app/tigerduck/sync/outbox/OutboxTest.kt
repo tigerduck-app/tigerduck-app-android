@@ -107,6 +107,13 @@ class OutboxTest {
         assertFalse(outbox.holds("assignment_overrides/1/local_status"))
     }
 
+    @Test
+    fun `a sign-out forgets every channel's memory`() = runTest {
+        Outbox(channels.toSet()).forgetAccount()
+
+        assertEquals(OutboxChannelId.entries.map { "forget $it" }, calls)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun `two channels of one id are refused`() {
         Outbox(setOf(FakeChannel(OutboxChannelId.MARKS), FakeChannel(OutboxChannelId.MARKS)))
