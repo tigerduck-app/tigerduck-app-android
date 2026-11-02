@@ -160,30 +160,13 @@ class SubscriptionSettingsViewModel @Inject constructor(
      */
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
         val signIn = editing() ?: return
-        if (shownApi == BackendApi.V4) {
-            return editList(signIn) { rules ->
-                val listed = rule.withClientId()
-                if (replacingIndex != null && replacingIndex in rules.indices) {
-                    rules.toMutableList().also { it[replacingIndex] = listed }
-                } else {
-                    rules + listed
-                }
-            }
-        }
+        if (shownApi == BackendApi.V4) return editList(signIn) { it.upserting(rule.withClientId(), replacingIndex) }
         sendEdit(
             signIn,
             send = {
                 if (rule.id == null) api.createSubscription(rule, signIn) else api.updateSubscription(rule.id, rule, signIn)
             },
-            saved = { s, saved ->
-                val rules = s.rules.toMutableList()
-                if (replacingIndex != null && replacingIndex in rules.indices) {
-                    rules[replacingIndex] = saved
-                } else {
-                    rules += saved
-                }
-                s.copy(rules = rules, saveState = SaveState.Saved)
-            },
+            saved = { s, saved -> s.copy(rules = s.rules.upserting(saved, replacingIndex), saveState = SaveState.Saved) },
             failed = { s, e -> s.copy(saveState = SaveState.Failed(e.message ?: "error")) },
         )
     }
@@ -196,11 +179,9 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val signIn = editing() ?: return
         val s = _state.value
         if (index !in s.rules.indices) return
-        if (shownApi == BackendApi.V4) {
-            return editList(signIn) { rules -> rules.filterIndexed { at, _ -> at != index } }
-        }
+        if (shownApi == BackendApi.V4) return editList(signIn) { it.removing(index) }
         val rule = s.rules[index]
-        _state.update { it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) }) }
+        _state.update { it.copy(rules = it.rules.removing(index)) }
         val id = rule.id ?: return
         sendEdit(
             signIn,
@@ -312,11 +293,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
         val signIn = editing() ?: return
         val before = _state.value
         if (index !in before.rules.indices) return
-        if (shownApi == BackendApi.V4) {
-            return editList(signIn) { rules ->
-                rules.mapIndexed { at, rule -> if (at == index) rule.copy(enabled = !rule.enabled) else rule }
-            }
-        }
+        if (shownApi == BackendApi.V4) return editList(signIn) { it.toggling(index) }
         val previous = before.rules[index]
         val toggled = previous.copy(enabled = !previous.enabled)
 
@@ -345,7 +322,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 if (editGeneration[id] != generation) {
                     st
                 } else {
-                    st.copy(rules = st.replacing(id, saved), saveState = SaveState.Saved)
+                    st.copy(rules = st.rules.replacingId(id, saved), saveState = SaveState.Saved)
                 }
             },
             failed = { st, e ->
@@ -354,16 +331,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 if (editGeneration[id] != generation) {
                     st
                 } else {
-                    st.copy(rules = st.replacing(id, previous), saveState = SaveState.Failed(e.message ?: "error"))
+                    st.copy(rules = st.rules.replacingId(id, previous), saveState = SaveState.Failed(e.message ?: "error"))
                 }
             },
         )
-    }
-
-    private fun State.replacing(id: Int, rule: SubscriptionRule): List<SubscriptionRule> {
-        val at = rules.indexOfFirst { it.id == id }
-        if (at < 0) return rules
-        return rules.toMutableList().also { it[at] = rule }
     }
 
     /**
@@ -374,16 +345,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     fun applyDefaultRules() {
         val s = _state.value
         if (s.rules.isNotEmpty()) return
-        val tax = s.taxonomy ?: return
-        if (tax.defaultTags.isEmpty()) return
-        val seeded = SubscriptionRule(
-            name = null,
-            orgs = emptyList(),
-            tags = tax.defaultTags,
-            mode = "OR",
-            enabled = true,
-        )
-        upsertRule(seeded, replacingIndex = null)
+        upsertRule(s.taxonomy?.defaultRule() ?: return, replacingIndex = null)
     }
 
     fun clearSaveState() {
