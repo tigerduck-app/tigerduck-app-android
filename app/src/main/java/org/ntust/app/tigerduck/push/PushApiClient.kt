@@ -387,7 +387,7 @@ class PushApiClient @Inject constructor(
                     prefs.school.assignmentsUploadedAtMs.set(atMs, signIn)
                 }
             },
-            signIn = authTokenManager.signInGeneration,
+            signIn = signIn,
         ) {
             val service = api.at(base)
             service.assignmentsUpload(authTokenManager.requireAuthHeader(signIn), json.toRequestBody(jsonType)).execute().use { response ->
@@ -488,16 +488,16 @@ class PushApiClient @Inject constructor(
         // The sign-in the ledger's record is pinned to, as the assignment
         // upload's is; the request's own header is pinned only when the
         // caller pinned it ([signIn]), as before.
-        val startedIn = authTokenManager.signInGeneration
+        val startedIn = signIn ?: authTokenManager.session.signIns.current
         // What the accepted list enrolled as the term's roster, for serverDropped.
         val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
         courseUploads(semester).sendIfDue(
             fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
-            // Recorded under the sign-in lock, so a sign-out's clear cannot
-            // fall between the check and the record; see UploadLedger.sendIfDue.
+            // The pair in one step, so a sign-out's clear cannot fall between
+            // the check and the record; see UploadLedger.sendIfDue.
             record = { fingerprint, atMs ->
-                authTokenManager.runIfSignedIn(startedIn) {
+                startedIn.ifCurrent {
                     prefs.recordCoursesUpload(semester, fingerprint, atMs)
                     prefs.recordCoursesUploadRoster(semester, roster)
                 }

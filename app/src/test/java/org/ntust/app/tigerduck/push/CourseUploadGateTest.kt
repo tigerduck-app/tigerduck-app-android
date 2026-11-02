@@ -158,9 +158,10 @@ class CourseUploadGateTest {
         val departing = launch { runCatching { api.uploadCourses(roster("CS1"), "1151") } }
         held.arrived.await()
 
-        // AuthService.logout: the generation moves under the sign-in lock, then the stamps go.
+        // AuthService.logout: the sign-in ends, then the stamps go, and the wipe opens the next.
         tokenManager.logout()
         prefs.clearSyncStamps()
+        tokenManager.session.open()
         held.release(200)
         departing.join()
 

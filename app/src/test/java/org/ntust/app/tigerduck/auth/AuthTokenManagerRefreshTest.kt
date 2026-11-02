@@ -25,6 +25,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -205,7 +206,7 @@ class AuthTokenManagerRefreshTest {
     fun `a sign-in writes its pair in one commit`() = runTest {
         val manager = manager(Reply.Pair("access-2", "refresh-2"))
 
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
 
         // With the backend that issued it and the student it is for, for the sign-out's unregister.
         assertEquals(listOf(PAIR_KEYS + KEY_ISSUED_BY + KEY_STUDENT_ID), file.commits)
@@ -472,7 +473,7 @@ class AuthTokenManagerRefreshTest {
         LoopbackBackend(listOf(LoopbackReply(pairJson("access-2", "refresh-2", expiresIn = 0)))).use { backend ->
             val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = backend.baseUrl }
             val manager = AuthTokenManager(tokens, OkHttpClient(), prefs, "device-1", now = { clock })
-            manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+            manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
 
             assertNull(manager.authHeader())
 
@@ -522,7 +523,7 @@ class AuthTokenManagerRefreshTest {
         val manager = manager(Reply.Pair("access-login", "refresh-login"), Reply.Pair("access-2", "refresh-2"))
         onRefreshSent = {
             onRefreshSent = {}
-            runBlocking { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+            runBlocking { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current) }
         }
 
         val header = manager.authHeader()
@@ -538,7 +539,7 @@ class AuthTokenManagerRefreshTest {
         val manager = manager(Reply.Pair("access-login", "refresh-login"), Reply.Status(401))
         onRefreshSent = {
             onRefreshSent = {}
-            runBlocking { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+            runBlocking { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current) }
         }
 
         val header = manager.authHeader()
@@ -562,9 +563,9 @@ class AuthTokenManagerRefreshTest {
             }
         }
 
-        val first = async(Dispatchers.IO) { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+        val first = async(Dispatchers.IO) { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current) }
         assertTrue(firstSent.await(5, TimeUnit.SECONDS))
-        val second = async(Dispatchers.IO) { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+        val second = async(Dispatchers.IO) { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current) }
         Thread.sleep(300)
         assertEquals("the second login waits", 1, logins.get())
 
@@ -588,14 +589,14 @@ class AuthTokenManagerRefreshTest {
                 firstAnswer.await(5, TimeUnit.SECONDS)
             }
         }
-        val signIn = manager.signInGeneration
+        val signIn = manager.session.signIns.current
 
         val first = async(Dispatchers.IO) {
-            runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signInGeneration = signIn) }
+            runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = signIn) }
         }
         assertTrue(firstSent.await(5, TimeUnit.SECONDS))
         val second = async(Dispatchers.IO) {
-            runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signInGeneration = signIn) }
+            runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = signIn) }
         }
         Thread.sleep(300)
         manager.logout()
@@ -640,7 +641,7 @@ class AuthTokenManagerRefreshTest {
             // A refresh lands while the Moodle token is renewed.
             tokens.save("access-2", "refresh-2", clock + 900_000)
             runCatching {
-                manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signInGeneration = generation)
+                manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = generation)
             }.fold({ SignInAttempt.SIGNED_IN }, { SignInAttempt.FAILED })
         }
         manager.noteRefused("access-1")
@@ -688,7 +689,7 @@ class AuthTokenManagerRefreshTest {
         onLoginSent = { manager.logout() }
 
         val failure = runCatching {
-            manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+            manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
         }.exceptionOrNull()
 
         assertTrue(failure is AuthTokenManager.AuthException)
@@ -696,17 +697,94 @@ class AuthTokenManagerRefreshTest {
         assertEquals(1, file.commits.size)
     }
 
+    /** AuthService's sign-out ends the sign-in first, and drops the pair a step later. */
+    @Test
+    fun `a refresh reply landing after the sign-in ended stores nothing, with the pair not dropped yet`() = runTest {
+        val manager = manager(Reply.Pair("access-2", "refresh-2"), Reply.Pair("access-3", "refresh-3"))
+        onRefreshSent = { manager.session.signIns.end() }
+
+        assertNull(manager.authHeader())
+        assertEquals("nothing stored for a sign-in that ended", "refresh-1", tokens.refreshToken)
+
+        // Kept aside for the unregister, so the token the backend rotated is not sent again.
+        val departing = manager.logout()!!
+        val reply = manager.refreshDeparting(departing, sendsWithoutReply = 0)
+        assertEquals("refresh-2", (reply as DepartingRefresh.Refreshed).session.refreshToken)
+        assertEquals(listOf("refresh-1"), sentRefreshTokens)
+    }
+
+    @Test
+    fun `a sign-in reply landing after the sign-in ended stores nothing, with the pair not dropped yet`() = runTest {
+        val manager = manager(Reply.Pair("access-2", "refresh-2"))
+        onLoginSent = { manager.session.signIns.end() }
+
+        val failure = runCatching {
+            manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
+        }.exceptionOrNull()
+
+        assertTrue(failure is AuthTokenManager.AuthException)
+        assertEquals("refresh-1", tokens.refreshToken)
+    }
+
+    /** The student is the same throughout: only the sign-in tells the two sessions apart. */
+    @Test
+    fun `a refresh reply across a sign-out and the same student's next sign-in leaves the new pair`() = runTest {
+        val manager = manager(Reply.Pair("access-2", "refresh-2"))
+        onRefreshSent = {
+            manager.logout()
+            manager.session.open()
+            tokens.save("access-b", "refresh-b", clock + 900_000, studentId = "B00000000")
+        }
+
+        assertNull("the old run's request gets neither pair", manager.authHeader())
+
+        assertEquals("refresh-b", tokens.refreshToken)
+        assertEquals("Bearer access-b", manager.authHeader())
+    }
+
+    /** With the store and the sign-in's end apart, a sign-out could end it between the two. */
+    @Test
+    fun `a sign-out waits for a pair being stored`() = runBlocking {
+        val manager = manager(Reply.Pair("access-2", "refresh-2"))
+        val storing = CountDownLatch(1)
+        val mayStore = CountDownLatch(1)
+        file.onCommit = { keys ->
+            if (KEY_REFRESH_TOKEN in keys) {
+                storing.countDown()
+                mayStore.await(10, TimeUnit.SECONDS)
+            }
+        }
+        val request = async(Dispatchers.IO) { manager.authHeader() }
+        assertTrue("the store never began", storing.await(10, TimeUnit.SECONDS))
+
+        val ends = thread(name = "sign-out") { manager.session.signIns.end() }
+        try {
+            val waited = (1..2_000).any {
+                Thread.sleep(2)
+                ends.state == Thread.State.BLOCKED
+            }
+            assertTrue("the sign-in ended with its pair half stored, ${ends.state}", waited)
+        } finally {
+            mayStore.countDown()
+        }
+        ends.join(10_000)
+        request.await()
+
+        assertFalse(manager.session.signIns.current.isCurrent)
+        assertEquals("the store came first, and the sign-out's clear takes it", "refresh-2", tokens.refreshToken)
+    }
+
     @Test
     fun `a sign-in that read the credentials before a sign-out stores nothing`() = runTest {
         val manager = manager(Reply.Pair("access-2", "refresh-2"))
         // Read as AuthService reads it, before the credentials and the Moodle harvest.
-        val signIn = manager.signInGeneration
+        val signIn = manager.session.signIns.current
         manager.logout()
 
         val failure = runCatching {
             manager.login(
                 "B00000000", moodleToken = "moodle", moodlePrivateToken = null,
-                signInGeneration = signIn,
+                signIn = signIn,
             )
         }.exceptionOrNull()
 
@@ -869,7 +947,7 @@ class AuthTokenManagerRefreshTest {
                 // As StoredAccountSignIn signs in after the refused refresh.
                 signInWithStoredAccount = { signIn ->
                     relogins++
-                    runCatching { login("B00000000", "moodle", null, signInGeneration = signIn) }
+                    runCatching { login("B00000000", "moodle", null, signIn = signIn) }
                         .fold({ SignInAttempt.SIGNED_IN }, { SignInAttempt.FAILED })
                 }
             }
@@ -1346,6 +1424,9 @@ private class SavesRecorder(private val inner: SharedPreferences) : SharedPrefer
 
     /** How many commits of [failCommitsOf] go through before the disk starts refusing them. */
     var failCommitsAfter = 0
+
+    /** Runs as each commit goes to the disk, with the keys it writes. */
+    var onCommit: (Set<String>) -> Unit = {}
     private var commitsOfFailing = 0
 
     override fun edit(): SharedPreferences.Editor = Editor(inner.edit())
@@ -1379,6 +1460,7 @@ private class SavesRecorder(private val inner: SharedPreferences) : SharedPrefer
         }
 
         override fun commit(): Boolean {
+            onCommit(keys.toSet())
             commits += keys.toSet()
             val failing = failCommitsOf?.let { it in keys && ++commitsOfFailing > failCommitsAfter } ?: false
             return editor.commit() && !failing

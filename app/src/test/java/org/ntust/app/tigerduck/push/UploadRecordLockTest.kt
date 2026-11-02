@@ -5,13 +5,13 @@ import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -20,7 +20,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 
 /**
  * The upload ledger's record and a sign-out exclude each other
- * ([AuthTokenManager.runIfSignedIn]): checking the sign-in first and recording after left a gap
+ * ([SignIn.ifCurrent]): checking the sign-in first and recording after left a gap
  * the sign-out fell into, its clearing of the stamps landing between the two, and the departing
  * account's list stayed for the next account to skip.
  */
@@ -54,29 +54,27 @@ class UploadRecordLockTest {
             override val acceptedAtMs: Long get() = prefs.coursesUploadedAtMs("1151")
         }
         val ledger = UploadLedger(store, System::currentTimeMillis)
-        // Read before the record holds the sign-in lock: the read takes that lock too, and under
-        // the pause it would wait the record's bound out.
-        val signIn = tokenManager.signInGeneration
+        val signIn = tokenManager.session.signIns.current
         val upload = thread(name = "upload") {
             runBlocking {
                 // As PushApiClient wires it, with a pause inside the record.
                 ledger.sendIfDue("list-a", record = { fingerprint, atMs ->
-                    tokenManager.runIfSignedIn(signIn) {
+                    signIn.ifCurrent {
                         recordUnderWay.countDown()
                         // Bounded, so a failed test cannot hang on it; the test lets it go well before.
                         if (!recordMayEnd.await(10, TimeUnit.SECONDS)) recordTimedOut.set(true)
                         prefs.recordCoursesUpload("1151", fingerprint, atMs)
                     }
-                }) {}
+                }, signIn = signIn) {}
             }
         }
         val signOut = thread(start = false, name = "sign-out") { tokenManager.logout() }
         try {
             assertTrue("the record never began", recordUnderWay.await(10, TimeUnit.SECONDS))
             signOut.start()
-            // The sign-out reaches the sign-in lock and waits on it, held by the record under way.
-            // With the record made outside the lock, as before, it runs through and ends instead.
-            assertTrue("the sign-out did not wait on the sign-in lock", reaches(signOut, Thread.State.BLOCKED))
+            // The sign-out comes to end the sign-in and waits, as the record under way holds it.
+            // With the record made outside it, it runs through and ends instead.
+            assertTrue("the sign-out did not wait for the record", reaches(signOut, Thread.State.BLOCKED))
         } finally {
             recordMayEnd.countDown()
         }
@@ -86,13 +84,13 @@ class UploadRecordLockTest {
         assertFalse("the sign-out did not end", signOut.isAlive)
         assertFalse("the record waited its bound out", recordTimedOut.get())
 
-        // AuthService.logout: the generation moved, after the record had landed...
-        assertNotEquals(signIn, tokenManager.signInGeneration)
+        // AuthService.logout: the sign-in ended, after the record had landed...
+        assertFalse(signIn.isCurrent)
         assertEquals("list-a", prefs.coursesUploadFingerprint("1151"))
         // ...and its clearing of the stamps, which follows, takes the record with it.
         prefs.clearSyncStamps()
 
         assertNull(prefs.coursesUploadFingerprint("1151"))
-        assertTrue(runBlocking { ledger.sendIfDue("list-a", record = { _, _ -> }) {} })
+        assertTrue(runBlocking { ledger.sendIfDue("list-a", record = { _, _ -> }, signIn = signIn) {} })
     }
 }

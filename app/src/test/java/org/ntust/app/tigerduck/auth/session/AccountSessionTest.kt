@@ -135,16 +135,15 @@ class AccountSessionTest {
     private fun typedSignIn(
         session: AccountSession,
         schoolAnswering: () -> Unit = {},
-        signInGeneration: () -> Int = { 1 },
+        currentSignIn: () -> SignIn = { session.signIns.current },
     ) = TypedAccountSignIn(
         schoolSignIn = { _, _ ->
             schoolAnswering()
             true
         },
-        signInInteractively = { signIn -> signIn(1) == SignInAttempt.SIGNED_IN },
+        signInInteractively = { signIn -> signIn(session.signIns.current) == SignInAttempt.SIGNED_IN },
         awaitOpen = session::awaitOpen,
-        isOpen = { session.isOpen },
-        signInGeneration = signInGeneration,
+        currentSignIn = currentSignIn,
         accountLock = Any(),
         storedStudentId = { stored?.first },
         writeAccount = { studentId, password -> stored = studentId to password },
@@ -179,18 +178,18 @@ class AccountSessionTest {
     @Test
     fun `a sign-out landing just after the wait is waited out too`() = runBlocking {
         // The session is open when the sign-in looks, and a sign-out lands before it reads the
-        // generation: read after the move, that generation would never show the sign-out.
+        // sign-in: what it reads is the ended one, and asking it shows the sign-out.
         val school = session()
-        var generation = 1
+        var signedOut = false
         val outcome = scope.async {
             typedSignIn(
                 school,
-                signInGeneration = {
-                    if (generation == 1) {
+                currentSignIn = {
+                    if (!signedOut) {
                         school.signIns.end()
-                        generation = 2
+                        signedOut = true
                     }
-                    generation
+                    school.signIns.current
                 },
             ).typed()
         }
@@ -205,7 +204,7 @@ class AccountSessionTest {
     }
 
     @Test
-    fun `a reply landing after a sign-out began stores nothing, with the generation not moved yet`() = runBlocking {
+    fun `a reply landing after a sign-out began stores nothing`() = runBlocking {
         val school = session()
 
         val outcome = typedSignIn(school, schoolAnswering = { school.signIns.end() }).typed()

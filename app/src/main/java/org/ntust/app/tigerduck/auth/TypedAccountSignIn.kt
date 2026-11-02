@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.auth
 
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
+import org.ntust.app.tigerduck.shared.account.SignIn
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
@@ -28,28 +29,25 @@ import kotlin.coroutines.cancellation.CancellationException
  * nothing sent anywhere.
  *
  * A sign-out takes no sign-in lock, so it can land at any point, the moment the school answers
- * included. The store and the account showing as signed in each happen only while the session is
- * open and [signInGeneration] is still the one read before the sign-in began, checked under
- * [accountLock], which the sign-out holds as it closes the session and again while it drops the
- * stored account and moves the generation: a sign-in a sign-out overtook stores nothing and shows
- * nothing, and one that stored first is the student on the sign-out's marker, its account dropped
- * by the sign-out itself.
+ * included. The store and the account showing as signed in each happen only while the [SignIn]
+ * read before the sign-in began stands, asked under [accountLock], which the sign-out holds as it
+ * ends that sign-in and again while it drops the stored account: a sign-in a sign-out overtook
+ * stores nothing and shows nothing, and one that stored first is the student on the sign-out's
+ * marker, its account dropped by the sign-out itself.
  */
 internal class TypedAccountSignIn(
     private val schoolSignIn: suspend (studentId: String, password: String) -> Boolean,
     private val signInInteractively: suspend (
-        signIn: suspend (signInGeneration: Int) -> SignInAttempt,
+        signIn: suspend (SignIn) -> SignInAttempt,
     ) -> Boolean,
     /**
      * Returns once no sign-out is under way: a sign-in made during one would store an account its
      * wipe then takes. A cancelled wait leaves the next sign-in free.
      */
     private val awaitOpen: suspend () -> Unit,
-    /** Whether no sign-out is under way, read now. A sign-out closes this, under [accountLock], before it moves [signInGeneration]. */
-    private val isOpen: () -> Boolean,
-    /** [AuthTokenManager.signInGeneration], which a sign-out moves while it holds [accountLock]. */
-    private val signInGeneration: () -> Int,
-    /** Held by a sign-out as it closes the session, and while it drops the stored account and moves [signInGeneration]. */
+    /** The session's sign-in as it is now, which a sign-out ends while it holds [accountLock]. */
+    private val currentSignIn: () -> SignIn,
+    /** Held by a sign-out as it ends the sign-in, and while it drops the stored account. */
     private val accountLock: Any,
     private val storedStudentId: () -> String?,
     private val writeAccount: (studentId: String, password: String) -> Unit,
@@ -81,24 +79,24 @@ internal class TypedAccountSignIn(
 
     /**
      * Signs in as [studentId] with [password]. [prepareSignedIn] runs what must hold before the
-     * account shows as signed in; [afterShown] runs the rest once it does, with the generation
+     * account shows as signed in; [afterShown] runs the rest once it does, with the sign-in
      * read before the store and whether the account stored before was this one.
      */
     suspend fun signIn(
         studentId: String,
         password: String,
         prepareSignedIn: suspend () -> Unit,
-        afterShown: suspend (signInGeneration: Int, sameStudent: Boolean) -> SignInAttempt,
+        afterShown: suspend (SignIn, sameStudent: Boolean) -> SignInAttempt,
     ): Outcome {
-        var generation = generationOnceOpen()
+        var started = signInOnceOpen()
 
         // A sign-out that overtook this sign-in has taken the account already, and the next check stops it.
         suspend fun overStoredAccount() {
             var another = false
-            unlessSignedOutSince(generation) { another = storedStudentId().let { it != null && it != studentId } }
+            unlessSignedOutSince(started) { another = storedStudentId().let { it != null && it != studentId } }
             if (!another) return
             leaveStoredAccount()
-            generation = generationOnceOpen()
+            started = signInOnceOpen()
         }
 
         // Checked before anything goes out, so these credentials never reach NTUST.
@@ -107,11 +105,11 @@ internal class TypedAccountSignIn(
             // Demo mode is on disk once it goes on.
             accountChanging()
             enterDemo()
-            if (!unlessSignedOutSince(generation) { storeAccount(studentId, password) }) {
+            if (!unlessSignedOutSince(started) { storeAccount(studentId, password) }) {
                 return Outcome.NOT_SIGNED_IN
             }
             prepareSignedIn()
-            if (!unlessSignedOutSince(generation, markSignedIn)) return Outcome.NOT_SIGNED_IN
+            if (!unlessSignedOutSince(started, markSignedIn)) return Outcome.NOT_SIGNED_IN
             return Outcome.DEMO
         }
         if (!schoolSignIn(studentId, password)) return Outcome.NOT_SIGNED_IN
@@ -121,7 +119,7 @@ internal class TypedAccountSignIn(
             // Read before it is overwritten: a stored Moodle token is this student's only if
             // the account stored was.
             val sameStudent = storedStudentId() == studentId
-            val stored = unlessSignedOutSince(generation) {
+            val stored = unlessSignedOutSince(started) {
                 accountChanging()
                 storeAccount(studentId, password)
             }
@@ -131,7 +129,7 @@ internal class TypedAccountSignIn(
             // Cancelled from here on, the sign-in still leaves the password the school took,
             // with no refusal of the old one held against it.
             prepareSignedIn()
-            if (!unlessSignedOutSince(generation, markSignedIn)) {
+            if (!unlessSignedOutSince(started, markSignedIn)) {
                 return@signInInteractively SignInAttempt.NOTHING_TO_SEND
             }
             outcome = Outcome.SIGNED_IN
@@ -141,21 +139,21 @@ internal class TypedAccountSignIn(
     }
 
     /**
-     * The generation of a moment with no sign-out under way. A sign-out that landed before it is
-     * read has closed the session, which is then waited out again; one that lands after moves it.
+     * The sign-in of a moment with no sign-out under way. One that landed before it is read has
+     * ended it, and the session is then waited out again; one that lands after ends it later.
      */
-    private suspend fun generationOnceOpen(): Int {
+    private suspend fun signInOnceOpen(): SignIn {
         while (true) {
             awaitOpen()
-            val generation = signInGeneration()
-            if (isOpen()) return generation
+            val signIn = currentSignIn()
+            if (signIn.isCurrent) return signIn
         }
     }
 
-    /** Runs [block] under [accountLock] and says so, unless a sign-out has begun or moved [generation]. */
-    private inline fun unlessSignedOutSince(generation: Int, block: () -> Unit): Boolean =
+    /** Runs [block] under [accountLock] and says so, unless a sign-out has ended [signIn]. */
+    private inline fun unlessSignedOutSince(signIn: SignIn, block: () -> Unit): Boolean =
         synchronized(accountLock) {
-            if (!isOpen() || signInGeneration() != generation) return false
+            if (!signIn.isCurrent) return false
             block()
             true
         }

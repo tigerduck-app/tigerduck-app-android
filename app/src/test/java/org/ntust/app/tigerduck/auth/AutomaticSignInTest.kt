@@ -31,6 +31,7 @@ import org.ntust.app.tigerduck.push.UnregisterHeldBack
 import org.ntust.app.tigerduck.push.PushTokenIn
 import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -212,7 +213,7 @@ class AutomaticSignInTest {
     @Test
     fun `the departing session goes back to the backend that issued it, recorded at sign-in`() = runTest {
         val manager = manager()
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
         // Changed while signed in: the pair was still issued by the first backend.
         prefs.announcementApiBaseUrlOverride = "http://10.0.0.9:9/v3"
 
@@ -256,10 +257,10 @@ class AutomaticSignInTest {
         val manager = manager(owedUnregister = owed)
 
         backend.answer(LOGIN, 503)
-        runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null) }
+        runCatching { manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current) }
         assertEquals("device-1", pending()?.deviceId)
 
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
         assertNull(pending())
     }
 
@@ -270,7 +271,7 @@ class AutomaticSignInTest {
         // The endpoint set since the sign-out: logging in there moves nothing at the backend owed.
         prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:10/v3"
 
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
 
         assertEquals("device-1", pending()?.deviceId)
     }
@@ -292,7 +293,7 @@ class AutomaticSignInTest {
         }
         val manager = manager(owedUnregister = OwedUnregister(store))
 
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
 
         assertNull("signed in at the same backend, the device is the new session's", pending)
         assertTrue(manager.hasSessionAt("HTTP://127.0.0.1:9/v3/"))
@@ -302,7 +303,7 @@ class AutomaticSignInTest {
     fun `a session is the backend's that issued it, whatever the endpoint names since`() = runTest {
         val manager = manager()
         val issuer = resolveAnnouncementEndpoint(prefs).url
-        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+        manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
 
         prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:10/v3"
 
@@ -317,7 +318,7 @@ class AutomaticSignInTest {
         owed.mutex.lock()
 
         val signingIn = async(Dispatchers.Default) {
-            manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null)
+            manager.login("B00000000", moodleToken = "moodle", moodlePrivateToken = null, signIn = manager.session.signIns.current)
         }
         Thread.sleep(300)
         assertEquals(emptyList<String>(), backend.endpoints())
@@ -483,6 +484,7 @@ class AutomaticSignInTest {
         assertFalse(manager.signInIfSignedOut())
 
         manager.logout()
+        manager.session.open()
 
         assertTrue(manager.signInIfSignedOut())
         assertEquals(2, backend.received(LOGIN).size)
@@ -494,6 +496,7 @@ class AutomaticSignInTest {
         backend.onLogin = { manager.logout() }
         assertFalse(manager.signInIfSignedOut())
         backend.onLogin = {}
+        manager.session.open()
 
         assertTrue(manager.signInIfSignedOut())
         assertEquals(2, backend.received(LOGIN).size)
@@ -597,8 +600,8 @@ class AutomaticSignInTest {
     }
 
     /** What AuthService.login() sends to the backend once the school took the password. */
-    private suspend fun AuthTokenManager.loginAsTheUser(signIn: Int): SignInAttempt = try {
-        login("B00000000", "moodle", moodlePrivateToken = null, signInGeneration = signIn)
+    private suspend fun AuthTokenManager.loginAsTheUser(signIn: SignIn): SignInAttempt = try {
+        login("B00000000", "moodle", moodlePrivateToken = null, signIn = signIn)
         SignInAttempt.SIGNED_IN
     } catch (e: CancellationException) {
         throw e

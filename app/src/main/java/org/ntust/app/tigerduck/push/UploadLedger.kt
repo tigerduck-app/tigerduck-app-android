@@ -4,6 +4,7 @@ import com.google.gson.Gson
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.security.MessageDigest
 
 /**
@@ -96,7 +97,7 @@ internal class UploadLedger(
      * [REFUSED_UPLOAD_PAUSE_MS], by the sign-in it was sent under and its
      * fingerprint, with when the answer came.
      */
-    private val refused = HashMap<String, Long>()
+    private val refused = HashMap<Pair<SignIn, String>, Long>()
 
     /**
      * Runs [send] for a list with [fingerprint] when it is due, or whatever
@@ -116,12 +117,12 @@ internal class UploadLedger(
         fingerprint: String,
         record: (fingerprint: String, atMs: Long) -> Unit,
         always: Boolean = false,
-        signIn: Int = 0,
+        signIn: SignIn,
         send: suspend () -> Unit,
     ): Boolean =
         mutex.withLock {
             val now = clock()
-            val refusalKey = "$signIn:$fingerprint"
+            val refusalKey = signIn to fingerprint
             // Measured from the refusal, so a clock set back does not stretch the pause.
             refused.entries.removeAll { (_, at) -> now - at !in 0 until REFUSED_UPLOAD_PAUSE_MS }
             if (!always) {

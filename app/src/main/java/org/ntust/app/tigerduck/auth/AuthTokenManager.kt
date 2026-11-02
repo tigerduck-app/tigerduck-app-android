@@ -23,6 +23,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.BackendServices
@@ -75,12 +76,12 @@ class AuthTokenManager(
     private val jsonType = "application/json".toMediaType()
 
     /**
-     * Signs in with the stored account, passing the generation it is given to
+     * Signs in with the stored account, passing the sign-in it is given to
      * [login], and says what it sent: AuthService's. Run only by the automatic
      * sign-in: after a refused refresh, for [signInAgain], and when something
      * finds no session.
      */
-    var signInWithStoredAccount: (suspend (signInGeneration: Int) -> SignInAttempt)? = null
+    var signInWithStoredAccount: (suspend (SignIn) -> SignInAttempt)? = null
 
     // OkHttp sends a failed request again on its own, up to three sends of one
     // refresh token in all, and the backend takes a third send as reuse; for a
@@ -104,23 +105,15 @@ class AuthTokenManager(
     // written under refreshMutex.
     private var refreshPausedAt: Long? = null
 
-    // Held from reading generation through the token write that depends on
-    // it, so a sign-out cannot fall between a reply's check and its save.
+    // Held from asking a sign-in through the token write that depends on it, so
+    // a sign-out cannot fall between a reply's check and its save. Taken before
+    // the sign-in's own lock (SignIn.ifCurrent), as logout() takes them.
     private val signInLock = Any()
-    private var generation = 0
 
     // Under signInLock: the sign-in that automatic callers which overlap it
     // wait for, and when one that sent credentials last failed.
     private var signInUnderWay: CompletableDeferred<Boolean>? = null
     private var signInFailedAt: Long? = null
-
-    /**
-     * Moved by [logout]. A login or refresh reply for an earlier value belongs
-     * to an account that has signed out, so it stores nothing. Work that reads
-     * the credentials and then suspends reads this first and passes it to
-     * [login].
-     */
-    val signInGeneration: Int get() = synchronized(signInLock) { generation }
 
     private val _lastSignInFailed = MutableStateFlow(false)
 
@@ -191,24 +184,14 @@ class AuthTokenManager(
     suspend fun requireAuthHeader(): String = authHeader() ?: throw NotSignedInException()
 
     /**
-     * [requireAuthHeader] pinned to sign-in [signIn] ([signInGeneration]): once
-     * that account has signed out, none, rather than the next account's
-     * token. For work that read its data as one account and sends it later.
-     */
-    suspend fun requireAuthHeader(signIn: Int): String {
-        if (signInGeneration != signIn || !signInIfSignedOut()) throw NotSignedInException()
-        val access = validTokenIfSignedIn(signIn) ?: refresh(signIn) ?: throw NotSignedInException()
-        return "Bearer $access"
-    }
-
-    /**
-     * [requireAuthHeader] pinned to [signIn], which T2.12 makes the only form. The count first:
-     * read after, a sign-out between the two would pin the request to the next sign-in's.
+     * [requireAuthHeader] pinned to [signIn]: once that sign-in has ended, none, rather than the
+     * next account's token. For work that read its data as one account and sends it later. A
+     * sign-in it may start is the session's own: this [signIn] gets a token only while it stands.
      */
     suspend fun requireAuthHeader(signIn: SignIn): String {
-        val count = synchronized(signInLock) { generation }
-        if (!signIn.isCurrent) throw NotSignedInException()
-        return requireAuthHeader(count)
+        if (!signIn.isCurrent || !signInIfSignedOut()) throw NotSignedInException()
+        val access = validTokenIfSignedIn(signIn) ?: refresh(signIn) ?: throw NotSignedInException()
+        return "Bearer $access"
     }
 
     /**
@@ -277,17 +260,18 @@ class AuthTokenManager(
 
     /**
      * Runs the interactive sign-in's [signIn], which calls [login] with the
-     * generation it is given, and says whether it signed in. It never waits
+     * sign-in it is given, and says whether it signed in. It never waits
      * for the pause. An automatic sign-in that starts meanwhile waits for it
      * instead of logging in too, and a failure starts the pause as an
      * automatic one does.
      */
-    suspend fun signInInteractively(signIn: suspend (signInGeneration: Int) -> SignInAttempt): Boolean {
+    @OptIn(StartsAccountWork::class)
+    suspend fun signInInteractively(signIn: suspend (SignIn) -> SignInAttempt): Boolean {
         val attempt = CompletableDeferred<Boolean>()
         val current = synchronized(signInLock) {
             signInUnderWay = attempt
             _lastSignInFailed.value = false
-            generation
+            session.current
         }
         return runSignIn(attempt, current, signInWith = signIn)
     }
@@ -299,14 +283,15 @@ class AuthTokenManager(
      * student and per IP, and a campus network puts many students behind one
      * IP.
      */
+    @OptIn(StartsAccountWork::class)
     private suspend fun signInAutomatically(waitOutPause: Boolean = true, replacing: String? = null): Boolean {
         val signInWith = signInWithStoredAccount ?: return false
         val attempt = CompletableDeferred<Boolean>()
-        val signIn: Int
+        val signIn: SignIn
         // The sign-in already under way, which this caller waits for instead.
         val running = synchronized(signInLock) {
             // Before the credentials, which the sign-in reads.
-            signIn = generation
+            signIn = session.current
             signInUnderWay ?: run {
                 if (waitOutPause && isSignInPaused()) return false
                 signInUnderWay = attempt
@@ -317,11 +302,11 @@ class AuthTokenManager(
         if (running != null) return running.await()
         // Finishes for the callers waiting on it when this one is cancelled.
         return withContext(NonCancellable + (replacing?.let(::Replacing) ?: EmptyCoroutineContext)) {
-            runSignIn(attempt, signIn, replacing) { generation ->
+            runSignIn(attempt, signIn, replacing) { current ->
                 // A failure of the sign-in itself is the caller's no session,
                 // never an exception out of its token lookup.
                 try {
-                    signInWith(generation)
+                    signInWith(current)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -339,9 +324,9 @@ class AuthTokenManager(
      */
     private suspend fun runSignIn(
         attempt: CompletableDeferred<Boolean>,
-        signIn: Int,
+        signIn: SignIn,
         replacing: String? = null,
-        signInWith: suspend (Int) -> SignInAttempt,
+        signInWith: suspend (SignIn) -> SignInAttempt,
     ): Boolean {
         var signedIn = false
         try {
@@ -354,10 +339,10 @@ class AuthTokenManager(
         return signedIn
     }
 
-    private fun settleSignIn(signIn: Int, attempt: SignInAttempt): Boolean = synchronized(signInLock) {
+    private fun settleSignIn(signIn: SignIn, attempt: SignInAttempt): Boolean = synchronized(signInLock) {
         // Signed out since: the attempt was the departing account's, and the
         // sign-out ended any pause.
-        if (generation != signIn) return@synchronized false
+        if (!signIn.isCurrent) return@synchronized false
         when (attempt) {
             SignInAttempt.SIGNED_IN -> signInFailedAt = null
             SignInAttempt.FAILED -> signInFailedAt = now()
@@ -441,7 +426,7 @@ class AuthTokenManager(
                     RefreshOutcome.Unused
                 } else {
                     // Counted by the caller, not on disk: the pair is no longer the stored one.
-                    send(token, sends, DEPARTING, base)
+                    send(token, sends, signIn = null, base)
                 }
             when (outcome) {
                 is RefreshOutcome.Refreshed -> DepartingRefresh.Refreshed(
@@ -477,9 +462,8 @@ class AuthTokenManager(
     }
 
     /**
-     * Signs in to the backend and stores the pair it returns. When [logout]
-     * has moved [signInGeneration] past the value passed here, the reply
-     * stores nothing and this throws [AuthException].
+     * Signs in to the backend and stores the pair it returns. Once [signIn] has
+     * ended the reply stores nothing and this throws [AuthException].
      *
      * The backend proves the account with [moodleToken] alone and ignores a
      * password (https://github.com/tigerduck-app/tigerduck-backend/pull/64),
@@ -490,12 +474,12 @@ class AuthTokenManager(
         studentId: String,
         moodleToken: String,
         moodlePrivateToken: String?,
+        signIn: SignIn,
         platform: String = "android",
-        signInGeneration: Int = this.signInGeneration,
     ): LoginResult = loginQueue.withLock {
         // One at a time, automatic and interactive alike: the backend keeps only the last login's
         // session, which is then the pair stored last. One a sign-out overtook sends nothing.
-        if (signInGeneration != this.signInGeneration) throw AuthException("signed out before login")
+        if (!signIn.isCurrent) throw AuthException("signed out before login")
         val replacing = currentCoroutineContext()[Replacing]
         // Read once: the debt it may end, the pair it stores and what it sends are this backend's.
         val endpoint = resolveAnnouncementEndpoint(prefs)
@@ -506,7 +490,7 @@ class AuthTokenManager(
             // a pair meanwhile would see its session ended. One storing just after is answered by
             // its 401s, whose relogin finds this login's pair unrefused and retries (signInAgain).
             if (replacing != null && replacedSince(replacing.refreshToken)) throw SessionReplacedException()
-            postLogin(issuer, studentId, moodleToken, privateToken, platform, signInGeneration)
+            postLogin(issuer, studentId, moodleToken, privateToken, platform, signIn)
         }
     }
 
@@ -516,7 +500,7 @@ class AuthTokenManager(
         moodleToken: String,
         moodlePrivateToken: String?,
         platform: String,
-        signInGeneration: Int,
+        signIn: SignIn,
     ): LoginResult {
         if (moodleToken.isBlank()) throw AuthException("no Moodle token")
         val json = JSONObject().apply {
@@ -539,7 +523,7 @@ class AuthTokenManager(
             val refreshToken = result.getString("refresh_token")
             val expiresIn = result.getInt("expires_in")
             val expiresAt = now() + expiresIn * 1000L
-            if (!saveIfSignedIn(signInGeneration, accessToken, refreshToken, expiresAt, issuer, studentId)) {
+            if (!saveIfSignedIn(signIn, accessToken, refreshToken, expiresAt, issuer, studentId)) {
                 throw AuthException("signed out during login")
             }
             LoginResult(
@@ -561,25 +545,25 @@ class AuthTokenManager(
         }
 
     /**
-     * Drops the pair, and keeps a login or refresh reply still on its way from
-     * storing one. The next account's automatic sign-in then goes at once.
+     * Drops the pair and ends the sign-in, which keeps a login or refresh reply
+     * still on its way from storing one. The next account's automatic sign-in
+     * goes once the session opens.
      *
      * Hands back the session it drops, for the sign-out's unregister: taken
-     * under the same lock, as the generation moves, so it is the pair a refresh
-     * landing just before stored, and nothing lands after.
+     * under the same lock, as the sign-in ends, so it is the pair a refresh
+     * landing just before stored, and nothing lands after. AuthService has
+     * ended the sign-in already by then, and a pair refused in that gap goes
+     * aside for the unregister, as one that comes back after this does.
      */
     fun logout(): DepartingSession? {
         var departing: DepartingSession? = null
         synchronized(signInLock) {
             departing = departingSession()
-            generation++
+            session.signIns.end()
             tokens.clear()
             signInUnderWay = null
             signInFailedAt = null
             _lastSignInFailed.value = false
-            // Under the lock, with the count it will replace: work that began before this point
-            // writes nothing once the lock is released.
-            session.signIns.end()
         }
         // After the lock is released: a cancellation handler never takes a lock held here.
         session.cancelWork()
@@ -587,74 +571,62 @@ class AuthTokenManager(
     }
 
     /**
-     * Runs [block] unless [logout] has run since [signIn] was read, under the
-     * lock the generation moves under, as [saveIfSignedIn] stores: what
-     * [block] writes lands before whatever the sign-out clears after moving
-     * the generation (`AuthService.logout`), or not at all. For a short write
-     * only; every sign-in and refresh waits on the lock. Says whether it ran.
-     */
-    fun runIfSignedIn(signIn: Int, block: () -> Unit): Boolean = synchronized(signInLock) {
-        if (generation != signIn) return false
-        block()
-        true
-    }
-
-    /**
-     * Stores the pair unless [logout] has run since [signIn] was read, or, with [replacing], a
-     * sign-in has stored a pair of its own since that refresh token went out; says whether it did.
+     * Stores the pair unless [signIn] has ended, wherever the sign-out that ended it stands, or,
+     * with [replacing], a sign-in has stored a pair of its own since that refresh token went out;
+     * says whether it did. The store and the sign-in's end exclude each other ([SignIn.ifCurrent]).
      */
     private fun saveIfSignedIn(
-        signIn: Int,
+        signIn: SignIn,
         access: String,
         refresh: String,
         expiresAt: Long,
         issuedBy: String? = null,
         studentId: String? = null,
         replacing: String? = null,
-    ): Boolean {
-        synchronized(signInLock) {
-            if (generation != signIn) return false
-            if (replacing != null && tokens.refreshToken != replacing) return false
+    ): Boolean = synchronized(signInLock) {
+        signIn.ifCurrent {
+            if (replacing != null && tokens.refreshToken != replacing) return@ifCurrent false
             tokens.save(access, refresh, expiresAt, issuedBy, studentId)
             issued(access)
-            return true
-        }
+            true
+        } == true
     }
 
     // Not logout(): the account has not signed out, so a sign-in another
     // caller has in flight may still store its pair. Only the pair [sent] came
     // from: one a sign-in has stored since is that sign-in's.
-    private fun clearIfSignedIn(signIn: Int, sent: String) {
+    private fun clearIfSignedIn(signIn: SignIn, sent: String) {
         synchronized(signInLock) {
-            if (generation == signIn && tokens.refreshToken == sent) tokens.clear()
+            if (signIn.isCurrent && tokens.refreshToken == sent) tokens.clear()
         }
     }
 
+    @OptIn(StartsAccountWork::class)
     private suspend fun validAccessToken(): String? {
         // Read first: after a sign-out while this waits for a sign-in or a
         // refresh, the session stored is the next account's, not this request's.
-        val signIn = signInGeneration
+        val signIn = session.current
         if (!signInIfSignedOut()) return null
         return validTokenIfSignedIn(signIn) ?: refresh(signIn)
     }
 
     // The stored access token while it has more than 30 s left and is still
-    // generation [signIn]'s.
-    private fun validTokenIfSignedIn(signIn: Int): String? = synchronized(signInLock) {
+    // [signIn]'s.
+    private fun validTokenIfSignedIn(signIn: SignIn): String? = synchronized(signInLock) {
         val access = tokens.accessToken
-        if (generation != signIn || access == null || now() >= tokens.expiresAt - 30_000) null else issued(access)
+        if (!signIn.isCurrent || access == null || now() >= tokens.expiresAt - 30_000) null else issued(access)
     }
 
-    private suspend fun refresh(signIn: Int): String? = refreshMutex.withLock {
+    private suspend fun refresh(signIn: SignIn): String? = refreshMutex.withLock {
         // Double-check after acquiring lock
         validTokenIfSignedIn(signIn)?.let { return it }
 
-        // With the generation under the lock a sign-out takes, so the token is
+        // Asked under the lock a sign-out clears the pair under, so the token is
         // the account's that asked; its count with it. Marked on its way in the
         // same step, so a departing refresh of the token waits for this one
         // rather than send it alongside.
         val marked = synchronized(signInLock) {
-            val token = if (generation == signIn) tokens.refreshToken else null
+            val token = if (signIn.isCurrent) tokens.refreshToken else null
             // With the backend the pair came from, which the refresh goes back to
             // whatever the endpoint setting names now.
             token?.let {
@@ -688,7 +660,7 @@ class AuthTokenManager(
     private suspend fun refreshAndSettle(
         onItsWay: Pair<String, CompletableDeferred<Unit>>,
         sends: Int,
-        signIn: Int,
+        signIn: SignIn,
         issuer: String,
     ): String? {
         val outcome = try {
@@ -711,7 +683,7 @@ class AuthTokenManager(
         }
         // Signed out since the refresh began: what came back is the departing
         // account's, and a relogin or a clear would act on whoever signed in since.
-        if (signIn != signInGeneration) return null
+        if (!signIn.isCurrent) return null
         // A sign-in stored a pair of its own while this refresh was out: what came back is the
         // pair it replaced, whose session that login ended, and a relogin or a clear would end
         // the sign-in's. The caller goes with the stored pair.
@@ -753,8 +725,8 @@ class AuthTokenManager(
 
     // After a sign-out during the relogin, the stored token belongs to whoever
     // signed in since and is not this refresh's to hand out.
-    private fun accessTokenIfSignedIn(signIn: Int): String? =
-        synchronized(signInLock) { if (generation == signIn) tokens.accessToken?.let(::issued) else null }
+    private fun accessTokenIfSignedIn(signIn: SignIn): String? =
+        synchronized(signInLock) { if (signIn.isCurrent) tokens.accessToken?.let(::issued) else null }
 
     // Measured from the failure rather than to a deadline, so a clock set back
     // does not stretch the pause.
@@ -777,9 +749,9 @@ class AuthTokenManager(
      * and so never sent ([RefreshOutcome.Uncounted]), leaves the token that
      * send, kept for a later refresh.
      */
-    private fun sendWithOneResend(refreshToken: String, sends: Int, signIn: Int, base: String): RefreshOutcome {
+    private fun sendWithOneResend(refreshToken: String, sends: Int, signIn: SignIn, base: String): RefreshOutcome {
         val first = send(refreshToken, sends, signIn, base)
-        val mayResend = sends + 1 < MAX_REFRESH_TOKEN_SENDS && signIn == signInGeneration
+        val mayResend = sends + 1 < MAX_REFRESH_TOKEN_SENDS && signIn.isCurrent
         if (first != RefreshOutcome.NoReply || !mayResend) return first
         return when (val second = send(refreshToken, sends + 1, signIn, base)) {
             is RefreshOutcome.Refreshed, RefreshOutcome.Unused, RefreshOutcome.Uncounted -> second
@@ -793,9 +765,10 @@ class AuthTokenManager(
      * before it. A count the disk does not take keeps it from going out. A
      * 429 and a send that never left the device put the count back, as the
      * backend did not use the token. It goes to [base], the backend that
-     * issued it, whatever the endpoint setting says.
+     * issued it, whatever the endpoint setting says. With no [signIn], a
+     * departing refresh: it stores nothing, and its caller counts its sends.
      */
-    private fun send(refreshToken: String, sendsBefore: Int, signIn: Int, base: String): RefreshOutcome {
+    private fun send(refreshToken: String, sendsBefore: Int, signIn: SignIn?, base: String): RefreshOutcome {
         val json = JSONObject().apply {
             put("refresh_token", refreshToken)
         }
@@ -830,8 +803,8 @@ class AuthTokenManager(
                 val refreshed = RefreshOutcome.Refreshed(newAccess, newRefresh, expiresAt)
                 // Stores nothing after a sign-out, which refreshAndSettle then sees.
                 // The pair is kept aside instead, for the sign-out's unregister.
-                if (!saveIfSignedIn(signIn, newAccess, newRefresh, expiresAt, issuedBy = base, replacing = refreshToken) &&
-                    signIn != DEPARTING
+                if (signIn != null &&
+                    !saveIfSignedIn(signIn, newAccess, newRefresh, expiresAt, issuedBy = base, replacing = refreshToken)
                 ) {
                     synchronized(signInLock) { unstoredPair = refreshToken to refreshed }
                 }
@@ -859,12 +832,12 @@ class AuthTokenManager(
     // took the departing session under this lock with the count as it stood,
     // so a send counted after it would be one the debt never knows of, and
     // answered with a 5xx nothing here would count it either. A departing
-    // refresh ([DEPARTING]) is counted by its caller, with the debt.
-    private fun countSends(refreshToken: String, count: Int, signIn: Int): Boolean =
+    // refresh, with no [signIn], is counted by its caller, with the debt.
+    private fun countSends(refreshToken: String, count: Int, signIn: SignIn?): Boolean =
         synchronized(signInLock) {
             when {
-                signIn == DEPARTING -> true
-                generation != signIn -> false
+                signIn == null -> true
+                !signIn.isCurrent -> false
                 tokens.refreshToken != refreshToken -> true
                 else -> tokens.saveRefreshTokenSends(count)
             }
@@ -910,7 +883,7 @@ class AuthTokenManager(
 
     /** What a sign-in did: [signInWithStoredAccount], or the one [signInInteractively] runs. */
     enum class SignInAttempt {
-        /** It stored a pair for the generation it was given. */
+        /** It stored a pair for the sign-in it was given. */
         SIGNED_IN,
 
         /** It had credentials to send, to the backend or to harvest a Moodle token, and stored no pair. */
@@ -927,9 +900,6 @@ class AuthTokenManager(
     private companion object {
         const val TAG = "AuthTokenManager"
         const val REFRESH_TIMEOUT_SECONDS = 20L
-
-        // No generation is ever this, so a departing refresh stores nothing.
-        const val DEPARTING = -1
 
         // The backend answers a refresh token twice at most: once, and again
         // while the pair it gave is unused. It takes a third use for theft and

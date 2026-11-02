@@ -94,7 +94,7 @@ class PushRegistrationServiceTest {
         if (signsIn) {
             auth.signInWithStoredAccount = { signIn ->
                 runCatching {
-                    auth.login("B00000000", "moodle", moodlePrivateToken = null, signInGeneration = signIn)
+                    auth.login("B00000000", "moodle", moodlePrivateToken = null, signIn = signIn)
                 }.fold(onSuccess = { SignInAttempt.SIGNED_IN }, onFailure = { SignInAttempt.FAILED })
             }
         }

@@ -18,39 +18,24 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
-    "kind": "account-counter",
-    "count": 3
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "demo-check",
     "count": 7
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 448
+    "count": 447
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-function",
     "name": "AuthService.login(String, String)",
-    "lines": 91
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthTokenManager.kt",
-    "kind": "account-counter",
-    "count": 26
+    "lines": 89
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthTokenManager.kt",
     "kind": "long-file",
-    "count": 946
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
-    "kind": "account-counter",
-    "count": 4
+    "count": 916
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
@@ -61,11 +46,6 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredPasswordLatch.kt",
     "kind": "account-counter",
     "count": 14
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/auth/TypedAccountSignIn.kt",
-    "kind": "account-counter",
-    "count": 6
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/browser/MoodleWebSessionSignIn.kt",
@@ -85,7 +65,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
     "kind": "long-file",
-    "count": 1859
+    "count": 1858
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/MoodleCourseRepository.kt",
@@ -307,11 +287,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/network/moodle/MoodleAutologin.kt",
-    "kind": "account-counter",
-    "count": 8
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/network/moodle/MoodleAutologin.kt",
     "kind": "demo-check",
     "count": 2
   },
@@ -384,11 +359,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
-    "kind": "account-counter",
-    "count": 2
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "fdroid-literal",
     "count": 1
   },
@@ -428,11 +398,6 @@
     "kind": "long-function",
     "name": "SyncApiClient.parseFullSync(JSONObject)",
     "lines": 95
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/UploadLedger.kt",
-    "kind": "account-counter",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/review/ReviewPrompt.kt",

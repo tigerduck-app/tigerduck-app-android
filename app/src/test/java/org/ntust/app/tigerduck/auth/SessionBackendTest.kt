@@ -51,7 +51,7 @@ class SessionBackendTest {
     }
 
     private suspend fun signedInAtTheIssuer(): AuthTokenManager = manager().also {
-        it.login("B00015999", moodleToken = "moodle", moodlePrivateToken = null)
+        it.login("B00015999", moodleToken = "moodle", moodlePrivateToken = null, signIn = it.session.signIns.current)
     }
 
     @Test

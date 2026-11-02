@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.session.SignOutWipe
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.data.cache.BulletinCache
 import org.ntust.app.tigerduck.data.BulletinReadStateStore
@@ -112,8 +113,8 @@ class AuthService @Inject constructor(
      */
     val signIns: SharedFlow<Unit> = _signIns.asSharedFlow()
 
-    // Held by a sign-out as it closes the session and while it drops the stored account and moves
-    // the sign-in generation, and by a sign-in while it checks both and stores what it got.
+    // Held by a sign-out as it ends the sign-in and while it drops the stored account, and by a
+    // sign-in while it asks whether its own has ended and stores what it got.
     private val accountLock = Any()
 
     // The automatic backend sign-in, after a refused refresh and whenever
@@ -164,14 +165,14 @@ class AuthService @Inject constructor(
     // The sign-in with credentials the user typed. The school checks them from an empty session
     // rather than trusting whatever session the jar holds: it may still be another account's --
     // see [SsoLoginService.signIn].
+    @OptIn(StartsAccountWork::class)
     private val typedSignIn = TypedAccountSignIn(
         schoolSignIn = { studentId, password ->
             ssoLoginService.signIn(SSO_SERVICE_URL, studentId, password)
         },
         signInInteractively = { signIn -> authTokenManager.signInInteractively(signIn) },
         awaitOpen = authTokenManager.session::awaitOpen,
-        isOpen = { authTokenManager.session.isOpen },
-        signInGeneration = { authTokenManager.signInGeneration },
+        currentSignIn = { authTokenManager.session.current },
         accountLock = accountLock,
         storedStudentId = { credentials.ntustStudentId },
         writeAccount = { studentId, password ->
@@ -206,8 +207,8 @@ class AuthService @Inject constructor(
             val normalizedId = studentId.trim().uppercase()
 
             // Registered before authState flips: an automatic sign-in it sets off, such as Home's
-            // pull, waits for this one instead of logging in too. The generation is read before
-            // the credentials are stored, so a sign-out from here on keeps the v3 login below from
+            // pull, waits for this one instead of logging in too. The sign-in is read before the
+            // credentials are stored, so a sign-out from here on keeps the v3 login below from
             // storing a pair. The credentials are stored, and the stored-password latch lifted,
             // the moment the school takes them, and the library signs in before authState flips;
             // see TypedAccountSignIn.
@@ -235,11 +236,9 @@ class AuthService @Inject constructor(
                 // this student's stored token, and never let a harvest failure
                 // block the SSO session. obtainToken stores nothing once the
                 // account has signed out, and stillCurrent then keeps the
-                // fallback from sending anything. It reads the stored ID too:
-                // the sign-out drops the credentials before it moves the generation.
-                val stillCurrent = {
-                    authTokenManager.signInGeneration == signIn && credentials.ntustStudentId == normalizedId
-                }
+                // fallback from sending anything: the sign-out ends the sign-in
+                // before it drops the credentials.
+                val stillCurrent = { signIn.isCurrent }
                 val moodleToken = interactiveMoodleToken(
                     harvest = { moodleTokenService.obtainToken(normalizedId, password) },
                     stored = { credentials.moodleToken },
@@ -258,7 +257,7 @@ class AuthService @Inject constructor(
                         studentId = normalizedId,
                         moodleToken = moodleToken,
                         moodlePrivateToken = null,
-                        signInGeneration = signIn,
+                        signIn = signIn,
                     )
                     SignInAttempt.SIGNED_IN
                 } catch (e: CancellationException) {
@@ -370,9 +369,9 @@ class AuthService @Inject constructor(
      */
     private fun clearAccount(): Boolean = with(ClearingSteps()) {
         // The school account alone: the library account and the school mail stay signed in
-        // (decided for Android on 2026-10-22). One step for a sign-in under way, which checks the
-        // generation under the same lock before it stores anything. The session it wipes is taken
-        // as the generation moves: the unregister below sends its DELETE afterwards.
+        // (decided for Android on 2026-10-22). One step for a sign-in under way, which asks about
+        // its own sign-in under the same lock before it stores anything. The session it wipes is
+        // handed back here: the unregister below sends its DELETE afterwards.
         // On disk before the account goes: the browser's clearing is owed if the process dies.
         once("browser") { BrowserCleanup.of(context).markPending() }
         var departing: DepartingSession? = null
