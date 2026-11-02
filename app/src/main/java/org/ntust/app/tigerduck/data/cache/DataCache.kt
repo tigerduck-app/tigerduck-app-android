@@ -50,7 +50,7 @@ import javax.inject.Singleton
 class DataCache @Inject constructor(
     @ApplicationContext private val context: Context,
     private val academicCalendar: AcademicCalendarStore,
-) {
+) : org.ntust.app.tigerduck.auth.session.LateAccountScoped {
 
     private val cacheDir: File = File(context.cacheDir, "TigerDuckCache").also { it.mkdirs() }
 
@@ -1584,21 +1584,21 @@ class DataCache @Inject constructor(
     // --- Logout cleanup ---
 
     /**
-     * Wipe every piece of user-scoped data so the next login does not inherit
-     * the previous user's courses, assignments, calendar events, or skip
-     * marks on the UI. School-wide calendar events are rebuilt on the next
-     * sync, so it is fine to drop them here too.
+     * At the school's sign-out ([org.ntust.app.tigerduck.auth.session.SchoolStores]): wipe every
+     * piece of user-scoped data so the next login does not inherit the previous user's courses,
+     * assignments, calendar events, or skip marks on the UI. School-wide calendar events are
+     * rebuilt on the next sync, so it is fine to drop them here too.
      */
+    override suspend fun forgetAccount() = clearAllUserData()
+
     /**
      * Delete **every** file in both cache directories, user-scoped or not.
      *
-     * [clearAllUserData] deliberately keeps device-wide caches (name
-     * abbreviations, the academic calendar, bulletin snapshots) because a
-     * logout is an account change, not a factory reset. The full-reset flow
-     * is the opposite: whatever is left behind is exactly what makes the
-     * "fresh install" it promises not actually fresh, so this takes the
-     * directories wholesale rather than naming files — a named list silently
-     * stops being complete the next time someone adds a cache.
+     * [clearAllUserData] deliberately keeps device-wide caches (name abbreviations, the academic
+     * calendar, bulletin snapshots) because a logout is an account change, not a factory reset. The
+     * full-reset flow is the opposite: whatever is left behind is exactly what makes the "fresh
+     * install" it promises not actually fresh, so this takes the directories wholesale rather than
+     * naming files — a named list silently stops being complete the next time someone adds a cache.
      */
     suspend fun clearEverything() {
         // Outside the folders' locks, as a recording takes them: see selectionDropsMutex.

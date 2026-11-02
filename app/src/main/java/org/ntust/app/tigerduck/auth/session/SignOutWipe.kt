@@ -5,8 +5,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 
@@ -33,12 +31,11 @@ class SignOutWipe(
     private val scope: CoroutineScope,
 ) {
     constructor(
-        importedClassTables: ImportedClassTableStore,
-        dataCache: DataCache,
+        stores: SchoolStores,
         widgetUpdater: WidgetUpdater,
         session: AccountSession,
         scope: CoroutineScope,
-    ) : this({ run(importedClassTables, dataCache, widgetUpdater) }, session, scope)
+    ) : this({ run(stores, widgetUpdater) }, session, scope)
 
     private val lock = Any()
     private var unfinished = 0
@@ -102,14 +99,12 @@ class SignOutWipe(
     }
 
     companion object {
-        /** Each step on its own, so one that throws stops no other. */
-        suspend fun run(importedClassTables: ImportedClassTableStore, dataCache: DataCache, widgetUpdater: WidgetUpdater) {
-            // Only this sign-out empties them: a relogin in the background or a renewed session
-            // keeps the class tables the user imported.
-            runCatching { importedClassTables.clearForSignOut() }
-                .onFailure { Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
-            runCatching { dataCache.clearAllUserData() }
-                .onFailure { Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
+        /** Each step on its own, so one that throws stops no other: the late stores in their order, then the widgets. */
+        suspend fun run(stores: SchoolStores, widgetUpdater: WidgetUpdater) {
+            stores.late.forEach { store ->
+                runCatching { store.forgetAccount() }
+                    .onFailure { Log.w("AuthService", "${store.javaClass.simpleName} failed on logout: ${it.logSummary()}") }
+            }
             // Now that the timetable is gone: a widget left alone shows the departing student's
             // until its next scheduled update, up to half an hour away.
             runCatching { widgetUpdater.updateAll() }

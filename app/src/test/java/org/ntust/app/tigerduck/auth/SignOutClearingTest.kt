@@ -7,61 +7,38 @@ import org.junit.Test
 import java.io.File
 
 /**
- * What the user's own sign-out leaves for the next student. AuthService needs the Android
- * Keystore, so this reads the source of [AuthService.logout] and of `clearAccount`, what it runs,
- * as ImportedClassTablesClearingTest does.
+ * What the user's own sign-out leaves for the next student. AuthService needs the Android Keystore,
+ * so this reads the source of the sign-out and of `clearAccount`, what it runs, with the lists of
+ * SchoolStores it runs written out ([SignOutSource]), as ImportedClassTablesClearingTest does.
  */
 class SignOutClearingTest {
 
-    private val source: String =
-        File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt").readText()
+    private val source: String = SignOutSource.source(SignOutSource.PLAN)
 
-    private fun appDir(): File {
-        var dir: File? = File("").absoluteFile
-        while (dir != null) {
-            val here = dir
-            if (File(here, "app/src/main/java").isDirectory) return File(here, "app")
-            if (File(here, "src/main/java").isDirectory) return here
-            dir = here.parentFile
-        }
-        throw AssertionError("Could not locate the :app module from ${File("").absolutePath}")
-    }
+    private fun appDir(): File = SignOutSource.appDir
 
     /** The body of the function [declaration] starts, up to its matching brace. */
-    private fun body(declaration: String): String {
-        val start = source.indexOf(declaration)
-        if (start < 0) throw AssertionError("AuthService has no `$declaration`")
-        val open = source.indexOf('{', start)
-        var depth = 0
-        for (index in open until source.length) {
-            when (source[index]) {
-                '{' -> depth++
-                '}' -> if (--depth == 0) {
-                    return source.substring(open + 1, index).also {
-                        assertFalse("`$declaration` ran into the next function", Regex("""\n {4}\S""").containsMatchIn(it))
-                    }
-                }
-            }
-        }
-        throw AssertionError("`$declaration` has no closing brace")
-    }
+    private fun body(declaration: String): String = SignOutSource.body(source, declaration)
 
     /** What a sign-out clears at once, which the recovery runs too. */
     private fun clearing() = body("private fun clearAccount()")
 
     /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
     private fun wipeBody(): String {
-        val wipe = File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
+        val wipe = SignOutSource.source("auth/session/SignOutWipe.kt")
         val start = wipe.indexOf("suspend fun run(")
         return wipe.substring(wipe.indexOf('{', start))
     }
+
+    /** What the sign-out clears at once, then its wipe, with each list of the account's stores written out where it runs. */
+    private fun signOut() = SignOutSource.expanded(clearing() + wipeBody())
 
     @Test
     fun `the sign-out runs in this order`() {
         // The order phase 2 keeps while it moves the pieces: the account goes first, and the wipe
         // follows the demo's exit and the bulletins, on the app scope.
         // The wipe is its own function, which logout() starts last.
-        val logout = clearing() + wipeBody()
+        val logout = signOut()
         val steps = listOf(
             "credentials.signOutSchoolAccount()",
             "authTokenManager.logout()",
@@ -106,7 +83,8 @@ class SignOutClearingTest {
             """credentials\.signOutSchoolAccount\(\)""",
             """authTokenManager\.logout\(\)""",
             """notificationSettingsSync\.cancelPendingPushes\(\)""",
-            """prefs\.forgetHolidayOverrides\(\)""",
+            // The account's stores, one list for both.
+            """stores\.atOnce""",
             """pushRegistration\.unregister\(""",
         )
         clearings.forEach { assertEquals(it, 1, Regex(it).findAll(source).count()) }
@@ -147,19 +125,21 @@ class SignOutClearingTest {
     @Test
     fun `the sign-out forgets the term picked in the class table`() {
         // Left behind, the next student's class table would open on the previous student's term.
-        assertEquals(1, Regex("""\bprefs\.school\.classTableSelectedSemester\.clear\(\)""").findAll(clearing()).count())
+        assertEquals(1, Regex("""\bprefs\.forgetSchoolChoices\(\)""").findAll(signOut()).count())
+        val choices = SignOutSource.body(SignOutSource.source("data/preferences/AppPreferences.kt"), "fun forgetSchoolChoices()")
+        assertEquals(1, Regex("""\bschool\.classTableSelectedSemester\.clear\(\)""").findAll(choices).count())
     }
 
     @Test
     fun `the sign-out forgets the departing student's holiday choices`() {
         // Left behind, the next student would inherit their quiet days, and the waiting ones would go up as theirs.
-        assertEquals(1, Regex("""\bprefs\.forgetHolidayOverrides\(\)""").findAll(clearing()).count())
+        assertEquals(1, Regex("""\bprefs\.forgetHolidayOverrides\(\)""").findAll(signOut()).count())
     }
 
     @Test
     fun `the widgets are drawn again once the departing student's timetable is wiped`() {
         // Not before: a widget drawn from the cache still on disk would keep the timetable.
-        val logout = clearing() + wipeBody()
+        val logout = signOut()
         val wiped = logout.indexOf("dataCache.clearAllUserData()")
         val redrawn = logout.indexOf("widgetUpdater.updateAll()")
         assertTrue("logout() wipes the cache", wiped >= 0)
@@ -188,6 +168,8 @@ class SignOutClearingTest {
                 it in listOf(
                     "var departing: DepartingSession? = null",
                     "synchronized(accountLock) {",
+                    // Each store of the list is a step of its own.
+                    "stores.atOnce.forEach { store -> must(store.javaClass.simpleName) { store.forgetAccount() } }",
                     "}",
                     // Only sets a flow's value, and the function's answer.
                     "_loginError.value = null",

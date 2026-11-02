@@ -28,7 +28,14 @@ the library's is `LibrarySession.signOut()`.
   - a DataCache file is cleared by a statement that names it and deletes;
   - a file an account owns whole is cleared by a function of a source that opens it, which
     clears the file or removes each of its keys;
-  - with `via`, the function must make that call instead.
+  - with `via`, the function must make that call instead;
+- a school row's clearer is reached by nothing the school's sign-out runs: its own steps, each
+  store on a list of `SchoolStores` (at its `forgetAccount`) and what follows every school sign-out
+  (`AccountSessionEffects.onSignedOut`), each call followed to the type it is made on. A key of a
+  build before, which its store takes up as it opens and nothing writes again, counts as cleared;
+- a store of an account's data, a type that is `AccountScoped` or `LateAccountScoped`, is on no
+  list of `SchoolStores`. A store is cleared by name, from a list, so one this process never built
+  is cleared too.
 
 The check reads a key passed through a parameter at its constant: a source of one file names
 those `KEY_…`, `K_…` or `…_KEY`.
@@ -145,7 +152,7 @@ the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps th
 | tigerduck_prefs | `classReminderEnabled` | device | |
 | tigerduck_prefs | `classReminderLeadMinutes` | device | |
 | tigerduck_prefs | `classReminderSettingsMigrated` | device | |
-| tigerduck_prefs | `classTableSelectedSemester` | school | `AuthService.kt` `clearAccount` |
+| tigerduck_prefs | `classTableSelectedSemester` | school | `AppPreferences.kt` `forgetSchoolChoices` |
 | tigerduck_prefs | `classroomMandarinDisplay` | device | |
 | tigerduck_prefs | `cloudSyncEnabled` | device | |
 | tigerduck_prefs | `configuredTabs` | device | |
@@ -189,7 +196,7 @@ the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps th
 | tigerduck_prefs | `notifyAssignments` | device | |
 | tigerduck_prefs | `onboardingVersion` | device | |
 | tigerduck_prefs | `outlineRequiredCourses` | device | |
-| tigerduck_prefs | `pendingConflictCategories` | school | `AuthService.kt` `clearAccount` |
+| tigerduck_prefs | `pendingConflictCategories` | school | `AppPreferences.kt` `forgetSchoolChoices` |
 | tigerduck_prefs | `pinTodayCoursesOnClassTable` | device | |
 | tigerduck_prefs | `previousDefaultTabsChecked` | device | |
 | tigerduck_prefs | `push.device_uuid` | device | |

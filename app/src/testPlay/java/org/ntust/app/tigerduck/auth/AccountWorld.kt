@@ -15,6 +15,7 @@ import org.junit.Assert.assertNotNull
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SchoolStores
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
@@ -177,9 +178,8 @@ internal fun accountWorld(
             sessionManager, moodleTokens, courseService, dataCache, appPrefs,
             MoodleWebservice(sessionManager, moodleTokens), sessions, idleScope,
         ),
-        dataCache = dataCache,
         bulletinCache = bulletinCache,
-        bulletinReadStateStore = BulletinReadStateStore(context),
+        stores = SchoolStores({ BulletinReadStateStore(context) }, { appPrefs }, { latch }, { imported }, { dataCache }),
         importedClassTables = imported,
         widgetUpdater = widgetUpdater,
         appScope = appScope,

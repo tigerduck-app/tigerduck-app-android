@@ -24,7 +24,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 438
+    "count": 419
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -90,7 +90,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/AppPreferences.kt",
     "kind": "long-file",
-    "count": 1365
+    "count": 1364
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/preferences/CredentialManager.kt",

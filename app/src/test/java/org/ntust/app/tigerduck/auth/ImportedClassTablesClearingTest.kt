@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.auth
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.io.File
 
@@ -10,51 +9,26 @@ import java.io.File
  * another student ID signs in. Everything else that signs in reuses the stored credentials and
  * keeps them: [AuthService.attemptRelogin] after the backend session lapses, [StoredAccountSignIn]
  * when there is no backend session, and [AuthService.ensureAuthenticated] when the SSO session
- * expires. Nothing signs the user out on its own; only [AuthService.logout] clears the stored
- * student ID. AuthService needs the Android Keystore, so this reads its source;
+ * expires. Nothing signs the user out on its own; only the sign-out clears the stored student ID.
+ * AuthService needs the Android Keystore, so this reads its source and the sign-out's;
  * ImportedClassTableStoreTest covers what the two calls do.
  */
 class ImportedClassTablesClearingTest {
 
-    private val app: File = appDir()
-    private val source: String = File(app, "src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt").readText()
+    private val app: File = SignOutSource.appDir
+    private val source: String = SignOutSource.source("auth/AuthService.kt")
+    private val plan: String = SignOutSource.source(SignOutSource.PLAN)
 
-    private fun appDir(): File {
-        var dir: File? = File("").absoluteFile
-        while (dir != null) {
-            val here = dir
-            if (File(here, "app/src/main/java").isDirectory) return File(here, "app")
-            if (File(here, "src/main/java").isDirectory) return here
-            dir = here.parentFile
-        }
-        throw AssertionError("Could not locate the :app module from ${File("").absolutePath}")
-    }
+    private fun body(declaration: String, of: String = source): String = SignOutSource.body(of, declaration)
 
-    /** The body of the function [declaration] starts, up to its matching brace. */
-    private fun body(declaration: String): String {
-        val start = source.indexOf(declaration)
-        if (start < 0) throw AssertionError("AuthService has no `$declaration`")
-        val open = source.indexOf('{', start)
-        var depth = 0
-        for (index in open until source.length) {
-            when (source[index]) {
-                '{' -> depth++
-                '}' -> if (--depth == 0) {
-                    return source.substring(open + 1, index).also {
-                        assertFalse("`$declaration` ran into the next function", Regex("""\n {4}\S""").containsMatchIn(it))
-                    }
-                }
-            }
-        }
-        throw AssertionError("`$declaration` has no closing brace")
-    }
+    /**
+     * The sign-out: what it clears at once, and the wipe it starts on the app scope, with the lists
+     * of the account's stores they run written out.
+     */
+    private fun signOut() = SignOutSource.expanded(body("private fun clearAccount()", plan) + wipe)
 
-    /** The sign-out: `logout()`, what it clears at once, and the wipe it starts on the app scope. */
-    private fun signOut() = body("fun logout()") + body("private fun clearAccount()") + wipe
-
-    /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
-    private val wipe: String =
-        File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
+    /** The wipe the sign-out starts on the app scope, which SignOutWipe runs. */
+    private val wipe: String = SignOutSource.source("auth/session/SignOutWipe.kt")
 
     private fun String.uses(call: String): Int = Regex("""\bimportedClassTables\.$call""").findAll(this).count()
 
@@ -73,8 +47,8 @@ class ImportedClassTablesClearingTest {
     @Test
     fun `nothing else in AuthService touches the imported class tables`() {
         assertEquals(source.uses(""), body("suspend fun login(").uses(""))
-        // And the wipe is the one place that empties them.
-        assertEquals(1, wipe.uses(""))
+        // And the wipe is the one place that empties them, from the account's list of stores.
+        assertEquals(1, SignOutSource.expanded(wipe).uses(""))
     }
 
     @Test

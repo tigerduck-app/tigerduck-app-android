@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.data
 import android.content.Context
 import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.auth.session.AccountScoped
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +20,7 @@ import javax.inject.Singleton
 @Singleton
 class BulletinReadStateStore @Inject constructor(
     @ApplicationContext context: Context,
-) {
+) : AccountScoped {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("bulletin_read_state", Context.MODE_PRIVATE)
 
@@ -52,6 +53,9 @@ class BulletinReadStateStore @Inject constructor(
             writeToPrefs()
         }
     }
+
+    /** At the school's sign-out ([org.ntust.app.tigerduck.auth.session.SchoolStores]). */
+    override fun forgetAccount() = clear()
 
     /**
      * Wipe every recorded "read" id. Called on logout so the next account on

@@ -406,6 +406,24 @@ class SignOutRecoveryTest {
     }
 
     @Test
+    fun `a clearing of the preferences that fails skips none after it, and the next start tries again`() = runBlocking {
+        firstStudentOnTheDevice()
+        owed.mark(FIRST)
+        val w = worldOver(refusing("syncedCategories"))
+
+        assertTrue(w.auth.finishOwedSignOut())
+        w.auth.finishOwedWipe()
+        wipesDone()
+
+        assertEquals("the clearing that failed", setOf("1"), prefs("tigerduck_prefs").getStringSet("syncedCategories", null))
+        assertTrue("the holiday choices went all the same", w.appPrefs.holidayOverridesAwaitingUpload.isEmpty())
+        assertNull("and the term picked", w.appPrefs.school.classTableSelectedSemester.get())
+        assertFalse("and the stored password's refusal", prefs("tigerduck_auth").contains("stored_password_refusals"))
+        assertFalse(w.auth.authState.value)
+        assertTrue("the marker stays for the next start", owed.owed)
+    }
+
+    @Test
     fun `a step that keeps failing holds the next sign-in for three tries and no more`() = runBlocking {
         firstStudentOnTheDevice()
         owed.mark(FIRST)

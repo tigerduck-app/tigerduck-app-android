@@ -9,12 +9,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SchoolStores
 import org.ntust.app.tigerduck.auth.session.SignOutWipe
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.data.cache.BulletinCache
-import org.ntust.app.tigerduck.data.BulletinReadStateStore
-import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -45,9 +44,8 @@ class AuthService @Inject constructor(
     private val storedPasswordLatch: StoredPasswordLatch,
     private val courseService: CourseService,
     private val moodleService: MoodleService,
-    private val dataCache: DataCache,
     private val bulletinCache: BulletinCache,
-    private val bulletinReadStateStore: BulletinReadStateStore,
+    private val stores: SchoolStores,
     private val importedClassTables: ImportedClassTableStore,
     private val widgetUpdater: org.ntust.app.tigerduck.widget.WidgetUpdater,
     @param:ApplicationScope private val appScope: CoroutineScope,
@@ -101,7 +99,7 @@ class AuthService @Inject constructor(
     private val loginMutex = Mutex()
 
     // The sign-outs under way, which hold the next sign-in, and the wipe each leaves behind.
-    private val wipe = SignOutWipe(importedClassTables, dataCache, widgetUpdater, authTokenManager.session, appScope)
+    private val wipe = SignOutWipe(stores, widgetUpdater, authTokenManager.session, appScope)
 
     // Held by a sign-out as it ends the sign-in and while it drops the stored account, and by a
     // sign-in while it asks whether its own has ended and stores what it got.
@@ -384,25 +382,8 @@ class AuthService @Inject constructor(
         // opens on its own building.
         must("empty classrooms") { org.ntust.app.tigerduck.emptyclassroom.forgetEmptyClassroom(classroomUsage, prefs) }
         once("school session") { sessionManager.signOut() }
-        must("bulletin read state") { bulletinReadStateStore.clear() }
-        // The cache they dated is wiped below; left behind, they would date
-        // the next account's data, and hold its first background sync off.
-        must("sync stamps") { prefs.clearSyncStamps() }
-        // The departing student's holiday choices, and those still waiting to go up: left
-        // behind, the next student would inherit the quiet days and send the waiting ones as
-        // theirs. Any PUT still queued is pinned to the sign-in that just ended.
-        must("holiday overrides") { prefs.forgetHolidayOverrides() }
-        // The term picked in the class table was the departing student's. Cleared, the next
-        // student's picker follows the newest term.
-        must("class table term") { prefs.school.classTableSelectedSemester.clear() }
-        // A re-enable check compares this device's data, which is wiped below.
-        // Left pending, it would hold the next session's assignment marks and
-        // then offer Use Local, sending that emptied data over the server's.
-        must("re-enable check") { prefs.school.pendingConflictCategories.clear() }
-        // A refusal belongs to the password leaving with the account; and an
-        // automatic sign-in of that account still waiting for its answer
-        // latches nothing for the next one.
-        must("stored password latch") { storedPasswordLatch.clear() }
+        // The account's stores that clear at once, each a step of its own, in their list's order.
+        stores.atOnce.forEach { store -> must(store.javaClass.simpleName) { store.forgetAccount() } }
         _loginError.value = null
         once("signed-in state") { setSignedIn(false) }
         once("device unregister") { pushRegistration.unregister(departing) }

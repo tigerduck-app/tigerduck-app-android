@@ -98,7 +98,7 @@ class ImportedClassTableStore internal constructor(
     locateFile: () -> File,
     private val signedInStudentId: () -> String?,
     private val ioDispatcher: CoroutineDispatcher,
-) {
+) : org.ntust.app.tigerduck.auth.session.LateAccountScoped {
     @Inject
     constructor(
         @ApplicationContext context: Context,
@@ -298,10 +298,10 @@ class ImportedClassTableStore internal constructor(
         _tables.update { it.copy(shownPersonId = id) }
     }
 
+    override suspend fun forgetAccount() = clearForSignOut()
+
     /** For the user's own sign-out: a renewed session or a relogin in the background must not call it. */
-    suspend fun clearForSignOut() {
-        locked { clear() }
-    }
+    suspend fun clearForSignOut() = locked { clear() }
 
     /**
      * Another student ID than the one the people were imported under empties the store; a store
