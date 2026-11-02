@@ -185,9 +185,10 @@ class DataCacheSignInTest {
         assertGoneAfterTheWipe(File(dataFolder, "ignored_assignments.json")) { cache.saveIgnoredAssignments(setOf("late"), it) }
 
     /**
-     * [write] past its check, its file on disk, and the coroutine parked before it lets the
-     * folder's lock go; then a sign-out. The wipe waits for the lock, so the write cannot land
-     * after it: whichever way the two fall, the file is gone at the end.
+     * [write] past its check, its file on disk, and the coroutine parked before it lets a folder's
+     * lock go; then a sign-out. The wipe waits for the lock, so the write cannot land after it:
+     * whichever way the two fall, the file is gone at the end. A course write has two folders, and
+     * may be parked in the second with the first's file already wiped.
      */
     private fun assertGoneAfterTheWipe(file: File, write: suspend (SignIn) -> Unit) {
         val signIn = series.current
@@ -205,7 +206,6 @@ class DataCacheSignInTest {
             // A folder's thread can finish before the write gets to suspend, and then it is done.
             if (writing.isActive) {
                 assertNull("the wipe waits for the write", withTimeoutOrNull(200) { wiping.join() })
-                assertTrue(file.exists())
             }
             while (writing.isActive) held.next()
             wiping.await()
