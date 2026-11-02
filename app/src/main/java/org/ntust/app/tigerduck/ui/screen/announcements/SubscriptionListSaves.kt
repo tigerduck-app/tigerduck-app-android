@@ -16,30 +16,34 @@ import java.util.UUID
 /**
  * `/v4`'s saves of the subscription page's rules: the whole list in one PUT, each rule by the
  * `client_id` this device made for it (`docs/api-v4.md`, "Subscriptions"), as `/v4` has no
- * per-rule route. An edit shows on the page at once, and the list is then saved under the sign-in
- * of the rules it edits.
+ * per-rule route. An edit shows on the page at once, and the list it left is then saved under the
+ * sign-in of the rules it edited. A save never reads the page again: a list the page holds after
+ * starting over, empty or the next student's, is never the one a waiting save sends.
  */
 internal class SubscriptionListSaves(
     scope: CoroutineScope,
     private val api: BulletinApiClient,
     /** The page's state, whose list the saves send and their answers replace. */
     private val page: MutableStateFlow<State>,
-    /** Puts an answer to a request of the given sign-in's on the page, while that sign-in stands. */
-    private val land: (SignIn, () -> Unit) -> Unit,
+    /** Puts an answer to a save of the given sign-in's on the page, only while that sign-in stands. */
+    private val answered: (SignIn, () -> Unit) -> Unit,
     private val probe: SubscriptionSettingsViewModel.Probe,
 ) {
     /** The list as the backend last agreed to it, which a refused save puts back. */
     var acknowledged: List<SubscriptionRule> = emptyList()
 
+    /** A save of [rules], the list an edit left, under [signIn], the sign-in that list was shown for. */
+    private class Save(val signIn: SignIn, val rules: List<SubscriptionRule>)
+
     /**
-     * The save waiting to go, under the sign-in of the edit that asked for it. One save is out at
-     * a time ([put]), and it takes the list as it is when it goes, so the edits made while another
-     * was out are one save.
+     * The save waiting to go. One save is out at a time ([put]), and a later edit's save takes the
+     * place of one still waiting, so the edits made while another was out are one save, of the
+     * list the last of them left.
      */
-    private val waiting = Channel<SignIn>(Channel.CONFLATED)
+    private val waiting = Channel<Save>(Channel.CONFLATED)
 
     init {
-        scope.launch { for (signIn in waiting) put(signIn) }
+        scope.launch { for (save in waiting) put(save) }
     }
 
     /**
@@ -48,38 +52,37 @@ internal class SubscriptionListSaves(
      * on iOS (`sync-order`, "One send per channel at a time"; spec §5.3, race 4).
      */
     fun edit(signIn: SignIn, edit: (List<SubscriptionRule>) -> List<SubscriptionRule>) {
-        page.update { it.copy(rules = edit(it.rules), saveState = SaveState.Saving) }
-        waiting.trySend(signIn)
+        val rules = edit(page.value.rules)
+        page.update { it.copy(rules = rules, saveState = SaveState.Saving) }
+        waiting.trySend(Save(signIn, rules))
     }
 
     /**
-     * One PUT of the list on the page, under [signIn]. Its answer is what the backend holds now,
-     * and replaces the page's list only if no edit came since it went: a newer edit stays on the
-     * page, and its own save follows. A refusal puts back what the backend last agreed to, on the
-     * same condition. Either lands only while [signIn] stands ([land]), and a save of a sign-in
-     * that has ended is never sent: its header is refused first.
+     * One PUT of [save]'s list under its sign-in. Its answer is what the backend holds now, and
+     * replaces the page's list only if no edit came since it went: a newer edit stays on the page,
+     * and its own save follows. A refusal puts back what the backend last agreed to, on the same
+     * condition. Either lands only while the save's sign-in stands ([answered]), and a save of a
+     * sign-in that has ended is never sent: its header is refused first.
      */
-    private suspend fun put(signIn: SignIn) {
+    private suspend fun put(save: Save) {
         probe.savesBegun.incrementAndGet()
-        val sent = page.value.rules
+        val sent = save.rules
         val kept = try {
-            api.saveSubscriptions(sent, signIn)
+            api.saveSubscriptions(sent, save.signIn)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            land(signIn) {
+            answered(save.signIn) {
                 if (page.value.rules == sent) {
                     page.update { it.copy(rules = acknowledged, saveState = SaveState.Failed(e.message ?: "error")) }
                 }
             }
-            probe.answersHandled.incrementAndGet()
             return
         }
-        land(signIn) {
+        answered(save.signIn) {
             acknowledged = kept
             if (page.value.rules == sent) page.update { it.copy(rules = kept, saveState = SaveState.Saved) }
         }
-        probe.answersHandled.incrementAndGet()
     }
 }
 

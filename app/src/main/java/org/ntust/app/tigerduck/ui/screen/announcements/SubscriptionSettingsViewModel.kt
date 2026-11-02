@@ -79,7 +79,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
      * lands. An edit of them goes under it, and an answer lands only while it stands. The sign-out
      * closes the page only once it is on top, so one kept on another tab's back stack shows the
      * departed student's rules: none of them may go with the next student's session, and no
-     * answer of theirs may land on the next student's page.
+     * answer to a save of theirs may touch the page, which may show the next student's by then.
      */
     private var shownFor: SignIn? = null
 
@@ -104,7 +104,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
     internal val probe = Probe()
 
     /** `/v4`'s saves of the whole list, one at a time. */
-    private val listSaves = SubscriptionListSaves(viewModelScope, api, _state, ::land, probe)
+    private val listSaves = SubscriptionListSaves(viewModelScope, api, _state, ::answered, probe)
 
     init {
         viewModelScope.launch { fetchTaxonomy() }
@@ -207,8 +207,8 @@ class SubscriptionSettingsViewModel @Inject constructor(
 
     /**
      * Sends one `/v3` edit, [send], made under [signIn], and puts its answer on the page while that
-     * sign-in stands ([land]): [saved] with what the backend kept, or [failed] with why it refused.
-     * Saving until then, and idle again if the page goes first.
+     * sign-in stands ([answered]): [saved] with what the backend kept, or [failed] with why it
+     * refused. Saving until then, and idle again if the page goes first.
      */
     private fun <T> sendEdit(
         signIn: SignIn,
@@ -224,12 +224,10 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 _state.update { it.copy(saveState = SaveState.Idle) }
                 throw e
             } catch (e: Exception) {
-                land(signIn) { _state.update { failed(it, e) } }
-                probe.answersHandled.incrementAndGet()
+                answered(signIn) { _state.update { failed(it, e) } }
                 return@launch
             }
-            land(signIn) { _state.update { saved(it, kept) } }
-            probe.answersHandled.incrementAndGet()
+            answered(signIn) { _state.update { saved(it, kept) } }
         }
     }
 
@@ -245,18 +243,31 @@ class SubscriptionSettingsViewModel @Inject constructor(
     }
 
     /**
-     * Puts an answer to a request of [signIn]'s on the page with [write], unless that sign-in has
+     * Puts the answer to a read of [signIn]'s on the page with [write], unless that sign-in has
      * ended: in one step with the sign-out's end ([SignIn.ifCurrent]), so a sign-out either comes
-     * after the write or finds the page starting over.
+     * after the write or finds the page reading again under the sign-in that stands. No read of
+     * another sign-in's is out by then: each read cancels the one before.
      */
     private fun land(signIn: SignIn, write: () -> Unit) {
         if (signIn.ifCurrent(write) == null) startOver()
     }
 
     /**
+     * Puts the answer to a save of [signIn]'s on the page with [write] while that sign-in stands,
+     * in one step with the sign-out's end. Past it the answer touches nothing, and starts nothing
+     * over: the page may show the next student's rules by then, with a save of theirs waiting.
+     * Only an edit of the rules a sign-out left starts the page over ([editing]).
+     */
+    private fun answered(signIn: SignIn, write: () -> Unit) {
+        signIn.ifCurrent(write)
+        probe.answersHandled.incrementAndGet()
+    }
+
+    /**
      * Drops the rules of a sign-in that has ended, and reads the rules again under the sign-in that
-     * stands. With none, the read fails, and the page offers to try again. A save of the ended
-     * sign-in's still waiting is refused before it is sent, and its refusal lands nowhere.
+     * stands. With none, the read fails, and the page offers to try again. No edit is made of the
+     * emptied list, so no save sends it: a save carries the list its edit left. One of the ended
+     * sign-in's still waiting is refused before it is sent, and its refusal touches nothing.
      */
     private fun startOver() {
         shownFor = null

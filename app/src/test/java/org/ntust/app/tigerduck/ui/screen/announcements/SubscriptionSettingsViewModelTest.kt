@@ -373,6 +373,39 @@ class SubscriptionSettingsViewModelTest {
         assertEquals(listOf("Scholarships" to false, "Lectures" to true), page.backend.held(FIRST))
     }
 
+    @Test
+    fun `on v4 deleting the last rule puts an empty list`() {
+        val vm = page.open(V4, "Scholarships")
+
+        page.onMain { vm.deleteRule(0) }
+        page.eventually("the delete is saved") { vm.state.value.saveState == SaveState.Saved }
+
+        assertEquals("""{"rules":[]}""", page.backend.sent(PUT).single().body)
+        assertEquals(emptyList<Pair<String?, Boolean>>(), page.backend.held(FIRST))
+    }
+
+    /**
+     * A save sends the list its edit left, not the page's list when it goes: a read that lands
+     * while it waits shows the backend's list without that edit, and the edit must still go up.
+     */
+    @Test
+    fun `on v4 a waiting save sends its edit's list, whatever the page reads meanwhile`() {
+        val vm = page.open(V4, "Scholarships", "Lectures")
+        val first = page.backend.hold(PUT)
+        page.onMain { vm.toggleEnabled(0) }
+        first.awaitArrival()
+        page.onMain { vm.toggleEnabled(1) }
+
+        page.onMain { vm.load() }
+        page.awaitAnswers(vm, 2)
+        assertEquals("the read shows the backend's list", listOf("Scholarships" to true, "Lectures" to true), vm.shown())
+        first.release()
+        page.eventually("both saves are answered") { page.backend.events.count { it.startsWith("< $PUT") } == 2 }
+
+        assertEquals(listOf(listOf(false, true), listOf(false, false)), puts().map { put -> put.map { it.third } })
+        assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
+    }
+
     private companion object {
         const val GET = "GET /v4/bulletin-subscriptions"
         const val PUT = "PUT /v4/bulletin-subscriptions"
