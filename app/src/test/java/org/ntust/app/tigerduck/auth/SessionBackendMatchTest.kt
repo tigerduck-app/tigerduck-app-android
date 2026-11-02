@@ -142,6 +142,18 @@ class SessionBackendMatchTest {
     }
 
     @Test
+    fun `bases that differ by an empty segment before the version are two backends`() = runTest {
+        val (manager, token) = signedInAt("https://api.example.test/tenant/v3")
+        val debt = MemoryStore(debtTo("https://api.example.test/tenant//v3"))
+
+        OwedUnregister(debt).signingIn(STUDENT, "https://api.example.test/tenant/v3") { Unit }
+
+        assertNotNull("a debt to the other backend stands", debt.pending)
+        assertEquals(false, manager.hasSessionAt("https://api.example.test/tenant//v3"))
+        assertEquals(false, manager.mayPresent(token, "https://api.example.test/tenant//v3/sync/full".toHttpUrl()))
+    }
+
+    @Test
     fun `a debt to a plain-HTTP backend waits while the setting names another`() = runTest {
         val outcomes = listOf(
             "http://192.168.1.5:40000/v3" to "http://192.168.1.5:40000/v3/",

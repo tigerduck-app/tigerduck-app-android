@@ -54,13 +54,14 @@ object ApiBase {
 
     /**
      * The backend [base] names whatever its version: its canonical spelling ([canonicalBackend])
-     * with a last `v3` or `v4` segment dropped. A base with no version segment is its own key.
+     * with a last `v3` or `v4` segment dropped, and only that segment. What comes before it, an
+     * empty segment included, is the backend's prefix: `…/tenant//v3` and `…/tenant/v3` are two
+     * backends, as they always were. A base with no version segment is its own key.
      */
     fun backendKey(base: String): String {
         val canonical = canonicalBackend(base)
-        val url = canonical.toHttpUrlOrNull() ?: return canonical
-        if (BackendApi.named(url) == null) return canonical
-        return url.newBuilder().removePathSegment(url.pathSize - 1).build().toString().trimEnd('/')
+        val api = BackendApi.named(canonical) ?: return canonical
+        return canonical.removeSuffix("/${api.segment}")
     }
 
     /**

@@ -125,6 +125,13 @@ class ApiBaseTest {
     }
 
     @Test
+    fun `a backend's prefix keeps an empty segment before the version`() {
+        assertEquals("https://api.example.test/tenant/", ApiBase.backendKey("https://api.example.test/tenant//v3"))
+        assertEquals(false, ApiBase.sameBackend("https://api.example.test/tenant//v3", "https://api.example.test/tenant/v3"))
+        assertEquals(true, ApiBase.sameBackend("https://api.example.test/tenant//v3", "https://api.example.test/tenant//v4"))
+    }
+
+    @Test
     fun `a backend serves its own paths at either version and no others`() {
         val answers = mapOf(
             "https://api.example.test/v3/sync/full" to true,
