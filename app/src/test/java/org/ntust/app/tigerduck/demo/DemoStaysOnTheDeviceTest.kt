@@ -339,19 +339,24 @@ class DemoStaysOnTheDeviceTest {
     }
 
     /**
-     * A client's own `addInterceptor(demoMode)`. The library's builds its client in `:shared`, which
-     * knows no demo, from what the app hands it: there it is the app's call that says.
+     * Each client's own `addInterceptor(demoMode)`, as many as the file starts. The library's builds
+     * its client in `:shared`, which knows no demo, from what the app hands it: there it is the
+     * app's call that says.
      */
     private fun carriesTheInterceptor(path: String, text: String): Boolean = when (path) {
         LIBRARY_SERVICE -> "extraInterceptors.forEach(::addInterceptor)" in text &&
             "extraInterceptors = libraryInterceptors(demoMode" in sources.getValue(NETWORK_MODULE)
-        else -> Regex("""\.addInterceptor\(demoMode\)""").containsMatchIn(text)
+        else -> Regex("""\.addInterceptor\(demoMode\)""").findAll(text).count() >= startsAClient.findAll(text).count()
     }
 
     @Test
     fun `a client started without the interceptor is caught`() {
         assertFalse(carriesTheInterceptor("x/New.kt", "val client = pinnedClientBuilder(tls).build()"))
         assertTrue(carriesTheInterceptor("x/New.kt", "val client = pinnedClientBuilder(tls).addInterceptor(demoMode).build()"))
+        assertFalse(
+            "a second one in the same file",
+            carriesTheInterceptor("x/New.kt", "pinnedClientBuilder(tls).addInterceptor(demoMode).build()\npinnedClientBuilder(tls).build()"),
+        )
     }
 
     private fun mailChecksArmed(): Boolean {

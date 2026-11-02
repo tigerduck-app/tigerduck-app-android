@@ -347,14 +347,14 @@ class DemoSessionTest {
     }
 
     /**
-     * Runs [action] once, as [key] of the preferences [file] is written, inside that write: the
-     * listeners of a write on the main thread, which this test is, run in it. What [action] does
-     * may write the same file again.
+     * Runs [action] once, as [key] of the preferences [file] is written, or the file cleared,
+     * inside that write: the listeners of a write on the main thread, which this test is, run in
+     * it. What [action] does may write the same file again.
      */
     private fun onceAsWritten(file: String, key: String, action: () -> Unit): SharedPreferences.OnSharedPreferenceChangeListener {
         val fired = AtomicBoolean()
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, changed ->
-            if (changed == key && fired.compareAndSet(false, true)) action()
+            if ((changed == key || changed == null) && fired.compareAndSet(false, true)) action()
         }
         context.getSharedPreferences(file, Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(listener)
         return listener
