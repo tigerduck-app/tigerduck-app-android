@@ -146,6 +146,9 @@ internal class PushCourseSyncBackend(
         // outbox's own /v4 form, the course's key and its stamp, comes with its channel (wave 3);
         // until then its entry waits on a /v4 base as a CourseKeyUnknownException.
         if (name != null && !answer.sent) {
+            // Course sync can have gone off while the request was made, which the outbox's own
+            // rule for names does not read: stopped, as every other step.
+            ensureSends()
             overrides.queue(listOf(PendingCourseOverrides.Change(moodleId, customName = name, locale = locale)), namesVersion, signIn)
         }
     }

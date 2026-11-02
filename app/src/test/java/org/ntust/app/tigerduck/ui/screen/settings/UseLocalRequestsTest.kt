@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
+import android.content.Context
 import kotlinx.coroutines.test.runTest
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import org.json.JSONArray
 import org.json.JSONObject
@@ -10,10 +12,13 @@ import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
+import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
@@ -243,6 +248,38 @@ class UseLocalRequestsTest {
             listOf(Triple("1142CS9", "New name", "en")),
             v4.cache.loadPendingCourseOverrides().map { Triple(it.moodleId, it.customName, it.locale) },
         )
+    }
+
+    @Test
+    fun `on v4 a held name is not queued once course sync went off while its request was made`() = runTest {
+        val v4Context = JvmContext()
+        val v4Prefs = AppPreferences(v4Context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4" }
+        // The session's token has run out: the request renews it first, and course sync goes off meanwhile.
+        val v4 = RecordingBackend(
+            ahead = listOf(
+                Interceptor { chain ->
+                    if (chain.request().url.encodedPath.endsWith("/auth/refresh")) v4Prefs.syncCourses = false
+                    chain.proceed(chain.request())
+                },
+            ),
+        )
+        v4.answer("/v4/auth/refresh", 200, """{"access_token":"access-2","refresh_token":"refresh-2","expires_in":900,"device_id":"device-1"}""")
+        val tokens = V3TokenStore(v4Context.getSharedPreferences("v3-tokens-expired", Context.MODE_PRIVATE))
+        tokens.save("access", "refresh", 0L)
+        val manager = AuthTokenManager(tokens, v4.client, v4Prefs, "device-1")
+        val current = manager.session.signIns.current
+        assertTrue(v4Prefs.school.pendingConflictCategories.set(setOf("course_names"), current))
+        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { WALL_MS })
+        val api = PushApiClient(v4.client, v4Prefs, manager, clock)
+        val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
+        val outbox = PendingCourseOverrides(cache, api, v4Prefs)
+        val courses = PushCourseSyncBackend(api, v4Prefs, outbox, current, outbox.reserveVersion())
+
+        val thrown = runCatching { courses.patchStampedOverride("1142", "CS9", "1142CS9", name = "Old name", locale = "en") }.exceptionOrNull()
+
+        assertEquals(listOf("/v4/auth/refresh"), v4.sent.map { it.url.substringAfter("127.0.0.1:9") })
+        assertTrue("got $thrown", thrown is CourseSyncOffException)
+        assertEquals(emptyList<Any>(), cache.loadPendingCourseOverrides())
     }
 
     @Test
