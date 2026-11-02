@@ -32,9 +32,13 @@ import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.PendingHolidayOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.ServerStatus
+import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
@@ -90,7 +94,7 @@ class HomePullAcrossSignInTest {
         adds = PendingCourseAdds(w.dataCache, w.pushApi)
         ignores = CourseIgnoreSync(
             w.dataCache,
-            sender = { _, _, _, _ -> true },
+            sender = { _, _, _, _, _ -> true },
             effects = { ignoresChanged() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,
@@ -186,13 +190,13 @@ class HomePullAcrossSignInTest {
         .toString()
 
     /** Runs a full sync with its fetch held until [meanwhile] is done, answered with [body]. */
-    private suspend fun pullAcross(body: String = snapshot(), meanwhile: suspend () -> Unit) {
+    private suspend fun pullAcross(body: String = snapshot(), status: Int = 200, meanwhile: suspend () -> Unit) {
         val fetch = backend.hold(FULL_SYNC)
         val pulling = appScope.async { sync.pull(state, w.sessions.school.signIns.current) }
         withTimeout(10_000) { fetch.arrived.await() }
         meanwhile()
         fetch.body = body
-        fetch.release(200)
+        fetch.release(status)
         withTimeout(10_000) { pulling.await() }
     }
 
@@ -259,6 +263,28 @@ class HomePullAcrossSignInTest {
         assertEquals("the old snapshot lists it, and settles nothing", mapOf(TERM to listOf(ADDED)), w.dataCache.loadPendingCourseAdds())
     }
 
+    @Test
+    fun `a 401 past a sign-out signs nobody in and replays nothing`() = runBlocking {
+        pullAcross(body = "{}", status = 401) { signOutAndBackIn() }
+
+        assertEquals("the one fetch, and no replay", 1, backend.received(FULL_SYNC).size)
+        assertEquals(emptyList<String>(), backend.received(LOGIN).map { it.endpoint })
+    }
+
+    /** The next account's status bar and banner: the old run has nothing to say of its backend. */
+    @Test
+    fun `a run past its sign-out leaves the backend's status to the next account`() = runBlocking {
+        pullAcross(body = "{}", status = 500) {
+            signOutAndBackIn()
+            // What the next account's own sync reported.
+            ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
+            w.appPrefs.setLastSyncSource(SyncSource.BACKEND)
+        }
+
+        assertEquals(ServerStatus.OK, ServerStatusTracker.statuses.value[ServerKind.BACKEND])
+        assertEquals(SyncSource.BACKEND, w.appPrefs.lastSyncSource.value)
+    }
+
     /** Read before the fetch: read after, a sign-out meanwhile would pin these marks to the next session. */
     @Test
     fun `a first-sync mark upload is pinned to the sign-in the run began under`() = runBlocking {
@@ -274,6 +300,7 @@ class HomePullAcrossSignInTest {
 
     private companion object {
         const val FULL_SYNC = "GET /sync/full"
+        const val LOGIN = "POST /auth/login"
         const val MARK = "PATCH /sync/assignments/7/override"
         const val STUDENT = "B00015999"
         const val TERM = "1141"

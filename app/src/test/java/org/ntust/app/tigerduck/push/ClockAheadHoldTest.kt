@@ -179,7 +179,7 @@ class ClockAheadHoldTest {
     fun `a course override whose hold goes on mid-request reports not sent`() = runTest {
         var allowed = true
         val sent = heldThenAhead(course, { allowed = false }) {
-            api.patchCourseOverride("1151CS1", colorHex = "#FF0000", allowed = { allowed }, madeAtMs = madeAtMs)
+            api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000", allowed = { allowed }, madeAtMs = madeAtMs)
         }
 
         assertFalse(sent)
@@ -189,7 +189,7 @@ class ClockAheadHoldTest {
     @Test
     fun `a course color switched off mid-request is not resent`() = runTest {
         val sent = heldThenAhead(course, { prefs.syncCourseColors = false }) {
-            api.patchCourseOverride("1151CS1", colorHex = "#FF0000", madeAtMs = madeAtMs)
+            api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000", madeAtMs = madeAtMs)
         }
 
         assertFalse(sent)
@@ -199,7 +199,7 @@ class ClockAheadHoldTest {
     @Test
     fun `a course ignore switched off mid-request is not resent`() = runTest {
         val sent = heldThenAhead(course, { prefs.syncAssignments = false }) {
-            api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, madeAtMs = madeAtMs)
+            api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, signIn = signIn, madeAtMs = madeAtMs)
         }
 
         assertEquals(null, sent)
@@ -210,7 +210,7 @@ class ClockAheadHoldTest {
     fun `an assignment mark switched off mid-request is not resent`() = runTest {
         val endpoint = "PATCH /sync/assignments/7/override"
         heldThenAhead(endpoint, { prefs.syncAssignments = false }) {
-            api.patchAssignmentOverride(7, "ignored", madeAtMs = madeAtMs)
+            api.patchAssignmentOverride(7, "ignored", signIn, madeAtMs = madeAtMs)
         }
 
         assertEquals(1, backend.received(endpoint).size)
@@ -220,7 +220,7 @@ class ClockAheadHoldTest {
     fun `a holiday choice sent while TigerSync goes off mid-request is not resent`() = runTest {
         val endpoint = "PUT /sync/holiday-overrides/3"
         val sent = heldThenAhead(endpoint, { prefs.cloudSyncEnabled = false }) {
-            api.putHolidayOverride(3, notify = true, madeAtMs = madeAtMs)
+            api.putHolidayOverride(3, notify = true, signIn = signIn, madeAtMs = madeAtMs)
         }
 
         assertFalse(sent)

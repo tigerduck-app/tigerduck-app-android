@@ -104,7 +104,7 @@ class TermCourseSyncTest {
     private fun termSync(
         sources: TermCourseSync.Sources,
         uploader: TermCourseSync.Uploader = TermCourseSync.Uploader { courses, semester, resend, rosterTerms, signIn ->
-            api.uploadCourses(courses, semester, signIn = signIn, resend = resend, rosterTerms = rosterTerms)
+            api.uploadCourses(courses, semester, signIn, resend = resend, rosterTerms = rosterTerms)
         },
         uploading: suspend (suspend () -> Unit) -> Unit = { block -> adds.uploading(block) },
     ) = TermCourseSync(

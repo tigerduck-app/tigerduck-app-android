@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A course override, an assignment mark and a holiday choice go up with the time the edit was
@@ -23,6 +24,7 @@ import org.ntust.app.tigerduck.util.JvmContext
 class EditStampTest {
 
     private val backend = ScriptedBackend()
+    private val signIn = testSignIn()
     private lateinit var api: PushApiClient
 
     private val madeAtMs = 1_790_000_000_123L
@@ -46,7 +48,7 @@ class EditStampTest {
 
     @Test
     fun `a course color carries the time it was made as hlc`() = runTest {
-        api.patchCourseOverride("1151CS1", colorHex = "#FF0000", madeAtMs = madeAtMs)
+        api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000", madeAtMs = madeAtMs)
 
         val body = bodies("PATCH /sync/courses/1151CS1/override").single()
         assertEquals(hlc, body.getLong("hlc"))
@@ -55,14 +57,14 @@ class EditStampTest {
 
     @Test
     fun `a course name carries the time it was made as hlc`() = runTest {
-        api.patchCourseOverride("1151CS1", customName = "Algo", locale = "en", madeAtMs = madeAtMs)
+        api.patchCourseOverride("1151CS1", signIn, customName = "Algo", locale = "en", madeAtMs = madeAtMs)
 
         assertEquals(hlc, bodies("PATCH /sync/courses/1151CS1/override").single().getLong("hlc"))
     }
 
     @Test
     fun `a course ignore carries the time it was made as hlc`() = runTest {
-        api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = 7, madeAtMs = madeAtMs)
+        api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = 7, signIn = signIn, madeAtMs = madeAtMs)
 
         val body = bodies("PATCH /sync/courses/1151CS1/override").single()
         assertEquals(hlc, body.getLong("hlc"))
@@ -71,7 +73,7 @@ class EditStampTest {
 
     @Test
     fun `an assignment mark carries the time it was made as hlc`() = runTest {
-        api.patchAssignmentOverride(7, "ignored", madeAtMs = madeAtMs)
+        api.patchAssignmentOverride(7, "ignored", signIn, madeAtMs = madeAtMs)
 
         val body = bodies("PATCH /sync/assignments/7/override").single()
         assertEquals(hlc, body.getLong("hlc"))
@@ -80,7 +82,7 @@ class EditStampTest {
 
     @Test
     fun `a holiday choice carries the time it was made as hlc`() = runTest {
-        assertTrue(api.putHolidayOverride(3, notify = true, madeAtMs = madeAtMs))
+        assertTrue(api.putHolidayOverride(3, notify = true, signIn = signIn, madeAtMs = madeAtMs))
 
         val body = bodies("PUT /sync/holiday-overrides/3").single()
         assertEquals(hlc, body.getLong("hlc"))
@@ -89,10 +91,10 @@ class EditStampTest {
 
     @Test
     fun `an edit with no time goes without hlc, as before`() = runTest {
-        api.patchCourseOverride("1151CS1", colorHex = "#FF0000")
-        api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null)
-        api.patchAssignmentOverride(7, "ignored")
-        api.putHolidayOverride(3, notify = true)
+        api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000")
+        api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, signIn = signIn)
+        api.patchAssignmentOverride(7, "ignored", signIn)
+        api.putHolidayOverride(3, notify = true, signIn = signIn)
 
         val all = bodies("PATCH /sync/courses/1151CS1/override") + bodies("PATCH /sync/assignments/7/override") +
             bodies("PUT /sync/holiday-overrides/3")
@@ -110,10 +112,10 @@ class EditStampTest {
         backend.answer("PATCH /sync/assignments/7/override", 409, clockAhead)
         backend.answer("PUT /sync/holiday-overrides/3", 409, clockAhead)
 
-        assertTrue(api.patchCourseOverride("1151CS1", colorHex = "#FF0000", madeAtMs = madeAtMs))
-        api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, madeAtMs = madeAtMs)
-        api.patchAssignmentOverride(7, "ignored", madeAtMs = madeAtMs)
-        assertTrue(api.putHolidayOverride(3, notify = true, madeAtMs = madeAtMs))
+        assertTrue(api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000", madeAtMs = madeAtMs))
+        api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, signIn = signIn, madeAtMs = madeAtMs)
+        api.patchAssignmentOverride(7, "ignored", signIn, madeAtMs = madeAtMs)
+        assertTrue(api.putHolidayOverride(3, notify = true, signIn = signIn, madeAtMs = madeAtMs))
 
         assertEquals(listOf(true, false, true, false), bodies(course).map { it.has("hlc") })
         assertEquals(listOf(true, false), bodies("PATCH /sync/assignments/7/override").map { it.has("hlc") })
@@ -125,13 +127,13 @@ class EditStampTest {
         val course = "PATCH /sync/courses/1151CS1/override"
         backend.answer(course, 409, clockAhead)
         backend.answer(course, 409, clockAhead)
-        val ahead = runCatching { api.patchCourseOverride("1151CS1", colorHex = "#FF0000", madeAtMs = madeAtMs) }
+        val ahead = runCatching { api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000", madeAtMs = madeAtMs) }
             .exceptionOrNull() as PushApiException
         assertEquals(409, ahead.statusCode)
         assertEquals(2, backend.received(course).size)
 
         backend.answer("PATCH /sync/assignments/7/override", 404)
-        val missing = runCatching { api.patchAssignmentOverride(7, "ignored", madeAtMs = madeAtMs) }
+        val missing = runCatching { api.patchAssignmentOverride(7, "ignored", signIn, madeAtMs = madeAtMs) }
             .exceptionOrNull() as PushApiException
         assertEquals(404, missing.statusCode)
         assertEquals(1, backend.received("PATCH /sync/assignments/7/override").size)
@@ -147,10 +149,10 @@ class EditStampTest {
         backend.answer("PUT /sync/holiday-overrides/3", 409, other)
 
         val failures = listOf(
-            runCatching { api.patchCourseOverride("1151CS1", colorHex = "#FF0000", madeAtMs = madeAtMs) },
-            runCatching { api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, madeAtMs = madeAtMs) },
-            runCatching { api.patchAssignmentOverride(7, "ignored", madeAtMs = madeAtMs) },
-            runCatching { api.putHolidayOverride(3, notify = true, madeAtMs = madeAtMs) },
+            runCatching { api.patchCourseOverride("1151CS1", signIn, colorHex = "#FF0000", madeAtMs = madeAtMs) },
+            runCatching { api.patchCourseIgnore("1151CS1", ignore = true, moodleCourseId = null, signIn = signIn, madeAtMs = madeAtMs) },
+            runCatching { api.patchAssignmentOverride(7, "ignored", signIn, madeAtMs = madeAtMs) },
+            runCatching { api.putHolidayOverride(3, notify = true, signIn = signIn, madeAtMs = madeAtMs) },
         ).map { (it.exceptionOrNull() as PushApiException).statusCode }
 
         // The holiday PUT's refusal carries no status.

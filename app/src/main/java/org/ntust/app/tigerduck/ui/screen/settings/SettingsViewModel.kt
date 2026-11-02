@@ -307,12 +307,12 @@ class SettingsViewModel @Inject constructor(
                 // so the cache changes now only by taps on Home: the newest.
                 keepLocalMarks(
                     conflict = conflict,
-                    fetch = syncApiClient::fetchFullSync,
+                    fetch = { syncApiClient.fetchFullSync(signIn) },
                     marksVersion = { dataCache.assignmentMarksVersion.value },
                     localMarks = {
                         dataCache.loadIgnoredAssignments() to dataCache.loadMarkedCompletedAssignments()
                     },
-                    send = pushApiClient::patchAssignmentOverride,
+                    send = { id, status -> pushApiClient.patchAssignmentOverride(id, status, signIn) },
                     keep = { id, status -> unsentMarks.keep(id, status, signIn) },
                     pushCourseIgnores = { server ->
                         if (prefs.syncCourses) {
@@ -337,7 +337,7 @@ class SettingsViewModel @Inject constructor(
                 // Adopted, not replaced: Home reads them again at once.
                 dataCache.adoptAssignmentMarks(emptySet(), emptySet(), signIn)
             }
-            val result = runCatching { syncApiClient.fetchFullSync() }.getOrNull()
+            val result = runCatching { syncApiClient.fetchFullSync(signIn) }.getOrNull()
             if (result != null) {
                 if ("courses" in conflict.categories) {
                     // Every term the check compared — see coursesUseServerHides.

@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
@@ -35,28 +36,10 @@ class PinnedAuthHeaderTest {
 
     @Test
     fun `the sign-in it was pinned to gets its token`() = runTest {
-        assertEquals("Bearer access-a", manager.requireAuthHeader(manager.signInGeneration))
-    }
-
-    @Test
-    fun `after a sign-out the next account's token is not handed to it`() = runTest {
-        val pinned = manager.signInGeneration
-        manager.logout()
-        // The next account signs in.
-        tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
-
-        val header = runCatching { manager.requireAuthHeader(pinned) }
-
-        assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
-        assertEquals("Bearer access-b", manager.requireAuthHeader())
-    }
-
-    @Test
-    fun `the sign-in it was pinned to as a type gets its token`() = runTest {
         assertEquals("Bearer access-a", manager.requireAuthHeader(manager.session.signIns.current))
     }
 
-    /** Refused as soon as it ends: the sign-out moves the count later, in its clearing. */
+    /** Refused as soon as it ends: the sign-out drops the pair later, in its clearing. */
     @Test
     fun `a sign-in that has ended gets no token, its own included`() = runTest {
         val signIn = manager.session.signIns.end()
@@ -64,6 +47,45 @@ class PinnedAuthHeaderTest {
         val header = runCatching { manager.requireAuthHeader(signIn) }
 
         assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
+    }
+
+    @Test
+    fun `a request of an ended sign-in sets off no sign-in`() = runTest {
+        var signIns = 0
+        manager.signInWithStoredAccount = {
+            signIns++
+            SignInAttempt.NOTHING_TO_SEND
+        }
+        val signIn = manager.session.signIns.current
+        manager.logout()
+        manager.session.open()
+
+        val header = runCatching { manager.requireAuthHeader(signIn) }
+
+        assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
+        assertEquals(0, signIns)
+    }
+
+    /** Neither the next account's token, nor a refresh of its pair for a request that isn't its own. */
+    @Test
+    fun `a request that set off a sign-in gets nothing when a sign-out lands during it`() = runTest {
+        for (expiresAt in listOf(Long.MAX_VALUE, 0L)) {
+            manager.session.open()
+            tokens.clear()
+            val signIn = manager.session.signIns.current
+            manager.signInWithStoredAccount = {
+                manager.logout()
+                manager.session.open()
+                tokens.save("access-b", "refresh-b", expiresAt)
+                SignInAttempt.SIGNED_IN
+            }
+
+            val header = runCatching { manager.requireAuthHeader(signIn) }
+
+            assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
+            assertEquals("no refresh of the next pair", emptyList<String>(), backend.endpoints())
+            manager.logout()
+        }
     }
 
     @Test

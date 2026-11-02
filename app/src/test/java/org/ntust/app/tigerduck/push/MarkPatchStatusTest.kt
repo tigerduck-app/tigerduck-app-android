@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A refused mark PATCH carries its HTTP status, so `UnsentMarks` parks only
@@ -40,7 +41,7 @@ class MarkPatchStatusTest {
     }
 
     private suspend fun failure(): Exception =
-        runCatching { api.patchAssignmentOverride(7, "ignored") }.exceptionOrNull() as Exception
+        runCatching { api.patchAssignmentOverride(7, "ignored", testSignIn()) }.exceptionOrNull() as Exception
 
     @Test
     fun `a 404 is a refusal`() = runTest {

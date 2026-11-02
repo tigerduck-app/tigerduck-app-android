@@ -65,8 +65,8 @@ class TypedAccountSignInTest {
     /** Runs as the demo account signs in on the device. */
     private var onDemo: () -> Unit = {}
 
-    /** The sign-in generation a sign-out moves, as AuthTokenManager's. */
-    private var generation = 0
+    /** The sign-outs that ran. */
+    private var signOuts = 0
     private val accountLock = Any()
     private var signedIn = false
 
@@ -80,7 +80,8 @@ class TypedAccountSignInTest {
     private fun signOut() {
         synchronized(accountLock) {
             stored = null
-            generation++
+            signOuts++
+            session.signIns.end()
         }
         latch.clear()
         signedIn = false
@@ -100,10 +101,9 @@ class TypedAccountSignInTest {
 
     private fun typedSignIn() = TypedAccountSignIn(
         schoolSignIn = { studentId, password -> school.signIn(SERVICE, studentId, password) },
-        signInInteractively = { signIn -> signIn(GENERATION) == SignInAttempt.SIGNED_IN },
+        signInInteractively = { signIn -> signIn(session.signIns.current) == SignInAttempt.SIGNED_IN },
         awaitOpen = { session.awaitOpen() },
-        isOpen = { session.isOpen },
-        signInGeneration = { generation },
+        currentSignIn = { session.signIns.current },
         accountLock = accountLock,
         storedStudentId = { stored?.first },
         writeAccount = { studentId, password ->
@@ -217,7 +217,7 @@ class TypedAccountSignInTest {
 
         assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, outcome)
         assertEquals(STUDENT to NEW_PASSWORD, stored)
-        assertEquals("one sign-out ran", 1, generation)
+        assertEquals("one sign-out ran", 1, signOuts)
         assertTrue("the second student shows", signedIn)
         assertEquals(false, sameStudentSeen)
         assertEquals(listOf("school", "leave", "owed", "store", "prepare", "shown"), steps)
@@ -233,7 +233,7 @@ class TypedAccountSignInTest {
 
         assertTrue(outcome.isFailure || outcome.getOrNull() == TypedAccountSignIn.Outcome.NOT_SIGNED_IN)
         assertEquals(OTHER_STUDENT to OLD_PASSWORD, stored)
-        assertEquals("no sign-out ran", 0, generation)
+        assertEquals("no sign-out ran", 0, signOuts)
         assertTrue(signedIn)
         assertEquals(emptyList<String>(), steps)
     }
@@ -316,7 +316,7 @@ class TypedAccountSignInTest {
         assertEquals(TypedAccountSignIn.Outcome.SIGNED_IN, signIn())
 
         assertFalse("leave" in steps)
-        assertEquals(0, generation)
+        assertEquals(0, signOuts)
     }
 
     @Test
@@ -326,7 +326,7 @@ class TypedAccountSignInTest {
         assertEquals(TypedAccountSignIn.Outcome.DEMO, signIn(password = DEMO_PASSWORD))
 
         assertEquals(STUDENT to DEMO_PASSWORD, stored)
-        assertEquals(1, generation)
+        assertEquals(1, signOuts)
         assertEquals(listOf("leave", "owed", "demo", "store", "prepare", "shown"), steps)
     }
 
@@ -403,7 +403,6 @@ class TypedAccountSignInTest {
         const val OLD_PASSWORD = "old-password"
         const val NEW_PASSWORD = "new-password"
         const val DEMO_PASSWORD = "made-up-demo-password"
-        const val GENERATION = 7
         const val SERVICE = "https://courseselection.ntust.edu.tw/"
         const val LOGIN_URL = "https://ssoam2.ntust.edu.tw/account/login?ReturnUrl=%2Fconnect"
 

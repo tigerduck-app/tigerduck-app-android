@@ -30,6 +30,7 @@ import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.SettingsDocumentEnvelope
 import org.ntust.app.tigerduck.push.SettingsDocumentTransport
 import org.ntust.app.tigerduck.push.SettingsWriteResult
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -69,7 +70,8 @@ class ClassReminderSettingsViewModelTest {
     }
 
     private val sync = NotificationSettingsSync(
-        transport = transport,
+        documents = { transport },
+        currentSignIn = { testSignIn() },
         liveActivityPreferences = LiveActivityPreferences(context),
         assignmentStore = object : AssignmentReminderSyncStore {
             override var enabled = true

@@ -106,7 +106,7 @@ class ReenableCheck @Inject constructor(
         appScope.launch(Dispatchers.Main) {
             var verdict = false
             try {
-                val result = syncApiClient.fetchFullSync()
+                val result = syncApiClient.fetchFullSync(signIn)
                 val diffs = differences(pending, result)
                 Log.i(TAG, "[reenable] result: ${diffs.size} diffs → ${if (diffs.isEmpty()) "no conflict" else "SHOW POPUP"}")
                 // An answer given since this check began changed what it

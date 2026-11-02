@@ -64,7 +64,7 @@ class CourseIgnoreSyncTest {
     /** What a new process builds over the same files. */
     private fun newProcess() = CourseIgnoreSync(
         dataCache = cache,
-        sender = CourseIgnoreSender { moodleId, ignore, moodleCourseId, madeAtMs ->
+        sender = CourseIgnoreSender { moodleId, ignore, moodleCourseId, signIn, madeAtMs ->
             val request = Sent(moodleId, ignore, moodleCourseId)
             sent += request
             stamps += madeAtMs

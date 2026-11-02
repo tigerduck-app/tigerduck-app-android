@@ -55,7 +55,7 @@ class PendingCourseAdds internal constructor(
     @Inject constructor(dataCache: DataCache, pushApiClient: PushApiClient) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
-            pushApiClient.uploadCoursesAnswered(courses, semester, forceKeys, signIn, addedAt = addedAt)
+            pushApiClient.uploadCoursesAnswered(courses, semester, signIn, forceKeys, addedAt = addedAt)
         },
     )
 

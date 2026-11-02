@@ -381,6 +381,12 @@ class PollRevisionOnceTest {
     private var onRetry: () -> Unit = {}
     private val retriedUnder = mutableListOf<SignIn>()
 
+    /** The sign-in the revision and the feed's requests carried, in order. */
+    private val requestsUnder = mutableListOf<SignIn>()
+
+    /** Runs as the poll makes sure of a session. */
+    private var onSignIn: () -> Unit = {}
+
     private fun signOutAndBackIn() {
         series.end()
         series.open()
@@ -389,13 +395,18 @@ class PollRevisionOnceTest {
     private suspend fun poll() = pollRevisionOnce(
         syncEnabled = { syncOn },
         online = { online },
-        signIn = { signedIn },
-        fetchRevision = {
+        signIn = {
+            onSignIn()
+            signedIn
+        },
+        fetchRevision = { signIn ->
             fetches++
+            requestsUnder += signIn
             serverRevision()
         },
-        fetchChanges = { since ->
+        fetchChanges = { since, signIn ->
             feedReads += since
+            requestsUnder += signIn
             changes(since)
         },
         lastKnownRevision = { lastKnown },
@@ -473,6 +484,16 @@ class PollRevisionOnceTest {
     }
 
     @Test
+    fun `a 401 that outlives the poll's sign-in says nothing of the one here now`() = kotlinx.coroutines.test.runTest {
+        serverRevision = {
+            signOutAndBackIn()
+            throw org.ntust.app.tigerduck.push.PushApiException("HTTP 401", 401)
+        }
+
+        assertEquals(UNCHANGED, poll())
+    }
+
+    @Test
     fun `changes to assignments and bulletins alone move the watermark once what waits is sent, with no full sync`() =
         kotlinx.coroutines.test.runTest {
             serverRevision = { 7L }
@@ -547,6 +568,20 @@ class PollRevisionOnceTest {
 
         assertEquals(CHANGED, poll())
         assertEquals(5L, lastKnown)
+    }
+
+    @Test
+    fun `a poll's requests go under the sign-in it began in`() = kotlinx.coroutines.test.runTest {
+        serverRevision = { 7L }
+        changes = {
+            page(7L to "assignment")
+        }
+        val began = series.current
+        onSignIn = { signOutAndBackIn() }
+
+        poll()
+
+        assertEquals(listOf(began, began), requestsUnder)
     }
 
     @Test

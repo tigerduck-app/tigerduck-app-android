@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.SubscriptionRuleRequest
 import org.ntust.app.tigerduck.network.model.SubscriptionsListResponse
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
+import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,11 +56,12 @@ class BulletinApiClient @Inject constructor(
     private val api = BackendServices(BulletinApi::class.java, client)
 
     /**
-     * The Bearer Authorization header, signing in first when there is no
-     * session. Without one it throws [org.ntust.app.tigerduck.auth.NotSignedInException]
-     * and the request is not sent.
+     * The Bearer Authorization header of a request of [signIn]'s, signing in
+     * first when there is no session. Without one, or once [signIn] has ended,
+     * it throws [org.ntust.app.tigerduck.auth.NotSignedInException] and the
+     * request is not sent.
      */
-    private suspend fun authHeader(): String = authTokenManager.requireAuthHeader()
+    private suspend fun authHeader(signIn: SignIn): String = authTokenManager.requireAuthHeader(signIn)
 
     suspend fun fetchTaxonomy(): TaxonomyResponse = getJson { it.taxonomy() }
 
@@ -73,10 +75,10 @@ class BulletinApiClient @Inject constructor(
 
     // v3 subscription CRUD — device_id is implicit via Bearer JWT.
 
-    suspend fun fetchSubscriptions(): SubscriptionsListResponse =
-        getJsonAuthed { service, auth -> service.subscriptions(auth) }
+    suspend fun fetchSubscriptions(signIn: SignIn): SubscriptionsListResponse =
+        getJsonAuthed(signIn) { service, auth -> service.subscriptions(auth) }
 
-    suspend fun createSubscription(rule: SubscriptionRule): SubscriptionRule =
+    suspend fun createSubscription(rule: SubscriptionRule, signIn: SignIn): SubscriptionRule =
         withContext(Dispatchers.IO) {
             val reqBody = SubscriptionRuleRequest(
                 name = rule.name,
@@ -86,7 +88,7 @@ class BulletinApiClient @Inject constructor(
                 enabled = rule.enabled,
             )
             val service = api.at(baseUrl)
-            service.newSubscription(authHeader(), reqBody).execute().use { response ->
+            service.newSubscription(authHeader(signIn), reqBody).execute().use { response ->
                 val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw BulletinApiException("createSubscription failed: HTTP ${response.code} $text")
@@ -97,7 +99,7 @@ class BulletinApiClient @Inject constructor(
             }
         }
 
-    suspend fun updateSubscription(id: Int, rule: SubscriptionRule): SubscriptionRule =
+    suspend fun updateSubscription(id: Int, rule: SubscriptionRule, signIn: SignIn): SubscriptionRule =
         withContext(Dispatchers.IO) {
             val reqBody = SubscriptionRuleRequest(
                 name = rule.name,
@@ -107,7 +109,7 @@ class BulletinApiClient @Inject constructor(
                 enabled = rule.enabled,
             )
             val service = api.at(baseUrl)
-            service.subscription(authHeader(), id, reqBody).execute().use { response ->
+            service.subscription(authHeader(signIn), id, reqBody).execute().use { response ->
                 val text = response.body.string()
                 if (!response.isSuccessful) {
                     throw BulletinApiException("updateSubscription failed: HTTP ${response.code} $text")
@@ -118,9 +120,9 @@ class BulletinApiClient @Inject constructor(
             }
         }
 
-    suspend fun deleteSubscription(id: Int) = withContext(Dispatchers.IO) {
+    suspend fun deleteSubscription(id: Int, signIn: SignIn) = withContext(Dispatchers.IO) {
         val service = api.at(baseUrl)
-        service.removeSubscription(authHeader(), id, EmptyBody).execute().use { response ->
+        service.removeSubscription(authHeader(signIn), id, EmptyBody).execute().use { response ->
             if (!response.isSuccessful) {
                 throw BulletinApiException("deleteSubscription failed: HTTP ${response.code}")
             }
@@ -136,10 +138,10 @@ class BulletinApiClient @Inject constructor(
     private suspend inline fun <reified T> getJson(crossinline call: (BulletinApi) -> Call): T =
         withContext(Dispatchers.IO) { parsed(call(api.at(baseUrl))) }
 
-    private suspend inline fun <reified T> getJsonAuthed(crossinline call: (BulletinApi, String) -> Call): T =
+    private suspend inline fun <reified T> getJsonAuthed(signIn: SignIn, crossinline call: (BulletinApi, String) -> Call): T =
         withContext(Dispatchers.IO) {
             val service = api.at(baseUrl)
-            parsed(call(service, authHeader()))
+            parsed(call(service, authHeader(signIn)))
         }
 
     private inline fun <reified T> parsed(call: Call): T {

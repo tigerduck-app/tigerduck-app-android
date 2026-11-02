@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -30,7 +31,14 @@ class MoodleAutologinTest {
 
     private var requests = 0
     private var answer: suspend () -> MoodleAutologin.Key? = { key }
-    private var generation = 0
+    private val signIns = SignInSeries()
+
+    /** A sign-out, and the next sign-in opening after its wipe. */
+    private fun nextSignIn() {
+        signIns.end()
+        signIns.open()
+    }
+
     private var privateToken: String? = "private"
     private var nowMs = 1_000_000_000L
 
@@ -49,7 +57,7 @@ class MoodleAutologinTest {
         },
         scope = backgroundScope,
         now = { nowMs },
-        signInGeneration = { generation },
+        currentSignIn = { signIns.current },
         hasPrivateToken = { privateToken != null },
         canFetchPrivateToken = { moodleToken },
         fetchPrivateToken = {
@@ -115,7 +123,7 @@ class MoodleAutologinTest {
     @Test
     fun `a key that arrives after a sign-out is dropped`() = runTest {
         answer = {
-            generation++
+            nextSignIn()
             key
         }
 
@@ -142,8 +150,8 @@ class MoodleAutologinTest {
         val autologin = autologin()
         val opening = backgroundScope.async { autologin.url(page) }
         runCurrent()
-        // The sign-out moves the generation where it runs, before any collector sees it.
-        generation++
+        // The sign-out ends the sign-in where it runs, before any collector sees it.
+        nextSignIn()
         gate.complete(Unit)
 
         assertEquals(page, opening.await())
@@ -275,7 +283,7 @@ class MoodleAutologinTest {
         assertEquals(0, requests)
 
         // A new sign-in harvests a pair of its own; should it come without one too, it is tried once.
-        generation++
+        nextSignIn()
         autologin.url(page)
         assertEquals(2, fetches)
     }
@@ -285,7 +293,7 @@ class MoodleAutologinTest {
         privateToken = null
         fetch = {
             privateToken = "private"
-            generation++
+            nextSignIn()
             true
         }
 
@@ -305,7 +313,7 @@ class MoodleAutologinTest {
         val departing = backgroundScope.async { autologin.url(page) }
         runCurrent()
         // The student signs out and in again while the departing account's fetch is out.
-        generation++
+        nextSignIn()
         fetch = {
             privateToken = "private"
             true
@@ -404,7 +412,7 @@ class MoodleAutologinTest {
         privateToken = null
         fetch = {
             privateToken = "private"
-            generation++
+            nextSignIn()
             true
         }
 

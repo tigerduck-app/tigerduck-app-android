@@ -86,6 +86,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -96,6 +97,7 @@ import org.ntust.app.tigerduck.liveactivity.LiveActivitySyncValues
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.AssignmentReminderOffset
 import org.ntust.app.tigerduck.notification.ClassReminders
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -136,6 +138,9 @@ internal data class AssignmentSyncValues(
  * Robolectric in this module. Same reasoning, and the same shape, as
  * `parseEnvelope` taking its deserialize step as a parameter, and as
  * `applyOptOutIfAccepted` being lifted out of `PushRegistrationService`.
+ *
+ * Bound to one sign-in: every request it makes carries the one [NotificationSettingsSync] read
+ * where its push or pull began.
  */
 internal interface SettingsDocumentTransport {
     /** `GET /v3/settings/notification`; null when the user has no document yet (404). */
@@ -153,66 +158,6 @@ internal interface SettingsDocumentTransport {
         baseRevision: Long?,
         isCurrent: () -> Boolean,
     ): SettingsWriteResult<JsonObject>
-}
-
-/**
- * A [SettingsDocumentTransport] that goes to the network for the first
- * [read] and answers every later one with what that read produced — the same
- * envelope, or the same failure thrown again.
- *
- * [NotificationSettingsSync.pullNow] wraps one of these around the real
- * transport for the span of a single pull. The two sections it applies,
- * `live_activity` and `assignments`, are independent functions that each
- * read the document they own a section of — which is the right shape for
- * them, but it means the *same* document was fetched twice per pull, now on
- * every successful full sync rather than only when a settings screen opens.
- * One request answers both.
- *
- * Nothing else about either section changes: each still makes no request at
- * all when its own gate is closed (whichever section reads first pays for
- * it), still asks its dirty check and its generation check after the read
- * has come back, and still degrades on its own terms.
- *
- * A failure is cached and rethrown rather than retried, so a pull cannot
- * turn into two requests on exactly the path where requests are failing;
- * both sections then report the same failure, which is what one shared read
- * means. [CancellationException] is never cached — it belongs to the
- * coroutine being cancelled, not to the document.
- */
-private class SingleReadTransport(
-    private val delegate: SettingsDocumentTransport,
-    /** The document is known to be missing, so the read answers as a 404 without going out. */
-    private val knownMissing: Boolean = false,
-    /** Runs when the read finds no document. */
-    private val onMissing: () -> Unit = {},
-) : SettingsDocumentTransport {
-    private var answered = false
-    private var envelope: SettingsDocumentEnvelope<JsonObject>? = null
-    private var failure: Exception? = null
-
-    override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? {
-        if (!answered) {
-            try {
-                if (!knownMissing) {
-                    envelope = delegate.read()
-                    if (envelope == null) onMissing()
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failure = e
-            }
-            answered = true
-        }
-        failure?.let { throw it }
-        return envelope
-    }
-
-    override suspend fun write(
-        document: JsonObject,
-        baseRevision: Long?,
-        isCurrent: () -> Boolean,
-    ): SettingsWriteResult<JsonObject> = delegate.write(document, baseRevision, isCurrent)
 }
 
 /**
@@ -1430,7 +1375,10 @@ internal interface AssignmentReminderAlarms {
 
 @Singleton
 class NotificationSettingsSync internal constructor(
-    private val transport: SettingsDocumentTransport,
+    /** The document's requests, each carrying the sign-in given here. */
+    private val documents: (SignIn) -> SettingsDocumentTransport,
+    /** The sign-in as it is now, read where a push or a pull begins. */
+    private val currentSignIn: () -> SignIn,
     private val liveActivityPreferences: LiveActivityPreferences,
     private val assignmentStore: AssignmentReminderSyncStore,
     private val assignmentAlarms: AssignmentReminderAlarms,
@@ -1458,6 +1406,7 @@ class NotificationSettingsSync internal constructor(
     // AppPreferences, AuthTokenManager, the scheduler and the cache all need
     // a real Context or the Android Keystore. Same split, for the same
     // reason, as LiveActivityPreferences.
+    @OptIn(StartsAccountWork::class)
     @Inject constructor(
         client: SettingsDocumentApiClient,
         liveActivityPreferences: LiveActivityPreferences,
@@ -1468,17 +1417,20 @@ class NotificationSettingsSync internal constructor(
         dataCache: DataCache,
         @ApplicationScope scope: CoroutineScope,
     ) : this(
-        transport = object : SettingsDocumentTransport {
-            override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? =
-                client.read(NOTIFICATION_SETTINGS_NAMESPACE, JsonObject::class.java)
+        documents = { signIn ->
+            object : SettingsDocumentTransport {
+                override suspend fun read(): SettingsDocumentEnvelope<JsonObject>? =
+                    client.read(NOTIFICATION_SETTINGS_NAMESPACE, signIn, JsonObject::class.java)
 
-            override suspend fun write(
-                document: JsonObject,
-                baseRevision: Long?,
-                isCurrent: () -> Boolean,
-            ): SettingsWriteResult<JsonObject> =
-                client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, JsonObject::class.java, isCurrent)
+                override suspend fun write(
+                    document: JsonObject,
+                    baseRevision: Long?,
+                    isCurrent: () -> Boolean,
+                ): SettingsWriteResult<JsonObject> =
+                    client.write(NOTIFICATION_SETTINGS_NAMESPACE, document, baseRevision, signIn, JsonObject::class.java, isCurrent)
+            }
         },
+        currentSignIn = { authTokenManager.session.current },
         liveActivityPreferences = liveActivityPreferences,
         assignmentStore = object : AssignmentReminderSyncStore {
             override var enabled: Boolean
@@ -1668,7 +1620,7 @@ class NotificationSettingsSync internal constructor(
                 delay(DEBOUNCE_MS)
                 // Queued before a logout: it belongs to the account that left.
                 if (queuedGeneration != generation.get()) continue
-                runCatching { documentLock.withLock { pushNow(queuedGeneration) } }.fold(
+                runCatching { documentLock.withLock { pushNow(queuedGeneration, documents(currentSignIn())) } }.fold(
                     onSuccess = { succeeded ->
                         // A `false` here means nothing was sent, on purpose:
                         // no section had an unconfirmed edit, every dirty
@@ -1914,7 +1866,7 @@ class NotificationSettingsSync internal constructor(
      *
      * The automatic sign-in is one more reason this must never mark: a
      * lapsed refresh token or a missing session sends
-     * `AuthTokenManager.authHeader()` into it from inside whatever request is
+     * `AuthTokenManager.requireAuthHeader()` into it from inside whatever request is
      * being built, a pull's included, and a pull whose own sign-in had marked
      * the device would skip applying the document it had just read.
      *
@@ -2080,7 +2032,7 @@ class NotificationSettingsSync internal constructor(
             // of one moves the revision (missingAt).
             val missingHere = knownRevision?.let { pulledGeneration to it }
             val pullTransport = SingleReadTransport(
-                transport,
+                documents(currentSignIn()),
                 knownMissing = missingHere != null && missingHere == missingAt,
                 onMissing = { if (missingHere != null && isCurrentGeneration()) missingAt = missingHere },
             )
@@ -2327,7 +2279,7 @@ class NotificationSettingsSync internal constructor(
      * is retried together on the next attempt, exactly as a single-section
      * push already was.
      */
-    private suspend fun pushNow(queuedGeneration: Int): Boolean {
+    private suspend fun pushNow(queuedGeneration: Int, transport: SettingsDocumentTransport): Boolean {
         var liveActivitySucceeded = false
         if (liveActivityPreferences.hasUnconfirmedSyncEdit) {
             val (sentLiveActivity, liveActivityBase, liveActivityRestartsAtBase) = synchronized(recordLock) {

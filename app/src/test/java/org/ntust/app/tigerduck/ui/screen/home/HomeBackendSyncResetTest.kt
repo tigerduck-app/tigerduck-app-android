@@ -35,7 +35,7 @@ class HomeBackendSyncResetTest {
         val reset = text.substringAfter("private suspend fun applyCourseReset(").substringBefore("\n    }\n")
 
         val stamp = pull.indexOf("val beforeFetch = pendingCourseDeletes.stamp()")
-        val fetch = pull.indexOf("syncApiClient.fetchFullSync()")
+        val fetch = pull.indexOf("syncApiClient.fetchFullSync(")
         assertTrue("the stamp is taken before the fetch", stamp in 0 until fetch)
         assertTrue("the reset is given that stamp", "applyCourseReset(result, beforeFetch, courseSync, signIn)" in pull)
         assertTrue(

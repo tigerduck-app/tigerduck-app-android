@@ -55,7 +55,7 @@ import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.tls.PinManager
 import org.ntust.app.tigerduck.notification.BackgroundSyncWorker
 import org.ntust.app.tigerduck.push.FcmBootstrap
-import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.review.InAppReview
 import org.ntust.app.tigerduck.review.ReviewPrompt
 import org.ntust.app.tigerduck.serverpush.ServerPopupRequest
@@ -131,7 +131,7 @@ class MainActivity : AppCompatActivity() {
     lateinit var moodleTokenService: MoodleTokenService
 
     @Inject
-    lateinit var pushApiClient: PushApiClient
+    lateinit var pushRegistration: PushRegistrationService
 
     @Inject
     lateinit var authTokenManager: AuthTokenManager
@@ -450,11 +450,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshMoodleCredentials() {
-        if (!authTokenManager.isLoggedIn) return
-        val token = moodleTokenService.currentToken() ?: return
-        lifecycleScope.launch {
-            runCatching { pushApiClient.updateCredentials(token) }
-        }
+        lifecycleScope.launch { pushRegistration.refreshMoodleCredentials(moodleTokenService::currentToken) }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {

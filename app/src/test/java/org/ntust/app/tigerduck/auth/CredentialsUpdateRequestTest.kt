@@ -26,7 +26,7 @@ class CredentialsUpdateRequestTest {
         tokens.save("access-1", "refresh-1", expiresAt = Long.MAX_VALUE)
         val manager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
 
-        PushApiClient(backend.client, prefs, manager).updateCredentials("moodle", "private")
+        PushApiClient(backend.client, prefs, manager).updateCredentials("moodle", manager.session.signIns.current, "private")
     }
 
     @Test

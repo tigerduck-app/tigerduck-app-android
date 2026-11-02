@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A refused revision poll carries its HTTP status, so the poller can tell a
@@ -35,7 +36,7 @@ class SyncRevisionStatusTest {
     }
 
     private suspend fun statusOfFailedPoll(): Int? =
-        (runCatching { client.fetchRevision() }.exceptionOrNull() as? PushApiException)?.statusCode
+        (runCatching { client.fetchRevision(testSignIn()) }.exceptionOrNull() as? PushApiException)?.statusCode
 
     @Test
     fun `a 401 says so`() = runTest {

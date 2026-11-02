@@ -74,7 +74,7 @@ class TermCourseSync internal constructor(
                 courseService.lookupOrFallback(semester, courseNo, moodle, kept = kept).course
         },
         uploader = Uploader { courses, semester, resend, rosterTerms, signIn ->
-            pushApiClient.uploadCourses(courses, semester, signIn = signIn, resend = resend, rosterTerms = rosterTerms)
+            pushApiClient.uploadCourses(courses, semester, signIn, resend = resend, rosterTerms = rosterTerms)
         },
         waitingAdds = pendingCourseAdds::waitingIn,
         uploading = { block -> pendingCourseAdds.uploading(block) },

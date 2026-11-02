@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.auth
 
 import android.util.Log
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.net.HttpURLConnection
 import kotlin.coroutines.cancellation.CancellationException
@@ -27,16 +28,17 @@ internal class StoredAccountSignIn(
     private val afterSignIn: () -> Unit,
 ) {
     /**
-     * Signs in with [signIn], the generation read before the credentials, so a sign-out during
-     * the harvest keeps the login from storing the departing account's pair.
+     * Signs in under [signIn], read before the credentials, so a sign-out during the harvest
+     * keeps the login from storing the departing account's pair.
      *
      * The stored Moodle token goes first, as on the iPhone: it proves the account without the
      * password going anywhere. Harvesting a fresh one on every automatic sign-in posted the
      * password to SSO each time, and after a password change each of those counted toward the
      * school's lockout. A token is harvested only when none is stored or the backend refused it.
      */
-    suspend fun signIn(signIn: Int): SignInAttempt {
-        if (isDemo()) return SignInAttempt.NOTHING_TO_SEND
+    suspend fun signIn(signIn: SignIn): SignInAttempt {
+        // Ended already, as while the session is closed: nothing here is that sign-in's to send.
+        if (isDemo() || !signIn.isCurrent) return SignInAttempt.NOTHING_TO_SEND
         val studentId = studentId() ?: return SignInAttempt.NOTHING_TO_SEND
         val password = password()
         val stored = storedMoodleToken()?.takeIf { it.isNotEmpty() }
@@ -64,16 +66,16 @@ internal class StoredAccountSignIn(
         return if (signedIn) SignInAttempt.SIGNED_IN else SignInAttempt.FAILED
     }
 
-    private suspend fun logIn(studentId: String, moodleToken: String, signIn: Int): Login {
+    private suspend fun logIn(studentId: String, moodleToken: String, signIn: SignIn): Login {
         // Signed out meanwhile: the token read since may be the next account's,
         // and must not go out with this one's ID.
-        if (tokens.signInGeneration != signIn) return Login.FAILED
+        if (!signIn.isCurrent) return Login.FAILED
         return try {
             tokens.login(
                 studentId = studentId,
                 moodleToken = moodleToken,
                 moodlePrivateToken = null,
-                signInGeneration = signIn,
+                signIn = signIn,
             )
             Log.i(TAG, "auto sign-in: v3 JWT obtained")
             afterSignIn()

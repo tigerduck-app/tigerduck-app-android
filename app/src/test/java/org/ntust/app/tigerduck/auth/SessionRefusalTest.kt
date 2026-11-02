@@ -6,6 +6,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.IOException
 
 /**
@@ -16,7 +19,7 @@ class SessionRefusalTest {
 
     private var relogins = 0
 
-    private fun relogin(succeeds: Boolean): suspend () -> Boolean = {
+    private fun relogin(succeeds: Boolean): suspend (SignIn) -> Boolean = {
         relogins++
         succeeds
     }
@@ -33,7 +36,7 @@ class SessionRefusalTest {
     fun `a refused session signs in again and the request goes once more`() = runTest {
         var sends = 0
 
-        val answer = retryingAfterRelogin(relogin(succeeds = true)) {
+        val answer = retryingAfterRelogin(testSignIn(), relogin(succeeds = true)) {
             if (++sends == 1) throw IOException("HTTP 401") else "snapshot"
         }
 
@@ -46,7 +49,7 @@ class SessionRefusalTest {
     fun `a refused session whose sign-in fails keeps its failure`() = runTest {
         val refused = IOException("HTTP 401")
 
-        val failure = runCatching { retryingAfterRelogin(relogin(succeeds = false)) { throw refused } }.exceptionOrNull()
+        val failure = runCatching { retryingAfterRelogin(testSignIn(), relogin(succeeds = false)) { throw refused } }.exceptionOrNull()
 
         assertSame(refused, failure)
         assertEquals(1, relogins)
@@ -55,7 +58,7 @@ class SessionRefusalTest {
     @Test
     fun `another failure signs nothing in`() = runTest {
         val failure = runCatching {
-            retryingAfterRelogin(relogin(succeeds = true)) { throw IOException("HTTP 503") }
+            retryingAfterRelogin(testSignIn(), relogin(succeeds = true)) { throw IOException("HTTP 503") }
         }.exceptionOrNull()
 
         assertEquals("HTTP 503", failure?.message)
@@ -67,7 +70,7 @@ class SessionRefusalTest {
         var sends = 0
 
         val failure = runCatching {
-            retryingAfterRelogin(relogin(succeeds = true)) {
+            retryingAfterRelogin(testSignIn(), relogin(succeeds = true)) {
                 sends++
                 throw IOException("HTTP 401")
             }

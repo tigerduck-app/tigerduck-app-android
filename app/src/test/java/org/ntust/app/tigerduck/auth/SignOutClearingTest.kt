@@ -112,6 +112,13 @@ class SignOutClearingTest {
         clearings.forEach { assertEquals(it, 1, Regex(it).findAll(source).count()) }
     }
 
+    /** AuthTokenManager.login refuses an ended sign-in as well, so only the source can show this one. */
+    @Test
+    fun `a typed sign-in falls back to the stored Moodle token only while its sign-in stands`() {
+        assertTrue("val stillCurrent = { signIn.isCurrent }" in source)
+        assertTrue("stillCurrent = stillCurrent," in source)
+    }
+
     @Test
     fun `the start finishes a sign-out before anything acts on the account, and wipes after the migration`() {
         val app = File(appDir(), "src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt").readText()
