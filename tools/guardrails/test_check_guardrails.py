@@ -563,6 +563,12 @@ class GuardrailsTest(unittest.TestCase):
                    "account.studentChanges.collect { }\nmail.signOuts.collect { }\n")
         self.assertEqual(self.counts("sign-out-reactor"), {APP + "A.kt": 6})
 
+    def test_sign_out_reactor_takes_no_baseline(self):
+        self.write(APP + "A.kt", "authState.collect { }\n")
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "sign-out-reactor"), 1)
+
     def test_sign_out_reactor_leaves_the_stream_and_a_read_of_the_state_alone(self):
         self.write(APP + "A.kt",
                    "sessions.events.collect { }\nsession.changes.collect { }\n"

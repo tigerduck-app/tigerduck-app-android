@@ -41,7 +41,7 @@ Offense kinds (counts in the baseline):
   sign-out-reactor lines that follow a sign-in or a sign-out by watching state or
                   a stream of the account's own. Every reactor reads one stream
                   of account events, so a fast sign-out and sign-in can't be
-                  missed.
+                  missed. Takes no baseline entries either.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -136,7 +136,7 @@ BEARER_LITERAL = '"Bearer '
 UNREGISTER_BEARER = 'removeDevice("Bearer '
 # Kinds that are counts of lines and, apart from these, take no baseline entry
 # the flag cannot record.
-INTRODUCIBLE = ("account-counter", "demo-check", "sign-out-reactor")
+INTRODUCIBLE = ("account-counter", "demo-check")
 
 
 def in_home(rel, homes):
