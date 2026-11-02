@@ -4,6 +4,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.mail.MailAccount
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.MailErrors
@@ -14,6 +15,7 @@ import org.ntust.app.tigerduck.mail.model.MailSummary
 import org.ntust.app.tigerduck.mail.notify.MailNotifier
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.store.MailStateStore
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -45,6 +47,7 @@ fun interface MailClock {
  * a check that finds another running returns [CheckOutcome.Busy] at once.
  * Opens its own short-lived connection.
  */
+@OptIn(StartsAccountWork::class)
 @Singleton
 class MailChecker @Inject constructor(
     private val account: MailAccount,
@@ -60,7 +63,7 @@ class MailChecker @Inject constructor(
     private val markerLock = Any()
 
     suspend fun check(source: CheckSource): CheckOutcome {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         val outcome = if (!mutex.tryLock()) {
             CheckOutcome.Busy
         } else {
@@ -73,7 +76,7 @@ class MailChecker @Inject constructor(
         // The inbox answered, whatever it held -- unless the account it answered has signed out
         // since, and the date would land in the state its sign-out just cleared.
         val reached = outcome is CheckOutcome.Baseline || outcome is CheckOutcome.NoChange || outcome is CheckOutcome.NewMail
-        if (reached) state.setFetchedAtIf(INBOX, clock.now()) { account.accountGeneration == generation }
+        if (reached) state.setFetchedAtIf(INBOX, clock.now()) { signIn.isCurrent }
         record(source, outcome)
         return outcome
     }
@@ -87,26 +90,25 @@ class MailChecker @Inject constructor(
     fun fetchedAt(folder: String): Long = state.fetchedAt(folder)
 
     /**
-     * The list page read [folder] from the server, for the account whose
-     * [MailAccount.accountGeneration] was [generation] when it asked; says whether that dated it.
-     * Not the demo mailbox, which has no server: like every other page on the demo account, it
+     * The list page read [folder] from the server, for the account at [signIn] when it asked; says
+     * whether that dated it. Not the demo mailbox, which has no server: like every other page on the demo account, it
      * was never synced. Nor for an account that has left since -- a sign-out, or another sign-in,
      * even the same student's: the fetch was the sign-in before's, and would date folders nothing
      * was fetched for. Asked under the store's lock, which the sign-out's clear takes too
      * ([MailStateStore.setFetchedAtIf]), so a date it allows goes with that clear.
      */
-    fun noteFetchedByPage(folder: String, generation: Int): Boolean {
+    fun noteFetchedByPage(folder: String, signIn: SignIn): Boolean {
         if (account.isDemo) return false
-        return state.setFetchedAtIf(folder, clock.now()) { account.accountGeneration == generation }
+        return state.setFetchedAtIf(folder, clock.now()) { signIn.isCurrent }
     }
 
     /**
      * The list page showed the inbox up to [status]; those mails must never notify later. For the
-     * account at [generation] when the page asked: a status that lands after its sign-out says
+     * account at [signIn] when the page asked: a status that lands after its sign-out says
      * nothing about the next account's inbox, and must not move its marker.
      */
-    fun noteSeenByPage(status: FolderStatus, generation: Int) = synchronized(markerLock) {
-        if (account.accountGeneration != generation) return@synchronized
+    fun noteSeenByPage(status: FolderStatus, signIn: SignIn) = synchronized(markerLock) {
+        if (!signIn.isCurrent) return@synchronized
         if (status.uidValidity != state.inboxUidValidity) {
             state.inboxUidValidity = status.uidValidity
             state.inboxSeenUidNext = status.uidNext
@@ -116,10 +118,10 @@ class MailChecker @Inject constructor(
     }
 
     private suspend fun run(source: CheckSource): CheckOutcome = withContext(Dispatchers.IO) {
-        // The account with its generation, read together: a sign-out or a sign-in from here on,
+        // The account with its sign-in, read together: a sign-out or a sign-in from here on,
         // even the same student's again, makes this check's results the sign-in before's.
         val signedIn = account.snapshot() ?: return@withContext CheckOutcome.NotSignedIn
-        val generation = signedIn.generation
+        val signIn = signedIn.signIn
         val credentials = signedIn.credentials
         if (state.authFailed || !state.notificationsEnabled) return@withContext CheckOutcome.Disabled
         if (source == CheckSource.FOREGROUND) {
@@ -131,7 +133,7 @@ class MailChecker @Inject constructor(
         // The state, the cache and the notifications belong to whoever is signed in now. A check
         // that outlives its account -- a sign-out, or another student signing in meanwhile --
         // writes, files and posts nothing more, so it asks again right before each of those.
-        val stillSignedIn = { account.accountGeneration == generation }
+        val stillSignedIn = { signIn.isCurrent }
         try {
             sessions.open(credentials).use { session ->
                 val status = session.status(INBOX)
@@ -199,7 +201,7 @@ class MailChecker @Inject constructor(
             if (error is MailError.AuthFailed) {
                 // Asked again in the same step as the mark: a sign-in since is the server's
                 // answer to a password it took.
-                if (!account.onAuthFailure(generation)) return@withContext CheckOutcome.NotSignedIn
+                if (!account.onAuthFailure(signIn)) return@withContext CheckOutcome.NotSignedIn
                 notifier.postAuthFailure()
             }
             CheckOutcome.Failed(error)

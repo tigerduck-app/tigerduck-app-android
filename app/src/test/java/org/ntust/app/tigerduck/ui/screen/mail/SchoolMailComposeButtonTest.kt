@@ -43,6 +43,7 @@ import org.ntust.app.tigerduck.mail.SentCopyNotices
 import org.ntust.app.tigerduck.mail.cancelAndJoinBlocking
 import org.ntust.app.tigerduck.mail.mailSummary
 import org.ntust.app.tigerduck.mail.schoolMailSite
+import org.ntust.app.tigerduck.mail.signInNow
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.MailChecker
 import org.ntust.app.tigerduck.mail.testApplicationScope
@@ -80,7 +81,7 @@ class SchoolMailComposeButtonTest {
         val account = MailAccount(InMemoryCredentialStore(), state, server.factory(), cache,
             FakeDemoGate(), schoolMailSite(), RecordingScheduler(), RecordingNotifier(), appScope)
         if (signedIn) assertNull(runBlocking { account.signIn("B00015999", "pw") })
-        repo.accountGeneration = { account.accountGeneration }
+        repo.currentSignIn = { account.signInNow }
         val checker = MailChecker(account, state, server.factory(), RecordingNotifier(), cache) { 0L }
         val list = SchoolMailListViewModel(
             repo, account, checker, schoolMailSite(),

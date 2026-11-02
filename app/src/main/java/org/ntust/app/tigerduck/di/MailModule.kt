@@ -10,6 +10,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.mail.AssetsMailDemoGate
 import org.ntust.app.tigerduck.mail.MailConnectionProbe
@@ -47,7 +49,13 @@ import org.ntust.app.tigerduck.ui.screen.mail.ContentResolverAttachmentReader
 import org.ntust.app.tigerduck.ui.screen.mail.NtustAccountSource
 import org.ntust.app.tigerduck.ui.screen.mail.PickedAttachmentReader
 import java.io.File
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+/** The mail account's [AccountSession], one of the three [AccountSessions] holds. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class MailAccountSession
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -91,6 +99,11 @@ object MailModule {
     @Singleton
     fun transport(configs: MailServerConfigSource, tls: PinnedTls): MailTransport =
         AngusMailTransport(configs, tls.socketFactory)
+
+    @Provides
+    @Singleton
+    @MailAccountSession
+    fun accountSession(sessions: AccountSessions): AccountSession = sessions.mail
 
     @Provides
     @Singleton

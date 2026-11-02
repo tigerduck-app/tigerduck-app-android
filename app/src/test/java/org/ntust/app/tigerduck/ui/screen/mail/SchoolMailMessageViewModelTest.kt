@@ -33,6 +33,7 @@ import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailAttachment
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.sanitize.MailLink
+import org.ntust.app.tigerduck.mail.signInNow
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.testApplicationScope
 import org.ntust.app.tigerduck.mail.warning.MailWarning
@@ -1279,12 +1280,12 @@ class SchoolMailMessageViewModelTest {
     @Test
     fun `a sent-copy notice shows on the mail it was a reply to, and on no other`() {
         val vm = vm("INBOX", 5)
-        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.Message("INBOX", 5), notices.accountGeneration)
+        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.Message("INBOX", 5), account.signInNow)
         assertEquals(SentCopyNotice.NoFolder, vm.sentCopyNotice.value)
         val other = vm("INBOX", 6)
         assertNull(other.sentCopyNotice.value)
         // A new mail from the list is the list's to say.
-        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, notices.accountGeneration)
+        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, account.signInNow)
         assertNull(vm.sentCopyNotice.value)
     }
 }

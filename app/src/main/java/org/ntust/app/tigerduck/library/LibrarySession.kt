@@ -1,11 +1,16 @@
 package org.ntust.app.tigerduck.library
 
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.demo.DemoAccount
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.shared.LibraryService
+import org.ntust.app.tigerduck.wear.WearScheduleBridge
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -18,8 +23,9 @@ import javax.inject.Singleton
  *
  * The stores behind it say nothing when they change, and a token also runs out
  * with time, so whatever changes them calls [refresh]: a library sign-in or
- * sign-out, the school's, which can take the library with it, and each return
- * to the app. Signed out, the QR code kept in [LibraryQRCache] goes too: it
+ * sign-out, and each return to the app. A school sign-in or sign-out reads them
+ * too, though neither touches the library. Signed out, the QR code kept in
+ * [LibraryQRCache] goes too: it
  * still scans as the account's pass. With it goes when the library last issued
  * one ([AppPreferences.librarySyncedAtMs]), the Library page's "Last synced".
  */
@@ -27,6 +33,10 @@ import javax.inject.Singleton
 class LibrarySession internal constructor(
     private val read: () -> Boolean,
     private val onSignedOut: () -> Unit = {},
+    /** Takes the account off the phone, the demo library's included; see [signOut]. */
+    private val remove: () -> Unit = {},
+    /** Tells the watch the account has gone, without waiting for it. */
+    private val tellWatch: () -> Unit = {},
 ) {
 
     @Inject
@@ -35,14 +45,36 @@ class LibrarySession internal constructor(
         demoAccount: DemoAccount,
         qrCache: LibraryQRBitmapCache,
         prefs: AppPreferences,
-    ) : this({ libraryService.hasAccount || demoAccount.isLibrarySignedIn }, qrCache, prefs)
+        credentials: CredentialManager,
+        wearBridge: WearScheduleBridge,
+        @ApplicationScope scope: CoroutineScope,
+    ) : this(
+        { libraryService.hasAccount || demoAccount.isLibrarySignedIn },
+        qrCache,
+        prefs,
+        remove = {
+            demoAccount.signOutLibrary()
+            credentials.clearLibraryCredentials()
+        },
+        tellWatch = { scope.launch { wearBridge.publishLibraryCredentials() } },
+    )
 
     /** Signed out, [qrCache]'s code goes, and the page's date with it. */
-    internal constructor(read: () -> Boolean, qrCache: LibraryQRCache<*>, prefs: AppPreferences) :
-        this(read, {
+    internal constructor(
+        read: () -> Boolean,
+        qrCache: LibraryQRCache<*>,
+        prefs: AppPreferences,
+        remove: () -> Unit = {},
+        tellWatch: () -> Unit = {},
+    ) : this(
+        read,
+        {
             qrCache.clear()
             prefs.forgetLibrarySynced()
-        })
+        },
+        remove,
+        tellWatch,
+    )
 
     private val _signedIn = MutableStateFlow(read())
     val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
@@ -57,5 +89,16 @@ class LibrarySession internal constructor(
     fun refresh(): Boolean = read().also {
         _signedIn.value = it
         if (!it) onSignedOut()
+    }
+
+    /**
+     * The library sign-out, the one path for Settings and a move to another backend: the account
+     * goes, what shows it follows ([refresh]), and the watch is told. On the application scope,
+     * since it must reach the watch whatever screen asked.
+     */
+    fun signOut() {
+        remove()
+        refresh()
+        tellWatch()
     }
 }

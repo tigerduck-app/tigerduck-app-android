@@ -233,13 +233,13 @@ class MailRepositoryTest {
         val setup = TestSetup(backgroundScope, sessions)
         val repo = setup.signedIn()
         repo.loadPage("INBOX", null)
-        val before = setup.account.accountGeneration
+        val before = setup.account.signInNow
         setup.signOutAndSettle()
         server.passwords["B10000002"] = "pw"
         setup.account.signIn("b10000002", "pw")
         val opened = opens.get()
 
-        val outcome = runCatching { repo.status("INBOX") { setup.account.accountGeneration == before } }
+        val outcome = runCatching { repo.status("INBOX") { setup.account.signInNow == before } }
 
         assertTrue(outcome.exceptionOrNull() is MailError.Abandoned)
         assertEquals(opened, opens.get())
@@ -257,12 +257,12 @@ class MailRepositoryTest {
         val repo = setup.signedIn()
         val uid = repo.loadPage("INBOX", null).messages.single().uid
         val trash = repo.folders().nameOf(SpecialFolder.TRASH)!!
-        val before = setup.account.accountGeneration
+        val before = setup.account.signInNow
         server.passwords["B10000002"] = "pw"
         setup.account.signIn("b10000002", "pw")
 
-        val moved = runCatching { repo.move("INBOX", uid, trash) { setup.account.accountGeneration == before } }
-        val deleted = runCatching { repo.delete("INBOX", uid) { setup.account.accountGeneration == before } }
+        val moved = runCatching { repo.move("INBOX", uid, trash) { setup.account.signInNow == before } }
+        val deleted = runCatching { repo.delete("INBOX", uid) { setup.account.signInNow == before } }
 
         assertTrue(moved.exceptionOrNull() is MailError.Abandoned)
         assertTrue(deleted.exceptionOrNull() is MailError.Abandoned)
@@ -282,12 +282,12 @@ class MailRepositoryTest {
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn()
         val uid = repo.loadPage("INBOX", null).messages.single().uid
-        val before = setup.account.accountGeneration
+        val before = setup.account.signInNow
         server.passwords["B10000002"] = "pw"
         setup.account.signIn("b10000002", "pw")
 
-        val asked = runCatching { repo.deletesPermanently("INBOX") { setup.account.accountGeneration == before } }
-        val deleted = runCatching { repo.delete("INBOX", uid) { setup.account.accountGeneration == before } }
+        val asked = runCatching { repo.deletesPermanently("INBOX") { setup.account.signInNow == before } }
+        val deleted = runCatching { repo.delete("INBOX", uid) { setup.account.signInNow == before } }
 
         assertTrue(asked.exceptionOrNull() is MailError.Abandoned)
         assertTrue(deleted.exceptionOrNull() is MailError.Abandoned)
@@ -408,9 +408,9 @@ class MailRepositoryTest {
         setup = TestSetup(backgroundScope, MailSessionFactory { setup.switchingDuringMove(fail = true, to = "b10000001").open(it) })
         val repo = setup.signedIn()
         repo.loadPage("INBOX", null)
-        val before = setup.account.accountGeneration
+        val before = setup.account.signInNow
 
-        val moved = runCatching { repo.move("INBOX", uid, "回收筒") { setup.account.accountGeneration == before } }
+        val moved = runCatching { repo.move("INBOX", uid, "回收筒") { setup.account.signInNow == before } }
 
         assertTrue(moved.exceptionOrNull() is MailError.Network)
         assertEquals("the flagged mail went unrecorded", setOf(uid), state.ownedDeleted("INBOX", server.uidValidity))
@@ -501,9 +501,9 @@ class MailRepositoryTest {
         setup = TestSetup(backgroundScope, MailSessionFactory { setup.switchingDuringMove(fail = true).open(it) })
         val repo = setup.signedIn()
         repo.loadPage("INBOX", null)
-        val before = setup.account.accountGeneration
+        val before = setup.account.signInNow
 
-        val moved = runCatching { repo.move("INBOX", uid, "回收筒") { setup.account.accountGeneration == before } }
+        val moved = runCatching { repo.move("INBOX", uid, "回收筒") { setup.account.signInNow == before } }
 
         assertTrue(moved.exceptionOrNull() is MailError.Network)
         assertTrue(state.ownedDeleted("INBOX", server.uidValidity).isEmpty())
@@ -575,13 +575,13 @@ class MailRepositoryTest {
         }
         val setup = TestSetup(backgroundScope, sessions)
         setup.signedIn()
-        val before = setup.account.accountGeneration
+        val before = setup.account.signInNow
         setup.signOutAndSettle()
         server.passwords["B10000002"] = "pw"
         setup.account.signIn("b10000002", "pw")
         val opened = opens.get()
 
-        val outcome = runCatching { setup.repository.inboxStatus { setup.account.accountGeneration == before } }
+        val outcome = runCatching { setup.repository.inboxStatus { setup.account.signInNow == before } }
 
         assertTrue(outcome.exceptionOrNull() is MailError.Abandoned)
         assertEquals(opened, opens.get())
@@ -596,15 +596,15 @@ class MailRepositoryTest {
     fun `a folder list that returns after another student signed in over this one is not kept as theirs`() = runTest {
         val setup = TestSetup(backgroundScope)
         setup.signedIn()
-        val before = setup.account.accountGeneration
+        val before = setup.account.signInNow
         server.onListFolders = {
             server.onListFolders = null
             server.passwords["B10000002"] = "pw"
             runBlocking { setup.account.signIn("b10000002", "pw") }
         }
         // The first student's LIST was sent, and comes back for nobody.
-        setup.repository.folders { setup.account.accountGeneration == before }
-        assertTrue(setup.account.accountGeneration != before)
+        setup.repository.folders { setup.account.signInNow == before }
+        assertTrue(setup.account.signInNow != before)
         val lists = server.listCalls
 
         // The second student's first request asks the server, not what the first one's LIST resolved.
@@ -1219,6 +1219,85 @@ class MailRepositoryTest {
         val left = repo.searchIndexProgress.value
         assertNotNull("not OK while mail is missing", left)
         assertFalse(left!!.running)
+    }
+
+    /**
+     * A sign-in tells of the student leaving before it moves the sign-in on, and a download can
+     * still come through for them in between: what it shows would stay on the next student's row.
+     */
+    @Test
+    fun `a download of a student told to have left shows no progress, though the sign-in has yet to move`() = runTest {
+        server.deliver("收件")
+        server.passwords["B10000002"] = "pw"
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        val told = CountDownLatch(1)
+        val moveOn = CountDownLatch(1)
+        setup.account.onLockWait = {
+            setup.account.onLockWait = null
+            told.countDown()
+            moveOn.await(30, TimeUnit.SECONDS)
+        }
+        val over = thread(isDaemon = true) { runBlocking { setup.account.signIn("b10000002", "pw") } }
+        assertTrue(told.await(30, TimeUnit.SECONDS))
+        // The repository hears of the student leaving.
+        runCurrent()
+        val seen = mutableListOf<MailIndexProgress?>()
+        server.onUndeletedUids = { seen += repo.searchIndexProgress.value }
+
+        repo.updateSearchIndex()
+        moveOn.countDown()
+        over.join(30_000)
+
+        assertTrue(seen.isNotEmpty())
+        assertTrue("nothing shown after the telling: $seen", seen.all { it == null })
+    }
+
+    @Test
+    fun `an older page after a password typed again goes to the server, the numbering being the sign-in's before`() = runTest {
+        repeat(120) { server.deliver("信 $it") }
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.updateSearchIndex()
+        val newest = repo.loadPage("INBOX", null)
+        val fetched = server.pageFetches.size
+
+        setup.account.signIn("b10000001", "pw")
+        repo.loadPage("INBOX", newest.nextBeforeSeq)
+
+        assertEquals(fetched + 1, server.pageFetches.size)
+    }
+
+    @Test
+    fun `another student finds nothing resolved of the folders before them`() = runTest {
+        server.passwords["B10000002"] = "pw"
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        repo.folders()
+
+        setup.account.signIn("b10000002", "pw")
+        val listed = server.listCalls
+        repo.folders()
+
+        assertEquals(listed + 1, server.listCalls)
+    }
+
+    @Test
+    fun `a search whose sign-in ended while it caught up asks for no download`() = runTest {
+        server.deliver("期中考")
+        val setup = TestSetup(backgroundScope)
+        val repo = setup.signedIn()
+        val requests = setup.indexScheduler.requests
+        val followUps = setup.indexScheduler.followUps
+        server.onUndeletedUids = {
+            server.onUndeletedUids = null
+            runBlocking { setup.account.signIn("b10000001", "pw") }
+        }
+
+        runCatching { repo.search("INBOX", "期中") }
+
+        assertEquals(requests, setup.indexScheduler.requests)
+        assertEquals(followUps, setup.indexScheduler.followUps)
     }
 
     @Test
@@ -2098,7 +2177,7 @@ class MailRepositoryTest {
         val uid = server.deliver("a")
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn()
-        val generation = setup.account.accountGeneration
+        val generation = setup.account.signInNow
         val changes = mutableListOf<MailChange>()
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { repo.changes.collect { changes += it } }
         repo.loadPage("INBOX", null)
@@ -2122,7 +2201,7 @@ class MailRepositoryTest {
     fun `a sent copy and a saved or discarded draft are told the same way`() = runTest {
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn()
-        val generation = setup.account.accountGeneration
+        val generation = setup.account.signInNow
         val changes = mutableListOf<MailChange>()
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { repo.changes.collect { changes += it } }
         repo.send(OutgoingMail(repo.selfAddress(), listOf(MailAddress(null, "a@x.tw")), emptyList(), emptyList(), "s", "hi"), answered = null)
@@ -2146,7 +2225,7 @@ class MailRepositoryTest {
         val uid = server.deliver("a")
         val setup = TestSetup(backgroundScope)
         val repo = setup.signedIn()
-        val first = setup.account.accountGeneration
+        val first = setup.account.signInNow
         val changes = mutableListOf<MailChange>()
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { repo.changes.collect { changes += it } }
         server.passwords["B10000002"] = "pw"
@@ -2158,7 +2237,7 @@ class MailRepositoryTest {
         }
         repo.setSeen("INBOX", uid, true)
         runCurrent()
-        assertTrue(first != setup.account.accountGeneration)
+        assertTrue(first != setup.account.signInNow)
         assertEquals(listOf(MailChange.Seen("INBOX", uid, true, first)), changes)
     }
 

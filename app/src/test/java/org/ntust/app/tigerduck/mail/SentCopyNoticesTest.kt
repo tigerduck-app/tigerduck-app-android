@@ -37,7 +37,7 @@ class SentCopyNoticesTest {
     }
 
     private fun report(origin: SentCopyOrigin = SentCopyOrigin.List) =
-        notices.report(SentCopyNotice.NoFolder, origin, notices.accountGeneration)
+        notices.report(SentCopyNotice.NoFolder, origin, account.signInNow)
 
     @Test
     fun `a notice carries where the mail was sent from`() {
@@ -70,9 +70,39 @@ class SentCopyNoticesTest {
 
     @Test
     fun `a send that began under an account that has left reports nothing`() {
-        val generation = notices.accountGeneration
+        val signIn = account.signInNow
         account.signOut()
-        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, generation)
+        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, signIn)
+        assertNull(notices.posted)
+    }
+
+    @Test
+    fun `a send that outlives a password typed again still reports, its student being here`() {
+        val signIn = account.signInNow
+        runBlocking { account.signIn("b10000001", "pw") }
+        notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, signIn)
+        assertEquals(SentCopyNotice.Unknown, notices.posted?.notice)
+    }
+
+    /** A student change is told before the next sign-in moves in: a report can land in between. */
+    @Test
+    fun `a report that lands between a student change and the next sign-in posts nothing`() {
+        val signIn = account.signInNow
+        account.onLockWait = {
+            account.onLockWait = null
+            notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, signIn)
+        }
+        runBlocking { account.signIn("b10000002", "pw2") }
+        assertNull(notices.posted)
+    }
+
+    @Test
+    fun `a student change that lands while a notice is being published takes that notice with it too`() {
+        notices.onReportChecked = {
+            notices.onReportChecked = null
+            runBlocking { account.signIn("b10000002", "pw2") }
+        }
+        report()
         assertNull(notices.posted)
     }
 
@@ -82,7 +112,10 @@ class SentCopyNoticesTest {
         // of the account and its publication. Here it is made to land exactly there: the account
         // was still the sender's when checked, and has left by the time the notice is published --
         // which must not leave that notice on the next student's screens.
-        notices.onReportChecked = { account.signOut() }
+        notices.onReportChecked = {
+            notices.onReportChecked = null
+            account.signOut()
+        }
         report()
         assertNull(notices.posted)
     }

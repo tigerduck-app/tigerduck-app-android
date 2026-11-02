@@ -8,10 +8,15 @@ import androidx.annotation.VisibleForTesting
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.mail.store.MailCredentialStore
 import org.ntust.app.tigerduck.shared.LibraryAccountGate
 import org.ntust.app.tigerduck.shared.LibraryCredentialStore
 import org.ntust.app.tigerduck.shared.StoredPasswordSchedule
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.sameStudentId
 import org.ntust.app.tigerduck.util.logSummary
 import javax.inject.Inject
@@ -22,16 +27,26 @@ class CredentialManager private constructor(
     private val prefs: SharedPreferences,
     encrypted: Boolean,
     recreated: Boolean,
+    /** The library's session, whose sign-in ends with each sign-out of the library account. */
+    private val library: AccountSession,
 ) : LibraryCredentialStore, MailCredentialStore {
 
     @Inject
-    constructor(@ApplicationContext context: Context) : this(openEncrypted(context))
+    constructor(@ApplicationContext context: Context, sessions: AccountSessions) :
+        this(openEncrypted(context), sessions.library)
 
-    private constructor(opened: Opened) : this(opened.prefs, opened.encrypted, opened.recreated)
+    private constructor(opened: Opened, library: AccountSession) :
+        this(opened.prefs, opened.encrypted, opened.recreated, library)
 
-    /** [prefs] as the store, unencrypted: for tests, which cannot reach the Android keystore. */
+    /**
+     * [prefs] as the store, unencrypted: for tests, which cannot reach the Android keystore. The
+     * default session is one of its own, for tests that are not about it.
+     */
     @VisibleForTesting
-    internal constructor(prefs: SharedPreferences) : this(prefs, encrypted = false, recreated = false)
+    internal constructor(
+        prefs: SharedPreferences,
+        library: AccountSession = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob())),
+    ) : this(prefs, encrypted = false, recreated = false, library)
 
     val isEncrypted: Boolean = encrypted
 
@@ -170,9 +185,19 @@ class CredentialManager private constructor(
             .apply()
     }
 
+    /**
+     * The gate's sign-out with the library's sign-in ended inside it, so [remove] runs with both
+     * moved. Opened again at once, as the library has no wipe to wait for.
+     */
+    private fun signOutLibrary(remove: () -> Unit) = libraryAccount.signOut {
+        library.signIns.end()
+        library.open()
+        remove()
+    }
+
     fun clearLibraryCredentials() {
         // A library sign-in still running for this account then stores nothing.
-        libraryAccount.signOut {
+        signOutLibrary {
             prefs.edit()
                 .remove("library_username")
                 .remove("library_password")
@@ -182,6 +207,7 @@ class CredentialManager private constructor(
                 .remove(KEY_LIBRARY_PASSWORD_REFUSED_AT)
                 .apply()
         }
+        library.cancelWork()
     }
 
     /**
@@ -215,10 +241,10 @@ class CredentialManager private constructor(
     }
 
     /** Wipe every credential key. Used by the full-reset flow. */
-    @Synchronized
     fun clearAll() {
         // All but the device unregister a sign-out still owes; see PendingUnregisterPrefs.
-        libraryAccount.signOut { clearAllButOwedUnregister(prefs) }
+        synchronized(this) { signOutLibrary { clearAllButOwedUnregister(prefs) } }
+        library.cancelWork()
     }
 
     private class Opened(val prefs: SharedPreferences, val encrypted: Boolean, val recreated: Boolean)

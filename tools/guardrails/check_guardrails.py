@@ -116,7 +116,8 @@ DEMO_HOMES = re.compile(
 SIGN_IN_HOMES = re.compile(
     r"(?:auth/|ui/screen/|ui/AppState\.kt$|TigerDuckApp\.kt$|ShareCodeLink\.kt$|demo/|liveactivity/"
     r"|notification/.*(?:Worker|Receiver)\.kt$|push/PushRegistrationService\.kt$"
-    r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/sync/MailChecker\.kt$"
+    r"|push/NotificationSettingsSync\.kt$|mail/MailAccount\.kt$|mail/MailRepository\.kt$"
+    r"|mail/sync/MailChecker\.kt$"
     r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/CourseService\.kt$|network/moodle/"
     r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
 # Kinds that are counts of lines and, apart from these, take no baseline entry
