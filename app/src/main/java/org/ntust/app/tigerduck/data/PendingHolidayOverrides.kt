@@ -194,7 +194,7 @@ class PendingHolidayOverrides internal constructor(
         if (!keeps()) return
         inFlight.incrementAndGet()
         try {
-            if (lane.enqueue(Choice(holidayId, madeAtMs), signIn) && syncs()) lane.drain(signIn, setOf(SyncField.holiday(holidayId)))
+            lane.enqueueAndDrain(Choice(holidayId, madeAtMs), signIn, syncs)
         } finally {
             inFlight.decrementAndGet()
         }

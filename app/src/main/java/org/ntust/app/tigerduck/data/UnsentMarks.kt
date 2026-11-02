@@ -186,8 +186,7 @@ class UnsentMarks internal constructor(
             lane.edit(signIn) { marks -> marks.filterNot { it.assignmentId == assignmentId } }
             return
         }
-        val tap = UnsentMark(assignmentId, status, madeAtMs = stamp())
-        if (lane.enqueue(tap, signIn) && sends()) lane.drain(signIn, setOf(fieldOf(tap)))
+        lane.enqueueAndDrain(UnsentMark(assignmentId, status, madeAtMs = stamp()), signIn, sends)
     }
 
     /**

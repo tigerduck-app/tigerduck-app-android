@@ -42,6 +42,7 @@ import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
+import java.io.IOException
 import kotlin.coroutines.CoroutineContext
 
 /**
@@ -206,6 +207,45 @@ class HolidayChannelTest {
         syncs = true
         holidays.retry(signIn)
         assertEquals(listOf(3), sent)
+    }
+
+    /**
+     * Two choices of one holiday, the second while the first is out, and the second failing: each
+     * goes once, as the build before sent them. The drain the first choice began does not send the
+     * second again after the second's own has.
+     */
+    @Test
+    fun `on v3 a second choice made while the first is out goes once though it fails`() = runTest {
+        val sent = mutableListOf<Boolean>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var now = 2_000L
+        val holidays = PendingHolidayOverrides(
+            prefs,
+            HolidayOverrideSender { _, notify, _, _ ->
+                sent += notify
+                if (sent.size > 1) throw IOException("offline")
+                firstOut.complete(Unit)
+                release.await()
+                true
+            },
+            syncs = { true },
+            clock = { now },
+        )
+        prefs.holidayNotifyOverrides = setOf(3)
+
+        val first = launch { holidays.send(3, signIn) }
+        firstOut.await()
+        now = 3_000L
+        prefs.holidayNotifyOverrides = emptySet()
+        val second = launch { holidays.send(3, signIn) }
+        testScheduler.runCurrent()
+        release.complete(Unit)
+        first.join()
+        second.join()
+
+        assertEquals(listOf(true, false), sent)
+        assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
     }
 
     @Test

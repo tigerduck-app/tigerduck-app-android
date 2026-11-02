@@ -25,6 +25,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
 import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
@@ -171,6 +172,43 @@ class UnsentMarksChannelTest {
         assertEquals(setOf("7"), cache.loadIgnoredAssignments())
         assertEquals(emptySet<String>(), cache.loadMarkedCompletedAssignments())
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
+    }
+
+    /**
+     * Two taps of one assignment, the second while the first is out, and the second refused: each
+     * goes once, as the build before sent them, so the refusal is counted once. The drain the first
+     * tap began does not send the second again after the second's own has.
+     */
+    @Test
+    fun `on v3 a second tap made while the first is out goes once though it is refused`() = runTest {
+        val sent = mutableListOf<String>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val marks = UnsentMarks(
+            cache,
+            MarkSender { _, status, _, _ ->
+                sent += status
+                if (sent.size > 1) throw PushApiException("HTTP 404", 404)
+                firstOut.complete(Unit)
+                release.await()
+                true
+            },
+            records = { true },
+            sends = { true },
+        )
+
+        val first = launch { marks.send("7", "ignored", signIn) }
+        firstOut.await()
+        val second = launch { marks.send("7", "none", signIn) }
+        withContext(Dispatchers.Default) {
+            while (cache.loadUnsentMarks().singleOrNull()?.status != "none") delay(5)
+        }
+        release.complete(Unit)
+        first.join()
+        second.join()
+
+        assertEquals(listOf("ignored", "none"), sent)
+        assertEquals("refused once", 1, cache.loadUnsentMarks().single().attempts)
     }
 
     @Test

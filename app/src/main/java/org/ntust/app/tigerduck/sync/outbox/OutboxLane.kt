@@ -23,6 +23,11 @@ import org.ntust.app.tigerduck.util.logSummary
  *   than cancelling it, and an edit kept while a send is under way waits too, so the backend sees
  *   each field's edits in the order they were made. An edit is kept at once all the same: only the
  *   requests wait.
+ * - **Each edit once per drain under way.** An edit any drain sends counts as tried for every
+ *   drain under way at that moment, so two running together never send one edit twice, as each
+ *   tap sent only its own edit before there was one lane; a drain that starts later tries it
+ *   again, as a later sync always has. A send now ([enqueueAndDrain]) counts as under way from
+ *   before its edit is kept, so a drain already running that takes the edit first counts for it.
  * - **On the application scope.** Each request, and the storing of its outcome, runs on [scope],
  *   so a caller cancelled meanwhile never cuts a request short or loses what it answered. A caller
  *   cancelled before its request starts sends nothing.
@@ -58,12 +63,32 @@ class OutboxLane<E : Any>(
     // start beside it.
     private val inFlight = Mutex()
 
+    // The edits each drain under way has had, one list per drain (by identity), read and written
+    // under itself: a send adds its edit to every list here.
+    private val underWay = ArrayList<MutableList<E>>()
+
     /**
      * Keeps [entry] under [signIn], in place of an entry waiting for its field: an edit of a field
      * takes the place its waiting edit had, and a field's first edit goes last. Sends nothing. False
      * when it was not kept, as under an ended sign-in.
      */
     suspend fun enqueue(entry: E, signIn: SignIn): Boolean = edit(signIn) { entries -> replacing(entries, entry) }
+
+    /**
+     * A send now: keeps [entry] under [signIn], as [enqueue] does, and when [sends] then says so,
+     * drains its field. Under way from before the entry is kept, so a drain already running that
+     * sends this edit first does not leave it to be sent again here. False when it was not kept.
+     */
+    suspend fun enqueueAndDrain(entry: E, signIn: SignIn, sends: () -> Boolean): Boolean {
+        val tried = startDrain()
+        try {
+            if (!enqueue(entry, signIn)) return false
+            if (sends()) drainWith(signIn, setOf(policy.field(entry)), tried)
+            return true
+        } finally {
+            endDrain(tried)
+        }
+    }
 
     /**
      * Writes [change] of the entries under [signIn], in one step with the lane's own writes: what a
@@ -91,11 +116,28 @@ class OutboxLane<E : Any>(
      * has ended.
      */
     suspend fun drain(signIn: SignIn, fields: Set<String>? = null) {
-        val tried = ArrayList<E>()
+        val tried = startDrain()
+        try {
+            drainWith(signIn, fields, tried)
+        } finally {
+            endDrain(tried)
+        }
+    }
+
+    // A drain under way, with the edits it has had in [tried], which every drain's sends add to.
+    private suspend fun drainWith(signIn: SignIn, fields: Set<String>?, tried: List<E>) {
         while (signIn.isCurrent) {
             val result = sendNext(signIn, fields, tried) ?: return
             if (result == SendResult.Retry && policy.stopsOnRetry) return
         }
+    }
+
+    // A drain starts: its list of the edits it has had, which every send from now on adds to.
+    private fun startDrain(): List<E> = ArrayList<E>().also { tried -> synchronized(underWay) { underWay += tried } }
+
+    // A drain ends: no send adds to its list any more.
+    private fun endDrain(tried: List<E>) {
+        synchronized(underWay) { underWay.removeAll { it === tried } }
     }
 
     /**
@@ -122,14 +164,15 @@ class OutboxLane<E : Any>(
 
     // The next entry [tried] has not had, sent under [signIn] once no other request is in flight,
     // and its outcome stored; null when none is due or the sign-in has ended.
-    private suspend fun sendNext(signIn: SignIn, fields: Set<String>?, tried: MutableList<E>): SendResult? {
+    private suspend fun sendNext(signIn: SignIn, fields: Set<String>?, tried: List<E>): SendResult? {
         inFlight.lock()
         // ATOMIC: once the lock is taken, the block runs to give it back, whatever has been cancelled.
         val request = scope.async(start = CoroutineStart.ATOMIC) {
             try {
                 // Read as the request is about to go, so an edit kept while the last was in flight goes now.
                 val entry = storeLock.withLock { loaded(signIn).firstOrNull { it.isDue(fields, tried) } } ?: return@async null
-                tried += entry
+                // Had by every drain under way, this one included: none of them sends it again.
+                synchronized(underWay) { underWay.forEach { it += entry } }
                 if (!signIn.isCurrent) return@async null
                 val result = sent(entry, signIn)
                 settle(entry, result, signIn)
@@ -204,10 +247,14 @@ class OutboxLane<E : Any>(
         return filled
     }
 
-    private fun E.isDue(fields: Set<String>?, tried: List<E>): Boolean =
-        (fields == null || policy.field(this) in fields) &&
-            policy.attempts.attempts(this) < policy.maxAttempts &&
-            tried.none { policy.attempts.sameEdit(it, this) }
+    // Under its field, the same edit as one [tried] holds counts as had, whichever field the
+    // channel's sameEdit looks at.
+    private fun E.isDue(fields: Set<String>?, tried: List<E>): Boolean {
+        val field = policy.field(this)
+        if (fields != null && field !in fields) return false
+        if (policy.attempts.attempts(this) >= policy.maxAttempts) return false
+        return synchronized(underWay) { tried.none { policy.field(it) == field && policy.attempts.sameEdit(it, this) } }
+    }
 
     // [entries] with [entry] in place of the first waiting for its field, and no other of that field.
     private fun replacing(entries: List<E>, entry: E): List<E> {
