@@ -65,6 +65,19 @@ class SyncClockDurabilityTest {
         assertEquals(emptyMap<String, Long>(), disk)
     }
 
+    @Test
+    fun `a header that raises nothing is not written at once again`() {
+        val launch = Launch()
+        launch.clock.heard(us(T + 5 * MINUTE))
+        assertEquals(1, launch.prefs.commits)
+
+        // The same time again, and an earlier one: the last value seen is already on disk.
+        launch.clock.heard(us(T + 5 * MINUTE))
+        launch.clock.heard(us(T + MINUTE))
+
+        assertEquals(1, launch.prefs.commits)
+    }
+
     private fun us(ms: Long) = ms * 1_000
 
     private companion object {
