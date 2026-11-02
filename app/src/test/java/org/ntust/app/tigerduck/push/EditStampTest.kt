@@ -2,8 +2,11 @@ package org.ntust.app.tigerduck.push
 
 import android.content.Context
 import kotlinx.coroutines.test.runTest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -161,5 +164,26 @@ class EditStampTest {
         assertEquals(1, backend.received("PATCH /sync/assignments/7/override").size)
         assertEquals(1, backend.received("PUT /sync/holiday-overrides/3").size)
         assertTrue((backend.received(course) + backend.received("PUT /sync/holiday-overrides/3")).all { "hlc" in it.body })
+    }
+
+    @Test
+    fun `clock_ahead is read from either version's body, and from a 409 only`() {
+        fun answer(code: Int, body: String) = okhttp3.Response.Builder()
+            .request(okhttp3.Request.Builder().url("http://127.0.0.1:9/v3/sync/assignments/7/override").build())
+            .protocol(okhttp3.Protocol.HTTP_1_1)
+            .code(code)
+            .message("")
+            .body(body.toResponseBody("application/json".toMediaType()))
+            .build()
+
+        assertTrue(isClockAhead(answer(409, clockAhead)))
+        assertTrue(isClockAhead(answer(409, syncFixture("v4/error-clock-ahead.json"))))
+        assertFalse(isClockAhead(answer(409, """{"error":"settings_conflict","detail":"clock_ahead"}""")))
+        assertFalse(isClockAhead(answer(422, syncFixture("v4/error-clock-ahead.json"))))
+        assertFalse(isClockAhead(answer(409, "clock_ahead")))
+        // Peeked: the caller still reads the whole body.
+        val read = answer(409, clockAhead)
+        isClockAhead(read)
+        assertEquals(clockAhead, read.body.string())
     }
 }

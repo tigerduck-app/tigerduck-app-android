@@ -38,11 +38,6 @@
     "count": 878
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/auth/SessionRefusal.kt",
-    "kind": "status-in-message",
-    "count": 2
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
     "kind": "demo-check",
     "count": 1
@@ -411,17 +406,6 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
     "kind": "sync-switch-read",
     "count": 20
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/SyncApiClient.kt",
-    "kind": "long-file",
-    "count": 411
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/SyncApiClient.kt",
-    "kind": "long-function",
-    "name": "SyncApiClient.parseFullSync(JSONObject)",
-    "lines": 95
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/review/ReviewPrompt.kt",

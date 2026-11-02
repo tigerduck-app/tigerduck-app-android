@@ -1,0 +1,1 @@
+{"error": "settings_conflict", "message": "The settings document changed since base_revision.", "namespace": "notifications", "server": {"namespace": "notifications", "schema_version": 1, "document": {}, "revision": 4, "updated_at": "2026-10-25T00:00:00+00:00"}}

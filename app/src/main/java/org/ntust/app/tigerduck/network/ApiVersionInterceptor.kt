@@ -2,8 +2,8 @@ package org.ntust.app.tigerduck.network
 
 import okhttp3.Interceptor
 import okhttp3.Response
-import org.json.JSONObject
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.BackendError
 
 /**
  * Reports every response from our own backend to [ApiVersionGate].
@@ -33,29 +33,17 @@ class ApiVersionInterceptor internal constructor(
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val response = chain.proceed(chain.request())
-        if (response.code == 410 && isOurBackend(chain.request().url.toString()) && !asksForFullSync(response)) {
-            ApiVersionGate.note(response.code)
+        // Only a 410 can retire the app, so only a 410's body is read for its code: the change
+        // feed's on /v3, whose pruned revision asks for a full sync (SyncApiClient.fetchChanges),
+        // says nothing about the app's version. Peeked, so the caller still reads the whole body.
+        if (response.code == 410 && isOurBackend(chain.request().url.toString())) {
+            ApiVersionGate.note(BackendError.of(response))
         }
         return response
     }
 
-    // The change feed answers 410 too when the changes after the revision it was asked for are
-    // pruned, and the app then makes a full sync (SyncApiClient.fetchChanges). That one says
-    // nothing about the app's version. Any other 410, whatever its body, still retires the API.
-    // Peeked, so the caller still reads the whole body.
-    private fun asksForFullSync(response: Response): Boolean = runCatching {
-        JSONObject(response.peekBody(PEEKED_BYTES).string()).optString("error") == SYNC_REVISION_EXPIRED
-    }.getOrDefault(false)
-
     private fun isOurBackend(requestUrl: String): Boolean {
         val base = backend() ?: return false
         return base.isNotEmpty() && requestUrl.startsWith(base)
-    }
-
-    private companion object {
-        const val SYNC_REVISION_EXPIRED = "sync_revision_expired"
-
-        // The feed's 410 body is a few short fields; a longer one is no such answer.
-        const val PEEKED_BYTES = 4_096L
     }
 }

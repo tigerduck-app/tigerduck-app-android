@@ -1,0 +1,30 @@
+{
+  "current_revision": 60,
+  "server_hlc": 1793300000000000,
+  "courses_reset_at": null,
+  "course_tombstones": [
+    {"course_key": "client:1142:XA0000010", "course_no": "XA0000010", "semester": "1142", "deleted_at": "2026-01-05T00:00:00+00:00", "hlc": 1767571200000000, "kind": "hide"},
+    {"course_key": "client:1151:XA0000011", "course_no": "XA0000011", "semester": "1151", "deleted_at": "2026-10-26T03:00:00+00:00", "hlc": 1792983600000000, "kind": "remove"},
+    {"course_key": "client:1151:XA0000012", "course_no": "XA0000012", "semester": "1151", "deleted_at": "2026-10-27T03:00:00+00:00", "hlc": 1793070000000000, "kind": "reset"},
+    {"course_key": "client:1151:XA0000013", "course_no": "XA0000013", "semester": "1151", "deleted_at": "2026-10-28T03:00:00+00:00", "hlc": 1793156400000000, "kind": "archive"},
+    {"course_key": "client:1151:XA0000014", "course_no": null, "semester": "1151", "deleted_at": "2026-10-29T03:00:00+00:00", "hlc": 1793242800000000, "kind": "hide"}
+  ],
+  "courses_reset_hlc": null,
+  "term_resets": {},
+  "holiday_overrides": [],
+  "courses": [
+    {
+      "id": 111, "semester": "1151", "course_key": "client:1151:XA0000011", "course_no": "XA0000011",
+      "source": "roster", "course_name": "Fake Course Eleven", "course_name_en": null, "instructors": [],
+      "credits": 2.0, "classroom": "", "enrolled_count": 0, "max_count": 0, "moodle_id": null,
+      "schedule_json": {}, "classroom_map": {}, "enrollment_status": "enrolled", "fetched_at": null,
+      "updated_at": null, "version": 1, "added_hlc": null
+    }
+  ],
+  "course_overrides": [],
+  "course_skipped_dates": [],
+  "assignments": [],
+  "assignment_overrides": [],
+  "settings_documents": [],
+  "roster_requests": []
+}
