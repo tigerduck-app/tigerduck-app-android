@@ -12,6 +12,7 @@ import kotlinx.coroutines.ExecutorCoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -52,15 +53,34 @@ class SubscriptionPage : TestWatcher() {
      */
     lateinit var saves: SubscriptionListSaves
         private set
+    private lateinit var savesScope: CoroutineScope
     private val stores = HashMap<SubscriptionSettingsViewModel, ViewModelStore>()
 
     override fun starting(description: Description) {
         main = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
         Dispatchers.setMain(main)
-        saves = SubscriptionListSaves(api, CoroutineScope(SupervisorJob() + main))
+        savesScope = CoroutineScope(SupervisorJob() + main)
+        saves = SubscriptionListSaves(api, savesScope)
     }
 
+    /**
+     * Nothing the test left running may land after it, once Main is gone: a save's answer moves
+     * the ledger, whose collectors, the pages', resume on Main, and a failure there would be
+     * reported to whichever test runs next. So the saves first handle every save they began
+     * (a test that failed with a request still held gives up after the wait), then the pages are
+     * cleared and the saves stopped, on Main.
+     */
     override fun finished(description: Description) {
+        runCatching {
+            eventually("the saves handle every save they began") {
+                saves.probe.answersHandled.get() == saves.probe.savesBegun.get()
+            }
+        }
+        onMain {
+            stores.values.forEach(ViewModelStore::clear)
+            stores.clear()
+            savesScope.cancel()
+        }
         Dispatchers.resetMain()
         main.close()
     }
@@ -94,6 +114,8 @@ class SubscriptionPage : TestWatcher() {
             }
             ViewModelProvider(store, factory)[SubscriptionSettingsViewModel::class.java].also { stores[it] = store }
         }
+        // The page's one read nothing else waits for, which must not be out when the test ends.
+        eventually("the taxonomy is in") { page.state.value.taxonomy != null }
         if (shown) eventually("the rules show") { page.state.value.loadState == SubscriptionSettingsViewModel.LoadState.Loaded }
         return page
     }
