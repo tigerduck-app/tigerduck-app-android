@@ -1059,7 +1059,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "sync-write",
-    "count": 2
+    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",

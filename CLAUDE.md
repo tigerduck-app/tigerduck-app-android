@@ -205,12 +205,13 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   message.
 - `Outbox` (`app/.../sync/outbox/`, coming): every unsent edit, one lane per channel
   with one request in flight, drained in a pinned order. The `sync-write` ratchet
-  counts calls of a backend sync write outside `push/`, `sync/` and the queues.
+  counts calls of a backend sync write, and references to one (`client::deleteCourse`),
+  outside `push/`, `sync/` and the queues.
 - `Synchronizer`, with `FirstPullGate` and `RefreshOrder` (`app/.../sync/`, coming):
   one full sync for Home and the background worker, its reconcilers in a pinned order;
   nothing derived from school data goes up before a process's first pull; a refresh
   applies the pull before the school's data, then pushes. The `full-sync-fetch` ratchet counts
-  `fetchFullSync` calls outside `SyncApiClient` and the `Synchronizer`, and the
+  calls of and references to `fetchFullSync` outside `SyncApiClient` and the `Synchronizer`, and the
   reconciler and refresh order tests hold the orders.
 
 ## Greptile

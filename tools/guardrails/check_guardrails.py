@@ -55,12 +55,14 @@ Offense kinds (counts in the baseline):
                   SyncPolicy answers whether a category keeps, sends or applies.
   sync-write      calls of a backend sync write (the override PATCHes, the
                   holiday PUT, the course deletes and uploads, the assignment
-                  upload, and their ...Answered forms) outside push/, sync/
-                  and the queues. A write leaves through its channel's outbox.
+                  upload, and their ...Answered forms), and references to one
+                  (client::deleteCourse), outside push/, sync/ and the queues.
+                  A declaration is not a call. A write leaves through its
+                  channel's outbox.
   status-in-message contains() of a status code or a backend error code on a
                   message. BackendError reads the code once. It has no home.
-  full-sync-fetch calls of fetchFullSync outside SyncApiClient and the
-                  Synchronizer, which runs every full sync.
+  full-sync-fetch calls of fetchFullSync, and references to it, outside
+                  SyncApiClient and the Synchronizer, which runs every full sync.
   api-version-literal string literals that are "v3" or "v4", or hold /v3 or
                   /v4 as a path segment, outside ApiBase, which turns a base
                   from one version to the other. Takes no baseline entries.
@@ -170,17 +172,24 @@ SYNC_SWITCH = re.compile(
 SYNC_SWITCH_HOMES = re.compile(
     r"(?:sync/SyncPolicy\.kt$|data/preferences/AppPreferences\.kt$|data/preferences/SchoolKeys\.kt$"
     r"|push/PushApiModels\.kt$)")
-# A call: "fun " before the name is its declaration, as in PushApi's interface. A name
-# that merely starts with one (deleteCourseCaches) is not one of the writes.
-SYNC_WRITE = re.compile(
-    r"(?<!fun )\b(?:patchAssignmentOverride|patchCourseOverride|patchCourseIgnore|putHolidayOverride"
-    r"|deleteCourse|deleteAllCourses|uploadCourses|uploadAssignments)(?:Answered)?\s*\(")
+# A call, or a reference (client::deleteCourse) handed on to make it later. A name that
+# merely starts with one (deleteCourseCaches) is not one of the writes, and a declaration
+# of one is not a call: see calls().
+SYNC_WRITES = (r"(?:patchAssignmentOverride|patchCourseOverride|patchCourseIgnore|putHolidayOverride"
+               r"|deleteCourse|deleteAllCourses|uploadCourses|uploadAssignments)(?:Answered)?")
+SYNC_WRITE = re.compile(r"\b" + SYNC_WRITES + r"\s*\(|::\s*" + SYNC_WRITES + r"\b")
 QUEUES = r"(?:UnsentMarks|PendingHolidayOverrides|PendingCourseOverrides|CourseIgnoreSync" \
          r"|PendingCourseAdds|PendingCourseDeletes|CourseIgnoreQueue)"
 SYNC_WRITE_HOMES = re.compile(r"(?:push/|sync/|data/" + QUEUES + r"\.kt$)")
+# Positional or named: contains("401"), contains(other = "401"), and either after a
+# named ignoreCase.
 STATUS_IN_MESSAGE = re.compile(
-    r'\bcontains\s*\(\s*"(?:\d{3}|session_revoked|clock_ahead|hlc_required)"')
-FULL_SYNC_FETCH = re.compile(r"(?<!fun )\bfetchFullSync\s*\(")
+    r'\bcontains\s*\(\s*(?:ignoreCase\s*=\s*\w+\s*,\s*)?(?:other\s*=\s*)?'
+    r'"(?:\d{3}|session_revoked|clock_ahead|hlc_required)"')
+FULL_SYNC_FETCH = re.compile(r"\bfetchFullSync\s*\(|::\s*fetchFullSync\b")
+# What stands between "fun" and the name it declares on that line: modifiers come before
+# "fun", and after it only type parameters and a receiver type (Foo<T>?.), comments blanked.
+DECLARES = re.compile(r"\bfun\b[\s\w.<>,?*:`]*$")
 FULL_SYNC_HOMES = re.compile(r"(?:push/SyncApiClient\.kt$|sync/Synchronizer\.kt$)")
 # On a literal's own text, a template standing as TEMPLATE: "v3" itself, or v3 or v4
 # as a whole path segment, "/v4", "https://h/v3/", "$base/v4?x" or "${base}/v3".
@@ -203,6 +212,21 @@ def in_home(rel, homes):
 
 def matching_lines(code, pattern):
     return sum(1 for line in code.split("\n") if pattern.search(line))
+
+
+def calls(code, pattern):
+    """Calls and callable references the pattern finds in lexed code, declarations left out.
+
+    A match is a declaration when its line reads "fun" before it with nothing between but
+    type parameters and a receiver type: fun deleteCourse(, fun <T> Foo<T>.deleteCourse(.
+    Python's lookbehind is fixed-width, so the line before the match is read instead.
+    """
+    count = 0
+    for m in pattern.finditer(code):
+        line_start = code.rfind("\n", 0, m.start()) + 1
+        if not DECLARES.search(code, line_start, m.start()):
+            count += 1
+    return count
 
 
 def sign_in_reads(code):
@@ -696,9 +720,9 @@ def scan(root):
         if not in_home(rel, SYNC_SWITCH_HOMES):
             add(rel, "sync-switch-read", matching_lines(code, SYNC_SWITCH))
         if not in_home(rel, SYNC_WRITE_HOMES):
-            add(rel, "sync-write", len(SYNC_WRITE.findall(code)))
+            add(rel, "sync-write", calls(code, SYNC_WRITE))
         if not in_home(rel, FULL_SYNC_HOMES):
-            add(rel, "full-sync-fetch", len(FULL_SYNC_FETCH.findall(code)))
+            add(rel, "full-sync-fetch", calls(code, FULL_SYNC_FETCH))
         if not in_home(rel, API_VERSION_HOMES):
             add(rel, "api-version-literal",
                 sum(1 for literal in string_literals(text) if API_VERSION.search(literal)))

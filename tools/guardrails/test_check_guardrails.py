@@ -710,7 +710,34 @@ class GuardrailsTest(unittest.TestCase):
                    "// client.deleteCourse(key, signIn)\nval s = \"deleteCourse(\"\n"
                    "suspend fun deleteCourse(key: String): Boolean\nfun uploadCourses(list: List<Course>) = Unit\n"
                    "val f = client::deleteCourse\nval g = undeleteCourse(key)\ndeleteCourseCaches(cacheDir)\n")
-        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/settings/KeepLocalCourses.kt": 10})
+        # The reference to deleteCourse counts as a call: it is sent wherever it is invoked.
+        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/settings/KeepLocalCourses.kt": 11})
+
+    def test_sync_write_counts_a_callable_reference_as_a_call(self):
+        self.write(APP + "ui/screen/home/HomeBackendSync.kt",
+                   "val step = MarkStep(prefs, pushApiClient::patchAssignmentOverride)\n"
+                   "val send = PushApiClient::uploadCoursesAnswered\nval g = :: deleteAllCourses\n"
+                   "val h = ::deleteCourseCaches\nval i = client::deleteCourseLater\n"
+                   "// client::deleteCourse\nval s = \"client::deleteCourse\"\n")
+        self.write(APP + "data/PendingCourseDeletes.kt", "val d = CourseDeleter(pushApiClient::deleteCourse)\n")
+        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/home/HomeBackendSync.kt": 3})
+
+    def test_sync_write_misses_every_shape_of_declaration(self):
+        self.write(APP + "ui/screen/classtable/LocalCache.kt",
+                   "fun /* comment */ deleteCourse(key: String) = Unit\n"
+                   "fun LocalCache.deleteCourse(key: String) = Unit\n"
+                   "fun <T> Foo.deleteCourse(key: T) = Unit\n"
+                   "private inline fun <reified T : Any> Foo<T>?.uploadCourses(list: List<T>) = Unit\n"
+                   "override suspend fun deleteAllCourses(term: String?)\n"
+                   "internal fun Map<String, List<Int>>.uploadAssignments(x: Int) = Unit\n"
+                   "fun `patchCourseIgnore`(x: Int) = Unit\n")
+        self.assertEqual(self.counts("sync-write"), {})
+        # A call on the line of a declaration is still a call.
+        self.write(APP + "ui/screen/classtable/LocalCache.kt",
+                   "fun drop(key: String) = client.deleteCourse(key, signIn)\n"
+                   "fun Foo.drop(key: String) { api.deleteAllCourses(key, signIn) }\n"
+                   "fun f(): Boolean = deleteCourse(key)\n")
+        self.assertEqual(self.counts("sync-write"), {APP + "ui/screen/classtable/LocalCache.kt": 3})
 
     def test_sync_write_honors_its_homes(self):
         line = "client.deleteCourse(key, signIn)\n"
@@ -740,6 +767,15 @@ class GuardrailsTest(unittest.TestCase):
                    "val e = message.contains(\"HTTP 401\")\nval g = message.contains(\"session_revoked_x\")\n")
         self.assertEqual(self.counts("status-in-message"), {APP + "auth/SessionRefusal.kt": 5})
 
+    def test_status_in_message_hits_named_arguments(self):
+        self.write(APP + "auth/SessionRefusal.kt",
+                   "val a = e.message?.contains(other = \"401\") == true\n"
+                   "val b = body.contains(other = \"clock_ahead\", ignoreCase = true)\n"
+                   "val c = body.contains(ignoreCase = true, other = \"hlc_required\")\n"
+                   "val d = body.contains( other=\"session_revoked\" )\n"
+                   "val f = body.contains(other = \"HTTP 401\")\nval g = body.contains(other = x)\n")
+        self.assertEqual(self.counts("status-in-message"), {APP + "auth/SessionRefusal.kt": 4})
+
     def test_status_in_message_has_no_home(self):
         line = "val a = message.contains(\"401\")\n"
         for anywhere in ("network/backend/BackendError.kt", "auth/SessionRefusal.kt", "push/EditStamp.kt"):
@@ -764,6 +800,16 @@ class GuardrailsTest(unittest.TestCase):
             APP + "notification/BackgroundSyncWorker.kt": 2,
             APP + "push/OtherClient.kt": 1,
         })
+
+    def test_full_sync_fetch_counts_a_callable_reference_and_misses_declarations(self):
+        self.write(APP + "push/SyncApiClient.kt", "val f = this::fetchFullSync\n")
+        self.write(APP + "ui/screen/settings/ReenableCheck.kt",
+                   "val fetch = api::fetchFullSync\nval r = fetch(signIn)\nval g = SyncApiClient::fetchFullSync\n"
+                   "val h = api::fetchFullSyncLater\n")
+        self.write(APP + "push/FullSyncSource.kt",
+                   "fun /* comment */ fetchFullSync(s: SignIn) = Unit\nfun Api.fetchFullSync(s: SignIn) = Unit\n"
+                   "override suspend fun <T> Foo<T>.fetchFullSync(s: SignIn) = Unit\n")
+        self.assertEqual(self.counts("full-sync-fetch"), {APP + "ui/screen/settings/ReenableCheck.kt": 2})
 
     def test_api_version_literal_hits_a_version_segment_and_misses_the_rest(self):
         self.write(APP + "network/EndpointSettings.kt",
