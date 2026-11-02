@@ -56,8 +56,10 @@ internal interface CourseSyncBackend {
     /**
      * The course [courseNo] of [semester] as the phone holds it now, read right before each
      * `/v4` override goes: its color and its names may have changed while Use Local's earlier
-     * requests were out. Null from a backend that keeps no copy of the phone's own (a test's):
-     * the values Use Local read at its start stand.
+     * requests were out, and a course removed or hidden meanwhile holds none. Null from a backend
+     * that keeps no copy of the phone's own (a test's): the values Use Local read at its start
+     * stand. A change landing after the read, while the request renews its session, still goes
+     * as read.
      */
     suspend fun currentChoices(semester: String, courseNo: String): LocalChoices?
 }
@@ -165,10 +167,15 @@ internal class PushCourseSyncBackend(
     }
 
     override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices {
-        val colorHex = dataCache.loadCourses(semester).firstOrNull { it.courseNo == courseNo }?.customColorHex
+        val hidden = CourseTombstoneKeys.isHidden(courseNo, semester, dataCache.loadDeletedCourseNos())
         // As Settings reads them for Use Local: none while name sync is off.
         val names = if (policies.current.syncs(SyncCategory.COURSE_NAMES)) dataCache.loadCourseCustomNames()[courseNo].orEmpty() else emptyMap()
-        return LocalChoices(colorHex, names.filterValues { it.isNotEmpty() })
+        // Read last, so the color is the last thing read before its request.
+        val course = dataCache.loadCourses(semester).firstOrNull { it.courseNo == courseNo }
+        // Removed or hidden meanwhile, the course holds nothing to send, its names neither: they
+        // are stored apart and outlast it, but its waiting overrides went with it.
+        if (course == null || hidden) return LocalChoices(colorHex = null, names = emptyMap())
+        return LocalChoices(course.customColorHex, names.filterValues { it.isNotEmpty() })
     }
 
     private companion object {

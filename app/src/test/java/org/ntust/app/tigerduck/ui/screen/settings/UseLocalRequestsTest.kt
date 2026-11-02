@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
 import android.content.Context
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
@@ -128,7 +129,10 @@ class UseLocalRequestsTest {
         val backend: RecordingBackend,
         val cache: DataCache,
         val outbox: PendingCourseOverrides,
-    )
+    ) {
+        /** Runs once a term's reset has been answered, for a test to change the phone meanwhile. */
+        var afterReset: suspend () -> Unit = {}
+    }
 
     /** The phone holds [courses] in [semester], and [names] (course number, then locale), as Use Local reads them. */
     private suspend fun OnV4.holds(semester: String, courses: List<Course>, names: Map<String, Map<String, String>> = emptyMap()) {
@@ -138,7 +142,17 @@ class UseLocalRequestsTest {
 
     /** Built as Settings builds it, with the outbox version reserved before the names are read. */
     private suspend fun onV4(setUp: (AppPreferences) -> Unit = {}): OnV4 {
-        val v4 = RecordingBackend()
+        var built: OnV4? = null
+        val v4 = RecordingBackend(
+            ahead = listOf(
+                Interceptor { chain ->
+                    chain.proceed(chain.request()).also {
+                        val request = chain.request()
+                        if (request.method == "DELETE" && request.url.encodedPath == "/v4/sync/courses") runBlocking { built?.afterReset?.invoke() }
+                    }
+                },
+            ),
+        )
         val v4Context = JvmContext()
         val v4Prefs = AppPreferences(v4Context).also(setUp)
         val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { WALL_MS })
@@ -146,7 +160,7 @@ class UseLocalRequestsTest {
         val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, v4Api, v4Prefs)
-        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache), v4, cache, outbox)
+        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache), v4, cache, outbox).also { built = it }
     }
 
     private fun hlcOf(sent: RecordingBackend.Sent): Long? =
@@ -338,6 +352,25 @@ class UseLocalRequestsTest {
         useLocalAsRead(v4)
 
         assertEquals(listOf("New"), v4.cache.loadPendingCourseOverrides().map { it.customName })
+    }
+
+    @Test
+    fun `on v4 nothing goes for a course removed or hidden while the reset was out, not even into the outbox`() = runTest {
+        val v4 = onV4 { prefs -> assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn)) }
+        val removed = Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000")
+        val hidden = Course(courseNo = "CS2", courseName = "CS2", customColorHex = "#0000FF")
+        val names = mapOf("CS1" to mapOf("en" to "One"), "CS2" to mapOf("en" to "Two"))
+        v4.holds("1151", listOf(removed, hidden), names)
+        // While the reset is out the student removes CS1 from the term and hides CS2; the names stay stored.
+        v4.afterReset = {
+            v4.cache.saveCourses(listOf(hidden), "1151", signIn)
+            v4.cache.saveDeletedCourseNos(setOf("1151:CS2"), signIn)
+        }
+
+        keepLocalCourses(listOf("1151" to listOf(removed, hidden)), hiding = emptySet(), backend = v4.courses, customNames = names)
+
+        assertEquals(emptyList<Any>(), v4.overridesSent())
+        assertEquals(emptyList<Any>(), v4.cache.loadPendingCourseOverrides())
     }
 
     @Test
