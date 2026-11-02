@@ -6,6 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.time.Instant
 import org.ntust.app.tigerduck.util.JvmContext
 import android.content.Context
@@ -37,6 +38,25 @@ class DemoClassmatesTest {
         assertEquals(sharedAt, person.sharedAt)
         assertEquals(listOf(listOf("MA2012301")), person.terms.map { it.courseNos })
         assertEquals(listOf(probability), person.courses("1151"))
+    }
+
+    @Test
+    fun `a classmate past the sign-in's end stays out of the tables the next student inherits`() = runTest {
+        val store = store()
+        val series = SignInSeries()
+        val signIn = series.current
+        val classmates = listOf(
+            DemoFixture.Classmate("B11308965", "Duckling", listOf(probability)),
+            DemoFixture.Classmate("B11308966", "Gosling", listOf(probability)),
+        )
+        // Past the first classmate's own write, as the sign-out lands in the middle of the import.
+        var asked = 0
+
+        importDemoClassmates(store, "1151", classmates, sharedAt) {
+            signIn.isCurrent.also { if (++asked == 1) series.end() }
+        }
+
+        assertEquals(listOf("Duckling"), store.tables.value.people.map { it.nickname })
     }
 
     @Test

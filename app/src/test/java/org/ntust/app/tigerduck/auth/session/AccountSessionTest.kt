@@ -171,7 +171,7 @@ class AccountSessionTest {
     )
 
     private suspend fun TypedAccountSignIn.typed(prepareSignedIn: suspend () -> Unit = {}) =
-        signIn(STUDENT, "made-up-password", prepareSignedIn) { _, _ -> SignInAttempt.SIGNED_IN }
+        signIn(STUDENT, "made-up-password", { prepareSignedIn() }) { _, _ -> SignInAttempt.SIGNED_IN }
 
     @Test
     fun `a sign-in during the clearing waits, then signs in`() = runBlocking {

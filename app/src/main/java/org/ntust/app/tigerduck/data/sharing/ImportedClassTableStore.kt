@@ -155,14 +155,18 @@ class ImportedClassTableStore internal constructor(
      * Adds the person [code] is from, each term with its course details from [courses], keyed by
      * semester. A student ID already here keeps its entry, place and nickname, and takes the
      * code's terms, its share time and [importedAt]. Null when a new person's nickname is blank, or
-     * when the file could not be written: nothing changes then, in memory or on disk.
+     * when the file could not be written: nothing changes then, in memory or on disk. Null too
+     * once [stillCurrent] says no, asked under the lock [clearForSignOut] takes, which comes after
+     * the sign-in's end: a person let through lands before that clear, and goes with it.
      */
     suspend fun add(
         code: ClassTableShareCode,
         nickname: String,
         courses: Map<String, List<Course>>,
         importedAt: Instant = AppClock.instant(),
+        stillCurrent: () -> Boolean = { true },
     ): ImportedPerson? = locked {
+        if (!stillCurrent()) return@locked null
         loadIfNeeded()
         val account = signedInStudentId()
         if (account != null) accountDidSignInLocked(account)

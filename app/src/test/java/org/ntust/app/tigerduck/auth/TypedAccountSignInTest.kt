@@ -17,12 +17,14 @@ import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager.SignInAttempt
 import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
@@ -61,6 +63,9 @@ class TypedAccountSignInTest {
 
     /** What must hold before the account shows as signed in. */
     private var prepare: suspend () -> Unit = {}
+
+    /** The sign-in [prepare] ran under. */
+    private var preparedUnder: SignIn? = null
 
     /** Runs as the demo account signs in on the device. */
     private var onDemo: () -> Unit = {}
@@ -139,8 +144,9 @@ class TypedAccountSignInTest {
     private suspend fun signIn(password: String = NEW_PASSWORD) = typedSignIn().signIn(
         STUDENT,
         password,
-        prepareSignedIn = {
+        prepareSignedIn = { signIn ->
             steps += "prepare"
+            preparedUnder = signIn
             prepare()
         },
     ) { _, _ ->
@@ -390,6 +396,13 @@ class TypedAccountSignInTest {
         assertEquals(TypedAccountSignIn.Outcome.NOT_SIGNED_IN, outcome)
         assertEquals(null, stored)
         assertFalse(signedIn)
+    }
+
+    @Test
+    fun `what comes before the showing runs under the sign-in that shows`() = runTest {
+        signIn()
+
+        assertSame(session.signIns.current, preparedUnder)
     }
 
     @Test

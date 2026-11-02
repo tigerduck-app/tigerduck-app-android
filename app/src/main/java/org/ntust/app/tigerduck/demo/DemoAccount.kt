@@ -182,15 +182,16 @@ class DemoAccount @Inject constructor(
      * the demo courses are in. Called by the demo sign-in once the store knows the demo account
      * signed in, so another account's leftovers are gone first. Only at sign-in, not on each
      * start: a classmate the reviewer deleted stays deleted. A sign-out empties them with every
-     * other import.
+     * other import, and one past [signIn]'s end, whose import would be the next student's, is
+     * not imported.
      */
-    suspend fun importClassmates() {
+    suspend fun importClassmates(signIn: SignIn) {
         val fixture = load(currentLang()) ?: return
         val classmates = fixture.classmates ?: return
         importDemoClassmates(
             importedClassTables, dataCache.currentSemesterCode(), classmates,
             AppClock.instant().truncatedTo(ChronoUnit.MINUTES),
-        )
+        ) { signIn.isCurrent }
     }
 
     private fun load(lang: String): DemoFixture? = runCatching {
@@ -212,13 +213,15 @@ class DemoAccount @Inject constructor(
 
 /**
  * Imports [classmates] into [store] on [semester], each as its share code shared at
- * [sharedAt] would import it: the course codes NTUST's query can look up, with their details.
+ * [sharedAt] would import it: the course codes NTUST's query can look up, with their details;
+ * each while [stillCurrent] says so ([ImportedClassTableStore.add]).
  */
 internal suspend fun importDemoClassmates(
     store: ImportedClassTableStore,
     semester: String,
     classmates: List<DemoFixture.Classmate>,
     sharedAt: Instant,
+    stillCurrent: () -> Boolean = { true },
 ) {
     for (classmate in classmates) {
         val courses = classmate.courses.filter { CourseService.isCourseNo(it.courseNo) }
@@ -228,7 +231,7 @@ internal suspend fun importDemoClassmates(
             sharedAt,
             listOf(ClassTableShareCode.Term(semester, courses.map { it.courseNo })),
         )
-        store.add(code, classmate.nickname, mapOf(semester to courses))
+        store.add(code, classmate.nickname, mapOf(semester to courses), stillCurrent = stillCurrent)
     }
 }
 

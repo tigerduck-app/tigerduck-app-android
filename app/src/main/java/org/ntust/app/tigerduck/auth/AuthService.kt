@@ -209,11 +209,11 @@ class AuthService @Inject constructor(
                 // Before the class table can show: another account must not inherit what the
                 // last one imported, whether imported while signed out or left by a wipe that
                 // never ran.
-                prepareSignedIn = {
+                prepareSignedIn = { signIn ->
                     sessions.schoolTookSignIn()
                     importedClassTables.accountDidSignIn(normalizedId)
                     // After the store knows who signed in, which empties another account's leftovers.
-                    if (demoAccount.isActive) demoAccount.importClassmates()
+                    if (demoAccount.isActive) demoAccount.importClassmates(signIn)
                 },
             ) { signIn, sameStudent ->
                 // Best-effort: v3 JWT login failures must not block the SSO session. The automatic

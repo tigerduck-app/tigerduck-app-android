@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -223,6 +224,20 @@ class DemoSessionTest {
         assertEquals("the demo student", null, world.fixtures.studentIdOverride)
         assertEquals(emptyList<Any>(), world.dataCache.loadCourses())
         assertNotNull(hold)
+    }
+
+    @OptIn(StartsAccountWork::class)
+    @Test
+    fun `a classmate imported past the demo's sign-out stays out of the next student's tables`() = runBlocking {
+        val world = world()
+        assertTrue(world.demoSignIn())
+        val signIn = world.sessions.school.current
+        world.auth.logout()
+        world.wipeDone()
+
+        world.demoAccount.importClassmates(signIn)
+
+        assertEquals(emptyList<Any>(), world.imported.tables.value.people)
     }
 
     private companion object {

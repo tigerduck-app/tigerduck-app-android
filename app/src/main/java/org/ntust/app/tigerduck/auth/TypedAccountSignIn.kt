@@ -84,13 +84,14 @@ internal class TypedAccountSignIn(
 
     /**
      * Signs in as [studentId] with [password]. [prepareSignedIn] runs what must hold before the
-     * account shows as signed in; [afterShown] runs the rest once it does, with the sign-in
-     * read before the store and whether the account stored before was this one.
+     * account shows as signed in, under the sign-in that will show; [afterShown] runs the rest
+     * once it does, with the sign-in read before the store and whether the account stored before
+     * was this one.
      */
     suspend fun signIn(
         studentId: String,
         password: String,
-        prepareSignedIn: suspend () -> Unit,
+        prepareSignedIn: suspend (SignIn) -> Unit,
         afterShown: suspend (SignIn, sameStudent: Boolean) -> SignInAttempt,
     ): Outcome {
         var started = signInOnceOpen()
@@ -113,7 +114,7 @@ internal class TypedAccountSignIn(
             if (!unlessSignedOutSince(started) { storeAccount(studentId, password) }) {
                 return Outcome.NOT_SIGNED_IN
             }
-            prepareSignedIn()
+            prepareSignedIn(started)
             if (!markSignedIn(started)) return Outcome.NOT_SIGNED_IN
             return Outcome.DEMO
         }
@@ -133,7 +134,7 @@ internal class TypedAccountSignIn(
             }
             // Cancelled from here on, the sign-in still leaves the password the school took,
             // with no refusal of the old one held against it.
-            prepareSignedIn()
+            prepareSignedIn(started)
             if (!markSignedIn(started)) return@signInInteractively SignInAttempt.NOTHING_TO_SEND
             outcome = Outcome.SIGNED_IN
             afterShown(signIn, sameStudent)
