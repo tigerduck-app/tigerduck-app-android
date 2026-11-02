@@ -116,9 +116,9 @@ class UseLocalRequestsTest {
     }
 
     /** A phone whose clock runs behind a backend it has heard: the stamps it gives are past its wall clock. */
-    private fun behindTheBackend(): Pair<PushCourseSyncBackend, RecordingBackend> {
+    private fun behindTheBackend(setUp: (AppPreferences) -> Unit = {}): Pair<PushCourseSyncBackend, RecordingBackend> {
         val v4 = RecordingBackend()
-        val v4Prefs = AppPreferences(JvmContext())
+        val v4Prefs = AppPreferences(JvmContext()).also(setUp)
         val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { WALL_MS })
         clock.heardInSnapshot(BACKEND_US)
         val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
@@ -169,6 +169,24 @@ class UseLocalRequestsTest {
             listOf(mapOf("color_hex" to "#FF0000"), mapOf("custom_name" to "Calc", "locale" to "en"), mapOf("color_hex" to "#00FF00")),
             v4.sent.drop(3).map { sent -> JSONObject(sent.body!!).asMap() - "hlc" },
         )
+    }
+
+    @Test
+    fun `on v4 a name waits for the names conflict the student has yet to answer, and the colors still go`() = runTest {
+        val (courses, v4) = behindTheBackend { prefs ->
+            assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn))
+        }
+        val colored = Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000")
+
+        keepLocalCourses(
+            terms = listOf("1151" to listOf(colored)),
+            hiding = emptySet(),
+            backend = courses,
+            customNames = mapOf("CS1" to mapOf("en" to "Calc", "zh" to "微積分")),
+        )
+
+        val overrides = v4.sent.filter { it.url.endsWith("/override") }.map { JSONObject(it.body!!).asMap() - "hlc" }
+        assertEquals(listOf(mapOf("color_hex" to "#FF0000")), overrides)
     }
 
     @Test

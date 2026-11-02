@@ -11,6 +11,7 @@ import org.ntust.app.tigerduck.push.CourseRef
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
@@ -104,8 +105,13 @@ internal class PushCourseSyncBackend(
 
     override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) {
         ensureSends()
+        // A name waits for the names re-enable check, as the course outbox keeps it on /v3: sent now,
+        // it would take the server's name before the student chose which to keep. It stays here,
+        // for that answer to decide. Read right before the request, after what suspends. A color
+        // keeps its own rule.
+        val allowed = { name == null || policies.current.sends(SyncCategory.COURSE_NAMES) }
         try {
-            api.patchCourseOverrideAnswered(CourseRef(moodleId = null, courseKey = courseKey), signIn, colorHex, name, locale)
+            api.patchCourseOverrideAnswered(CourseRef(moodleId = null, courseKey = courseKey), signIn, colorHex, name, locale, allowed)
         } catch (e: BackendException) {
             // A course the upload did not put back, a later hide elsewhere keeping it out, holds
             // no color or name to set; asked again, Use Local would meet the same.
