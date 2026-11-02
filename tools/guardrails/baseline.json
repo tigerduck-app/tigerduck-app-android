@@ -242,11 +242,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailAccount.kt",
-    "kind": "account-counter",
-    "count": 3
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailAccount.kt",
     "kind": "demo-check",
     "count": 3
   },
@@ -257,23 +252,13 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailRepository.kt",
-    "kind": "account-counter",
-    "count": 26
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailRepository.kt",
     "kind": "demo-check",
     "count": 25
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailRepository.kt",
     "kind": "long-file",
-    "count": 1492
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/mail/SentCopyNotices.kt",
-    "kind": "account-counter",
-    "count": 4
+    "count": 1488
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/imap/AngusMailSession.kt",
@@ -281,29 +266,14 @@
     "count": 689
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/mail/index/MailIndexer.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/sanitize/MailReadableHtml.kt",
     "kind": "long-file",
     "count": 794
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/mail/store/HeldSendStore.kt",
-    "kind": "account-counter",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/store/MailStateStore.kt",
     "kind": "demo-check",
     "count": 2
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/mail/sync/MailChecker.kt",
-    "kind": "account-counter",
-    "count": 7
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/sync/MailChecker.kt",
@@ -1292,11 +1262,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeViewModel.kt",
-    "kind": "account-counter",
-    "count": 16
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailComposeViewModel.kt",
     "kind": "long-file",
     "count": 824
   },
@@ -1308,13 +1273,8 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
-    "kind": "account-counter",
-    "count": 37
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
     "kind": "long-file",
-    "count": 1732
+    "count": 1731
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailListViewModel.kt",
@@ -1332,11 +1292,6 @@
     "kind": "long-function",
     "name": "SchoolMailMessageScreen(String, ()->Unit, (mode:ComposeMode,folder:String,uid:Long)->Unit, (folder:String,uid:Long,href:String)->Unit, SchoolMailMessageViewModel)",
     "lines": 365
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailMessageViewModel.kt",
-    "kind": "account-counter",
-    "count": 4
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/mail/SchoolMailMessageViewModel.kt",

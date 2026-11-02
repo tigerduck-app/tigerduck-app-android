@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.mail.store
 import com.google.gson.Gson
 import org.ntust.app.tigerduck.data.model.mail.HeldAttachmentDto
 import org.ntust.app.tigerduck.data.model.mail.HeldSendDto
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.io.File
 import java.io.InputStream
 import java.util.UUID
@@ -19,9 +20,9 @@ import java.util.UUID
  * student to review ([orphan]), and one whose send had started says so ([Held.sendingSinceMs]),
  * as it may have gone out already (tigerduck-app#483). A mail belongs to its [Held.owner], the
  * signed-in address, and to no one else: a sign-out or another student signing in empties the
- * store ([clear]), and another student's mail found later is deleted, not shown. The sign-in
- * generation the rest of the mail code pins writes by lives in memory alone, so it guards the
- * writes ([save]'s `stillCurrent`) and not what a restart finds.
+ * store ([clear]), and another student's mail found later is deleted, not shown. The [SignIn] the
+ * rest of the mail code pins writes by lives in memory alone, so it guards the writes ([keep]) and
+ * not what a restart finds.
  *
  * Every read is tolerant: an unreadable, half-written or older-layout mail is deleted and never
  * blocks the composer.
@@ -103,29 +104,22 @@ class HeldSendStore(
     private val live = mutableSetOf<String>()
 
     /**
-     * The sign-in generation each mail kept in this process was kept under, which a sign-out's late
-     * cleanup goes by ([clear]); in memory alone, like the generation.
+     * The sign-in each mail kept in this process was kept under, which a sign-out's late cleanup
+     * goes by ([clear]); in memory alone, as a [SignIn] is.
      */
-    private val keptUnder = mutableMapOf<String, Int>()
+    private val keptUnder = mutableMapOf<String, SignIn>()
 
     /**
-     * Keeps mail [id] of [owner], held, under sign-in [generation], unless [stillCurrent] says the
-     * account has left, asked under the lock [clear] takes. A mail kept before is replaced, its
-     * copies the new one still names kept as they are and the others deleted. Says whether it kept
-     * it; a file that cannot be read leaves the mail as it was.
+     * Keeps mail [id] of [owner], held, under [signIn], unless it has ended, asked under the lock
+     * [clear] takes. A mail kept before is replaced, its copies the new one still names kept as
+     * they are and the others deleted. Says whether it kept it; a file that cannot be read leaves
+     * the mail as it was.
      */
     @Synchronized
-    fun save(
-        id: String,
-        owner: String,
-        fields: Fields,
-        attachments: List<Keep>,
-        generation: Int = 0,
-        stillCurrent: () -> Boolean,
-    ): Boolean {
-        if (!stillCurrent()) return false
+    fun keep(id: String, owner: String, fields: Fields, attachments: List<Keep>, signIn: SignIn): Boolean {
+        if (!signIn.isCurrent) return false
         live += id
-        keptUnder[id] = generation
+        keptUnder[id] = signIn
         val dir = File(root, id)
         val before = dir.listFiles()?.mapTo(mutableSetOf()) { it.name }.orEmpty()
         return try {
@@ -201,13 +195,13 @@ class HeldSendStore(
 
     /**
      * The kept mail of [owner] goes, as anything unreadable does, when that account leaves: it
-     * signed out, or another student signed in. Only what was kept under a sign-in before
-     * [below], and what this process did not keep, from before a restart: the cleanup of a
-     * sign-out runs some time after it, when the next student, or the same one signed in again,
-     * may have mail of their own kept. Null: everything.
+     * signed out, or another student signed in. Only what was kept under a sign-in [ended] says
+     * is over, and what this process did not keep, from before a restart: the cleanup of a sign-out
+     * runs some time after it, when the next student, or the same one signed in again, may have
+     * mail of their own kept. Null: everything.
      */
     @Synchronized
-    fun clear(owner: String?, below: Int = Int.MAX_VALUE) {
+    fun clear(owner: String?, ended: (SignIn) -> Boolean = { true }) {
         if (owner == null) {
             live.clear()
             keptUnder.clear()
@@ -217,7 +211,7 @@ class HeldSendStore(
         root.listFiles().orEmpty().filter { it.isDirectory }.forEach { dir ->
             val record = read(dir)
             val departing = record == null ||
-                (record.owner.equals(owner, ignoreCase = true) && (keptUnder[dir.name] ?: Int.MIN_VALUE) < below)
+                (record.owner.equals(owner, ignoreCase = true) && keptUnder[dir.name]?.let(ended) != false)
             if (departing) {
                 live -= dir.name
                 keptUnder -= dir.name

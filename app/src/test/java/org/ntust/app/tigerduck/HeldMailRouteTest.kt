@@ -5,6 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.mail.openSignIn
 import org.ntust.app.tigerduck.mail.store.HeldSendStore
 import java.io.File
 
@@ -21,7 +22,7 @@ class HeldMailRouteTest {
 
     @Test
     fun `a mail kept before the restart opens its composer again, for the student signed in`() {
-        HeldSendStore(root).save("m1", me, fields, emptyList()) { true }
+        HeldSendStore(root).keep("m1", me, fields, emptyList(), openSignIn())
 
         assertEquals("schoolMail/compose?mode=REPLY&folder=INBOX&uid=42&held=m1", heldMailRoute(HeldSendStore(root), me))
     }
@@ -29,7 +30,7 @@ class HeldMailRouteTest {
     @Test
     fun `nothing opens with no one signed in to the mail, or for a mail a composer has open`() {
         val store = HeldSendStore(root)
-        store.save("m1", me, fields, emptyList()) { true }
+        store.keep("m1", me, fields, emptyList(), openSignIn())
 
         assertNull(heldMailRoute(HeldSendStore(root), null))
         assertNull("this process's composer holds it", heldMailRoute(store, me))

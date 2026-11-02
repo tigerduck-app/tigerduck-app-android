@@ -45,6 +45,7 @@ import org.ntust.app.tigerduck.mail.model.FolderStatus
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.model.MailBody
 import org.ntust.app.tigerduck.mail.model.MailPage
+import org.ntust.app.tigerduck.mail.signInNow
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.sync.CheckOutcome
 import org.ntust.app.tigerduck.mail.sync.CheckSource
@@ -83,7 +84,7 @@ class SchoolMailAllMailFoldersTest {
         checker = MailChecker(account, state, server.factory(), RecordingNotifier(), MailCache(tmp.root)) { now }
         // What a write is told under, as the real repository reads it: the list takes only the
         // signed-in account's own.
-        repo.accountGeneration = { account.accountGeneration }
+        repo.currentSignIn = { account.signInNow }
         vm = SchoolMailListViewModel(
             repo, account, checker, schoolMailSite(),
             { main.dispatcher.scheduler.currentTime }, notices,
@@ -178,7 +179,7 @@ class SchoolMailAllMailFoldersTest {
             val row = vm.state.value.displayed.single { it.folder == folder }
             vm.delete(row)
             // Both move to the trash, as they do from their own chip.
-            assertEquals(SchoolMailListViewModel.PendingDelete(row, permanently = false, account.accountGeneration), vm.state.value.pendingDelete)
+            assertEquals(SchoolMailListViewModel.PendingDelete(row, permanently = false, account.signInNow), vm.state.value.pendingDelete)
             vm.confirmDelete(true)
         }
         assertEquals(listOf(DRAFTS to 3L, USER to 4L), repo.deleted)

@@ -27,7 +27,6 @@ import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
-import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -36,6 +35,7 @@ import javax.inject.Singleton
  * library ones (spec §7). Credentials are saved only after the server
  * accepted them.
  */
+@OptIn(StartsAccountWork::class)
 @Singleton
 class MailAccount @Inject constructor(
     private val credentials: MailCredentialStore,
@@ -96,8 +96,6 @@ class MailAccount @Inject constructor(
 
     val studentId: String? get() = credentials.mailStudentId
 
-    private val generation = AtomicInteger()
-
     // Held while a sign-in or sign-out changes the account and its sign-in, and while [snapshot]
     // reads them, so a reader never pairs one account with the other's sign-in.
     private val accountLock = Any()
@@ -109,7 +107,7 @@ class MailAccount @Inject constructor(
     private fun moveSignIn() {
         session.signIns.end()
         session.open()
-        generation.incrementAndGet()
+        present += session.current
     }
 
     /**
@@ -130,34 +128,46 @@ class MailAccount @Inject constructor(
     internal fun holdsLock(): Boolean = Thread.holdsLock(accountLock)
 
     /**
-     * Moved by every sign-in and sign-out. Work that reads the account through [snapshot] and then
-     * runs on compares this with the snapshot's: once it has moved, the work holds an account
-     * that left, even when the same student has signed in again since.
+     * The sign-in work starting now belongs to, for it to ask [SignIn.isCurrent] once it has run
+     * on: it ends with every sign-in and sign-out, even the same student's. While signed out, the
+     * one the next sign-in ends. Unlike [snapshot] no read of the encrypted store, so for any thread.
      */
-    val accountGeneration: Int get() = generation.get()
+    @StartsAccountWork
+    val currentSignIn: SignIn get() = session.current
 
-    // By address, the generation each student last left at, noted as [signOuts] or
-    // [studentChanges] tells of it: a collector runs some time after, and by then the same
-    // student may have signed in again.
-    private val departures = java.util.concurrent.ConcurrentHashMap<String, Int>()
+    // Under [accountLock]: the sign-ins of the student here now, the current one and those a
+    // password typed again ended.
+    private var present: Set<SignIn> = setOf(session.current)
+
+    // The sign-ins of students who have left. Added to only as one leaves, so a sign-in just
+    // opened is never in it, whoever reads it without the lock.
+    @Volatile
+    private var gone: Set<SignIn> = emptySet()
+
+    /** The student here now leaves, under [accountLock]. */
+    private fun studentLeaves() {
+        gone += present
+        present = emptySet()
+    }
 
     /**
-     * The generation [address] last left at: its sign-ins up to it are gone. Null for a student
-     * who has not left in this process.
+     * Whether [signIn]'s student has left, by a sign-out or another student signing in: not what
+     * [SignIn.isCurrent] says. A password typed again ends a sign-in with the student still here,
+     * whose held mail and notices stay theirs; and a student change is told before it ends the
+     * sign-in, so whoever hears of it finds the student gone already. Asked of what outlives a request.
      */
-    fun departedAt(address: String): Int? = departures[address.lowercase()]
+    fun hasLeft(signIn: SignIn): Boolean = signIn in gone
 
     /**
      * The signed-in account and its sign-in, read together; null while signed out. [clears] is the
      * state's [MailStateStore.clears] read with them: a sign-in resets the state in the same hold
      * that puts its credentials in place ([save]), so the count is always that of [credentials]'
-     * student, never the next one's. [generation] is [signIn] as [accountGeneration] counts it.
+     * student, never the next one's.
      */
-    class Snapshot(val signIn: SignIn, val credentials: MailCredentials, val clears: Int, val generation: Int)
+    class Snapshot(val signIn: SignIn, val credentials: MailCredentials, val clears: Int)
 
-    @OptIn(StartsAccountWork::class)
     fun snapshot(): Snapshot? = synchronized(accountLock) {
-        credentialsOrNull()?.let { Snapshot(session.current, it, state.clears, generation.get()) }
+        credentialsOrNull()?.let { Snapshot(session.current, it, state.clears) }
     }
 
     /**
@@ -226,20 +236,20 @@ class MailAccount @Inject constructor(
      * student's mail with this one's UIDs.
      */
     private fun leaveStudent() {
-        ownAddress?.let { departures[it.lowercase()] = generation.get() }
+        synchronized(accountLock) { studentLeaves() }
         _studentChanges.tryEmit(ownAddress)
         notifier.cancelAll()
     }
 
     /**
      * The mail on the phone of [departing], an account that leaves: the cache, and the mail it
-     * held to send under a sign-in before [keptBefore]. Only its own held mail: a sign-out's
+     * held to send under a sign-in [ended] says is over. Only its own held mail: a sign-out's
      * cleanup runs some time after it, and the next student may have mail of their own held by
      * then. A read of the encrypted store when the caller reads [departing]: for the IO dispatcher.
      */
-    private fun leaveMailOf(departing: String?, keptBefore: Int = Int.MAX_VALUE) {
+    private fun leaveMailOf(departing: String?, ended: (SignIn) -> Boolean = { true }) {
         cache.clearAll()
-        heldSends?.clear(departing, below = keptBefore)
+        heldSends?.clear(departing, ended)
         // Kept only when it is no longer the departing student's but the one signed in now, as
         // the repository's own clearing keeps it: by now the next student may have downloaded
         // mail of theirs. An index that can't be emptied now (a full disk fails the VACUUM) must
@@ -261,13 +271,12 @@ class MailAccount @Inject constructor(
      */
     fun signOut() {
         scheduler.cancel()
-        // Together, so a snapshot holds the departing account with its own generation or nothing.
+        // Together, so a snapshot holds the departing account with its own sign-in or nothing.
         onLockWait?.invoke()
-        var leftAt = 0
         val departing = synchronized(accountLock) {
             ownAddress.also {
+                studentLeaves()
                 moveSignIn()
-                leftAt = generation.get()
                 credentials.clearMailCredentials()
             }
         }
@@ -275,14 +284,13 @@ class MailAccount @Inject constructor(
         state.clear()
         _signedIn.value = false
         _authFailed.value = false
-        departing?.let { departures[it.lowercase()] = leftAt }
         _signOuts.tryEmit(departing)
         scope.launch(Dispatchers.IO) {
-            // Only the mail of the sign-in that left: by now the same student may have signed in
+            // Only the mail of the sign-ins that left: by now the same student may have signed in
             // again and kept a mail of the new sign-in's.
             try {
                 onCleanup?.invoke()
-                leaveMailOf(departing, keptBefore = leftAt)
+                leaveMailOf(departing, ended = ::hasLeft)
             } finally {
                 notifier.cancelAll()
             }
@@ -308,13 +316,6 @@ class MailAccount @Inject constructor(
      */
     fun onAuthFailure(signIn: SignIn): Boolean = synchronized(accountLock) {
         if (!signIn.isCurrent) return@synchronized false
-        onAuthFailure()
-        true
-    }
-
-    /** [onAuthFailure] for a sign-in read as [accountGeneration]. */
-    fun onAuthFailure(generation: Int): Boolean = synchronized(accountLock) {
-        if (this.generation.get() != generation) return@synchronized false
         onAuthFailure()
         true
     }

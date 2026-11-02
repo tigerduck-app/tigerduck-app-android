@@ -577,15 +577,17 @@ class GuardrailsTest(unittest.TestCase):
         for home in ("auth/AuthService.kt", "ui/screen/Home.kt", "ui/AppState.kt", "TigerDuckApp.kt",
                      "demo/D.kt", "liveactivity/L.kt", "notification/ClassWorker.kt",
                      "notification/BootReceiver.kt", "push/PushRegistrationService.kt",
-                     "mail/MailAccount.kt", "mail/sync/MailChecker.kt", "data/moodle/M.kt",
+                     "mail/MailAccount.kt", "mail/MailRepository.kt", "mail/sync/MailChecker.kt", "data/moodle/M.kt",
                      "data/DataMigration.kt", "network/MoodleService.kt", "network/moodle/N.kt",
                      "network/AccountSessionGuard.kt", "network/NtustSessionManager.kt"):
             self.write(APP + home, line)
         self.assertEqual(self.counts("sign-in-read"), {})
         self.write(APP + "data/cache/DataCache.kt", "import x.StartsAccountWork\n" + line)
         self.write(APP + "notification/Helper.kt", line)
+        self.write(APP + "mail/store/MailCache.kt", line)
         self.assertEqual(self.counts("sign-in-read"),
-                         {APP + "data/cache/DataCache.kt": 1, APP + "notification/Helper.kt": 1})
+                         {APP + "data/cache/DataCache.kt": 1, APP + "notification/Helper.kt": 1,
+                          APP + "mail/store/MailCache.kt": 1})
         self.write_baseline([])
         self.assertEqual(self.run_cli(), 1)
         self.assertEqual(self.run_cli("--introduce", "sign-in-read"), 1)

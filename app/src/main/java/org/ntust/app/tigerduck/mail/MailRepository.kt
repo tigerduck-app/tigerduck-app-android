@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
@@ -43,6 +44,7 @@ import org.ntust.app.tigerduck.mail.smtp.SentCopy
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.store.toModel
+import org.ntust.app.tigerduck.shared.account.SignIn
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.time.Instant
@@ -96,24 +98,24 @@ sealed interface MailChange {
     val folder: String
 
     /**
-     * The [MailAccount.accountGeneration] the write was made under, read before it went out: a
-     * write can end after another student signed in over the one who made it, and its folder and
-     * UID then name a mail of theirs. A list takes only the changes of the account it loaded for.
+     * The sign-in the write was made under, read before it went out: a write can end after another
+     * student signed in over the one who made it, and its folder and UID then name a mail of
+     * theirs. A list takes only the changes of the account it loaded for.
      */
-    val generation: Int
+    val signIn: SignIn
 
     /** The mail's read flag is now [seen]. */
-    data class Seen(override val folder: String, val uid: Long, val seen: Boolean, override val generation: Int) : MailChange
+    data class Seen(override val folder: String, val uid: Long, val seen: Boolean, override val signIn: SignIn) : MailChange
 
     /** The mail left [folder]: moved elsewhere, deleted, or a draft discarded. */
-    data class Removed(override val folder: String, val uid: Long, override val generation: Int) : MailChange
+    data class Removed(override val folder: String, val uid: Long, override val signIn: SignIn) : MailChange
 
     /**
      * [folder] holds mail the repository cannot describe without a fetch -- one moved in, a sent
      * copy filed, a draft saved -- or was found recreated on the server and its cache dropped.
      * A list of it has to show the server's page again.
      */
-    data class Changed(override val folder: String, override val generation: Int) : MailChange
+    data class Changed(override val folder: String, override val signIn: SignIn) : MailChange
 }
 
 /**
@@ -271,6 +273,7 @@ interface SchoolMailRepository {
     val changes: SharedFlow<MailChange>
 }
 
+@OptIn(StartsAccountWork::class)
 @Singleton
 class MailRepository @Inject constructor(
     private val account: MailAccount,
@@ -295,8 +298,8 @@ class MailRepository @Inject constructor(
         owner = ::indexOwnerNow,
         stillOwner = ::stillIndexOwner,
     )
-    /** The server's folders as resolved for one account: [generation] is the [MailAccount.accountGeneration] that asked, and the list is nobody else's. */
-    private class Resolved(val generation: Int, val folders: ResolvedFolders)
+    /** The server's folders as resolved for one account: [signIn] is the one that asked, and the list is nobody else's. */
+    private class Resolved(val signIn: SignIn, val folders: ResolvedFolders)
 
     @Volatile private var resolved: Resolved? = null
     private val demoFolders = mutableMapOf<String, MutableList<DemoMail>>()
@@ -374,9 +377,9 @@ class MailRepository @Inject constructor(
     }
 
     /**
-     * The copy of the account at [generation], read before a write went out, while it is still
-     * the one signed in: a write that ended after another student signed in names a mail of
-     * theirs by its UID (see [MailChange.generation]), which it must neither mark nor drop. Asked
+     * The copy of the account at [signIn], read before a write went out, while it is still the
+     * one signed in: a write that ended after another student signed in names a mail of theirs
+     * by its UID (see [MailChange.signIn]), which it must neither mark nor drop. Asked
      * again under the index's lock, which the sign-in's clear takes too.
      *
      * Called in the hold of the connection the write went out in, as a download's batch is filed
@@ -384,7 +387,7 @@ class MailRepository @Inject constructor(
      * its own, comes wholly before or after, so the write never reaches the new folder's mail by
      * an old UID, nor does an answer read before the write undo it.
      */
-    private fun writerOfIndex(generation: Int): MailIndexer.Owner? = indexOwnerNow()?.takeIf { it.generation == generation }
+    private fun writerOfIndex(signIn: SignIn): MailIndexer.Owner? = indexOwnerNow()?.takeIf { it.signIn == signIn }
 
     private fun markSeenInIndex(owner: MailIndexer.Owner, folder: String, uid: Long, seen: Boolean) {
         val validity = searchIndex.uidValidity(owner.address, folder) ?: return
@@ -396,7 +399,7 @@ class MailRepository @Inject constructor(
      * Every UID of a folder, ascending, as it was when its newest page was last fetched, so an
      * older page can be found by sequence number on the phone: a mail's is its place here, from 1.
      */
-    private class Numbering(val generation: Int, val uidValidity: Long, val uids: LongArray)
+    private class Numbering(val signIn: SignIn, val uidValidity: Long, val uids: LongArray)
 
     private val numberings = ConcurrentHashMap<String, Numbering>()
 
@@ -408,7 +411,7 @@ class MailRepository @Inject constructor(
     private suspend fun localOlderPage(folder: String, beforeSeq: Int, limit: Int): MailPage? = withContext(Dispatchers.IO) {
         // The account's address is a read of the encrypted store: on the IO dispatcher too.
         val owner = indexOwner() ?: return@withContext null
-        val numbering = numberings[folder]?.takeIf { it.generation == account.accountGeneration } ?: return@withContext null
+        val numbering = numberings[folder]?.takeIf { it.signIn.isCurrent } ?: return@withContext null
         val end = beforeSeq - 1
         if (end < 1 || end > numbering.uids.size) return@withContext null
         val start = maxOf(1, end - limit + 1)
@@ -441,12 +444,12 @@ class MailRepository @Inject constructor(
      */
     private fun indexOwnerNow(): MailIndexer.Owner? {
         val epoch = indexEpoch.get()
-        return account.snapshot()?.let { MailIndexer.Owner(it.credentials.address.lowercase(), it.generation, epoch) }
+        return account.snapshot()?.let { MailIndexer.Owner(it.credentials.address.lowercase(), it.signIn, epoch) }
     }
 
     /** Whether the index is still [owner]'s: no sign-in, sign-out or deletion since it was read. */
     private fun stillIndexOwner(owner: MailIndexer.Owner): Boolean =
-        account.accountGeneration == owner.generation && indexEpoch.get() == owner.epoch
+        owner.signIn.isCurrent && indexEpoch.get() == owner.epoch
 
     private fun credentials() = account.credentialsOrNull() ?: throw MailError.Protocol("not signed in")
 
@@ -484,7 +487,7 @@ class MailRepository @Inject constructor(
             stillWanted = { refuseWhileAuthFailed(); stillWanted() },
             // Told to the account before that lock is let go, for the sign-in these credentials
             // are: the refusal of one that has left since must not stop the next.
-            onRefused = { account.onAuthFailure(signedIn.generation) },
+            onRefused = { account.onAuthFailure(signedIn.signIn) },
             block = block,
         )
     }
@@ -547,13 +550,13 @@ class MailRepository @Inject constructor(
 
     override suspend fun folders(stillWanted: () -> Boolean): ResolvedFolders {
         if (account.isDemo) return DEMO_FOLDERS
-        val generation = account.accountGeneration
-        resolved?.takeIf { it.generation == generation }?.let { return it.folders }
+        val signIn = account.currentSignIn
+        resolved?.takeIf { it.signIn.isCurrent }?.let { return it.folders }
         val folders = withSession(stillWanted) { MailFolders.resolve(it.listFolders()) }
         // Kept for the account that asked alone. Another student can sign in over this one with
         // no sign-out for the collector above to see; a LIST already out then comes back under
-        // their generation, and must not be what their own first request finds resolved.
-        if (account.accountGeneration == generation) resolved = Resolved(generation, folders)
+        // their sign-in, and must not be what their own first request finds resolved.
+        if (signIn.isCurrent) resolved = Resolved(signIn, folders)
         return folders
     }
 
@@ -585,7 +588,7 @@ class MailRepository @Inject constructor(
         // cancel, so a page that lands after one is kept out of the cache the sign-out emptied,
         // or whoever signs in next would open on it; asked under the cache's lock, which that
         // clear takes too.
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         // An older page whose mail the phone holds comes from there, without the network.
         if (beforeSeq != null) localOlderPage(folder, beforeSeq, limit)?.let { return it }
         val page = withSession(stillWanted) { session ->
@@ -594,12 +597,12 @@ class MailRepository @Inject constructor(
                 // no mail.
                 if (beforeSeq == null) {
                     val uids = session.allUids(folder).sorted().toLongArray()
-                    numberings[folder] = Numbering(generation, page.uidValidity, uids)
+                    numberings[folder] = Numbering(signIn, page.uidValidity, uids)
                 }
             }
         }
         if (beforeSeq == null && !(background && wouldShortenCache(folder, page))) {
-            withContext(Dispatchers.IO) { cache.saveFolderIf(folder, page) { account.accountGeneration == generation } }
+            withContext(Dispatchers.IO) { cache.saveFolderIf(folder, page) { signIn.isCurrent } }
         }
         return page
     }
@@ -658,22 +661,22 @@ class MailRepository @Inject constructor(
     // --- actions -----------------------------------------------------------------------
 
     override suspend fun setSeen(folder: String, uid: Long, seen: Boolean) {
-        // Read before the write goes out, as every write here reads it: see [MailChange.generation].
-        val generation = account.accountGeneration
+        // Read before the write goes out, as every write here reads it: see [MailChange.signIn].
+        val signIn = account.currentSignIn
         if (account.isDemo) {
             demoUpdate(folder, uid) { it.copy(flags = it.flags.copy(seen = seen)) }
         } else {
             withSession { session ->
                 session.setSeen(folder, listOf(uid), seen)
-                writerOfIndex(generation)?.let { markSeenInIndex(it, folder, uid, seen) }
+                writerOfIndex(signIn)?.let { markSeenInIndex(it, folder, uid, seen) }
             }
             updateCached(folder) { s -> if (s.uid == uid) s.copy(flags = s.flags.copy(seen = seen)) else s }
         }
-        changed(MailChange.Seen(folder, uid, seen, generation))
+        changed(MailChange.Seen(folder, uid, seen, signIn))
     }
 
     override suspend fun move(folder: String, uid: Long, target: String, uidValidity: Long?, stillWanted: () -> Boolean) {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         if (account.isDemo) {
             synchronized(demoFolders) {
                 ensureDemoSeeded()
@@ -687,10 +690,10 @@ class MailRepository @Inject constructor(
             runExpunging(folder, uid, stillWanted) { session, owned -> session.move(folder, uid, target, owned, uidValidity) }
             removeCached(folder, uid, stillWanted)
         }
-        changed(MailChange.Removed(folder, uid, generation))
+        changed(MailChange.Removed(folder, uid, signIn))
         // The mail's UID in [target] is the server's to give (COPYUID is not read), so a list of
         // the target can only fetch it.
-        changed(MailChange.Changed(target, generation))
+        changed(MailChange.Changed(target, signIn))
     }
 
     /**
@@ -728,7 +731,7 @@ class MailRepository @Inject constructor(
     }
 
     override suspend fun delete(folder: String, uid: Long, uidValidity: Long?, stillWanted: () -> Boolean) {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         trashFor(folder, stillWanted)?.let { return move(folder, uid, it, uidValidity, stillWanted) }
         if (account.isDemo) {
             demoMutate(folder) { it.removeAll { m -> m.summary.uid == uid } }
@@ -736,14 +739,14 @@ class MailRepository @Inject constructor(
             runExpunging(folder, uid, stillWanted) { session, owned -> session.deletePermanently(folder, uid, owned, uidValidity) }
             removeCached(folder, uid, stillWanted)
         }
-        changed(MailChange.Removed(folder, uid, generation))
+        changed(MailChange.Removed(folder, uid, signIn))
     }
 
     override suspend fun search(folder: String, query: String, stillWanted: () -> Boolean): SearchOutcome {
         val q = query.trim()
         if (account.isDemo) return demoPage(folder).let { page -> SearchOutcome.LoadedOnly(page.messages.filter { matchesLoadedMail(it, q) }, page.uidValidity) }
         val asked = indexEpoch.get()
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         val whole = indexer.update(folder, limit = SEARCH_CATCH_UP, newOnly = true, stillWanted = stillWanted)
         // The rest of what the index lacks comes in the background, the first run all of it.
         // Asked for once the catch-up is through: after a rejected password, which the list hands
@@ -751,7 +754,7 @@ class MailRepository @Inject constructor(
         // past what the catch-up fetches sits below the newest it has, where no later catch-up
         // looks, so a whole download within [INDEX_RESYNC_MS] must not hold that run off
         // ([gapsFound]).
-        withContext(Dispatchers.IO) { askForTheRest(asked, generation, whole) }
+        withContext(Dispatchers.IO) { askForTheRest(asked, signIn, whole) }
         // With the UIDVALIDITY they were indexed under, which their UIDs only name mail in.
         val (indexedUnder, matches) = withContext(Dispatchers.IO) {
             val owner = indexOwner() ?: return@withContext null to emptyList()
@@ -781,15 +784,11 @@ class MailRepository @Inject constructor(
 
     private fun MailIndexer.Owner.mailbox() = address to epoch
 
-    // Under progressLock: the mailbox that left last and the account generation as it left. A sign-in
-    // tells of the student leaving before it moves the generation, and a download of theirs
-    // still running must not show progress in between.
-    private var departed: Pair<String, Int>? = null
-
-    // [progress] of [owner]'s download, while the index is still its own and its student has not left.
+    // [progress] of [owner]'s download, while the index is still its own and its student has not
+    // left: a sign-in tells of the student leaving before it ends their sign-in, and a download of
+    // theirs still running must not show progress in between.
     private fun showProgress(owner: MailIndexer.Owner, progress: MailIndexProgress) = synchronized(progressLock) {
-        if (!stillIndexOwner(owner)) return
-        departed?.let { (address, generation) -> if (owner.address == address && owner.generation <= generation) return }
+        if (!stillIndexOwner(owner) || account.hasLeft(owner.signIn)) return
         progressMailbox = owner.mailbox()
         _searchIndexProgress.value = progress
     }
@@ -811,9 +810,6 @@ class MailRepository @Inject constructor(
     // A sign-out with no one signed in ([departing] null) has no mailbox to clear.
     private fun clearProgressOf(departing: String?) {
         if (departing == null) return
-        // As it left, not as it is now: the same student may have signed in again since.
-        val leftAt = account.departedAt(departing) ?: account.accountGeneration
-        synchronized(progressLock) { departed = departing.lowercase() to leftAt }
         clearProgressWhere { it.first == departing.lowercase() }
     }
 
@@ -925,7 +921,7 @@ class MailRepository @Inject constructor(
         } catch (e: MailError.AuthFailed) {
             // Unless the account that was refused has left since: its rejection must not stop the
             // next one, whose password the server has not seen.
-            account.onAuthFailure(owner.generation)
+            account.onAuthFailure(owner.signIn)
             throw e
         }
     }
@@ -1027,12 +1023,12 @@ class MailRepository @Inject constructor(
     }
 
     override suspend fun send(mail: OutgoingMail, answered: Pair<String, Long>?): SentCopy {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         if (account.isDemo) {
             val demoSent = folders().nameOf(SpecialFolder.SENT)
             demoSent?.let { sent -> demoMutate(sent) { it.add(0, demoOutgoingMail(mail, draft = false)) } }
             answered?.let { (folder, uid) -> demoUpdate(folder, uid) { s -> s.copy(flags = s.flags.copy(answered = true)) } }
-            demoSent?.let { changed(MailChange.Changed(it, generation)) }
+            demoSent?.let { changed(MailChange.Changed(it, signIn)) }
             return if (demoSent != null) SentCopy.Filed else SentCopy.NotAttempted
         }
         // The SMTP login uses the same rejected password, so §7.4 covers it too --
@@ -1055,7 +1051,7 @@ class MailRepository @Inject constructor(
             try {
                 sender.send(signedIn.credentials, mail, sent) { block -> withSession(block = block) }
             } catch (e: MailError.AuthFailed) {
-                account.onAuthFailure(signedIn.generation)
+                account.onAuthFailure(signedIn.signIn)
                 throw e
             }
         }
@@ -1073,13 +1069,13 @@ class MailRepository @Inject constructor(
         // A copy in the sent folder, filed by the app or found there already, is mail a list of
         // that folder has not got.
         if (sent != null && (result.sentCopy == SentCopy.Filed || result.sentCopy == SentCopy.ServerFiledItself)) {
-            changed(MailChange.Changed(sent, generation))
+            changed(MailChange.Changed(sent, signIn))
         }
         return result.sentCopy
     }
 
     override suspend fun saveDraft(mail: OutgoingMail, replacingUid: Long?) {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         if (account.isDemo) {
             val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
             val entry = demoOutgoingMail(mail, draft = true)
@@ -1089,8 +1085,8 @@ class MailRepository @Inject constructor(
                 if (replacingUid != null) list.removeAll { it.summary.uid == replacingUid }
                 list.add(0, entry)
             }
-            changed(MailChange.Changed(drafts, generation))
-            if (replacingUid != null) changed(MailChange.Removed(drafts, replacingUid, generation))
+            changed(MailChange.Changed(drafts, signIn))
+            if (replacingUid != null) changed(MailChange.Removed(drafts, replacingUid, signIn))
             return
         }
         // Unlike the sent copy, a draft that is not kept is the whole operation failing, so a
@@ -1101,19 +1097,19 @@ class MailRepository @Inject constructor(
         withSession { it.append(drafts, bytes, setOf(AppendFlag.SEEN, AppendFlag.DRAFT)) }
         // Told now rather than once the old draft is gone: the new one is on the server from here
         // on, whatever becomes of the delete below.
-        changed(MailChange.Changed(drafts, generation))
+        changed(MailChange.Changed(drafts, signIn))
         if (replacingUid != null) {
             runExpunging(drafts, replacingUid) { session, owned -> session.deletePermanently(drafts, replacingUid, owned) }
-            changed(MailChange.Removed(drafts, replacingUid, generation))
+            changed(MailChange.Removed(drafts, replacingUid, signIn))
         }
     }
 
     override suspend fun discardDraft(uid: Long) {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         if (account.isDemo) {
             val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
             demoMutate(drafts) { it.removeAll { m -> m.summary.uid == uid } }
-            changed(MailChange.Removed(drafts, uid, generation))
+            changed(MailChange.Removed(drafts, uid, signIn))
             return
         }
         // Deliberately resolves without creating, unlike [saveDraft]: no drafts folder means
@@ -1121,7 +1117,7 @@ class MailRepository @Inject constructor(
         // student's real account for an operation that cannot do anything once it has one.
         val drafts = folders().nameOf(SpecialFolder.DRAFTS) ?: return
         runExpunging(drafts, uid) { session, owned -> session.deletePermanently(drafts, uid, owned) }
-        changed(MailChange.Removed(drafts, uid, generation))
+        changed(MailChange.Removed(drafts, uid, signIn))
     }
 
     override fun selfAddress(): MailAddress = MailAddress(state.displayName, credentials().address)
@@ -1140,8 +1136,8 @@ class MailRepository @Inject constructor(
                 demoFolders.values.flatten().map { it.summary }
             }
         }
-        // The address with the sign-in it belongs to, read together: a sign-in moves the
-        // generation before it puts the next student's address in place.
+        // The address with the sign-in it belongs to, read together: a sign-in ends the last one
+        // before it puts the next student's address in place.
         val owner = indexOwnerNow() ?: return@withContext emptyList()
         val mail = searchIndex.allMail(owner.address).map { it.summary }
         // Read while another student signed in over this one: none of it is theirs.
@@ -1169,11 +1165,11 @@ class MailRepository @Inject constructor(
      * A search's request for the background run, [whole] saying whether its catch-up left nothing
      * out. None for a search begun before the downloaded mail was deleted, at epoch [asked]: the
      * run would download it all again, which only the mail screen opened afterwards does. Nor for
-     * one of a sign-in that has left since [generation]. Asked in one step with the deletion's or
-     * the sign-out's cancel, so a run asked for just before either is cancelled with it.
+     * one of [signIn] once it has ended. Asked in one step with the deletion's or the sign-out's
+     * cancel, so a run asked for just before either is cancelled with it.
      */
-    private fun askForTheRest(asked: Int, generation: Int, whole: Boolean) = scheduled {
-        if (indexEpoch.get() != asked || account.accountGeneration != generation) return@scheduled
+    private fun askForTheRest(asked: Int, signIn: SignIn, whole: Boolean) = scheduled {
+        if (indexEpoch.get() != asked || !signIn.isCurrent) return@scheduled
         if (whole) {
             indexScheduler.request()
         } else {
@@ -1295,14 +1291,14 @@ class MailRepository @Inject constructor(
         require(role in CREATED_ON_DEMAND) { "$role is never created on demand" }
         folders(stillWanted).nameOf(role)?.let { return it }
         if (account.isDemo) return null
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         return withSession(stillWanted) { session ->
             // The CREATE's own answer is deliberately ignored -- a refusal because the folder
             // already exists is a success -- so it is the LIST below, and only the LIST, that
             // decides. A LIST that never completes is not an answer and is not swallowed here.
             runCatching { session.createFolder(role.decodedName) }
             MailFolders.resolve(session.listFolders())
-        }.also { if (account.accountGeneration == generation) resolved = Resolved(generation, it) }.nameOf(role)
+        }.also { if (signIn.isCurrent) resolved = Resolved(signIn, it) }.nameOf(role)
     }
 
     /**
@@ -1376,7 +1372,7 @@ class MailRepository @Inject constructor(
         stillWanted: () -> Boolean = { true },
         op: (MailSession, Set<Long>) -> Boolean,
     ) {
-        val generation = account.accountGeneration
+        val signIn = account.currentSignIn
         // The account the write is made as, read together with its state's clear count: the
         // session below is held as that account, and its set is the one read and recorded into.
         // On the IO dispatcher, as every read of the credentials here is: it decrypts the password.
@@ -1406,7 +1402,7 @@ class MailRepository @Inject constructor(
                 state.setOwnedDeletedIf(folder, serverValidity, if (expunged) emptySet() else owned + uid, clears)
                 // Gone from the phone's copy too, under the UIDVALIDITY the write went out under,
                 // for the sign-in it went out as.
-                writerOfIndex(owner.generation)?.let { writer ->
+                writerOfIndex(owner.signIn)?.let { writer ->
                     searchIndex.remove(writer.address, folder, serverValidity, listOf(uid)) { stillIndexOwner(writer) }
                 }
             }
@@ -1416,7 +1412,7 @@ class MailRepository @Inject constructor(
                 // the stale one: one the caller's UID was older than holds the folder as it is.
                 if (cacheStale) withContext(Dispatchers.IO) { cache.deleteFolder(folder) }
                 // A list of the folder holds rows of the mailbox the server has replaced.
-                changed(MailChange.Changed(folder, generation))
+                changed(MailChange.Changed(folder, signIn))
             } else if (attempted && !alreadyDeleted && e !is MailError.AuthFailed && e !is MailError.Certificate) {
                 recordIfDeletedOnServer(folder, uid, validity, clears)
             }
@@ -1430,9 +1426,9 @@ class MailRepository @Inject constructor(
      * already be stale, and adding to a stale copy would drop whatever landed in between.
      *
      * Asked whether it is still wanted on the set's own [MailStateStore.clears], not on the
-     * write's `stillWanted`: a list's write asks on the account generation, which the same student
-     * signing in again moves while keeping the set, and the flag that landed must still be recorded
-     * there or no later EXPUNGE of the folder takes that mail. As whoever is signed in now, read
+     * write's `stillWanted`: a list's write asks on the sign-in, which the same student signing in
+     * again ends while keeping the set, and the flag that landed must still be recorded there
+     * or no later EXPUNGE of the folder takes that mail. As whoever is signed in now, read
      * with the count ([MailAccount.snapshot]): while the count stands that is the same student,
      * perhaps under a new password. Another student's sign-in clears the set, and then nothing is
      * checked or recorded.

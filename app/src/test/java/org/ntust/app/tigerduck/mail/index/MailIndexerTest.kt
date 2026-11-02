@@ -10,6 +10,8 @@ import org.ntust.app.tigerduck.mail.MailCredentials
 import org.ntust.app.tigerduck.mail.MailError
 import org.ntust.app.tigerduck.mail.imap.MailSession
 import org.ntust.app.tigerduck.mail.model.MailFlags
+import org.ntust.app.tigerduck.mail.openSignIn
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 
 /** [MailIndexer] over [FakeMailServer], its one session handed out as MailRepository hands out the shared one. */
 class MailIndexerTest {
@@ -33,9 +35,10 @@ class MailIndexerTest {
     }
 
     private val me = "b10000001@mail.ntust.edu.tw"
+    private val signIn = openSignIn()
 
     /** An indexer whose account never changes. */
-    private fun indexer() = MailIndexer(index, sessions, owner = { MailIndexer.Owner(me, 1, epoch = 0) }, stillOwner = { true })
+    private fun indexer() = MailIndexer(index, sessions, owner = { MailIndexer.Owner(me, signIn, epoch = 0) }, stillOwner = { true })
 
     /** [folder] deleted and created again on the server: a new UIDVALIDITY, and its UIDs from 1 again. */
     private fun recreate(folder: String = "INBOX") {
@@ -47,12 +50,12 @@ class MailIndexerTest {
     @Test
     fun `a run whose account changed right after it was read writes nothing`() = runTest {
         server.deliver("期中考")
-        var generation = 1
+        val signIns = SignInSeries()
         // Another student signs in right after the account is read, before anything else is.
         val indexer = MailIndexer(
             index, sessions,
-            owner = { MailIndexer.Owner(me, generation, epoch = 0).also { generation++ } },
-            stillOwner = { it.generation == generation },
+            owner = { MailIndexer.Owner(me, signIns.current, epoch = 0).also { signIns.end(); signIns.open() } },
+            stillOwner = { it.signIn.isCurrent },
         )
 
         runCatching { indexer.plan("INBOX")?.let { indexer.fill(it) } }
@@ -129,7 +132,7 @@ class MailIndexerTest {
                 index.updateFlags(owner, folder, uidValidity, flags, stillCurrent)
             }
         }
-        val indexer = MailIndexer(watched, sessions, owner = { MailIndexer.Owner(me, 1, epoch = 0) }, stillOwner = { true })
+        val indexer = MailIndexer(watched, sessions, owner = { MailIndexer.Owner(me, signIn, epoch = 0) }, stillOwner = { true })
         val plan = indexer.plan("INBOX")!!
 
         indexer.fill(plan)
