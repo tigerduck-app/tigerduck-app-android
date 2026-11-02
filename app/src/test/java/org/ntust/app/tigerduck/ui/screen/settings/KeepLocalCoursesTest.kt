@@ -342,7 +342,7 @@ class UseLocalCoursesTest {
         override suspend fun hideCourse(courseKey: String) = Unit
         override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
         override val stampsOverrides = false
-        override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) = Unit
+        override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
     }
 
     private class SwitchedOff : CourseSyncBackend {
@@ -352,7 +352,7 @@ class UseLocalCoursesTest {
         override suspend fun patchCustomName(moodleId: String, name: String, locale: String) =
             throw CourseSyncOffException()
         override val stampsOverrides = false
-        override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) =
+        override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) =
             throw CourseSyncOffException()
     }
 
@@ -362,7 +362,7 @@ class UseLocalCoursesTest {
         override suspend fun hideCourse(courseKey: String) = onRequest()
         override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = onRequest()
         override val stampsOverrides = false
-        override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) = onRequest()
+        override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = onRequest()
     }
 
     @Test
@@ -379,7 +379,7 @@ class UseLocalCoursesTest {
             override suspend fun hideCourse(courseKey: String) = Unit
             override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
             override val stampsOverrides = false
-            override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) = Unit
+            override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
         }
 
         val reset = run(server, "1151" to roster("CS1"), "1142" to roster("CS9"), "1132" to emptyList())
@@ -567,8 +567,9 @@ private class FakeCourseServer(
         names.getOrPut(key) { mutableMapOf() }[locale] = name
     }
 
-    override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) {
+    override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) {
         check(stampsOverrides) { "a stamped override sent to a backend that takes none" }
+        val courseKey = "client:$semester:$courseNo"
         if (failingNames) throw IOException("connection lost")
         if (courseKey !in rows) throw IOException("HTTP 404")
         colorHex?.let {

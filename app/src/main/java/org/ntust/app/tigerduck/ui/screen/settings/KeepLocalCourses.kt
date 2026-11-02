@@ -42,10 +42,18 @@ internal interface CourseSyncBackend {
     val stampsOverrides: Boolean
 
     /**
-     * `/v4`'s `PATCH /sync/courses/{course_key}/override` with a color, or one locale's name,
-     * stamped at its send: after every request Use Local sent before it.
+     * `/v4`'s `PATCH /sync/courses/{course_key}/override` with a color, or one locale's name, of the
+     * course [courseNo] of [semester], stamped at its send: after every request Use Local sent
+     * before it. [moodleId] is the id the course outbox knows it by, for a name that must wait.
      */
-    suspend fun patchStampedOverride(courseKey: String, colorHex: String? = null, name: String? = null, locale: String? = null)
+    suspend fun patchStampedOverride(
+        semester: String,
+        courseNo: String,
+        moodleId: String,
+        colorHex: String? = null,
+        name: String? = null,
+        locale: String? = null,
+    )
 }
 
 /**
@@ -103,19 +111,35 @@ internal class PushCourseSyncBackend(
         overrides.send(moodleId, customName = name, locale = locale, signIn = signIn)
     }
 
-    override suspend fun patchStampedOverride(courseKey: String, colorHex: String?, name: String?, locale: String?) {
+    override suspend fun patchStampedOverride(
+        semester: String,
+        courseNo: String,
+        moodleId: String,
+        colorHex: String?,
+        name: String?,
+        locale: String?,
+    ) {
         ensureSends()
-        // A name waits for the names re-enable check, as the course outbox keeps it on /v3: sent now,
-        // it would take the server's name before the student chose which to keep. It stays here,
-        // for that answer to decide. Read right before the request, after what suspends. A color
-        // keeps its own rule.
+        // A name waits for the names re-enable check: sent now, it would take the server's name
+        // before the student chose which to keep. Read right before the request, after what
+        // suspends. A color keeps its own rule.
         val allowed = { name == null || policies.current.sends(SyncCategory.COURSE_NAMES) }
-        try {
-            api.patchCourseOverrideAnswered(CourseRef(moodleId = null, courseKey = courseKey), signIn, colorHex, name, locale, allowed)
+        val target = CourseRef(moodleId = null, courseKey = "client:$semester:$courseNo")
+        val answer = try {
+            api.patchCourseOverrideAnswered(target, signIn, colorHex, name, locale, allowed)
         } catch (e: BackendException) {
             // A course the upload did not put back, a later hide elsewhere keeping it out, holds
             // no color or name to set; asked again, Use Local would meet the same.
             if (e.error != BackendError(HTTP_NOT_FOUND, COURSE_NOT_FOUND)) throw e
+            return
+        }
+        // A name that did not go waits in the course outbox, as every name does on /v3: kept, held
+        // while the names check is open, and sent once the student's answer lifts the hold. The
+        // reset took the server's copy, and nothing else would put it back. The outbox's own /v4
+        // form, the course's key and its stamp, comes with its channel (wave 3); until then its
+        // entry waits on a /v4 base as a CourseKeyUnknownException.
+        if (name != null && !answer.sent) {
+            overrides.send(moodleId, customName = name, locale = locale, signIn = signIn)
         }
     }
 
@@ -203,14 +227,14 @@ internal suspend fun keepLocalCourses(
         val kept = courses.filter { it.courseNo !in hiddenNos }.sortedBy { it.courseNo }
         for (course in kept) {
             val names = if (reset) customNames[course.courseNo].orEmpty().toSortedMap().filterValues { it.isNotEmpty() } else emptyMap()
-            if (stamped) {
-                // On /v4 no colour rides the upload, a reset or none: every one goes as an override.
-                sendStampedOverrides("client:$semester:${course.courseNo}", course.customColorHex, names, backend, ::ensureCurrent)
-                continue
-            }
             // The id the upload stored the row under, as the backend
             // derives it; see CourseUploadPayload.
             val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
+            if (stamped) {
+                // On /v4 no colour rides the upload, a reset or none: every one goes as an override.
+                sendStampedOverrides(semester, course.courseNo, moodleId, course.customColorHex, names, backend, ::ensureCurrent)
+                continue
+            }
             for ((locale, name) in names) {
                 ensureCurrent()
                 backend.patchCustomName(moodleId, name, locale)
@@ -221,12 +245,15 @@ internal suspend fun keepLocalCourses(
 
 /**
  * A course's [colorHex] and [names] (by locale) as `/v4` takes them after its term's upload: each
- * its own override of the course [courseKey], stamped at its send, so later than a reset Use Local
- * sent before it, which clears every override stamped at or before it (D10; X5). The upload
- * carries no colors there, whether the term was reset or not; names go only for a term reset.
+ * its own override of the course [courseNo] of [semester], known to the outbox as [moodleId],
+ * stamped at its send, so later than a reset Use Local sent before it, which clears every override
+ * stamped at or before it (D10; X5). The upload carries no colors there, whether the term was
+ * reset or not; names go only for a term reset.
  */
 private suspend fun sendStampedOverrides(
-    courseKey: String,
+    semester: String,
+    courseNo: String,
+    moodleId: String,
     colorHex: String?,
     names: Map<String, String>,
     backend: CourseSyncBackend,
@@ -234,11 +261,11 @@ private suspend fun sendStampedOverrides(
 ) {
     if (colorHex != null) {
         ensureCurrent()
-        backend.patchStampedOverride(courseKey, colorHex = colorHex)
+        backend.patchStampedOverride(semester, courseNo, moodleId, colorHex = colorHex)
     }
     for ((locale, name) in names) {
         ensureCurrent()
-        backend.patchStampedOverride(courseKey, name = name, locale = locale)
+        backend.patchStampedOverride(semester, courseNo, moodleId, name = name, locale = locale)
     }
 }
 
