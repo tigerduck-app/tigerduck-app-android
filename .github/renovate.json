@@ -47,6 +47,19 @@
       "dependencyDashboardApproval": true
     },
     {
+      "description": "CI pins Python 3.9 on purpose: it's the oldest the build runs on, macOS's own python3.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepTypes": [
+        "uses-with"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "enabled": false
+    },
+    {
       "description": "Supply-chain cooldown, as in tigerduck-app and tigerduck-backend. Submodules have no release timestamps.",
       "matchManagers": [
         "gradle",
