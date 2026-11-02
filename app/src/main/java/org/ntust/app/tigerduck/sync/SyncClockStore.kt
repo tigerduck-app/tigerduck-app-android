@@ -32,18 +32,24 @@ class SyncClockStore(private val prefs: SharedPreferences) {
         heardAtMs = prefs.getLong(KEY_HEARD_AT_MS, 0L),
     )
 
-    /** Writes [state], on disk before it returns when [durable]. */
+    // Under the clock's lock: a write that had to reach the disk and didn't (a full disk). The
+    // clock can't refuse the stamp without losing the student's edit, so it goes on, and every
+    // later write is committed until one lands, carrying the value the failed one held.
+    private var owesDisk = false
+
+    /** Writes [state], on disk before it returns when [durable], or while an earlier one failed to. */
     internal fun save(state: SyncClockState, durable: Boolean) {
         val edit = prefs.edit()
             .putLong(KEY_LAST_ISSUED_MS, state.lastIssuedMs)
             .putLong(KEY_LAST_SEEN_US, state.lastSeenUs)
             .putLong(KEY_HEARD_AT_MS, state.heardAtMs)
         if (state.heardUs != null) edit.putLong(KEY_HEARD_US, state.heardUs) else edit.remove(KEY_HEARD_US)
-        if (!durable) {
+        if (!durable && !owesDisk) {
             edit.apply()
-        } else if (!edit.commit()) {
-            Log.w(TAG, "the sync clock was not written to disk")
+            return
         }
+        owesDisk = !edit.commit()
+        if (owesDisk) Log.w(TAG, "the sync clock was not written to disk; the next write tries again")
     }
 
     private companion object {

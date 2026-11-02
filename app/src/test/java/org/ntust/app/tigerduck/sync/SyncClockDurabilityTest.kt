@@ -106,6 +106,21 @@ class SyncClockDurabilityTest {
         }
     }
 
+    @Test
+    fun `a write that failed to reach the disk is written by the next one`() {
+        val first = Launch()
+        first.prefs.failNextCommit = true
+        first.clock.heard(us(T + 5 * MINUTE))
+        // A header behind the last seen raises nothing, so on its own it would only be queued.
+        first.clock.heard(us(T - 1_000))
+        // Once one has landed, the rest are queued again.
+        first.clock.heard(us(T - 500))
+        assertEquals(1, first.prefs.commits)
+
+        now = T + 100
+        assertEquals(T + 5 * MINUTE + 1, Launch().clock.stampMs())
+    }
+
     private fun us(ms: Long) = ms * 1_000
 
     private companion object {
@@ -125,6 +140,9 @@ private class DyingPreferences(private val disk: MutableMap<String, Long>) : Sha
     /** How many edits were committed. */
     var commits = 0
         private set
+
+    /** Makes the next `commit()` fail as a full disk does: memory changes, the disk doesn't. */
+    var failNextCommit = false
 
     override fun getLong(key: String?, defValue: Long): Long = memory[key] ?: defValue
     override fun contains(key: String?): Boolean = key in memory
@@ -150,6 +168,10 @@ private class DyingPreferences(private val disk: MutableMap<String, Long>) : Sha
 
         override fun commit(): Boolean {
             apply()
+            if (failNextCommit) {
+                failNextCommit = false
+                return false
+            }
             disk.clear()
             disk.putAll(memory)
             commits++
