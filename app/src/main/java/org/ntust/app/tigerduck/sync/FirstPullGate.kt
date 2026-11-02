@@ -3,8 +3,6 @@ package org.ntust.app.tigerduck.sync
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filter
-import org.ntust.app.tigerduck.auth.session.Account
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.follow
@@ -43,9 +41,10 @@ class FirstPullGate internal constructor(events: Flow<AccountEvent>, scope: Coro
     private val waiters = mutableListOf<Waiter>()
 
     init {
-        // Subscribed as the gate is built, so every sign-out from then on reaches its waiters. Any of
-        // the school's events lets go of a waiter whose sign-in has ended, whatever ended it.
-        scope.follow(events.filter { it.account == Account.SCHOOL }) { event ->
+        // Subscribed as the gate is built, so every sign-out from then on reaches its waiters. Any
+        // event lets go of a waiter whose sign-in has ended, whatever ended it; another account's
+        // ends none of the school's sign-ins, so it lets go of none.
+        scope.follow(events) { event ->
             release(ended = (event as? AccountEvent.SignedOut)?.ended)
         }
     }
@@ -53,7 +52,10 @@ class FirstPullGate internal constructor(events: Flow<AccountEvent>, scope: Coro
     /** Whether a pull under [signIn] has landed in this process, [signIn] still standing. */
     fun hasPulled(signIn: SignIn): Boolean = pulled.value === signIn
 
-    /** A pull under [signIn] has landed: the gate opens for it, and its waiters go on. */
+    /**
+     * A pull under [signIn] has landed: the gate opens for it, and its waiters go on. One that
+     * lands past its sign-out opens nothing, and its waiters are the sign-out's to release.
+     */
     fun notePull(signIn: SignIn) {
         val opened = synchronized(lock) {
             pulled.set(signIn, signIn)

@@ -84,15 +84,16 @@ class FirstPullGateTest {
         assertFalse("open for the one that pulled, and no other", gate.hasPulled(first))
     }
 
-    /** The next sign-in's pull can land before the sign-out's event reaches the gate. */
+    /** Its own pull, or the next sign-in's, can land before the sign-out's event reaches the gate. */
     @Test
-    fun `the next sign-in's pull lets no waiter of the one that ended through`() = runBlocking {
+    fun `no pull lets a waiter of a sign-in that ended through`() = runBlocking {
         val first = school.current
         val waiter = scope.async { gate.awaitPull(first) }
         untilWaiting(1)
         val ended = school.end()
         school.open()
 
+        gate.notePull(first)
         gate.notePull(school.current)
         delay(50)
         assertFalse("released before its sign-out was told", waiter.isCompleted)
