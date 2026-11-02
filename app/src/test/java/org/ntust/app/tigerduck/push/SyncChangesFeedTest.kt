@@ -3,7 +3,16 @@ package org.ntust.app.tigerduck.push
 import android.content.Context
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody
+import okio.Buffer
+import okio.BufferedSource
+import okio.ForwardingSource
+import okio.buffer
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -79,6 +88,69 @@ class SyncChangesFeedTest {
 
         assertTrue("no has_more reads as more to come", page.hasMore)
         assertEquals(listOf(SyncChange(0, ""), SyncChange(7, "")), page.changes)
+    }
+
+    /**
+     * `/v4` answers a pruned revision with a 409, keeping every 410 for "update the app"
+     * (`docs/api-v4.md`, "GET /sync"); the app makes a full sync as it does for `/v3`'s 410.
+     */
+    @Test
+    fun `the v4 feed's 409 sync_revision_expired is changes it no longer keeps`() = runTest {
+        val v4 = RecordingBackend().apply { answer("/v4/sync", 409, syncFixture("v4/feed-expired.json")) }
+
+        assertNull(syncApiClientAt("http://127.0.0.1:9/v4", v4.client).fetchChanges(sinceRevision = 5, testSignIn()))
+        assertEquals(listOf("http://127.0.0.1:9/v4/sync?since_revision=5"), v4.sent.map { it.url })
+    }
+
+    @Test
+    fun `another v4 409 or a 410 on v4 says as before`() = runTest {
+        val v4 = RecordingBackend().apply {
+            answer("/v4/sync", 409, syncFixture("v4/error-clock-ahead.json"))
+            answer("/v4/sync", 409, """{"detail":"sync_revision_expired_soon"}""")
+            answer("/v4/sync", 410, syncFixture("v4/error-api-retired.json"))
+        }
+        val client = syncApiClientAt("http://127.0.0.1:9/v4", v4.client)
+
+        val clockAhead = runCatching { client.fetchChanges(sinceRevision = 5, testSignIn()) }.exceptionOrNull()
+        val unknown = runCatching { client.fetchChanges(sinceRevision = 5, testSignIn()) }.exceptionOrNull()
+
+        assertEquals(409, (clockAhead as? PushApiException)?.statusCode)
+        assertEquals(409, (unknown as? PushApiException)?.statusCode)
+        // Any 410 is changes no longer kept, as on /v3; the update latch reads it apart.
+        assertNull(client.fetchChanges(sinceRevision = 5, testSignIn()))
+    }
+
+    /**
+     * Only a 409 says which with its code. Any other failure is reported as it comes, its
+     * body unread, so a slow body never holds back a failure the status already told.
+     */
+    @Test
+    fun `a failure other than a 409 is reported without reading its body`() = runTest {
+        var read = false
+        val body = object : ResponseBody() {
+            private val source: BufferedSource by lazy {
+                object : ForwardingSource(Buffer().writeUtf8("""{"error":"sync_revision_expired"}""")) {
+                    override fun read(sink: Buffer, byteCount: Long): Long {
+                        read = true
+                        return super.read(sink, byteCount)
+                    }
+                }.buffer()
+            }
+
+            override fun contentType() = null
+            override fun contentLength() = -1L
+            override fun source() = source
+        }
+        val unavailable = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(503).message("").body(body).build()
+        }.build()
+
+        val failure = runCatching {
+            syncApiClientAt("http://127.0.0.1:9/v4", unavailable).fetchChanges(sinceRevision = 5, testSignIn())
+        }.exceptionOrNull()
+
+        assertEquals(503, (failure as? PushApiException)?.statusCode)
+        assertFalse("the failure's body was read", read)
     }
 
     private companion object {

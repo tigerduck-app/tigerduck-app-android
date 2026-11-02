@@ -1,0 +1,13 @@
+{
+  "400": ["device_id_required", "moodle_token_required"],
+  "401": ["missing_bearer_token", "invalid_access_token", "session_revoked", "session_user_mismatch", "invalid_refresh_token", "refresh_token_expired", "moodle_verification_failed"],
+  "403": ["account_suspended", "device_secret_invalid"],
+  "404": ["not_found", "device_not_found", "course_not_found", "assignment_not_found", "holiday_not_found", "settings_document_not_found", "subscription_not_found", "bulletin_not_found", "term_not_found", "course_catalog_not_found"],
+  "405": ["method_not_allowed"],
+  "409": ["clock_ahead", "login_conflict_retry", "settings_conflict", "subscription_conflict", "sync_revision_expired"],
+  "410": ["api_retired", "app_version_retired"],
+  "422": ["invalid_request", "hlc_required", "add_not_in_courses", "activity_id_mismatch", "unknown_namespace"],
+  "429": ["too_many_login_attempts", "too_many_refresh_attempts", "too_many_credential_updates", "too_many_registration_attempts"],
+  "500": ["internal_error"],
+  "503": ["auth_not_configured", "moodle_unreachable"]
+}
