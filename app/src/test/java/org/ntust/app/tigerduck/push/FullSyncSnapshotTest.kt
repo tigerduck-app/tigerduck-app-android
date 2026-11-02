@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.push
 
 import kotlinx.coroutines.test.runTest
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,6 +26,11 @@ class FullSyncSnapshotTest {
 
         assertTrue("fetched at ${result.fetchedAtMs}", result.fetchedAtMs in before..System.currentTimeMillis())
         assertEquals(V3_SNAPSHOT, result.copy(fetchedAtMs = 0L))
+    }
+
+    @Test
+    fun `the parser reads it so on its own, the roster requests and fetch time being the fetch's`() {
+        assertEquals(V3_SNAPSHOT.copy(rosterRequests = emptyList()), parseFullSync(JSONObject(syncFixture("v3/full.json"))))
     }
 
     @Test

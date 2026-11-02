@@ -338,17 +338,6 @@
     "lines": 91
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/SyncApiClient.kt",
-    "kind": "long-file",
-    "count": 411
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/SyncApiClient.kt",
-    "kind": "long-function",
-    "name": "SyncApiClient.parseFullSync(JSONObject)",
-    "lines": 95
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/review/ReviewPrompt.kt",
     "kind": "demo-check",
     "count": 1
