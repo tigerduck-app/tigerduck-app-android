@@ -1,27 +1,57 @@
 package org.ntust.app.tigerduck.data
 
 import android.util.Log
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.cache.QueueFile
 import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.LanePolicy
+import org.ntust.app.tigerduck.sync.outbox.LaneStore
+import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
+import org.ntust.app.tigerduck.sync.outbox.OnDiskAttempts
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
+import org.ntust.app.tigerduck.sync.outbox.OutboxLane
+import org.ntust.app.tigerduck.sync.outbox.SendResult
+import org.ntust.app.tigerduck.sync.outbox.UntimedEntries
+import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Sends one assignment's mark, and says whether it went out; see [PushApiClient.patchAssignmentOverride]. */
+/** Sends one assignment's mark, and says only whether it went out; for a test that sends through one. */
 internal fun interface MarkSender {
     suspend fun send(assignmentId: Int, status: String, signIn: SignIn, madeAtMs: Long?): Boolean
 }
 
+/** Sends one assignment's mark, and says what the backend answered; see [PushApiClient.patchAssignmentOverrideAnswered]. */
+internal fun interface MarkWriter {
+    suspend fun write(assignmentId: Int, status: String, signIn: SignIn, madeAtMs: Long?): WriteAnswer
+}
+
 /**
  * Done and ignored marks tapped here that the backend has not confirmed, by
- * assignment id, with the status the tap set.
+ * assignment id, with the status the tap set: the outbox's marks channel.
  *
  * A failed PATCH used to be only logged. Once the account's marks had been
  * through a sync here, the next one took the server — which never got the
@@ -30,71 +60,134 @@ internal fun interface MarkSender {
  * phone's value for it and sends it again first, until it lands. The iPhone
  * app's outbox does the same.
  *
- * With the Assignments switch or TigerSync off ([records] false) the marks
- * are this phone's own: a tap goes nowhere and is not kept, but replaces a
- * mark waiting for the same assignment. While the assignments re-enable
- * check is pending ([sends] false) a tap is kept but not sent, as the user's
- * answer decides the marks. What waits goes out once marks are sent again,
- * or is dropped when the server's marks are taken over this phone's
+ * The marks wait in `unsent_marks.json` as they always have, and go through
+ * an [OutboxLane]: one PATCH at a time, oldest first, so they reach the
+ * backend in the order they were made, each pinned to the sign-in its mark
+ * was read under. A refusal is counted in the mark itself, and at
+ * [MAX_ATTEMPTS] it parks: kept at this phone's value, and tried once more
+ * per process and again [PARKED_RETRY_MS] after its last refusal.
+ *
+ * Whether a tap is kept is [records] (`SyncPolicy.keeps`), whether it goes
+ * [sends] (`SyncPolicy.sends`). With the Assignments switch or TigerSync off
+ * on `/v3` the marks are this phone's own: a tap goes nowhere and is not
+ * kept, but replaces a mark waiting for the same assignment. On `/v4` a tap
+ * is kept while either is off and goes once both are on (LWW D12). While the
+ * assignments re-enable check is pending a tap is kept but not sent, as the
+ * user's answer decides the marks. What waits goes out once marks are sent
+ * again, or is dropped when the server's marks are taken over this phone's
  * ([forget]). Account-scoped: wiped with the user data at sign-out.
+ *
+ * Each tap is stamped by the sync clock ([stamp]), which on `/v3` is the
+ * wall clock as it always was. A mark an older build wrote with no time goes
+ * without one on `/v3`, as it always has; on `/v4` it is given its old-entry
+ * time at its first load there and written back (X1), never its send time.
+ * On `/v4` a reply that says the backend kept a later mark puts that mark on
+ * this phone, unless a newer tap of the assignment waits (LWW D12).
  */
 @Singleton
 class UnsentMarks internal constructor(
     private val dataCache: DataCache,
-    private val sender: MarkSender,
+    private val writer: MarkWriter,
     private val records: () -> Boolean,
     private val sends: () -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
-) {
+    // The time a tap is stamped with: the sync clock's, which is the wall clock on /v3.
+    private val stamp: () -> Long = clock,
+    // Whether the backend settles each mark by its stamp, as /v4 does.
+    private val lastWriterWins: () -> Boolean = { false },
+    ack: AckClock = AckClock(),
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+    private val oldEntryTime: OldEntryTime? = null,
+) : OutboxChannel {
+
+    /** The queue for a test that sends through a [MarkSender], as the queue's own tests do. */
+    internal constructor(
+        dataCache: DataCache,
+        sender: MarkSender,
+        records: () -> Boolean,
+        sends: () -> Boolean,
+        clock: () -> Long = System::currentTimeMillis,
+    ) : this(dataCache, sender.answering(), records, sends, clock)
+
     @Inject constructor(
         dataCache: DataCache,
         pushApiClient: PushApiClient,
         prefs: AppPreferences,
+        policies: SyncPolicies = SyncPolicies(prefs),
+        /** What a tap is stamped by; null only in tests, for the wall clock. */
+        syncClock: SyncClock? = null,
+        ack: AckClock = AckClock(),
+        @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        /** The old-entry time of a mark an older build wrote with no time; null only in tests, for none. */
+        oldEntryTime: OldEntryTime? = null,
     ) : this(
         dataCache = dataCache,
-        sender = MarkSender { id, status, signIn, madeAtMs ->
-            pushApiClient.patchAssignmentOverride(id, status, signIn, madeAtMs)
-        },
-        records = { recordsMarks(prefs) },
-        sends = { sendsMarks(prefs) },
+        writer = MarkWriter(pushApiClient::patchAssignmentOverrideAnswered),
+        records = { policies.current.keeps(SyncCategory.ASSIGNMENTS) },
+        sends = { policies.current.sends(SyncCategory.ASSIGNMENTS) },
+        stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
+        lastWriterWins = { policies.current.lastWriterWins },
+        ack = ack,
+        scope = scope,
+        oldEntryTime = oldEntryTime,
     )
 
-    private val mutex = Mutex()
+    override val id: OutboxChannelId get() = OutboxChannelId.MARKS
 
     // Whether this process has given the parked marks their one more try.
     private val parkedRequeued = AtomicBoolean(false)
 
-    // One PATCH at a time, so marks reach the backend in the order they were
-    // made: the backend keeps whichever request lands last.
-    private val sendMutex = Mutex()
+    private val lane = OutboxLane(
+        id = OutboxChannelId.MARKS,
+        store = object : LaneStore<UnsentMark> {
+            override suspend fun load(): List<UnsentMark> = dataCache.loadUnsentMarks()
+
+            override suspend fun save(entries: List<UnsentMark>, signIn: SignIn): Boolean = dataCache.saveUnsentMarks(entries, signIn)
+        },
+        policy = LanePolicy(
+            field = ::fieldOf,
+            maxAttempts = MAX_ATTEMPTS,
+            attempts = OnDiskAttempts(
+                attempts = { it.attempts },
+                counted = { mark, attempts, refused ->
+                    mark.copy(attempts = attempts, lastRefusedAtMs = if (refused) clock() else mark.lastRefusedAtMs)
+                },
+                // The lane asks this of marks of any assignment, so it names the assignment too.
+                sameEdit = { a, b -> a.assignmentId == b.assignmentId && a.isSameTap(b) },
+            ),
+            untimed = UntimedEntries(
+                // On /v3 a mark with no time goes without one, as it always has, so it is given none.
+                timeOf = { mark -> mark.madeAtMs ?: if (lastWriterWins()) null else SENT_WITHOUT_TIME },
+                withTime = { mark, atMs -> mark.copy(madeAtMs = atMs) },
+                oldEntryTimeMs = { oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.UNSENT_MARKS)) ?: 0L },
+            ),
+        ),
+        ack = ack,
+        scope = scope,
+        send = ::sendNow,
+    )
 
     /** The ids whose last tap has not reached the server; a sync keeps this phone's value for them. */
-    suspend fun ids(): Set<String> = waiting().keys
+    suspend fun ids(): Set<String> = lane.entries().mapTo(LinkedHashSet()) { it.assignmentId.orEmpty() }
 
     /** The status each of those taps set, by assignment id. */
     suspend fun statuses(): Map<String, String> =
-        waiting().mapNotNull { (id, mark) -> mark.status?.let { id to it } }.toMap()
+        lane.entries().mapNotNull { mark -> mark.status?.let { mark.assignmentId.orEmpty() to it } }.toMap()
 
     /**
      * A tap that set [assignmentId] to [status]: kept until the server has
      * it, and sent at once unless the re-enable check holds the marks. Made
-     * while marks do not sync, it is this phone's own and goes nowhere, but
+     * while marks are not kept, it is this phone's own and goes nowhere, but
      * it replaces a mark still waiting for the same assignment, which would
      * otherwise go up later over it.
      */
     suspend fun send(assignmentId: String, status: String, signIn: SignIn) {
         if (!records()) {
-            mutex.withLock {
-                val waiting = waiting()
-                if (assignmentId in waiting) save(waiting - assignmentId, signIn)
-            }
+            lane.edit(signIn) { marks -> marks.filterNot { it.assignmentId == assignmentId } }
             return
         }
-        val tap = UnsentMark(assignmentId, status, madeAtMs = clock())
-        val kept = mutex.withLock {
-            save(waiting() + (assignmentId to tap), signIn)
-        }
-        if (kept && sends()) trySend(tap, signIn)
+        val tap = UnsentMark(assignmentId, status, madeAtMs = stamp())
+        if (lane.enqueue(tap, signIn) && sends()) lane.drain(signIn, setOf(fieldOf(tap)))
     }
 
     /**
@@ -105,100 +198,97 @@ class UnsentMarks internal constructor(
      * is a tap made during the hold, newer than what Use Local read.
      */
     suspend fun keep(assignmentId: String, status: String, signIn: SignIn) {
-        mutex.withLock {
-            val waiting = waiting()
-            if (assignmentId in waiting) return@withLock
-            save(waiting + (assignmentId to UnsentMark(assignmentId, status, madeAtMs = clock())), signIn)
+        lane.edit(signIn) { marks ->
+            if (marks.any { it.assignmentId == assignmentId }) marks else marks + UnsentMark(assignmentId, status, madeAtMs = stamp())
+        }
+    }
+
+    /**
+     * Keeps [status] as [assignmentId]'s mark stamped 0, the oldest stamp there is, unless a mark
+     * waits for it: a value this phone held before the category ever synced, which fills only a
+     * mark the backend holds no stamp for (LWW D13). Written only while [signIn] stands. Nothing
+     * calls it until a category's first sync on `/v4` does.
+     */
+    suspend fun queueAsOldest(assignmentId: String, status: String, signIn: SignIn) {
+        lane.edit(signIn) { marks ->
+            if (marks.any { it.assignmentId == assignmentId }) marks else marks + UnsentMark(assignmentId, status, madeAtMs = OLDEST)
         }
     }
 
     /** Sends every mark still waiting; each full sync starts with this. */
-    suspend fun retry(signIn: SignIn) {
-        if (!sends()) return
-        requeueParked(signIn, firstInProcess = parkedRequeued.compareAndSet(false, true))
-        for ((id, mark) in waiting()) {
-            if (mark.attempts >= MAX_ATTEMPTS) continue
-            trySend(mark, signIn)
-        }
-    }
+    suspend fun retry(signIn: SignIn) = drain(signIn)
 
     /** The server's marks were taken over this phone's, so what waited is no longer wanted. */
     suspend fun forget(signIn: SignIn) {
-        mutex.withLock { save(emptyMap(), signIn) }
+        lane.edit(signIn) { emptyList() }
     }
 
     /**
-     * Sends [id]'s [status] if it is still the mark waiting for it, under the
-     * sign-in [signIn] it was read with.
-     * Checked under the send lock, right before the request: a newer tap of
-     * the id, a send of it that landed meanwhile, or a sign-out each make it
-     * stale, and sent it would undo the newer mark, repeat the request, or
-     * land on the next account. The request itself carries [signIn], so a
-     * sign-out after the check sends it without a token rather than with the
-     * next account's.
+     * Sends every mark still waiting, oldest first, unless marks are not sent now. A parked mark
+     * gets one more try per process, and again once [PARKED_RETRY_MS] has passed since its last
+     * refusal: the backend creates an assignment's row in its own Moodle fetch, every eight hours,
+     * and the app may stay open far longer than that.
      */
-    private suspend fun trySend(tap: UnsentMark, signIn: SignIn) {
-        val id = tap.assignmentId.orEmpty()
-        val status = tap.status ?: return
-        val intId = id.toIntOrNull()
-        val sent = sendMutex.withLock {
-            val current = sends() && mutex.withLock {
-                signIn.isCurrent && waiting()[id]?.isSameTap(tap) == true
-            }
-            if (!current) return
-            if (intId == null) return@withLock true
-            try {
-                sender.send(intId, status, signIn, tap.madeAtMs)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "mark PATCH failed, kept for the next sync: ${e.logSummary()}")
-                if (CourseIgnoreSync.refuses(e)) countRefusal(tap, signIn)
-                false
-            }
-        }
-        if (!sent) return
-        // Only if no newer tap of the id replaced it meanwhile.
-        mutex.withLock {
-            val waiting = waiting()
-            if (waiting[id]?.isSameTap(tap) == true) save(waiting - id, signIn)
-        }
-    }
-
-    // A mark the backend refused, as a 404 for an assignment it has no row
-    // for, is parked after MAX_ATTEMPTS: still kept at this phone's value,
-    // but no longer sent on every sync.
-    private suspend fun countRefusal(tap: UnsentMark, signIn: SignIn) = mutex.withLock {
-        val id = tap.assignmentId.orEmpty()
-        val waiting = waiting()
-        val mark = waiting[id]?.takeIf { it.isSameTap(tap) } ?: return@withLock
-        val counted = mark.copy(attempts = mark.attempts + 1, lastRefusedAtMs = clock())
-        if (counted.attempts >= MAX_ATTEMPTS) Log.w(TAG, "mark parked after $MAX_ATTEMPTS refusals")
-        save(waiting + (id to counted), signIn)
-    }
-
-    // A parked mark gets one more try per process, and again once
-    // PARKED_RETRY_MS has passed since its last refusal: the backend creates
-    // an assignment's row in its own Moodle fetch, every eight hours, and the
-    // app may stay open far longer than that.
-    private suspend fun requeueParked(signIn: SignIn, firstInProcess: Boolean) = mutex.withLock {
-        val waiting = waiting()
+    override suspend fun drain(signIn: SignIn) {
+        if (!sends()) return
+        val firstInProcess = parkedRequeued.compareAndSet(false, true)
         val now = clock()
-        fun due(mark: UnsentMark) = mark.attempts >= MAX_ATTEMPTS &&
-            (firstInProcess || now - mark.lastRefusedAtMs !in 0 until PARKED_RETRY_MS)
-        if (waiting.values.none(::due)) return@withLock
-        save(waiting.mapValues { (_, mark) -> if (due(mark)) mark.copy(attempts = MAX_ATTEMPTS - 1) else mark }, signIn)
+        lane.requeueParked(signIn) { mark -> firstInProcess || now - mark.lastRefusedAtMs !in 0 until PARKED_RETRY_MS }
+        lane.drain(signIn)
+    }
+
+    /** Nothing: a course upload never gave a parked mark its try, which follows its own rule ([drain]). */
+    override suspend fun requeueParked(signIn: SignIn) = Unit
+
+    override suspend fun heldFields(): Set<String> = lane.heldFields()
+
+    /** At a sign-out: the next student's parked marks get their own one more try in this process. */
+    override fun forgetMemory() {
+        parkedRequeued.set(false)
+        lane.forgetMemory()
+    }
+
+    // The lane's send of [mark] under [signIn], read as it was about to go: what became of it.
+    private suspend fun sendNow(mark: UnsentMark, signIn: SignIn): SendResult {
+        if (!sends()) return SendResult.NotSent
+        val status = mark.status ?: return SendResult.NotSent
+        // An id no request can name goes nowhere, and is let go as it always was.
+        val id = mark.assignmentId?.toIntOrNull() ?: return SendResult.Sent(null)
+        val answer = try {
+            writer.write(id, status, signIn, mark.madeAtMs)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "mark PATCH failed, kept for the next sync: ${e.logSummary()}")
+            // Refused again once stamped again after a clock_ahead: nothing about the mark itself.
+            return if (e.backendError()?.isClockAhead == true) SendResult.Retry else SendResult.afterFailure(e)
+        }
+        if (!answer.sent) return SendResult.NotSent
+        if (lastWriterWins()) takeWinner(mark, answer, signIn)
+        return SendResult.Sent(answer.serverClockUs)
+    }
+
+    // LWW D12, a write response's winner: the backend kept a later mark than [mark], so this phone
+    // takes it, unless a newer tap of the assignment waits, whose own answer settles it. Adopted,
+    // so Home reads the marks again rather than writing the ones it holds over them.
+    private suspend fun takeWinner(mark: UnsentMark, answer: WriteAnswer, signIn: SignIn) {
+        val applied = answer.applied ?: return
+        if (WriteAnswer.LOCAL_STATUS in applied) return
+        val status = answer.values[WriteAnswer.LOCAL_STATUS] as? String ?: return
+        val id = mark.assignmentId ?: return
+        if (lane.entries().any { it.assignmentId == id && !it.isSameTap(mark) }) return
+        takeBackendMark(
+            id, status,
+            version = { dataCache.assignmentMarksVersion.value },
+            read = { dataCache.loadIgnoredAssignments() to dataCache.loadMarkedCompletedAssignments() },
+            adopt = { ignored, completed -> dataCache.adoptAssignmentMarks(ignored, completed, signIn) },
+        )
     }
 
     // The same tap, however many times the backend refused it.
     private fun UnsentMark.isSameTap(other: UnsentMark) = status == other.status && madeAtMs == other.madeAtMs
 
-    // By assignment id, in the order the marks were made.
-    private suspend fun waiting(): Map<String, UnsentMark> =
-        dataCache.loadUnsentMarks().associateByTo(LinkedHashMap()) { it.assignmentId.orEmpty() }
-
-    private suspend fun save(waiting: Map<String, UnsentMark>, signIn: SignIn): Boolean =
-        dataCache.saveUnsentMarks(waiting.values.toList(), signIn)
+    private fun fieldOf(mark: UnsentMark): String = SyncField.mark(mark.assignmentId.orEmpty())
 
     companion object {
         private const val TAG = "UnsentMarks"
@@ -209,14 +299,58 @@ class UnsentMarks internal constructor(
         /** How long a parked mark waits for its next try in a process that stays alive. */
         const val PARKED_RETRY_MS = 8 * 60 * 60 * 1000L
 
-        /** The re-enable conflict category the marks belong to. */
-        private const val REENABLE_CATEGORY = "assignments"
+        // The stamp of a value queued as the oldest there is (LWW D13).
+        private const val OLDEST = 0L
 
-        /** Whether marks sync at all: cloud and assignment sync on. */
-        fun recordsMarks(prefs: AppPreferences): Boolean = prefs.cloudSyncEnabled && prefs.syncAssignments
+        // What a mark with no time reads as on /v3, where it goes without one: a time it needs none of.
+        private const val SENT_WITHOUT_TIME = 0L
 
-        /** Whether marks go out: they sync, and no assignments re-enable check is pending. */
-        fun sendsMarks(prefs: AppPreferences): Boolean =
-            recordsMarks(prefs) && REENABLE_CATEGORY !in prefs.school.pendingConflictCategories.get()
+        /** Whether a tap is kept to send: `SyncPolicy.keeps` of the assignments, as the switches stand. */
+        fun recordsMarks(prefs: AppPreferences): Boolean = SyncPolicies(prefs).current.keeps(SyncCategory.ASSIGNMENTS)
+
+        /** Whether marks go out: `SyncPolicy.sends` of the assignments, which the re-enable check holds. */
+        fun sendsMarks(prefs: AppPreferences): Boolean = SyncPolicies(prefs).current.sends(SyncCategory.ASSIGNMENTS)
     }
+}
+
+/**
+ * Puts [status], the backend's mark, on [id] in the ignored and marked-done sets [read] gives, and
+ * writes them with [adopt]: only if they change, and only if no other write of the marks came
+ * between the read and the write ([version] moved), which this one would undo. The next pull
+ * takes the backend's mark then.
+ */
+internal suspend fun takeBackendMark(
+    id: String,
+    status: String,
+    version: () -> Int,
+    read: suspend () -> Pair<Set<String>, Set<String>>,
+    adopt: suspend (ignored: Set<String>, completed: Set<String>) -> Unit,
+) {
+    val readAt = version()
+    val (ignored, completed) = read()
+    val (nextIgnored, nextCompleted) = when (status) {
+        AssignmentOverrideReconciler.STATUS_IGNORED, STATUS_ARCHIVED -> (ignored + id) to (completed - id)
+        AssignmentOverrideReconciler.STATUS_COMPLETED -> (ignored - id) to (completed + id)
+        else -> (ignored - id) to (completed - id)
+    }
+    if (nextIgnored == ignored && nextCompleted == completed) return
+    if (version() != readAt) return
+    adopt(nextIgnored, nextCompleted)
+}
+
+// An older name for ignored, which the backend may still answer with, as a snapshot reads it.
+private const val STATUS_ARCHIVED = "archived"
+
+// A sender that says only whether a mark went: an answer with nothing more in it.
+private fun MarkSender.answering() = MarkWriter { id, status, signIn, madeAtMs ->
+    if (send(id, status, signIn, madeAtMs)) WriteAnswer(sent = true, serverClockUs = null, applied = null, values = emptyMap()) else WriteAnswer.NOT_SENT
+}
+
+/** The marks join the outbox's channels (`OutboxModule`). */
+@Module
+@InstallIn(SingletonComponent::class)
+object UnsentMarksChannelModule {
+    @Provides
+    @IntoSet
+    fun channel(marks: UnsentMarks): OutboxChannel = marks
 }
