@@ -175,19 +175,20 @@ class AuthTokenManager(
     /**
      * The header of a request of [signIn]'s, signing in first when there is no session. Without
      * one the request is not sent, as the backend could only refuse it with 401; and once [signIn]
-     * has ended none either, rather than the next account's token. A sign-in it may start is the
-     * session's own: this [signIn] gets a token only while it stands.
+     * has ended none either, rather than the next account's token. The sign-in it may start is
+     * [signIn]'s own, and it gets a token only while [signIn] stands.
      */
     suspend fun requireAuthHeader(signIn: SignIn): String {
-        if (!signIn.isCurrent || !signInIfSignedOut()) throw NotSignedInException()
+        if (!signIn.isCurrent) throw NotSignedInException()
+        if (!isLoggedIn) signInAutomatically(under = signIn)
+        if (!isLoggedIn) throw NotSignedInException()
         val access = validTokenIfSignedIn(signIn) ?: refresh(signIn) ?: throw NotSignedInException()
         return "Bearer $access"
     }
 
     /**
      * Signs in when there is no session, and says whether there is one now.
-     * Runs on each return to the app, before a registration or a sync, and
-     * from [requireAuthHeader].
+     * Runs on each return to the app, and before a registration or a sync.
      */
     suspend fun signInIfSignedOut(): Boolean {
         if (!isLoggedIn) signInAutomatically()
@@ -213,7 +214,7 @@ class AuthTokenManager(
             if (refresh != null && tokens.accessToken.let { it != null && it != refusedAccess }) return true
             refresh
         }
-        return signInAutomatically(replacing = replacing)
+        return signInAutomatically(under = signIn, replacing = replacing)
     }
 
     /**
@@ -275,10 +276,15 @@ class AuthTokenManager(
      * [SIGN_IN_PAUSE_MS] after one with credentials to send failed, it makes
      * none and returns false: the backend allows 5 logins per 15 minutes per
      * student and per IP, and a campus network puts many students behind one
-     * IP.
+     * IP. [under], for work of that sign-in's, gets none once another is in its
+     * place: the next student's login is not that work's to start or to fail.
      */
     @OptIn(StartsAccountWork::class)
-    private suspend fun signInAutomatically(waitOutPause: Boolean = true, replacing: String? = null): Boolean {
+    private suspend fun signInAutomatically(
+        under: SignIn? = null,
+        waitOutPause: Boolean = true,
+        replacing: String? = null,
+    ): Boolean {
         val signInWith = signInWithStoredAccount ?: return false
         val attempt = CompletableDeferred<Boolean>()
         val signIn: SignIn
@@ -286,6 +292,7 @@ class AuthTokenManager(
         val running = synchronized(signInLock) {
             // Before the credentials, which the sign-in reads.
             signIn = session.current
+            if (under != null && under !== signIn) return false
             signInUnderWay ?: run {
                 if (waitOutPause && isSignInPaused()) return false
                 signInUnderWay = attempt
@@ -686,13 +693,13 @@ class AuthTokenManager(
                 // The token cannot go out uncounted, and a sign-in sends none: on a full disk the
                 // refresh would otherwise fail every time and leave no session once the access
                 // token ran out. Kept for a later refresh when the sign-in fails too.
-                if (signInAutomatically(replacing = onItsWay.first)) return accessTokenIfSignedIn(signIn)
+                if (signInAutomatically(under = signIn, replacing = onItsWay.first)) return accessTokenIfSignedIn(signIn)
                 refreshPausedAt = now()
                 return null
             }
             RefreshOutcome.NoReply, RefreshOutcome.Refused -> Unit
         }
-        if (signInAutomatically(replacing = onItsWay.first)) return accessTokenIfSignedIn(signIn)
+        if (signInAutomatically(under = signIn, replacing = onItsWay.first)) return accessTokenIfSignedIn(signIn)
         withContext(Dispatchers.IO) { clearIfSignedIn(signIn, onItsWay.first) }
         return null
     }

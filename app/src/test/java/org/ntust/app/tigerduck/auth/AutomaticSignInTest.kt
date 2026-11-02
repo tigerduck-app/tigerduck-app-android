@@ -33,7 +33,6 @@ import org.ntust.app.tigerduck.push.SettingsDocumentApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.JvmContext
-import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The backend sign-in [AuthTokenManager] makes on its own: before a request that needs a session
@@ -65,9 +64,10 @@ class AutomaticSignInTest {
 
     @Test
     fun `a protected request with no session signs in first and goes out with the new session`() = runTest {
-        val api = PushApiClient(backend.client, prefs, manager())
+        val manager = manager()
+        val api = PushApiClient(backend.client, prefs, manager)
 
-        api.register(registerRequest(), testSignIn())
+        api.register(registerRequest(), manager.session.signIns.current)
 
         assertEquals(listOf(LOGIN, REGISTER), backend.endpoints())
         assertEquals("Bearer access-2", backend.received(REGISTER).single().authorization)
@@ -76,9 +76,10 @@ class AutomaticSignInTest {
     @Test
     fun `a protected request with no session sends nothing when the sign-in fails`() = runTest {
         backend.answer(LOGIN, 503)
-        val api = PushApiClient(backend.client, prefs, manager())
+        val manager = manager()
+        val api = PushApiClient(backend.client, prefs, manager)
 
-        val failure = runCatching { api.register(registerRequest(), testSignIn()) }.exceptionOrNull()
+        val failure = runCatching { api.register(registerRequest(), manager.session.signIns.current) }.exceptionOrNull()
 
         assertTrue("got $failure", failure is NotSignedInException)
         assertEquals(listOf(LOGIN), backend.endpoints())

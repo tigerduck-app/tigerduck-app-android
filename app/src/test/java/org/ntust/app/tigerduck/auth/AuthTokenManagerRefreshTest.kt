@@ -27,6 +27,7 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -637,6 +638,55 @@ class AuthTokenManagerRefreshTest {
         manager.session.open()
 
         assertFalse(manager.signInAgain(signIn))
+
+        assertEquals(0, relogins)
+    }
+
+    /** Lands a sign-out and the next sign-in as [key] is next read, once. */
+    private fun nextStudentAtRead(manager: AuthTokenManager, key: String) {
+        file.onRead = { read ->
+            if (read == key) {
+                file.onRead = {}
+                manager.logout()
+                manager.session.open()
+            }
+        }
+    }
+
+    /** Past the check of its sign-in, a relogin's turn may come after the next student's has begun. */
+    @Test
+    fun `a relogin that outlives its sign-in past the check starts none for the next student`() = runBlocking {
+        val manager = manager()
+        val signIn = manager.session.signIns.current
+        manager.noteRefused("access-1")
+        nextStudentAtRead(manager, KEY_REFRESH_TOKEN)
+
+        assertFalse(manager.signInAgain(signIn))
+
+        assertEquals(0, relogins)
+        assertFalse(manager.lastSignInFailed.value)
+    }
+
+    @Test
+    fun `a request that outlives its sign-in past the check starts none for the next student`() = runBlocking {
+        context.getSharedPreferences("v3-tokens-test", Context.MODE_PRIVATE).edit().clear().commit()
+        val manager = manager()
+        val signIn = manager.session.signIns.current
+        nextStudentAtRead(manager, KEY_REFRESH_TOKEN)
+
+        assertThrows(NotSignedInException::class.java) { runBlocking { manager.requireAuthHeader(signIn) } }
+
+        assertEquals(0, relogins)
+    }
+
+    @Test
+    fun `a refused refresh that outlives its sign-in past the check starts none for the next student`() = runTest {
+        val manager = manager(Reply.Status(401))
+        val signIn = manager.session.signIns.current
+        // Read as the refusal is settled, past the check of the sign-in.
+        onRefreshSent = { nextStudentAtRead(manager, KEY_REFRESH_TOKEN) }
+
+        assertThrows(NotSignedInException::class.java) { runBlocking { manager.requireAuthHeader(signIn) } }
 
         assertEquals(0, relogins)
     }
@@ -1482,6 +1532,14 @@ private class SavesRecorder(private val inner: SharedPreferences) : SharedPrefer
     /** Runs as each commit goes to the disk, with the keys it writes. */
     var onCommit: (Set<String>) -> Unit = {}
     private var commitsOfFailing = 0
+
+    /** Runs as a read of this key reaches the disk. */
+    var onRead: (String) -> Unit = {}
+
+    override fun getString(key: String, defValue: String?): String? {
+        onRead(key)
+        return inner.getString(key, defValue)
+    }
 
     override fun edit(): SharedPreferences.Editor = Editor(inner.edit())
 
