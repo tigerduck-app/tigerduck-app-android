@@ -2,7 +2,9 @@ package org.ntust.app.tigerduck.push
 
 import okhttp3.Call
 import okhttp3.Response
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.sync.SyncClock
 
 // The backend's TigerSync clock for a time in epoch ms: whole microseconds since the epoch.
 internal fun clockOf(epochMs: Long): Long = epochMs * 1_000
@@ -16,7 +18,7 @@ internal fun Map<String, Any>.stampedWith(hlc: Long?): Map<String, Any> =
     if (hlc == null) this else this + ("hlc" to hlc)
 
 /**
- * Sends an edit with the time it was made as its `hlc` ([madeAtMs], epoch ms; null sends none), which
+ * Sends an edit as `/v3` takes it, with the time it was made as its `hlc` ([madeAtMs], epoch ms; null sends none), which
  * the backend settles it by: an edit that waited in a queue then loses to a newer one another device
  * sent meanwhile. One the backend refuses as stamped ahead of its clock goes once more without,
  * counting from when it arrives, as the course upload's adds do, if [mayResend] still says yes:
@@ -39,3 +41,68 @@ internal fun <T : Any> executeStamped(
     }
     return call(null).execute().use(handle)
 }
+
+/**
+ * The clock a `/v4` write is stamped with: [SyncClock], whose stamps only grow and are capped by
+ * the backend's time as last heard (`tigersync-clock`). A client a test builds without one stamps
+ * with the wall clock and hears nothing.
+ */
+internal class WriteClock(private val clock: SyncClock?) {
+    /** The stamp of an edit made now, in epoch ms. */
+    fun stampMs(): Long = clock?.stampMs() ?: System.currentTimeMillis()
+
+    /** A stamp again, after a refusal as ahead whose answer carried [serverClockUs]. */
+    fun restampAfterClockAhead(serverClockUs: Long?): Long =
+        clock?.restampAfterClockAhead(serverClockUs) ?: System.currentTimeMillis()
+
+    /** A clock value an answer holds, which raises the last value seen (LWW D4). */
+    fun hear(clockUs: Long) {
+        clock?.heardInSnapshot(clockUs)
+    }
+
+    /** The largest clock value [answer] holds; see [hear]. */
+    fun hear(answer: WriteAnswer) {
+        answer.clockValues().maxOrNull()?.let(::hear)
+    }
+}
+
+/**
+ * Sends an edit as `/v4` takes it, always stamped (422 `hlc_required` otherwise): with [madeAtMs],
+ * the time it was made, or, with none, [clock]'s stamp now. Only a send made now reaches here
+ * without a time (Use Local, the conflict dialog, a first-sync mark, the `moodle_course_id`
+ * fill-in): a queued entry has its own, or the old-entry time it was given at load. One refused as
+ * ahead of the backend's clock (409 `clock_ahead`) is stamped again from the refusal's clock and
+ * sent once more if [mayResend] still holds, never without a stamp; else nothing more goes and the
+ * result is null. A second refusal is the answer [handle] reads, as any other.
+ */
+internal fun <T : Any> executeStampedV4(
+    madeAtMs: Long?,
+    clock: WriteClock,
+    mayResend: () -> Boolean,
+    call: (hlc: Long) -> Call,
+    handle: (Response) -> T,
+): T? {
+    val first = call(clockOf(madeAtMs ?: clock.stampMs())).execute()
+    if (!isClockAhead(first)) return first.use(handle)
+    val serverClockUs = serverClockOf(first)
+    first.close()
+    if (!mayResend()) return null
+    return call(clockOf(clock.restampAfterClockAhead(serverClockUs))).execute().use(handle)
+}
+
+/** An edit sent as [api] takes it: [executeStamped] on `/v3`, [executeStampedV4] on `/v4`. */
+internal fun <T : Any> sendStamped(
+    api: BackendApi,
+    madeAtMs: Long?,
+    clock: WriteClock,
+    mayResend: () -> Boolean,
+    call: (hlc: Long?) -> Call,
+    handle: (Response) -> T,
+): T? = when (api) {
+    BackendApi.V3 -> executeStamped(madeAtMs, mayResend, call, handle)
+    BackendApi.V4 -> executeStampedV4(madeAtMs, clock, mayResend, call, handle)
+}
+
+/** [response]'s answer ([answerOf]); on `/v4`, every clock value in it heard. */
+internal fun WriteClock.answer(response: Response, api: BackendApi, what: String, field: String? = null): WriteAnswer =
+    answerOf(response, what, field).also { if (api == BackendApi.V4) hear(it) }

@@ -8,9 +8,11 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.BackendServices
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncClock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -55,6 +57,8 @@ class SyncApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
     private val prefs: AppPreferences,
     baseClient: OkHttpClient,
+    /** Hears the clock values a `/v4` snapshot holds (LWW D4); null only in tests, for none. */
+    private val syncClock: SyncClock? = null,
 ) {
     // Resolve per-call so the debug API-endpoint override applies at once, as PushApiClient
     // does: pinned at construction, auth and full-sync traffic ignored what push honored.
@@ -98,17 +102,22 @@ class SyncApiClient @Inject constructor(
         }
     }
 
+    /**
+     * The snapshot, read in the shape the base it came from speaks: on `/v4`, protocol 2's, with
+     * its stamps, tombstone kinds and resets, and the largest clock value in it heard by the clock;
+     * on `/v3` as it always was, those fields null and nothing heard, though `/v3` sends them too.
+     */
     suspend fun fetchFullSync(signIn: SignIn): BackendSyncResult = withContext(Dispatchers.IO) {
         val authHeader = authTokenManager.requireAuthHeader(signIn)
         val fetchedAtMs = System.currentTimeMillis()
-        api.at(baseUrl).full(authHeader).execute().use { response ->
+        // Resolved once, so the shape it is read in is the one the base it went to answers in.
+        val base = baseUrl
+        api.at(base).full(authHeader).execute().use { response ->
             if (!response.isSuccessful) {
                 throw PushApiException("sync/full failed: HTTP ${response.code}", response.code)
             }
             val json = JSONObject(response.body.string())
-            // Read as /v3's, and heard by no clock, until both land beside this: protocol2 is then
-            // whether the endpoint speaks /v4 (ApiBase), and heard is SyncClock.heardInSnapshot.
-            parseFullSync(json, protocol2 = false, heard = {})
+            parseFullSync(json, protocol2 = BackendApi.of(base) == BackendApi.V4, heard = { syncClock?.heardInSnapshot(it) })
                 .copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))
         }
     }

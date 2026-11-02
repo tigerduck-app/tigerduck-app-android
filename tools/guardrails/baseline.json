@@ -373,13 +373,8 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
-    "kind": "long-file",
-    "count": 663
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "sync-switch-read",
-    "count": 23
+    "count": 15
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushRegistrationService.kt",
@@ -1355,13 +1350,8 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/KeepLocalCourses.kt",
-    "kind": "sync-switch-read",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/KeepLocalCourses.kt",
     "kind": "sync-write",
-    "count": 6
+    "count": 4
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/LanguagePickerScreen.kt",

@@ -12,7 +12,7 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 /**
- * The backend's device and sync endpoints, relative to its base (`…/v3`), for
+ * The backend's device and sync endpoints, relative to its base, for
  * [PushApiClient]. `Authorization` is the Bearer header the client resolves
  * before the call. Paths and queries are given already encoded, as the
  * client wrote its URLs before Retrofit. A DELETE carries an empty body
@@ -100,5 +100,24 @@ internal interface PushApi {
         @Header("Authorization") auth: String,
         @Query("semester", encoded = true) semester: String?,
         @Body empty: RequestBody,
+    ): Call
+
+    /** `/v4`'s [removeCourse]: [hlc] always, and [kind], `hide` or `remove`, when the caller knows it. */
+    @HTTP(method = "DELETE", path = "sync/courses/{courseKey}", hasBody = true)
+    fun removeCourseStamped(
+        @Header("Authorization") auth: String,
+        @Path("courseKey", encoded = true) courseKey: String,
+        @Body empty: RequestBody,
+        @Query("hlc") hlc: Long,
+        @Query("kind") kind: String?,
+    ): Call
+
+    /** `/v4`'s [removeCourses], with the reset's [hlc]. */
+    @HTTP(method = "DELETE", path = "sync/courses", hasBody = true)
+    fun removeCoursesStamped(
+        @Header("Authorization") auth: String,
+        @Query("semester", encoded = true) semester: String?,
+        @Body empty: RequestBody,
+        @Query("hlc") hlc: Long,
     ): Call
 }

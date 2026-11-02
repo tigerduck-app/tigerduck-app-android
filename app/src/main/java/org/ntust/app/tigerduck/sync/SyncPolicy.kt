@@ -2,6 +2,8 @@ package org.ntust.app.tigerduck.sync
 
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.effectiveCloudSyncEnabled
+import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,7 +31,19 @@ class SyncPolicy(
     /** Whether TigerSync runs at all: its switch is on, on a build that has it. */
     val tigerSyncOn: Boolean get() = cloudSync && flavorSyncs
 
-    private fun syncs(category: SyncCategory): Boolean = tigerSyncOn && category in switchedOn
+    /**
+     * Whether TigerSync and [category]'s switch are on, whatever the re-enable hold says: the gate
+     * of the backend client's own writes, as `PushApiClient` reads the switches. The hold is its
+     * callers' to read, as the queues do through [sends], and Use Local sends while it holds.
+     */
+    fun syncs(category: SyncCategory): Boolean = tigerSyncOn && category in switchedOn
+
+    /**
+     * Whether a course override carrying a [color], a [name] or both goes, as the backend client
+     * decides: TigerSync on, and the switch of each kind it carries ([syncs]).
+     */
+    fun syncsOverride(color: Boolean, name: Boolean): Boolean =
+        tigerSyncOn && (!color || syncs(SyncCategory.COURSE_COLORS)) && (!name || syncs(SyncCategory.COURSE_NAMES))
 
     /**
      * Whether an edit of [category] is kept to send: while TigerSync and the category's switch are
@@ -86,8 +100,8 @@ class SyncPolicies @Inject constructor(private val prefs: AppPreferences) {
             flavorSyncs = FLAVOR_SYNCS,
             switchedOn = SyncCategory.entries.filterTo(LinkedHashSet()) { prefs.switchOf(it) },
             held = SyncCategory.of(prefs.school.pendingConflictCategories.get()),
-            // Every base speaks /v3, whose writes carry no answer from the backend's clock yet.
-            lastWriterWins = false,
+            // The API the endpoint setting names now: /v4 settles every field by its stamp.
+            lastWriterWins = BackendApi.of(resolveAnnouncementEndpoint(prefs).url) == BackendApi.V4,
         )
 
     private fun AppPreferences.switchOf(category: SyncCategory): Boolean = when (category) {

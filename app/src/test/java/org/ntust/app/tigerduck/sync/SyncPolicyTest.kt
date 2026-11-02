@@ -99,6 +99,16 @@ class SyncPolicyTest {
                 policy.applies(ASSIGNMENTS),
             )
             check("tigerSyncOn", prefs.cloudSyncEnabled, policy.tigerSyncOn)
+            // The backend client's own gates, which read the switches and never the hold.
+            check("syncs(COURSES)", prefs.cloudSyncEnabled && prefs.syncCourses, policy.syncs(COURSES))
+            check("syncs(COURSE_COLORS)", prefs.cloudSyncEnabled && prefs.syncCourseColors, policy.syncs(COURSE_COLORS))
+            check("syncs(COURSE_NAMES)", prefs.cloudSyncEnabled && prefs.syncCourseNames, policy.syncs(COURSE_NAMES))
+            check("syncs(ASSIGNMENTS)", prefs.cloudSyncEnabled && prefs.syncAssignments, policy.syncs(ASSIGNMENTS))
+            for (color in listOf(false, true)) for (name in listOf(false, true)) check(
+                "syncsOverride(color=$color, name=$name)",
+                prefs.cloudSyncEnabled && (!color || prefs.syncCourseColors) && (!name || prefs.syncCourseNames),
+                policy.syncsOverride(color, name),
+            )
             check(
                 "sendsCourseIgnores and sends(ASSIGNMENTS)",
                 CourseIgnoreSync.syncsCourseIgnores(prefs), policy.sendsCourseIgnores && policy.sends(ASSIGNMENTS),
@@ -122,6 +132,37 @@ class SyncPolicyTest {
     }
 
     @Test
+    fun `last writer wins once the endpoint speaks v4, and not on any other base`() {
+        for ((base, wins) in listOf(
+            "http://127.0.0.1:9/v4" to true,
+            "http://127.0.0.1:9/prefix/v4/" to true,
+            "http://127.0.0.1:9/v3" to false,
+            "http://127.0.0.1:9" to false,
+            "http://127.0.0.1:9/v4x" to false,
+        )) {
+            prefs.announcementApiBaseUrlOverride = base
+            assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
+            assertEquals(base, wins, policies.current.lastWriterWins)
+        }
+    }
+
+    @Test
+    fun `on v4 every switch reads as on v3, and every category is kept whatever its switches say`() {
+        store(master = true, on = setOf(COURSES), held = setOf(COURSES))
+        val v3 = policies.current
+        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4"
+        val v4 = policies.current
+
+        assertTrue(v4.lastWriterWins)
+        for (category in SyncCategory.entries) {
+            assertEquals("sends($category)", v3.sends(category), v4.sends(category))
+            assertEquals("applies($category)", v3.applies(category), v4.applies(category))
+            assertEquals("syncs($category)", v3.syncs(category), v4.syncs(category))
+            assertEquals("keeps($category)", v4.flavorSyncs, v4.keeps(category))
+        }
+    }
+
+    @Test
     fun `a build without TigerSync keeps, sends and uploads nothing, whatever its switches say`() {
         for (cloudSync in listOf(false, true)) for (lww in listOf(false, true)) for (on in everySet) for (held in everySet) {
             val policy = SyncPolicy(cloudSync, flavorSyncs = false, switchedOn = on, held = held, lastWriterWins = lww)
@@ -130,6 +171,8 @@ class SyncPolicyTest {
             assertFalse(row, policy.uploadsCourses)
             assertFalse(row, policy.sendsCourseIgnores)
             for (category in SyncCategory.entries) {
+                assertFalse("syncs($category) at $row", policy.syncs(category))
+                assertFalse("syncsOverride at $row", policy.syncsOverride(category == COURSE_COLORS, category == COURSE_NAMES))
                 assertFalse("keeps($category) at $row", policy.keeps(category))
                 assertFalse("sends($category) at $row", policy.sends(category))
                 // A full sync never runs here; asked anyway, the answer is the switch's and the hold's.
@@ -150,6 +193,7 @@ class SyncPolicyTest {
             for (category in SyncCategory.entries) {
                 assertEquals("keeps($category) at $row", flavor, after.keeps(category))
                 assertEquals("sends($category) at $row", before.sends(category), after.sends(category))
+                assertEquals("syncs($category) at $row", before.syncs(category), after.syncs(category))
                 assertEquals("applies($category) at $row", before.applies(category), after.applies(category))
             }
         }

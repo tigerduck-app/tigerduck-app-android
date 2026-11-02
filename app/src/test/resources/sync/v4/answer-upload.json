@@ -1,0 +1,9 @@
+{
+  "upserted": 2,
+  "skipped_tombstoned": 0,
+  "accepted_keys": ["client:1151:XA0000001", "client:1151:XA0000009"],
+  "adds": [
+    {"course_key": "client:1151:XA0000009", "applied": true, "hlc": 1790000000123000},
+    {"course_key": "client:1151:XA0000008", "applied": false, "hlc": 1790000000999000}
+  ]
+}
