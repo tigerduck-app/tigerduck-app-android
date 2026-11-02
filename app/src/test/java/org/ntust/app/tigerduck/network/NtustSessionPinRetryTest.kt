@@ -1,15 +1,19 @@
 package org.ntust.app.tigerduck.network
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.Request
 import okhttp3.tls.HandshakeCertificates
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
 import org.ntust.app.tigerduck.network.tls.PinTestChain
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.tls.PinMismatchException
 import org.ntust.app.tigerduck.shared.tls.PinMismatchResolver
 import org.ntust.app.tigerduck.shared.tls.PinnedTls
@@ -52,9 +56,17 @@ class NtustSessionPinRetryTest {
     @Test
     fun `a sign-out while a mismatch is settled keeps the retry out of the next account's session`() {
         // The student signs out while the document is fetched or the prompt is up; the pins then clear.
-        val resolver = PinMismatchResolver { _, _ -> manager.signOut(); true }
+        val series = SignInSeries()
+        val resolver = PinMismatchResolver { _, _ ->
+            series.end()
+            manager.signOut()
+            true
+        }
         val tls = PinnedTls(HandshakeCertificates.Builder().build().trustManager, resolver)
-        manager = NtustSessionManager(AppPreferences(context), DemoModeInterceptor(DebugFixtureStore(context)), tls)
+        manager = NtustSessionManager(
+            AppPreferences(context), DemoModeInterceptor(DebugFixtureStore(context)), tls,
+            AccountSession(series, CoroutineScope(SupervisorJob())),
+        )
         val attempts = AtomicInteger()
         val client = manager.client.newBuilder()
             // Inside every interceptor the manager adds: the first attempt meets a mismatch, as its handshake would.

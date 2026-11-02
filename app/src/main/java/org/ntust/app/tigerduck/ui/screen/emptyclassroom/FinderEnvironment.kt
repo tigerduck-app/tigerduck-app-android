@@ -9,6 +9,8 @@ import org.ntust.app.tigerduck.AppConstants
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
@@ -17,6 +19,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService
 import org.ntust.app.tigerduck.network.CourseService
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.network.NetworkChecker
 import org.ntust.app.tigerduck.network.SsoLoginError
 import org.ntust.app.tigerduck.shared.Course
@@ -54,6 +57,9 @@ interface FinderEnvironment {
     /** The account signed in now, which a course read is checked against before it is shown. */
     fun account(): String?
 
+    /** The sign-in a read starts under, which it holds until it is done. */
+    fun signIn(): SignIn
+
     /** Null while no one is signed in. */
     fun credentials(): ClassroomUsageService.Credentials?
 
@@ -90,6 +96,7 @@ class AppFinderEnvironment @Inject constructor(
     private val networkChecker: NetworkChecker,
     private val demoAccount: DemoAccount,
     private val courseChangeStore: CourseChangeStore,
+    private val sessions: AccountSessions,
 ) : FinderEnvironment {
     override fun now(): LocalDateTime = AppClock.localDateTime(AppConstants.TAIPEI_ZONE)
 
@@ -117,13 +124,16 @@ class AppFinderEnvironment @Inject constructor(
 
     override val signedIn: StateFlow<Boolean> get() = authService.authState
 
+    @OptIn(StartsAccountWork::class)
+    override fun signIn(): SignIn = sessions.school.current
+
     override fun isCurrent(credentials: ClassroomUsageService.Credentials): Boolean =
         authService.authState.value && authService.storedStudentId.orEmpty() == credentials.studentId
 
     override var pickedBuilding: String?
-        get() = prefs.emptyClassroomBuilding
+        get() = prefs.school.emptyClassroomBuilding.get()
         set(value) {
-            prefs.emptyClassroomBuilding = value
+            prefs.school.emptyClassroomBuilding.set(value, signIn())
         }
 
     override fun courseChanges(): CourseChanges = courseChangeStore.current()

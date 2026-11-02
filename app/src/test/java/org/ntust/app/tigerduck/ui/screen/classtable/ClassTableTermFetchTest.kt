@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.network.LookedUpCourse
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * One term's fetch as far as its list goes. The lookups take seconds, and the user keeps
@@ -607,7 +608,7 @@ class ClassTableTermFetchTest {
         val store = cache()
         val keptCopy = Course.fromSchedule("XG0000007", "Kept", classroom = "TR-313", schedule = mapOf(3 to listOf("6", "7")))
         val before = listOf(course("XA0000001"), course("XC0000003"), keptCopy, merged("XD0000004"), manual("XF0000006"))
-        store.saveCourses(before, "1151")
+        store.saveCourses(before, "1151", testSignIn())
         val source = ClassTableTermSource.of("1151", emptyList(), transcript("XA0000001", "XG0000007"), servedBySelection = false, cached = before)
         val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before, atMost = source.lookupsAtOnce)
 
@@ -622,7 +623,7 @@ class ClassTableTermFetchTest {
             droppedNos = { emptySet() },
             recordFinalRoster = {
                 steps += "recorded"
-                store.recordFinalRoster("1151", it.roster, alsoListed = it.dropping)
+                store.recordFinalRoster("1151", it.roster, alsoListed = it.dropping, testSignIn())
             },
         ) { drawn ->
             steps += "folded"
@@ -638,7 +639,7 @@ class ClassTableTermFetchTest {
                 locale = "zh",
             )
         }!!
-        store.saveCourses(saved, "1151")
+        store.saveCourses(saved, "1151", testSignIn())
 
         assertEquals(listOf("recorded", "folded"), steps)
         // The junk, cached and merged, is dropped; the waiting add and the course added here are not.
@@ -788,7 +789,7 @@ class ClassTableTermFetchTest {
         gate.complete(Unit)
         val store = cache()
         val before = listOf(course("XA0000001"), course("XB0000002"))
-        store.saveCourses(before, "1151")
+        store.saveCourses(before, "1151", testSignIn())
         val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001", "XB0000002"), servedBySelection = true, cached = before)
         val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
         val dropped = suspend { store.loadSelectionDroppedNos()["1151"].orEmpty().toSet() }
@@ -800,8 +801,8 @@ class ClassTableTermFetchTest {
             waitingAdds = {
                 if (!answered) {
                     answered = true
-                    store.recordSelectionRoster("1151", listOf("XA0000001"))
-                    store.saveCourses(listOf(course("XA0000001")), "1151")
+                    store.recordSelectionRoster("1151", listOf("XA0000001"), testSignIn())
+                    store.saveCourses(listOf(course("XA0000001")), "1151", testSignIn())
                 }
                 emptySet()
             },
@@ -809,7 +810,7 @@ class ClassTableTermFetchTest {
             recordFinalRoster = { error("only a rebuild records drops") },
         ) { drawn ->
             var folded: List<Course>? = null
-            store.updateCourses("1151") { current, _ ->
+            store.updateCourses("1151", testSignIn()) { current, _ ->
                 folded = fetch.foldLatest(
                     drawn, "1151",
                     editGeneration = { 0 },
@@ -847,10 +848,10 @@ class ClassTableTermFetchTest {
         latest = { store.loadCourses("1151") },
         waitingAdds = { waitingAdds },
         droppedNos = { store.fetchDropsIn("1151") },
-        recordFinalRoster = { store.recordFinalRoster("1151", it.roster, alsoListed = it.dropping) },
+        recordFinalRoster = { store.recordFinalRoster("1151", it.roster, alsoListed = it.dropping, testSignIn()) },
     ) { drawn ->
         var folded: List<Course>? = null
-        store.updateCourses("1151") { current, _ ->
+        store.updateCourses("1151", testSignIn()) { current, _ ->
             folded = fetch.foldLatest(
                 drawn, "1151",
                 editGeneration = { 0 },
@@ -880,12 +881,12 @@ class ClassTableTermFetchTest {
         gate.complete(Unit)
         val store = cache()
         val before = listOf(course("XA0000001"), course("XB0000002"))
-        store.saveCourses(before, "1151")
+        store.saveCourses(before, "1151", testSignIn())
         val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001"), servedBySelection = true, cached = before)
         assertTrue(source is ClassTableTermSource.Gaining)
         val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
-        store.recordServerDrops("1151", mapOf("XA0000001" to null))
-        store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002")))
+        store.recordServerDrops("1151", mapOf("XA0000001" to null), testSignIn())
+        store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002")), testSignIn())
 
         val saved = committedOnto(store, answers, source)
 
@@ -905,12 +906,12 @@ class ClassTableTermFetchTest {
         gate.complete(Unit)
         val store = cache()
         val before = listOf(course("XA0000001"), course("XB0000002"), manual("XF0000006"), merged("XW0000023"))
-        store.saveCourses(before, "1151")
+        store.saveCourses(before, "1151", testSignIn())
         val source = ClassTableTermSource.of("1151", emptyList(), newest("XA0000001"), servedBySelection = true, cached = before)
         val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before)
-        store.saveCourses(store.loadCourses("1151") + course("XK0000011"), "1151")
-        store.recordServerDrops("1151", mapOf("XA0000001" to null, "XF0000006" to null))
-        store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002", "XW0000023")))
+        store.saveCourses(store.loadCourses("1151") + course("XK0000011"), "1151", testSignIn())
+        store.recordServerDrops("1151", mapOf("XA0000001" to null, "XF0000006" to null), testSignIn())
+        store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002", "XW0000023")), testSignIn())
 
         val saved = committedOnto(store, answers, source, waitingAdds = setOf("XW0000023"))!!
 
@@ -930,7 +931,7 @@ class ClassTableTermFetchTest {
         for (rebuilds in listOf(false, true)) {
             val store = cache()
             val before = listOf(course("XA0000001"), course("XB0000002"))
-            store.saveCourses(before, "1151")
+            store.saveCourses(before, "1151", testSignIn())
             val source = if (rebuilds) {
                 ClassTableTermSource.of("1151", emptyList(), transcript("XA0000001", "XB0000002"), servedBySelection = false, cached = before)
             } else {
@@ -938,8 +939,8 @@ class ClassTableTermFetchTest {
             }
             assertEquals(rebuilds, source is ClassTableTermSource.Rebuild)
             val answers = fetch.lookUp("1151", source.rosterNos, emptyMap(), before, atMost = source.lookupsAtOnce)
-            store.recordServerDrops("1151", mapOf("XA0000001" to null))
-            store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002")))
+            store.recordServerDrops("1151", mapOf("XA0000001" to null), testSignIn())
+            store.saveSelectionDroppedNos(mapOf("1151" to listOf("XB0000002")), testSignIn())
 
             val saved = committedOnto(store, answers, source)
 

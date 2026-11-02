@@ -322,12 +322,8 @@ class PushApiClient @Inject constructor(
 
     private val assignmentUploads = UploadLedger(
         store = object : UploadLedgerStore {
-            override val fingerprint: String? get() = prefs.assignmentsUploadFingerprint
-            override val acceptedAtMs: Long get() = prefs.assignmentsUploadedAtMs
-            override fun record(fingerprint: String, atMs: Long) {
-                prefs.assignmentsUploadFingerprint = fingerprint
-                prefs.assignmentsUploadedAtMs = atMs
-            }
+            override val fingerprint: String? get() = prefs.school.assignmentsUploadFingerprint.get()
+            override val acceptedAtMs: Long get() = prefs.school.assignmentsUploadedAtMs.get()
         },
         clock = System::currentTimeMillis,
     )
@@ -341,7 +337,6 @@ class PushApiClient @Inject constructor(
             store = object : UploadLedgerStore {
                 override val fingerprint: String? get() = prefs.coursesUploadFingerprint(semester)
                 override val acceptedAtMs: Long get() = prefs.coursesUploadedAtMs(semester)
-                override fun record(fingerprint: String, atMs: Long) = prefs.recordCoursesUpload(semester, fingerprint, atMs)
             },
             clock = System::currentTimeMillis,
         )
@@ -354,13 +349,13 @@ class PushApiClient @Inject constructor(
      *
      * A list the backend already accepted goes again only once it changes,
      * or six hours on ([UploadLedger]); each upload defers the server's own
-     * Moodle sync by two hours. Pinned to the sign-in it starts under.
+     * Moodle sync by two hours. Pinned to [signIn], the sign-in the list was made under.
      */
     suspend fun uploadAssignments(
         assignments: List<Assignment>,
+        signIn: SignIn,
     ) = withContext(Dispatchers.IO) {
         if (!isSyncCapable || !prefs.syncAssignments) return@withContext
-        val signIn = authTokenManager.signInGeneration
         val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
         }
@@ -384,10 +379,15 @@ class PushApiClient @Inject constructor(
         val base = baseUrl
         assignmentUploads.sendIfDue(
             fingerprint = uploadFingerprint(base, json),
-            // Recorded under the sign-in lock, so a sign-out's clear cannot
-            // fall between the check and the record; see UploadLedger.sendIfDue.
-            ifCurrent = { record -> authTokenManager.runIfSignedIn(signIn, record) },
-            signIn = signIn,
+            // The pair in one step, so a sign-out's clear cannot fall between the check and the
+            // record, or between the two; see UploadLedger.sendIfDue.
+            record = { fingerprint, atMs ->
+                signIn.ifCurrent {
+                    prefs.school.assignmentsUploadFingerprint.set(fingerprint, signIn)
+                    prefs.school.assignmentsUploadedAtMs.set(atMs, signIn)
+                }
+            },
+            signIn = authTokenManager.signInGeneration,
         ) {
             val service = api.at(base)
             service.assignmentsUpload(authTokenManager.requireAuthHeader(signIn), json.toRequestBody(jsonType)).execute().use { response ->
@@ -496,9 +496,9 @@ class PushApiClient @Inject constructor(
             fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
             // Recorded under the sign-in lock, so a sign-out's clear cannot
             // fall between the check and the record; see UploadLedger.sendIfDue.
-            ifCurrent = { record ->
+            record = { fingerprint, atMs ->
                 authTokenManager.runIfSignedIn(startedIn) {
-                    record()
+                    prefs.recordCoursesUpload(semester, fingerprint, atMs)
                     prefs.recordCoursesUploadRoster(semester, roster)
                 }
             },

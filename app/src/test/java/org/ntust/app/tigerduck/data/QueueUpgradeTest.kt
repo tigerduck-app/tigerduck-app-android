@@ -12,6 +12,7 @@ import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /**
@@ -42,7 +43,7 @@ class QueueUpgradeTest {
 
     @Test
     fun `the queued adds go up, each with the time it was stored with`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "One"), Course(courseNo = "CS1002", courseName = "Two")), "1141")
+        cache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "One"), Course(courseNo = "CS1002", courseName = "Two")), "1141", testSignIn())
         val sent = mutableListOf<Triple<List<String>, List<String>, Map<String, Long>>>()
         val adds = PendingCourseAdds(cache, { courses, semester, forceKeys, _, addedAt ->
             assertEquals("1141", semester)

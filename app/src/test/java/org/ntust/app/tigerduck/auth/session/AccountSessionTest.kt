@@ -149,6 +149,7 @@ class AccountSessionTest {
         storedStudentId = { stored?.first },
         writeAccount = { studentId, password -> stored = studentId to password },
         latch = InMemoryStoredPasswordLatch(),
+        leaveStoredAccount = {},
         isDemoAccount = { _, _ -> false },
         enterDemo = {},
         accountChanging = {},

@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -74,7 +75,7 @@ class WidgetLanguageTest {
     fun `a change of language redraws the widgets`() = runBlocking {
         val calendar = AcademicCalendarStore(app, OkHttpClient(), prefs)
         val cache = DataCache(app, calendar)
-        cache.saveCourses(listOf(Course.fromSchedule("CS1001301", "Calculus", schedule = mapOf(1 to listOf("3")))))
+        cache.saveCourses(listOf(Course.fromSchedule("CS1001301", "Calculus", schedule = mapOf(1 to listOf("3")))), testSignIn())
         val settingChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         WidgetUpdater(
             context = app,

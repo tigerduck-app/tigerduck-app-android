@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A 409 `clock_ahead` makes a second, unstamped request. It passes the gate the first one passed
@@ -82,7 +83,7 @@ class ClockAheadHoldTest {
         val held = backend.hold(course)
         held.arrived.await()
         // The re-enable check opens for colors while the first request is out.
-        prefs.pendingConflictCategories = setOf(PendingCourseOverrides.category(color = true))
+        prefs.school.pendingConflictCategories.set(setOf(PendingCourseOverrides.category(color = true)), testSignIn())
         held.body = clockAhead
         held.release(409)
         sent.await()
@@ -93,7 +94,7 @@ class ClockAheadHoldTest {
         assertTrue(overrides.hasPending())
 
         // The hold lifts: the next sync sends it, and it clears.
-        prefs.pendingConflictCategories = emptySet()
+        prefs.school.pendingConflictCategories.set(emptySet(), testSignIn())
         overrides.retry(signIn)
         assertEquals(2, backend.received(course).size)
         assertFalse(overrides.hasPending())

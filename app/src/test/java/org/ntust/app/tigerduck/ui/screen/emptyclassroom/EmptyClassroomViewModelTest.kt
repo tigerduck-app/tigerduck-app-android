@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.emptyclassroom.RoomSlotUse
 import org.ntust.app.tigerduck.emptyclassroom.RoomUsage
 import org.ntust.app.tigerduck.mail.MainDispatcherRule
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import java.io.IOException
 import java.time.LocalDate
@@ -47,6 +48,7 @@ class EmptyClassroomViewModelTest {
         override val coursesChanged = MutableStateFlow(0)
         override val calendarChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         var account: String? = "B00000000"
+        val series = SignInSeries()
 
         /** Holds the next course read, which then returns the class table as it was asked for. */
         var courseReadGate: CompletableDeferred<Unit>? = null
@@ -54,6 +56,7 @@ class EmptyClassroomViewModelTest {
         override fun now() = now
         override fun calendar() = calendar
         override fun account() = account
+        override fun signIn() = series.current
         override suspend fun courses(): List<Course> {
             val asked = classTable
             courseReadGate?.let { courseReadGate = null; it.await() }
@@ -386,6 +389,26 @@ class EmptyClassroomViewModelTest {
         harness.serveDay(listOf(Pages.row("IB-508", "..............")))
         harness.model.appear()
         assertEquals(listOf("IB-305"), harness.state.classes.map { it.room })
+    }
+
+    @Test
+    fun `a course read from before a sign-out shows nothing, the same student back or not`() {
+        val harness = Harness(time(14, 10, 5))
+        harness.serveDay(listOf(Pages.row("IB-508", "..............")))
+        harness.env.classTable = listOf(networking("TR-214"))
+        harness.model.appear()
+
+        val departing = CompletableDeferred<Unit>()
+        harness.env.courseReadGate = departing
+        harness.env.classTable = listOf(networking("IB-305"))
+        harness.model.reloadCourses()
+
+        // The sign-in ended and the next opened, and the screen has yet to hear of either.
+        harness.env.series.end()
+        harness.env.series.open()
+        departing.complete(Unit)
+
+        assertEquals(listOf("TR-214"), harness.state.classes.map { it.room })
     }
 
     @Test

@@ -24,6 +24,8 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.demo.DemoAccount
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
@@ -56,6 +58,7 @@ class ScoreViewModel internal constructor(
     private val recordStatus: (ServerKind, ServerStatus) -> Unit = { server, status -> ServerStatusTracker.set(status, server) },
 ) : ViewModel() {
 
+    @OptIn(StartsAccountWork::class)
     @Inject
     constructor(
         @ApplicationContext context: Context,
@@ -64,6 +67,7 @@ class ScoreViewModel internal constructor(
         networkChecker: NetworkChecker,
         demoAccount: DemoAccount,
         dataCache: DataCache,
+        sessions: AccountSessions,
     ) : this(
         authState = authService.authState,
         storedStudentId = { authService.storedStudentId },
@@ -71,7 +75,7 @@ class ScoreViewModel internal constructor(
         cachedSnapshot = scoreService::cachedScoreReport,
         fetchReport = { id, password, force ->
             if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.SCORE_SYSTEM)
-            scoreService.fetchScoreReport(id, password, forceRefresh = force)
+            scoreService.fetchScoreReport(id, password, sessions.school.current, forceRefresh = force)
         },
         isOnline = networkChecker::isAvailable,
         isDemo = { demoAccount.isActive },

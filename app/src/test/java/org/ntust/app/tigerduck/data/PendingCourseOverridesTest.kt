@@ -24,6 +24,7 @@ import java.io.File
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * A colour or a name set on the class table whose PATCH failed ([PendingCourseOverrides]), over
@@ -401,13 +402,13 @@ class PendingCourseOverridesTest {
     @Test
     fun `a 404 for a course no longer on this phone lets its change go at once`() = runTest {
         val course = Course(courseNo = "MA1010002", courseName = "Calculus", moodleIdNumber = calculus)
-        cache.saveCourses(listOf(course), term)
+        cache.saveCourses(listOf(course), term, testSignIn())
         answer = refused(404)
         overrides.send(calculus, colorHex = "#FF0000", semester = term, courseNo = course.courseNo, signIn = signIn)
         assertTrue("still on this phone: the row may yet be uploaded", overrides.hasPending())
 
         // Deleted on another device, and gone from here with the sync's prune.
-        cache.saveCourses(emptyList(), term)
+        cache.saveCourses(emptyList(), term, testSignIn())
         overrides.retry(signIn)
         assertFalse(overrides.hasPending())
     }

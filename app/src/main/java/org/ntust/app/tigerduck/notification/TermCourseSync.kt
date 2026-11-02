@@ -124,7 +124,7 @@ class TermCourseSync internal constructor(
         signIn: SignIn,
     ): Boolean {
         if (!signIn.isCurrent) return false
-        val terms = rosterRequestLog.termsToAsk(requests, dataCache.userDataGeneration, clock())
+        val terms = rosterRequestLog.termsToAsk(requests, signIn, clock())
         for (term in terms) {
             Log.i(TAG, "roster requested for $term")
             sync(studentId, password, term, rosterRequested = true, signIn = signIn)
@@ -168,8 +168,6 @@ class TermCourseSync internal constructor(
         if (!signIn.isCurrent) return true
         val servesSelection = sources.servesSelection(semester)
         if (rosterRequested && !servesSelection) return true
-        // Before the fetch: a sign-out while it runs drops its roster.
-        val generation = dataCache.writeGeneration()
         val (selectionNos, moodleAll) = coroutineScope {
             val selectionDef = async {
                 if (!servesSelection) return@async emptyList()
@@ -199,7 +197,7 @@ class TermCourseSync internal constructor(
 
         // Before the merge below rewrites the cache — see DataCache.recordSelectionRoster. The
         // fetch's version of the term: a newer answer recorded meanwhile supersedes its rows.
-        val recorded = selectionNos?.let { dataCache.recordSelectionRoster(semester, it, generation) }
+        val recorded = selectionNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }
         // A newer answer's fetch, or a wipe, has the term already: nothing to commit or send, and nothing to retry.
         if (recorded == RecordedSelection.Refused) return true
         val answer = recorded?.answer
@@ -245,7 +243,7 @@ class TermCourseSync internal constructor(
             val locale = courseLocale()
             // Uploaded as written: what the commit left out stays off the server too.
             val merged = commitFetchedTerm(
-                dataCache, semester, fetched, term.onlyGains, answer,
+                dataCache, semester, fetched, term.onlyGains, answer, signIn,
                 waitingAdds = { waitingAdds(semester) },
             ) { rows, current, hidden ->
                 ClassTableCourseMerge.mergeFetched(

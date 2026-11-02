@@ -378,6 +378,6 @@ class PendingCourseOverrides internal constructor(
 
         /** Whether they go out: they sync, and no re-enable check of theirs is pending. */
         fun sends(prefs: AppPreferences, color: Boolean): Boolean =
-            records(prefs, color) && category(color) !in prefs.pendingConflictCategories
+            records(prefs, color) && category(color) !in prefs.school.pendingConflictCategories.get()
     }
 }

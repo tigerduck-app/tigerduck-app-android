@@ -37,7 +37,7 @@ internal class AssignmentMarkStep(
     interface MarkStore {
         suspend fun ignored(): Set<String>
         suspend fun completed(): Set<String>
-        suspend fun replace(ignored: Set<String>, completed: Set<String>)
+        suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn)
     }
 
     /**
@@ -141,7 +141,7 @@ internal class AssignmentMarkStep(
 
     // What Home shows is the session's on screen: a run past its sign-in changes none of it.
     private suspend fun commit(state: HomeSyncState, outcome: AssignmentOverrideReconciler.Outcome, signIn: SignIn) {
-        store.replace(outcome.ignored, outcome.completed)
+        store.replace(outcome.ignored, outcome.completed, signIn)
         signIn.ifCurrent {
             state.ignoredAssignmentIds.value = outcome.ignored
             state.markedCompletedIds.value = outcome.completed
@@ -159,14 +159,14 @@ internal class AssignmentMarkStep(
             send: suspend (assignmentId: Int, status: String, signIn: SignIn) -> Unit,
         ) = AssignmentMarkStep(
             switchOn = { prefs.syncAssignments },
-            pendingConflicts = { prefs.pendingConflictCategories },
-            syncedBefore = { prefs.assignmentMarksSyncedOnce },
+            pendingConflicts = { prefs.school.pendingConflictCategories.get() },
+            syncedBefore = { prefs.school.assignmentMarksSyncedOnce.get() },
             store = object : MarkStore {
                 override suspend fun ignored() = dataCache.loadIgnoredAssignments()
                 override suspend fun completed() = dataCache.loadMarkedCompletedAssignments()
-                override suspend fun replace(ignored: Set<String>, completed: Set<String>) {
-                    dataCache.replaceIgnoredAssignments(ignored)
-                    dataCache.replaceMarkedCompletedAssignments(completed)
+                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
+                    dataCache.replaceIgnoredAssignments(ignored, signIn)
+                    dataCache.replaceMarkedCompletedAssignments(completed, signIn)
                 }
             },
             send = send,

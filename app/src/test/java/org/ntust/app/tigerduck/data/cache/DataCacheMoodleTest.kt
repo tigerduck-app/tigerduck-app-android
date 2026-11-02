@@ -17,6 +17,8 @@ import org.ntust.app.tigerduck.network.model.moodle.MoodleAssignmentRecord
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseGrades
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleGradeItem
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -43,7 +45,7 @@ class DataCacheMoodleTest {
 
     @Test
     fun `a copy comes back with the time it was fetched, for its own account only`() = runTest {
-        cache.saveMoodleData(grades, 1234L, "courses/5/grades", "B11300001")
+        cache.saveMoodleData(grades, 1234L, "courses/5/grades", "B11300001", testSignIn())
 
         val loaded = cache.loadMoodleData<MoodleCourseGrades>(type, "courses/5/grades", "B11300001")
         assertEquals(grades, loaded!!.value)
@@ -53,7 +55,7 @@ class DataCacheMoodleTest {
 
     @Test
     fun `a copy in another shape reads as absent`() = runTest {
-        cache.saveMoodleData(grades, 1L, "courses/5/grades", "B11300001")
+        cache.saveMoodleData(grades, 1L, "courses/5/grades", "B11300001", testSignIn())
         val file = File(cache.moodleFilesDir("B11300001"), "courses/5/grades.json")
         file.writeText(file.readText().replace("\"v\":${DataCache.MOODLE_CACHE_SCHEMA}", "\"v\":0"))
 
@@ -62,7 +64,7 @@ class DataCacheMoodleTest {
 
     @Test
     fun `sign-out wipes every account's copies, pictures and downloaded files`() = runTest {
-        cache.saveMoodleData(grades, 1L, "courses/5/grades", "B11300001")
+        cache.saveMoodleData(grades, 1L, "courses/5/grades", "B11300001", testSignIn())
         val picture = File(cache.moodleFilesDir("B11300001"), "pictures/1-3").apply {
             parentFile!!.mkdirs()
             writeBytes(byteArrayOf(1))
@@ -82,7 +84,7 @@ class DataCacheMoodleTest {
 
     @Test
     fun `a name cannot climb out of the account's folder`() = runTest {
-        cache.saveMoodleData(grades, 1L, "../../escape", "B11300001")
+        cache.saveMoodleData(grades, 1L, "../../escape", "B11300001", testSignIn())
 
         assertFalse(File(context.cacheDir, "escape.json").exists())
         assertEquals(grades, cache.loadMoodleData<MoodleCourseGrades>(type, "escape", "B11300001")!!.value)
@@ -141,7 +143,7 @@ class DataCacheMoodleTest {
     fun `the assignment records come back whole, and go with the account's data`() = runTest {
         val records = listOf(record(701), record(702))
 
-        assertTrue(cache.saveAssignmentRecords(records))
+        assertTrue(cache.saveAssignmentRecords(records, testSignIn()))
 
         assertEquals(records, cache.loadAssignmentRecords())
         assertEquals(1, cache.assignmentRecordsVersion.value)
@@ -151,10 +153,12 @@ class DataCacheMoodleTest {
 
     @Test
     fun `records from a round the account signed out of are not kept`() = runTest {
-        val generation = cache.userDataGeneration
+        val series = SignInSeries()
+        val signIn = series.current
+        series.end()
         cache.clearAllUserData()
 
-        assertFalse(cache.saveAssignmentRecords(listOf(record(701)), generation))
+        assertFalse(cache.saveAssignmentRecords(listOf(record(701)), signIn))
 
         assertTrue(cache.loadAssignmentRecords().isEmpty())
         assertEquals(0, cache.assignmentRecordsVersion.value)
@@ -162,7 +166,7 @@ class DataCacheMoodleTest {
 
     @Test
     fun `records in another shape read as none`() = runTest {
-        cache.saveAssignmentRecords(listOf(record(701)))
+        cache.saveAssignmentRecords(listOf(record(701)), testSignIn())
         val file = File(context.cacheDir, "TigerDuckCache/moodle_assignments.json")
         file.writeText(file.readText().replace("\"v\":${DataCache.MOODLE_CACHE_SCHEMA}", "\"v\":0"))
 
@@ -173,8 +177,8 @@ class DataCacheMoodleTest {
     fun `every write of the assignments is announced`() = runTest {
         val before = cache.assignmentsVersion.value
 
-        cache.saveAssignments(emptyList())
-        cache.updateAssignments { it }
+        cache.saveAssignments(emptyList(), testSignIn())
+        cache.updateAssignments(testSignIn()) { it }
 
         assertEquals(before + 2, cache.assignmentsVersion.value)
     }

@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
 
 /**
@@ -38,10 +39,10 @@ class DataCacheFinalRosterTest {
 
     @Test
     fun `the drops are the earlier ones, the term's portal courses and those listed with it, but the roster`() = runTest {
-        cache.saveSelectionDroppedNos(mapOf(TERM to listOf("XD0000004"), "1142" to listOf("XJ0000009")))
-        cache.saveCourses(listOf(timed, junk, addedHere), TERM)
+        cache.saveSelectionDroppedNos(mapOf(TERM to listOf("XD0000004"), "1142" to listOf("XJ0000009")), testSignIn())
+        cache.saveCourses(listOf(timed, junk, addedHere), TERM, testSignIn())
 
-        cache.recordFinalRoster(TERM, roster = listOf("XA0000001", "XD0000004"), alsoListed = listOf("XN0000015"))
+        cache.recordFinalRoster(TERM, roster = listOf("XA0000001", "XD0000004"), alsoListed = listOf("XN0000015"), testSignIn())
 
         assertEquals(setOf("XC0000003", "XN0000015"), dropped())
         assertEquals(listOf("XJ0000009"), cache.loadSelectionDroppedNos()["1142"])
@@ -49,18 +50,18 @@ class DataCacheFinalRosterTest {
 
     @Test
     fun `an empty final roster drops everything the term held, but a course added by hand`() = runTest {
-        cache.saveCourses(listOf(timed, junk, addedHere), TERM)
+        cache.saveCourses(listOf(timed, junk, addedHere), TERM, testSignIn())
 
-        cache.recordFinalRoster(TERM, roster = emptyList(), alsoListed = listOf("XH0000008"))
+        cache.recordFinalRoster(TERM, roster = emptyList(), alsoListed = listOf("XH0000008"), testSignIn())
 
         assertEquals(setOf("XA0000001", "XC0000003", "XH0000008"), dropped())
     }
 
     @Test
     fun `a final roster is no course selection answer`() = runTest {
-        cache.saveCourses(listOf(timed, addedHere), TERM)
+        cache.saveCourses(listOf(timed, addedHere), TERM, testSignIn())
 
-        cache.recordFinalRoster(TERM, roster = listOf("XA0000001"), alsoListed = emptyList())
+        cache.recordFinalRoster(TERM, roster = listOf("XA0000001"), alsoListed = emptyList(), testSignIn())
 
         assertFalse(File(context.filesDir, "TigerDuckData/selection_rosters.json").exists())
     }
@@ -72,16 +73,16 @@ class DataCacheFinalRosterTest {
      */
     @Test
     fun `a final roster lifts no hide of a course added by hand`() = runTest {
-        cache.saveCourses(listOf(timed, addedHere), TERM)
-        cache.recordSelectionRoster(TERM, listOf("XA0000001"))
-        cache.hideDeletedCourse(addedHere.courseNo, TERM, addedHere)
-        cache.saveCourses(listOf(timed), TERM)
+        cache.saveCourses(listOf(timed, addedHere), TERM, testSignIn())
+        cache.recordSelectionRoster(TERM, listOf("XA0000001"), testSignIn())
+        cache.hideDeletedCourse(addedHere.courseNo, TERM, addedHere, testSignIn())
+        cache.saveCourses(listOf(timed), TERM, testSignIn())
 
-        cache.recordFinalRoster(TERM, roster = listOf("XA0000001", "XF0000006"), alsoListed = emptyList())
+        cache.recordFinalRoster(TERM, roster = listOf("XA0000001", "XF0000006"), alsoListed = emptyList(), testSignIn())
 
         assertTrue("XF0000006" in CourseTombstoneKeys.hiddenIn(TERM, cache.loadDeletedCourseNos()))
         // The hide was marked: course selection's answer naming the course lifts it.
-        cache.recordSelectionRoster(TERM, listOf("XA0000001", "XF0000006"))
+        cache.recordSelectionRoster(TERM, listOf("XA0000001", "XF0000006"), testSignIn())
         assertFalse("XF0000006" in CourseTombstoneKeys.hiddenIn(TERM, cache.loadDeletedCourseNos()))
     }
 
@@ -92,12 +93,12 @@ class DataCacheFinalRosterTest {
         repeat(40) { round ->
             val roundCache = DataCache(JvmContext(), AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
             kotlinx.coroutines.runBlocking {
-                roundCache.saveCourses(listOf(junk), TERM)
-                roundCache.saveCourses(listOf(Course.fromSchedule("XK0000011", "Left")), "1142")
+                roundCache.saveCourses(listOf(junk), TERM, testSignIn())
+                roundCache.saveCourses(listOf(Course.fromSchedule("XK0000011", "Left")), "1142", testSignIn())
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     listOf(
-                        async { roundCache.recordFinalRoster(TERM, roster = emptyList(), alsoListed = emptyList()) },
-                        async { roundCache.recordSelectionRoster("1142", listOf("XL0000012")) },
+                        async { roundCache.recordFinalRoster(TERM, roster = emptyList(), alsoListed = emptyList(), testSignIn()) },
+                        async { roundCache.recordSelectionRoster("1142", listOf("XL0000012"), testSignIn()) },
                     ).forEach { it.await() }
                 }
                 val drops = roundCache.loadSelectionDroppedNos()

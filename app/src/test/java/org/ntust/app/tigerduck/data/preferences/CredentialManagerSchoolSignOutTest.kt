@@ -63,15 +63,13 @@ class CredentialManagerSchoolSignOutTest {
     }
 
     @Test
-    fun `the school sign-out moves the school account, and only it`() {
+    fun `the school sign-out leaves the library account where it was`() {
         credentials.ntustStudentId = "B10000001"
         libraryAccount("B10000001")
-        val school = credentials.schoolAccountGeneration
         val library = credentials.libraryAccountGeneration
 
         credentials.signOutSchoolAccount()
 
-        assertFalse(credentials.isSchoolAccount(school))
         assertEquals(library, credentials.libraryAccountGeneration)
     }
 

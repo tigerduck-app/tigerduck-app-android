@@ -153,10 +153,9 @@ class AppState @Inject constructor(
     val loadingState: StateFlow<LoadingState> = _loadingState
 
     /**
-     * `true` when on-device data could not be migrated cleanly (e.g. Keystore
-     * corruption wiped the credential store, or the user downgraded the app).
-     * The UI shows a non-dismissable dialog and calls [performFullReset] on
-     * confirm.
+     * `true` when on-device data could not be migrated cleanly (e.g. Keystore corruption wiped the
+     * credential store, or the user downgraded the app). The UI shows a non-dismissable dialog and
+     * calls [performFullReset] on confirm.
      */
     private val _needsUserReset = MutableStateFlow(false)
     val needsUserReset: StateFlow<Boolean> = _needsUserReset
@@ -692,6 +691,7 @@ class AppState @Inject constructor(
 
     @Suppress("unused")
     fun backgroundSync(
+        signIn: org.ntust.app.tigerduck.shared.account.SignIn,
         fetchCourses: suspend () -> Unit,
         fetchAssignments: suspend () -> Unit
     ) {
@@ -749,7 +749,7 @@ class AppState @Inject constructor(
             }
 
             if (changed) {
-                dataCache.saveCalendarEvents(cached)
+                dataCache.saveCalendarEvents(cached, signIn)
             }
 
             val hasCachedData = cached.isNotEmpty()

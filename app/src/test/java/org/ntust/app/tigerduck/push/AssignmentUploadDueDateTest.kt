@@ -16,6 +16,7 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import java.util.Date
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The `due_at` TigerSync is told: the date the student's work is due, a teacher's extension
@@ -54,6 +55,7 @@ class AssignmentUploadDueDateTest {
                 // One taken back to before the due date leaves the due date.
                 Assignment("9", "CS1", "CS1", "HW3", due, extensionDueDate = Date(due.time - DAY_MS)),
             ),
+            testSignIn(),
         )
 
         assertEquals(

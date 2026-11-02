@@ -36,6 +36,7 @@ import org.ntust.app.tigerduck.push.RosterRequestLog
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermReset
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The background's fetch of a term, the worker's and a roster request's, against a backend that
@@ -151,8 +152,8 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a roster request course selection does not answer sends nothing`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM)
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM, testSignIn())
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         for (failed in listOf(null, emptyList<String>())) {
             answer = failed
             sync.sync(STUDENT, PASSWORD, TERM, rosterRequested = true, signIn = signIn)
@@ -169,13 +170,13 @@ class TermCourseSyncTest {
 
     @Test
     fun `a term course selection does not answer goes up as no roster`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM)
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM, testSignIn())
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         // Not served: the term only gains the transcript's class.
         selectionTerm = OTHER_TERM
         sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         assertEquals(listOf(listOf(CS2, CS1) to null), uploads())
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1)), TERM, testSignIn())
 
         // Served, but one course's lookup has nothing to stand in for it: no roster may drop it.
         selectionTerm = TERM
@@ -245,7 +246,7 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a sign-out and sign-in as the same student during a background sync writes nothing from the old run`() = runTest {
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         selectionTerm = OTHER_TERM
         var switched = false
         val switching = object : TermCourseSync.Sources by sources {
@@ -255,7 +256,7 @@ class TermCourseSyncTest {
                     auth.logout()
                     cache.clearAllUserData()
                     tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
-                    cache.saveCourses(listOf(Course(courseNo = HAND, courseName = HAND)), TERM)
+                    cache.saveCourses(listOf(Course(courseNo = HAND, courseName = HAND)), TERM, testSignIn())
                 }
                 return sources.lookUp(semester, courseNo, moodle, kept)
             }
@@ -357,7 +358,7 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a roster read before a newer course selection answer commits and uploads nothing`() = runTest {
-        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM)
+        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM, testSignIn())
         val waiting = CompletableDeferred<Unit>()
         val goOn = CompletableDeferred<Unit>()
         val holding = object : TermCourseSync.Sources by sources {
@@ -386,8 +387,8 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a roster refused for an answer kept newer commits and uploads nothing`() = runTest {
-        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM)
-        cache.recordSelectionRoster(TERM, listOf(CS1, CS2), answeredAt = System.currentTimeMillis() + 3_600_000L)
+        cache.saveCourses(listOf(CS1, CS2).map { Course(courseNo = it, courseName = it) }, TERM, testSignIn())
+        cache.recordSelectionRoster(TERM, listOf(CS1, CS2), testSignIn(), answeredAt = System.currentTimeMillis() + 3_600_000L)
         answer = listOf(CS1)
 
         assertTrue(sync.sync(STUDENT, PASSWORD, TERM, signIn = signIn))
@@ -404,7 +405,7 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a reset during the fetch leaves its hand-added course gone`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM, testSignIn())
         answer = listOf(CS1)
         // The backend's requests in order: "DELETE" for the reset, else an upload's course numbers.
         val sent = mutableListOf<Any>()
@@ -419,7 +420,7 @@ class TermCourseSyncTest {
                         adds.removing {
                             resetHolds.complete(Unit)
                             fetchReady.await()
-                            ClassTableTermReset(cache).run(TERM) { sent.add("DELETE") }
+                            ClassTableTermReset(cache).run(TERM, testSignIn()) { sent.add("DELETE") }
                         }
                     }
                     resetHolds.await()
@@ -455,16 +456,16 @@ class TermCourseSyncTest {
      */
     @Test
     fun `a term only gaining whose every drawn course was dropped during its lookups saves and uploads none of them`() = runTest {
-        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM)
-        cache.saveScoreReport(transcriptListing(CS2), STUDENT)
+        cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1), Course(courseNo = HAND, courseName = HAND, isManual = true)), TERM, testSignIn())
+        cache.saveScoreReport(transcriptListing(CS2), STUDENT, testSignIn())
         selectionTerm = OTHER_TERM
         var dropped = false
         val dropping = object : TermCourseSync.Sources by sources {
             override suspend fun lookUp(semester: String, courseNo: String, moodle: MoodleEnrolledCourse?, kept: Course?): Course? {
                 if (!dropped) {
                     dropped = true
-                    cache.recordServerDrops(TERM, mapOf(CS1 to null))
-                    cache.saveSelectionDroppedNos(mapOf(TERM to listOf(CS2)))
+                    cache.recordServerDrops(TERM, mapOf(CS1 to null), testSignIn())
+                    cache.saveSelectionDroppedNos(mapOf(TERM to listOf(CS2)), testSignIn())
                 }
                 return sources.lookUp(semester, courseNo, moodle, kept)
             }

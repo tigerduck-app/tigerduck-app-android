@@ -19,6 +19,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.shared.Course
@@ -27,6 +29,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.model.CourseSearchRequest
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.SharedFetch
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
@@ -34,30 +37,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.util.toCreditsOrZero
-
-/**
- * How long an answer from a school server is handed to the next caller that
- * asks for the same thing — see [org.ntust.app.tigerduck.util.SharedFetch].
- * Long enough to cover the screens of one launch, short enough that nothing
- * automatic can serve a minute-old roster as new. A pull to refresh drops
- * what is kept (`expireSharedResults`), so it never gets one at all.
- */
-internal const val SHARED_ANSWER_WINDOW_MS = 60_000L
-
-/**
- * One course number looked up: [course] as it came back, and whether
- * QueryCourse [answered] with rows for it. When it did not, [course] is the
- * row the term already had, or Moodle's stand-in, or null for neither — see
- * [CourseService.lookupOrFallback]. As iOS `AppServiceBridge.LookedUpCourse`.
- */
-data class LookedUpCourse(val courseNo: String, val course: Course?, val answered: Boolean)
-
-sealed class CourseServiceError : Exception() {
-    class NotAuthenticated : CourseServiceError()
-    class RedirectedToSSO : CourseServiceError()
-    class NoCourseData : CourseServiceError()
-    data class NetworkError(val cause_: Exception) : CourseServiceError()
-}
 
 @Singleton
 class CourseService @Inject constructor(
@@ -67,6 +46,7 @@ class CourseService @Inject constructor(
     private val dataCache: DataCache,
     private val appPreferences: AppPreferences,
     private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
+    private val sessions: AccountSessions,
     @ApplicationScope appScope: CoroutineScope,
 ) {
     private val client: OkHttpClient get() = sessionManager.client
@@ -190,13 +170,19 @@ class CourseService @Inject constructor(
             applyAbbreviations(answer, language)
         }
 
-    /** The querycourse request behind [lookupCourse], written through to its cache. */
+    /**
+     * The querycourse request behind [lookupCourse], written through to its cache. A lookup is
+     * shared by whoever asks, and many who ask hold no sign-in: the one the file is written under
+     * is read here, where the request starts.
+     */
+    @OptIn(StartsAccountWork::class)
     private suspend fun fetchLookup(
         key: String,
         semester: String,
         courseNo: String,
         language: String,
     ): List<CourseSearchResult> {
+        val signIn = sessions.school.current
         val requestBody =
             gson.toJson(CourseSearchRequest.forCourseNo(courseNo, semester, language))
                 .toRequestBody("application/json".toMediaType())
@@ -211,7 +197,7 @@ class CourseService @Inject constructor(
 
         if (fresh.isNotEmpty()) {
             lookupCache[key] = DataCache.CourseLookupEntry(fresh, System.currentTimeMillis())
-            persistLookupCache()
+            persistLookupCache(signIn)
         }
         return fresh
     }
@@ -225,8 +211,8 @@ class CourseService @Inject constructor(
         }
     }
 
-    private suspend fun persistLookupCache() = lookupCacheMutex.withLock {
-        dataCache.saveCourseLookups(lookupCache.toMap())
+    private suspend fun persistLookupCache(signIn: SignIn) = lookupCacheMutex.withLock {
+        dataCache.saveCourseLookups(lookupCache.toMap(), signIn)
     }
 
     suspend fun searchCourses(

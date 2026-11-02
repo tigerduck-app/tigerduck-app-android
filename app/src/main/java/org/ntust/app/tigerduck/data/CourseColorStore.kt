@@ -56,8 +56,8 @@ class CourseColorStore @Inject constructor(
      * Keeps Moodle's course ids [ids]; a course waiting for its Moodle color among [courses] takes
      * it now, shown on the screens and the widgets.
      */
-    suspend fun saveMoodleIds(ids: Map<String, Int>, courses: List<Course>) {
-        dataCache.saveMoodleCourseIds(ids)
+    suspend fun saveMoodleIds(ids: Map<String, Int>, courses: List<Course>, signIn: SignIn) {
+        dataCache.saveMoodleCourseIds(ids, signIn)
         ensureMoodleColorsLoaded()
         val book = MoodleColorBook.shared
         book.setIds(ids)
@@ -111,7 +111,7 @@ class CourseColorStore @Inject constructor(
             version,
             signIn,
         )
-        dataCache.saveCourses(updated)
+        dataCache.saveCourses(updated, signIn)
         TigerDuckTheme.clearCourseColorMap()
         widgetUpdater.requestUpdate()
         _changeEvent.tryEmit(Unit)

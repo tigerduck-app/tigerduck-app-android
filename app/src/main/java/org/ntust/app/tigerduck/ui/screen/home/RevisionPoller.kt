@@ -293,7 +293,7 @@ internal suspend fun pollRevisionOnce(
     fetchRevision: suspend () -> Long,
     fetchChanges: suspend (sinceRevision: Long) -> SyncChangesPage?,
     lastKnownRevision: () -> Long,
-    setLastKnownRevision: (Long) -> Unit,
+    setLastKnownRevision: (Long, SignIn) -> Unit,
     currentSignIn: () -> SignIn,
     fullSyncsInFlight: () -> Int,
     retryUnsent: suspend (SignIn) -> Unit,
@@ -325,7 +325,7 @@ internal suspend fun pollRevisionOnce(
             Log.i(TAG, "[feed] since=$since plan=$plan")
             if (plan is ChangeFeedPlan.Advance) {
                 retryUnsent(startedIn)
-                if (!overtaken()) setLastKnownRevision(plan.to)
+                if (!overtaken()) setLastKnownRevision(plan.to, startedIn)
                 return RevisionPollOutcome.CHANGED
             }
         }

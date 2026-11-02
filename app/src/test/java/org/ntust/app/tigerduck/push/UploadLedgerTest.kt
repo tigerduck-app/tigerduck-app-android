@@ -29,10 +29,11 @@ class UploadLedgerTest {
     private val store = object : UploadLedgerStore {
         override var fingerprint: String? = null
         override var acceptedAtMs = 0L
-        override fun record(fingerprint: String, atMs: Long) {
-            this.fingerprint = fingerprint
-            acceptedAtMs = atMs
-        }
+    }
+
+    private fun record(fingerprint: String, atMs: Long) {
+        store.fingerprint = fingerprint
+        store.acceptedAtMs = atMs
     }
 
     private val ledger = UploadLedger(store) { now }
@@ -40,7 +41,7 @@ class UploadLedgerTest {
     private fun fingerprint(list: String, backend: String = BACKEND) = uploadFingerprint(backend, list)
 
     private suspend fun upload(list: String, current: Boolean = true) =
-        ledger.sendIfDue(fingerprint(list), { record -> if (current) record() }) { sends++ }
+        ledger.sendIfDue(fingerprint(list), { list, atMs -> if (current) record(list, atMs) }) { sends++ }
 
     @Test
     fun `an unchanged list is not sent again until six hours on`() = runTest {
@@ -63,14 +64,14 @@ class UploadLedgerTest {
 
     @Test
     fun `a failed upload is not recorded, so the next one goes`() = runTest {
-        runCatching { ledger.sendIfDue(fingerprint("[a]"), { it() }) { throw IOException("offline") } }
+        runCatching { ledger.sendIfDue(fingerprint("[a]"), ::record) { throw IOException("offline") } }
 
         assertTrue(upload("[a]"))
     }
 
     @Test
     fun `a list the server turned away waits a minute before it goes again, another list not at all`() = runTest {
-        runCatching { ledger.sendIfDue(fingerprint("[a]"), { it() }) { throw PushApiException("HTTP 500", 500) } }
+        runCatching { ledger.sendIfDue(fingerprint("[a]"), ::record) { throw PushApiException("HTTP 500", 500) } }
 
         assertFalse(upload("[a]"))
         assertTrue(upload("[b]"))
@@ -81,7 +82,7 @@ class UploadLedgerTest {
     }
 
     private suspend fun refuse(list: String, signIn: Int = 0, takesMs: Long = 0) = runCatching {
-        ledger.sendIfDue(fingerprint(list), { it() }, signIn = signIn) {
+        ledger.sendIfDue(fingerprint(list), ::record, signIn = signIn) {
             now += takesMs
             throw PushApiException("HTTP 500", 500)
         }
@@ -118,14 +119,14 @@ class UploadLedgerTest {
     fun `a refusal under one sign-in does not hold the next one's list`() = runTest {
         refuse("[a]", signIn = 1)
 
-        assertTrue(ledger.sendIfDue(fingerprint("[a]"), { it() }, signIn = 2) { sends++ })
+        assertTrue(ledger.sendIfDue(fingerprint("[a]"), ::record, signIn = 2) { sends++ })
     }
 
     @Test
     fun `a list sent always goes after a refusal`() = runTest {
-        runCatching { ledger.sendIfDue(fingerprint("[a]"), { it() }) { throw PushApiException("HTTP 500", 500) } }
+        runCatching { ledger.sendIfDue(fingerprint("[a]"), ::record) { throw PushApiException("HTTP 500", 500) } }
 
-        assertTrue(ledger.sendIfDue(fingerprint("[a]"), { it() }, always = true) { sends++ })
+        assertTrue(ledger.sendIfDue(fingerprint("[a]"), ::record, always = true) { sends++ })
     }
 
     @Test
@@ -141,7 +142,7 @@ class UploadLedgerTest {
         // (AuthTokenManager.runIfSignedIn); the record it is handed is the whole of what the
         // ledger writes, so nothing lands outside that lock.
         var recordedInside = false
-        ledger.sendIfDue(fingerprint("[a]"), { record -> record(); recordedInside = store.fingerprint != null }) { sends++ }
+        ledger.sendIfDue(fingerprint("[a]"), { list, atMs -> record(list, atMs); recordedInside = store.fingerprint != null }) { sends++ }
 
         assertTrue(recordedInside)
         assertFalse(upload("[a]"))
@@ -151,7 +152,7 @@ class UploadLedgerTest {
     fun `a forced upload goes whatever the ledger holds, and is recorded like any other`() = runTest {
         upload("[a]")
 
-        assertTrue(ledger.sendIfDue(fingerprint("[a]"), { it() }, always = true) { sends++ })
+        assertTrue(ledger.sendIfDue(fingerprint("[a]"), ::record, always = true) { sends++ })
 
         assertEquals(2, sends)
         assertFalse(upload("[a]"))
@@ -160,7 +161,7 @@ class UploadLedgerTest {
     @Test
     fun `a term reset waits for the upload in flight, so the list it records is forgotten too`() = runTest {
         val answer = CompletableDeferred<Unit>()
-        val inFlight = launch { ledger.sendIfDue(fingerprint("[a]"), { it() }) { answer.await() } }
+        val inFlight = launch { ledger.sendIfDue(fingerprint("[a]"), ::record) { answer.await() } }
         runCurrent()
         val reset = launch {
             ledger.holdingUploads {

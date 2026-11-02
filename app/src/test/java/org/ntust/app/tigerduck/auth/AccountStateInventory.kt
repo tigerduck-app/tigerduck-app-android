@@ -277,11 +277,13 @@ internal class AccountStateInventory(
 
     /**
      * Sources handed a file another source opens, under no constant of their own: the token stores
-     * and the owed unregister share the credential store CredentialManager opens.
+     * and the owed unregister share the credential store CredentialManager opens, and the school's
+     * keys the preferences AppPreferences opens.
      */
     private val sharedFiles = mapOf(
         "V3TokenStore.kt" to "tigerduck_credentials",
         "PendingUnregisterPrefs.kt" to "tigerduck_credentials",
+        "SchoolKeys.kt" to "tigerduck_prefs",
     )
 
     /**
@@ -673,7 +675,8 @@ internal class AccountStateInventory(
 
     /**
      * Whether [clearer] removes the key [name]: `remove(…)` of it, an alias of it set to an empty
-     * value, or for a family `startsWith(…)` of it beside a removal.
+     * value, `clear()` of an alias that is an [AccountKey][org.ntust.app.tigerduck.data.preferences.AccountKey],
+     * or for a family `startsWith(…)` of it beside a removal.
      */
     private fun removes(clearer: String, name: String, aliases: Set<String>): Boolean {
         val names = (aliases.map { Regex.escape(it) + "\\b" } + Regex.escape(quoted(name))).joinToString("|")
@@ -681,6 +684,7 @@ internal class AccountStateInventory(
         val assigned = aliases.joinToString("|") { Regex.escape(it) }.ifEmpty { "(?!)" }
         return Regex("""remove\(\s*(?:$names)""").containsMatchIn(clearer) ||
             Regex("""\b(?:$assigned)\s*=\s*$emptied""").containsMatchIn(clearer) ||
+            Regex("""\b(?:$assigned)\.clear\(\)""").containsMatchIn(clearer) ||
             ('*' in name && Regex("""startsWith\(\s*(?:$names)""").containsMatchIn(clearer) && "remove" in clearer)
     }
 

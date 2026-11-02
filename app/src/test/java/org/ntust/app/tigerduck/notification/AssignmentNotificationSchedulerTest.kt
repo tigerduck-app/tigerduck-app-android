@@ -15,6 +15,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -59,10 +60,10 @@ class AssignmentNotificationSchedulerTest {
     @Test
     fun `homework ignored or marked done gets no reminder, not even one`() = runTest {
         cache.saveAssignments(
-            listOf(dueInDays("open", 3), dueInDays("ignored", 3), dueInDays("marked", 3))
+            listOf(dueInDays("open", 3), dueInDays("ignored", 3), dueInDays("marked", 3)), testSignIn()
         )
-        cache.saveIgnoredAssignments(setOf("ignored"))
-        cache.saveMarkedCompletedAssignments(setOf("marked"))
+        cache.saveIgnoredAssignments(setOf("ignored"), testSignIn())
+        cache.saveMarkedCompletedAssignments(setOf("marked"), testSignIn())
 
         scheduler.scheduleAll(
             cache.loadOutstandingAssignments(),
