@@ -67,6 +67,9 @@ class LiveActivityManagerTest {
         /** What [scheduleAll] reports as the next class's start. */
         var nextClassStart: Long? = null
 
+        /** Runs as [scheduleAll] begins. */
+        var onScheduleAll: () -> Unit = {}
+
         override fun scheduleAll(
             coursesByTerm: Map<String, List<Course>>,
             skippedDates: Map<String, List<String>>,
@@ -75,6 +78,7 @@ class LiveActivityManagerTest {
             optedInHolidayIds: Set<Int>,
             startedFor: String?,
         ): Long? {
+            onScheduleAll()
             armedLeadSec = leadTimeSec
             armedCoursesByTerm = coursesByTerm
             return nextClassStart
@@ -351,6 +355,24 @@ class LiveActivityManagerTest {
         manager.stop()
 
         assertEquals(1, alarms.cancels)
+    }
+
+    /** The sign-out's stop runs as this refresh arms what it worked out. */
+    @Test
+    fun `what a refresh arms past its sign-out's stop goes as it ends`() {
+        val series = SignInSeries()
+        val manager = managerOn(AccountSession(series, liveScope))
+        appPrefs.classReminderEnabled = true
+        alarms.nextClassStart = AppClock.nowMillis() + 60 * 60_000L
+        alarms.onScheduleAll = {
+            series.end()
+            manager.stop()
+        }
+
+        runBlocking { manager.refreshAndWait() }
+
+        assertNull(alarms.armedLeadSec)
+        assertEquals(emptyList<Long>(), refreshWakes())
     }
 
     @Test

@@ -21,6 +21,7 @@ import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -157,9 +158,7 @@ class LiveActivityManager internal constructor(
      * Takes the Live Update, the class reminders and their alarms down at
      * sign-out. The manager itself stays up: it used to stop for the rest of
      * the process, so after signing in again only a restart brought the Live
-     * Update back. The refresh queued here, unless the session is still closed,
-     * waits for any still running, finds nobody signed in, and takes down
-     * whatever that one put up.
+     * Update back. A refresh still running takes down what it armed as it ends.
      */
     fun stop() {
         boundaryScheduler.cancel()
@@ -168,12 +167,21 @@ class LiveActivityManager internal constructor(
         refresh()
     }
 
-    private suspend fun refreshInternal(quiet: Boolean = false) =
-        refreshLock.withLock { refreshLocked(quiet) }
-
-    private suspend fun refreshLocked(quiet: Boolean) {
+    private suspend fun refreshInternal(quiet: Boolean = false) = refreshLock.withLock {
         // Before the state: a sign-out in between ends what this refresh would post.
         val signIn = session.current
+        try {
+            refreshLocked(signIn, quiet)
+        } finally {
+            // What it armed past the sign-out's stop. The next sign-in's refresh waits for this lock.
+            if (!signIn.isCurrent) {
+                boundaryScheduler.cancel()
+                classPreparingScheduler.cancelAllTracked()
+            }
+        }
+    }
+
+    private suspend fun refreshLocked(signIn: SignIn, quiet: Boolean) {
         // authState, not a session-liveness check: everything below reads local JSON and the
         // academic calendar, so what matters is whether a user is signed in at all. The cookie
         // jar is in-memory: gating on it stopped the Live Update after every reboot or kill.
@@ -211,12 +219,7 @@ class LiveActivityManager internal constructor(
             // The other silent way to get no Live Update. Signing out stops it
             // just as completely as the feature toggle, and neither says so
             // anywhere.
-            if (BuildConfig.DEBUG) {
-                Log.d(
-                    TAG,
-                    "no live update: enabled=${preferences.isEnabled} signedIn=$signedIn",
-                )
-            }
+            if (BuildConfig.DEBUG) Log.d(TAG, "no live update: enabled=${preferences.isEnabled} signedIn=$signedIn")
             notifier.cancel()
             // With no Live Update to follow, the boundary alarm is kept only
             // for the class reminders: to clear a reminder's banner when its
@@ -249,11 +252,7 @@ class LiveActivityManager internal constructor(
         // "The resolver looked and found nothing", not the bail-outs above: a wrong timetable,
         // not a wrong clock, when a simulated class fails to show.
         if (BuildConfig.DEBUG && snapshot == null) {
-            Log.d(
-                TAG,
-                "no live update at $now: courses=${courses.size} " +
-                    "assignments=${assignments.size} quietToday=$quietToday",
-            )
+            Log.d(TAG, "no live update at $now: courses=${courses.size} assignments=${assignments.size} quietToday=$quietToday")
         }
         // In one step with the sign-in's end: nothing goes up after it, or the sign-out's stop follows.
         val spelledOut = signIn.ifCurrent { notifier.apply(snapshot, quiet) } ?: return
