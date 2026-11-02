@@ -22,13 +22,19 @@ import java.util.concurrent.CopyOnWriteArrayList
 /**
  * Answers every request in place of the backend, with the reply queued for its path or an empty
  * object, and keeps each request whole as it left the client: its method, its address, every
- * header and its body. [ahead] run first, as the shared client's interceptors run before a
- * request leaves.
+ * header, its body and the body's type. [ahead] run first, as the shared client's interceptors
+ * run before a request leaves.
  */
 internal class RecordingBackend(ahead: List<Interceptor> = emptyList()) {
-    class Sent(val method: String, val url: String, val headers: List<Pair<String, String>>, val body: String?)
+    class Sent(
+        val method: String,
+        val url: String,
+        val headers: List<Pair<String, String>>,
+        val body: String?,
+        val contentType: String? = null,
+    )
 
-    private class Reply(val code: Int, val body: String)
+    private class Reply(val code: Int, val body: String, val headers: Map<String, String>)
 
     private val replies = ConcurrentHashMap<String, ConcurrentLinkedQueue<Reply>>()
 
@@ -39,9 +45,12 @@ internal class RecordingBackend(ahead: List<Interceptor> = emptyList()) {
         .addInterceptor { chain -> answer(chain.request()) }
         .build()
 
-    /** Answers the next request to [path] (the URL's path, `/v3/sync/full`) with [code] and [body]. */
-    fun answer(path: String, code: Int, body: String) {
-        replies.getOrPut(path) { ConcurrentLinkedQueue() }.add(Reply(code, body))
+    /**
+     * Answers the next request to [path] (the URL's path, `/v3/sync/full`) with [code], [body] and
+     * [headers].
+     */
+    fun answer(path: String, code: Int, body: String, headers: Map<String, String> = emptyMap()) {
+        replies.getOrPut(path) { ConcurrentLinkedQueue() }.add(Reply(code, body, headers))
     }
 
     private fun answer(request: Request): Response {
@@ -50,13 +59,15 @@ internal class RecordingBackend(ahead: List<Interceptor> = emptyList()) {
             request.url.toString(),
             request.headers.map { (name, value) -> name to value },
             request.body?.let { Buffer().also(it::writeTo).readUtf8() },
+            request.body?.contentType()?.toString(),
         )
-        val reply = replies[request.url.encodedPath]?.poll() ?: Reply(200, "{}")
+        val reply = replies[request.url.encodedPath]?.poll() ?: Reply(200, "{}", emptyMap())
         return Response.Builder()
             .request(request)
             .protocol(Protocol.HTTP_1_1)
             .code(reply.code)
             .message("")
+            .apply { reply.headers.forEach { (name, value) -> header(name, value) } }
             .body(reply.body.toResponseBody("application/json".toMediaType()))
             .build()
     }
@@ -78,4 +89,21 @@ internal fun syncApiClientAt(base: String, backend: OkHttpClient): SyncApiClient
     val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
     tokens.save("access", "refresh", Long.MAX_VALUE)
     return SyncApiClient(AuthTokenManager(tokens, backend, prefs, "device-1"), prefs, backend)
+}
+
+/**
+ * A [PushApiClient] whose endpoint setting is [base], signed in with the pair `access`/`refresh`,
+ * reaching nothing but [backend]; [prefs] for a test that turns the switches.
+ */
+internal fun pushApiClientAt(
+    base: String,
+    backend: OkHttpClient,
+    prefs: AppPreferences = AppPreferences(JvmContext()),
+): PushApiClient {
+    prefs.announcementApiBaseUrlOverride = base
+    // Never the real backend, even past the recording one.
+    assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
+    val tokens = V3TokenStore(JvmContext().getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
+    tokens.save("access", "refresh", Long.MAX_VALUE)
+    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"))
 }
