@@ -479,6 +479,21 @@ class CourseDeletesChannelTest {
         assertEquals(mapOf(term to mapOf(typed to 20L)), queued())
     }
 
+    /**
+     * A removal of the course as added by hand, asked before a hide of it as enrolled, kept after
+     * it: the hide's moment is the one that stays, and its kind goes with it (X3).
+     */
+    @Test
+    fun `an older delete kept after a newer one leaves the newer one's kind`() = runTest {
+        val (deletes, _) = v4Deletes()
+        deletes.keep(term, typed, 1_790_000_000_020L, signIn, Course(courseNo = typed, courseName = "Enrolled", moodleIdNumber = "1151$typed"))
+        deletes.keep(term, typed, 1_790_000_000_010L, signIn, Course(courseNo = typed, courseName = "Typed", isManual = true))
+
+        deletes.retry(signIn)
+
+        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000020000&kind=hide"), backend.sent.map { it.url })
+    }
+
     /** Review Focus 5, on `/v4`. */
     @Test
     fun `an entry read under an ended sign-in is neither sent nor rewritten`() = runTest {

@@ -336,14 +336,16 @@ class PendingCourseDeletes internal constructor(
         lastStamp.updateAndGet { last -> maxOf(last, largest) }
     }
 
-    // A delete asked again keeps the later moment: it is the newer removal, and its [kind] is the
-    // one that goes. One asked before a course reset let go of the deletes is not kept at all;
-    // called under [mutex], by [edit].
+    // A delete asked again keeps the later moment: it is the newer removal, and its [kind] goes
+    // with it. An older ask kept after a newer one leaves both, the moment and the kind, the newer
+    // one's. One asked before a course reset let go of the deletes is not kept at all; called
+    // under [mutex], by [edit].
     private fun Map<String, Map<String, Long>>.with(semester: String, courseNo: String, queuedAt: Long, kind: String?) =
         if (queuedAt < forgottenBefore) {
             this
         } else {
-            sends.told(membershipField(semester, courseNo), kind)
+            val kept = this[semester]?.get(courseNo)
+            if (kept == null || queuedAt >= kept) sends.told(membershipField(semester, courseNo), kind)
             this + (semester to this[semester].orEmpty().let { it + (courseNo to maxOf(it[courseNo] ?: 0L, queuedAt)) })
         }
 
