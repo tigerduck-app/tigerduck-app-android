@@ -520,6 +520,18 @@ class CourseDeletesChannelTest {
         assertEquals(SendResult.Retry, result)
     }
 
+    /** Two asks at one moment are one moment kept: the later ask's kind goes with it. */
+    @Test
+    fun `a delete asked twice at one moment goes with the later ask's kind`() = runTest {
+        val (deletes, _) = v4Deletes()
+        deletes.keep(term, typed, 1_790_000_000_020L, signIn, Course(courseNo = typed, courseName = "Enrolled", moodleIdNumber = "1151$typed"))
+        deletes.keep(term, typed, 1_790_000_000_020L, signIn, Course(courseNo = typed, courseName = "Typed", isManual = true))
+
+        deletes.retry(signIn)
+
+        assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000020000&kind=remove"), backend.sent.map { it.url })
+    }
+
     /** Review Focus 5, on `/v4`. */
     @Test
     fun `an entry read under an ended sign-in is neither sent nor rewritten`() = runTest {
