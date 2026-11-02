@@ -185,7 +185,7 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   `sign-out-start` check fails the token manager's logout, School Mail's or the
   library's sign-out, or a drop of the school's or the library's credentials
   anywhere else. It takes no baseline entries.
-- `SyncCategory` (`app/.../sync/SyncCategory.kt`, coming): the four sync categories,
+- `SyncCategory` (`app/.../sync/SyncCategory.kt`): the four sync categories,
   each with today's stored string and the backend's `sync_*` name. A `when` on it has
   no `else`, so a new category does not compile until every rule answers for it.
 - `SyncPolicy` (`app/.../sync/SyncPolicy.kt`, coming): whether a category keeps,
