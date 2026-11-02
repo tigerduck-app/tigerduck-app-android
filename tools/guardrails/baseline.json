@@ -78,11 +78,6 @@
     "count": 2
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/PendingHolidayOverrides.kt",
-    "kind": "sync-switch-read",
-    "count": 1
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
     "kind": "long-file",
     "count": 1815
