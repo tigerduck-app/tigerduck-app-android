@@ -170,6 +170,22 @@ class StoredAccountSignInTest {
         assertEquals(emptyList<String>(), backend.endpoints())
     }
 
+    /** The token the harvest brings back may be the next account's, and must not go as this one's. */
+    @Test
+    fun `a sign-out during a harvest that answered sends no login`() = runTest {
+        storedToken = null
+        val signIn = manager.session.signIns.current
+        harvest = {
+            manager.logout()
+            manager.session.open()
+            "next-account"
+        }
+
+        assertEquals(SignInAttempt.FAILED, signIn(signIn))
+
+        assertEquals(emptyList<String>(), backend.endpoints())
+    }
+
     /** As while the session is closed, with a clearing that left the password behind. */
     @Test
     fun `a sign-in that has ended posts no password and sends nothing`() = runTest {

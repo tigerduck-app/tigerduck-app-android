@@ -147,6 +147,23 @@ class RequestsCarryTheirSignInTest {
         assertEquals(listOf("Bearer access-a"), backend.received(FULL_SYNC).map { it.authorization })
     }
 
+    /** The relogin itself says no: its reply came too late for the sign-in that asked. */
+    @Test
+    fun `a sign-out during the relogin replays nothing`() = runTest {
+        backend.answer(FULL_SYNC, 401)
+        manager.signInWithStoredAccount = {
+            nextStudentSignsIn()
+            SignInAttempt.SIGNED_IN
+        }
+
+        val failure = runCatching {
+            retryingAfterRelogin(first, manager::signInAgain) { signIn -> sync.fetchFullSync(signIn) }
+        }.exceptionOrNull()
+
+        assertTrue("the refusal stands, got $failure", failure is PushApiException)
+        assertEquals(listOf("Bearer access-a"), backend.received(FULL_SYNC).map { it.authorization })
+    }
+
     @Test
     fun `a replay under the sign-in that stands goes with the pair its relogin got`() = runTest {
         backend.answer(FULL_SYNC, 401)

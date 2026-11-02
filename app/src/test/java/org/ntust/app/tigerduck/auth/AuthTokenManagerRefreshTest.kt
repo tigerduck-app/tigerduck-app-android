@@ -741,6 +741,45 @@ class AuthTokenManagerRefreshTest {
         assertEquals("refresh-1", tokens.refreshToken)
     }
 
+    /**
+     * The sign-out lands between the relogin's answer and the token it hands back. A caller that
+     * shared the relogin goes on first, unconfined, as the attempt completes, and signs out.
+     */
+    @Test
+    fun `a sign-out right after the relogin gives the old request none of the next pair`() = runBlocking {
+        val manager = manager(Reply.Status(401))
+        val signIn = manager.session.signIns.current
+        manager.noteRefused("access-1")
+        manager.signInWithStoredAccount = {
+            launch(Dispatchers.Unconfined) {
+                manager.signInAgain(signIn)
+                manager.logout()
+                manager.session.open()
+                tokens.save("access-b", "refresh-b", clock + 900_000)
+            }
+            tokens.save("access-relogin", "refresh-relogin", clock + 900_000)
+            SignInAttempt.SIGNED_IN
+        }
+
+        assertNull(manager.authHeader())
+
+        assertEquals("the next student's pair stands", "refresh-b", tokens.refreshToken)
+    }
+
+    /** Dropped here, the sign-out would find no session, and owe no unregister. */
+    @Test
+    fun `a sign-in that ended during the relogin leaves the pair for the sign-out to take`() = runTest {
+        val manager = manager(Reply.Status(401))
+        manager.signInWithStoredAccount = {
+            manager.session.signIns.end()
+            SignInAttempt.FAILED
+        }
+
+        assertNull(manager.authHeader())
+
+        assertEquals("refresh-1", manager.logout()?.refreshToken)
+    }
+
     /** The student is the same throughout: only the sign-in tells the two sessions apart. */
     @Test
     fun `a refresh reply across a sign-out and the same student's next sign-in leaves the new pair`() = runTest {

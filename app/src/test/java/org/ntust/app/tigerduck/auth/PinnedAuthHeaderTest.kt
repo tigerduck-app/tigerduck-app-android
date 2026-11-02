@@ -49,6 +49,23 @@ class PinnedAuthHeaderTest {
         assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
     }
 
+    @Test
+    fun `a request of an ended sign-in sets off no sign-in`() = runTest {
+        var signIns = 0
+        manager.signInWithStoredAccount = {
+            signIns++
+            SignInAttempt.NOTHING_TO_SEND
+        }
+        val signIn = manager.session.signIns.current
+        manager.logout()
+        manager.session.open()
+
+        val header = runCatching { manager.requireAuthHeader(signIn) }
+
+        assertTrue("got ${header.getOrNull()}", header.exceptionOrNull() is NotSignedInException)
+        assertEquals(0, signIns)
+    }
+
     /** Neither the next account's token, nor a refresh of its pair for a request that isn't its own. */
     @Test
     fun `a request that set off a sign-in gets nothing when a sign-out lands during it`() = runTest {
