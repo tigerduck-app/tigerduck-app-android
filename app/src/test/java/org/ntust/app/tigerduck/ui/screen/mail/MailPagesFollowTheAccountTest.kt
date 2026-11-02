@@ -91,14 +91,29 @@ class MailPagesFollowTheAccountTest {
         assertEquals(emptyList<Long>(), list.state.value.displayed.map { it.uid })
     }
 
+    private fun compose() = SchoolMailComposeViewModel(
+        SavedStateHandle(mapOf("mode" to ComposeMode.NEW.name, "folder" to "", "uid" to -1L, "mailto" to "")),
+        repo, account, cache, PickedAttachmentReader { null }, notices, main.dispatcher,
+        HeldSendStore(File(tmp.root, "held")),
+    )
+
+    @Test
+    fun `compose keeps the contacts across a password typed again`() {
+        repo.correspondence = listOf(mailSummary(1, from = MailAddress("Someone", "someone@example.com")))
+        val compose = compose()
+        run()
+        compose.updateRecipients(RecipientSlot.TO) { it.typed(emptyList(), "someone") }
+
+        runBlocking { account.signIn("b10000001", "pw") }
+        run()
+
+        assertEquals(1, compose.state.value.suggestions(RecipientSlot.TO).size)
+    }
+
     @Test
     fun `compose hears a sign-out and a sign-in landing before it runs`() {
         repo.correspondence = listOf(mailSummary(1, from = MailAddress("Someone", "someone@example.com")))
-        val compose = SchoolMailComposeViewModel(
-            SavedStateHandle(mapOf("mode" to ComposeMode.NEW.name, "folder" to "", "uid" to -1L, "mailto" to "")),
-            repo, account, cache, PickedAttachmentReader { null }, notices, main.dispatcher,
-            HeldSendStore(File(tmp.root, "held")),
-        )
+        val compose = compose()
         run()
         compose.updateRecipients(RecipientSlot.TO) { it.typed(emptyList(), "someone") }
         assertTrue(compose.state.value.suggestions(RecipientSlot.TO).isNotEmpty())

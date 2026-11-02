@@ -9,7 +9,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Collections
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /** An account's signed-in flag, and telling of its changes in one hold with it. */
@@ -52,23 +54,30 @@ class SignedInStateTest {
     }
 
     @Test
-    fun `two threads tell in the order they changed it`() {
-        // Round after round the last thing told has to be what the flag reads, wherever the two
-        // land: a sign-out told after a sign-in it came before would leave a page signed out.
-        repeat(2_000) {
-            val state = SignedInState(initial = false)
-            val told = java.util.Collections.synchronizedList(mutableListOf<Boolean>())
-            val start = CountDownLatch(1)
-            val threads = listOf(true, false).map { value ->
-                thread {
-                    start.await()
-                    state.set(value) { changed -> if (changed) told += value }
-                }
+    fun `a change waits for the telling of the one before it`() {
+        // A sign-out told after a sign-in it came before would leave a page signed out.
+        val state = SignedInState(initial = false)
+        val told = Collections.synchronizedList(mutableListOf<Boolean>())
+        val telling = CountDownLatch(1)
+        val letGo = CountDownLatch(1)
+        val signIn = thread {
+            state.set(true) {
+                telling.countDown()
+                letGo.await(5, TimeUnit.SECONDS)
+                told += true
             }
-            start.countDown()
-            threads.forEach { it.join() }
-            assertEquals(state.signedIn.value, told.lastOrNull() ?: false)
         }
+        telling.await(5, TimeUnit.SECONDS)
+        val signOut = thread { state.set(false) { told += false } }
+
+        signOut.join(200)
+        assertTrue("it waits", signOut.isAlive)
+        letGo.countDown()
+        signIn.join(5_000)
+        signOut.join(5_000)
+
+        assertEquals(listOf(true, false), told.toList())
+        assertFalse(state.signedIn.value)
     }
 
     @Test

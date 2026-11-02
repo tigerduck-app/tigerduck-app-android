@@ -170,6 +170,19 @@ class MoodleCourseRepositoryTest {
     }
 
     @Test
+    fun `a sign-in drops nothing built as it lands`() = runTest {
+        authState.value = false
+        val repository = repository()
+        runCurrent()
+
+        authState.value = true
+        val built = repository.store(5)
+        runCurrent()
+
+        assertSame(built, repository.store(5))
+    }
+
+    @Test
     fun `the state the account starts in clears nothing`() = runTest {
         val session = AccountSession(SignInSeries(), backgroundScope)
         session.signedInFrom(MutableStateFlow(false))

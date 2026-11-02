@@ -6,7 +6,10 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -207,6 +210,40 @@ class AccountEventsTest {
         run()
 
         assertEquals(listOf(true), seen)
+    }
+
+    @Test
+    fun `a sign-in by hand is no sign-in to a page until the account shows as signed in`() {
+        state.set(false)
+        val seen = followChanges()
+
+        session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = true))
+        run()
+        assertEquals(listOf(false), seen)
+
+        signIn()
+        run()
+        assertEquals(listOf(false, true), seen)
+    }
+
+    @Test
+    fun `a step cancelled with its reactor takes the events behind it along`() {
+        // A stream that does not look for itself, unlike the shared one.
+        val two = object : Flow<Int> {
+            override suspend fun collect(collector: FlowCollector<Int>) {
+                collector.emit(1)
+                collector.emit(2)
+            }
+        }
+        val seen = mutableListOf<Int>()
+        scope.follow(two) {
+            seen += it
+            currentCoroutineContext().cancel()
+            delay(1_000)
+        }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(1), seen)
     }
 
     @Test
