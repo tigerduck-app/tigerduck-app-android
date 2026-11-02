@@ -334,6 +334,20 @@ class AccountSwitchTest {
     }
 
     @Test
+    fun `a sign-out landing between the store and the showing shows nothing`() = runBlocking {
+        val w = accountWorld(context, prefs("tigerduck_credentials"), signOutScope, idleScope)
+        val following = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            w.sessions.events.collect { if (it is AccountEvent.SignedIn && it.byHand) w.auth.logout() }
+        }
+
+        assertFalse(w.auth.login(FIRST, "first-password"))
+        following.cancel()
+
+        assertFalse(w.auth.authState.value)
+        assertEquals(null, w.auth.storedStudentId)
+    }
+
+    @Test
     fun `a typed sign-in cancelled as the backend's reply lands still starts the settings copy`() = runBlocking {
         val credentialPrefs = prefs("tigerduck_credentials")
         credentialPrefs.edit()

@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -24,6 +25,7 @@ import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.auth.session.accountEventStream
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.index.InMemoryMailSearchIndex
 import org.ntust.app.tigerduck.mail.index.MailSearchIndex
@@ -36,6 +38,7 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import org.ntust.app.tigerduck.util.testSignIn
 
 @OptIn(StartsAccountWork::class)
 class MailAccountTest {
@@ -273,6 +276,29 @@ class MailAccountTest {
         assertEquals(1, told.size)
         assertNull((told.single() as AccountEvent.SignedOut).address)
         listening.cancel()
+    }
+
+    @Test
+    fun `its events are its own, and its changes follow its state`() = runTest {
+        val stream = accountEventStream()
+        val session = AccountSession(SignInSeries(), appScope, account = Account.MAIL, stream = stream)
+        val account = MailAccount(
+            credentials, state, server.factory(), cache, demo, schoolMailSite(), scheduler, notifier, appScope, session = session,
+        )
+        val told = mutableListOf<AccountEvent>()
+        val changes = mutableListOf<Boolean>()
+        val following = CoroutineScope(Dispatchers.Unconfined)
+        following.launch(start = CoroutineStart.UNDISPATCHED) { account.events.collect { told += it } }
+        following.launch(start = CoroutineStart.UNDISPATCHED) { session.changes.collect { changes += it } }
+
+        stream.tryEmit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, testSignIn(), null))
+        assertEquals(emptyList<AccountEvent>(), told)
+
+        account.signIn("b10000001", "pw")
+        account.signOut()
+        following.cancel()
+
+        assertEquals(listOf(false, true, false), changes)
     }
 
     @Test

@@ -56,7 +56,10 @@ class AccountSession(
     @Volatile
     private var signedIn: StateFlow<Boolean>? = null
 
-    /** Names the state [changes] starts from. Its account's owner calls this as it is built. */
+    /**
+     * Names the state [changes] starts from. Its account's owner calls this as it is built; the
+     * library's does not yet, as no page follows it and a lapsed token moves its state unsaid.
+     */
     fun signedInFrom(state: StateFlow<Boolean>) {
         signedIn = state
     }
