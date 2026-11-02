@@ -188,7 +188,7 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
 - `SyncCategory` (`app/.../sync/SyncCategory.kt`): the four sync categories,
   each with today's stored string and the backend's `sync_*` name. A `when` on it has
   no `else`, so a new category does not compile until every rule answers for it.
-- `SyncPolicy` (`app/.../sync/SyncPolicy.kt`, coming): whether a category keeps,
+- `SyncPolicy` (`app/.../sync/SyncPolicy.kt`): whether a category keeps,
   sends or applies, from the master switch, the flavor, the category switches, the
   re-enable hold and last writer wins, read once through `SyncPolicies.current`. The
   `sync-switch-read` ratchet counts lines naming a switch or the hold anywhere but
