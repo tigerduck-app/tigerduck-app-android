@@ -7,8 +7,9 @@ import java.io.File
 /**
  * The order every sync sends what waits to go up in today, read from the source as
  * `SyncWiringTest` reads it: Home's full sync and its revision poll (`retryUnsent`) and the
- * background worker each send the six queues one after the other, in one order. The outbox drains
- * its channels in that order, so moving the six onto it sends nothing in another order.
+ * background worker each send the six queues one after the other, in one order, [OutboxChannelId]'s.
+ * The outbox drains its channels in that order, so moving the six onto it sends nothing in another
+ * order. Until `Outbox.drain` takes their place (T3.23).
  */
 class OutboxOrderTest {
 
@@ -28,12 +29,19 @@ class OutboxOrderTest {
 
     private fun sendsIn(rel: String): List<String> = retry.findAll(source(rel)).map { it.groupValues[1] }.toList()
 
+    // The queue each channel is, by the name the syncs hold it under.
+    private val queueOf = mapOf(
+        OutboxChannelId.COURSE_IGNORES to "courseIgnoreSync",
+        OutboxChannelId.MARKS to "unsentMarks",
+        OutboxChannelId.COURSE_ADDS to "pendingCourseAdds",
+        OutboxChannelId.COURSE_DELETES to "pendingCourseDeletes",
+        OutboxChannelId.COURSE_OVERRIDES to "pendingCourseOverrides",
+        OutboxChannelId.HOLIDAYS to "pendingHolidayOverrides",
+    )
+
     @Test
-    fun `Home's sync and the worker send what waits in one order`() {
-        val today = listOf(
-            "courseIgnoreSync", "unsentMarks", "pendingCourseAdds", "pendingCourseDeletes", "pendingCourseOverrides",
-            "pendingHolidayOverrides",
-        )
+    fun `Home's sync and the worker send what waits in the outbox's order`() {
+        val today = OutboxChannelId.entries.map { queueOf.getValue(it) }
         assertEquals(today, sendsIn("ui/screen/home/HomeBackendSync.kt"))
         assertEquals(today, sendsIn("notification/BackgroundSyncWorker.kt"))
     }

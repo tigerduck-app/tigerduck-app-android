@@ -117,6 +117,7 @@ Scopes:
 | prefs | `tigerduck_browser_settings` | keys | |
 | prefs | `tigerduck_credentials` | keys | |
 | prefs | `tigerduck_live_activity` | keys | |
+| prefs | `tigerduck_outbox` | keys | |
 | prefs | `tigerduck_permissions` | keys | |
 | prefs | `tigerduck_prefs` | keys | |
 | prefs | `tigerduck_sync` | school | `AppPreferences.kt` `forgetLegacyLastCourseSyncAt` |
@@ -338,6 +339,7 @@ into `library_password_refusals` when it opens.
 | tigerduck_live_activity | `sound_assignment` | device | |
 | tigerduck_live_activity | `sound_class_preparing` | device | |
 | tigerduck_live_activity | `sound_in_class` | device | |
+| tigerduck_outbox | `firstRunMs` | device | |
 | tigerduck_permissions | `chip_grant_reread` | device | |
 | tigerduck_permissions | `declined_*` | device | |
 | tigerduck_permissions | `granted_*` | device | |
@@ -363,6 +365,12 @@ last backend clock value it saw, and the last `X-TigerSync-Clock` heard with the
 is the device's, not an account's, and is kept across a sign-out by the clock spec
 (`tigersync-clock`, "The clock state survives relaunch"): a stamp after a sign-out must still come
 after every value this device issued or saw. A full reset leaves it too.
+
+`tigerduck_outbox` holds the time this build first ran (`OldEntryTime`), recorded once as the
+process starts, before anything writes a queue. An edit an older build queued with no time is
+sent with the earliest time it is known to have existed, which that first run bounds (X1). It is
+the device's, not an account's: the queues' own files are cleared at a sign-out, and their entries
+with them. A full reset leaves it too.
 
 ## DataCache
 

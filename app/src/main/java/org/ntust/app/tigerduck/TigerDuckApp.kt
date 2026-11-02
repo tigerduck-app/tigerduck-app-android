@@ -57,6 +57,11 @@ class TigerDuckApp : Application(), Configuration.Provider {
     @Inject
     lateinit var dataMigration: DataMigration
 
+    // Injected so it exists from launch: built, it records this build's first run, before anything
+    // can write a queue (an edit an older build queued with no time is sent with that bound).
+    @Inject
+    lateinit var oldEntryTime: org.ntust.app.tigerduck.sync.outbox.OldEntryTime
+
     @Inject
     lateinit var dataCache: DataCache
 

@@ -4,13 +4,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.push.PushApiException
 import java.io.IOException
 
 /**
  * Which failures of a queued write count as the backend's refusal, which counts an attempt
  * towards parking, and which keep the edit as it is: today's answer, `CourseIgnoreSync.refuses`,
- * the one the marks and the course overrides count by, for every failure a `/v3` write throws.
+ * the one the marks and the course overrides count by, for every failure a `/v3` write throws;
+ * and the outbox's, which answers the same for each of them.
  */
 class SendResultTest {
 
@@ -36,5 +39,25 @@ class SendResultTest {
     @Test
     fun `today's refusals are the backend's answers but a session, a timeout, a busy or a failing server`() {
         for ((failure, refused) in today) assertEquals("$failure", refused, CourseIgnoreSync.refuses(failure))
+    }
+
+    @Test
+    fun `a failed send is a refusal by today's rule, and otherwise one to try again`() {
+        for ((failure, refused) in today) {
+            assertEquals("$failure", if (refused) SendResult.Refused else SendResult.Retry, SendResult.afterFailure(failure))
+        }
+    }
+
+    @Test
+    fun `a v4 refusal is read by its status, though it is an IOException`() {
+        fun v4(status: Int, code: String) = BackendException(BackendError(status, code), "$status $code")
+
+        assertEquals(SendResult.Refused, SendResult.afterFailure(v4(404, "course_not_found")))
+        assertEquals(SendResult.Refused, SendResult.afterFailure(v4(422, "hlc_required")))
+        assertEquals(SendResult.Refused, SendResult.afterFailure(v4(409, "clock_ahead")))
+        assertEquals(SendResult.Retry, SendResult.afterFailure(v4(401, "invalid_access_token")))
+        assertEquals(SendResult.Retry, SendResult.afterFailure(v4(429, "too_many_refresh_attempts")))
+        assertEquals(SendResult.Retry, SendResult.afterFailure(v4(503, "moodle_unreachable")))
+        assertEquals(SendResult.Retry, SendResult.afterFailure(v4(500, "internal_error")))
     }
 }
