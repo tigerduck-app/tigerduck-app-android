@@ -28,19 +28,13 @@ import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
-import org.ntust.app.tigerduck.data.PendingCourseDeletes
-import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.data.PendingHolidayOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.SyncSource
-import org.ntust.app.tigerduck.notification.TermCourseSync
-import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
-import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -90,38 +84,18 @@ class HomePullAcrossSignInTest {
         w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(w.appPrefs).overrideApplied)
-        val syncApi = SyncApiClient(w.tokens, w.appPrefs, backend.client)
-        marks = UnsentMarks(w.dataCache, w.pushApi, w.appPrefs)
-        adds = PendingCourseAdds(w.dataCache, w.pushApi)
-        ignores = CourseIgnoreSync(
+        val ignores = CourseIgnoreSync(
             w.dataCache,
             sender = { _, _, _, _, _ -> true },
             effects = { ignoresChanged() },
             sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
             clock = System::currentTimeMillis,
         )
-        sync = HomeBackendSync(
-            prefs = w.appPrefs,
-            dataCache = w.dataCache,
-            authService = w.auth,
-            authTokenManager = w.tokens,
-            syncApiClient = syncApi,
-            pushApiClient = w.pushApi,
-            notificationSettingsSync = w.notificationSettingsSync,
-            courseService = w.courseService,
-            semesterCatalog = w.semesterCatalog,
-            widgetUpdater = w.widgetUpdater,
-            academicCalendar = w.academicCalendar,
-            courseIgnoreSync = ignores,
-            unsentMarks = marks,
-            pendingCourseAdds = adds,
-            pendingCourseDeletes = PendingCourseDeletes(w.dataCache, adds, w.pushApi),
-            pendingCourseOverrides = PendingCourseOverrides(w.dataCache, w.pushApi, w.appPrefs),
-            pendingHolidayOverrides = PendingHolidayOverrides(w.appPrefs, w.pushApi),
-            reenableCheck = ReenableCheck(w.appPrefs, syncApi, w.dataCache, w.semesterCatalog, ignores, w.auth, w.sessions, idleScope, context),
-            termCourseSync = idleTermSync(),
-            appScope = idleScope,
-        )
+        val rig = homeSyncRig(context, w, backend.client, idleScope, ignores)
+        marks = rig.marks
+        adds = rig.adds
+        this.ignores = rig.ignores
+        sync = rig.sync
         signIn()
     }
 
@@ -129,27 +103,6 @@ class HomePullAcrossSignInTest {
     fun tearDown() {
         appScope.cancel()
     }
-
-    /** Asks the school nothing: the run's roster requests never reach it. */
-    private fun idleTermSync() = TermCourseSync(
-        w.dataCache,
-        sources = object : TermCourseSync.Sources {
-            override fun servesSelection(semester: String) = false
-            override suspend fun selection(studentId: String, password: String, fresh: Boolean) = emptyList<String>()
-            override suspend fun moodle() = emptyList<org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse>()
-            override suspend fun lookUp(
-                semester: String,
-                courseNo: String,
-                moodle: org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse?,
-                kept: Course?,
-            ) = kept
-        },
-        uploader = { _, _, _, _, _ -> },
-        waitingAdds = { emptySet() },
-        uploading = { block -> block() },
-        courseLocale = { "zh" },
-        uploadFailed = {},
-    )
 
     /** The student's school sign-in and backend session, as a sign-in leaves them. */
     private fun signIn() = runBlocking {

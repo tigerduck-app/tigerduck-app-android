@@ -23,6 +23,8 @@ import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.CourseTombstone
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncPolicy
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseColorPick
 import java.time.Instant
 import java.time.LocalDateTime
@@ -518,27 +520,25 @@ object CourseSyncReconciler {
      * reconcile in that window would answer for the user — it un-hides a
      * course deleted here while sync was off, because the server still lists
      * it, and Use Local could then no longer keep it deleted. iOS holds the
-     * course list the same way.
+     * course list the same way. [SyncPolicy.applies] is the rule.
      */
-    fun syncsCourseList(switchOn: Boolean, pendingConflictCategories: Set<String>): Boolean =
-        switchOn && REENABLE_CATEGORY !in pendingConflictCategories
-
-    private const val REENABLE_CATEGORY = "courses"
+    fun syncsCourseList(switchOn: Boolean, pendingConflictCategories: Set<String>) = applies(SyncCategory.COURSES, switchOn, pendingConflictCategories)
 
     /**
      * Whether a full sync applies the server's course colours: with their
      * switch on ([switchOn]), and not from switching colour sync back on
      * until the re-enable check finds no difference or the user has answered
      * it. Applied in that window, the server's colours would answer for the
-     * user, and Use Local could no longer keep this phone's. iOS holds the
-     * course overrides the same way.
+     * user, and Use Local could no longer keep this phone's. iOS holds the course overrides the same way.
      */
-    fun syncsCourseColors(switchOn: Boolean, pendingConflictCategories: Set<String>): Boolean =
-        switchOn && "course_colors" !in pendingConflictCategories
+    fun syncsCourseColors(switchOn: Boolean, pendingConflictCategories: Set<String>) = applies(SyncCategory.COURSE_COLORS, switchOn, pendingConflictCategories)
 
     /** [syncsCourseColors] for the custom names and their re-enable check. */
-    fun syncsCourseNames(switchOn: Boolean, pendingConflictCategories: Set<String>): Boolean =
-        switchOn && "course_names" !in pendingConflictCategories
+    fun syncsCourseNames(switchOn: Boolean, pendingConflictCategories: Set<String>) = applies(SyncCategory.COURSE_NAMES, switchOn, pendingConflictCategories)
+
+    // The policy over one category's switch and the hold, for the callers left until Z2.
+    private fun applies(category: SyncCategory, switchOn: Boolean, held: Set<String>): Boolean =
+        SyncPolicy(true, true, if (switchOn) setOf(category) else emptySet(), SyncCategory.of(held), false).applies(category)
 
     /**
      * What a full sync does with the server's `courses_reset_at`: whether to
