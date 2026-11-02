@@ -116,9 +116,9 @@ fun SubscriptionSettingsScreen(
                 viewModel.upsertRule(rule, target.replacingIndex)
                 editing = null
             },
-            onDelete = target.replacingIndex?.let { idx ->
+            onDelete = target.replacingIndex?.let {
                 {
-                    viewModel.deleteRule(idx)
+                    viewModel.deleteRule(target.rule)
                     editing = null
                 }
             },

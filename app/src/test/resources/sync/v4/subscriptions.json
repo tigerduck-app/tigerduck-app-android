@@ -1,0 +1,4 @@
+{"items": [
+  {"id": 41, "client_id": "0b7c6f2e-4a1d-4e8b-9c3f-2d5e8a1b7c90", "name": "Scholarships", "orgs": ["office"], "tags": ["scholarship"], "mode": "OR", "enabled": true, "revision": 3},
+  {"id": 42, "client_id": "5f3e2d1c-0b9a-4876-a5b4-c3d2e1f0a9b8", "name": null, "orgs": [], "tags": ["lecture", "event"], "mode": "AND", "enabled": false, "revision": 1}
+]}

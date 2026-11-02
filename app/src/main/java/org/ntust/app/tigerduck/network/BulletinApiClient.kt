@@ -9,8 +9,13 @@ import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.network.model.BulletinDetail
 import org.ntust.app.tigerduck.network.model.BulletinListResponse
+import org.ntust.app.tigerduck.network.model.SubscriptionListRequest
+import org.ntust.app.tigerduck.network.model.SubscriptionListRule
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.SubscriptionRuleRequest
 import org.ntust.app.tigerduck.network.model.SubscriptionsListResponse
@@ -73,10 +78,52 @@ class BulletinApiClient @Inject constructor(
 
     suspend fun fetchDetail(id: Int): BulletinDetail = getJson { it.bulletin(id) }
 
-    // v3 subscription CRUD — device_id is implicit via Bearer JWT.
+    // Subscriptions — device_id is implicit via Bearer JWT. Both versions read the list with one
+    // GET; v3 saves a rule at a time (create, update, delete), v4 the whole list ([saveSubscriptions]).
+
+    /** The API the subscriptions speak now: the version the endpoint setting's base names. */
+    fun subscriptionsApi(): BackendApi = BackendApi.of(baseUrl)
 
     suspend fun fetchSubscriptions(signIn: SignIn): SubscriptionsListResponse =
         getJsonAuthed(signIn) { service, auth -> service.subscriptions(auth) }
+
+    /**
+     * `/v4`: this device's rules become [rules], in one PUT of the whole list, each rule kept by
+     * its `client_id` (`docs/api-v4.md`, "Subscriptions"). Answers the rules as the backend keeps
+     * them, in the order sent. Nothing is sent to a base that does not speak `/v4`, whose PUT
+     * would make every rule anew, nor for a rule without a `client_id`, which the backend refuses.
+     */
+    suspend fun saveSubscriptions(rules: List<SubscriptionRule>, signIn: SignIn): List<SubscriptionRule> =
+        withContext(Dispatchers.IO) {
+            val base = baseUrl
+            if (BackendApi.of(base) != BackendApi.V4) {
+                throw BulletinApiException("saveSubscriptions: $base saves its rules one at a time")
+            }
+            val list = SubscriptionListRequest(
+                rules.map { rule ->
+                    SubscriptionListRule(
+                        clientId = rule.clientId ?: throw BulletinApiException("saveSubscriptions: a rule without a client_id"),
+                        name = rule.name,
+                        orgs = rule.orgs,
+                        tags = rule.tags,
+                        mode = rule.mode,
+                        enabled = rule.enabled,
+                    )
+                },
+            )
+            api.at(base).subscriptionList(authHeader(signIn), list).execute().use { response ->
+                val text = response.body.string()
+                if (!response.isSuccessful) {
+                    throw BackendException(
+                        BackendError(response.code, BackendError.codeIn(text)),
+                        "saveSubscriptions failed: HTTP ${response.code} $text",
+                    )
+                }
+                if (text.isBlank()) throw BulletinApiException("saveSubscriptions: empty body")
+                gson.fromJson(text, SubscriptionsListResponse::class.java)?.items
+                    ?: throw BulletinApiException("saveSubscriptions: null response")
+            }
+        }
 
     suspend fun createSubscription(rule: SubscriptionRule, signIn: SignIn): SubscriptionRule =
         withContext(Dispatchers.IO) {
