@@ -284,6 +284,57 @@ class SubscriptionListSavesTest {
         assertEquals(listOf("Scholarships" to true, "Grants" to true), vm.shown())
     }
 
+    /**
+     * A page opened again while a save is out reads the list. The backend reads it before that
+     * save lands, but its answer comes after the save has settled: it is older than what the page
+     * shows, so it is dropped. The saved change stays, and the next edit builds on it.
+     */
+    @Test
+    fun `a read answered after a save settled, from before it, is dropped`() {
+        val left = page.open(V4, "Scholarships", "Lectures")
+        val first = page.backend.hold(PUT)
+        page.onMain { left.toggleEnabled(0) }
+        first.awaitArrival()
+        page.close(left)
+        val read = page.backend.hold(GET, answeredOnArrival = true)
+
+        val again = page.reopen(shown = false)
+        read.awaitArrival()
+        first.release()
+        page.awaitSaves(1)
+        read.release()
+        page.awaitAnswers(again, 1)
+
+        assertEquals("the save stays", listOf("Scholarships" to false, "Lectures" to true), again.shown())
+        page.onMain { again.toggleEnabled(1) }
+        page.eventually("the next save is answered") { page.backend.events.count { it.startsWith("< $PUT") } == 2 }
+        assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
+    }
+
+    /** As above, and the next save is refused: it puts back the list the save left, not the dropped read's. */
+    @Test
+    fun `a read dropped after a save settled is not what a refusal puts back`() {
+        val left = page.open(V4, "Scholarships", "Lectures")
+        val first = page.backend.hold(PUT)
+        page.onMain { left.toggleEnabled(0) }
+        first.awaitArrival()
+        page.close(left)
+        val read = page.backend.hold(GET, answeredOnArrival = true)
+        val again = page.reopen(shown = false)
+        read.awaitArrival()
+        first.release()
+        page.awaitSaves(1)
+        read.release()
+        page.awaitAnswers(again, 1)
+
+        page.backend.refuseNext(PUT, 503, "{}")
+        page.onMain { again.toggleEnabled(1) }
+        page.awaitSaves(2)
+
+        assertTrue("got ${again.state.value.saveState}", again.state.value.saveState is SaveState.Failed)
+        assertEquals(listOf("Scholarships" to false, "Lectures" to true), again.shown())
+    }
+
     /** As above, through a page opened again while the first page's save is out. */
     @Test
     fun `a page opened again while a save is out shows that save's list`() {
@@ -303,6 +354,7 @@ class SubscriptionListSavesTest {
     }
 
     private companion object {
+        const val GET = "GET /v4/bulletin-subscriptions"
         const val PUT = "PUT /v4/bulletin-subscriptions"
     }
 }

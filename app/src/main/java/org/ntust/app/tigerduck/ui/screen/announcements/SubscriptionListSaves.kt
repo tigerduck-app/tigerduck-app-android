@@ -40,8 +40,9 @@ class SubscriptionListSaves @Inject constructor(
      * A sign-in's list as its saves know it: [rules], the newest list the student made, or the
      * backend's once the saves have settled; [agreed], the list as the backend last agreed to it,
      * which a refused save puts back; [save], how the saves stand, saving while one is waiting or
-     * out; and [edit], the number of the newest edit, by which an answer tells whether one came
-     * since its save went.
+     * out; [edit], the number of the newest edit, by which an answer tells whether one came since
+     * its save went; and [settled], how many saves have been answered or refused, by which a read
+     * tells whether one settled since it went.
      */
     data class Ledger(
         val signIn: SignIn,
@@ -49,6 +50,7 @@ class SubscriptionListSaves @Inject constructor(
         val agreed: List<SubscriptionRule>,
         val save: SaveState,
         val edit: Int,
+        val settled: Int = 0,
     )
 
     /** What the worker has done, counted on it alone, for tests to wait on. Nothing in the app reads it. */
@@ -86,18 +88,24 @@ class SubscriptionListSaves @Inject constructor(
         scope.launch { for (ignored in wake) drain() }
     }
 
+    /** How many of [signIn]'s saves have settled: what a read takes as it goes, for [loaded]. */
+    fun settled(signIn: SignIn): Int = _ledger.value?.takeIf { it.signIn === signIn }?.settled ?: 0
+
     /**
-     * A read of [signIn]'s list answered [rules], the backend's: the ledger takes them as what the
-     * backend holds. While a save of that sign-in is waiting or out, the list shown stays the
-     * newest the student made: the read may predate it, and an edit built on the read would drop
-     * what the waiting save holds. Once the saves have settled, the read is the list shown. A
-     * ledger of another sign-in, which has ended, gives way.
+     * A read of [signIn]'s list, which went when [readAt] of its saves had settled ([settled]),
+     * answered [rules], the backend's. Were another settled since, the read may predate its answer,
+     * which the ledger holds: the read is dropped. Otherwise the ledger takes it as what the backend
+     * holds. While a save of that sign-in is waiting or out, the list shown stays the newest the
+     * student made: the read may predate it, and an edit built on the read would drop what the
+     * waiting save holds. Once the saves have settled, the read is the list shown. A ledger of
+     * another sign-in, which has ended, gives way.
      */
-    fun loaded(signIn: SignIn, rules: List<SubscriptionRule>): Ledger = synchronized(lock) {
+    fun loaded(signIn: SignIn, rules: List<SubscriptionRule>, readAt: Int): Ledger = synchronized(lock) {
         val held = _ledger.value?.takeIf { it.signIn === signIn }
         val saving = waiting?.signIn === signIn || out?.signIn === signIn
         val next = when {
             held == null -> Ledger(signIn, rules, rules, SaveState.Idle, 0)
+            held.settled != readAt -> held
             saving -> held.copy(agreed = rules)
             else -> held.copy(rules = rules, agreed = rules)
         }
@@ -176,7 +184,8 @@ class SubscriptionListSaves @Inject constructor(
      * the same condition. A newer edit stays, and its own save follows.
      */
     private fun settle(save: Save, answer: Result<List<SubscriptionRule>>) {
-        val held = _ledger.value?.takeIf { it.signIn === save.signIn } ?: return
+        val found = _ledger.value?.takeIf { it.signIn === save.signIn } ?: return
+        val held = found.copy(settled = found.settled + 1)
         val newer = held.edit != save.edit
         _ledger.value = answer.fold(
             onSuccess = { kept ->

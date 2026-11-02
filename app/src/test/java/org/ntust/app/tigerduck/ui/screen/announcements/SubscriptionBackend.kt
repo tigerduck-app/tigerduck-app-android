@@ -34,8 +34,12 @@ class SubscriptionBackend {
         override fun toString() = "$method $path"
     }
 
-    /** A request kept waiting at the backend until [release]; [arrived] once it is there. */
-    class Held {
+    /**
+     * A request kept waiting at the backend until [release]; [arrived] once it is there. One
+     * [answeredOnArrival] is handled as it arrives and only its answer waits: a read of the list
+     * as it was then, answered late.
+     */
+    class Held(val answeredOnArrival: Boolean = false) {
         val arrived = CountDownLatch(1)
         private val go = CountDownLatch(1)
 
@@ -84,7 +88,8 @@ class SubscriptionBackend {
     }
 
     /** The next request to [route] (`PUT /v4/bulletin-subscriptions`) waits until the test releases it. */
-    fun hold(route: String): Held = Held().also { holds.getOrPut(route) { ConcurrentLinkedQueue() }.add(it) }
+    fun hold(route: String, answeredOnArrival: Boolean = false): Held =
+        Held(answeredOnArrival).also { holds.getOrPut(route) { ConcurrentLinkedQueue() }.add(it) }
 
     /** The next request to [route] is refused with [code] and [body], the backend unchanged. */
     fun refuseNext(route: String, code: Int, body: String) = answerNext(route, code, body)
@@ -114,12 +119,13 @@ class SubscriptionBackend {
         sent += Sent(request.method, path, request.header("Authorization"), body)
         if (!path.endsWith("/bulletins/taxonomy")) events += "> $route"
         val held = holds[route]?.poll()
+        val early = if (held?.answeredOnArrival == true) route(request, path, body) else null
         if (held != null) {
             held.arrived.countDown()
             held.awaitRelease()
         }
         // A held request is answered as its release says, and leaves a scripted answer to the next.
-        val scripted = if (held != null) held.refusal else refusals[route]?.poll()
+        val scripted = if (held != null) held.refusal ?: early else refusals[route]?.poll()
         val (code, reply) = scripted ?: route(request, path, body)
         if (!path.endsWith("/bulletins/taxonomy")) events += "< $route $code"
         return Response.Builder()

@@ -128,6 +128,8 @@ class SubscriptionSettingsViewModel @Inject constructor(
         loadJob?.cancel()
         val signIn = signInNow()
         val speaks = api.subscriptionsApi()
+        // A read that answers after a save has settled may predate that save's answer.
+        val readAt = listSaves.settled(signIn)
         loadJob = viewModelScope.launch {
             _state.update { it.copy(loadState = LoadState.Loading) }
             try {
@@ -139,7 +141,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
                     shownApi = speaks
                     if (speaks == BackendApi.V4) {
                         // What the page shows, and how the saves stand, are the app's saves' ledger.
-                        val ledger = listSaves.loaded(signIn, rules)
+                        val ledger = listSaves.loaded(signIn, rules, readAt)
                         _state.update { it.copy(rules = ledger.rules, loadState = LoadState.Loaded, saveState = ledger.save) }
                     } else {
                         _state.update { it.copy(rules = rules, loadState = LoadState.Loaded) }
