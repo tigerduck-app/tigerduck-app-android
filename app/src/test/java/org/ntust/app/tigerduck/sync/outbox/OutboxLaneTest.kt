@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.sync.outbox
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -375,6 +376,66 @@ class OutboxLaneTest {
         backend.reply(SendResult.Sent(null))
         draining.join()
         assertEquals(listOf("a"), backend.values)
+    }
+
+    @Test
+    fun `a refusal stored while a sign-out forgets the counts does not bring them back for the next student`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store, LanePolicy(Edit::field, 1, InMemoryAttempts(Edit::field)))
+        val first = series.current
+        val draining = launch { lane.drain(first) }
+        runCurrent()
+
+        // The refusal's storing reads the queue file, and the sign-out lands during that read: the
+        // sign-in ends and the outbox forgets what it counted (Outbox.forgetAccount).
+        val reading = CompletableDeferred<Unit>()
+        store.holdNextLoad = reading
+        backend.reply(SendResult.Refused)
+        runCurrent()
+        series.end()
+        lane.forgetMemory()
+        series.open()
+        reading.complete(Unit)
+        draining.join()
+
+        // The next student's edit, equal to the first's, has nothing counted against it.
+        backend.answer = { SendResult.Sent(null) }
+        lane.drain(series.current)
+        assertEquals(listOf("a", "a"), backend.values)
+    }
+
+    /** Counts in memory, with a sign-out landing right after one read of a count, as one on another thread can. */
+    private class SignOutAfterRead(private val book: InMemoryAttempts<Edit>) : AttemptBook<Edit> by book {
+        var onRead: (() -> Unit)? = null
+
+        override fun attempts(entry: Edit): Int = book.attempts(entry).also {
+            onRead?.let { signOut ->
+                onRead = null
+                signOut()
+            }
+        }
+    }
+
+    @Test
+    fun `a requeue whose sign-out lands as it reads a count does not bring the count back for the next student`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val counts = SignOutAfterRead(InMemoryAttempts(Edit::field))
+        val lane = lane(store, LanePolicy(Edit::field, 2, counts))
+        val first = series.current
+        backend.answer = { SendResult.Refused }
+        repeat(2) { lane.drain(first) }
+
+        // The sign-out ends the sign-in and the outbox forgets what it counted (Outbox.forgetAccount).
+        counts.onRead = {
+            series.end()
+            lane.forgetMemory()
+            series.open()
+        }
+        lane.requeueParked(first)
+
+        // The next student's equal edit has its two tries before it parks, as any edit has.
+        repeat(3) { lane.drain(series.current) }
+        assertEquals(4, backend.sent.size)
     }
 
     @Test

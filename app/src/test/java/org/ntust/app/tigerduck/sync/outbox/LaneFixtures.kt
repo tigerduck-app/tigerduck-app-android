@@ -28,7 +28,16 @@ internal class FakeStore(initial: List<Edit> = emptyList()) : LaneStore<Edit> {
     var entries: List<Edit> = initial
     val saves = mutableListOf<Pair<List<Edit>, SignIn>>()
 
-    override suspend fun load(): List<Edit> = entries
+    /** When set, the next read waits for it before it reads: a file read that takes its time. */
+    var holdNextLoad: CompletableDeferred<Unit>? = null
+
+    override suspend fun load(): List<Edit> {
+        holdNextLoad?.let {
+            holdNextLoad = null
+            it.await()
+        }
+        return entries
+    }
 
     override suspend fun save(entries: List<Edit>, signIn: SignIn): Boolean {
         saves += entries to signIn

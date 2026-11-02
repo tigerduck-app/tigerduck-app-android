@@ -107,9 +107,12 @@ class OutboxLane<E : Any>(
             if (!signIn.isCurrent) return@withLock
             val entries = loaded(signIn)
             val book = policy.attempts
-            val updated = entries.map {
-                if (book.attempts(it) >= policy.maxAttempts && due(it)) book.counted(it, policy.maxAttempts - 1, refused = false) else it
-            }
+            val requeued = entries.indices.filter { book.attempts(entries[it]) >= policy.maxAttempts && due(entries[it]) }.toSet()
+            if (requeued.isEmpty()) return@withLock
+            // Counted while the sign-in stands, in one step with its end; see [countedWhileCurrent].
+            val updated = countedWhileCurrent(signIn) {
+                entries.mapIndexed { i, entry -> if (i in requeued) book.counted(entry, policy.maxAttempts - 1, refused = false) else entry }
+            } ?: return@withLock
             if (updated != entries) store.save(updated, signIn)
         }
     }
@@ -168,9 +171,11 @@ class OutboxLane<E : Any>(
             val stored = entries[at]
             val updated = when (result) {
                 is SendResult.Sent -> entries.filterIndexed { i, _ -> i != at }
-                SendResult.Refused -> entries.replacedAt(at, book.counted(stored, book.attempts(stored) + 1, refused = true))
-                SendResult.WaitsForUpload ->
-                    entries.replacedAt(at, book.counted(stored, maxOf(book.attempts(stored), policy.maxAttempts), refused = true))
+                SendResult.Refused, SendResult.WaitsForUpload -> countedWhileCurrent(signIn) {
+                    val attempts = book.attempts(stored)
+                    val counted = if (result == SendResult.Refused) attempts + 1 else maxOf(attempts, policy.maxAttempts)
+                    entries.replacedAt(at, book.counted(stored, counted, refused = true))
+                } ?: return@withLock
                 SendResult.NotSent, SendResult.Retry -> return@withLock
             }
             if (result !is SendResult.Sent && book.attempts(updated[at]) >= policy.maxAttempts) {
@@ -179,6 +184,12 @@ class OutboxLane<E : Any>(
             if (updated != entries) store.save(updated, signIn)
         }
     }
+
+    // Runs [count], which may count in memory, only while [signIn] stands, in one step with its end
+    // (SignIn.ifCurrent): a sign-out that forgets the counts in memory ([forgetMemory]) while the store
+    // was read, or as a count was read, then never finds the departing student's count put back,
+    // for the next student's equal entry to inherit. Null when the sign-in has ended.
+    private fun <T> countedWhileCurrent(signIn: SignIn, count: () -> T): T? = signIn.ifCurrent(count)
 
     // Under [storeLock]. The entries as stored, each an older build wrote with no time given its
     // old-entry time, and written back under [signIn] before anything else writes the file, so no
