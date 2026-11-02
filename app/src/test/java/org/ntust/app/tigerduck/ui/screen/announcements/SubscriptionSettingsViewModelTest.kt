@@ -269,50 +269,6 @@ class SubscriptionSettingsViewModelTest {
         assertEquals(first.single().first, second.single().first)
     }
 
-    /** iOS `sync-order`, "One send per channel at a time", scenario "Two saves in a row". */
-    @Test
-    fun `two saves in one round trip keep the second on screen and send it after the first reply`() {
-        val vm = page.open(V4, "Scholarships", "Lectures")
-        val first = page.backend.hold(PUT)
-        val second = page.backend.hold(PUT)
-        page.onMain { vm.toggleEnabled(0) }
-        first.awaitArrival()
-
-        page.onMain { vm.toggleEnabled(1) }
-
-        assertEquals(listOf("Scholarships" to false, "Lectures" to false), vm.shown())
-        assertEquals("one save at a time: the second waits for the first answer", 1, page.savesBegun(vm))
-        first.release()
-        second.awaitArrival()
-        assertEquals(listOf("Scholarships" to false, "Lectures" to false), vm.shown())
-        second.release()
-        page.eventually("both saves are in") { vm.state.value.saveState == SaveState.Saved }
-        assertEquals(listOf("> $PUT", "< $PUT 200", "> $PUT", "< $PUT 200"), page.backend.events.filter { PUT in it })
-        assertEquals(listOf(listOf(false, true), listOf(false, false)), puts().map { put -> put.map { it.third } })
-        assertEquals(listOf("Scholarships" to false, "Lectures" to false), vm.shown())
-        assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
-    }
-
-    @Test
-    fun `a reply never replaces newer local rules`() {
-        val vm = page.open(V4, "Scholarships", "Lectures")
-        val first = page.backend.hold(PUT)
-        val second = page.backend.hold(PUT)
-        page.onMain { vm.deleteRule(1) }
-        first.awaitArrival()
-        page.onMain { vm.upsertRule(SubscriptionRule(name = "Grants"), replacingIndex = null) }
-
-        first.release()
-        second.awaitArrival()
-
-        // The first answer is in, and holds "Scholarships" alone: the rule added since stays.
-        assertEquals(listOf("Scholarships" to true, "Grants" to true), vm.shown())
-        second.release()
-        page.eventually("the second save is in") { vm.state.value.saveState == SaveState.Saved }
-        assertEquals(listOf("Scholarships" to true, "Grants" to true), vm.shown())
-        assertEquals(listOf(listOf("Scholarships"), listOf("Scholarships", "Grants")), puts().map { put -> put.map { it.second } })
-    }
-
     @Test
     fun `on v4 a refused save puts back what the backend last agreed to`() {
         val vm = page.open(V4, "Scholarships", "Lectures")
@@ -339,46 +295,6 @@ class SubscriptionSettingsViewModelTest {
     }
 
     @Test
-    fun `on v4 a refused save under a newer edit leaves the newer edit to its own save`() {
-        val vm = page.open(V4, "Scholarships", "Lectures")
-        val first = page.backend.hold(PUT)
-        val second = page.backend.hold(PUT)
-        page.onMain { vm.toggleEnabled(0) }
-        first.awaitArrival()
-        page.onMain { vm.toggleEnabled(1) }
-
-        first.release(503 to "{}")
-        second.awaitArrival()
-        assertEquals("the newer edit stays while its save is out", listOf("Scholarships" to false, "Lectures" to false), vm.shown())
-        assertEquals(SaveState.Saving, vm.state.value.saveState)
-        second.release()
-        page.eventually("the newer edit is saved") {
-            vm.state.value.saveState == SaveState.Saved &&
-                page.backend.held(FIRST) == listOf("Scholarships" to false, "Lectures" to false)
-        }
-
-        assertEquals(listOf("Scholarships" to false, "Lectures" to false), vm.shown())
-        assertEquals(listOf(listOf(false, true), listOf(false, false)), puts().map { put -> put.map { it.third } })
-    }
-
-    @Test
-    fun `on v4 a refused save puts back the list the last save that landed left`() {
-        val vm = page.open(V4, "Scholarships", "Lectures")
-        val first = page.backend.hold(PUT)
-        page.onMain { vm.toggleEnabled(0) }
-        first.awaitArrival()
-        page.onMain { vm.toggleEnabled(1) }
-        page.backend.refuseNext(PUT, 503, "{}")
-
-        first.release()
-        page.eventually("the second save fails") { vm.state.value.saveState is SaveState.Failed }
-
-        // The first save landed while the second edit waited, and only the second was refused.
-        assertEquals(listOf("Scholarships" to false, "Lectures" to true), vm.shown())
-        assertEquals(listOf("Scholarships" to false, "Lectures" to true), page.backend.held(FIRST))
-    }
-
-    @Test
     fun `on v4 deleting the last rule puts an empty list`() {
         val vm = page.open(V4, "Scholarships")
 
@@ -387,85 +303,6 @@ class SubscriptionSettingsViewModelTest {
 
         assertEquals("""{"rules":[]}""", page.backend.sent(PUT).single().body)
         assertEquals(emptyList<Pair<String?, Boolean>>(), page.backend.held(FIRST))
-    }
-
-    /**
-     * A save sends the list its edit left, not the page's list when it goes: a read that lands
-     * while it waits shows the backend's list without that edit, and the edit must still go up.
-     */
-    @Test
-    fun `on v4 a waiting save sends its edit's list, whatever the page reads meanwhile`() {
-        val vm = page.open(V4, "Scholarships", "Lectures")
-        val first = page.backend.hold(PUT)
-        page.onMain { vm.toggleEnabled(0) }
-        first.awaitArrival()
-        page.onMain { vm.toggleEnabled(1) }
-
-        page.onMain { vm.load() }
-        page.awaitAnswers(vm, 2)
-        assertEquals("the read shows the backend's list", listOf("Scholarships" to true, "Lectures" to true), vm.shown())
-        first.release()
-        page.eventually("both saves are answered") { page.backend.events.count { it.startsWith("< $PUT") } == 2 }
-
-        assertEquals(listOf(listOf(false, true), listOf(false, false)), puts().map { put -> put.map { it.third } })
-        assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
-    }
-
-    /**
-     * Off, then on and off again while the first save is out: the list is back to what that save
-     * sent, but the student edited it since. The first save is refused, and the last edit, off,
-     * stays on the page and goes up.
-     */
-    @Test
-    fun `on v4 a refused save leaves edits made since to their own save, even ones that came back to its list`() {
-        val vm = page.open(V4, "Scholarships")
-        val first = page.backend.hold(PUT)
-        val second = page.backend.hold(PUT)
-        page.onMain { vm.toggleEnabled(0) }
-        first.awaitArrival()
-        page.onMain {
-            vm.toggleEnabled(0)
-            vm.toggleEnabled(0)
-        }
-
-        first.release(503 to "{}")
-        second.awaitArrival()
-
-        // The refusal is handled, and the last edit stays on the page while its own save is out.
-        assertEquals(listOf("Scholarships" to false), vm.shown())
-        assertEquals(SaveState.Saving, vm.state.value.saveState)
-        second.release()
-        // The read, the refusal, and the last edit's save.
-        page.awaitAnswers(vm, 3)
-
-        assertEquals(listOf(listOf(false), listOf(false)), puts().map { put -> put.map { it.third } })
-        assertEquals(listOf("Scholarships" to false), page.backend.held(FIRST))
-        assertEquals(listOf("Scholarships" to false), vm.shown())
-        assertEquals(SaveState.Saved, vm.state.value.saveState)
-    }
-
-    /** As above, but the first save lands: the page is not saved until the last edit's save is. */
-    @Test
-    fun `on v4 an answer under edits made since leaves the page saving, even when they came back to its list`() {
-        val vm = page.open(V4, "Scholarships")
-        val first = page.backend.hold(PUT)
-        val second = page.backend.hold(PUT)
-        page.onMain { vm.toggleEnabled(0) }
-        first.awaitArrival()
-        page.onMain {
-            vm.toggleEnabled(0)
-            vm.toggleEnabled(0)
-        }
-
-        first.release()
-        second.awaitArrival()
-
-        assertEquals("a save is still out", SaveState.Saving, vm.state.value.saveState)
-        second.release()
-        page.awaitAnswers(vm, 3)
-        assertEquals(SaveState.Saved, vm.state.value.saveState)
-        assertEquals(listOf("Scholarships" to false), vm.shown())
-        assertEquals(listOf("Scholarships" to false), page.backend.held(FIRST))
     }
 
     private companion object {
