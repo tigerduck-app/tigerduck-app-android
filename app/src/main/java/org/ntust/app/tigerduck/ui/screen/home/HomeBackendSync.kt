@@ -55,12 +55,13 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
 import org.ntust.app.tigerduck.ui.component.ServerStatus
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
-import org.ntust.app.tigerduck.ui.screen.settings.categoriesSwitchedOn
 import org.ntust.app.tigerduck.ui.screen.settings.categoriesSynced
 import org.ntust.app.tigerduck.ui.screen.settings.categoriesTaken
 import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
@@ -125,6 +126,7 @@ class HomeBackendSync @Inject constructor(
     private val reenableCheck: ReenableCheck,
     private val termCourseSync: TermCourseSync,
     @param:ApplicationScope private val appScope: CoroutineScope,
+    private val syncPolicies: SyncPolicies,
 ) {
 
     private val markStep = AssignmentMarkStep.over(
@@ -190,20 +192,20 @@ class HomeBackendSync @Inject constructor(
             courseSync.fetching()
             val result = syncApiClient.fetchFullSync(signIn)
             pendingCourseAdds.listed(result.serverCourses, signIn)
-            // One reading of the switches, for the steps below and for what
-            // this sync records as synced: one flipped meanwhile counts from the next.
-            val switchedOn = categoriesSwitchedOn(prefs)
+            // One reading of the switches and the re-enable hold, for the steps below and for
+            // what this sync records as synced: one flipped meanwhile counts from the next.
+            val policy = syncPolicies.current
+            val switchedOn = policy.switchedOn.mapTo(HashSet(), SyncCategory::stored)
             // Recorded at once, for this sign-in only: a later step that fails must
             // not leave the next sync reading an empty server as this phone's first.
-            val marksTaken = markStep.pull(state, result, "assignments" in switchedOn, signIn)
+            val marksTaken = markStep.pull(state, result, SyncCategory.ASSIGNMENTS in policy.switchedOn, signIn)
             if (marksTaken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
             courseIgnoreSync.applySnapshot(result, signIn)?.let { keys -> signIn.ifCurrent { state.ignoredCourseKeys.value = keys } }
             // Course overrides and deletion detection always run regardless
             // of whether this was a first-time migration, but not over a
             // re-enable check still waiting for the user's answer.
-            val pending = prefs.school.pendingConflictCategories.get()
-            val syncColors = CourseSyncReconciler.syncsCourseColors("course_colors" in switchedOn, pending)
-            val syncNames = CourseSyncReconciler.syncsCourseNames("course_names" in switchedOn, pending)
+            val syncColors = policy.applies(SyncCategory.COURSE_COLORS)
+            val syncNames = policy.applies(SyncCategory.COURSE_NAMES)
             val coursesLoaded = if (result.courseOverrides.isNotEmpty() && (syncColors || syncNames)) {
                 // Not over a colour or name this phone has waiting to go up,
                 // or sent since the fetch: the snapshot's is the older.
@@ -223,18 +225,15 @@ class HomeBackendSync @Inject constructor(
             result.holidayOverrides?.let { snapshot ->
                 HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
             }
-            val syncCourses = CourseSyncReconciler.syncsCourseList(
-                switchOn = "courses" in switchedOn,
-                pendingConflictCategories = prefs.school.pendingConflictCategories.get(),
-            )
-            syncCourseList(result, syncCourses, courseSync, signIn)
-            if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)
+            val takesCourseList = policy.applies(SyncCategory.COURSES)
+            syncCourseList(result, takesCourseList, courseSync, signIn)
+            if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)
             // Only what this sync took, and only for the sign-in it was for:
             // recorded after a sign-out, it would mark the next session's
             // categories before their first sync.
             val took = categoriesTaken(
                 marksTaken = marksTaken,
-                courseListSynced = syncCourses,
+                courseListSynced = takesCourseList,
                 syncColors = syncColors,
                 syncNames = syncNames,
                 hasOverrides = result.courseOverrides.isNotEmpty(),
@@ -403,12 +402,8 @@ class HomeBackendSync @Inject constructor(
         overrides: List<CourseOverrideResult>,
         signIn: SignIn,
         held: suspend () -> Set<String>,
-        syncColors: Boolean = CourseSyncReconciler.syncsCourseColors(
-            prefs.syncCourseColors, prefs.school.pendingConflictCategories.get(),
-        ),
-        syncNames: Boolean = CourseSyncReconciler.syncsCourseNames(
-            prefs.syncCourseNames, prefs.school.pendingConflictCategories.get(),
-        ),
+        syncColors: Boolean = syncPolicies.current.applies(SyncCategory.COURSE_COLORS),
+        syncNames: Boolean = syncPolicies.current.applies(SyncCategory.COURSE_NAMES),
     ): Boolean {
         // Read before anything is applied, as the colours always took it.
         val heldColors = held()
@@ -501,8 +496,8 @@ class HomeBackendSync @Inject constructor(
      * Each term's commit leaves be what was put back in it since [courseSync]
      * began; see [commitReconciledTerm].
      */
-    private suspend fun syncCourseList(result: BackendSyncResult, syncCourses: Boolean, courseSync: DataCache.CourseSync, signIn: SignIn) {
-        if (!syncCourses) return
+    private suspend fun syncCourseList(result: BackendSyncResult, takesCourseList: Boolean, courseSync: DataCache.CourseSync, signIn: SignIn) {
+        if (!takesCourseList) return
 
         val resetAt = dataCache.loadSemesterResetAt()
         val semesters = CourseSyncReconciler.semestersToReconcile(

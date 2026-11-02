@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
 
 /** Home's full sync over [w]'s stores, with the queues it sends from, as Hilt builds them. */
@@ -68,6 +69,7 @@ internal fun homeSyncRig(
         reenableCheck = ReenableCheck(w.appPrefs, syncApi, w.dataCache, w.semesterCatalog, ignores, w.auth, w.sessions, idleScope, context),
         termCourseSync = idleTermSync(w),
         appScope = idleScope,
+        syncPolicies = SyncPolicies(w.appPrefs),
     )
     return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, sync)
 }

@@ -75,7 +75,7 @@ class SyncWiringTest {
     fun `Home's sync and the worker hold colours and names for their re-enable checks`() {
         assertCalls(
             "ui/screen/home/HomeBackendSync.kt", "pull",
-            "CourseSyncReconciler.syncsCourseColors(", "CourseSyncReconciler.syncsCourseNames(",
+            "policy.applies(SyncCategory.COURSE_COLORS)", "policy.applies(SyncCategory.COURSE_NAMES)",
         )
         assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "CourseSyncReconciler.syncsCourseColors(")
     }
@@ -547,7 +547,7 @@ class SyncWiringTest {
      */
     @Test
     fun `Home's sync and the worker write nothing once a sign-out has wiped the data`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "syncCourseList(result, syncCourses, courseSync, signIn)")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "syncCourseList(result, takesCourseList, courseSync, signIn)")
         assertCalls("notification/BackgroundSyncWorker.kt", "syncOverridesFromBackend", "reconcileCurrentSemester(result, courseSync, signIn)")
     }
 
@@ -767,7 +767,7 @@ class SyncWiringTest {
      */
     @Test
     fun `Home's sync and the worker's answer the backend's roster requests`() {
-        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "if (syncCourses) answerRosterRequests(result.rosterRequests, signIn)")
+        assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)")
         assertCalls(
             "ui/screen/home/HomeBackendSync.kt", "answerRosterRequests",
             "appScope.launch {",
