@@ -267,13 +267,14 @@ class MailAccount @Inject constructor(
     private fun resetState(sameStudent: Boolean) = if (sameStudent) state.clearSignIn() else state.clear()
 
     /**
-     * Both callers are on the main thread, so only the cheap part runs there:
-     * the flags and the credential removal stay synchronous because the
-     * repository's reaction to [events] and every later `credentialsOrNull()`
-     * depend on them having already happened. Deleting the cache tree and
-     * cancelling the notifications are IO and finish on their own.
+     * School Mail's sign-out, told with [reason], which only
+     * [org.ntust.app.tigerduck.auth.session.SignOutPlans] runs. Its callers are on the main thread,
+     * so only the cheap part runs there: the flags and the credential removal stay synchronous
+     * because the repository's reaction to [events] and every later `credentialsOrNull()` depend on
+     * them having already happened. Deleting the cache tree and cancelling the notifications are
+     * IO and finish on their own.
      */
-    fun signOut() {
+    fun signOut(reason: SignOutReason) {
         scheduler.cancel()
         // Together, so a snapshot holds the departing account with its own sign-in or nothing.
         onLockWait?.invoke()
@@ -288,7 +289,7 @@ class MailAccount @Inject constructor(
         state.clear()
         signedInState.set(false) {
             _authFailed.value = false
-            session.emit(AccountEvent.SignedOut(Account.MAIL, SignOutReason.MAIL, ended, departing))
+            session.emit(AccountEvent.SignedOut(Account.MAIL, reason, ended, departing))
         }
         scope.launch(Dispatchers.IO) {
             // Only the mail of the sign-ins that left: by now the same student may have signed in

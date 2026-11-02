@@ -2,11 +2,10 @@ package org.ntust.app.tigerduck.auth.session
 
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.ntust.app.tigerduck.data.cache.DataCache
-import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 
@@ -33,12 +32,11 @@ class SignOutWipe(
     private val scope: CoroutineScope,
 ) {
     constructor(
-        importedClassTables: ImportedClassTableStore,
-        dataCache: DataCache,
+        stores: SchoolStores,
         widgetUpdater: WidgetUpdater,
         session: AccountSession,
         scope: CoroutineScope,
-    ) : this({ run(importedClassTables, dataCache, widgetUpdater) }, session, scope)
+    ) : this({ run(stores, widgetUpdater) }, session, scope)
 
     private val lock = Any()
     private var unfinished = 0
@@ -69,13 +67,31 @@ class SignOutWipe(
     fun finish(cleared: Boolean = true) {
         if (!cleared) clearingFailed()
         scope.launch {
-            oneWipe.withLock { wipe() }
-            synchronized(lock) {
-                if (--unfinished == 0) {
-                    if (!tryingAgain) session.open()
-                    tryingAgain = false
-                }
+            try {
+                oneWipe.withLock { wipe() }
+            } finally {
+                // Not over a wipe its scope stopped: that one is the next start's, marker and all.
+                if (isActive) countOut()
             }
+        }
+    }
+
+    /**
+     * Holds the session closed as one more sign-out under way, until [release]: a full reset's own
+     * wipe, which a sign-in must wait out as it waits out the sign-out's.
+     */
+    fun hold() {
+        synchronized(lock) { unfinished++ }
+    }
+
+    /** Lets go of a [hold]: the session opens when no sign-out is left. */
+    fun release(): Unit = countOut()
+
+    // The last one out takes the marker off and opens the session, unless a clearing failed.
+    private fun countOut() = synchronized(lock) {
+        if (--unfinished == 0) {
+            if (!tryingAgain) session.open()
+            tryingAgain = false
         }
     }
 
@@ -102,14 +118,12 @@ class SignOutWipe(
     }
 
     companion object {
-        /** Each step on its own, so one that throws stops no other. */
-        suspend fun run(importedClassTables: ImportedClassTableStore, dataCache: DataCache, widgetUpdater: WidgetUpdater) {
-            // Only this sign-out empties them: a relogin in the background or a renewed session
-            // keeps the class tables the user imported.
-            runCatching { importedClassTables.clearForSignOut() }
-                .onFailure { Log.w("AuthService", "clearForSignOut failed on logout: ${it.logSummary()}") }
-            runCatching { dataCache.clearAllUserData() }
-                .onFailure { Log.w("AuthService", "clearAllUserData failed on logout: ${it.logSummary()}") }
+        /** Each step on its own, so one that throws stops no other: the late stores in their order, then the widgets. */
+        suspend fun run(stores: SchoolStores, widgetUpdater: WidgetUpdater) {
+            stores.late.forEach { store ->
+                runCatching { store.forgetAccount() }
+                    .onFailure { Log.w("AuthService", "${store.javaClass.simpleName} failed on logout: ${it.logSummary()}") }
+            }
             // Now that the timetable is gone: a widget left alone shows the departing student's
             // until its next scheduled update, up to half an hour away.
             runCatching { widgetUpdater.updateAll() }

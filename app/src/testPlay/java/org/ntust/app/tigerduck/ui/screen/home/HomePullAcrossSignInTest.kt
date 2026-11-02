@@ -25,6 +25,7 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
@@ -158,7 +159,7 @@ class HomePullAcrossSignInTest {
 
     /** The whole sign-out, wipe included, and the same student back. */
     private suspend fun signOutAndBackIn() {
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         withTimeout(10_000) { w.sessions.school.awaitOpen() }
         signIn()
     }

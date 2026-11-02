@@ -14,7 +14,11 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertNotNull
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
+import org.ntust.app.tigerduck.auth.session.AccountPlan
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SchoolSignOut
+import org.ntust.app.tigerduck.auth.session.SchoolStores
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
@@ -82,6 +86,8 @@ internal class AccountWorld(
     val academicCalendar: AcademicCalendarStore,
     val demoAccount: DemoAccount,
     val fixtures: DebugFixtureStore,
+    /** Every sign-out: the school's real plan; School Mail and the library hold nothing here. */
+    val plans: SignOutPlans,
 )
 
 /**
@@ -159,34 +165,54 @@ internal fun accountWorld(
         context, dataCache, WidgetBoundaryScheduler(context, academicCalendar),
         AnalyticsLogger(context, appPrefs), idleScope, uiLanguage,
     )
+    val pushRegistration = PushRegistrationService(
+        context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope,
+        DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
+    )
+    lateinit var plans: SignOutPlans
     val auth = AuthService(
         context = context,
         sessionManager = sessionManager,
         ssoLoginService = sso,
         credentials = credentials,
-        pushRegistration = PushRegistrationService(
-            context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope,
-            DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
-        ),
+        pushRegistration = pushRegistration,
         notificationSettingsSync = notificationSettingsSync,
         authTokenManager = tokens,
         moodleTokenService = moodleTokens,
         storedPasswordLatch = latch,
-        courseService = courseService,
-        moodleService = MoodleService(
-            sessionManager, moodleTokens, courseService, dataCache, appPrefs,
-            MoodleWebservice(sessionManager, moodleTokens), sessions, idleScope,
-        ),
-        dataCache = dataCache,
-        bulletinCache = bulletinCache,
-        bulletinReadStateStore = BulletinReadStateStore(context),
         importedClassTables = imported,
-        widgetUpdater = widgetUpdater,
         appScope = appScope,
         demoAccount = demoAccount,
-        prefs = appPrefs,
-        classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, sessions.school, appPrefs)),
         sessions = sessions,
+        signOutPlans = { plans },
+    )
+    plans = SignOutPlans(
+        school = SchoolSignOut(
+            context = context,
+            auth = auth,
+            credentials = credentials,
+            authTokenManager = tokens,
+            notificationSettingsSync = notificationSettingsSync,
+            courseService = courseService,
+            moodleService = MoodleService(
+                sessionManager, moodleTokens, courseService, dataCache, appPrefs,
+                MoodleWebservice(sessionManager, moodleTokens), sessions, idleScope,
+            ),
+            classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, sessions.school, appPrefs)),
+            prefs = appPrefs,
+            sessionManager = sessionManager,
+            stores = SchoolStores({ BulletinReadStateStore(context) }, { appPrefs }, { latch }, { imported }, { dataCache }),
+            pushRegistration = pushRegistration,
+            demoAccount = demoAccount,
+            bulletinCache = bulletinCache,
+            widgetUpdater = widgetUpdater,
+            session = sessions.school,
+            appScope = appScope,
+        ),
+        mail = AccountPlan({ false }) {},
+        library = AccountPlan({ false }) {},
+        readLibraryAgain = {},
+        leaveDemoLibrary = demoAccount::signOutLibrary,
     )
     // The in-app browser's WebView storage, counted each time it is cleared.
     val browserClearings = MutableStateFlow(0)
@@ -225,7 +251,7 @@ internal fun accountWorld(
     return AccountWorld(
         appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings, sessions, effects,
         pushApi, notificationSettingsSync, courseService, SemesterCatalog(sessionManager, appPrefs, credentials), widgetUpdater,
-        academicCalendar, demoAccount, fixtures,
+        academicCalendar, demoAccount, fixtures, plans,
     )
 }
 

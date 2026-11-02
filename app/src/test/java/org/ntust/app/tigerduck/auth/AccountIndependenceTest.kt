@@ -9,6 +9,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.library.LibraryQRCache
@@ -104,7 +105,7 @@ class AccountIndependenceTest {
 
     @Test
     fun `the library's sign-out leaves the school and the mail`() {
-        credentials.clearLibraryCredentials()
+        credentials.clearLibraryCredentials(SignOutReason.LIBRARY)
 
         assertEquals(null, credentials.libraryUsername)
         assertEquals(null, credentials.libraryPassword)
@@ -114,7 +115,7 @@ class AccountIndependenceTest {
 
     @Test
     fun `the mail's sign-out leaves the school and the library`() {
-        mailAccount().signOut()
+        mailAccount().signOut(SignOutReason.MAIL)
 
         assertEquals(null, credentials.mailStudentId)
         assertEquals(null, credentials.mailPassword)

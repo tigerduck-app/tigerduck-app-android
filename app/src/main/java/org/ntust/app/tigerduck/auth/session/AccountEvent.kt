@@ -13,7 +13,10 @@ import org.ntust.app.tigerduck.util.logSummary
 
 enum class Account { SCHOOL, MAIL, LIBRARY }
 
-/** Why an account signed out. Until one plan runs every sign-out, a reason is its account's own. */
+/**
+ * Why an account signed out: what [SignOutPlans.signOut] was given, on each [AccountEvent.SignedOut]
+ * it tells. A sign-out a process death cut short, which the next start finishes, is the school's.
+ */
 enum class SignOutReason { SCHOOL, MAIL, LIBRARY, ENDPOINT_CHANGE, FULL_RESET }
 
 /**

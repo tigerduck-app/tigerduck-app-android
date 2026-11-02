@@ -12,6 +12,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.store.MailCache
 
 class SentCopyNoticesTest {
@@ -49,7 +50,7 @@ class SentCopyNoticesTest {
     @Test
     fun `signing out takes the notice with it`() {
         report()
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertNull(notices.posted)
     }
 
@@ -59,7 +60,7 @@ class SentCopyNoticesTest {
         val notices = SentCopyNotices(account, CoroutineScope(late))
         notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.List, account.signInNow)
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         runBlocking { account.signIn("b10000001", "pw") }
         late.scheduler.runCurrent()
 
@@ -85,7 +86,7 @@ class SentCopyNoticesTest {
     @Test
     fun `a send that began under an account that has left reports nothing`() {
         val signIn = account.signInNow
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, signIn)
         assertNull(notices.posted)
     }
@@ -128,7 +129,7 @@ class SentCopyNoticesTest {
         // which must not leave that notice on the next student's screens.
         notices.onReportChecked = {
             notices.onReportChecked = null
-            account.signOut()
+            account.signOut(SignOutReason.MAIL)
         }
         report()
         assertNull(notices.posted)

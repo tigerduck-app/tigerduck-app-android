@@ -2,6 +2,7 @@
 
 package org.ntust.app.tigerduck.ui.screen.mail
 
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.index.MailIndexProgress
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -1095,7 +1096,7 @@ class SchoolMailListViewModelTest {
         repo.searchPageGate = gate
         repo.searchPageError = MailError.Network()
         vm.loadMoreIfNeeded(vm.state.value.displayed.last())
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         repo.searchPageGate = null
         gate.complete(Unit)
         val s = vm.state.value
@@ -1977,7 +1978,7 @@ class SchoolMailListViewModelTest {
     @Test
     fun `signing out takes the sent-copy notice with it`() {
         notices.report(SentCopyNotice.Unknown, SentCopyOrigin.List, account.signInNow)
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertNull(notices.posted)
         assertNull(vm.sentCopyNotice.value)
@@ -1988,7 +1989,7 @@ class SchoolMailListViewModelTest {
         repo.add("INBOX", mailSummary(1), mailSummary(2))
         vm.load()
         assertEquals(2, vm.state.value.displayed.size)
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertEquals(SchoolMailListViewModel.UiState(), vm.state.value)
     }
@@ -2309,7 +2310,7 @@ class SchoolMailListViewModelTest {
 
     /** The account leaves and another arrives, as Settings does it, in the middle of whatever is running. */
     private fun signOutAndSignInAnother() {
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         server.passwords["B10000002"] = "pw"
         runBlocking { account.signIn("b10000002", "pw") }
@@ -2432,7 +2433,7 @@ class SchoolMailListViewModelTest {
         vm.load()
         assertEquals(5_000L, vm.state.value.fetchedAt)
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.runCurrent()
         assertEquals(0L, vm.state.value.fetchedAt)
         assertEquals(0L, state.fetchedAt("INBOX"))

@@ -460,7 +460,7 @@ class AnnouncementsViewModel @Inject constructor(
      * Whose list a fetch is for: the school's sign-in, and the backend, by
      * [BulletinRepository.generation], which each move of the API endpoint to another backend moves,
      * there and back again too. A school sign-out and an endpoint move each let go of the cached
-     * list and its date ([org.ntust.app.tigerduck.auth.AuthService.logout], `EndpointChange`).
+     * list and its date ([org.ntust.app.tigerduck.auth.session.SignOutPlans], `EndpointChange`).
      */
     private data class ListOwner(val signIn: SignIn, val generation: Int)
 

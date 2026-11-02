@@ -28,6 +28,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.ntust.app.tigerduck.auth.session.Account
 import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
@@ -161,7 +162,7 @@ class SchoolMailComposeViewModelTest {
         vm.updateRecipients(RecipientSlot.TO) { it.typed(emptyList(), "wang") }
         assertEquals(1, vm.state.value.suggestions(RecipientSlot.TO).size)
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
 
         assertEquals(emptyList<MailAddress>(), vm.state.value.suggestions(RecipientSlot.TO))
     }
@@ -258,7 +259,7 @@ class SchoolMailComposeViewModelTest {
         val vm = heldVm()
         vm.send()
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         main.dispatcher.scheduler.advanceTimeBy(SchoolMailComposeViewModel.SEND_HOLD_MS)
         main.dispatcher.scheduler.runCurrent()
 
@@ -484,7 +485,7 @@ class SchoolMailComposeViewModelTest {
         val vm = SchoolMailComposeViewModel(handle(ComposeMode.NEW), repo, account, cache, noPicks, notices, main.dispatcher, heldSends).also { it.sendHoldMs = 0 }
         vm.prefill(labels)
         vm.setTo("a@x.tw")
-        repo.onSend = { account.signOut() }
+        repo.onSend = { account.signOut(SignOutReason.MAIL) }
         vm.send()
         assertTrue(vm.state.value.done)
         assertNull(notices.posted)
@@ -496,7 +497,7 @@ class SchoolMailComposeViewModelTest {
     @Test
     fun `an original refused after its account left leaves the next sign-in alone`() {
         repo.add("INBOX", mailSummary(5, subject = "期中考"))
-        repo.onBody = { account.signOut() }
+        repo.onBody = { account.signOut(SignOutReason.MAIL) }
         repo.bodyError = MailError.AuthFailed()
 
         vm(ComposeMode.REPLY, "INBOX", 5)
@@ -506,7 +507,7 @@ class SchoolMailComposeViewModelTest {
 
     @Test
     fun `a send refused after its account left leaves the next sign-in alone`() {
-        repo.onSend = { account.signOut() }
+        repo.onSend = { account.signOut(SignOutReason.MAIL) }
         repo.sendError = MailError.AuthFailed()
         val vm = vm(ComposeMode.NEW)
         vm.setTo("a@x.tw")
@@ -518,7 +519,7 @@ class SchoolMailComposeViewModelTest {
 
     @Test
     fun `a sent copy refused after its account left leaves the next sign-in alone`() {
-        repo.onSend = { account.signOut() }
+        repo.onSend = { account.signOut(SignOutReason.MAIL) }
         repo.sentCopy = SentCopy.Failed(MailError.AuthFailed())
         val vm = vm(ComposeMode.NEW)
         vm.setTo("a@x.tw")
@@ -1159,7 +1160,7 @@ class SchoolMailComposeViewModelTest {
             repo, account, cache, noPicks, notices, io, afterRestart(),
         ).also { it.prefill(labels) }
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         io.drain()
 
         assertEquals(emptyList<String>(), vm.state.value.to.entries)

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.work.testing.WorkManagerTestInitHelper
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -20,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -48,6 +50,7 @@ import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
 import org.ntust.app.tigerduck.data.sharing.ImportedClassTableStore
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.FullReset
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
@@ -61,7 +64,7 @@ import kotlin.coroutines.CoroutineContext
  * One student has used the app, keeping what docs/account-state.md gives the school account; the
  * student signs out, and another signs in: nothing of the first is left, and the first one's
  * School Mail and library account stay, as they sign out by themselves. Runs the real
- * [AuthService.logout], [AuthService.login] against hand-made school pages, and
+ * [SignOutPlans.signOut], [AuthService.login] against hand-made school pages, and
  * [AccountSessionEffects], which follows both, over the real stores.
  *
  * Every key the inventory gives the school account is filled, typed as its source reads it, and
@@ -165,7 +168,7 @@ class AccountSwitchTest {
             assertEquals(after, othersBefore, credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") })
         }
 
-        auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         withTimeout(10_000) {
             signOutJob.children.toList().joinAll()
             browserClearings.first { it >= 1 }
@@ -217,6 +220,61 @@ class AccountSwitchTest {
 
     private fun userFile(name: String) = File(context.filesDir, "TigerDuckData/$name")
 
+    @Test
+    fun `a full reset keeps the school session closed past the sign-out's own wipe`() = runBlocking {
+        val w = world(signedInAsFirst())
+
+        w.plans.signOut(SignOutReason.FULL_RESET)
+        withTimeout(10_000) { signOutJob.children.toList().joinAll() }
+
+        // The reset wipes the credentials and the preferences after this: a sign-in now would go with them.
+        assertFalse("open before the reset's own wipe", w.sessions.school.signIns.isOpen.value)
+    }
+
+    @Test
+    fun `a sign-in during a full reset's wipe waits for it, and keeps the account it stores`() = runBlocking {
+        val w = world(signedInAsFirst())
+        val wiping = CompletableDeferred<Unit>()
+        val reset = FullReset(
+            signOut = { w.plans.signOut(SignOutReason.FULL_RESET) },
+            wiped = w.plans::resetWiped,
+            clearCaches = {
+                wiping.await()
+                w.dataCache.clearEverything()
+            },
+            credentials = w.credentials,
+            prefs = w.appPrefs,
+            publishLibraryCredentialsToWatch = {},
+            clearBrowser = {},
+        )
+        val resetting = reset.start(effectsScope) {}
+        withTimeout(10_000) { signOutJob.children.toList().joinAll() }
+
+        val signIn = signOutScope.async { w.auth.login(SECOND, "second-password") }
+        delay(200)
+        assertFalse("the sign-in waits for the reset's wipe", signIn.isCompleted)
+
+        wiping.complete(Unit)
+        withTimeout(10_000) { resetting.join() }
+        assertEquals("signed in once the reset's wipe was done", true, withTimeoutOrNull(10_000) { signIn.await() })
+        assertEquals("stored after the wipe, the account stays", SECOND, w.credentials.ntustStudentId)
+    }
+
+    @Test
+    fun `the school's sign-out tells the reason it was given`() = runBlocking {
+        for (reason in listOf(SignOutReason.SCHOOL, SignOutReason.ENDPOINT_CHANGE, SignOutReason.FULL_RESET)) {
+            val w = accountWorld(context, signedInAsFirst(), signOutScope, idleScope)
+            val told = async(start = CoroutineStart.UNDISPATCHED) {
+                w.sessions.events.first { it is AccountEvent.SignedOut && it.account == Account.SCHOOL }
+            }
+
+            w.plans.signOut(reason)
+
+            assertEquals(reason.name, reason, (withTimeout(10_000) { told.await() } as AccountEvent.SignedOut).reason)
+            withTimeout(10_000) { signOutJob.children.toList().joinAll() }
+        }
+    }
+
     private val mark = UnsentMark("7", "ignored", madeAtMs = 1L)
 
     @Test
@@ -227,7 +285,7 @@ class AccountSwitchTest {
         // Landing before the wipe: it is on disk, and the wipe takes it.
         assertTrue(w.dataCache.saveUnsentMarks(listOf(mark), signIn))
         assertTrue(userFile("unsent_marks.json").exists())
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         withTimeout(10_000) { signOutJob.children.toList().joinAll() }
         assertFalse(userFile("unsent_marks.json").exists())
 
@@ -245,7 +303,7 @@ class AccountSwitchTest {
         val held = HeldDispatcher()
         val w = world(signedInAsFirst(), CoroutineScope(SupervisorJob() + held))
 
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         // The sign-in has ended and the wipe has not run: the session is closed, so work that
         // starts in the gap reads the sign-in that ended, and writes nothing.
         assertEquals(null, w.auth.storedStudentId)
@@ -318,7 +376,7 @@ class AccountSwitchTest {
 
         told.clear()
         val ended = w.sessions.school.signIns.current
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         assertEquals(
             listOf(Told(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, ended, address = null), false, null)),
             told.toList(),
@@ -328,7 +386,7 @@ class AccountSwitchTest {
         // Nobody to sign out: no change, so nothing to tell.
         told.clear()
         withTimeout(10_000) { w.sessions.school.awaitOpen() }
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         assertEquals(emptyList<Told>(), told.toList())
         following.cancel()
     }
@@ -337,7 +395,7 @@ class AccountSwitchTest {
     fun `a sign-out landing between the store and the showing shows nothing`() = runBlocking {
         val w = accountWorld(context, prefs("tigerduck_credentials"), signOutScope, idleScope)
         val following = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
-            w.sessions.events.collect { if (it is AccountEvent.SignedIn && it.byHand) w.auth.logout() }
+            w.sessions.events.collect { if (it is AccountEvent.SignedIn && it.byHand) w.plans.signOut(SignOutReason.SCHOOL) }
         }
 
         assertFalse(w.auth.login(FIRST, "first-password"))
@@ -437,16 +495,16 @@ class AccountSwitchTest {
         assertTrue(first.dataCache.savePendingCourseAdds(mapOf(SEMESTER to listOf("CS1001")), signIn))
         first.dataCache.saveAssignments(listOf(Assignment("1", "CS1001", "Calculus", "Homework 1", Date())), signIn)
 
-        first.auth.logout()
+        first.plans.signOut(SignOutReason.SCHOOL)
         assertEquals(null, first.auth.storedStudentId)
         assertTrue("the wipe has not run", queued.all { userFile(it).exists() })
         // The next process starts: new objects over the same files, as after a process death.
         val second = world(credentialPrefs)
-        assertTrue("a sign-out was cut short", second.auth.finishOwedSignOut())
+        assertTrue("a sign-out was cut short", second.plans.finishOwedSignOut())
         assertTrue("the queued edits are still there to be sent as the next student's", queued.all { userFile(it).exists() })
         assertFalse("the session starts closed while the wipe is owed", second.sessions.school.signIns.isOpen.value)
 
-        second.auth.finishOwedWipe()
+        second.plans.finishOwedWipe()
         withTimeout(10_000) { second.sessions.school.awaitOpen() }
 
         assertEquals(emptyList<String>(), queued.filter { userFile(it).exists() })
@@ -470,7 +528,7 @@ class AccountSwitchTest {
         assertTrue(w.auth.authState.value)
         assertTrue(userFile("unsent_marks.json").also { it.parentFile?.mkdirs() }.apply { writeText("[]") }.exists())
 
-        assertTrue(w.auth.finishOwedSignOut())
+        assertTrue(w.plans.finishOwedSignOut())
 
         // Synchronously, before the wipe: credentials, tokens and the signed-in state.
         assertEquals(null, w.credentials.ntustStudentId)
@@ -478,7 +536,7 @@ class AccountSwitchTest {
         assertFalse(w.auth.authState.value)
         assertFalse(w.sessions.school.signIns.isOpen.value)
 
-        w.auth.finishOwedWipe()
+        w.plans.finishOwedWipe()
         withTimeout(10_000) { w.sessions.school.awaitOpen() }
         assertFalse(userFile("unsent_marks.json").exists())
         assertFalse(SignOutOwed(prefs("tigerduck_account_wipe")).owed)
@@ -494,7 +552,7 @@ class AccountSwitchTest {
         w.credentials.v3Tokens.save("second's-token", "second's-refresh", Long.MAX_VALUE)
         w.appPrefs.holidayOverridesAwaitingUpload = setOf(7)
 
-        assertFalse("nothing to finish", w.auth.finishOwedSignOut())
+        assertFalse("nothing to finish", w.plans.finishOwedSignOut())
         delay(300)
 
         assertEquals(SECOND, w.credentials.ntustStudentId)
@@ -514,7 +572,7 @@ class AccountSwitchTest {
         w.appPrefs.holidayOverridesAwaitingUpload = setOf(7)
         val current = w.sessions.school.signIns.current
 
-        assertFalse("nothing to finish", w.auth.finishOwedSignOut())
+        assertFalse("nothing to finish", w.plans.finishOwedSignOut())
         delay(200)
 
         assertTrue(userFile("unsent_marks.json").exists())
@@ -542,7 +600,7 @@ class AccountSwitchTest {
         val others = credentialPrefs.all.filterKeys { it.startsWith("mail_") || it.startsWith("library_") }
         val w = world(credentialPrefs)
 
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         withTimeout(10_000) { signOutJob.children.toList().joinAll() }
 
         assertEquals(null, w.credentials.ntustStudentId)

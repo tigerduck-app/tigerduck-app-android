@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
@@ -122,7 +123,7 @@ class DemoSessionTest {
             world.sessions.events.collect { if (it is AccountEvent.SignedOut) seen += "told" to demo() }
         }
 
-        world.auth.logout()
+        world.plans.signOut(SignOutReason.SCHOOL)
 
         assertEquals(listOf("shown" to true, "told" to true), seen.toList())
         assertFalse("the exit, last, ended it", demo())
@@ -159,7 +160,7 @@ class DemoSessionTest {
         val world = world()
         assertTrue(world.auth.login(STUDENT, "made-up-password"))
         assertEquals(emptyList<Any>(), world.imported.tables.value.people)
-        world.auth.logout()
+        world.plans.signOut(SignOutReason.SCHOOL)
         world.wipeDone()
 
         assertTrue(world.demoSignIn())
@@ -188,7 +189,7 @@ class DemoSessionTest {
         followers.launch {
             world.dataCache.coursesVersion.drop(1).collect {
                 if (fired.compareAndSet(false, true)) {
-                    world.auth.logout()
+                    world.plans.signOut(SignOutReason.SCHOOL)
                     runBlocking { world.wipeDone() }
                 }
             }
@@ -211,7 +212,7 @@ class DemoSessionTest {
         // Told in the step before the account shows, the account stored by then.
         followers.launch(start = CoroutineStart.UNDISPATCHED) {
             world.sessions.events.collect {
-                if (it is AccountEvent.SignedIn && fired.compareAndSet(false, true)) world.auth.logout()
+                if (it is AccountEvent.SignedIn && fired.compareAndSet(false, true)) world.plans.signOut(SignOutReason.SCHOOL)
             }
         }
 
@@ -235,7 +236,7 @@ class DemoSessionTest {
         assertEquals(fixture.studentId, world.credentials.ntustStudentId)
         assertEquals(fixture.courses!!.map { it.courseNo }.sorted(), world.dataCache.loadCourses().map { it.courseNo }.sorted())
 
-        world.auth.logout()
+        world.plans.signOut(SignOutReason.SCHOOL)
         world.wipeDone()
         assertTrue(world.auth.login(STUDENT, "made-up-password"))
 
@@ -255,7 +256,7 @@ class DemoSessionTest {
         var answerAsTheFlagWent: Boolean? = null
         val hold = onceAsWritten(FIXTURE_PREFS, DEMO_MODE_KEY) { answerAsTheFlagWent = world.sessions.school.isDemo }
 
-        world.auth.logout()
+        world.plans.signOut(SignOutReason.SCHOOL)
 
         assertEquals("a flag that will not clear leaves the session as the flag reads", true, answerAsTheFlagWent)
         assertNotNull(hold)
@@ -294,7 +295,7 @@ class DemoSessionTest {
         assertTrue(world.auth.login(STUDENT, "made-up-password"))
         assertTrue(world.auth.canAskSchool)
 
-        world.auth.logout()
+        world.plans.signOut(SignOutReason.SCHOOL)
         world.wipeDone()
         assertTrue(world.demoSignIn())
 
@@ -323,10 +324,10 @@ class DemoSessionTest {
 
         assertTrue("what a start reads", restarted.sessions.school.isDemo)
         assertTrue(restarted.auth.authState.value)
-        assertTrue(restarted.auth.finishOwedSignOut())
+        assertTrue(restarted.plans.finishOwedSignOut())
         assertFalse(restarted.sessions.school.isDemo)
         assertFalse(restarted.fixtures.demoMode)
-        restarted.auth.finishOwedWipe()
+        restarted.plans.finishOwedWipe()
         restarted.wipeDone()
         assertFalse(restarted.sessions.school.isDemo)
     }
@@ -336,7 +337,7 @@ class DemoSessionTest {
         val world = world()
         assertTrue(world.demoSignIn())
 
-        world.auth.logout()
+        world.plans.signOut(SignOutReason.SCHOOL)
         world.wipeDone()
 
         assertFalse(world.sessions.school.isDemo)
@@ -364,7 +365,7 @@ class DemoSessionTest {
     fun `a sign-out landing just before the demo goes on leaves no demo behind`() = runBlocking {
         val world = world()
         // The step right before the demo goes on: what the account change owes the browser.
-        val hold = onceAsWritten(BROWSER_PREFS, BROWSER_KEY) { world.auth.logout() }
+        val hold = onceAsWritten(BROWSER_PREFS, BROWSER_KEY) { world.plans.signOut(SignOutReason.SCHOOL) }
 
         assertFalse(world.demoSignIn())
         world.wipeDone()
@@ -386,7 +387,7 @@ class DemoSessionTest {
         // a moment rather than waited for, so that with no such step it runs all the way here.
         var signOut: Thread? = null
         val hold = onceAsWritten(FIXTURE_PREFS, DEMO_MODE_KEY) {
-            signOut = thread { world.auth.logout() }.also { it.join(MOMENT_MS) }
+            signOut = thread { world.plans.signOut(SignOutReason.SCHOOL) }.also { it.join(MOMENT_MS) }
         }
 
         world.demoSignIn()
@@ -408,7 +409,7 @@ class DemoSessionTest {
         val world = world()
         assertTrue(world.demoSignIn())
         val signIn = world.sessions.school.current
-        world.auth.logout()
+        world.plans.signOut(SignOutReason.SCHOOL)
         world.wipeDone()
 
         world.demoAccount.importClassmates(signIn)

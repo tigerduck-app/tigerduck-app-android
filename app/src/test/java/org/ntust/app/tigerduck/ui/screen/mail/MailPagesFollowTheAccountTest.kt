@@ -14,6 +14,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.ComposeMode
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
@@ -72,7 +73,7 @@ class MailPagesFollowTheAccountTest {
 
     /** Out and back in, as the same student, before anything on the main thread next runs. */
     private fun signOutAndIn() {
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         runBlocking { account.signIn("b10000001", "pw") }
     }
 

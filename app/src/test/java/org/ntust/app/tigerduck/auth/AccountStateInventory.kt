@@ -14,6 +14,11 @@ import java.io.File
  * problem of its own rather than a store gone unseen. A key handed through a local is read at the
  * local's value, and one handed through a parameter at what each call passes; a source of one
  * file names the constants of its keys `KEY_…`, `K_…` or `…_KEY`, which count as its keys too.
+ *
+ * What the school's sign-out reaches is read the same way: from its steps, the stores SchoolStores
+ * lists and what follows every school sign-out, each call is followed to the functions of that
+ * name the type it is made on declares, on a name declared with that type, or a lambda handed in
+ * for it, as far as the sources say which.
  */
 internal class AccountStateInventory(
     /** The phone app's Kotlin sources, by path under `app/src`. */
@@ -739,6 +744,165 @@ internal class AccountStateInventory(
         return code.getValue(path).substring(from, to)
     }
 
+    // ---- what the school's sign-out reaches ----
+
+    /** A class, interface or object the sources declare: its source, and the types named after its `:`. */
+    private data class Declared(val name: String, val source: String, val supertypes: Set<String>)
+
+    private val declarations: List<Declared> by lazy {
+        code.keys.flatMap { path ->
+            Regex("""\b(?:class|interface|object)\s+([A-Z]\w*)""").findAll(bare.getValue(path))
+                .map { Declared(it.groupValues[1], path, supertypes(path, it.range.last + 1)) }.toList()
+        }
+    }
+
+    /**
+     * The types the declaration whose name ends at [from] in [path] names after its `:`: its header
+     * up to its body, or to the next line at the margin for one with none, with the constructor's
+     * parameters and the type arguments left out.
+     */
+    private fun supertypes(path: String, from: Int): Set<String> {
+        val text = bare.getValue(path)
+        val header = StringBuilder()
+        var depth = 0
+        for (index in from until text.length) {
+            val c = text[index]
+            if (depth == 0 && (c == '{' || c == '\n' && text.getOrNull(index + 1)?.isWhitespace() == false)) break
+            when {
+                c == '(' || c == '<' -> depth++
+                // A function type's arrow closes nothing.
+                c == ')' || c == '>' && text[index - 1] != '-' -> depth--
+                depth == 0 -> header.append(c)
+            }
+        }
+        return Regex("""\b[A-Z]\w*""").findAll(header.toString().substringAfter(':', "")).map { it.value }.toSet()
+    }
+
+    /** The stores of an account's data: whatever declares it is [AccountScoped] or LateAccountScoped. */
+    val accountStores: Set<String> by lazy {
+        declarations.filter { "AccountScoped" in it.supertypes || "LateAccountScoped" in it.supertypes }.map { it.name }.toSet()
+    }
+
+    /** The types SchoolStores lists, at once or late, by the `dagger.Lazy` each list takes it from. */
+    val listedStores: Set<String> by lazy {
+        val path = sourceNamed("SchoolStores.kt") ?: return@lazy emptySet()
+        val text = code.getValue(path)
+        val held = Regex("""\b(\w+)\s*:\s*(?:dagger\.)?Lazy<([\w.]+)>""").findAll(text)
+            .associate { it.groupValues[1] to it.groupValues[2].substringAfterLast('.') }
+        listOf("atOnce", "late").flatMap { list ->
+            val at = Regex("""\bval\s+$list\b""").find(text) ?: return@flatMap emptyList()
+            val chunk = text.substring(at.range.first, indentedEnd(text, at.range.first, at.range.first))
+            held.filterKeys { Regex("""\b$it\.get\(\)""").containsMatchIn(chunk) }.values
+        }.toSet()
+    }
+
+    /** The sources declaring [type], and those of the types that name it after their `:`. */
+    private fun holders(type: String): List<String> =
+        declarations.filter { it.name == type || type in it.supertypes }.map { it.source }.distinct()
+
+    /** A body of code that runs: a function's, named, or a lambda handed in for one, unnamed. */
+    private data class Body(val source: String, val range: IntRange, val function: String?)
+
+    /** The bodies of the functions named [name] in [path]: every overload, and every class's. */
+    private fun named(path: String, name: String): List<Body> =
+        functions.getValue(path).filter { it.name == name }.map { Body(path, it.body, name) }
+
+    /** The bodies of the functions named [name] at the margin of a source: a top-level function's. */
+    private fun topLevel(name: String): List<Body> = code.filter { (_, text) ->
+        Regex("""^(?:(?:private|internal|public|inline|suspend)\s+)*fun\s+(?:<[^>]*>\s*)?$name\s*\(""", RegexOption.MULTILINE)
+            .containsMatchIn(text)
+    }.keys.flatMap { named(it, name) }
+
+    /**
+     * What a call of [name] from [path] runs, on [receiver] (null: none): a function of [path]'s, a
+     * lambda [path]'s constructor hands in under that name, or a top-level function; on a receiver,
+     * the function of that name of the types [path] declares the receiver as, and their subtypes'.
+     */
+    private fun target(path: String, receiver: String?, name: String): List<Body> {
+        if (receiver == null || receiver == "this") {
+            return named(path, name).ifEmpty { wired(path, name) }.ifEmpty { topLevel(name) }
+        }
+        val types = Regex("""\b$receiver\s*:\s*(?:dagger\.Lazy<|Lazy<|Provider<)?([\w.]+)""").findAll(code.getValue(path))
+            .map { it.groupValues[1].substringAfterLast('.') }.toSet() + setOfNotNull(receiver.takeIf { it.first().isUpperCase() })
+        return types.flatMap(::holders).distinct().flatMap { named(it, name) }
+            // An extension of [path]'s own on a chain this cannot type, `edit().removeCourseUploads(…)`.
+            .ifEmpty { named(path, name) }
+            // A top-level function named with its package.
+            .ifEmpty { if (receiver == "org") topLevel(name) else emptyList() }
+    }
+
+    /** What [path]'s constructor hands in as its function property [name]: a function's reference, or a lambda. */
+    private fun wired(path: String, name: String): List<Body> =
+        Regex("""\b$name\s*=\s*(?:(\w+)::(\w+)|::(\w+)|\{)""").findAll(code.getValue(path)).flatMap { match ->
+            when {
+                match.groupValues[2].isNotEmpty() -> target(path, match.groupValues[1], match.groupValues[2])
+                match.groupValues[3].isNotEmpty() -> named(path, match.groupValues[3])
+                else -> closing(path, match.range.last)?.let { listOf(Body(path, match.range.last..it, null)) }.orEmpty()
+            }
+        }.toList()
+
+    private val callPattern = Regex("""\b([a-z]\w*)\s*\(|(\b\w+)?::([a-z]\w*)\b""")
+
+    /** What the body at [range] in [path] calls, or hands on by reference, as far as this can tell which. */
+    private fun callees(path: String, range: IntRange): List<Body> {
+        val text = bare.getValue(path)
+        return callPattern.findAll(text.substring(range.first, range.last + 1)).flatMap { match ->
+            val at = range.first + match.range.first
+            val call = match.groupValues[1]
+            when {
+                call.isEmpty() -> target(path, match.groupValues[2].ifEmpty { null }, match.groupValues[3])
+                Regex("""\bfun\s+(?:<[^>]*>\s*)?(?:[\w.]+\.)?$""").containsMatchIn(text.substring(maxOf(0, at - 60), at)) -> emptyList()
+                else -> {
+                    var before = at - 1
+                    while (before >= 0 && text[before].isWhitespace()) before--
+                    val receiver = if (before >= 0 && text[before] == '.') chainStart(path, before) ?: "?" else null
+                    target(path, receiver, call)
+                }
+            }
+        }.toList()
+    }
+
+    /**
+     * Where the school's sign-out starts, by source and function: its own steps, and what follows
+     * every school sign-out. Each store [listedStores] names starts it too, at its `forgetAccount`.
+     */
+    private val signOutSteps = listOf("SignOutPlans.kt" to "clearAccount", "AccountSessionEffects.kt" to "onSignedOut")
+
+    /** The functions the school's sign-out reaches, by source and name: what it starts, and what each calls in turn. */
+    val signOutReach: Set<Pair<String, String>> by lazy {
+        val seen = mutableSetOf<Pair<String, Int>>()
+        val reached = mutableSetOf<Pair<String, String>>()
+        val queue = ArrayDeque<Body>()
+        fun reach(bodies: List<Body>) = bodies.forEach { body ->
+            body.function?.let { reached += body.source to it }
+            if (seen.add(body.source to body.range.first)) queue.addLast(body)
+        }
+        signOutSteps.forEach { (file, function) -> sourceNamed(file)?.let { reach(named(it, function)) } }
+        listedStores.forEach { type -> holders(type).forEach { reach(named(it, "forgetAccount")) } }
+        while (queue.isNotEmpty()) queue.removeFirst().let { reach(callees(it.source, it.range)) }
+        reached
+    }
+
+    /**
+     * Whether [path] calls [function] where it is built, outside every function: a key of a build
+     * before, taken up as its store opens, which nothing writes again.
+     */
+    private fun takenUpOnOpening(path: String, function: String): Boolean {
+        val text = code.getValue(path)
+        return Regex("""\b$function\(""").findAll(text).any { match ->
+            enclosing(path, match.range.first) == null &&
+                !Regex("""\bfun\s+(?:[\w.]+\.)?$""").containsMatchIn(text.substring(maxOf(0, match.range.first - 40), match.range.first))
+        }
+    }
+
+    /** A school row's clearer that clears, but that nothing the school's sign-out runs reaches. */
+    private fun unreached(row: Row): String? {
+        val clearer = row.clearer ?: return null
+        val path = sourceNamed(clearer.file) ?: return null
+        if ((path to clearer.function) in signOutReach || takenUpOnOpening(path, clearer.function)) return null
+        return ": `${clearer.function}` in ${clearer.file} is reached by no list of the school's sign-out"
+    }
+
     // ---- the check ----
 
     /** Every store the sources declare, as its row would name it: a file an account clears whole, without its keys. */
@@ -777,9 +941,11 @@ internal class AccountStateInventory(
                 row.scope !in SCOPES -> errors += "$label has unknown scope ${row.scope}"
                 row.scope == "keys" && row.store != "prefs" -> errors += "$label: only a file's keys are listed apart"
                 row.scope == "device" && row.store == "prefs" -> errors += "$label: a file outliving the accounts lists its keys (scope keys)"
-                row.scope in ACCOUNT_SCOPES -> clearingProblem(row)?.let { errors += "$label$it" }
+                row.scope in ACCOUNT_SCOPES -> (clearingProblem(row) ?: row.takeIf { it.scope == "school" }?.let(::unreached))
+                    ?.let { errors += "$label$it" }
             }
         }
+        (accountStores - listedStores).sorted().forEach { errors += "`$it` is an account store on no list of SchoolStores" }
         return errors
     }
 

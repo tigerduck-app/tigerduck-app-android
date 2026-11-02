@@ -654,5 +654,27 @@ class GuardrailsTest(unittest.TestCase):
         self.assertEqual(self.run_cli("--introduce", "bearer-home"), 1)
 
 
+    def test_sign_out_start_holds_each_account_s_end_to_its_homes_and_takes_no_baseline(self):
+        calls = ("authTokenManager.logout()\nmailAccount.signOut(reason)\naccount.signOut(reason)\n"
+                 "credentials.clearLibraryCredentials(reason)\ncredentials.signOutSchoolAccount()\n"
+                 "librarySession.signOut(reason)\nval f = mailAccount::signOut\nval g = credentials::clearLibraryCredentials\n")
+        for home in ("auth/session/SignOutPlans.kt", "mail/MailAccount.kt", "library/LibrarySession.kt",
+                     "data/preferences/CredentialManager.kt"):
+            self.write(APP + home, calls)
+        self.assertEqual(self.counts("sign-out-start"), {})
+        self.write(APP + "ui/screen/settings/SettingsViewModel.kt", calls)
+        self.assertEqual(self.counts("sign-out-start"), {APP + "ui/screen/settings/SettingsViewModel.kt": 8})
+        self.write_baseline([])
+        self.assertEqual(self.run_cli(), 1)
+        self.assertEqual(self.run_cli("--introduce", "sign-out-start"), 1)
+
+    def test_sign_out_start_misses_comments_strings_and_other_names(self):
+        self.write(APP + "ui/Quiet.kt",
+                   "// authTokenManager.logout()\nval s = \"mailAccount.signOut()\"\n"
+                   "val t = myaccount.signOut()\nplans.signOut(SignOutReason.MAIL)\nauthService.logoutSoon()\n"
+                   "account.signOut { prefs.edit().clear().apply() }\n")
+        self.assertEqual(self.counts("sign-out-start"), {})
+
+
 if __name__ == "__main__":
     unittest.main()

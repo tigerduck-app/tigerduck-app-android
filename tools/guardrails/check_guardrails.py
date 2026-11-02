@@ -42,6 +42,12 @@ Offense kinds (counts in the baseline):
                   a stream of the account's own. Every reactor reads one stream
                   of account events, so a fast sign-out and sign-in can't be
                   missed. Takes no baseline entries either.
+  sign-out-start  lines that start an account's sign-out outside its plan: the
+                  token manager's logout, School Mail's or the library's
+                  sign-out, or the school's or the library's credentials
+                  dropped, anywhere but SignOutPlans.kt and those accounts'
+                  own homes. One plan runs every sign-out, in order. Takes no
+                  baseline entries either.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -132,6 +138,15 @@ SIGN_IN_HOMES = re.compile(
     r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
 SIGN_OUT_REACTOR = re.compile(
     r"\b(?:authState|accountState|signOuts|studentChanges|signIns)\.collect\b|\bauthState\.first\b")
+# A call, or a reference handed on to run it later. LibraryAccountGate's own signOut { } is not one.
+SIGN_OUT_START = re.compile(
+    r"\b(?:authTokenManager\.logout|(?:mailAccount|account|librarySession)\.signOut"
+    r"|credentials\.signOutSchoolAccount|clearLibraryCredentials)\s*\("
+    r"|\b(?:authTokenManager::logout|(?:mailAccount|account|librarySession)::signOut"
+    r"|credentials::signOutSchoolAccount)\b|::clearLibraryCredentials\b")
+SIGN_OUT_HOMES = re.compile(
+    r"(?:auth/session/SignOutPlans\.kt$|mail/MailAccount\.kt$|library/LibrarySession\.kt$"
+    r"|data/preferences/CredentialManager\.kt$)")
 BEARER_HOMES = re.compile(r"(?:auth/AuthTokenManager\.kt$|auth/SessionHostGuard\.kt$)")
 BEARER_LITERAL = '"Bearer '
 UNREGISTER_BEARER = 'removeDevice("Bearer '
@@ -549,7 +564,7 @@ def term_sorts(code):
 
 KINDS = ("long-file", "long-function", "taipei-literal", "fdroid-literal", "term-sort",
          "top-app-bar", "account-counter", "demo-check", "sign-in-read", "bearer-home",
-         "sign-out-reactor")
+         "sign-out-reactor", "sign-out-start")
 
 
 def is_test_set(name):
@@ -611,6 +626,8 @@ def scan(root):
             add(rel, "top-app-bar", top_app_bar_calls(code))
         add(rel, "account-counter", matching_lines(code, ACCOUNT_COUNTER))
         add(rel, "sign-out-reactor", matching_lines(code, SIGN_OUT_REACTOR))
+        if not in_home(rel, SIGN_OUT_HOMES):
+            add(rel, "sign-out-start", matching_lines(code, SIGN_OUT_START))
         if not in_home(rel, DEMO_HOMES):
             add(rel, "demo-check", matching_lines(code, DEMO_CHECK))
         if not in_home(rel, SIGN_IN_HOMES):

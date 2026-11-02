@@ -508,7 +508,7 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // Called on sign-out, so it stops the triggered syncs as well as the
         // periodic one: a triggered sync left running went on writing the
         // departing account's courses and assignments over the cache
-        // AuthService.logout() was clearing.
+        // the sign-out (SignOutPlans) was clearing.
         fun cancel(context: Context) {
             val workManager = WorkManager.getInstance(context)
             workManager.cancelUniqueWork(UNIQUE_NAME)

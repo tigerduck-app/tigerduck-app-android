@@ -70,6 +70,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
     lateinit var sessions: AccountSessions
 
     @Inject
+    lateinit var signOutPlans: org.ntust.app.tigerduck.auth.session.SignOutPlans
+
+    @Inject
     lateinit var wearBridge: WearScheduleBridge
 
     @Inject
@@ -151,7 +154,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
-        val signOutCutShort = authService.finishOwedSignOut() // before anything acts on the account
+        val signOutCutShort = signOutPlans.finishOwedSignOut() // before anything acts on the account
         // The theme reads it on its first frame: start loading it from disk now.
         preloadKeptCjkCorrections(this)
         // Debug builds: the developer settings' "pretend an app is missing" switches.
@@ -163,7 +166,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // deleted. AppState re-reads the cached outcome for the reset prompt.
         dataMigration.run()
         // Then its wipe, after which the school session opens (SignOutWipe).
-        if (signOutCutShort) authService.finishOwedWipe()
+        if (signOutCutShort) signOutPlans.finishOwedWipe()
         // Next, while the Live Update settings are still as the previous
         // build left them: the class reminder takes its settings from them
         // once, before anything can arm a reminder or pull the settings
@@ -266,7 +269,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // process-wide: a status written before logout would still be here
         // for the next account to inherit, green from the moment the dot
         // comes back. Clearing on the auth signal rather than inside
-        // AuthService.logout() keeps a UI singleton out of the auth layer.
+        // the sign-out (SignOutPlans) keeps a UI singleton out of the auth layer.
         appScope.follow(sessions.school.changes) { signedIn ->
             ServerStatusTracker.setSignedIn(signedIn)
             if (!signedIn) ServerStatusTracker.reset()

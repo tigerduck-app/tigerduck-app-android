@@ -7,6 +7,7 @@ import org.ntust.app.tigerduck.auth.SignedInState
 import org.ntust.app.tigerduck.auth.session.Account
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
 import org.ntust.app.tigerduck.demo.DemoAccount
@@ -35,8 +36,8 @@ import javax.inject.Singleton
 class LibrarySession internal constructor(
     private val read: () -> Boolean,
     private val onSignedOut: () -> Unit = {},
-    /** Takes the account off the phone, the demo library's included; see [signOut]. */
-    private val remove: () -> Unit = {},
+    /** Takes the account off the phone, the demo library's included, told why; see [signOut]. */
+    private val remove: (SignOutReason) -> Unit = {},
     /** Tells the watch the account has gone, without waiting for it. */
     private val tellWatch: () -> Unit = {},
     /** Tells whoever follows the account that it shows as signed in, which it did not. */
@@ -57,9 +58,9 @@ class LibrarySession internal constructor(
         { libraryService.hasAccount || demoAccount.isLibrarySignedIn },
         qrCache,
         prefs,
-        remove = {
+        remove = { reason ->
             demoAccount.signOutLibrary()
-            credentials.clearLibraryCredentials()
+            credentials.clearLibraryCredentials(reason)
         },
         tellWatch = { scope.launch { wearBridge.publishLibraryCredentials() } },
         tellSignedIn = { sessions.emit(AccountEvent.SignedIn(Account.LIBRARY, byHand = false)) },
@@ -70,7 +71,7 @@ class LibrarySession internal constructor(
         read: () -> Boolean,
         qrCache: LibraryQRCache<*>,
         prefs: AppPreferences,
-        remove: () -> Unit = {},
+        remove: (SignOutReason) -> Unit = {},
         tellWatch: () -> Unit = {},
         tellSignedIn: () -> Unit = {},
     ) : this(
@@ -100,12 +101,13 @@ class LibrarySession internal constructor(
     }
 
     /**
-     * The library sign-out, the one path for Settings and a move to another backend: the account
-     * goes, what shows it follows ([refresh]), and the watch is told. On the application scope,
-     * since it must reach the watch whatever screen asked.
+     * The library sign-out, which only [org.ntust.app.tigerduck.auth.session.SignOutPlans] runs,
+     * for Settings and a move to another backend: the account goes, told with [reason], what shows
+     * it follows ([refresh]), and the watch is told. On the application scope, since it must reach
+     * the watch whatever screen asked.
      */
-    fun signOut() {
-        remove()
+    fun signOut(reason: SignOutReason) {
+        remove(reason)
         refresh()
         tellWatch()
     }

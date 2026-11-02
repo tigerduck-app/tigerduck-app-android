@@ -9,6 +9,7 @@ import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.session.Account
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
 import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.browser.BrowserCleanup
 import org.ntust.app.tigerduck.browser.BrowserDataCleaner
@@ -71,7 +72,7 @@ class AccountSessionEffects internal constructor(
 
     /**
      * Follows the school account on [scope] for the life of the process. [signOutCutShort] says the
-     * start has just finished a sign-out a process death cut short ([AuthService.finishOwedSignOut]):
+     * start has just finished a sign-out a process death cut short ([SignOutPlans.finishOwedSignOut]):
      * that is no change from here, or was never one if the account was already gone, so what
      * follows a sign-out runs now.
      */
