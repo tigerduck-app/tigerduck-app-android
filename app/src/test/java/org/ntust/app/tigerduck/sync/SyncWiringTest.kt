@@ -559,7 +559,7 @@ class SyncWiringTest {
         val reserved = body.indexOf("val version = pendingCourseOverrides.reserveVersion()")
         val read = body.indexOf("dataCache.loadCourseCustomNames()")
         assertTrue("sendLocalCourses no longer reserves the names' version before reading them", reserved in 0 until read)
-        assertTrue("sendLocalCourses no longer hands the version to its backend", "pendingCourseOverrides, signIn, version)" in body)
+        assertTrue("sendLocalCourses no longer hands the version to its backend", "pendingCourseOverrides, signIn, version, dataCache)" in body)
     }
 
     /** tigerduck-app-android#380: a course gone from this phone would be PATCHed, and refused, at every sync. */
