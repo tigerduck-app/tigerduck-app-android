@@ -88,12 +88,13 @@ class AccountSession(
     suspend fun <T> withSignIn(work: suspend (SignIn) -> T): T = work(signIns.current)
 
     /**
-     * Starts [work] on the session's scope under the sign-in as it is now, and cancels it when
-     * that sign-in ends. Work started while the session is closed is cancelled at once.
+     * Starts [work] on the session's scope under [signIn], by default the sign-in as it is now,
+     * and cancels it when that sign-in ends. Work under one that has ended, as all work started
+     * while the session is closed is, is cancelled at once, and never runs at all: what must
+     * follow it whatever happens waits on the job, as a `finally` in [work] may not run.
      */
     @StartsAccountWork
-    fun launch(work: suspend CoroutineScope.(SignIn) -> Unit): Job {
-        val signIn = signIns.current
+    fun launch(signIn: SignIn = signIns.current, work: suspend CoroutineScope.(SignIn) -> Unit): Job {
         val job = scope.launch(start = CoroutineStart.LAZY) { work(signIn) }
         // Registered before the check: a sign-out that ends the sign-in after it finds the job,
         // and one that ended it before is seen here.

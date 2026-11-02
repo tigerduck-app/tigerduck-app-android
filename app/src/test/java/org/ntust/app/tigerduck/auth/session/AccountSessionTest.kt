@@ -85,6 +85,21 @@ class AccountSessionTest {
     }
 
     @Test
+    fun `work under a sign-in that has ended is cancelled at once, with the next one open`() = runBlocking {
+        val school = session()
+        val before = school.current
+        school.signIns.end()
+        school.open()
+        var ran = false
+
+        val job = school.launch(before) { ran = true }
+        withTimeout(5_000) { job.join() }
+
+        assertTrue(job.isCancelled)
+        assertFalse(ran)
+    }
+
+    @Test
     fun `a write under the ended sign-in during the clearing is dropped, even after the session opens`() {
         val school = session()
         school.signIns.end()

@@ -14,7 +14,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt",
     "kind": "long-function",
     "name": "TigerDuckApp.onCreate()",
-    "lines": 123
+    "lines": 101
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -24,7 +24,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-file",
-    "count": 446
+    "count": 438
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
@@ -146,7 +146,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
     "kind": "long-file",
-    "count": 427
+    "count": 401
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/liveactivity/LiveActivityManager.kt",
@@ -183,7 +183,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/MailRepository.kt",
     "kind": "long-file",
-    "count": 1488
+    "count": 1486
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/mail/imap/AngusMailSession.kt",
@@ -285,7 +285,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/BackgroundSyncWorker.kt",
     "kind": "long-function",
     "name": "BackgroundSyncWorker.syncOverridesFromBackend(SignIn)",
-    "lines": 106
+    "lines": 90
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/ClassPreparingNotificationScheduler.kt",
@@ -1332,18 +1332,13 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "long-file",
-    "count": 559
+    "count": 553
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "long-function",
     "name": "SettingsViewModel.resolve(ReenableConflict, Boolean, SignIn, UseLocalLatch?)",
     "lines": 132
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
-    "kind": "sign-out-reactor",
-    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/StorageScreen.kt",

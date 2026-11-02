@@ -20,9 +20,7 @@ import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.academic.SemesterTerm
@@ -35,7 +33,6 @@ import org.ntust.app.tigerduck.auth.retryingAfterRelogin
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.UnsentMarks
-import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.ui.screen.home.BackgroundMarkStep
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
@@ -85,7 +82,6 @@ class BackgroundSyncWorker @AssistedInject constructor(
     private val pendingHolidayOverrides: org.ntust.app.tigerduck.data.PendingHolidayOverrides,
     private val academicCalendar: AcademicCalendarStore,
     private val termCourseSync: TermCourseSync,
-    @param:ApplicationScope private val appScope: CoroutineScope,
 ) : CoroutineWorker(context, params) {
 
     @Deprecated("Use prefs.lastSyncSource instead", level = DeprecationLevel.HIDDEN)
@@ -251,26 +247,10 @@ class BackgroundSyncWorker @AssistedInject constructor(
                 answerRosterRequests(result.rosterRequests, signIn)
             }
             prefs.setLastSyncSource(SyncSource.BACKEND)
-            // Where a change another device made to the reminder settings
-            // reaches this phone while the app stays closed: syncAssignments()
-            // below arms reminders from the local values, so they have to be
-            // current first — otherwise a switch turned off on the iPhone
-            // keeps firing here until the app is opened. Awaited for that
-            // ordering, but run on the application scope so a stopped worker
-            // cannot cut the apply short, and on Main because pullNow()'s
-            // check-and-apply requires it. It catches its own transport
-            // failures; the guard keeps anything else from failing this sync.
-            appScope.async(Dispatchers.Main) {
-                runCatching { notificationSettingsSync.pullNow(knownRevision = result.currentRevision) }
-                    .onFailure { e ->
-                        if (e is CancellationException) throw e
-                        Log.w(TAG, "notification settings pull failed: ${e.logSummary()}")
-                    }
-            }.await()
-            // Homework ignored or marked done on another device takes its
-            // reminders here with it, whether or not this run fetches
-            // assignments and arms them again.
-            if (marksChanged && prefs.notifyAssignments) {
+            pullSettings(result.currentRevision, signIn)
+            // Homework ignored or marked done on another device takes its reminders here with it,
+            // whether or not this run fetches assignments and arms them again.
+            if (marksChanged && prefs.notifyAssignments && signIn.isCurrent) {
                 notificationScheduler.scheduleAll(
                     dataCache.loadOutstandingAssignments(),
                     prefs.notifyAssignmentOffsets,
@@ -285,6 +265,26 @@ class BackgroundSyncWorker @AssistedInject constructor(
         } finally {
             dataCache.endCourseSync(courseSync)
         }
+    }
+
+    /**
+     * How another device's change to the reminder settings reaches this phone with the app closed:
+     * syncAssignments() arms from the local values, so they go first, or a switch turned off on the
+     * iPhone keeps firing here. Awaited for that order, on the session so a stopped worker cannot
+     * cut the apply short and a sign-out does, on Main as pullNow() requires. It catches its own
+     * transport failures; the guard keeps anything else from failing this sync.
+     */
+    @OptIn(StartsAccountWork::class)
+    private suspend fun pullSettings(knownRevision: Long?, signIn: SignIn) {
+        authTokenManager.session.launch(signIn) {
+            withContext(Dispatchers.Main) {
+                runCatching { notificationSettingsSync.pullNow(knownRevision = knownRevision) }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        Log.w(TAG, "notification settings pull failed: ${e.logSummary()}")
+                    }
+            }
+        }.join()
     }
 
     /**

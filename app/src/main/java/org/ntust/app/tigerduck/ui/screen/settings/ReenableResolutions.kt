@@ -1,5 +1,12 @@
 package org.ntust.app.tigerduck.ui.screen.settings
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.shared.account.SignIn
+
 /**
  * The re-enable conflict answers being applied in this process, which every
  * Settings screen's view model shares. A check compares this device with the
@@ -50,5 +57,31 @@ internal class ReenableResolutions {
         } ?: return true
         check()
         return false
+    }
+}
+
+/**
+ * Applies a re-enable answer as [session]'s work under [signIn], so a sign-out ends it, and then
+ * [settle]s it from this scope, the application's, whichever way it ended: a job cancelled before
+ * it started runs nothing of its own, a `finally` included, and what the answer held must still
+ * be let go. [after] is what follows an answer that went through, on the session too.
+ */
+@OptIn(StartsAccountWork::class)
+internal fun CoroutineScope.answerOnSession(
+    session: AccountSession,
+    signIn: SignIn,
+    signedIn: () -> Boolean,
+    answer: suspend () -> Unit,
+    settle: () -> Unit,
+    after: suspend () -> Unit,
+) {
+    val answering = session.launch(signIn) {
+        // Signed out already, in the time that shares the next sign-in: no account's to answer.
+        if (signedIn()) answer() else cancel()
+    }
+    launch {
+        answering.join()
+        settle()
+        if (!answering.isCancelled) session.launch(signIn) { after() }
     }
 }

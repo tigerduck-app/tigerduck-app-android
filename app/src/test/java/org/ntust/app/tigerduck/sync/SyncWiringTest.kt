@@ -171,6 +171,17 @@ class SyncWiringTest {
         assertCalls("ui/screen/home/HomeBackendSync.kt", "pull", "categoriesTaken(", "categoriesSynced(switchedOn, took, prefs)")
     }
 
+    /** The worker cannot be built here. */
+    @Test
+    fun `the worker's settings pull runs on the session and arms nothing past its sign-in`() {
+        val rel = "notification/BackgroundSyncWorker.kt"
+        val body = body(rel, "pullSettings")
+        assertTrue("the pull left the session", "authTokenManager.session.launch(signIn) {" in body)
+        assertTrue("the run no longer waits for the pull", "}.join()" in body)
+        assertTrue("the pull is on the application scope again", "appScope" !in source(rel).joinToString("\n"))
+        assertCalls(rel, "syncOverridesFromBackend", "if (marksChanged && prefs.notifyAssignments && signIn.isCurrent) {")
+    }
+
     @Test
     fun `an answered re-enable dialog holds colours and names until applied`() {
         assertCalls(

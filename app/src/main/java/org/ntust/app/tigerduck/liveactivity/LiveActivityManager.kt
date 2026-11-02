@@ -17,6 +17,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -26,6 +29,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
 import org.ntust.app.tigerduck.notification.ClassReminderAlarms
 import org.ntust.app.tigerduck.notification.ClassReminderSettings
 import org.ntust.app.tigerduck.notification.ClassReminders
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import java.util.Date
 import javax.inject.Inject
@@ -41,6 +45,7 @@ import javax.inject.Singleton
  * and [courseChangesUpdated] brings a refresh with each new one; with no
  * feed, [CourseChanges.EMPTY], every class runs as the timetable has it.
  */
+@OptIn(StartsAccountWork::class)
 @Singleton
 class LiveActivityManager internal constructor(
     private val preferences: LiveActivityPreferences,
@@ -56,6 +61,8 @@ class LiveActivityManager internal constructor(
     private val courseChangesUpdated: Flow<CourseChanges> = emptyFlow(),
     private val storedStudentId: () -> String? = { null },
     private val isDemoSession: () -> Boolean = { false },
+    /** The school session, which a refresh runs on. The default is one of its own, for tests not about it. */
+    private val session: AccountSession = AccountSession(SignInSeries(), appScope),
 ) {
     // The real entry point, which Hilt calls. The primary constructor takes
     // the sign-in state and the class reminder alarms as plain types, so
@@ -73,6 +80,7 @@ class LiveActivityManager internal constructor(
         boundaryScheduler: LiveActivityBoundaryScheduler,
         @ApplicationScope appScope: CoroutineScope,
         courseChangeStore: CourseChangeStore,
+        sessions: AccountSessions,
     ) : this(
         preferences = preferences,
         notifier = notifier,
@@ -90,6 +98,7 @@ class LiveActivityManager internal constructor(
         courseChangesUpdated = flow { emitAll(courseChangeStore.changes) },
         storedStudentId = { authService.storedStudentId },
         isDemoSession = { authService.isDemoSession },
+        session = sessions.school,
     )
 
     private val resolver = LiveActivityResolver()
@@ -103,8 +112,8 @@ class LiveActivityManager internal constructor(
     private val refreshLock = Mutex()
 
     init {
-        // Kept for the life of the process, signed in or not: a refresh while
-        // nobody is signed in only takes everything down.
+        // Kept for the life of the process, signed in or not, as the sign-in a refresh then runs
+        // on is the next one: a refresh while nobody is signed in only takes everything down.
         scope.launch {
             // And on every write of the ignored, marked-done and ignored-course
             // sets: the resolver only sees what is still outstanding. And on a
@@ -126,12 +135,13 @@ class LiveActivityManager internal constructor(
      *
      * [quiet] is for a redraw nobody should hear, such as a change of
      * language; see [LiveActivityNotifier.apply].
+     *
+     * On the session, so the sign-in's end stops it. Nothing shows while the session is closed
+     * and [stop] has taken it all down, so a refresh then has nothing to do and does not run.
      */
     fun refresh(quiet: Boolean = false) {
         refreshJob?.cancel()
-        refreshJob = scope.launch {
-            refreshInternal(quiet)
-        }
+        refreshJob = session.launch { refreshInternal(quiet) }
     }
 
     /**
@@ -147,8 +157,9 @@ class LiveActivityManager internal constructor(
      * Takes the Live Update, the class reminders and their alarms down at
      * sign-out. The manager itself stays up: it used to stop for the rest of
      * the process, so after signing in again only a restart brought the Live
-     * Update back. The refresh queued here waits for any still running, finds
-     * nobody signed in, and takes down whatever that one put up.
+     * Update back. The refresh queued here, unless the session is still closed,
+     * waits for any still running, finds nobody signed in, and takes down
+     * whatever that one put up.
      */
     fun stop() {
         boundaryScheduler.cancel()
@@ -388,40 +399,3 @@ class LiveActivityManager internal constructor(
         const val PROGRESS_TICK_MS = 2 * 60_000L
     }
 }
-
-/**
- * When the boundary alarm fires with no Live Update to follow: just after the
- * class reminders next need a refresh ([remindersWakeMs], see
- * armClassReminders), padded and floored as [boundaryTriggerAt] does, or null
- * for none.
- */
-internal fun reminderWakeAt(nowMs: Long, remindersWakeMs: Long?): Long? =
-    remindersWakeMs?.takeIf { it > nowMs }?.let { (it + 1_000L).coerceAtLeast(nowMs + 30_000L) }
-
-/**
- * When the boundary alarm fires: the earliest of [candidates] still ahead of
- * [nowMs], or the next of [termFlips] if that comes first.
- */
-internal fun boundaryTriggerAt(nowMs: Long, candidates: List<Long>, termFlips: List<Long> = emptyList()): Long {
-    // Pad by 1s to make sure we land *after* the boundary tick, not on it,
-    // so the resolver sees the new state instead of the prior one.
-    val futureCandidates = candidates.filter { it > nowMs }.map { it + 1_000L }
-    // Floor at 30s so a near-instant boundary doesn't burn battery, and
-    // ceil at 30 min so a long-idle stretch still gets a watchdog refresh.
-    val nextBoundary = futureCandidates.minOrNull() ?: (nowMs + 30 * 60_000L)
-    // A term flip only ever brings the alarm forward, as it does the
-    // widgets' (WidgetBoundaryScheduler.chooseTriggerMillis): taken as a
-    // candidate, one months away would stand in for the watchdog.
-    val nextFlip = termFlips.filter { it > nowMs }.minOrNull()?.plus(1_000L) ?: nextBoundary
-    return minOf(nextBoundary, nextFlip).coerceAtLeast(nowMs + 30_000L)
-}
-
-/**
- * When the minute alarm fires for a countdown to [targetMs]: just after its
- * minute next changes, padded like the boundaries above. No floor: a post
- * landing just before the change would otherwise leave the island a minute
- * behind for up to half a minute, and a running clock brings the change
- * round only once a minute.
- */
-internal fun minuteChangeTriggerAt(targetMs: Long, nowMs: Long): Long =
-    StaticCountdown.nextChangeAt(targetMs, nowMs) + 1_000L

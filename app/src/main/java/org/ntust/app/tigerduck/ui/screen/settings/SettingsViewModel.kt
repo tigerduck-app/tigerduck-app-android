@@ -7,10 +7,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -240,17 +237,12 @@ class SettingsViewModel @Inject constructor(
         // applied: the check waits for it, and then settles the hold in its place
         // (ReenableResolutions.finish).
         if (left.isNotEmpty()) checkPendingConflicts()
-        appScope.launch {
-            try {
-                coroutineScope {
-                    val signOut = launch {
-                        authService.authState.first { !it }
-                        this@coroutineScope.cancel()
-                    }
-                    resolve(conflict, keepLocal, signIn, latch)
-                    signOut.cancel()
-                }
-            } finally {
+        appScope.answerOnSession(
+            sessions.school,
+            signIn,
+            signedIn = { authService.authState.value },
+            answer = { resolve(conflict, keepLocal, signIn, latch) },
+            settle = {
                 // Already let go when Use Local ran; this covers a sign-out before it.
                 latch?.release()
                 // Each Settings screen has its own view model, and an answer
@@ -258,11 +250,13 @@ class SettingsViewModel @Inject constructor(
                 if (reenableCheck.resolutions.finish()) {
                     prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() - held, signIn)
                 }
-            }
-            if (holdsCourseIgnores) courseIgnoreSync.retryPending(signIn)
-            // Use Local queued its colours and names behind their holds, lifted just above.
-            if (keepLocal && ("course_colors" in held || "course_names" in held)) pendingCourseOverrides.retry(signIn)
-        }
+            },
+            after = {
+                if (holdsCourseIgnores) courseIgnoreSync.retryPending(signIn)
+                // Use Local queued its colours and names behind their holds, lifted just above.
+                if (keepLocal && ("course_colors" in held || "course_names" in held)) pendingCourseOverrides.retry(signIn)
+            },
+        )
     }
 
     private suspend fun resolve(

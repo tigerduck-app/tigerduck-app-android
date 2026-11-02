@@ -193,6 +193,7 @@ internal fun accountWorld(
         academicCalendar = academicCalendar,
         boundaryScheduler = LiveActivityBoundaryScheduler(context),
         appScope = idleScope,
+        session = sessions.school,
     )
     val browser = BrowserDataCleaner(
         storage = {
