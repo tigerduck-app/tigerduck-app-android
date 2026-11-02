@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -31,8 +32,8 @@ import org.robolectric.annotation.Config
 
 /**
  * What Home's full sync says of itself: the source the "local only" banner reads, the backend's
- * status and the revision watermark, when it lands, when it fails, and when TigerSync is off and
- * nothing is attempted. Made-up accounts.
+ * status, the revision watermark and the first-pull gate, when it lands, when it fails, and when
+ * TigerSync is off and nothing is attempted. Made-up accounts.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = Application::class)
@@ -99,6 +100,18 @@ class HomePullStatusTest {
         assertEquals(SyncSource.LOCAL, w.appPrefs.lastSyncSource.value)
         assertEquals(ServerStatus.FAILED, ServerStatusTracker.statuses.value[ServerKind.BACKEND])
         assertEquals(0L, state.lastKnownRevision.value)
+    }
+
+    @Test
+    fun `a pull that lands opens the first-pull gate for its sign-in, and one that fails does not`() = runBlocking {
+        val signIn = w.sessions.school.signIns.current
+        backend.answer("GET /sync/full", 500)
+        rig.sync.pull(state, signIn)
+        assertFalse(rig.gate.hasPulled(signIn))
+
+        backend.answer("GET /sync/full", 200, """{"current_revision":42}""")
+        rig.sync.pull(state, signIn)
+        assertTrue(rig.gate.hasPulled(signIn))
     }
 
     @Test

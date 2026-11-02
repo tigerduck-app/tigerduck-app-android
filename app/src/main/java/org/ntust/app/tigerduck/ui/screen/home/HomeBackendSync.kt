@@ -1,72 +1,33 @@
 // Cross-device sync for everything Home owns: assignment overrides, course
 // colours and custom names, and the course list itself.
 //
-// This used to be one 150-line method on HomeViewModel. It is here instead
-// because it is a different job from "hold the Home screen's state" — it
-// talks to the backend, arbitrates between two devices, and writes the
-// cache. HomeViewModel keeps the flows; this drives them.
-//
-// The decisions are deliberately not in this file. Which overrides survive a
-// sync lives in AssignmentOverrideReconciler, and which courses are deleted
-// or merged lives in CourseSyncReconciler — both pure and both tested. What
-// is left here is sequencing and I/O, which is what makes it hard to test and
-// exactly why it should not also contain the rules.
-//
-// Failure policy is "degrade to local, never lose a tap": a throw sets the
-// sync source to LOCAL and leaves the cache alone, and a 401 gets one relogin
-// retry. A sync that fails must never look like a sync that found nothing.
-//
-// Cancellation is the one exception and is rethrown untouched. Leaving Home
-// mid-sync is not a backend failure, and reporting it as one turns on the
-// "local only" banner for a sync nobody was waiting for.
+// The full sync itself is the Synchronizer's (sync/Synchronizer.kt), each
+// category's step a reconciler in a pinned order (sync/reconcile/). What is
+// left here is Home's side of it: the state the sync updates, the 401 relogin,
+// and the answer to the conflict dialog.
 
 package org.ntust.app.tigerduck.ui.screen.home
 
 import android.util.Log
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.isSessionRefused
+import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
-import org.ntust.app.tigerduck.data.preferences.AppPreferences
-import org.ntust.app.tigerduck.data.CourseIgnoreSync
-import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.data.HolidayOverrideApply
-import org.ntust.app.tigerduck.data.PendingCourseAdds
-import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.data.UnsentMarks
-import org.ntust.app.tigerduck.di.ApplicationScope
-import org.ntust.app.tigerduck.network.CourseService
-import org.ntust.app.tigerduck.network.SemesterCatalog
-import org.ntust.app.tigerduck.notification.SyncSource
-import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.BackendSyncResult
-import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.NotificationSettingsSync
 import org.ntust.app.tigerduck.push.PushApiClient
-import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.sync.SyncCategory
-import org.ntust.app.tigerduck.sync.SyncPolicies
-import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
-import org.ntust.app.tigerduck.ui.component.ServerKind
-import org.ntust.app.tigerduck.ui.component.ServerStatus
-import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
-import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
-import org.ntust.app.tigerduck.ui.screen.settings.categoriesSynced
-import org.ntust.app.tigerduck.ui.screen.settings.categoriesTaken
-import org.ntust.app.tigerduck.ui.theme.TigerDuckTheme
+import org.ntust.app.tigerduck.sync.SyncMode
+import org.ntust.app.tigerduck.sync.Synchronizer
+import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
+import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
 import org.ntust.app.tigerduck.util.logSummary
-import org.ntust.app.tigerduck.widget.WidgetUpdater
 import javax.inject.Inject
 
 /**
@@ -106,46 +67,20 @@ class HomeSyncState(
 }
 
 class HomeBackendSync @Inject constructor(
-    private val prefs: AppPreferences,
-    private val dataCache: DataCache,
+    private val synchronizer: Synchronizer,
     private val authService: AuthService,
-    private val authTokenManager: AuthTokenManager,
-    private val syncApiClient: SyncApiClient,
     private val pushApiClient: PushApiClient,
     private val notificationSettingsSync: NotificationSettingsSync,
-    private val courseService: CourseService,
-    private val semesterCatalog: SemesterCatalog,
-    private val widgetUpdater: WidgetUpdater,
-    private val academicCalendar: org.ntust.app.tigerduck.academic.AcademicCalendarStore,
-    private val courseIgnoreSync: CourseIgnoreSync,
-    private val unsentMarks: UnsentMarks,
-    private val pendingCourseAdds: PendingCourseAdds,
-    private val pendingCourseDeletes: org.ntust.app.tigerduck.data.PendingCourseDeletes,
-    private val pendingCourseOverrides: PendingCourseOverrides,
-    private val pendingHolidayOverrides: org.ntust.app.tigerduck.data.PendingHolidayOverrides,
-    private val reenableCheck: ReenableCheck,
-    private val termCourseSync: TermCourseSync,
-    @param:ApplicationScope private val appScope: CoroutineScope,
-    private val syncPolicies: SyncPolicies,
+    private val marks: MarksReconciler,
+    private val overrides: OverridesReconciler,
 ) {
-
-    private val markStep = AssignmentMarkStep.over(
-        prefs, dataCache, unsentMarks, pushApiClient::patchAssignmentOverride,
-    )
 
     /**
      * Sends what waits to go up: course-ignore changes, marks, course adds and
      * deletes, course colours and names, and holiday choices. A full sync
-     * starts with this.
+     * starts with this; see [Synchronizer.retryUnsent].
      */
-    suspend fun retryUnsent(signIn: SignIn) {
-        courseIgnoreSync.retryPending(signIn)
-        unsentMarks.retry(signIn)
-        pendingCourseAdds.retry(signIn)
-        pendingCourseDeletes.retry(signIn)
-        pendingCourseOverrides.retry(signIn)
-        pendingHolidayOverrides.retry(signIn)
-    }
+    suspend fun retryUnsent(signIn: SignIn) = synchronizer.retryUnsent(signIn)
 
     /**
      * What a full sync sends besides taking its snapshot, for a revision poll
@@ -161,149 +96,17 @@ class HomeBackendSync @Inject constructor(
     }
 
     /**
-     * Pull everything from the backend and reconcile it into [state].
+     * Pull everything from the backend and reconcile it into [state]: the
+     * [Synchronizer]'s full sync, in the foreground.
      *
-     * [retried] guards the 401 path against looping: a relogin that still
-     * produces a 401 gives up rather than recursing. [signIn] is the one this sync runs under,
-     * read once where it starts.
+     * A 401 gets one relogin, and the whole sync runs again, as the failed
+     * one reports itself: [retried] guards that against looping, so a
+     * relogin that still produces a 401 gives up rather than recursing. A
+     * run past its sign-out signs nobody in. [signIn] is the one this sync
+     * runs under, read once where it starts.
      */
     suspend fun pull(state: HomeSyncState, signIn: SignIn, retried: Boolean = false) {
-        // cloudSyncEnabled already reads false on fdroid at its source
-        // (AppPreferences.cloudSyncEnabled), so no separate flavor check
-        // is needed here.
-        if (!prefs.cloudSyncEnabled) {
-            markBackendIdle()
-            return
-        }
-        if (!authTokenManager.signInIfSignedOut()) {
-            markBackendIdle()
-            return
-        }
-        // Before anything it sends or fetches, until it is done: see DataCache.beginCourseSync.
-        val courseSync = dataCache.beginCourseSync()
-        try {
-            if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
-            // What waits to go up goes first, so the snapshot has it.
-            retryUnsent(signIn)
-            // Every class-table delete asked before the fetch ranks below it, every later one
-            // above: a course reset the snapshot reads lets go of the first only; see applyCourseReset.
-            val beforeFetch = pendingCourseDeletes.stamp()
-            // An add back made from here on is newer than a course reset the snapshot reads.
-            courseSync.fetching()
-            val result = syncApiClient.fetchFullSync(signIn)
-            pendingCourseAdds.listed(result.serverCourses, signIn)
-            // One reading of the switches and the re-enable hold, for the steps below and for
-            // what this sync records as synced: one flipped meanwhile counts from the next.
-            val policy = syncPolicies.current
-            val switchedOn = policy.switchedOn.mapTo(HashSet(), SyncCategory::stored)
-            // Recorded at once, for this sign-in only: a later step that fails must
-            // not leave the next sync reading an empty server as this phone's first.
-            val marksTaken = markStep.pull(state, result, SyncCategory.ASSIGNMENTS in policy.switchedOn, signIn)
-            if (marksTaken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
-            courseIgnoreSync.applySnapshot(result, signIn)?.let { keys -> signIn.ifCurrent { state.ignoredCourseKeys.value = keys } }
-            // Course overrides and deletion detection always run regardless
-            // of whether this was a first-time migration, but not over a
-            // re-enable check still waiting for the user's answer.
-            val syncColors = policy.applies(SyncCategory.COURSE_COLORS)
-            val syncNames = policy.applies(SyncCategory.COURSE_NAMES)
-            val coursesLoaded = if (result.courseOverrides.isNotEmpty() && (syncColors || syncNames)) {
-                // Not over a colour or name this phone has waiting to go up,
-                // or sent since the fetch: the snapshot's is the older.
-                applyCourseOverrides(
-                    state, result.courseOverrides, signIn, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames,
-                )
-            } else {
-                state.allCourses.value.isNotEmpty()
-            }
-            applyCourseReset(result, beforeFetch, courseSync, signIn)
-            // Not gated on any of the per-category sync toggles: a holiday exception
-            // is a notification setting, not course or assignment data, and the
-            // categories the user can turn off do not cover it. Null means an older
-            // backend that does not send the section, so the local set stands. A choice
-            // whose PUT has not landed stays as this phone has it, and a snapshot that
-            // may predate one is not applied: see PendingHolidayOverrides.merged.
-            result.holidayOverrides?.let { snapshot ->
-                HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
-            }
-            val takesCourseList = policy.applies(SyncCategory.COURSES)
-            syncCourseList(result, takesCourseList, courseSync, signIn)
-            if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)
-            // Only what this sync took, and only for the sign-in it was for:
-            // recorded after a sign-out, it would mark the next session's
-            // categories before their first sync.
-            val took = categoriesTaken(
-                marksTaken = marksTaken,
-                courseListSynced = takesCourseList,
-                syncColors = syncColors,
-                syncNames = syncNames,
-                hasOverrides = result.courseOverrides.isNotEmpty(),
-                coursesLoaded = coursesLoaded,
-            )
-            prefs.school.syncedCategories.run { set(get() + categoriesSynced(switchedOn, took, prefs), signIn) }
-            // Only for the account this sync fetched for: set after a sign-out
-            // reset it, the departing account's would stand for the next one.
-            state.lastKnownRevision.set(result.currentRevision, signIn)
-            ServerStatusTracker.set(ServerStatus.OK, ServerKind.BACKEND)
-            prefs.setLastSyncSource(SyncSource.BACKEND)
-            widgetUpdater.requestUpdate()
-            // A re-enable check that failed runs again here rather than at
-            // the next Settings visit, so what it holds is not held for days.
-            reenableCheck.runIfOwed()
-            // A full sync that just succeeded proves a session and a network,
-            // so this is where a notification-settings edit (Live Update or
-            // assignment reminders) whose push never landed — made while sync
-            // was off or the phone was offline, or one whose retries ran out —
-            // gets sent again. Catch-up only: it must never mark the device
-            // dirty, or every sync would push this phone's values over the
-            // other devices'. iOS re-sends at every full sync too.
-            notificationSettingsSync.pushIfUnconfirmed()
-            // ...and where a change another device made to those settings is
-            // picked up. Android fires assignment reminders itself, so without
-            // this an iPhone change reached this phone's alarms only once the
-            // user opened one of the two settings screens. iOS reconciles
-            // after every full sync as well. pullNow() applies nothing over
-            // an edit still waiting for its push, cannot interleave with that
-            // push, and cancels or re-arms the reminders armed here when a
-            // value changes. It already catches its own transport failures;
-            // the guard is so nothing else it throws can turn this successful
-            // sync into a failed one.
-            //
-            // Launched, never awaited: the sync this refresh is showing has
-            // already succeeded by here, and pullNow() waits for the document
-            // lock — which a queued push can hold for a whole read-modify-
-            // write — and then reads the document. On a degrading connection
-            // that is up to a minute of spinner (10 s connect / 20 s read,
-            // twice) for work Home is not showing. Nothing downstream needs
-            // the result: the pull re-arms the reminders itself, and
-            // `scheduleAll` is synchronized and reads the preferences at arm
-            // time, so whichever of it and Home's own arming runs last is
-            // correct either way.
-            //
-            // On the application scope rather than the caller's: the caller is
-            // a viewModelScope that a rotation or a swipe off Home cancels,
-            // which could land in the middle of the apply. On Dispatchers.Main
-            // because pullNow()'s check-and-apply requires it — the
-            // application scope's own dispatcher is Default.
-            appScope.launch(Dispatchers.Main) {
-                runCatching { notificationSettingsSync.pullNow(knownRevision = result.currentRevision) }
-                    .onFailure { e ->
-                        if (e is CancellationException) throw e
-                        Log.w(TAG, "[Sync] notification settings pull failed: ${e.logSummary()}")
-                    }
-            }
-        } catch (e: CancellationException) {
-            // Leaving Home mid-sync cancels viewModelScope, which lands here.
-            // The writes below are not suspending, so they would run even in a
-            // cancelled scope and report a backend failure for a sync that was
-            // simply abandoned — flipping on the "local only" banner and, if
-            // the cancellation message happened to contain "401", kicking off
-            // a relogin. Same guard BackgroundSyncWorker took in cd644d04.
-            throw e
-        } catch (e: Exception) {
-            // A run past its sign-out says nothing of the backend: the status is the next account's.
-            if (!signIn.isCurrent) return
-            ServerStatusTracker.set(ServerStatus.FAILED, ServerKind.BACKEND)
-            prefs.setLastSyncSource(SyncSource.LOCAL)
+        synchronizer.sync(SyncMode.FOREGROUND, signIn, state) { e ->
             if (!retried && e.isSessionRefused()) {
                 // Delegates to AuthService so the relogin harvests a fresh
                 // Moodle token — the backend rejects stale stored tokens with
@@ -312,56 +115,7 @@ class HomeBackendSync @Inject constructor(
                     pull(state, signIn, retried = true)
                 }
             }
-            Log.w(TAG, "[Sync] override sync failed: ${e.logSummary()}")
-        } finally {
-            dataCache.endCourseSync(courseSync)
         }
-    }
-
-    /**
-     * The terms the snapshot asks this account's roster of (`roster_requests`), answered from
-     * course selection; see [TermCourseSync.answerRosterRequests]. Launched, never awaited: the
-     * sync this refresh shows is done, and the school takes seconds. On the application scope,
-     * pinned to [signIn], the sign-in the snapshot was fetched as, so a sign-out meanwhile drops
-     * what it writes, and its token alone is what the roster goes with.
-     */
-    private suspend fun answerRosterRequests(requests: List<String>, signIn: SignIn) {
-        if (requests.isEmpty()) return
-        val studentId = authService.storedStudentId ?: return
-        val password = authService.storedPassword ?: return
-        appScope.launch {
-            runCatching { termCourseSync.answerRosterRequests(requests, studentId, password, signIn) }
-                .onSuccess { asked ->
-                    // The open screens and the widget read the term again, as after the worker's sync.
-                    if (asked) {
-                        widgetUpdater.requestUpdate()
-                        dataCache.notifyBackgroundSyncComplete()
-                    }
-                }
-                .onFailure { e ->
-                    if (e is CancellationException) throw e
-                    Log.w(TAG, "[Sync] roster request failed: ${e.logSummary()}")
-                }
-        }
-    }
-
-    /**
-     * Report "no sync was attempted" — no local-only banner, and TigerSync's
-     * row reading Minimal rather than OK.
-     *
-     * Deliberately does not clear BACKEND's status. It used to, because a
-     * stale OK from an earlier successful pull would otherwise stay green for
-     * the rest of the process; [ServerStatusTracker.setCloudSyncEnabled] now
-     * drops it on the flip instead, which is the moment the reading actually
-     * stops meaning what it meant. Clearing here as well would blank it on
-     * every pull, and with sync off that is every refresh — stamping out the
-     * reachability the public GETs report between one call and the next.
-     */
-    private fun markBackendIdle() {
-        prefs.setLastSyncSource(SyncSource.NONE)
-        // Three reasons land here and only one of them is "switched off"; the
-        // tracker folds fdroid in itself, and logged-out hides the dot.
-        ServerStatusTracker.setCloudSyncEnabled(prefs.cloudSyncEnabled)
     }
 
     /**
@@ -384,249 +138,9 @@ class HomeBackendSync @Inject constructor(
                 runCatching { pushApiClient.patchAssignmentOverride(mid, c.localStatus, signIn) }
             }
         } else {
-            markStep.keepServer(state, result, signIn)
-            if (result.courseOverrides.isNotEmpty()) {
-                applyCourseOverrides(state, result.courseOverrides, signIn, { pendingCourseOverrides.held(result.fetchedAtMs) })
-            }
+            marks.keepServer(state, result, signIn)
+            overrides.keepServer(state, result, signIn)
         }
-    }
-
-    /**
-     * Returns false when it applied nothing, the course list not having
-     * loaded. [held] reads what the snapshot must not overwrite; see
-     * [PendingCourseOverrides.held]. The colours take it at the start, the
-     * names again under their lock (see [CourseSyncReconciler.applyNameOverrides]).
-     */
-    private suspend fun applyCourseOverrides(
-        state: HomeSyncState,
-        overrides: List<CourseOverrideResult>,
-        signIn: SignIn,
-        held: suspend () -> Set<String>,
-        syncColors: Boolean = syncPolicies.current.applies(SyncCategory.COURSE_COLORS),
-        syncNames: Boolean = syncPolicies.current.applies(SyncCategory.COURSE_NAMES),
-    ): Boolean {
-        // Read before anything is applied, as the colours always took it.
-        val heldColors = held()
-        // The early return on an empty course list also skips the custom-name
-        // merge below. That coupling predates this refactor and is preserved
-        // deliberately: changing it would make names land on a device whose
-        // course list has not loaded yet, which is a behaviour change and not
-        // this commit's business.
-        val courses = state.allCourses.value.ifEmpty { return false }
-
-        CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, signIn, held)
-
-        CourseSyncReconciler.applyColorOverrides(
-            courses = courses,
-            overrides = overrides,
-            syncColors = syncColors,
-            held = heldColors,
-        )?.let { outcome ->
-            val updated = outcome.courses
-            Log.i(TAG, "[sync-color] applying ${updated.count { c -> c.customColorHex != null }} custom colors")
-            if (signIn.ifCurrent { state.allCourses.value = updated } != null) TigerDuckTheme.buildCourseColorMap(updated)
-            dataCache.saveCourses(updated, signIn)
-            widgetUpdater.requestUpdate()
-            sendMovedColors(updated, outcome.moved) { moodleId, hex ->
-                pendingCourseOverrides.send(moodleId, colorHex = hex, signIn = signIn)
-            }
-        }
-        return true
-    }
-
-    /**
-     * A course reset made on another device wipes this device's
-     * manually-added courses, once: the server's `courses_reset_at` is
-     * compared with the one the last full sync read, never with this phone's
-     * clock — see [CourseSyncReconciler.coursesReset]. The account's first
-     * sync here only remembers it, so a fresh install never reads its own
-     * absence of history as a reset and deletes courses the user just added.
-     * Remembered for [signIn] only: after a sign-out it would be the next
-     * session's first sync that skipped a reset.
-     *
-     * The reset brings back the courses this phone hid, so the deletes still
-     * waiting to go up from before the fetch ([beforeFetch]) go too: sent on
-     * a later retry, one would take a restored course off the server again.
-     * An add back under way goes with the waiting adds, for [courseSync]'s
-     * commit as well; see DataCache.CourseSync.supersedeAddsBack.
-     */
-    private suspend fun applyCourseReset(
-        result: BackendSyncResult,
-        beforeFetch: Long,
-        courseSync: DataCache.CourseSync,
-        signIn: SignIn,
-    ) {
-        val reset = CourseSyncReconciler.coursesReset(
-            result.coursesResetAt, prefs.school.lastSeenCoursesResetAt.get(), prefs.legacyLastCourseSyncAtMs,
-        )
-        if (reset.apply) {
-            val allCourses = dataCache.loadCourses().toMutableList()
-            // Their waiting colours and names go with them; see PendingCourseOverrides.forget.
-            pendingCourseOverrides.forget(allCourses.filter { it.isManual }.mapNotNull { it.moodleIdNumber }, signIn = signIn)
-            allCourses.removeAll { it.isManual }
-            dataCache.saveCourses(allCourses, signIn)
-            dataCache.saveDeletedCourseNos(emptySet(), signIn)
-            // In every term: the reconcile would keep a course whose add waits.
-            pendingCourseAdds.forgetAll(signIn)
-            courseSync.supersedeAddsBack()
-            // Under the adds lock, as a term reset's forgetTerm: a retry waiting behind it then
-            // finds them gone. One asked since the fetch is newer than the reset, and stays.
-            pendingCourseAdds.removing {
-                pendingCourseDeletes.forgetAskedBefore(beforeFetch, signIn)
-            }
-            Log.i(TAG, "[sync] courses reset detected, wiped manual courses")
-        }
-        if (prefs.school.lastSeenCoursesResetAt.set(reset.remember, signIn)) prefs.forgetLegacyLastCourseSyncAt()
-    }
-
-    /**
-     * Reconcile every semester the app knows about, one term at a time.
-     *
-     * This used to reconcile a single "current" term: it compared the current
-     * semester's cache against `serverCourseNos` flattened across all terms.
-     * Once the clients began uploading every semester (iOS `5403ff3`), that
-     * flattening became actively wrong — a course hidden in 114-2 was
-     * un-hidden because the student was taking it again in 115-1, since the
-     * un-delete rule only asked "is this number anywhere on the server".
-     *
-     * Per term, in whichever direction has data: when the backend knows
-     * courses it is authoritative for deletions and we merge down; when it
-     * knows none for that term but this device does, we upload. Reading an
-     * empty term as "the server says you have no courses" would delete them.
-     * Each term's commit leaves be what was put back in it since [courseSync]
-     * began; see [commitReconciledTerm].
-     */
-    private suspend fun syncCourseList(result: BackendSyncResult, takesCourseList: Boolean, courseSync: DataCache.CourseSync, signIn: SignIn) {
-        if (!takesCourseList) return
-
-        val resetAt = dataCache.loadSemesterResetAt()
-        val semesters = CourseSyncReconciler.semestersToReconcile(
-            serverCourses = result.serverCourses,
-            tombstones = result.tombstones,
-            catalogue = semesterCatalog.availableSemesters(),
-            excluding = CourseSyncReconciler.termsResetAfter(
-                result.fetchedAtMs, resetAt, dataCache.resettingSemesters(),
-            ),
-        )
-        dataCache.clearSemesterResetAt(CourseSyncReconciler.resetStampsOutlived(result.fetchedAtMs, resetAt), signIn)
-        val rowsBySemester = result.serverCourses.groupBy { it.semester }
-        val selectionDropped = dataCache.loadSelectionDroppedNos()
-        val serverKnown = dataCache.loadServerKnownNos()
-        val updatedKnown = serverKnown.toMutableMap()
-        var tombstones = migratedTombstones(semesters, signIn)
-        val currentSemester = courseService.currentSemesterCode()
-        var touchedCurrent = false
-
-        for (semester in semesters) {
-            val localCourses = dataCache.loadCourses(semester)
-            // After the courses: see CourseSyncReconciler.withoutRestored.
-            val restored = dataCache.restoredCoursesIn(semester, result.fetchedAtMs)
-            tombstones = CourseSyncReconciler.withoutRestored(semester, tombstones, restored)
-            val read = tombstones
-            val tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones)
-            val outcome = CourseSyncReconciler.reconcileSemester(
-                semester = semester,
-                localCourses = localCourses,
-                serverRows = rowsBySemester[semester].orEmpty(),
-                tombstoneNos = tombstoneNos,
-                tombstones = tombstones,
-                serverKnownNos = serverKnown[semester].orEmpty().toSet(),
-                // Deletes the retry above could not land: the snapshot still lists them.
-                graceCourseNos = pendingCourseDeletes.waitingIn(semester),
-                // Adds the retry above could not land: the snapshot does not list them yet.
-                pendingAddNos = pendingCourseAdds.waitingIn(semester),
-                selectionDroppedNos = selectionDropped[semester].orEmpty().toSet(),
-                restoredNos = restored,
-                // A course it listed since a roster dropped it elsewhere stays: see SelectionAnswer.listsSince.
-                answer = dataCache.selectionAnswerIn(semester),
-                fetchedAtMs = result.fetchedAtMs,
-            )
-            // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
-            dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)
-            // A roster from here that listed one goes again, unchanged or not.
-            pushApiClient.serverDropped(semester, outcome.serverDrops.keys)
-            dataCache.restoredCoursesListed(semester, rowsBySemester[semester].orEmpty().map { it.courseNo }, result.fetchedAtMs, signIn)
-            tombstones = outcome.tombstones
-            if (outcome.serverKnownNos.isNotEmpty()) {
-                updatedKnown[semester] = outcome.serverKnownNos.sorted()
-            }
-
-            // Before the upload branch: an empty term can still have hidden
-            // courses to take out of the cache (a reset elsewhere, with one
-            // hand-typed survivor left to upload).
-            val pruned = CourseSyncReconciler.pruneHidden(semester, localCourses, tombstones)
-            if (outcome.merged.isNotEmpty()) {
-                Log.i(TAG, "[Sync] $semester: merged from server ${outcome.merged.map { it.courseNo }}")
-            }
-            if (outcome.left.isNotEmpty()) {
-                Log.i(TAG, "[Sync] $semester: dropped merged copies left ${outcome.left.sorted()}")
-            }
-            if (commitReconciledTerm(
-                    dataCache, courseSync, semester, read, tombstones, tombstoneNos, localCourses, pruned, outcome.left,
-                    outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn,
-                ) &&
-                semester == currentSemester
-            ) {
-                touchedCurrent = true
-            }
-            if (outcome.uploadLocal) {
-                // Sent whatever the upload ledger remembers (resend): the
-                // server has nothing for the term, so a reset elsewhere took
-                // the list it last accepted, and that same list has to go again.
-                runCatching { pushApiClient.uploadCourses(outcome.toUpload, semester, signIn, resend = true) }
-                    .onSuccess { accepted ->
-                        // The server has now seen these numbers: from here
-                        // on their absence is a deletion, not a pending
-                        // upload — see reconcileSemester. Only what it
-                        // accepted: a tombstoned course it skipped is still
-                        // unknown to it.
-                        if (!accepted.isNullOrEmpty()) {
-                            updatedKnown[semester] = (outcome.serverKnownNos + accepted).sorted()
-                        }
-                    }
-                    .onFailure { e -> Log.w(TAG, "[Sync] $semester: auto-upload failed: ${e.logSummary()}") }
-                Log.i(TAG, "[Sync] $semester: server empty, uploaded ${outcome.toUpload.size} local courses")
-            }
-        }
-
-        if (updatedKnown != serverKnown) {
-            // Added to what is stored now, the numbers only growing: an add answered meanwhile,
-            // or the background run, may have added to it too.
-            dataCache.updateServerKnownNos(signIn) { current ->
-                current + updatedKnown.mapValues { (semester, nos) -> (current[semester].orEmpty() + nos).distinct().sorted() }
-            }
-        }
-        if (touchedCurrent) widgetUpdater.requestUpdate()
-    }
-
-    /**
-     * The tombstone store with legacy bare entries pinned to the terms whose
-     * cached roster carries them.
-     *
-     * Bare entries pre-date semester scoping and hide a course number in
-     * every term, so the per-term reconcile would keep flip-flopping them:
-     * one term un-hides on the server's say-so and clears the bare entry for
-     * all the others. Pinning them once, here, is the upgrade path — see
-     * [CourseTombstoneKeys.migrateLegacyEntries], which leaves anything no
-     * roster knows bare rather than guessing.
-     */
-    private suspend fun migratedTombstones(semesters: List<String>, signIn: SignIn): Set<String> {
-        val stored = dataCache.loadDeletedCourseNos()
-        if (stored.none { ':' !in it }) return stored
-        val rosters = semesters.associateWith { semester ->
-            dataCache.loadCourses(semester).map { it.courseNo }.toSet()
-        }
-        // Under the hides lock: a bare one lifted while the rosters were read stays lifted.
-        val migrated = dataCache.pinLegacyCourseHides(stored, rosters, signIn)
-        val bare = migrated.count { ':' !in it }
-        if (bare < stored.count { ':' !in it }) {
-            Log.i(TAG, "[Sync] pinned ${stored.count { ':' !in it } - bare} legacy tombstones to their terms")
-        }
-        return migrated
-    }
-
-    private companion object {
-        const val TAG = "HomeViewModel"
     }
 }
 

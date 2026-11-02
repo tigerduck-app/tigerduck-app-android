@@ -14,7 +14,15 @@ import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.SyncApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.FirstPullGate
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.Synchronizer
+import org.ntust.app.tigerduck.sync.reconcile.CourseResetReconciler
+import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
+import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
+import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
+import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
+import org.ntust.app.tigerduck.sync.reconcile.RosterReconciler
 import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
 
 /** Home's full sync over [w]'s stores, with the queues it sends from, as Hilt builds them. */
@@ -26,13 +34,14 @@ internal class HomeSyncRig(
     val overrides: PendingCourseOverrides,
     val holidays: PendingHolidayOverrides,
     val ignores: CourseIgnoreSync,
+    val gate: FirstPullGate,
     val sync: HomeBackendSync,
 )
 
 /**
  * Builds [HomeSyncRig] over [w], its backend requests answered by [backend]. What would run past the
  * sync, on the application scope, goes to [idleScope], which never runs it: the notification
- * settings pull, the roster requests and a re-enable check. [ignores] is the course-ignore queue,
+ * settings pull, the roster requests, a re-enable check and the first-pull gate's sign-out watch. [ignores] is the course-ignore queue,
  * the real one unless a test needs its own.
  */
 internal fun homeSyncRig(
@@ -48,30 +57,39 @@ internal fun homeSyncRig(
     val deletes = PendingCourseDeletes(w.dataCache, adds, w.pushApi)
     val overrides = PendingCourseOverrides(w.dataCache, w.pushApi, w.appPrefs)
     val holidays = PendingHolidayOverrides(w.appPrefs, w.pushApi)
-    val sync = HomeBackendSync(
+    val policies = SyncPolicies(w.appPrefs)
+    val gate = FirstPullGate(w.sessions, idleScope)
+    val marksReconciler = MarksReconciler(w.appPrefs, w.dataCache, marks, w.pushApi)
+    val overridesReconciler = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies)
+    val synchronizer = Synchronizer(
         prefs = w.appPrefs,
+        syncPolicies = policies,
         dataCache = w.dataCache,
-        authService = w.auth,
         authTokenManager = w.tokens,
         syncApiClient = syncApi,
-        pushApiClient = w.pushApi,
-        notificationSettingsSync = w.notificationSettingsSync,
-        courseService = w.courseService,
-        semesterCatalog = w.semesterCatalog,
-        widgetUpdater = w.widgetUpdater,
-        academicCalendar = w.academicCalendar,
         courseIgnoreSync = ignores,
         unsentMarks = marks,
         pendingCourseAdds = adds,
         pendingCourseDeletes = deletes,
         pendingCourseOverrides = overrides,
         pendingHolidayOverrides = holidays,
+        firstPullGate = gate,
+        widgetUpdater = w.widgetUpdater,
         reenableCheck = ReenableCheck(w.appPrefs, syncApi, w.dataCache, w.semesterCatalog, ignores, w.auth, w.sessions, idleScope, context),
-        termCourseSync = idleTermSync(w),
+        notificationSettingsSync = w.notificationSettingsSync,
         appScope = idleScope,
-        syncPolicies = SyncPolicies(w.appPrefs),
+        marks = marksReconciler,
+        ignores = IgnoresReconciler(ignores),
+        overrides = overridesReconciler,
+        reset = CourseResetReconciler(w.appPrefs, w.dataCache, adds, deletes, overrides),
+        holidays = HolidaysReconciler(holidays, w.academicCalendar),
+        roster = RosterReconciler(
+            w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, adds, deletes, overrides,
+            idleTermSync(w), idleScope,
+        ),
     )
-    return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, sync)
+    val sync = HomeBackendSync(synchronizer, w.auth, w.pushApi, w.notificationSettingsSync, marksReconciler, overridesReconciler)
+    return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, gate, sync)
 }
 
 /** Asks the school nothing: a run's roster requests never reach it. */
