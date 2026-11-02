@@ -111,9 +111,8 @@ class DataCache @Inject constructor(
      * Home's own writes: reading those back could undo a newer swipe.
      */
     suspend fun adoptAssignmentMarks(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
-        saveIgnoredAssignments(ignored, signIn)
-        saveMarkedCompletedAssignments(completed, signIn)
-        _marksAdoptedVersion.update { it + 1 }
+        val ignoredKept = saveIgnoredAssignments(ignored, signIn)
+        if (saveMarkedCompletedAssignments(completed, signIn) or ignoredKept) _marksAdoptedVersion.update { it + 1 }
     }
 
     suspend fun replaceIgnoredAssignments(ids: Set<String>, signIn: SignIn) = saveIgnoredAssignments(ids, signIn)

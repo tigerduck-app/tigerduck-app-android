@@ -300,6 +300,19 @@ class DataCacheTest {
     }
 
     @Test
+    fun `marks refused under an ended sign-in are not announced as adopted`() = runTest {
+        val before = cache.marksAdoptedVersion.value
+
+        val series = SignInSeries()
+        val signIn = series.current
+        series.end()
+
+        cache.adoptAssignmentMarks(ignored = setOf("a"), completed = setOf("b"), signIn)
+
+        assertEquals(before, cache.marksAdoptedVersion.value)
+    }
+
+    @Test
     fun `the closed assignments round-trip and go with the account`() = runTest {
         cache.saveClosedAssignments(mapOf(7 to 1_800_000_000_000L), testSignIn())
 
