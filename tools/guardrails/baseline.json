@@ -373,11 +373,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
-    "kind": "long-file",
-    "count": 662
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/push/PushApiClient.kt",
     "kind": "sync-switch-read",
     "count": 15
   },
