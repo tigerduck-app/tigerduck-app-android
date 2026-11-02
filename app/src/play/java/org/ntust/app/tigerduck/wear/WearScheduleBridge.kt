@@ -176,7 +176,20 @@ class WearScheduleBridge @Inject constructor(
      * watch wipes its local copy rather than holding stale creds — and while
      * the library has refused the stored password; see [libraryCredentialsForWatch].
      */
-    suspend fun publishLibraryCredentials() {
+    suspend fun publishLibraryCredentials() = libraryCredentials.publish()
+
+    // One publish at a time, as the schedule's: the watch keeps the highest version, so a sign-out's
+    // read must not go out under a version taken after a later sign-in's.
+    private val libraryCredentials = WatchItemPublisher(snapshot = { libraryCredentialsItem() }) { (request, hasCredentials) ->
+        try {
+            Wearable.getDataClient(context).putDataItem(request).await()
+            Log.d(TAG, "library credentials publish ok (has=$hasCredentials)")
+        } catch (t: Throwable) {
+            Log.w(TAG, "library credentials publish failed: ${t.logSummary()}")
+        }
+    }
+
+    private fun libraryCredentialsItem(): Pair<PutDataRequest, Boolean> {
         val account = libraryCredentialsForWatch(credentials)
         val username = account?.first
         val password = account?.second
@@ -209,13 +222,7 @@ class WearScheduleBridge @Inject constructor(
                 )
             }
         }.asPutDataRequest().setUrgent()
-
-        try {
-            Wearable.getDataClient(context).putDataItem(request).await()
-            Log.d(TAG, "library credentials publish ok (has=$hasCredentials)")
-        } catch (t: Throwable) {
-            Log.w(TAG, "library credentials publish failed: ${t.logSummary()}")
-        }
+        return request to hasCredentials
     }
 
     /**
@@ -375,7 +382,8 @@ internal fun Course.toWearDto(): WearScheduleBridge.CourseDto = WearScheduleBrid
 /**
  * Publishes a Data Layer item one at a time: a snapshot is taken and put with no other publish of
  * the item in between, so the item last put is always the newest. The TLS pins item's snapshot
- * takes its version too (A8); the schedule's reads the sign-in, the courses and the course changes.
+ * takes its version too (A8), as the library credentials' does; the schedule's reads the sign-in,
+ * the courses and the course changes.
  */
 internal class WatchItemPublisher<T>(private val snapshot: suspend () -> T, private val put: suspend (T) -> Unit) {
     private val mutex = Mutex()

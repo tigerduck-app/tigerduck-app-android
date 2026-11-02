@@ -27,6 +27,8 @@ import org.ntust.app.tigerduck.mail.store.MailStateStore
 import org.ntust.app.tigerduck.mail.sync.MailBackgroundScheduler
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import java.util.Collections
+import java.util.WeakHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -139,10 +141,9 @@ class MailAccount @Inject constructor(
     // password typed again ended.
     private var present: Set<SignIn> = setOf(session.current)
 
-    // The sign-ins of students who have left. Added to only as one leaves, so a sign-in just
-    // opened is never in it, whoever reads it without the lock.
-    @Volatile
-    private var gone: Set<SignIn> = emptySet()
+    // The sign-ins of students who have left, while anything still holds one to ask about. Added
+    // to only as one leaves, so a sign-in just opened is never in it, whoever reads it without the lock.
+    private val gone: MutableSet<SignIn> = Collections.synchronizedSet(Collections.newSetFromMap(WeakHashMap()))
 
     /** The student here now leaves, under [accountLock]. */
     private fun studentLeaves() {
