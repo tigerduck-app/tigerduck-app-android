@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -79,16 +80,16 @@ internal fun syncFixture(path: String): String =
 
 /**
  * A [SyncApiClient] whose endpoint setting is [base], signed in with the pair `access`/`refresh`,
- * reaching nothing but [backend].
+ * reaching nothing but [backend], its snapshots heard by [clock].
  */
-internal fun syncApiClientAt(base: String, backend: OkHttpClient): SyncApiClient {
+internal fun syncApiClientAt(base: String, backend: OkHttpClient, clock: SyncClock? = null): SyncApiClient {
     val context = JvmContext()
     val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = base }
     // Never the real backend, even past the recording one.
     assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
     val tokens = V3TokenStore(context.getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
     tokens.save("access", "refresh", Long.MAX_VALUE)
-    return SyncApiClient(AuthTokenManager(tokens, backend, prefs, "device-1"), prefs, backend)
+    return SyncApiClient(AuthTokenManager(tokens, backend, prefs, "device-1"), prefs, backend, clock)
 }
 
 /**

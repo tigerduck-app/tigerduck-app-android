@@ -5,6 +5,10 @@ import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
 /**
@@ -78,7 +82,6 @@ class FullSyncSnapshotTest {
         assertEquals(released, parseFullSync(JSONObject(syncFixture("v4/full.json"))))
     }
 
-    /** Until the endpoint's version is read there, a fetch from `/v4` reads it as `/v3`'s. */
     @Test
     fun `a snapshot fetched from v4 reads its existing fields as today`() = runTest {
         val backend = RecordingBackend().apply { answer("/v4/sync/full", 200, syncFixture("v4/full.json")) }
@@ -87,6 +90,33 @@ class FullSyncSnapshotTest {
 
         assertEquals(V4_SNAPSHOT.released().copy(rosterRequests = listOf("1151")), result.released().copy(fetchedAtMs = 0L))
         assertEquals(listOf("$v4/sync/full"), backend.sent.map { it.url })
+    }
+
+    /** A clock that has heard nothing, its wall clock in 2020: its next stamp shows what it hears. */
+    private fun quietClock() = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", 0)), { BackendApi.V4 }, { EARLY_MS })
+
+    @Test
+    fun `a snapshot fetched from v4 fills its stamps, and the clock hears the largest`() = runTest {
+        val backend = RecordingBackend().apply { answer("/v4/sync/full", 200, syncFixture("v4/full.json")) }
+        val clock = quietClock()
+
+        val result = syncApiClientAt(v4, backend.client, clock).fetchFullSync(testSignIn())
+
+        assertEquals(V4_SNAPSHOT.copy(rosterRequests = listOf("1151")), result.copy(fetchedAtMs = 0L))
+        // The mark stored ahead of the backend's clock, as in the parser's own test, plus one tick.
+        assertEquals(1_792_900_000_004L + 1, clock.stampMs())
+    }
+
+    /** `/v3` sends the stamps as well; fetched from there, they stay unread and unheard. */
+    @Test
+    fun `a snapshot fetched from v3 leaves its stamps null, and is heard by no clock`() = runTest {
+        val backend = RecordingBackend().apply { answer("/v3/sync/full", 200, syncFixture("v3/full.json")) }
+        val clock = quietClock()
+
+        val result = syncApiClientAt(v3, backend.client, clock).fetchFullSync(testSignIn())
+
+        assertEquals(V3_SNAPSHOT, result.copy(fetchedAtMs = 0L))
+        assertEquals(EARLY_MS + 1, clock.stampMs())
     }
 
     /** Protocol 2 keeps them all (LWW D11): none older than 30 days or beside a listed course is left out. */
@@ -194,6 +224,9 @@ class FullSyncSnapshotTest {
     }
 
     internal companion object {
+        /** 2020-09-13, a wall clock behind every clock value the fixtures hold. */
+        const val EARLY_MS = 1_600_000_000_000L
+
         /** What `sync/v3/full.json` reads as, but its fetch time. */
         val V3_SNAPSHOT = BackendSyncResult(
             ignoredIds = setOf("9001", "9004"),
