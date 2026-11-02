@@ -8,6 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
+import org.ntust.app.tigerduck.ui.component.ServerKind
+import org.ntust.app.tigerduck.ui.component.SimulatedFailure
 import org.ntust.app.tigerduck.util.testSignIn
 import java.io.IOException
 
@@ -30,6 +33,27 @@ class SessionRefusalTest {
         assertTrue(IOException("HTTP 403 session_revoked").isSessionRefused())
         assertFalse(IOException("HTTP 503").isSessionRefused())
         assertFalse(IOException().isSessionRefused())
+    }
+
+    /** A debug build's simulated backend 401 still takes the relogin path, as a real one does. */
+    @Test
+    fun `the debug simulator's backend 401 reads as refused, and its other failures not`() = runTest {
+        suspend fun simulated(failure: SimulatedFailure): Throwable {
+            ServerFailureSimulator.setFailure(failure, ServerKind.BACKEND)
+            return runCatching { ServerFailureSimulator.check(ServerKind.BACKEND) {} }.exceptionOrNull()!!
+        }
+        try {
+            val refused = simulated(SimulatedFailure.HTTP_401)
+
+            assertTrue(refused.isSessionRefused())
+            assertTrue("still an IO failure, got $refused", refused is IOException)
+            assertEquals("Simulated HTTP 401 for BACKEND", refused.message)
+            for (other in listOf(SimulatedFailure.HTTP_500, SimulatedFailure.HTTP_403, SimulatedFailure.UNREACHABLE)) {
+                assertFalse(other.name, simulated(other).isSessionRefused())
+            }
+        } finally {
+            ServerFailureSimulator.resetAll()
+        }
     }
 
     @Test

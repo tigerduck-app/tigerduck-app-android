@@ -66,6 +66,40 @@ class ApiVersionInterceptorTest {
     }
 
     @Test
+    fun `a v4 envelope that retires the API or the app version latches the gate`() {
+        for (code in listOf("api_retired", "app_version_retired")) {
+            ApiVersionGate.resetForTesting()
+
+            answer("$BACKEND/sync/full", 410, """{"error": "$code", "message": "Update the app.", "current_api": "/v4"}""")
+
+            assertTrue(code, ApiVersionGate.isRetired.value)
+        }
+    }
+
+    @Test
+    fun `the v3 410 the backend sends once v3 retires latches the gate`() {
+        answer("$BACKEND/sync/full", 410, """{"detail": "This API version has been retired.", "current_api": "/v4", "error": "api_retired"}""")
+
+        assertTrue(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
+    fun `a 410 with no body latches the gate`() {
+        answer("$BACKEND/sync/full", 410, "")
+
+        assertTrue(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
+    fun `no other status latches the gate, the v4 feed's 409 included`() {
+        answer("$BACKEND/sync?since_revision=12", 409, """{"error": "sync_revision_expired", "current_revision": 52}""")
+        answer("$BACKEND/sync/full", 404, """{"detail": "api_retired"}""")
+        answer("$BACKEND/sync/full", 500, "Internal Server Error")
+
+        assertFalse(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
     fun `a 410 from another host leaves the gate alone`() {
         answer("https://moodle.example.test/page", 410, "{}")
 
