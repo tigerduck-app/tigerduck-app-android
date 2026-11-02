@@ -1005,7 +1005,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/CourseSyncReconciler.kt",
     "kind": "sync-switch-read",
-    "count": 6
+    "count": 3
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeAssignmentList.kt",
@@ -1015,35 +1015,8 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
-    "kind": "full-sync-fetch",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
-    "kind": "long-file",
-    "count": 733
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
-    "kind": "long-function",
-    "name": "HomeBackendSync.pull(HomeSyncState, SignIn, Boolean)",
-    "lines": 153
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
-    "kind": "long-function",
-    "name": "HomeBackendSync.syncCourseList(BackendSyncResult, Boolean, DataCache.CourseSync, SignIn)",
-    "lines": 102
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
-    "kind": "sync-switch-read",
-    "count": 12
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt",
     "kind": "sync-write",
-    "count": 3
+    "count": 1
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeScreen.kt",
