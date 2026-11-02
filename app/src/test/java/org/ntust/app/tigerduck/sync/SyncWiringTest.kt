@@ -255,6 +255,20 @@ class SyncWiringTest {
         assertCalls("ui/screen/home/HomeViewModel.kt", "pollRevision", "reenableCheck.runIfOwed()")
     }
 
+    /**
+     * A full sync that lands proves a session and a network: a notification-settings edit whose
+     * push never landed goes again, and another device's change is picked up, on the application
+     * scope and on Main, never awaited. Both go to scopes the JVM tests leave idle.
+     */
+    @Test
+    fun `a full sync that lands sends the settings edit that waits and pulls the settings`() {
+        assertCalls("sync/ForegroundSteps.kt", "afterSync", "notificationSettingsSync.pushIfUnconfirmed()", "pullSettings(pass.result.currentRevision)")
+        assertCalls(
+            "sync/ForegroundSteps.kt", "pullSettings",
+            "appScope.launch(Dispatchers.Main) {", "notificationSettingsSync.pullNow(knownRevision = knownRevision)",
+        )
+    }
+
     @Test
     fun `a hand-added course's upload is kept until it lands, and every full sync sends what waits first`() {
         assertCalls("ui/screen/classtable/ClassTableViewModel.kt", "addCourse", "pendingCourseAdds.send(")
