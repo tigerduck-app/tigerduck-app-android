@@ -62,6 +62,9 @@ class MailChecker @Inject constructor(
     // Held around each read-and-write of the inbox marker: a check's and the list's.
     private val markerLock = Any()
 
+    // The demo has no server: nothing here may open a socket, or date or mark anything of its.
+    private val demo: Boolean get() = account.isDemo
+
     suspend fun check(source: CheckSource): CheckOutcome {
         val signIn = account.currentSignIn
         val outcome = if (!mutex.tryLock()) {
@@ -98,17 +101,19 @@ class MailChecker @Inject constructor(
      * ([MailStateStore.setFetchedAtIf]), so a date it allows goes with that clear.
      */
     fun noteFetchedByPage(folder: String, signIn: SignIn): Boolean {
-        if (account.isDemo) return false
+        if (demo) return false
         return state.setFetchedAtIf(folder, clock.now()) { signIn.isCurrent }
     }
 
     /**
      * The list page showed the inbox up to [status]; those mails must never notify later. For the
      * account at [signIn] when the page asked: a status that lands after its sign-out says
-     * nothing about the next account's inbox, and must not move its marker.
+     * nothing about the next account's inbox, and must not move its marker. Nor does the demo's
+     * status, which is no server's and would stand in the marker of a real account stored under
+     * the demo: mail that came meanwhile would never notify.
      */
     fun noteSeenByPage(status: FolderStatus, signIn: SignIn) = synchronized(markerLock) {
-        if (!signIn.isCurrent) return@synchronized
+        if (demo || !signIn.isCurrent) return@synchronized
         if (status.uidValidity != state.inboxUidValidity) {
             state.inboxUidValidity = status.uidValidity
             state.inboxSeenUidNext = status.uidNext
@@ -129,7 +134,7 @@ class MailChecker @Inject constructor(
             if (now - state.lastForegroundCheckAt < FOREGROUND_THROTTLE_MS) return@withContext CheckOutcome.Throttled
             state.lastForegroundCheckAt = now
         }
-        if (account.isDemo) return@withContext CheckOutcome.Demo
+        if (demo) return@withContext CheckOutcome.Demo
         // The state, the cache and the notifications belong to whoever is signed in now. A check
         // that outlives its account -- a sign-out, or another student signing in meanwhile --
         // writes, files and posts nothing more, so it asks again right before each of those.

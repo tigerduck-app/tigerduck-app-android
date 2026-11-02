@@ -12,12 +12,14 @@ import okhttp3.Interceptor
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.debug.DemoModeInterceptor
@@ -164,6 +166,23 @@ class DemoStaysOnTheDeviceTest {
         assertEquals(CheckOutcome.Demo, checker().check(CheckSource.WORKER))
 
         assertEquals(opens, server.opens)
+    }
+
+    @OptIn(StartsAccountWork::class)
+    @Test
+    fun `the demo's inbox leaves the real student's seen marker alone`() = runTest {
+        val repository = repository(backgroundScope)
+        server.deliver("a")
+        realMailStored()
+        val marker = state.inboxUidValidity to state.inboxSeenUidNext
+        demoSignsIn()
+        val demoInbox = repository.inboxStatus()
+        assertNotEquals(marker, demoInbox.uidValidity to demoInbox.uidNext)
+
+        // As the list page does, with the status it was given.
+        checker().noteSeenByPage(demoInbox, account.currentSignIn)
+
+        assertEquals(marker, state.inboxUidValidity to state.inboxSeenUidNext)
     }
 
     @Test
