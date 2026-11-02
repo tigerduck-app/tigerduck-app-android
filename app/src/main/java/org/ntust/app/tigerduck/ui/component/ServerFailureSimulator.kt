@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
 import java.io.IOException
 
 enum class SimulatedFailure(val label: String) {
@@ -52,12 +54,20 @@ object ServerFailureSimulator {
                 wait(TIMEOUT_MS)
                 throw IOException("Simulated timeout for ${server.name}")
             }
-            SimulatedFailure.HTTP_500 -> throw IOException("Simulated HTTP 500 for ${server.name}")
-            SimulatedFailure.HTTP_401 -> throw IOException("Simulated HTTP 401 for ${server.name}")
-            SimulatedFailure.HTTP_403 -> throw IOException("Simulated HTTP 403 for ${server.name}")
+            SimulatedFailure.HTTP_500 -> throw httpFailure(500, server)
+            SimulatedFailure.HTTP_401 -> throw httpFailure(401, server)
+            SimulatedFailure.HTTP_403 -> throw httpFailure(403, server)
             SimulatedFailure.SLOW -> wait(SLOW_MS)
             SimulatedFailure.UNREACHABLE -> throw IOException("Simulated unreachable for ${server.name}")
         }
+    }
+
+    // A simulated backend failure carries its status as data, as the backend's own refusals do:
+    // that is how a refused session is told, so a simulated 401 signs in again as a real one
+    // does. The other servers' failures say theirs only in the message, as before.
+    private fun httpFailure(status: Int, server: ServerKind): IOException {
+        val message = "Simulated HTTP $status for ${server.name}"
+        return if (server == ServerKind.BACKEND) BackendException(BackendError(status, null), message) else IOException(message)
     }
 }
 

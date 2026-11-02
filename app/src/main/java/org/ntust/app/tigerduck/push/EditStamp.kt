@@ -2,16 +2,14 @@ package org.ntust.app.tigerduck.push
 
 import okhttp3.Call
 import okhttp3.Response
-import org.json.JSONObject
+import org.ntust.app.tigerduck.network.backend.BackendError
 
 // The backend's TigerSync clock for a time in epoch ms: whole microseconds since the epoch.
 internal fun clockOf(epochMs: Long): Long = epochMs * 1_000
 
-// 409 `clock_ahead`: a time more than 5 s ahead of the backend's clock. Peeked, so a caller
-// that goes on to read the body still can.
-internal fun isClockAhead(response: Response): Boolean = response.code == 409 &&
-    runCatching { JSONObject(response.peekBody(4_096).string()).optString("detail") == "clock_ahead" }
-        .getOrDefault(false)
+// 409 `clock_ahead`: a time more than 5 s ahead of the backend's clock, whether /v3 says it in
+// `detail` or /v4 in `error`. Peeked, so a caller that goes on to read the body still can.
+internal fun isClockAhead(response: Response): Boolean = response.code == 409 && BackendError.of(response).isClockAhead
 
 /** [body] with [hlc] as its `hlc`, or as it was when [hlc] is null. */
 internal fun Map<String, Any>.stampedWith(hlc: Long?): Map<String, Any> =

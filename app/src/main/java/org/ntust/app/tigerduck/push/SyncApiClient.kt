@@ -202,7 +202,7 @@ class SyncApiClient @Inject constructor(
         val fetchedAtMs = System.currentTimeMillis()
         api.at(baseUrl).full(authHeader).execute().use { response ->
             if (!response.isSuccessful) {
-                throw PushApiException("sync/full failed: HTTP ${response.code}")
+                throw PushApiException("sync/full failed: HTTP ${response.code}", response.code)
             }
             val json = JSONObject(response.body.string())
             parseFullSync(json).copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))

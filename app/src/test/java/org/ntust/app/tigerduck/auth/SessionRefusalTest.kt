@@ -7,6 +7,9 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.push.RecordingBackend
+import org.ntust.app.tigerduck.push.syncApiClientAt
+import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -33,6 +36,30 @@ class SessionRefusalTest {
         assertTrue(IOException("HTTP 403 session_revoked").isSessionRefused())
         assertFalse(IOException("HTTP 503").isSessionRefused())
         assertFalse(IOException().isSessionRefused())
+    }
+
+    /** What the snapshot's fetch throws for [status] and [body], at an endpoint ending in [version]. */
+    private suspend fun snapshotFailure(version: String, status: Int, body: String): Throwable {
+        val backend = RecordingBackend().apply { answer("/$version/sync/full", status, body) }
+        val sync = syncApiClientAt("http://127.0.0.1:9/$version", backend.client)
+        return runCatching { sync.fetchFullSync(testSignIn()) }.exceptionOrNull()!!
+    }
+
+    @Test
+    fun `a snapshot refused with a 401 reads as refused, whichever version's body says why`() = runTest {
+        val refusals = listOf(
+            "v3" to """{"detail":"session_revoked"}""",
+            "v3" to """{"detail":"invalid_access_token"}""",
+            "v3" to "",
+            "v4" to syncFixture("v4/error-session-user-mismatch.json"),
+            "v4" to """{"error":"session_revoked","message":"The session has ended; sign in again."}""",
+            "v4" to "",
+        )
+        for ((version, body) in refusals) {
+            assertTrue("$version $body", snapshotFailure(version, 401, body).isSessionRefused())
+        }
+        assertFalse(snapshotFailure("v3", 403, """{"detail":"session_revoked"}""").isSessionRefused())
+        assertFalse(snapshotFailure("v4", 503, """{"error":"moodle_unreachable","message":"Moodle did not answer."}""").isSessionRefused())
     }
 
     /** A debug build's simulated backend 401 still takes the relogin path, as a real one does. */

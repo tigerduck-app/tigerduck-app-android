@@ -12,10 +12,12 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.push.syncFixture
 
 /**
- * Which 410s from our backend say the app is too old ([ApiVersionGate]). The change feed's
- * `sync_revision_expired` is not one of them: it asks for a full sync, which the app makes.
+ * Which 410s from our backend say the app is too old ([ApiVersionGate]): `api_retired`,
+ * `app_version_retired`, or none that names a code. The change feed's `sync_revision_expired` is
+ * not one of them: it asks for a full sync, which the app makes.
  */
 class ApiVersionInterceptorTest {
 
@@ -95,6 +97,23 @@ class ApiVersionInterceptorTest {
         answer("$BACKEND/sync?since_revision=12", 409, """{"error": "sync_revision_expired", "current_revision": 52}""")
         answer("$BACKEND/sync/full", 404, """{"detail": "api_retired"}""")
         answer("$BACKEND/sync/full", 500, "Internal Server Error")
+
+        assertFalse(ApiVersionGate.isRetired.value)
+    }
+
+    /** The one 410 that latched before and no longer does: none the backend sends today. */
+    @Test
+    fun `a 410 that names a code it does not know leaves the gate alone, in either version`() {
+        answer("$BACKEND/bulletin-subscriptions/7", 410, """{"error": "subscription_gone", "message": "Gone."}""")
+        answer("$BACKEND/bulletin-subscriptions/7", 410, """{"detail": "subscription_gone"}""")
+
+        assertFalse(ApiVersionGate.isRetired.value)
+    }
+
+    @Test
+    fun `the v4 feed's expired revision is not a retired API either`() {
+        answer("$BACKEND/sync?since_revision=12", 409, syncFixture("v4/feed-expired.json"))
+        answer("$BACKEND/sync?since_revision=12", 410, syncFixture("v4/feed-expired.json"))
 
         assertFalse(ApiVersionGate.isRetired.value)
     }
