@@ -182,6 +182,12 @@ class SyncWiringTest {
         assertCalls(rel, "syncOverridesFromBackend", "if (marksChanged && prefs.notifyAssignments && signIn.isCurrent) {")
     }
 
+    /** What stops them is RunRefreshesTest's; the worker cannot be built here. */
+    @Test
+    fun `the worker's refreshes stop with its sign-in`() {
+        assertCalls("notification/BackgroundSyncWorker.kt", "doWork", "refreshAfterRun(signIn,")
+    }
+
     @Test
     fun `an answered re-enable dialog holds colours and names until applied`() {
         assertCalls(

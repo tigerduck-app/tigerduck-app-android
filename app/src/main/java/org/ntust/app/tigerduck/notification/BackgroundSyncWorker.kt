@@ -167,9 +167,9 @@ class BackgroundSyncWorker @AssistedInject constructor(
         // there is nothing for the Live Update, the widgets or the open
         // screens to pick up.
         if (overridesDue || coursesDue || assignmentsDue) {
-            liveActivityManager.refreshAndWait()
-            widgetUpdater.updateAll()
-            dataCache.notifyBackgroundSyncComplete()
+            refreshAfterRun(signIn, { liveActivityManager.refreshAndWait() }, { widgetUpdater.updateAll() }) {
+                dataCache.notifyBackgroundSyncComplete()
+            }
         }
 
         if (coursesOk && assignmentsOk) return Result.success()
