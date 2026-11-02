@@ -190,13 +190,15 @@ internal class CourseAddSends(
 
 /**
  * The course deletes' sends: one DELETE per hold of the send lock ([one]), with the delete's kind
- * when this process was told it ([told]). [waiting] reads the lane's deletes.
+ * when this process was told it ([told]). [waiting] reads the queue's deletes, and [underQueueLock]
+ * runs a step under the queue's own lock, which every keep, send and forget of a delete takes.
  */
 internal class CourseDeleteSends(
     private val dataCache: DataCache,
     private val deleter: AnsweredCourseDeleter,
     private val outbox: MembershipOutbox,
     private val waiting: suspend () -> List<CourseDelete>,
+    private val underQueueLock: suspend (suspend () -> Unit) -> Unit,
 ) {
     // Each waiting delete's kind, by its field, as the class table told it when it kept it. In
     // memory: a delete read after a restart goes with none, and the backend decides from its row (X3).
@@ -256,11 +258,16 @@ internal class CourseDeleteSends(
 
     // The backend refused [delete], an add of the course made since elsewhere being newer (LWW
     // D12, a write response's winner): this phone's hide of it goes, so the next pull shows the
-    // course the backend lists, unless the course was deleted here again since.
-    private suspend fun takeBackendsAdd(delete: CourseDelete, signIn: SignIn) {
-        if (waiting().any { it.field == delete.field && it != delete }) return
-        val hides = setOf(CourseTombstoneKeys.key(delete.semester, delete.courseNo), delete.courseNo)
-        dataCache.updateDeletedCourseNos(before = hides, after = emptySet(), signIn = signIn)
+    // course the backend lists, unless the course was deleted here again since. The check and the
+    // lift are one step under the queue's lock: a newer delete is kept before the check, which then
+    // leaves the hide alone, or after the lift, and its hide is marked again (the class table keeps
+    // a delete before it marks its hide); never between the two, where its hide would go while its
+    // DELETE waits, for a course selection answer to bring the course back.
+    private suspend fun takeBackendsAdd(delete: CourseDelete, signIn: SignIn) = underQueueLock {
+        if (waiting().none { it.field == delete.field && it != delete }) {
+            val hides = setOf(CourseTombstoneKeys.key(delete.semester, delete.courseNo), delete.courseNo)
+            dataCache.updateDeletedCourseNos(before = hides, after = emptySet(), signIn = signIn)
+        }
     }
 
     companion object {

@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.data
 
 import android.content.Context
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -422,6 +423,60 @@ class CourseDeletesChannelTest {
         assertEquals(listOf(10L, 20L), sent)
         assertTrue(CourseTombstoneKeys.isHidden(typed, term, cache.loadDeletedCourseNos()))
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
+    }
+
+    /**
+     * The class table removes the course again while the backend's refusal of its older delete is
+     * applied. The check for a newer delete and the hide's lift are one step under the queue's
+     * lock: the newer delete is kept before the check, which then leaves the hide alone, or after
+     * the lift, and marks its hide again. Never between the two, where its hide would be lifted
+     * while its own DELETE waits, for a course selection answer to bring the course back.
+     */
+    @Test
+    fun `a newer delete kept while an older delete's refusal is applied keeps its hide`() = runTest {
+        prefs.announcementApiBaseUrlOverride = v4
+        cache.saveDeletedCourseNos(CourseTombstoneKeys.hide(typed, term, emptySet()), signIn)
+        val outbox = MembershipOutbox(SyncPolicies(prefs), scope = backgroundScope)
+        val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null }, outbox)
+        lateinit var deletes: PendingCourseDeletes
+        var refused = false
+        var newer: Job? = null
+        // The queue file's read. The first after the older DELETE's refusal is the check for a
+        // newer delete: the next removal starts there, and has every chance to land before it.
+        val load: suspend () -> Map<String, Map<String, Long>> = {
+            val read = cache.loadPendingCourseDeletes()
+            if (refused) {
+                refused = false
+                val removal = launch {
+                    // As ClassTableViewModel.deleteCourse: the delete kept, then its hide marked.
+                    deletes.keep(term, typed, 20L, signIn)
+                    cache.hideDeletedCourse(typed, term, null, signIn)
+                }
+                newer = removal
+                repeat(300) {
+                    if (!removal.isCompleted) {
+                        cache.loadDeletedCourseNos()
+                        yield()
+                    }
+                }
+            }
+            read
+        }
+        deletes = PendingCourseDeletes(
+            cache, adds,
+            { _, _, hiddenAt, _ ->
+                // The older delete is refused, an add of the course elsewhere being newer.
+                refused = hiddenAt == 10L
+                WriteAnswer(sent = true, serverClockUs = null, applied = if (refused) emptySet() else setOf(WriteAnswer.MEMBERSHIP), values = emptyMap())
+            },
+            { ++nowMs }, load, outbox,
+        )
+
+        deletes.send(term, typed, 10L, signIn)
+        checkNotNull(newer) { "the refusal's check read nothing" }.join()
+
+        assertTrue("the newer delete's hide stands", CourseTombstoneKeys.isHidden(typed, term, cache.loadDeletedCourseNos()))
+        assertEquals(mapOf(term to mapOf(typed to 20L)), queued())
     }
 
     /** Review Focus 5, on `/v4`. */

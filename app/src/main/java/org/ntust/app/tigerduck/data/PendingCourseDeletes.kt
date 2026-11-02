@@ -138,7 +138,12 @@ class PendingCourseDeletes internal constructor(
     // so one asked before it and kept only after is not kept; read and set under [mutex].
     private var forgottenBefore = Long.MIN_VALUE
 
-    private val sends: CourseDeleteSends = CourseDeleteSends(dataCache, deleter, outbox, waiting = { lane.entries() })
+    private val sends: CourseDeleteSends = CourseDeleteSends(
+        dataCache, deleter, outbox,
+        // The file as it stands, under the queue's lock (the lane's own is not held across it).
+        waiting = { deletesOf(waiting()) },
+        underQueueLock = { step -> mutex.withLock { step() } },
+    )
 
     private val lane: OutboxLane<CourseDelete> = OutboxLane(
         OutboxChannelId.COURSE_DELETES,
