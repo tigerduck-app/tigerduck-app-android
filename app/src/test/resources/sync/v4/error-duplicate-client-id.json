@@ -1,0 +1,1 @@
+{"error": "invalid_request", "message": "The request did not validate.", "fields": [{"type": "value_error", "loc": ["body"], "msg": "Value error, each rule needs its own client_id"}]}
