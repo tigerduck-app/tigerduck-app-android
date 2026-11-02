@@ -185,8 +185,10 @@ class SignOutRecoveryTest {
     private fun assertNothingOfTheFirstLeft(w: AccountWorld, firstLeft: Map<Pair<String, String>, Any?>, row: String) = runBlocking {
         withTimeout(10_000) {
             w.sessions.school.awaitOpen()
-            appJob.children.toList().joinAll()
+            // The effects stop the Live Update before they clear the browser, and the stop starts a
+            // refresh on the session: one left running clears the next row's tracker before it is read.
             w.browserClearings.first { it >= 1 }
+            appJob.children.toList().joinAll()
         }
         assertEquals(row, emptySet<Pair<String, String>>(), firstLeft.filter { (at, value) -> prefs(at.first).all[at.second] == value }.keys)
         assertEquals(row, emptyList<String>(), listOf("cache", "data").flatMap { account.filesUnder(account.cacheRoots.getValue(it)) })

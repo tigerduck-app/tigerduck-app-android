@@ -12,24 +12,25 @@ import java.io.File
  * commit, so its older read cannot hide the course again.
  *
  * Read from the source, as `AddCourseTakeBackTest` does: the sync takes a dozen collaborators, and
- * what is pinned is which call writes the hides.
+ * what is pinned is which call writes the hides. The course list's step is `RosterReconciler`.
  */
 class HomeBackendSyncHidesTest {
 
-    private fun source(): String {
-        val rel = "src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeBackendSync.kt"
+    private fun source(file: String): String {
+        val rel = "src/main/java/org/ntust/app/tigerduck/$file"
         var dir: File? = File("").absoluteFile
         while (dir != null) {
             File(dir, rel).let { if (it.isFile) return it.readText() }
             File(dir, "app/$rel").let { if (it.isFile) return it.readText() }
             dir = dir.parentFile
         }
-        throw AssertionError("Could not locate HomeBackendSync.kt from ${File("").absolutePath}")
+        throw AssertionError("Could not locate $file from ${File("").absolutePath}")
     }
 
     @Test
     fun `the sync writes the hides only as what it changed in them`() {
-        val text = source()
+        // The course list's step, the one that migrates them, and the commit it writes them through.
+        val text = source("sync/reconcile/RosterReconciler.kt") + source("ui/screen/home/HomeBackendSync.kt")
         val migration = text.substringAfter("private suspend fun migratedTombstones(").substringBefore("\n    }\n")
 
         assertTrue("the legacy migration pins the hides as they are when it writes", "dataCache.pinLegacyCourseHides(stored, rosters, signIn)" in migration)

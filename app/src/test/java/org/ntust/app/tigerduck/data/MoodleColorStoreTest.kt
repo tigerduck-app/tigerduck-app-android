@@ -147,7 +147,8 @@ class MoodleColorStoreTest {
         val first = MoodleColorBook()
         store(first).ensureLoaded()
         first.reconcile(listOf(course("CS1")))
-        waitForFile()
+        // The first store's last write: the load's own state can land first, and this one after the delete.
+        waitForFile(containing = "CS1")
 
         student = null
         store(MoodleColorBook()).ensureLoaded()

@@ -61,9 +61,19 @@ internal class AccountStateInventory(
     private val bare: Map<String, String>
 
     init {
-        val lexed = sources.mapValues { (_, text) -> lex(text) }
+        val lexed = sources.mapValues { (_, text) -> lex(withQueueFileNames(text)) }
         code = lexed.mapValues { it.value.first }
         bare = lexed.mapValues { it.value.second }
+    }
+
+    /** [text] with each `QueueFile.NAME.fileName` spelled as the quoted file name `QueueFile` gives it. */
+    private fun withQueueFileNames(text: String): String {
+        val names = sources.entries.singleOrNull { it.key.endsWith("/data/cache/QueueFile.kt") }?.value ?: return text
+        val files = Regex("""^\s*(\w+)\("([\w-]+\.json)"\)""", RegexOption.MULTILINE).findAll(names)
+            .associate { it.groupValues[1] to it.groupValues[2] }
+        return Regex("""\bQueueFile\.(\w+)\.fileName\b""").replace(text) { match ->
+            files[match.groupValues[1]]?.let { "\"$it\"" } ?: match.value
+        }
     }
 
     /**
