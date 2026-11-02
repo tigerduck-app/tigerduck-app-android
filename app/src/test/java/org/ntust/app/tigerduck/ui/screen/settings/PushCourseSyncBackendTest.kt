@@ -45,7 +45,7 @@ class PushCourseSyncBackendTest {
         val api = PushApiClient(backend.client, prefs, tokenManager)
         val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
         val overrides = PendingCourseOverrides(cache, api, prefs)
-        courses = PushCourseSyncBackend(api, prefs, overrides, testSignIn(), runBlocking { overrides.reserveVersion() })
+        courses = PushCourseSyncBackend(api, prefs, overrides, testSignIn(), runBlocking { overrides.reserveVersion() }, cache)
     }
 
     private suspend fun fails(request: suspend () -> Unit): Boolean = runCatching { request() }.isFailure

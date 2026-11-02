@@ -278,6 +278,32 @@ class KeepLocalCoursesTest {
     }
 
     @Test
+    fun `on v4 each color and name goes as the phone holds it after the reset, not as Use Local read it`() = runTest {
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1151:CS2"), stampsOverrides = true)
+        // While the reset is out the student recolors CS1, renames it, and clears CS2's color.
+        server.afterReset = {
+            server.local["client:1151:CS1"] = LocalChoices("#00FF00", mapOf("en" to "New", "zh" to ""))
+            server.local["client:1151:CS2"] = LocalChoices(null, emptyMap())
+        }
+
+        keepLocalCourses(
+            listOf(
+                "1151" to listOf(
+                    Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000"),
+                    Course(courseNo = "CS2", courseName = "CS2", customColorHex = "#0000FF"),
+                ),
+            ),
+            hiding = emptySet(),
+            backend = server,
+            customNames = mapOf("CS1" to mapOf("en" to "Old", "zh" to "舊")),
+        )
+
+        assertEquals(listOf("reset 1151", "upload 1151", "color client:1151:CS1", "name client:1151:CS1 en"), server.requests)
+        assertEquals(mapOf("client:1151:CS1" to "#00FF00"), server.colors)
+        assertEquals(mapOf("client:1151:CS1" to mapOf("en" to "New")), server.names)
+    }
+
+    @Test
     fun `nothing more is sent once the sign-in it was answered under is gone`() = runTest {
         val server = FakeCourseServer(rows = setOf("client:1151:CS1", "client:1142:CS9"))
         var checks = 0
@@ -343,6 +369,7 @@ class UseLocalCoursesTest {
         override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
         override val stampsOverrides = false
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
+        override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
 
     private class SwitchedOff : CourseSyncBackend {
@@ -354,6 +381,7 @@ class UseLocalCoursesTest {
         override val stampsOverrides = false
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) =
             throw CourseSyncOffException()
+        override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
 
     private class Recording(private val onRequest: () -> Unit = {}) : CourseSyncBackend {
@@ -363,6 +391,7 @@ class UseLocalCoursesTest {
         override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = onRequest()
         override val stampsOverrides = false
         override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = onRequest()
+        override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
     }
 
     @Test
@@ -380,6 +409,7 @@ class UseLocalCoursesTest {
             override suspend fun patchCustomName(moodleId: String, name: String, locale: String) = Unit
             override val stampsOverrides = false
             override suspend fun patchStampedOverride(semester: String, courseNo: String, moodleId: String, colorHex: String?, name: String?, locale: String?) = Unit
+            override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = null
         }
 
         val reset = run(server, "1151" to roster("CS1"), "1142" to roster("CS9"), "1132" to emptyList())
@@ -502,6 +532,14 @@ private class FakeCourseServer(
     /** Every request, in order, as `step argument`. */
     val requests = mutableListOf<String>()
 
+    /** The phone's own choices now, by course key, where a test changed them while Use Local ran. */
+    val local = mutableMapOf<String, LocalChoices>()
+
+    /** Runs as each term's reset lands, for a test to change the phone's choices meanwhile. */
+    var afterReset: (semester: String) -> Unit = {}
+
+    override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices? = local["client:$semester:$courseNo"]
+
     /** Colors by course key, which an override sets and a reset or a delete takes with the row. */
     val colors = mutableMapOf<String, String>()
 
@@ -532,6 +570,7 @@ private class FakeCourseServer(
         removed.forEach(colors::remove)
         for (key in tombstones.keys.filter { it.startsWith(prefix) }) tombstones[key] = true
         for (key in removed) tombstones[key] = true
+        afterReset(semester)
     }
 
     override suspend fun uploadTerm(courses: List<Course>, semester: String) {

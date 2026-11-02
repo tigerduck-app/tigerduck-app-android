@@ -41,7 +41,8 @@ class UseLocalRequestsTest {
     private val prefs = AppPreferences(context)
     private val api = pushApiClientAt(v3, backend.client, prefs)
     private val signIn = testSignIn()
-    private val overrides = PendingCourseOverrides(DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs)), api, prefs)
+    private val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
+    private val overrides = PendingCourseOverrides(cache, api, prefs)
 
     @Before
     fun syncs() {
@@ -77,7 +78,7 @@ class UseLocalRequestsTest {
         keepLocalCourses(
             terms = listOf("1151" to listOf(colored, manual, hidden)),
             hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion()),
+            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache),
             customNames = mapOf("CS1" to mapOf("zh" to "微積分", "en" to "Calc"), "CS2" to mapOf("en" to "Gone")),
         )
 
@@ -108,7 +109,7 @@ class UseLocalRequestsTest {
         keepLocalCourses(
             terms = listOf("1151" to listOf(manual)),
             hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion()),
+            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache),
             customNames = mapOf("MY1" to mapOf("en" to "Mine")),
             portalCached = { false },
         )
@@ -121,9 +122,6 @@ class UseLocalRequestsTest {
     }
 
     /** A phone whose clock runs behind a backend it has heard: the stamps it gives are past its wall clock. */
-    private suspend fun behindTheBackend(setUp: (AppPreferences) -> Unit = {}): Pair<PushCourseSyncBackend, RecordingBackend> =
-        onV4(setUp).let { it.courses to it.backend }
-
     /** Use Local's backend on `/v4`, what it sends, its course outbox and the cache that keeps it. */
     private class OnV4(
         val courses: PushCourseSyncBackend,
@@ -131,6 +129,12 @@ class UseLocalRequestsTest {
         val cache: DataCache,
         val outbox: PendingCourseOverrides,
     )
+
+    /** The phone holds [courses] in [semester], and [names] (course number, then locale), as Use Local reads them. */
+    private suspend fun OnV4.holds(semester: String, courses: List<Course>, names: Map<String, Map<String, String>> = emptyMap()) {
+        cache.saveCourses(courses, semester, signIn)
+        cache.saveCourseCustomNames(names, signIn)
+    }
 
     /** Built as Settings builds it, with the outbox version reserved before the names are read. */
     private suspend fun onV4(setUp: (AppPreferences) -> Unit = {}): OnV4 {
@@ -142,7 +146,7 @@ class UseLocalRequestsTest {
         val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, v4Api, v4Prefs)
-        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion()), v4, cache, outbox)
+        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache), v4, cache, outbox)
     }
 
     private fun hlcOf(sent: RecordingBackend.Sent): Long? =
@@ -156,6 +160,7 @@ class UseLocalRequestsTest {
         val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
         val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#00FF00")
         val hidden = Course(courseNo = "CS2", courseName = "CS2", customColorHex = "#0000FF")
+        onV4.holds("1151", listOf(colored, manual, hidden), mapOf("CS1" to mapOf("en" to "Calc")))
 
         keepLocalCourses(
             terms = listOf("1151" to listOf(colored, manual, hidden)),
@@ -194,10 +199,10 @@ class UseLocalRequestsTest {
 
     @Test
     fun `on v4 a name waits for the names conflict the student has yet to answer, and the colors still go`() = runTest {
-        val (courses, v4) = behindTheBackend { prefs ->
-            assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn))
-        }
+        val onV4 = onV4 { prefs -> assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn)) }
+        val (courses, v4) = onV4.courses to onV4.backend
         val colored = Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000")
+        onV4.holds("1151", listOf(colored), mapOf("CS1" to mapOf("en" to "Calc", "zh" to "微積分")))
 
         keepLocalCourses(
             terms = listOf("1151" to listOf(colored)),
@@ -214,6 +219,7 @@ class UseLocalRequestsTest {
     fun `on v4 a name the names conflict holds waits in the course outbox, an older term's too, and nothing sends it`() = runTest {
         val v4 = onV4 { prefs -> assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn)) }
         val older = Course(courseNo = "CS9", courseName = "CS9", customColorHex = "#FF0000")
+        v4.holds("1142", listOf(older), mapOf("CS9" to mapOf("en" to "Old name")))
 
         // The older term is reset, which takes its names off the server with its rows.
         keepLocalCourses(
@@ -273,7 +279,7 @@ class UseLocalRequestsTest {
         val api = PushApiClient(v4.client, v4Prefs, manager, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, api, v4Prefs)
-        val courses = PushCourseSyncBackend(api, v4Prefs, outbox, current, outbox.reserveVersion())
+        val courses = PushCourseSyncBackend(api, v4Prefs, outbox, current, outbox.reserveVersion(), cache)
 
         val thrown = runCatching { courses.patchStampedOverride("1142", "CS9", "1142CS9", name = "Old name", locale = "en") }.exceptionOrNull()
 
@@ -282,10 +288,64 @@ class UseLocalRequestsTest {
         assertEquals(emptyList<Any>(), cache.loadPendingCourseOverrides())
     }
 
+    /** What Use Local read at its start: the course in red, named Old in English. */
+    private val asRead = Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000")
+
+    private suspend fun useLocalAsRead(v4: OnV4) = keepLocalCourses(
+        terms = listOf("1151" to listOf(asRead)),
+        hiding = emptySet(),
+        backend = v4.courses,
+        customNames = mapOf("CS1" to mapOf("en" to "Old")),
+    )
+
+    private fun OnV4.overridesSent() = backend.sent.filter { it.url.endsWith("/override") }.map { JSONObject(it.body!!).asMap() - "hlc" }
+
+    @Test
+    fun `on v4 a color changed after Use Local read it goes as it is when its override goes`() = runTest {
+        val v4 = onV4()
+        v4.holds("1151", listOf(asRead.copy(customColorHex = "#00FF00")), mapOf("CS1" to mapOf("en" to "Old")))
+
+        useLocalAsRead(v4)
+
+        assertEquals(listOf(mapOf("color_hex" to "#00FF00"), mapOf("custom_name" to "Old", "locale" to "en")), v4.overridesSent())
+    }
+
+    @Test
+    fun `on v4 a name changed after Use Local read it goes as it is when its override goes`() = runTest {
+        val v4 = onV4()
+        v4.holds("1151", listOf(asRead), mapOf("CS1" to mapOf("en" to "New")))
+
+        useLocalAsRead(v4)
+
+        assertEquals(listOf(mapOf("color_hex" to "#FF0000"), mapOf("custom_name" to "New", "locale" to "en")), v4.overridesSent())
+    }
+
+    @Test
+    fun `on v4 a color cleared after Use Local read it goes not at all`() = runTest {
+        val v4 = onV4()
+        v4.holds("1151", listOf(asRead.copy(customColorHex = null)), mapOf("CS1" to mapOf("en" to "Old")))
+
+        useLocalAsRead(v4)
+
+        assertEquals(listOf(mapOf("custom_name" to "Old", "locale" to "en")), v4.overridesSent())
+    }
+
+    @Test
+    fun `on v4 a held name changed after Use Local read it waits in the outbox as it is now`() = runTest {
+        val v4 = onV4 { prefs -> assertTrue(prefs.school.pendingConflictCategories.set(setOf("course_names"), signIn)) }
+        v4.holds("1151", listOf(asRead), mapOf("CS1" to mapOf("en" to "New")))
+
+        useLocalAsRead(v4)
+
+        assertEquals(listOf("New"), v4.cache.loadPendingCourseOverrides().map { it.customName })
+    }
+
     @Test
     fun `on v4 a color for a course the backend does not hold is let go, and any other refusal asks again`() = runTest {
-        val (courses, v4) = behindTheBackend()
+        val onV4 = onV4()
+        val (courses, v4) = onV4.courses to onV4.backend
         val terms = listOf("1151" to listOf(Course(courseNo = "CS1", courseName = "CS1", customColorHex = "#FF0000")))
+        onV4.holds("1151", terms.single().second)
         val override = "/v4/sync/courses/client:1151:CS1/override"
         v4.answer(override, 404, """{"error":"course_not_found","message":"No such course."}""")
         v4.answer(override, 500, """{"error":"internal_error","message":"Internal server error."}""")

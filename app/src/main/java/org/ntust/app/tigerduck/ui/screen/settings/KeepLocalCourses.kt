@@ -4,6 +4,7 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
+import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
@@ -54,7 +55,18 @@ internal interface CourseSyncBackend {
         name: String? = null,
         locale: String? = null,
     )
+
+    /**
+     * The course [courseNo] of [semester] as the phone holds it now, read right before each
+     * `/v4` override goes: its color and its names may have changed while Use Local's earlier
+     * requests were out. Null from a backend that keeps no copy of the phone's own (a test's):
+     * the values Use Local read at its start stand.
+     */
+    suspend fun currentChoices(semester: String, courseNo: String): LocalChoices?
 }
+
+/** A course's own choices on the phone: its custom color, and its custom name by locale. */
+internal data class LocalChoices(val colorHex: String?, val names: Map<String, String>)
 
 /**
  * Course sync went off while Use Local was sending. Nothing is asked then:
@@ -81,6 +93,8 @@ internal class PushCourseSyncBackend(
      * the student made since.
      */
     private val namesVersion: Long,
+    /** The phone's courses and custom names, which [currentChoices] reads. */
+    private val dataCache: DataCache,
 ) : CourseSyncBackend {
     private val policies = SyncPolicies(prefs)
 
@@ -151,6 +165,13 @@ internal class PushCourseSyncBackend(
             ensureSends()
             overrides.queue(listOf(PendingCourseOverrides.Change(moodleId, customName = name, locale = locale)), namesVersion, signIn)
         }
+    }
+
+    override suspend fun currentChoices(semester: String, courseNo: String): LocalChoices {
+        val colorHex = dataCache.loadCourses(semester).firstOrNull { it.courseNo == courseNo }?.customColorHex
+        // As Settings reads them for Use Local: none while name sync is off.
+        val names = if (policies.current.syncs(SyncCategory.COURSE_NAMES)) dataCache.loadCourseCustomNames()[courseNo].orEmpty() else emptyMap()
+        return LocalChoices(colorHex, names.filterValues { it.isNotEmpty() })
     }
 
     private companion object {
@@ -242,7 +263,8 @@ internal suspend fun keepLocalCourses(
             val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
             if (stamped) {
                 // On /v4 no colour rides the upload, a reset or none: every one goes as an override.
-                sendStampedOverrides(semester, course.courseNo, moodleId, course.customColorHex, names, backend, ::ensureCurrent)
+                val read = LocalChoices(course.customColorHex, names)
+                sendStampedOverrides(semester, course.courseNo, moodleId, read, withNames = reset, backend, ::ensureCurrent)
                 continue
             }
             for ((locale, name) in names) {
@@ -254,27 +276,29 @@ internal suspend fun keepLocalCourses(
 }
 
 /**
- * A course's [colorHex] and [names] (by locale) as `/v4` takes them after its term's upload: each
- * its own override of the course [courseNo] of [semester], known to the outbox as [moodleId],
- * stamped at its send, so later than a reset Use Local sent before it, which clears every override
- * stamped at or before it (D10; X5). The upload carries no colors there, whether the term was
- * reset or not; names go only for a term reset.
+ * A course's color and, with [withNames] (a term reset), its names, as `/v4` takes them after its
+ * term's upload, which carries no colors there: each an override of its own, stamped at its send,
+ * so later than the reset Use Local sent before it (D10; X5). Each goes as the phone holds it right
+ * before its request ([CourseSyncBackend.currentChoices]), not as Use Local [read] it: changed
+ * meanwhile, it goes as it is now, as the student's own send may have gone before the reset that
+ * took it; cleared, not at all. Sent as read, stamped later, it would win over the newer edit.
  */
 private suspend fun sendStampedOverrides(
     semester: String,
     courseNo: String,
     moodleId: String,
-    colorHex: String?,
-    names: Map<String, String>,
+    read: LocalChoices,
+    withNames: Boolean,
     backend: CourseSyncBackend,
     ensureCurrent: () -> Unit,
 ) {
-    if (colorHex != null) {
+    suspend fun now(): LocalChoices = backend.currentChoices(semester, courseNo) ?: read
+    ensureCurrent()
+    now().colorHex?.let { backend.patchStampedOverride(semester, courseNo, moodleId, colorHex = it) }
+    if (!withNames) return
+    for (locale in now().names.keys.sorted()) {
         ensureCurrent()
-        backend.patchStampedOverride(semester, courseNo, moodleId, colorHex = colorHex)
-    }
-    for ((locale, name) in names) {
-        ensureCurrent()
+        val name = now().names[locale]?.takeIf { it.isNotEmpty() } ?: continue
         backend.patchStampedOverride(semester, courseNo, moodleId, name = name, locale = locale)
     }
 }
