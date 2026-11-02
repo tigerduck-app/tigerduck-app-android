@@ -342,11 +342,16 @@ class SubscriptionSettingsViewModelTest {
     fun `on v4 a refused save under a newer edit leaves the newer edit to its own save`() {
         val vm = page.open(V4, "Scholarships", "Lectures")
         val first = page.backend.hold(PUT)
+        val second = page.backend.hold(PUT)
         page.onMain { vm.toggleEnabled(0) }
         first.awaitArrival()
         page.onMain { vm.toggleEnabled(1) }
 
         first.release(503 to "{}")
+        second.awaitArrival()
+        assertEquals("the newer edit stays while its save is out", listOf("Scholarships" to false, "Lectures" to false), vm.shown())
+        assertEquals(SaveState.Saving, vm.state.value.saveState)
+        second.release()
         page.eventually("the newer edit is saved") {
             vm.state.value.saveState == SaveState.Saved &&
                 page.backend.held(FIRST) == listOf("Scholarships" to false, "Lectures" to false)
@@ -404,6 +409,63 @@ class SubscriptionSettingsViewModelTest {
 
         assertEquals(listOf(listOf(false, true), listOf(false, false)), puts().map { put -> put.map { it.third } })
         assertEquals(listOf("Scholarships" to false, "Lectures" to false), page.backend.held(FIRST))
+    }
+
+    /**
+     * Off, then on and off again while the first save is out: the list is back to what that save
+     * sent, but the student edited it since. The first save is refused, and the last edit, off,
+     * stays on the page and goes up.
+     */
+    @Test
+    fun `on v4 a refused save leaves edits made since to their own save, even ones that came back to its list`() {
+        val vm = page.open(V4, "Scholarships")
+        val first = page.backend.hold(PUT)
+        val second = page.backend.hold(PUT)
+        page.onMain { vm.toggleEnabled(0) }
+        first.awaitArrival()
+        page.onMain {
+            vm.toggleEnabled(0)
+            vm.toggleEnabled(0)
+        }
+
+        first.release(503 to "{}")
+        second.awaitArrival()
+
+        // The refusal is handled, and the last edit stays on the page while its own save is out.
+        assertEquals(listOf("Scholarships" to false), vm.shown())
+        assertEquals(SaveState.Saving, vm.state.value.saveState)
+        second.release()
+        // The read, the refusal, and the last edit's save.
+        page.awaitAnswers(vm, 3)
+
+        assertEquals(listOf(listOf(false), listOf(false)), puts().map { put -> put.map { it.third } })
+        assertEquals(listOf("Scholarships" to false), page.backend.held(FIRST))
+        assertEquals(listOf("Scholarships" to false), vm.shown())
+        assertEquals(SaveState.Saved, vm.state.value.saveState)
+    }
+
+    /** As above, but the first save lands: the page is not saved until the last edit's save is. */
+    @Test
+    fun `on v4 an answer under edits made since leaves the page saving, even when they came back to its list`() {
+        val vm = page.open(V4, "Scholarships")
+        val first = page.backend.hold(PUT)
+        val second = page.backend.hold(PUT)
+        page.onMain { vm.toggleEnabled(0) }
+        first.awaitArrival()
+        page.onMain {
+            vm.toggleEnabled(0)
+            vm.toggleEnabled(0)
+        }
+
+        first.release()
+        second.awaitArrival()
+
+        assertEquals("a save is still out", SaveState.Saving, vm.state.value.saveState)
+        second.release()
+        page.awaitAnswers(vm, 3)
+        assertEquals(SaveState.Saved, vm.state.value.saveState)
+        assertEquals(listOf("Scholarships" to false), vm.shown())
+        assertEquals(listOf("Scholarships" to false), page.backend.held(FIRST))
     }
 
     private companion object {

@@ -32,8 +32,18 @@ internal class SubscriptionListSaves(
     /** The list as the backend last agreed to it, which a refused save puts back. */
     var acknowledged: List<SubscriptionRule> = emptyList()
 
-    /** A save of [rules], the list an edit left, under [signIn], the sign-in that list was shown for. */
-    private class Save(val signIn: SignIn, val rules: List<SubscriptionRule>)
+    /**
+     * A save of [rules], the list an edit left, under [signIn], the sign-in that list was shown
+     * for. [edit] counts the edits up to it, by which its answer tells whether one came since.
+     */
+    private class Save(val signIn: SignIn, val rules: List<SubscriptionRule>, val edit: Int)
+
+    /**
+     * The edits of the list so far. Whether the student edited it since a save went is told by
+     * this, never by comparing lists: off, then on and off again, is back to the list that save
+     * sent, but newer, and its own save follows.
+     */
+    private var edits = 0
 
     /**
      * The save waiting to go. One save is out at a time ([put]), and a later edit's save takes the
@@ -53,8 +63,9 @@ internal class SubscriptionListSaves(
      */
     fun edit(signIn: SignIn, edit: (List<SubscriptionRule>) -> List<SubscriptionRule>) {
         val rules = edit(page.value.rules)
+        edits++
         page.update { it.copy(rules = rules, saveState = SaveState.Saving) }
-        waiting.trySend(Save(signIn, rules))
+        waiting.trySend(Save(signIn, rules, edits))
     }
 
     /**
@@ -66,14 +77,13 @@ internal class SubscriptionListSaves(
      */
     private suspend fun put(save: Save) {
         probe.savesBegun.incrementAndGet()
-        val sent = save.rules
         val kept = try {
-            api.saveSubscriptions(sent, save.signIn)
+            api.saveSubscriptions(save.rules, save.signIn)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             answered(save.signIn) {
-                if (page.value.rules == sent) {
+                if (edits == save.edit) {
                     page.update { it.copy(rules = acknowledged, saveState = SaveState.Failed(e.message ?: "error")) }
                 }
             }
@@ -81,7 +91,7 @@ internal class SubscriptionListSaves(
         }
         answered(save.signIn) {
             acknowledged = kept
-            if (page.value.rules == sent) page.update { it.copy(rules = kept, saveState = SaveState.Saved) }
+            if (edits == save.edit) page.update { it.copy(rules = kept, saveState = SaveState.Saved) }
         }
     }
 }
