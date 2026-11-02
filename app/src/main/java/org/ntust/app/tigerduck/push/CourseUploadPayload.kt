@@ -35,7 +35,63 @@ internal object CourseUploadPayload {
         forceKeys: List<String> = emptyList(),
         rosterTerms: List<String> = emptyList(),
     ): Map<String, Any> {
-        val items = courses.map { c ->
+        val items = items(courses, semester)
+        // Only real choices. Sending the auto-computed colour for every course
+        // made the server store all of them as explicit overrides on first
+        // upload — its upsert is create-only (`if override.color_hex is None`),
+        // so whichever generated hex landed first was then pinned server-side
+        // and no later palette change could take effect. The server already
+        // drops null entries; this is the client half of that contract.
+        val overrides = courses.mapNotNull { c ->
+            c.customColorHex?.let { hex ->
+                mapOf(
+                    // "client:{semester}:{course_no}" is the key the upload
+                    // route derives for these same rows. An override whose key
+                    // does not match one of them is silently skipped.
+                    "course_key" to key(semester, c.courseNo),
+                    "color_hex" to hex,
+                )
+            }
+        }
+        val payload = mutableMapOf<String, Any>(
+            "courses" to items,
+            "course_overrides" to overrides,
+        )
+        if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
+        if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
+        return payload
+    }
+
+    /**
+     * `/v4`'s body for [courses] in [semester]: the courses, and [adds], by key, each hand-add's
+     * stamp in epoch ms ([handAdds]). No `course_overrides`, which `/v4` refuses: a color goes only
+     * as its course's override PATCH. No `force_keys` either: an add lifts a tombstone by its stamp.
+     */
+    fun buildV4(courses: List<Course>, semester: String, rosterTerms: List<String>, adds: Map<String, Long>): Map<String, Any> {
+        val payload = mutableMapOf<String, Any>("courses" to items(courses, semester))
+        if (adds.isNotEmpty()) {
+            payload["adds"] = adds.map { (courseKey, atMs) -> mapOf("course_key" to courseKey, "hlc" to clockOf(atMs)) }
+        }
+        if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
+        return payload
+    }
+
+    /**
+     * The adds a `/v4` upload of [courses] must name, by key (X9): every course added by hand
+     * ([Course.isManual]), and every one the caller adds now ([addedAt], [forceKeys]), whoever
+     * uploads them, a school roster included. `/v4` takes every other course of an upload for the
+     * school's roster, and would turn a hand-added one into a school row. Each is stamped with the
+     * caller's [addedAt] entry, else 0, the oldest, which changes nothing the backend already holds.
+     */
+    fun handAdds(courses: List<Course>, semester: String, forceKeys: List<String>, addedAt: Map<String, Long>): Map<String, Long> =
+        courses.filter { it.isManual || it.courseNo in addedAt || key(semester, it.courseNo) in forceKeys }
+            .associate { key(semester, it.courseNo) to (addedAt[it.courseNo] ?: 0L) }
+
+    /** The key the upload route derives for a course: "client:{semester}:{course_no}". */
+    fun key(semester: String, courseNo: String): String = "client:$semester:$courseNo"
+
+    private fun items(courses: List<Course>, semester: String): List<Map<String, Any?>> =
+        courses.map { c ->
             mapOf(
                 "semester" to semester,
                 "course_no" to c.courseNo,
@@ -62,29 +118,4 @@ internal object CourseUploadPayload {
                 "classroom_map" to c.classroomMap,
             )
         }
-        // Only real choices. Sending the auto-computed colour for every course
-        // made the server store all of them as explicit overrides on first
-        // upload — its upsert is create-only (`if override.color_hex is None`),
-        // so whichever generated hex landed first was then pinned server-side
-        // and no later palette change could take effect. The server already
-        // drops null entries; this is the client half of that contract.
-        val overrides = courses.mapNotNull { c ->
-            c.customColorHex?.let { hex ->
-                mapOf(
-                    // "client:{semester}:{course_no}" is the key the upload
-                    // route derives for these same rows. An override whose key
-                    // does not match one of them is silently skipped.
-                    "course_key" to "client:$semester:${c.courseNo}",
-                    "color_hex" to hex,
-                )
-            }
-        }
-        val payload = mutableMapOf<String, Any>(
-            "courses" to items,
-            "course_overrides" to overrides,
-        )
-        if (forceKeys.isNotEmpty()) payload["force_keys"] = forceKeys
-        if (rosterTerms.isNotEmpty()) payload["roster_terms"] = rosterTerms
-        return payload
-    }
 }

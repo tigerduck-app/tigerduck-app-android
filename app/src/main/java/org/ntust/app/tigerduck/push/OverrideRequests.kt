@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.push
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.network.BackendServices
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncPolicies
@@ -14,13 +15,16 @@ import org.ntust.app.tigerduck.sync.SyncPolicies
  * must go through an outbox are found by those names. Each is sent with [authHeader]'s header for
  * its sign-in, to the endpoint [baseUrl] names at the time, and answers with the backend's verdict
  * ([WriteAnswer]): [WriteAnswer.NOT_SENT] when its gate stopped it, and a refusal thrown with the
- * backend's code kept. [madeAtMs], the time the edit was made, goes as its `hlc`.
+ * backend's code kept. [madeAtMs], the time the edit was made, goes as its `hlc`, as [sendStamped]
+ * sends it for the API the endpoint speaks: on `/v4` always, the clock's stamp at its send when
+ * there is none, and the clock values its answer holds heard.
  */
 internal class OverrideRequests(
     private val api: BackendServices<PushApi>,
     private val policies: SyncPolicies,
     private val baseUrl: () -> String,
     private val authHeader: suspend (SignIn) -> String,
+    private val clock: WriteClock,
 ) {
     /**
      * Upload one holiday exception so the user's other devices agree.
@@ -33,10 +37,12 @@ internal class OverrideRequests(
     suspend fun putHoliday(holidayId: Int, notify: Boolean, signIn: SignIn, madeAtMs: Long?): WriteAnswer =
         withContext(Dispatchers.IO) {
             if (!policies.current.tigerSyncOn) return@withContext WriteAnswer.NOT_SENT
-            val service = api.at(baseUrl())
+            val base = baseUrl()
+            val version = BackendApi.of(base)
+            val service = api.at(base)
             val header = authHeader(signIn)
-            executeStamped(madeAtMs, { policies.current.tigerSyncOn }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
-                answerOf(response, "holiday override", WriteAnswer.NOTIFY)
+            sendStamped(version, madeAtMs, clock, { policies.current.tigerSyncOn }, { hlc -> service.holidayOverride(header, holidayId, HolidayOverrideRequest(notify, hlc)) }) { response ->
+                clock.answer(response, version, "holiday override", WriteAnswer.NOTIFY)
             } ?: WriteAnswer.NOT_SENT
         }
 
@@ -49,10 +55,12 @@ internal class OverrideRequests(
             val syncs = { policies.current.syncs(SyncCategory.ASSIGNMENTS) }
             if (!syncs()) return@withContext WriteAnswer.NOT_SENT
             val payload = mapOf("local_status" to localStatus)
-            val service = api.at(baseUrl())
+            val base = baseUrl()
+            val version = BackendApi.of(base)
+            val service = api.at(base)
             val header = authHeader(signIn)
-            executeStamped(madeAtMs, syncs, { hlc -> service.assignmentOverride(header, assignmentId, payload.stampedWith(hlc)) }) { response ->
-                answerOf(response, "patchAssignmentOverride", WriteAnswer.LOCAL_STATUS)
+            sendStamped(version, madeAtMs, clock, syncs, { hlc -> service.assignmentOverride(header, assignmentId, payload.stampedWith(hlc)) }) { response ->
+                clock.answer(response, version, "patchAssignmentOverride", WriteAnswer.LOCAL_STATUS)
             } ?: WriteAnswer.NOT_SENT
         }
 
@@ -73,10 +81,12 @@ internal class OverrideRequests(
     ): WriteAnswer = withContext(Dispatchers.IO) {
         val switchesOn = { policies.current.syncsOverride(color = colorHex != null, name = customName != null) }
         if (!switchesOn()) return@withContext WriteAnswer.NOT_SENT
-        val course = target.moodleId ?: throw CourseKeyUnknownException("a course override names no Moodle id")
+        val base = baseUrl()
+        val version = BackendApi.of(base)
+        val course = target.named(version, "a course override")
         val payload = listOfNotNull(colorHex?.let { "color_hex" to it }, customName?.let { "custom_name" to it }, locale?.let { "locale" to it })
             .toMap()
-        val service = api.at(baseUrl())
+        val service = api.at(base)
         val header = authHeader(signIn)
         // Read once the header is made, which can renew the session and so
         // suspend: a hold the course outbox put on the kind meanwhile must
@@ -84,8 +94,8 @@ internal class OverrideRequests(
         if (!allowed()) return@withContext WriteAnswer.NOT_SENT
         // The resend passes the same gate as the first request: the hold can go on meanwhile.
         val call = { hlc: Long? -> service.courseOverride(header, course, payload.stampedWith(hlc)) }
-        executeStamped(madeAtMs, { switchesOn() && allowed() }, call) { response ->
-            answerOf(response, "patchCourseOverride")
+        sendStamped(version, madeAtMs, clock, { switchesOn() && allowed() }, call) { response ->
+            clock.answer(response, version, "patchCourseOverride")
         } ?: WriteAnswer.NOT_SENT
     }
 
@@ -107,11 +117,13 @@ internal class OverrideRequests(
             if (ignore != null) payload["ignore_assignments"] = ignore
             if (moodleCourseId != null && moodleCourseId >= 1) payload["moodle_course_id"] = moodleCourseId
             if (payload.isEmpty()) return@withContext WriteAnswer.NOT_SENT
-            val course = target.moodleId ?: throw CourseKeyUnknownException("a course ignore names no Moodle id")
-            val service = api.at(baseUrl())
+            val base = baseUrl()
+            val version = BackendApi.of(base)
+            val course = target.named(version, "a course ignore")
+            val service = api.at(base)
             val header = authHeader(signIn)
-            executeStamped(madeAtMs, syncs, { hlc -> service.courseIgnore(header, course, payload.stampedWith(hlc)) }) { response ->
-                answerOf(response, "patchCourseIgnore")
+            sendStamped(version, madeAtMs, clock, syncs, { hlc -> service.courseIgnore(header, course, payload.stampedWith(hlc)) }) { response ->
+                clock.answer(response, version, "patchCourseIgnore")
             } ?: WriteAnswer.NOT_SENT
         }
 }

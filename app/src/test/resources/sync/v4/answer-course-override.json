@@ -1,0 +1,11 @@
+{
+  "id": 41,
+  "color_hex": "#FF0000",
+  "custom_names": {"en": "Algo"},
+  "ignore_assignments": false,
+  "updated_at": "2026-10-25T00:39:59.123456+00:00",
+  "color_hex_hlc": 1790000000123000,
+  "custom_names_hlc": {"en": 1790000000999000},
+  "ignore_assignments_hlc": null,
+  "applied": ["color_hex"]
+}

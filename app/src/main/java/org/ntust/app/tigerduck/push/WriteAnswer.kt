@@ -4,6 +4,7 @@ import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 import org.ntust.app.tigerduck.network.SyncClockInterceptor
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.sync.isPlausibleClockUs
@@ -69,6 +70,12 @@ data class WriteAnswer(
     }
 }
 
+/** Every clock value the reply names: each `hlc` and `…_hlc`, a map's (`custom_names_hlc`) included. */
+internal fun WriteAnswer.clockValues(): Sequence<Long> = values.asSequence()
+    .filter { (name, _) -> name == "hlc" || name.endsWith("_hlc") }
+    .flatMap { (_, value) -> if (value is Map<*, *>) value.values.asSequence() else sequenceOf(value) }
+    .mapNotNull { (it as? Number)?.toLong() }
+
 /** The backend's clock [response] carries (`X-TigerSync-Clock`); null without one that can be a time. */
 internal fun serverClockOf(response: Response): Long? =
     response.header(SyncClockInterceptor.CLOCK_HEADER)?.trim()?.toLongOrNull()?.takeIf(::isPlausibleClockUs)
@@ -99,7 +106,16 @@ internal inline fun <T> refusedAsBefore(keepsStatus: Boolean = true, block: () -
  * A course as a request names it: its Moodle id on `/v3`, which names no term, and its key,
  * `client:{semester}:{course_no}`, on `/v4`. Either can be unknown to the caller.
  */
-data class CourseRef(val moodleId: String?, val courseKey: String?)
+data class CourseRef(val moodleId: String?, val courseKey: String?) {
+    /**
+     * The course as [api] names it in a path, sent raw as `/v4`'s key may hold a `/`; for [what],
+     * a [CourseKeyUnknownException] when the caller does not know that name.
+     */
+    internal fun named(api: BackendApi, what: String): String = when (api) {
+        BackendApi.V3 -> moodleId ?: throw CourseKeyUnknownException("$what names no Moodle id")
+        BackendApi.V4 -> courseKey ?: throw CourseKeyUnknownException("$what names no course key")
+    }
+}
 
 /**
  * A course write that cannot name its course the way the API it speaks needs, as iOS's

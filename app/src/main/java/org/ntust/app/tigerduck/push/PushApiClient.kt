@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -36,8 +37,9 @@ class PushApiClient @Inject constructor(
     baseClient: OkHttpClient,
     private val prefs: AppPreferences,
     private val authTokenManager: AuthTokenManager,
+    /** What a `/v4` write is stamped by, and hears its answers; null only in tests, for the wall clock. */
+    syncClock: SyncClock? = null,
 ) {
-
     // Whether a write goes, as the switches stand at each read; the re-enable hold is the callers'.
     private val policies = SyncPolicies(prefs)
 
@@ -65,9 +67,13 @@ class PushApiClient @Inject constructor(
     private val deletes by lazy { BackendServices(PushApi::class.java, deleteClient) }
     private val uploads = BackendServices(PushApi::class.java) { request -> uploadCall(request) }
 
-    // The sync writes, each in a file of its own beside this one.
-    private val overrides = OverrideRequests(api, policies, { baseUrl }, ::authHeader)
-    private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader)
+    // The sync writes, each in a file of its own beside this one, stamped by one clock on /v4.
+    private val clock = WriteClock(syncClock)
+    private val overrides = OverrideRequests(api, policies, { baseUrl }, ::authHeader, clock)
+    private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader, clock)
+
+    /** The stamp of an edit made now, by the clock the `/v4` writes take theirs from: for a caller's own adds. */
+    internal fun stampMs(): Long = clock.stampMs()
 
     /**
      * The Bearer Authorization header of a request of [signIn]'s, signing in
@@ -261,10 +267,7 @@ class PushApiClient @Inject constructor(
      * or six hours on ([UploadLedger]); each upload defers the server's own
      * Moodle sync by two hours. Pinned to [signIn], the sign-in the list was made under.
      */
-    suspend fun uploadAssignments(
-        assignments: List<Assignment>,
-        signIn: SignIn,
-    ) = withContext(Dispatchers.IO) {
+    suspend fun uploadAssignments(assignments: List<Assignment>, signIn: SignIn) = withContext(Dispatchers.IO) {
         if (!policies.current.syncs(SyncCategory.ASSIGNMENTS)) return@withContext
         val iso8601 = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
             timeZone = TimeZone.getTimeZone("UTC")
