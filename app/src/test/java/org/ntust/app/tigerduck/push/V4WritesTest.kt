@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.push
 
 import android.content.Context
 import kotlinx.coroutines.test.runTest
+import okhttp3.Interceptor
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -161,6 +162,43 @@ class V4WritesTest {
 
         assertEquals(WriteAnswer.NOT_SENT, answer)
         assertEquals(1, backend.sent.size)
+    }
+
+    /**
+     * A client whose first request to [path] turns [off] while it is out, as the student does in
+     * Settings, and is answered `clock_ahead`; what it sent, and the client.
+     */
+    private fun switchedOffMidRequest(path: String, off: (AppPreferences) -> Unit): Pair<RecordingBackend, PushApiClient> {
+        val prefs = AppPreferences(JvmContext())
+        val backend = RecordingBackend(
+            ahead = listOf(
+                Interceptor { chain ->
+                    if (chain.request().url.encodedPath == path) off(prefs)
+                    chain.proceed(chain.request())
+                },
+            ),
+        )
+        backend.answer(path, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${nowMs * 1_000}"))
+        val clock = SyncClock(SyncClockStore(JvmContext().getSharedPreferences("clock", Context.MODE_PRIVATE)), { BackendApi.V4 }, { nowMs })
+        return backend to pushApiClientAt(v4, backend.client, prefs, clock)
+    }
+
+    @Test
+    fun `a course write refused as ahead goes no further once course sync went off meanwhile`() = runTest {
+        for (off in listOf<(AppPreferences) -> Unit>({ it.syncCourses = false }, { it.cloudSyncEnabled = false })) {
+            val (deletes, deleting) = switchedOffMidRequest("/v4/sync/courses/client:1151:CS1", off)
+            val (resets, resetting) = switchedOffMidRequest("/v4/sync/courses", off)
+            val (uploads, uploading) = switchedOffMidRequest("/v4/sync/courses/upload", off)
+
+            val delete = deleting.deleteCourseAnswered("client:1151:CS1", signIn, hiddenAt = null, kind = "hide")
+            val reset = resetting.deleteAllCoursesAnswered("1151", signIn, resetAtMs = null)
+            val upload = runCatching { uploading.uploadCoursesAnswered(listOf(addedNow), "1151", signIn, addedAt = mapOf("XA0000009" to nowMs)) }
+
+            assertEquals(WriteAnswer.NOT_SENT, delete)
+            assertEquals(WriteAnswer.NOT_SENT, reset)
+            assertEquals("the upload: ${upload.exceptionOrNull()}", Result.success(null), upload)
+            assertEquals(listOf(1, 1, 1), listOf(deletes, resets, uploads).map { it.sent.size })
+        }
     }
 
     @Test

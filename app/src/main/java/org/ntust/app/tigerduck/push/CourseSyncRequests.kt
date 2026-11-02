@@ -88,7 +88,8 @@ internal class CourseSyncRequests(
      * On `/v4` the upload carries no colors and no [forceKeys], and names every hand-added
      * course in its adds, each stamped with its [addedAt] entry or as the oldest; see
      * [CourseUploadPayload.handAdds] (X9). One refused as ahead goes once more, its timed adds
-     * stamped again from the refusal's clock, never without them.
+     * stamped again from the refusal's clock, never without them, if course sync is still on:
+     * switched off meanwhile, nothing went and the answer is null.
      */
     suspend fun uploadCoursesAnswered(
         courses: List<Course>,
@@ -111,33 +112,46 @@ internal class CourseSyncRequests(
         // What the accepted list enrolled as the term's roster, for serverDropped.
         val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
-        courseUploads(semester).sendIfDue(
-            fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
-            // The pair in one step, so a sign-out's clear cannot fall between
-            // the check and the record; see UploadLedger.sendIfDue.
-            record = { fingerprint, atMs ->
-                signIn.ifCurrent {
-                    prefs.recordCoursesUpload(semester, fingerprint, atMs)
-                    prefs.recordCoursesUploadRoster(semester, roster)
+        try {
+            courseUploads(semester).sendIfDue(
+                fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
+                // The pair in one step, so a sign-out's clear cannot fall between
+                // the check and the record; see UploadLedger.sendIfDue.
+                record = { fingerprint, atMs ->
+                    signIn.ifCurrent {
+                        prefs.recordCoursesUpload(semester, fingerprint, atMs)
+                        prefs.recordCoursesUploadRoster(semester, roster)
+                    }
+                },
+                always = resend || forceKeys.isNotEmpty(),
+                signIn = signIn,
+            ) {
+                // Through uploadCall, with its deadline for the whole call.
+                val service = uploads.at(base)
+                val header = authHeader(signIn)
+                var response = service.coursesUpload(header, bodies.first, bodies.protocol).execute()
+                val again = bodies.again
+                if (again != null && isClockAhead(response)) {
+                    val serverClockUs = serverClockOf(response)
+                    response.close()
+                    // On /v4, past the gate the first request passed, read again: course sync can have
+                    // gone off meanwhile. Nothing then went, and the ledger records nothing.
+                    if (api == BackendApi.V4 && !sends()) throw ResendHeldBack()
+                    response = service.coursesUpload(header, again(serverClockUs), null).execute()
                 }
-            },
-            always = resend || forceKeys.isNotEmpty(),
-            signIn = signIn,
-        ) {
-            // Through uploadCall, with its deadline for the whole call.
-            val service = uploads.at(base)
-            val header = authHeader(signIn)
-            var response = service.coursesUpload(header, bodies.first, bodies.protocol).execute()
-            val again = bodies.again
-            if (again != null && isClockAhead(response)) {
-                val serverClockUs = serverClockOf(response)
-                response.close()
-                response = service.coursesUpload(header, again(serverClockUs), null).execute()
+                accepted = response.use { answered(it, api) }
             }
-            accepted = response.use { answered(it, api) }
+        } catch (e: ResendHeldBack) {
+            return@withContext null
         }
         accepted
     }
+
+    // Whether the course list's writes go: the gate each checks first, and on /v4 again before a resend.
+    private fun sends(): Boolean = policies.current.uploadsCourses
+
+    // An upload refused as ahead whose resend the gate stopped: not sent.
+    private class ResendHeldBack : Exception()
 
     /** An upload's body, the protocol it says it speaks, and the body it goes again with once refused as ahead. */
     private class UploadBodies(val first: RequestBody, val protocol: String?, val again: ((serverClockUs: Long?) -> RequestBody)?)
@@ -232,7 +246,8 @@ internal class CourseSyncRequests(
                 BackendApi.V3 -> executeStamped(hiddenAt, { true }, { hlc -> service.removeCourse(header, courseKey, EmptyBody, hlc) }) {
                     clock.answer(it, version, "deleteCourse", WriteAnswer.MEMBERSHIP)
                 }
-                BackendApi.V4 -> executeStampedV4(hiddenAt, clock, { true }, { hlc -> service.removeCourseStamped(header, courseKey, EmptyBody, hlc, kind) }) {
+                // The resend past the gate the first request passed, read again: course sync can have gone off meanwhile.
+                BackendApi.V4 -> executeStampedV4(hiddenAt, clock, ::sends, { hlc -> service.removeCourseStamped(header, courseKey, EmptyBody, hlc, kind) }) {
                     clock.answer(it, version, "deleteCourse", WriteAnswer.MEMBERSHIP)
                 }
             } ?: WriteAnswer.NOT_SENT
@@ -263,7 +278,7 @@ internal class CourseSyncRequests(
                     BackendApi.V3 -> service.removeCourses(header, term, EmptyBody).execute().use {
                         clock.answer(it, version, "deleteAllCourses", WriteAnswer.RESET)
                     }
-                    BackendApi.V4 -> executeStampedV4(resetAtMs, clock, { true }, { hlc -> service.removeCoursesStamped(header, term, EmptyBody, hlc) }) {
+                    BackendApi.V4 -> executeStampedV4(resetAtMs, clock, ::sends, { hlc -> service.removeCoursesStamped(header, term, EmptyBody, hlc) }) {
                         clock.answer(it, version, "deleteAllCourses", WriteAnswer.RESET)
                     } ?: WriteAnswer.NOT_SENT
                 }
