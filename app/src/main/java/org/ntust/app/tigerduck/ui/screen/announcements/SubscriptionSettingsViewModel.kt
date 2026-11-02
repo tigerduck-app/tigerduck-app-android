@@ -104,30 +104,21 @@ class SubscriptionSettingsViewModel @Inject constructor(
      */
     fun upsertRule(rule: SubscriptionRule, replacingIndex: Int?) {
         val signIn = signInNow()
-        viewModelScope.launch {
-            _state.update { it.copy(saveState = SaveState.Saving) }
-            try {
-                val saved = if (rule.id == null) {
-                    api.createSubscription(rule, signIn)
+        sendEdit(
+            send = {
+                if (rule.id == null) api.createSubscription(rule, signIn) else api.updateSubscription(rule.id, rule, signIn)
+            },
+            saved = { s, saved ->
+                val rules = s.rules.toMutableList()
+                if (replacingIndex != null && replacingIndex in rules.indices) {
+                    rules[replacingIndex] = saved
                 } else {
-                    api.updateSubscription(rule.id, rule, signIn)
+                    rules += saved
                 }
-                _state.update { s ->
-                    val rules = s.rules.toMutableList()
-                    if (replacingIndex != null && replacingIndex in rules.indices) {
-                        rules[replacingIndex] = saved
-                    } else {
-                        rules += saved
-                    }
-                    s.copy(rules = rules, saveState = SaveState.Saved)
-                }
-            } catch (e: CancellationException) {
-                _state.update { it.copy(saveState = SaveState.Idle) }
-                throw e
-            } catch (e: Exception) {
-                _state.update { it.copy(saveState = SaveState.Failed(e.message ?: "error")) }
-            }
-        }
+                s.copy(rules = rules, saveState = SaveState.Saved)
+            },
+            failed = { s, e -> s.copy(saveState = SaveState.Failed(e.message ?: "error")) },
+        )
     }
 
     /**
@@ -141,21 +132,39 @@ class SubscriptionSettingsViewModel @Inject constructor(
         _state.update { it.copy(rules = it.rules.toMutableList().also { l -> l.removeAt(index) }) }
         val id = rule.id ?: return
         val signIn = signInNow()
+        sendEdit(
+            send = { api.deleteSubscription(id, signIn) },
+            saved = { s2, _ -> s2.copy(saveState = SaveState.Saved) },
+            // Re-insert the rule on failure so the user can retry.
+            failed = { s2, e ->
+                val restored = s2.rules.toMutableList().also { it.add(index.coerceAtMost(it.size), rule) }
+                s2.copy(rules = restored, saveState = SaveState.Failed(e.message ?: "error"))
+            },
+        )
+    }
+
+    /**
+     * Sends one `/v3` edit, [send], and puts its answer on the page: [saved] with what the backend
+     * kept, or [failed] with why it refused. Saving until then, and idle again if the page goes
+     * first.
+     */
+    private fun <T> sendEdit(
+        send: suspend () -> T,
+        saved: (State, T) -> State,
+        failed: (State, Exception) -> State,
+    ) {
         viewModelScope.launch {
             _state.update { it.copy(saveState = SaveState.Saving) }
-            try {
-                api.deleteSubscription(id, signIn)
-                _state.update { it.copy(saveState = SaveState.Saved) }
+            val kept = try {
+                send()
             } catch (e: CancellationException) {
                 _state.update { it.copy(saveState = SaveState.Idle) }
                 throw e
             } catch (e: Exception) {
-                // Re-insert the rule on failure so the user can retry.
-                _state.update { s2 ->
-                    val restored = s2.rules.toMutableList().also { it.add(index.coerceAtMost(it.size), rule) }
-                    s2.copy(rules = restored, saveState = SaveState.Failed(e.message ?: "error"))
-                }
+                _state.update { failed(it, e) }
+                return@launch
             }
+            _state.update { saved(it, kept) }
         }
     }
 
@@ -192,29 +201,27 @@ class SubscriptionSettingsViewModel @Inject constructor(
         editGeneration[id] = generation
 
         val signIn = signInNow()
-        viewModelScope.launch {
-            _state.update { it.copy(saveState = SaveState.Saving) }
-            try {
-                val saved = api.updateSubscription(id, toggled, signIn)
-                // A newer tap is already in flight; its response is the one
-                // that should win, so drop this echo instead of overwriting.
-                if (editGeneration[id] != generation) return@launch
-                _state.update { st -> st.copy(rules = st.replacing(id, saved), saveState = SaveState.Saved) }
-            } catch (e: CancellationException) {
-                _state.update { it.copy(saveState = SaveState.Idle) }
-                throw e
-            } catch (e: Exception) {
-                if (editGeneration[id] != generation) return@launch
+        sendEdit(
+            send = { api.updateSubscription(id, toggled, signIn) },
+            // A newer tap is already in flight; its response is the one
+            // that should win, so drop this echo instead of overwriting.
+            saved = { st, saved ->
+                if (editGeneration[id] != generation) {
+                    st
+                } else {
+                    st.copy(rules = st.replacing(id, saved), saveState = SaveState.Saved)
+                }
+            },
+            failed = { st, e ->
                 // Put back what the server last agreed to, so the switch does
                 // not sit on a state that was never persisted.
-                _state.update { st ->
-                    st.copy(
-                        rules = st.replacing(id, previous),
-                        saveState = SaveState.Failed(e.message ?: "error"),
-                    )
+                if (editGeneration[id] != generation) {
+                    st
+                } else {
+                    st.copy(rules = st.replacing(id, previous), saveState = SaveState.Failed(e.message ?: "error"))
                 }
-            }
-        }
+            },
+        )
     }
 
     private fun State.replacing(id: Int, rule: SubscriptionRule): List<SubscriptionRule> {
