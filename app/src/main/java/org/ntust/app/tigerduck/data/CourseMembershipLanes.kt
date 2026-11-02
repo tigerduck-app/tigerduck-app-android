@@ -1,6 +1,6 @@
-// The course list's outbox channels, the adds (PendingCourseAdds): their entries, the stores their
-// lanes keep them in, which are the files the queues kept before they were channels, and what they
-// read of the outbox and the policy.
+// The course list's two outbox channels, the adds (PendingCourseAdds) and the deletes
+// (PendingCourseDeletes): their entries, the stores their lanes keep them in, which are the files
+// the queues kept before they were channels, and what the two read of the outbox and the policy.
 
 package org.ntust.app.tigerduck.data
 
@@ -24,6 +24,11 @@ import org.ntust.app.tigerduck.util.logSummary
 
 /** A course added by hand to [semester] whose upload waits, with the moment it was asked, if it has one. */
 internal data class CourseAdd(val semester: String, val courseNo: String, val addedAtMs: Long?) {
+    val field: String get() = membershipField(semester, courseNo)
+}
+
+/** A course deleted from [semester] whose DELETE waits, with the moment it was asked. */
+internal data class CourseDelete(val semester: String, val courseNo: String, val queuedAt: Long) {
     val field: String get() = membershipField(semester, courseNo)
 }
 
@@ -65,6 +70,25 @@ internal class CourseAddsStore(private val dataCache: DataCache) : LaneStore<Cou
         return if (added) saveTimes() && saveAdds() else saveAdds() && saveTimes()
     }
 }
+
+/** The deletes' lane store: `pending_course_deletes.json` (term to course number to moment), read through [load]. */
+internal class CourseDeletesStore(
+    private val dataCache: DataCache,
+    private val load: suspend () -> Map<String, Map<String, Long>>,
+) : LaneStore<CourseDelete> {
+    override suspend fun load(): List<CourseDelete> = deletesOf(load.invoke())
+
+    override suspend fun save(entries: List<CourseDelete>, signIn: SignIn): Boolean =
+        dataCache.savePendingCourseDeletes(deletesByTerm(entries), signIn)
+}
+
+/** The deletes [byTerm] holds (term to course number to moment), in its order. */
+internal fun deletesOf(byTerm: Map<String, Map<String, Long>>): List<CourseDelete> =
+    byTerm.flatMap { (semester, entries) -> entries.map { (courseNo, at) -> CourseDelete(semester, courseNo, at) } }
+
+/** [deletes] as the file holds them: term to course number to moment, each term's in order. */
+internal fun deletesByTerm(deletes: List<CourseDelete>): Map<String, Map<String, Long>> =
+    deletes.byTerm { it.semester }.mapValues { (_, ofTerm) -> ofTerm.associate { it.courseNo to it.queuedAt } }
 
 /**
  * What the course list's channels take from the outbox and the sync policy. Built with nothing,

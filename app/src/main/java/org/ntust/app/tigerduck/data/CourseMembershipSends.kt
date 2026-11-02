@@ -1,17 +1,28 @@
 // What one send of the course list's channels does: a term's upload of the adds asked
-// (PendingCourseAdds), run by its lane under the send lock (PendingCourseAdds.sendingOne), and what
-// each answer leaves queued.
+// (PendingCourseAdds) and one DELETE (PendingCourseDeletes), each run by its lane under the send
+// lock (PendingCourseAdds.sendingOne), and what each answer leaves queued.
 
 package org.ntust.app.tigerduck.data
 
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.util.logSummary
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+
+/**
+ * [CourseDeleter] with the backend's answer, and the delete's [kind], `/v4`'s `hide` or `remove`,
+ * when it is known; see [org.ntust.app.tigerduck.push.PushApiClient.deleteCourseAnswered].
+ */
+internal fun interface AnsweredCourseDeleter {
+    suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long, kind: String?): WriteAnswer
+}
 
 /**
  * The course adds' sends. One send is a term's upload of the adds a caller asked for ([asking]):
@@ -158,5 +169,96 @@ internal class CourseAddSends(
 
     private companion object {
         const val TAG = "PendingCourseAdds"
+    }
+}
+
+/**
+ * The course deletes' sends: one DELETE per hold of the send lock ([one]), with the delete's kind
+ * when this process was told it ([told]). [waiting] reads the lane's deletes.
+ */
+internal class CourseDeleteSends(
+    private val dataCache: DataCache,
+    private val deleter: AnsweredCourseDeleter,
+    private val outbox: MembershipOutbox,
+    private val waiting: suspend () -> List<CourseDelete>,
+) {
+    // Each waiting delete's kind, by its field, as the class table told it when it kept it. In
+    // memory: a delete read after a restart goes with none, and the backend decides from its row (X3).
+    private val kinds = ConcurrentHashMap<String, String>()
+
+    // Whether the send under the lock may still make its one request: a removal kept while it was
+    // in flight goes at its own turn of the lock, as before, not on the back of this one.
+    private val oneRequest = AtomicBoolean(false)
+
+    /**
+     * [field]'s delete, asked now, is of a course of [kind], null when its row is not known: the
+     * newest ask is the one that goes, so a kind told for an older one does not outlive it.
+     */
+    fun told(field: String, kind: String?) {
+        if (kind == null) kinds.remove(field) else kinds[field] = kind
+    }
+
+    /** Forgets every kind: at a sign-out. */
+    fun forget() = kinds.clear()
+
+    /** Runs [drain], the lane's send of one delete, letting it make one request at most. */
+    suspend fun one(drain: suspend () -> Unit) {
+        oneRequest.set(true)
+        try {
+            drain()
+        } finally {
+            oneRequest.set(false)
+        }
+    }
+
+    /**
+     * The lane's send of [delete], still queued as the lane read it under the adds lock: one a
+     * re-add or a reset let go meanwhile does not go, as it would take the restored course off.
+     */
+    suspend fun sendOnce(delete: CourseDelete, signIn: SignIn): SendResult {
+        if (!oneRequest.compareAndSet(true, false)) return SendResult.NotSent
+        val answer = try {
+            // The request itself carries [signIn]: a sign-out after the check sends it without a
+            // token rather than with the next account's. With the moment it was asked, the backend
+            // applies it only when later than the course's last add, hide and reset: a hide queued
+            // offline loses to an add made since on another device, and a retry after a lost reply
+            // changes nothing (#591).
+            deleter.delete(PendingCourseAdds.forceKey(delete.semester, delete.courseNo), signIn, delete.queuedAt, kinds[delete.field])
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "course delete failed, kept for the next sync: ${e.logSummary()}")
+            return SendResult.afterFailure(e)
+        }
+        // Nothing went, course sync being off: kept where edits wait for it (/v4), let go on /v3.
+        if (!answer.sent) return if (outbox.keepsUnsent()) SendResult.NotSent else SendResult.Sent(null)
+        if (answer.applied?.isEmpty() == true && outbox.lastWriterWins()) takeBackendsAdd(delete, signIn)
+        // The delete sent, and only that one: a removal asked during the request kept its own,
+        // newer stamp on disk and is sent again.
+        return SendResult.Sent(answer.serverClockUs)
+    }
+
+    // The backend refused [delete], an add of the course made since elsewhere being newer (LWW
+    // D12, a write response's winner): this phone's hide of it goes, so the next pull shows the
+    // course the backend lists, unless the course was deleted here again since.
+    private suspend fun takeBackendsAdd(delete: CourseDelete, signIn: SignIn) {
+        if (waiting().any { it.field == delete.field && it != delete }) return
+        val hides = setOf(CourseTombstoneKeys.key(delete.semester, delete.courseNo), delete.courseNo)
+        dataCache.updateDeletedCourseNos(before = hides, after = emptySet(), signIn = signIn)
+    }
+
+    companion object {
+        private const val TAG = "PendingCourseDeletes"
+
+        /**
+         * A delete's kind on `/v4` (X3): `remove` for [course] added by hand ([Course.isManual]),
+         * which takes back the add and leaves the course to the school's roster, else `hide`; none
+         * when the row is not known, and the backend decides from its own.
+         */
+        fun kindOf(course: Course?): String? = when {
+            course == null -> null
+            course.isManual -> "remove"
+            else -> "hide"
+        }
     }
 }
