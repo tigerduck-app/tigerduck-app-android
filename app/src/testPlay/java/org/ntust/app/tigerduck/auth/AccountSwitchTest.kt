@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import androidx.work.testing.WorkManagerTestInitHelper
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -27,7 +28,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.UnsentMark
@@ -259,8 +263,8 @@ class AccountSwitchTest {
         val w = world(credentialPrefs)
         val signInBefore = w.sessions.school.signIns.current
         val signedInEmissions = CopyOnWriteArrayList<Boolean>()
-        val watching = effectsScope.launch { w.auth.accountState.collect { signedInEmissions += it.signedIn } }
-        val signIns = effectsScope.async { w.auth.signIns.first() }
+        val watching = effectsScope.launch { w.sessions.school.changes.collect { signedInEmissions += it } }
+        val signIns = effectsScope.async { w.sessions.events.first { it is AccountEvent.SignedIn && it.byHand } }
         delay(100)
 
         assertTrue(w.auth.login(SECOND, "second-password"))
@@ -277,6 +281,48 @@ class AccountSwitchTest {
         assertEquals("the account went off, and came back as the second student", listOf(true, false, true), signedInEmissions.toList())
         assertEquals(emptyList<File>(), files.filter(File::exists))
         assertEquals(emptySet<Pair<String, String>>(), firstLeft.filter { (at, value) -> prefs(at.first).all[at.second] == value }.keys)
+    }
+
+    /** An event, and the account as it read when the event was told. */
+    private data class Told(val event: AccountEvent, val shownSignedIn: Boolean, val stored: String?)
+
+    @Test
+    fun `each sign-in and sign-out is told, in order, with the account as it then is`() = runBlocking {
+        val w = accountWorld(context, prefs("tigerduck_credentials"), signOutScope, idleScope)
+        val told = CopyOnWriteArrayList<Told>()
+        val following = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            w.sessions.events.collect { told += Told(it, w.auth.authState.value, w.auth.storedStudentId) }
+        }
+
+        assertTrue(w.auth.login(FIRST, "first-password"))
+        assertEquals(
+            listOf(
+                Told(AccountEvent.SignedIn(Account.SCHOOL, byHand = true), false, FIRST),
+                Told(AccountEvent.SignedIn(Account.SCHOOL, byHand = false), true, FIRST),
+            ),
+            told.toList(),
+        )
+
+        // The same student again changes nothing a page sees.
+        told.clear()
+        assertTrue(w.auth.login(FIRST, "first-password-again"))
+        assertEquals(listOf(Told(AccountEvent.SignedIn(Account.SCHOOL, byHand = true), true, FIRST)), told.toList())
+
+        told.clear()
+        val ended = w.sessions.school.signIns.current
+        w.auth.logout()
+        assertEquals(
+            listOf(Told(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, ended, address = null), false, null)),
+            told.toList(),
+        )
+        assertFalse(ended.isCurrent)
+
+        // Nobody to sign out: no change, so nothing to tell.
+        told.clear()
+        withTimeout(10_000) { w.sessions.school.awaitOpen() }
+        w.auth.logout()
+        assertEquals(emptyList<Told>(), told.toList())
+        following.cancel()
     }
 
     @Test

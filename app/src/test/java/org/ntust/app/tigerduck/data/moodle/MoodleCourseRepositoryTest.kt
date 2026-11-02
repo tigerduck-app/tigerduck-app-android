@@ -2,10 +2,13 @@ package org.ntust.app.tigerduck.data.moodle
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +17,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.network.model.moodle.MoodleCourseSummary
 import org.ntust.app.tigerduck.network.model.moodle.MoodleFile
 import org.ntust.app.tigerduck.network.model.moodle.MoodleGradeItem
@@ -59,7 +67,10 @@ class MoodleCourseRepositoryTest {
         override suspend fun save(value: Any, fetchedAtMs: Long, name: String) = Unit
     }
 
-    private fun TestScope.repository(liveApi: MoodleCourseApi = live) = MoodleCourseRepository(
+    private fun TestScope.repository(
+        liveApi: MoodleCourseApi = live,
+        accountChanges: Flow<Boolean> = authState,
+    ) = MoodleCourseRepository(
         signedIn = { authState.value },
         account = { account },
         isDemo = { demo },
@@ -71,7 +82,7 @@ class MoodleCourseRepositoryTest {
         downloads = null,
         downloadsDir = { null },
         decode = { null },
-        authState = authState,
+        accountChanges = accountChanges,
         appScope = backgroundScope,
         newScope = { kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.SupervisorJob()) },
         languageChanges = languageChanges,
@@ -141,6 +152,32 @@ class MoodleCourseRepositoryTest {
 
         authState.value = true
         assertNotSame("signing back in builds anew", before, repository.store(5))
+    }
+
+    @Test
+    fun `a sign-out and a sign-in landing before it runs are both seen`() = runTest {
+        val session = AccountSession(SignInSeries(), backgroundScope)
+        val state = SignedInState(true).also { session.signedInFrom(it.signedIn) }
+        val repository = repository(accountChanges = session.changes.drop(1))
+        runCurrent()
+        val before = repository.store(5)!!
+
+        state.set(false) { session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, session.signIns.current, null)) }
+        state.set(true) { session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false)) }
+        runCurrent()
+
+        assertNotSame("the sign-out dropped it, though the state reads the same", before, repository.store(5))
+    }
+
+    @Test
+    fun `the state the account starts in clears nothing`() = runTest {
+        val session = AccountSession(SignInSeries(), backgroundScope)
+        session.signedInFrom(MutableStateFlow(false))
+        val repository = repository(accountChanges = session.changes.drop(1))
+        val before = repository.store(5)!!
+        runCurrent()
+
+        assertSame(before, repository.store(5))
     }
 
     @Test
@@ -223,7 +260,7 @@ class MoodleCourseRepositoryTest {
             downloads = downloads,
             downloadsDir = { java.io.File(tmp.root, "account") },
             decode = { null },
-            authState = authState,
+            accountChanges = authState,
             appScope = backgroundScope,
             newScope = { kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.SupervisorJob()) },
         )
@@ -266,7 +303,7 @@ class MoodleCourseRepositoryTest {
             downloads = downloads,
             downloadsDir = { java.io.File(tmp.root, "account") },
             decode = { null },
-            authState = authState,
+            accountChanges = authState,
             appScope = backgroundScope,
             newScope = { kotlinx.coroutines.CoroutineScope(backgroundScope.coroutineContext + kotlinx.coroutines.SupervisorJob()) },
         )

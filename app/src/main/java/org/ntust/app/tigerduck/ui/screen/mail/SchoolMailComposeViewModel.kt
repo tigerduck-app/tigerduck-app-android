@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.di.IoDispatcher
 import org.ntust.app.tigerduck.mail.ComposeMode
@@ -235,13 +236,12 @@ class SchoolMailComposeViewModel @Inject constructor(
     init {
         // Kept on the phone for the account they came from alone (tigerduck-app#552). Subscribed
         // before this constructor returns, as the repository subscribes, so no change can come
-        // between the load starting and the screen hearing of it: neither flow replays.
-        for (left in listOf(account.signOuts, account.studentChanges)) {
-            viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
-                left.collect {
-                    contactsTicket++
-                    _state.update { it.copy(contacts = emptyList()) }
-                }
+        // between the load starting and the screen hearing of it: the stream replays nothing.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            account.events.collect { event ->
+                if (event is AccountEvent.SignedIn) return@collect
+                contactsTicket++
+                _state.update { it.copy(contacts = emptyList()) }
             }
         }
         loadContacts()

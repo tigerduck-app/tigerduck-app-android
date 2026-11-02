@@ -67,6 +67,7 @@ class TypedAccountSignInTest {
 
     /** The sign-outs that ran. */
     private var signOuts = 0
+    private var shownUnderLock: Boolean? = null
     private val accountLock = Any()
     private var signedIn = false
 
@@ -124,9 +125,13 @@ class TypedAccountSignInTest {
             onDemo()
         },
         accountChanging = { steps += "owed" },
-        markSignedIn = {
-            signedIn = true
-            steps += "shown"
+        markSignedIn = { signIn ->
+            shownUnderLock = Thread.holdsLock(accountLock)
+            if (signIn.isCurrent) {
+                signedIn = true
+                steps += "shown"
+            }
+            signIn.isCurrent
         },
     )
 
@@ -150,6 +155,14 @@ class TypedAccountSignInTest {
         assertEquals("nothing lifted it before the new password was stored", true, latchedAtStore)
         assertEquals(STUDENT to NEW_PASSWORD, stored)
         assertFalse(latch.isRejected)
+    }
+
+    @Test
+    fun `the account shows as signed in holding no lock a sign-out takes`() = runTest {
+        // A page on the main thread runs in the telling.
+        signIn()
+
+        assertEquals(false, shownUnderLock)
     }
 
     @Test

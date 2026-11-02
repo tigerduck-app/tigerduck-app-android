@@ -36,6 +36,25 @@ class LibrarySessionTest {
     }
 
     @Test
+    fun `an account coming to show as signed in is told once, and a read that changes nothing tells nothing`() {
+        var signedIn = false
+        var told = 0
+        val session = LibrarySession({ signedIn }, tellSignedIn = { told++ })
+
+        session.refresh()
+        assertEquals(0, told)
+
+        signedIn = true
+        session.refresh()
+        session.refresh()
+        assertEquals(1, told)
+
+        signedIn = false
+        session.refresh()
+        assertEquals(1, told)
+    }
+
+    @Test
     fun `the library is signed out by one path, not a copy per screen`() {
         var dir: File = File("").absoluteFile
         while (!File(dir, "src/main/java").isDirectory && !File(dir, "app/src/main/java").isDirectory) {

@@ -3,6 +3,13 @@ package org.ntust.app.tigerduck.auth.session
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.onSubscription
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
@@ -31,8 +38,46 @@ class AccountSession(
     private val demo: () -> Boolean = { false },
     /** The marker a sign-out sets before it ends the sign-in; absent for a session whose wipe is not owed. */
     private val owed: SignOutOwed? = null,
+    private val account: Account = Account.SCHOOL,
+    /** The one stream, [AccountSessions.events]; a stream of its own for a session made alone in a test. */
+    private val stream: MutableSharedFlow<AccountEvent> = accountEventStream(),
 ) {
     private val running = ConcurrentHashMap.newKeySet<Job>()
+
+    /** The three accounts' stream: see [AccountEvent]. */
+    val events = stream.asSharedFlow()
+
+    /** Tells every reactor, without waiting for any: safe under a lock, and from any thread. */
+    fun emit(event: AccountEvent) {
+        stream.tryEmit(event)
+    }
+
+    /** Where [changes] reads the account's state. */
+    @Volatile
+    private var signedIn: StateFlow<Boolean>? = null
+
+    /** Names the state [changes] starts from. Its account's owner calls this as it is built. */
+    fun signedInFrom(state: StateFlow<Boolean>) {
+        signedIn = state
+    }
+
+    /**
+     * Whether the account is signed in: as it is now, then every change, a sign-out and a sign-in
+     * landing before the collector runs included, which a page must clear for, though the state
+     * reads the same after them. Subscribed before the state is read, with nothing held, so a
+     * change landing around the read arrives, and the same value twice in a row is one.
+     */
+    val changes: Flow<Boolean> = flow {
+        val page = this
+        events.onSubscription { page.emit(signedIn?.value == true) }.collect { event ->
+            if (event.account != account) return@collect
+            when (event) {
+                is AccountEvent.SignedOut -> emit(false)
+                is AccountEvent.SignedIn -> if (!event.byHand) emit(true)
+                is AccountEvent.StudentChanged -> Unit
+            }
+        }
+    }.distinctUntilChanged()
 
     /** The sign-in work starting now belongs to; while the session is closed, the one that ended. */
     @StartsAccountWork

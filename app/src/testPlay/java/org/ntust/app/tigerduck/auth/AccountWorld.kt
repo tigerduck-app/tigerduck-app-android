@@ -179,6 +179,7 @@ internal fun accountWorld(
         demoAccount = demoAccount,
         prefs = appPrefs,
         classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
+        sessions = sessions,
     )
     // The in-app browser's WebView storage, counted each time it is cleared.
     val browserClearings = MutableStateFlow(0)
@@ -205,8 +206,8 @@ internal fun accountWorld(
     )
     val effects = AccountSessionEffects(
         context = context,
-        accountState = auth.accountState,
-        signIns = auth.signIns,
+        events = sessions.events,
+        signedIn = { auth.authState.value },
         assignmentReminders = assignmentReminders,
         refreshLiveUpdates = liveUpdates::refresh,
         stopLiveUpdates = liveUpdates::stop,

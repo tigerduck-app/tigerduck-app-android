@@ -3,10 +3,12 @@ package org.ntust.app.tigerduck.data.preferences
 import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -15,7 +17,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
@@ -70,6 +75,28 @@ class CredentialManagerLibraryTest {
 
         assertFalse(before.isCurrent)
         assertTrue(session.isOpen)
+    }
+
+    @Test
+    fun `a library sign-out and a full reset are each told, with the sign-in they ended`() {
+        val told = mutableListOf<AccountEvent>()
+        val listening = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            session.events.collect { told += it }
+        }
+        val first = session.current
+
+        credentials.clearLibraryCredentials()
+        val second = session.current
+        credentials.clearAll()
+        listening.cancel()
+
+        assertEquals(
+            listOf<AccountEvent>(
+                AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, first, address = null),
+                AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, second, address = null),
+            ),
+            told,
+        )
     }
 
     @Test

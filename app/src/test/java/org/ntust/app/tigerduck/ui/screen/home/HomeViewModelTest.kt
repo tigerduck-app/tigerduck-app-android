@@ -26,6 +26,9 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.session.AccountSession
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -46,11 +49,12 @@ import org.ntust.app.tigerduck.shared.clock.ClockOverride
 import java.time.LocalDateTime
 import java.util.Date
 import org.ntust.app.tigerduck.AppConstants
+import org.ntust.app.tigerduck.util.bare
+import org.ntust.app.tigerduck.util.set
 import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
-import sun.misc.Unsafe
 
 /**
  * Home as a signed-in student leaves it, with the real cache and preferences and no network.
@@ -66,6 +70,8 @@ class HomeViewModelTest {
     private lateinit var cache: DataCache
     private lateinit var home: HomeViewModel
     private val series = SignInSeries()
+    private val signedIn = SignedInState(true)
+    private val session = AccountSession(series, CoroutineScope(SupervisorJob())).also { it.signedInFrom(signedIn.signedIn) }
 
     @Before
     fun setUp() {
@@ -76,7 +82,6 @@ class HomeViewModelTest {
         cache = DataCache(context, calendar)
         val credentials = CredentialManager(context.getSharedPreferences("credentials-test", 0))
         credentials.ntustStudentId = "B00015999"
-        val signedIn = SignedInState(true)
         val auth = bare<AuthService>().also {
             it.set("signedInState", signedIn)
             it.set("authState", signedIn.signedIn)
@@ -84,7 +89,7 @@ class HomeViewModelTest {
         }
         val colors = bare<CourseColorStore>().also { it.set("changeEvent", MutableSharedFlow<Unit>()) }
         val courses = bare<CourseService>().also { it.set("academicCalendar", calendar) }
-        val tokens = bare<AuthTokenManager>().also { it.set("session", AccountSession(series, CoroutineScope(SupervisorJob()))) }
+        val tokens = bare<AuthTokenManager>().also { it.set("session", session) }
         home = HomeViewModel(
             bare(), auth, cache, courses, bare(), AssignmentNotificationScheduler(context), prefs, colors, bare(),
             liveActivity(context, prefs, calendar), bare(), bare(),
@@ -137,6 +142,23 @@ class HomeViewModelTest {
             assertEquals(listOf("CS1001"), homeCourseNos())
         } finally {
             // Home's clock ticker never ends, and runTest waits for every coroutine on its scheduler.
+            home.viewModelScope.cancel()
+        }
+    }
+
+    @Test
+    fun `a sign-out and a sign-in landing before it runs are both seen`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            // What the student who left has on the page.
+            home.markedCompletedIds.let { (it as MutableStateFlow<Set<String>>).value = setOf("7") }
+
+            signedIn.set(false) { session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, series.current, null)) }
+            signedIn.set(true) { session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false)) }
+            dispatcher.scheduler.runCurrent()
+
+            assertEquals(emptySet<String>(), home.markedCompletedIds.value)
+        } finally {
             home.viewModelScope.cancel()
         }
     }
@@ -307,13 +329,4 @@ class HomeViewModelTest {
         }
         return home.allCourses.value.map { it.courseNo }
     }
-}
-
-private inline fun <reified T : Any> bare(): T {
-    val unsafe = Unsafe::class.java.getDeclaredField("theUnsafe").apply { isAccessible = true }.get(null) as Unsafe
-    return unsafe.allocateInstance(T::class.java) as T
-}
-
-private fun Any.set(field: String, value: Any?) {
-    javaClass.getDeclaredField(field).apply { isAccessible = true }.set(this, value)
 }

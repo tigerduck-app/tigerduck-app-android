@@ -149,6 +149,13 @@ some. The same check fails a new Kotlin file over 400 lines or function over 80.
   a decision to name in the PR body. `check_guardrails.py --introduce KIND`
   lets a ratchet land with its counts; a function whose parameter types
   changed keeps its baseline entry.
+- `AccountSessions.events`: every account's sign-ins and sign-outs, one stream in
+  order, which every reactor reads, so a fast sign-out and sign-in can't be missed.
+  `AccountSession.changes` is that for a page. App-level reactors subscribe with
+  `CoroutineScope.follow`, never on `AccountSession.launch`, whose cancellation is
+  the sign-out they follow. The `sign-out-reactor` check fails watching `authState`
+  or a stream of an account's own for a sign-in or a sign-out. It takes no baseline
+  entries.
 - `AuthTokenManager.requireAuthHeader(SignIn)`: the only way to a backend request's
   header, so a request of account data does not compile without its sign-in. The
   `bearer-home` check fails a `"Bearer ` literal anywhere but there, the guard that

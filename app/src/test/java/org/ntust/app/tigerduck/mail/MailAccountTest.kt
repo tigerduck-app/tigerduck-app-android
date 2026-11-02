@@ -19,7 +19,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.mail.model.MailAddress
 import org.ntust.app.tigerduck.mail.index.InMemoryMailSearchIndex
@@ -239,6 +242,63 @@ class MailAccountTest {
     }
 
     @Test
+    fun `each sign-in and sign-out is told, in order, with the sign-in that ended and who left`() = runTest {
+        val account = account()
+        val told = mutableListOf<AccountEvent>()
+        val listening = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            account.events.collect { told += it }
+        }
+
+        account.signIn("b10000001", "pw")
+        assertEquals(
+            listOf(AccountEvent.SignedIn(Account.MAIL, byHand = false), AccountEvent.SignedIn(Account.MAIL, byHand = true)),
+            told,
+        )
+
+        // The same student again shows no change.
+        told.clear()
+        account.signIn("b10000001", "pw")
+        assertEquals(listOf<AccountEvent>(AccountEvent.SignedIn(Account.MAIL, byHand = true)), told)
+
+        told.clear()
+        val ended = account.signInNow
+        val left = account.ownAddress
+        account.signOut()
+        assertEquals(listOf<AccountEvent>(AccountEvent.SignedOut(Account.MAIL, SignOutReason.MAIL, ended, left)), told)
+        assertFalse(ended.isCurrent)
+
+        // One with nobody signed in is told too, for the cleanup that must run on every one.
+        told.clear()
+        account.signOut()
+        assertEquals(1, told.size)
+        assertNull((told.single() as AccountEvent.SignedOut).address)
+        listening.cancel()
+    }
+
+    @Test
+    fun `a sign-out is told with the account already gone, and a student change with the student`() = runTest {
+        val account = account()
+        account.signIn("b10000001", "pw")
+        val first = account.signInNow
+        server.passwords["B10000002"] = "pw"
+        val atTheTelling = mutableListOf<Boolean>()
+        val listening = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
+            account.events.collect { event ->
+                if (event !is AccountEvent.SignedIn) atTheTelling += account.hasLeft(first)
+            }
+        }
+
+        account.signIn("b10000002", "pw")
+        assertEquals("the one who left counts as gone by the time anyone hears", listOf(true), atTheTelling)
+
+        atTheTelling.clear()
+        account.signOut()
+        assertEquals(listOf(true), atTheTelling)
+        assertFalse(account.signedIn.value)
+        listening.cancel()
+    }
+
+    @Test
     fun `a student change is told while the departing sign-in still stands`() = runTest {
         val account = account()
         account.signIn("b10000001", "pw")
@@ -246,7 +306,7 @@ class MailAccountTest {
         server.passwords["B10000002"] = "pw"
         var atTheTelling: SignIn? = null
         val listening = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
-            account.studentChanges.collect { atTheTelling = account.signInNow }
+            account.events.collect { if (it is AccountEvent.StudentChanged) atTheTelling = account.signInNow }
         }
 
         account.signIn("b10000002", "pw")

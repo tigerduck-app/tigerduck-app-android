@@ -3,7 +3,6 @@ package org.ntust.app.tigerduck.mail
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,7 +15,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
@@ -320,36 +321,33 @@ class MailRepository @Inject constructor(
         // and a fresh sign-in must never see the previous account's cached
         // folder resolution or demo mail.
         //
-        // Sign-out events, not signedIn going false. Watching the StateFlow
-        // lost sign-outs two ways: a collector that first ran after one took
-        // `false` as its initial value, and one that last saw `false` read a
-        // sign-in and sign-out landing before it next ran as no change. Either
-        // way the held socket stayed authenticated. UNDISPATCHED subscribes
+        // Sign-out events, not signedIn going false, which lost sign-outs and
+        // left the held socket authenticated; see [AccountEvent]. Subscribed
         // before this constructor returns, so no sign-out can precede the
         // subscriber, and a fresh repository has nothing of its own to clear.
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            account.signOuts.collect { departing ->
-                numberings.clear()
-                lastWhole = null
-                clearProgressOf(departing)
-                withContext(Dispatchers.IO) {
-                    // With a search's request, which may be waiting for WorkManager's answer.
-                    scheduled { indexScheduler.cancel() }
-                    holder.closeNow()
-                    clearIndexOf(departing)
+        scope.follow(account.events) { event ->
+            when (event) {
+                is AccountEvent.SignedOut -> {
+                    numberings.clear()
+                    lastWhole = null
+                    clearProgressOf(event.address)
+                    withContext(Dispatchers.IO) {
+                        // With a search's request, which may be waiting for WorkManager's answer.
+                        scheduled { indexScheduler.cancel() }
+                        holder.closeNow()
+                        clearIndexOf(event.address)
+                    }
+                    resolved = null
+                    synchronized(demoFolders) { demoFolders.clear(); demoUidSeq = 9_000L }
                 }
-                resolved = null
-                synchronized(demoFolders) { demoFolders.clear(); demoUidSeq = 9_000L }
-            }
-        }
-        // Another student signing in over this one leaves no mail of this one's to search. The
-        // index refuses a write from a run this one started, and starts over for the next.
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            account.studentChanges.collect { departing ->
-                numberings.clear()
-                lastWhole = null
-                clearProgressOf(departing)
-                withContext(Dispatchers.IO) { clearIndexOf(departing) }
+                // No mail of this one's to search. The index refuses a run's write, and starts over.
+                is AccountEvent.StudentChanged -> {
+                    numberings.clear()
+                    lastWhole = null
+                    clearProgressOf(event.address)
+                    withContext(Dispatchers.IO) { clearIndexOf(event.address) }
+                }
+                is AccountEvent.SignedIn -> Unit
             }
         }
     }

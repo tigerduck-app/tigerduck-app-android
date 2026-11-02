@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -17,6 +18,7 @@ import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.session.AccountSessions
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.UiLanguageMonitor
@@ -58,7 +60,8 @@ class MoodleCourseRepository internal constructor(
     /** The account's folder of downloaded files, found off the main thread: it reads a salt from disk. */
     private val downloadsDir: (account: String) -> File?,
     private val decode: (ByteArray) -> ImageBitmap?,
-    authState: Flow<Boolean>,
+    /** The school account's changes after the state it started in; each false is a sign-out. */
+    accountChanges: Flow<Boolean>,
     appScope: CoroutineScope,
     private val newScope: () -> CoroutineScope = { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) },
     /** Fires when the language the app shows has changed, which the demo account's Moodle follows. */
@@ -102,7 +105,7 @@ class MoodleCourseRepository internal constructor(
         downloads = downloads,
         downloadsDir = dataCache::moodleDownloadsDir,
         decode = ::decodeBitmap,
-        authState = authService.authState,
+        accountChanges = sessions.school.changes.drop(1),
         appScope = appScope,
         languageChanges = uiLanguage.changes,
         assignmentRecords = { dataCache.assignmentRecordsVersion.map { dataCache.loadAssignmentRecords() } },
@@ -121,9 +124,7 @@ class MoodleCourseRepository internal constructor(
     private var demoCache = MemoryCachePort()
 
     init {
-        appScope.launch {
-            authState.collect { signedIn -> if (!signedIn) clear() }
-        }
+        appScope.follow(accountChanges) { signedIn -> if (!signedIn) clear() }
         appScope.launch {
             languageChanges.collect { reloadDemo() }
         }

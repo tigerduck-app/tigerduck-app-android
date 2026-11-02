@@ -1,9 +1,17 @@
 package org.ntust.app.tigerduck.ui.screen.emptyclassroom
 
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.setMain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -13,6 +21,11 @@ import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendar
 import org.ntust.app.tigerduck.academic.Holiday
 import org.ntust.app.tigerduck.academic.SemesterTerm
+import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
+import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.emptyclassroom.CampusUsage
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomPageFixtures as Pages
 import org.ntust.app.tigerduck.emptyclassroom.ClassroomUsageService
@@ -45,6 +58,10 @@ class EmptyClassroomViewModelTest {
         var offline = false
         override var pickedBuilding: String? = null
         override val signedIn = MutableStateFlow(true)
+
+        /** The stream a test tells each change on; otherwise the flag, as a test sets it. */
+        var told: Flow<Boolean>? = null
+        override val accountChanges: Flow<Boolean> get() = told ?: signedIn
         override val coursesChanged = MutableStateFlow(0)
         override val calendarChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         var account: String? = "B00000000"
@@ -67,8 +84,12 @@ class EmptyClassroomViewModelTest {
         override fun isOffline(error: Throwable) = offline || error is IOException
     }
 
-    private class Harness(now: LocalDateTime, demo: (LocalDate) -> CampusUsage? = { null }) {
-        val env = FakeEnvironment(now)
+    private class Harness(
+        now: LocalDateTime,
+        demo: (LocalDate) -> CampusUsage? = { null },
+        told: Flow<Boolean>? = null,
+    ) {
+        val env = FakeEnvironment(now).also { it.told = told }
         val transport = FakeCour01Transport()
         var clockMs = 1_000_000L
         val service = ClassroomUsageService(transport, { _, _ -> true }, {}, demo, { clockMs }, Dispatchers.Unconfined)
@@ -316,6 +337,33 @@ class EmptyClassroomViewModelTest {
 
         assertEquals(listOf("TR-214"), harness.state.classes.map { it.room })
         assertEquals(listOf(1), harness.state.classes.map { it.lastPeriod })
+    }
+
+    @Test
+    fun `a sign-out and a sign-in landing before it runs are both seen`() {
+        val session = AccountSession(SignInSeries(), CoroutineScope(SupervisorJob()))
+        val state = SignedInState(true).also { session.signedInFrom(it.signedIn) }
+        val late = StandardTestDispatcher()
+        Dispatchers.setMain(late)
+        val harness = Harness(time(14, 10, 5), told = session.changes)
+        try {
+            harness.serveDay(listOf(Pages.row("IB-508", "..............")))
+            harness.model.appear()
+            late.scheduler.runCurrent()
+            assertEquals(listOf("IB-508"), harness.rooms)
+
+            // The next account's rooms, read anew once the screen hears of the change.
+            harness.serveDay(listOf(Pages.row("TR-313", "..............")))
+            harness.service.forget()
+            state.set(false) { session.emit(AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, session.signIns.current, null)) }
+            state.set(true) { session.emit(AccountEvent.SignedIn(Account.SCHOOL, byHand = false)) }
+            late.scheduler.runCurrent()
+
+            assertEquals(listOf("TR-313"), harness.rooms)
+        } finally {
+            harness.model.viewModelScope.cancel()
+            Dispatchers.setMain(UnconfinedTestDispatcher())
+        }
     }
 
     @Test

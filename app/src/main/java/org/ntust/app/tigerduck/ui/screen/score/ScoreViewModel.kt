@@ -7,9 +7,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,6 +46,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ScoreViewModel internal constructor(
     authState: StateFlow<Boolean>,
+    /** Whether the account is signed in as it is now, then every change: [AccountSession.changes]. */
+    accountChanges: Flow<Boolean> = authState,
     private val storedStudentId: () -> String?,
     private val storedPassword: () -> String?,
     /** The student's cached grades, with when they were fetched; see [NtustScoreService.cachedScoreReport]. */
@@ -70,6 +74,7 @@ class ScoreViewModel internal constructor(
         sessions: AccountSessions,
     ) : this(
         authState = authService.authState,
+        accountChanges = sessions.school.changes,
         storedStudentId = { authService.storedStudentId },
         storedPassword = { authService.storedPassword },
         cachedSnapshot = scoreService::cachedScoreReport,
@@ -106,7 +111,7 @@ class ScoreViewModel internal constructor(
 
     val isLoggedIn: StateFlow<Boolean> = authState
 
-    private val syncedAt = ScoreSyncedAt(viewModelScope, authState, cachedSnapshot)
+    private val syncedAt = ScoreSyncedAt(viewModelScope, accountChanges, cachedSnapshot)
 
     /** For the sync dot's "Last synced" row; see [ScoreSyncedAt]. */
     val syncedAtMs: StateFlow<Long> = syncedAt.value
@@ -137,8 +142,14 @@ class ScoreViewModel internal constructor(
 
     init {
         // A sign-in from this page's own lock, and a sign-out with another student's sign-in
-        // after it, both land while the view model lives.
-        viewModelScope.launch { authState.collect { load() } }
+        // after it, both land while the view model lives. A sign-out empties the page whoever is
+        // stored by the time this hears of it: the same student again has a new sign-in to load.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            accountChanges.collect { signedIn ->
+                if (!signedIn) switchAccount(to = null)
+                load()
+            }
+        }
     }
 
     fun load() {

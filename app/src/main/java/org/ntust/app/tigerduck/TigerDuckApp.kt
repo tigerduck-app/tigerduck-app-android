@@ -17,6 +17,8 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AccountSessionEffects
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.StoredPasswordRetry
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.follow
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.cache.DataCache
@@ -63,6 +65,9 @@ class TigerDuckApp : Application(), Configuration.Provider {
 
     @Inject
     lateinit var authService: AuthService
+
+    @Inject
+    lateinit var sessions: AccountSessions
 
     @Inject
     lateinit var wearBridge: WearScheduleBridge
@@ -196,29 +201,7 @@ class TigerDuckApp : Application(), Configuration.Provider {
         // A stored password the school or the library refused goes again once its wait is over.
         storedPasswordRetry.start(appScope)
         libraryPasswordRetry.start(appScope)
-        // The dot hides itself while signed out, but the tracker is
-        // process-wide: a status written before logout would still be here
-        // for the next account to inherit, green from the moment the dot
-        // comes back. Clearing on the auth signal rather than inside
-        // AuthService.logout() keeps a UI singleton out of the auth layer.
-        appScope.launch {
-            authService.authState.collect { signedIn ->
-                ServerStatusTracker.setSignedIn(signedIn)
-                if (!signedIn) ServerStatusTracker.reset()
-            }
-        }
-        appScope.launch {
-            authService.authState.collect {
-                // Neither way touches the library account, which signs in and
-                // out by itself: only a moment to read its state again.
-                librarySession.refresh()
-                wearBridge.publish()
-                // Auth state flips when a sign-in finishes or a logout
-                // clears the credentials, so this is also a moment to
-                // (re)mirror the library credentials onto the paired watch.
-                wearBridge.publishLibraryCredentials()
-            }
-        }
+        followSchoolAccount()
         // A sign-in with the stored library credentials, at a return to the app
         // or behind the Library page, changes what Settings and the flip read.
         // A refusal also takes the password off the watch, until the library takes it again.
@@ -272,6 +255,35 @@ class TigerDuckApp : Application(), Configuration.Provider {
         super.onConfigurationChanged(newConfig)
         // What a change of locales here stands for is in UiLanguageMonitor.
         uiLanguage.onLocales(newConfig.locales.toLanguageTags())
+    }
+
+    /**
+     * What follows the school account's every change at this level, from the state it starts in,
+     * which runs where [onCreate] does until the first thing that hops off it.
+     */
+    private fun followSchoolAccount() {
+        // The dot hides itself while signed out, but the tracker is
+        // process-wide: a status written before logout would still be here
+        // for the next account to inherit, green from the moment the dot
+        // comes back. Clearing on the auth signal rather than inside
+        // AuthService.logout() keeps a UI singleton out of the auth layer.
+        appScope.follow(sessions.school.changes) { signedIn ->
+            ServerStatusTracker.setSignedIn(signedIn)
+            if (!signedIn) ServerStatusTracker.reset()
+        }
+        appScope.follow(sessions.school.changes) {
+            // Off the main thread: the stores behind these are encrypted.
+            withContext(Dispatchers.Default) {
+                // Neither way touches the library account, which signs in and
+                // out by itself: only a moment to read its state again.
+                librarySession.refresh()
+                wearBridge.publish()
+                // Auth state flips when a sign-in finishes or a logout
+                // clears the credentials, so this is also a moment to
+                // (re)mirror the library credentials onto the paired watch.
+                wearBridge.publishLibraryCredentials()
+            }
+        }
     }
 
     /**

@@ -1341,6 +1341,11 @@
     "lines": 132
   },
   {
+    "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
+    "kind": "sign-out-reactor",
+    "count": 1
+  },
+  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/StorageScreen.kt",
     "kind": "long-function",
     "name": "StorageScreen(()->Unit, StorageViewModel)",

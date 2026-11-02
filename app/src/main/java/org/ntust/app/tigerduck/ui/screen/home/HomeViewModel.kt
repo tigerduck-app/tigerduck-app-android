@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -361,17 +362,16 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
-        viewModelScope.launch {
-            // React to login/logout: clear immediately on sign-out, kick off a
-            // fresh data fetch on sign-in so the UI never lingers on a prior
-            // user's cached courses.
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            // React to login/logout: clear immediately on sign-out, kick off a fresh data fetch
+            // on sign-in so the UI never lingers on a prior user's cached courses.
             //
-            // A sign-in, not the value the StateFlow replays to a new collector: a user already
-            // signed in at launch is fetched for by load(), which MainNavigation calls straight
-            // after construction. Fetching here as well ran the whole school pipeline twice on
-            // every cold start.
+            // A sign-in, not the state a new collector starts from: a user already signed in at
+            // launch is fetched for by load(), which MainNavigation calls straight after
+            // construction. Fetching here as well ran the whole school pipeline twice on every
+            // cold start.
             var wasAuthed: Boolean? = null
-            authService.authState.collect { isAuthed ->
+            authTokenManager.session.changes.collect { isAuthed ->
                 val signedIn = isAuthed && wasAuthed == false
                 wasAuthed = isAuthed
                 if (!isAuthed) {

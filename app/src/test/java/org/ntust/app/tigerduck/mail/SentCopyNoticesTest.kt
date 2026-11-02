@@ -4,6 +4,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -49,6 +50,19 @@ class SentCopyNoticesTest {
     fun `signing out takes the notice with it`() {
         report()
         account.signOut()
+        assertNull(notices.posted)
+    }
+
+    @Test
+    fun `a sign-out and a sign-in landing before it first runs are both seen`() {
+        val late = StandardTestDispatcher()
+        val notices = SentCopyNotices(account, CoroutineScope(late))
+        notices.report(SentCopyNotice.NoFolder, SentCopyOrigin.List, account.signInNow)
+
+        account.signOut()
+        runBlocking { account.signIn("b10000001", "pw") }
+        late.scheduler.runCurrent()
+
         assertNull(notices.posted)
     }
 

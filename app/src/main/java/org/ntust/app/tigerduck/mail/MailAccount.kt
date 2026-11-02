@@ -3,15 +3,18 @@ package org.ntust.app.tigerduck.mail
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.ntust.app.tigerduck.auth.SignedInState
+import org.ntust.app.tigerduck.auth.session.Account
+import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.di.MailAccountSession
@@ -66,32 +69,19 @@ class MailAccount @Inject constructor(
      * The mail session, whose sign-in moves with the account here. The default is a session of
      * its own, for tests that are not about it.
      */
-    @param:MailAccountSession private val session: AccountSession = AccountSession(SignInSeries(), scope),
+    @param:MailAccountSession private val session: AccountSession =
+        AccountSession(SignInSeries(), scope, account = Account.MAIL),
 ) {
-    private val _signedIn = MutableStateFlow(credentialsOrNull() != null)
-    val signedIn: StateFlow<Boolean> = _signedIn.asStateFlow()
+    private val signedInState = SignedInState(credentialsOrNull() != null)
+    val signedIn: StateFlow<Boolean> = signedInState.signedIn.also(session::signedInFrom)
 
     /**
-     * One event per [signOut], for cleanup that must run on every one of
-     * them. [signedIn] can't carry that: a StateFlow hands a collector only
-     * the latest value, so a sign-in and a sign-out that both land before it
-     * next runs read as no change at all. Each carries the address of the
-     * account that left, null for a sign-out with none signed in: cleanup that
-     * runs late must not take what the next account has made since, nor keep
-     * what an account that left made. Buffered without limit, so [signOut]
-     * never suspends and a subscriber that falls behind still gets every one.
+     * This account's [AccountEvent]s, for cleanup that must run on every sign-out, and every time
+     * [signIn] puts another student in place of the signed-in one without a [signOut] in between,
+     * as the sign-in sheet shown after a rejected password allows. A [AccountEvent.SignedOut] is
+     * told of a sign-out with nobody signed in too, with no address.
      */
-    private val _signOuts = MutableSharedFlow<String?>(extraBufferCapacity = Int.MAX_VALUE)
-    val signOuts: SharedFlow<String?> = _signOuts.asSharedFlow()
-
-    /**
-     * One event each time [signIn] puts another student in place of the signed-in one without a
-     * [signOut] in between, as the sign-in sheet shown after a rejected password allows. Cleanup
-     * that must not carry one student's state over to the next listens to this beside [signOuts].
-     * Each carries the address of the student who left, and is buffered, as [signOuts] is.
-     */
-    private val _studentChanges = MutableSharedFlow<String?>(extraBufferCapacity = Int.MAX_VALUE)
-    val studentChanges: SharedFlow<String?> = _studentChanges.asSharedFlow()
+    val events: Flow<AccountEvent> = session.events.filter { it.account == Account.MAIL }
 
     private val _authFailed = MutableStateFlow(state.authFailed)
     val authFailed: StateFlow<Boolean> = _authFailed.asStateFlow()
@@ -106,10 +96,11 @@ class MailAccount @Inject constructor(
      * The next sign-in, under [accountLock]. Ended and opened in one hold: mail has no wipe to
      * wait for, its cleanup has its own guards, and so its series never stays closed.
      */
-    private fun moveSignIn() {
-        session.signIns.end()
+    private fun moveSignIn(): SignIn {
+        val ended = session.signIns.end()
         session.open()
         present += session.current
+        return ended
     }
 
     /**
@@ -233,12 +224,12 @@ class MailAccount @Inject constructor(
 
     /**
      * Another student signs in over this one, which is no sign-out: the screens drop this one's
-     * mail on [studentChanges], and this one's notifications go, whose taps would open the next
-     * student's mail with this one's UIDs.
+     * mail on the [events] told here, and this one's notifications go, whose taps would open the
+     * next student's mail with this one's UIDs.
      */
     private fun leaveStudent() {
         synchronized(accountLock) { studentLeaves() }
-        _studentChanges.tryEmit(ownAddress)
+        session.emit(AccountEvent.StudentChanged(Account.MAIL, ownAddress))
         notifier.cancelAll()
     }
 
@@ -266,7 +257,7 @@ class MailAccount @Inject constructor(
     /**
      * Both callers are on the main thread, so only the cheap part runs there:
      * the flags and the credential removal stay synchronous because the
-     * repository's [signOuts] collector and every later `credentialsOrNull()`
+     * repository's reaction to [events] and every later `credentialsOrNull()`
      * depend on them having already happened. Deleting the cache tree and
      * cancelling the notifications are IO and finish on their own.
      */
@@ -274,18 +265,19 @@ class MailAccount @Inject constructor(
         scheduler.cancel()
         // Together, so a snapshot holds the departing account with its own sign-in or nothing.
         onLockWait?.invoke()
-        val departing = synchronized(accountLock) {
-            ownAddress.also {
-                studentLeaves()
-                moveSignIn()
-                credentials.clearMailCredentials()
-            }
+        val (departing, ended) = synchronized(accountLock) {
+            val address = ownAddress
+            studentLeaves()
+            val ended = moveSignIn()
+            credentials.clearMailCredentials()
+            address to ended
         }
         session.cancelWork()
         state.clear()
-        _signedIn.value = false
-        _authFailed.value = false
-        _signOuts.tryEmit(departing)
+        signedInState.set(false) {
+            _authFailed.value = false
+            session.emit(AccountEvent.SignedOut(Account.MAIL, SignOutReason.MAIL, ended, departing))
+        }
         scope.launch(Dispatchers.IO) {
             // Only the mail of the sign-ins that left: by now the same student may have signed in
             // again and kept a mail of the new sign-in's.
@@ -340,6 +332,9 @@ class MailAccount @Inject constructor(
         session.cancelWork()
         state.authFailed = false
         _authFailed.value = false
-        _signedIn.value = true
+        signedInState.set(true) { changed ->
+            if (changed) session.emit(AccountEvent.SignedIn(Account.MAIL, byHand = false))
+            session.emit(AccountEvent.SignedIn(Account.MAIL, byHand = true))
+        }
     }
 }

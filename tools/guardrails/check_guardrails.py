@@ -38,6 +38,10 @@ Offense kinds (counts in the baseline):
                   the guard that reads it, and the one line of the departing
                   unregister, the only request with no sign-in. Takes no
                   baseline entries either.
+  sign-out-reactor lines that follow a sign-in or a sign-out by watching state or
+                  a stream of the account's own. Every reactor reads one stream
+                  of account events, so a fast sign-out and sign-in can't be
+                  missed.
 
 Every source set of app, shared and wear is read except the test ones (test,
 androidTest, testFixtures and anything starting with test or androidTest).
@@ -125,12 +129,14 @@ SIGN_IN_HOMES = re.compile(
     r"|mail/sync/MailChecker\.kt$"
     r"|data/moodle/|data/DataMigration\.kt$|network/MoodleService\.kt$|network/CourseService\.kt$|network/moodle/"
     r"|network/AccountSessionGuard\.kt$|network/NtustSessionManager\.kt$)")
+SIGN_OUT_REACTOR = re.compile(
+    r"\b(?:authState|accountState|signOuts|studentChanges|signIns)\.collect\b|\bauthState\.first\b")
 BEARER_HOMES = re.compile(r"(?:auth/AuthTokenManager\.kt$|auth/SessionHostGuard\.kt$)")
 BEARER_LITERAL = '"Bearer '
 UNREGISTER_BEARER = 'removeDevice("Bearer '
 # Kinds that are counts of lines and, apart from these, take no baseline entry
 # the flag cannot record.
-INTRODUCIBLE = ("account-counter", "demo-check")
+INTRODUCIBLE = ("account-counter", "demo-check", "sign-out-reactor")
 
 
 def in_home(rel, homes):
@@ -541,7 +547,8 @@ def term_sorts(code):
 # ---------------------------------------------------------------- scan
 
 KINDS = ("long-file", "long-function", "taipei-literal", "fdroid-literal", "term-sort",
-         "top-app-bar", "account-counter", "demo-check", "sign-in-read", "bearer-home")
+         "top-app-bar", "account-counter", "demo-check", "sign-in-read", "bearer-home",
+         "sign-out-reactor")
 
 
 def is_test_set(name):
@@ -602,6 +609,7 @@ def scan(root):
         if SHARED_UI not in rel:
             add(rel, "top-app-bar", top_app_bar_calls(code))
         add(rel, "account-counter", matching_lines(code, ACCOUNT_COUNTER))
+        add(rel, "sign-out-reactor", matching_lines(code, SIGN_OUT_REACTOR))
         if not in_home(rel, DEMO_HOMES):
             add(rel, "demo-check", matching_lines(code, DEMO_CHECK))
         if not in_home(rel, SIGN_IN_HOMES):

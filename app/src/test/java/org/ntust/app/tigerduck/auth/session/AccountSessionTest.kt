@@ -152,7 +152,7 @@ class AccountSessionTest {
         isDemoAccount = { _, _ -> false },
         enterDemo = {},
         accountChanging = {},
-        markSignedIn = { shown = true },
+        markSignedIn = { signIn -> signIn.isCurrent.also { if (it) shown = true } },
     )
 
     private suspend fun TypedAccountSignIn.typed(prepareSignedIn: suspend () -> Unit = {}) =

@@ -30,8 +30,9 @@ import kotlin.coroutines.cancellation.CancellationException
  *
  * A sign-out takes no sign-in lock, so it can land at any point, the moment the school answers
  * included. The store and the account showing as signed in each happen only while the [SignIn]
- * read before the sign-in began stands, asked under [accountLock], which the sign-out holds as it
- * ends that sign-in and again while it drops the stored account: a sign-in a sign-out overtook
+ * read before the sign-in began stands. The store asks under [accountLock], which the sign-out
+ * holds as it ends that sign-in and again while it drops the stored account, and showing asks
+ * in one step with the state, which the sign-out lowers after: a sign-in a sign-out overtook
  * stores nothing and shows nothing, and one that stored first is the student on the sign-out's
  * marker, its account dropped by the sign-out itself.
  */
@@ -63,8 +64,12 @@ internal class TypedAccountSignIn(
      * must not lose: the in-app browser's clearing, which the account change then owes.
      */
     private val accountChanging: () -> Unit,
-    /** Shows the account as signed in. */
-    private val markSignedIn: () -> Unit,
+    /**
+     * Shows the account as signed in unless the [SignIn] has ended, and says whether it did: as
+     * one step against a sign-out's lowering the state, and in no lock a sign-out holds, since
+     * it tells whoever follows the account.
+     */
+    private val markSignedIn: (SignIn) -> Boolean,
 ) {
     enum class Outcome {
         /** The school did not take the credentials, or the account signed out meanwhile. */
@@ -109,7 +114,7 @@ internal class TypedAccountSignIn(
                 return Outcome.NOT_SIGNED_IN
             }
             prepareSignedIn()
-            if (!unlessSignedOutSince(started, markSignedIn)) return Outcome.NOT_SIGNED_IN
+            if (!markSignedIn(started)) return Outcome.NOT_SIGNED_IN
             return Outcome.DEMO
         }
         if (!schoolSignIn(studentId, password)) return Outcome.NOT_SIGNED_IN
@@ -129,9 +134,7 @@ internal class TypedAccountSignIn(
             // Cancelled from here on, the sign-in still leaves the password the school took,
             // with no refusal of the old one held against it.
             prepareSignedIn()
-            if (!unlessSignedOutSince(started, markSignedIn)) {
-                return@signInInteractively SignInAttempt.NOTHING_TO_SEND
-            }
+            if (!markSignedIn(started)) return@signInInteractively SignInAttempt.NOTHING_TO_SEND
             outcome = Outcome.SIGNED_IN
             afterShown(signIn, sameStudent)
         }
