@@ -74,6 +74,7 @@ Scopes:
 | Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()`, which `SignOutPlans`' school `clearAccount` starts after the demo's exit |
 | Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()`, first of `SchoolStores.late`, in the wipe the school's sign-out starts; another student's sign-in empties it too (`accountDidSignIn`) |
 | Which courses take Moodle's default color, `noBackupFilesDir/moodle_course_colors.json`, and the `.tmp` a write a process death cut short left beside it | `MoodleColorStore.forgetAccount()` in `AccountSessionEffects.onSignedOut`; a sign-out a process death cut short is caught at the next load, which deletes a file whose owner (a hash of the student ID kept in it) is not the student signed in, or any file while signed out (`MoodleColorStore.ensureLoaded()`) |
+| What the outbox's channels hold in memory for the account: a parked edit's one more try in this process, and the attempts counted for this process where a queue keeps none on disk. The edits themselves are in each queue's own file or keys, which their rows clear | `Outbox.forgetAccount()`, on `SchoolStores.late` before DataCache, whose clearing takes the queue files |
 | A share link held for a sign-in, in memory | Nothing: `HeldShareLink` keeps it in a `SignInBound`, which reads empty once its sign-in has ended. So does `HomeSyncState.lastKnownRevision`, the watermark of the backend's change feed |
 | The demo account | `DemoAccount.exit()` in `SignOutPlans`' school `clearAccount`, after everything that must still see the demo |
 | The in-app browser's WebView data, cookies, downloads and photo uploads (`cacheDir/browser_uploads/`) | `BrowserDataCleaner.clear()`, which `AccountSessionEffects` runs after each sign-out and sign-in; `BrowserCleanup` keeps it owed across a process death |
@@ -117,6 +118,7 @@ Scopes:
 | prefs | `tigerduck_browser_settings` | keys | |
 | prefs | `tigerduck_credentials` | keys | |
 | prefs | `tigerduck_live_activity` | keys | |
+| prefs | `tigerduck_outbox` | keys | |
 | prefs | `tigerduck_permissions` | keys | |
 | prefs | `tigerduck_prefs` | keys | |
 | prefs | `tigerduck_sync` | school | `AppPreferences.kt` `forgetLegacyLastCourseSyncAt` |
@@ -338,6 +340,7 @@ into `library_password_refusals` when it opens.
 | tigerduck_live_activity | `sound_assignment` | device | |
 | tigerduck_live_activity | `sound_class_preparing` | device | |
 | tigerduck_live_activity | `sound_in_class` | device | |
+| tigerduck_outbox | `firstRunMs` | device | |
 | tigerduck_permissions | `chip_grant_reread` | device | |
 | tigerduck_permissions | `declined_*` | device | |
 | tigerduck_permissions | `granted_*` | device | |
@@ -363,6 +366,12 @@ last backend clock value it saw, and the last `X-TigerSync-Clock` heard with the
 is the device's, not an account's, and is kept across a sign-out by the clock spec
 (`tigersync-clock`, "The clock state survives relaunch"): a stamp after a sign-out must still come
 after every value this device issued or saw. A full reset leaves it too.
+
+`tigerduck_outbox` holds the time this build first ran (`OldEntryTime`), recorded once as the
+process starts, before anything writes a queue. An edit an older build queued with no time is
+sent with the earliest time it is known to have existed, which that first run bounds (X1). It is
+the device's, not an account's: the queues' own files are cleared at a sign-out, and their entries
+with them. A full reset leaves it too.
 
 ## DataCache
 
