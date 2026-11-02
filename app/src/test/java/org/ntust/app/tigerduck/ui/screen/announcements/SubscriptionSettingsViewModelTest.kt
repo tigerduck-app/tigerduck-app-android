@@ -1,7 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.announcements
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
@@ -11,7 +10,6 @@ import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companio
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.V4
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewModel.SaveState
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 /**
  * The bulletin subscription settings page's saves. On `/v3` each edit is its own request to its
@@ -134,13 +132,16 @@ class SubscriptionSettingsViewModelTest {
         page.onMain { vm.toggleEnabled(0) }
         second.awaitArrival()
         second.release()
-        page.eventually("the later toggle is saved") { vm.state.value.saveState == SaveState.Saved }
+        // The read, and the later toggle's answer.
+        page.awaitAnswers(vm, 2)
+        assertEquals(listOf("Scholarships" to true), vm.shown())
         first.release()
-        page.eventually("the earlier echo is back") { page.backend.held(FIRST) == listOf("Scholarships" to false) }
-        page.settle()
+        // The earlier toggle's echo, handled by the page: it lands nowhere.
+        page.awaitAnswers(vm, 3)
 
         assertEquals(listOf(false, true), page.backend.sent("PATCH /v3/bulletin-subscriptions/1").map { it.json.getBoolean("enabled") })
         assertEquals(listOf("Scholarships" to true), vm.shown())
+        assertEquals(SaveState.Saved, vm.state.value.saveState)
     }
 
     @Test
@@ -280,8 +281,7 @@ class SubscriptionSettingsViewModelTest {
         page.onMain { vm.toggleEnabled(1) }
 
         assertEquals(listOf("Scholarships" to false, "Lectures" to false), vm.shown())
-        // A second PUT sent now would be at the backend well within this; the page's waits.
-        assertFalse("the second save went out before the first answer", second.arrived.await(1, TimeUnit.SECONDS))
+        assertEquals("one save at a time: the second waits for the first answer", 1, page.savesBegun(vm))
         first.release()
         second.awaitArrival()
         assertEquals(listOf("Scholarships" to false, "Lectures" to false), vm.shown())

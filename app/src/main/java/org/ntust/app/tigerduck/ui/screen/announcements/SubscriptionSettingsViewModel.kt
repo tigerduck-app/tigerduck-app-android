@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.ui.screen.announcements
 
+import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,6 +20,7 @@ import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.network.model.TaxonomyResponse
 import org.ntust.app.tigerduck.notification.SystemPermissions
 import org.ntust.app.tigerduck.shared.account.SignIn
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 /**
@@ -84,8 +86,25 @@ class SubscriptionSettingsViewModel @Inject constructor(
     /** The API the rules on the page were read from, which decides how an edit of them is saved. */
     private var shownApi = BackendApi.V3
 
+    /**
+     * What the page has done with its requests, counted for tests: an answer is read on another
+     * thread and handled on the page's a moment later, so a test waits on these, not on time.
+     * Nothing in the app reads them.
+     */
+    @VisibleForTesting
+    internal class Probe {
+        /** `/v4` saves of the list begun, each one PUT unless its header is refused first. */
+        val savesBegun = AtomicInteger()
+
+        /** Answers to the page's reads and saves handled, refusals too, whether they landed or not. */
+        val answersHandled = AtomicInteger()
+    }
+
+    @VisibleForTesting
+    internal val probe = Probe()
+
     /** `/v4`'s saves of the whole list, one at a time. */
-    private val listSaves = SubscriptionListSaves(viewModelScope, api, _state, ::land)
+    private val listSaves = SubscriptionListSaves(viewModelScope, api, _state, ::land, probe)
 
     init {
         viewModelScope.launch { fetchTaxonomy() }
@@ -122,6 +141,7 @@ class SubscriptionSettingsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _state.update { it.copy(loadState = LoadState.Failed(e.message ?: "error")) }
             }
+            probe.answersHandled.incrementAndGet()
         }
     }
 
@@ -205,9 +225,11 @@ class SubscriptionSettingsViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 land(signIn) { _state.update { failed(it, e) } }
+                probe.answersHandled.incrementAndGet()
                 return@launch
             }
             land(signIn) { _state.update { saved(it, kept) } }
+            probe.answersHandled.incrementAndGet()
         }
     }
 

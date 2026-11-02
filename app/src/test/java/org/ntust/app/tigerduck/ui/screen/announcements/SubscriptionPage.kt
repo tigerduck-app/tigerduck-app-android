@@ -10,6 +10,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.rules.TestWatcher
@@ -80,10 +81,17 @@ class SubscriptionPage : TestWatcher() {
     }
 
     /**
-     * Waits until the page's thread has run everything queued on it now, and what that queued in
-     * turn, a few rounds deep: what a test checks did not happen has had its chance to.
+     * Waits until [page] has handled [count] answers to its reads and saves since it opened, the
+     * first read's among them, and fails if it handled more: an answer is read on OkHttp's thread
+     * and handled on the page's a moment later, which only the page itself can tell.
      */
-    fun settle() = repeat(5) { onMain { } }
+    fun awaitAnswers(page: SubscriptionSettingsViewModel, count: Int) {
+        eventually("the page handles $count answers") { page.probe.answersHandled.get() >= count }
+        assertEquals("answers the page handled", count, onMain { page.probe.answersHandled.get() })
+    }
+
+    /** How many `/v4` saves of the list [page] has begun, read on its thread once it has run what is queued there. */
+    fun savesBegun(page: SubscriptionSettingsViewModel): Int = onMain { page.probe.savesBegun.get() }
 
     /** The first student signs out, and the second ([SECOND]) signs in with a session of their own. */
     fun nextStudentSignsIn(vararg rules: String) {

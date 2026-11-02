@@ -26,6 +26,7 @@ internal class SubscriptionListSaves(
     private val page: MutableStateFlow<State>,
     /** Puts an answer to a request of the given sign-in's on the page, while that sign-in stands. */
     private val land: (SignIn, () -> Unit) -> Unit,
+    private val probe: SubscriptionSettingsViewModel.Probe,
 ) {
     /** The list as the backend last agreed to it, which a refused save puts back. */
     var acknowledged: List<SubscriptionRule> = emptyList()
@@ -59,6 +60,7 @@ internal class SubscriptionListSaves(
      * that has ended is never sent: its header is refused first.
      */
     private suspend fun put(signIn: SignIn) {
+        probe.savesBegun.incrementAndGet()
         val sent = page.value.rules
         val kept = try {
             api.saveSubscriptions(sent, signIn)
@@ -70,12 +72,14 @@ internal class SubscriptionListSaves(
                     page.update { it.copy(rules = acknowledged, saveState = SaveState.Failed(e.message ?: "error")) }
                 }
             }
+            probe.answersHandled.incrementAndGet()
             return
         }
         land(signIn) {
             acknowledged = kept
             if (page.value.rules == sent) page.update { it.copy(rules = kept, saveState = SaveState.Saved) }
         }
+        probe.answersHandled.incrementAndGet()
     }
 }
 
