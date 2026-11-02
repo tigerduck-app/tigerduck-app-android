@@ -333,8 +333,8 @@ class MailAccount @Inject constructor(
         state.authFailed = false
         _authFailed.value = false
         signedInState.set(true) { changed ->
-            if (changed) session.emit(AccountEvent.SignedIn(Account.MAIL, byHand = false))
             session.emit(AccountEvent.SignedIn(Account.MAIL, byHand = true))
+            if (changed) session.emit(AccountEvent.SignedIn(Account.MAIL, byHand = false))
         }
     }
 }

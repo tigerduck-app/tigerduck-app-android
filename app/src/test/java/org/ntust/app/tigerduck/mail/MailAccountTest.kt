@@ -254,7 +254,7 @@ class MailAccountTest {
 
         account.signIn("b10000001", "pw")
         assertEquals(
-            listOf(AccountEvent.SignedIn(Account.MAIL, byHand = false), AccountEvent.SignedIn(Account.MAIL, byHand = true)),
+            listOf(AccountEvent.SignedIn(Account.MAIL, byHand = true), AccountEvent.SignedIn(Account.MAIL, byHand = false)),
             told,
         )
 

@@ -400,7 +400,6 @@ class SchoolMailListViewModel @Inject constructor(
         }
         // A sign-out must not leave the mail on screen for whoever signs in next (spec §7.5), nor
         // may another student signing in over a rejected account act on their mailbox with its UIDs.
-        if (!account.signedIn.value) forgetAccount()
         viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             account.events.collect { if (it !is AccountEvent.SignedIn) forgetAccount() }
         }
