@@ -35,25 +35,27 @@ class OldEntryTime internal constructor(
 
     private val lock = Any()
 
-    // Under lock once known: it never changes after.
-    @Volatile
+    // Under lock: the first run, once read or recorded; it never changes after.
     private var known: Long? = null
+
+    // Under lock: whether the disk has yet to take the first run this process recorded (a full
+    // disk). Each later call writes it again until one write lands, so the next start reads this
+    // build's first run rather than recording its own, later one, which an untimed entry would
+    // then take, putting a stale edit after another device's newer one.
+    private var owesDisk = false
 
     /** When this build first ran, epoch ms; null until [recordFirstRun] has. */
     val firstRunMs: Long?
-        get() = known ?: synchronized(lock) {
-            known ?: prefs.getLong(KEY_FIRST_RUN_MS, 0L).takeIf { it > 0 }?.also { known = it }
-        }
+        get() = synchronized(lock) { knownOrStored() }
 
-    /** Records now as this build's first run, unless one is recorded; on disk before it returns. */
+    /** Records now as this build's first run, unless one is recorded; on disk before it returns, or owed. */
     internal fun recordFirstRun() {
         synchronized(lock) {
-            if (firstRunMs != null) return
-            val now = wallClock()
-            // Lost to a full disk, the next start records a later time, which bounds the same
-            // entries all the same, if less closely.
-            if (!prefs.edit().putLong(KEY_FIRST_RUN_MS, now).commit()) Log.w(TAG, "the first run was not written to disk")
-            known = now
+            if (knownOrStored() == null) {
+                known = wallClock()
+                owesDisk = true
+            }
+            payDisk()
         }
     }
 
@@ -64,9 +66,24 @@ class OldEntryTime internal constructor(
      */
     fun oldEntryTimeMs(file: File?): Long {
         val fileMs = file?.lastModified()?.takeIf { it > 0 }
-        val earliest = listOfNotNull(fileMs, firstRunMs).minOrNull() ?: return 0L
+        val firstRun = synchronized(lock) {
+            payDisk()
+            knownOrStored()
+        }
+        val earliest = listOfNotNull(fileMs, firstRun).minOrNull() ?: return 0L
         // A clock set ahead when either was written must not put an old edit after a new one.
         return minOf(earliest, wallClock())
+    }
+
+    // Under lock.
+    private fun knownOrStored(): Long? =
+        known ?: prefs.getLong(KEY_FIRST_RUN_MS, 0L).takeIf { it > 0 }?.also { known = it }
+
+    // Under lock: the first run the disk still owes, written again; it stays owed if this write fails too.
+    private fun payDisk() {
+        val owed = known?.takeIf { owesDisk } ?: return
+        owesDisk = !prefs.edit().putLong(KEY_FIRST_RUN_MS, owed).commit()
+        if (owesDisk) Log.w(TAG, "the first run was not written to disk; the next call tries again")
     }
 
     private companion object {

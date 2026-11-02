@@ -1,5 +1,6 @@
 package org.ntust.app.tigerduck.sync.outbox
 
+import android.content.SharedPreferences
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -198,6 +199,43 @@ class OldEntryTimeTest {
         val nextProcess = OldEntryTime(prefs) { now }
         nextProcess.recordFirstRun()
         assertEquals(5_000L, nextProcess.firstRunMs)
+    }
+
+    /** [real], with a disk that refuses the next [failures] commits, writing nothing for them. */
+    private class FullDisk(private val real: SharedPreferences, var failures: Int) : SharedPreferences by real {
+        override fun edit(): SharedPreferences.Editor {
+            val edit = real.edit()
+            return object : SharedPreferences.Editor by edit {
+                override fun putLong(key: String?, value: Long): SharedPreferences.Editor = apply { edit.putLong(key, value) }
+
+                override fun commit(): Boolean {
+                    if (failures == 0) return edit.commit()
+                    failures--
+                    return false
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a first run the disk did not take is written again at the next call, until it lands`() {
+        val disk = FullDisk(prefs, failures = 2)
+        val times = OldEntryTime(disk) { now }
+        times.recordFirstRun()
+        assertEquals("this process keeps it", 5_000L, times.firstRunMs)
+        assertNull("not on disk yet", OldEntryTime(prefs) { now }.firstRunMs)
+
+        now = 7_000
+        assertEquals(5_000L, times.oldEntryTimeMs(null))
+        assertNull("the disk refused it again", OldEntryTime(prefs) { now }.firstRunMs)
+        times.recordFirstRun()
+
+        // A later start reads the time this build first ran, not its own.
+        now = 9_000
+        val nextProcess = OldEntryTime(prefs) { now }
+        nextProcess.recordFirstRun()
+        assertEquals(5_000L, nextProcess.firstRunMs)
+        assertEquals(5_000L, nextProcess.oldEntryTimeMs(null))
     }
 
     @Test
