@@ -8,12 +8,13 @@ import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.guardedBy
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.BackendServices
+import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.shared.account.SignIn
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// The change feed's answer when the changes after the asked revision are gone.
+// The change feed's answer on /v3 when the changes after the asked revision are gone.
 private const val HTTP_GONE = 410
 
 /** One entry of the change feed: only what a poll's plan reads (`ChangeFeedPlan`). */
@@ -78,14 +79,15 @@ class SyncApiClient @Inject constructor(
 
     /**
      * The changes after [sinceRevision], one page of them; null when the server
-     * no longer keeps them (410 `sync_revision_expired`), so only a full sync
-     * can catch up. See `ChangeFeedPlan`.
+     * no longer keeps them, so only a full sync can catch up: any 410 on `/v3`,
+     * or `/v4`'s 409 `sync_revision_expired`, as `/v4` keeps every 410 for
+     * "update the app". See `ChangeFeedPlan`.
      */
     suspend fun fetchChanges(sinceRevision: Long, signIn: SignIn): SyncChangesPage? = withContext(Dispatchers.IO) {
         val authHeader = authTokenManager.requireAuthHeader(signIn)
         api.at(baseUrl).changes(authHeader, sinceRevision).execute().use { response ->
-            if (response.code == HTTP_GONE) return@withContext null
             if (!response.isSuccessful) {
+                if (response.code == HTTP_GONE || BackendError.of(response).isRevisionExpired) return@withContext null
                 throw PushApiException("sync changes failed: HTTP ${response.code}", response.code)
             }
             parseChangesPage(JSONObject(response.body.string()))
@@ -100,7 +102,10 @@ class SyncApiClient @Inject constructor(
                 throw PushApiException("sync/full failed: HTTP ${response.code}", response.code)
             }
             val json = JSONObject(response.body.string())
-            parseFullSync(json).copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))
+            // Read as /v3's, and heard by no clock, until both land beside this: protocol2 is then
+            // whether the endpoint speaks /v4 (ApiBase), and heard is SyncClock.heardInSnapshot.
+            parseFullSync(json, protocol2 = false, heard = {})
+                .copy(fetchedAtMs = fetchedAtMs, rosterRequests = parseRosterRequests(json))
         }
     }
 }

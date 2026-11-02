@@ -1,0 +1,366 @@
+{
+  "current_revision": 52,
+  "server_hlc": 1792900000000000,
+  "courses_reset_at": "2026-09-01T08:00:00+00:00",
+  "course_tombstones": [
+    {
+      "course_key": "client:1151:XA0000004",
+      "course_no": "XA0000004",
+      "semester": "1151",
+      "deleted_at": "2026-10-20T02:00:00+00:00",
+      "hlc": 1792461600000000,
+      "kind": "hide"
+    },
+    {
+      "course_key": "client:1151:XA0000005",
+      "course_no": "XA0000005",
+      "semester": "1151",
+      "deleted_at": "2026-10-21T02:00:00+00:00",
+      "hlc": 1792548000000000,
+      "kind": "reset"
+    },
+    {
+      "course_key": "client:1151:XA0000006",
+      "course_no": null,
+      "semester": "1151",
+      "deleted_at": "2026-10-22T02:00:00+00:00",
+      "hlc": 1792634400000000,
+      "kind": "remove"
+    }
+  ],
+  "courses_reset_hlc": 1788249600000000,
+  "term_resets": {
+    "1151": 1789000000000000
+  },
+  "holiday_overrides": [
+    {
+      "holiday_id": 7,
+      "notify": true,
+      "hlc": 1792800000000000
+    },
+    {
+      "holiday_id": 8,
+      "notify": false,
+      "hlc": 1792800000000001
+    },
+    {
+      "notify": true,
+      "hlc": 1792800000000002
+    }
+  ],
+  "courses": [
+    {
+      "id": 101,
+      "semester": "1151",
+      "course_key": "client:1151:XA0000001",
+      "course_no": "XA0000001",
+      "source": "roster",
+      "course_name": "Fake Course One",
+      "course_name_en": "Fake Course One",
+      "instructors": [
+        "Teacher A",
+        "",
+        "Teacher B"
+      ],
+      "credits": 3.0,
+      "classroom": "TR-313",
+      "enrolled_count": 40,
+      "max_count": 60,
+      "moodle_id": "1151XA0000001",
+      "schedule_json": {
+        "1": [
+          2,
+          3
+        ]
+      },
+      "classroom_map": {
+        "TR-313": "T1"
+      },
+      "enrollment_status": "enrolled",
+      "fetched_at": "2026-10-01T00:00:00+00:00",
+      "updated_at": "2026-10-02T00:00:00+00:00",
+      "version": 3,
+      "added_hlc": null
+    },
+    {
+      "id": 102,
+      "semester": "1151",
+      "course_key": "client:1151:XA0000002",
+      "course_no": "XA0000002",
+      "source": "user_added",
+      "course_name": "Fake Course Two",
+      "course_name_en": null,
+      "instructors": null,
+      "credits": null,
+      "classroom": null,
+      "enrolled_count": null,
+      "max_count": null,
+      "moodle_id": "1151XA0000002",
+      "schedule_json": null,
+      "classroom_map": null,
+      "enrollment_status": "dropped",
+      "fetched_at": null,
+      "updated_at": null,
+      "version": 1,
+      "added_hlc": 1792700000000000
+    },
+    {
+      "id": 103,
+      "semester": "1151",
+      "course_key": "client:1151:XA0000003",
+      "course_no": null,
+      "source": "roster",
+      "course_name": "【1151】 XA0000003 Fake Course Three",
+      "course_name_en": null,
+      "instructors": [],
+      "credits": 2.0,
+      "classroom": "",
+      "enrolled_count": 0,
+      "max_count": 0,
+      "moodle_id": "1151XA0000003",
+      "schedule_json": {},
+      "classroom_map": {},
+      "enrollment_status": "enrolled",
+      "fetched_at": null,
+      "updated_at": null,
+      "version": 1,
+      "added_hlc": null
+    },
+    {
+      "id": null,
+      "semester": "1142",
+      "course_key": "client:1142:XA0000007",
+      "course_no": "XA0000007",
+      "source": null,
+      "course_name": null,
+      "course_name_en": null,
+      "instructors": [
+        "Teacher C"
+      ],
+      "credits": 1.5,
+      "classroom": "IB-401",
+      "enrolled_count": 12,
+      "max_count": 30,
+      "moodle_id": null,
+      "schedule_json": {
+        "3": [
+          5
+        ]
+      },
+      "classroom_map": {},
+      "enrollment_status": null,
+      "fetched_at": null,
+      "updated_at": null,
+      "version": 2,
+      "added_hlc": null
+    }
+  ],
+  "course_overrides": [
+    {
+      "user_course_id": 101,
+      "moodle_id": "1151XA0000001",
+      "course_no": "XA0000001",
+      "semester": "1151",
+      "custom_names": {
+        "en": "Renamed One",
+        "zh": ""
+      },
+      "custom_name_updated_at": "2026-10-23T01:00:00+00:00",
+      "custom_names_hlc": {
+        "en": 1792720000000000,
+        "zh": 1792720000000001
+      },
+      "color_hex": "#FF0000",
+      "color_hex_updated_at": "2026-10-23T02:00:00+00:00",
+      "color_hex_hlc": 1792723600000000,
+      "ignore_assignments": true,
+      "ignore_assignments_updated_at": "2026-10-23T03:00:00+00:00",
+      "ignore_assignments_hlc": 1792727200000000,
+      "moodle_course_id": 4321,
+      "course_key": "client:1151:XA0000001"
+    },
+    {
+      "user_course_id": 103,
+      "moodle_id": "1151XA0000003",
+      "course_no": null,
+      "semester": "1151",
+      "custom_names": {},
+      "custom_name_updated_at": null,
+      "custom_names_hlc": {},
+      "color_hex": null,
+      "color_hex_updated_at": null,
+      "color_hex_hlc": null,
+      "ignore_assignments": null,
+      "ignore_assignments_updated_at": null,
+      "ignore_assignments_hlc": null,
+      "moodle_course_id": null,
+      "course_key": "client:1151:XA0000003"
+    },
+    {
+      "user_course_id": 999,
+      "moodle_id": null,
+      "course_no": null,
+      "semester": null,
+      "custom_names": {
+        "en": "Unkeyed"
+      },
+      "custom_name_updated_at": null,
+      "custom_names_hlc": {
+        "en": 1792720000000002
+      },
+      "color_hex": "#00FF00",
+      "color_hex_updated_at": null,
+      "color_hex_hlc": 1792720000000003,
+      "ignore_assignments": false,
+      "ignore_assignments_updated_at": null,
+      "ignore_assignments_hlc": null,
+      "moodle_course_id": null,
+      "course_key": null
+    }
+  ],
+  "course_skipped_dates": [
+    {
+      "id": 1,
+      "user_course_id": 101,
+      "skipped_on": "2026-10-10",
+      "reason": "holiday",
+      "deleted_at": null
+    }
+  ],
+  "assignments": [
+    {
+      "id": 501,
+      "user_course_id": 101,
+      "moodle_course_id": 4321,
+      "moodle_assignment_id": 9001,
+      "course_no": "XA0000001",
+      "course_name": "Fake Course One",
+      "title": "Fake Homework 1",
+      "due_at": "2026-10-30T15:59:00+00:00",
+      "cutoff_at": null,
+      "allow_from_at": null,
+      "moodle_url": null,
+      "intro_html": null,
+      "provider_is_submitted": false,
+      "provider_submitted_at": null,
+      "provider_grading_status": null,
+      "provider_grade": null,
+      "deleted_at": null,
+      "updated_at": "2026-10-20T00:00:00+00:00"
+    },
+    {
+      "id": 502,
+      "user_course_id": 101,
+      "moodle_course_id": 4321,
+      "moodle_assignment_id": 9002,
+      "course_no": "XA0000001",
+      "course_name": "Fake Course One",
+      "title": "Fake Homework 2",
+      "due_at": null,
+      "cutoff_at": null,
+      "allow_from_at": null,
+      "moodle_url": null,
+      "intro_html": null,
+      "provider_is_submitted": true,
+      "provider_submitted_at": null,
+      "provider_grading_status": null,
+      "provider_grade": null,
+      "deleted_at": null,
+      "updated_at": null
+    },
+    {
+      "id": 503,
+      "user_course_id": 101,
+      "moodle_course_id": 0,
+      "moodle_assignment_id": 0,
+      "course_no": "XA0000001",
+      "course_name": "Fake Course One",
+      "title": "Fake Placeholder",
+      "due_at": null,
+      "cutoff_at": null,
+      "allow_from_at": null,
+      "moodle_url": null,
+      "intro_html": null,
+      "provider_is_submitted": false,
+      "provider_submitted_at": null,
+      "provider_grading_status": null,
+      "provider_grade": null,
+      "deleted_at": null,
+      "updated_at": null
+    }
+  ],
+  "assignment_overrides": [
+    {
+      "user_assignment_id": 501,
+      "moodle_assignment_id": 9001,
+      "local_status": "ignored",
+      "local_status_updated_at": "2026-10-24T00:00:00+00:00",
+      "local_status_hlc": 1792800000000100,
+      "note": null,
+      "note_updated_at": null,
+      "note_hlc": null
+    },
+    {
+      "user_assignment_id": 502,
+      "moodle_assignment_id": null,
+      "local_status": "locally_completed",
+      "local_status_updated_at": "2026-10-24T00:00:01+00:00",
+      "local_status_hlc": 1792800000000200,
+      "note": "fake note",
+      "note_updated_at": "2026-10-24T00:00:01+00:00",
+      "note_hlc": 1792800000000201
+    },
+    {
+      "user_assignment_id": 504,
+      "moodle_assignment_id": 9004,
+      "local_status": "archived",
+      "local_status_updated_at": "2026-10-24T00:00:02+00:00",
+      "local_status_hlc": 1792800000000300,
+      "note": null,
+      "note_updated_at": null,
+      "note_hlc": null
+    },
+    {
+      "user_assignment_id": 505,
+      "moodle_assignment_id": 9005,
+      "local_status": "none",
+      "local_status_updated_at": "2026-10-25T07:06:40.004000+00:00",
+      "local_status_hlc": 1792900000004000,
+      "note": null,
+      "note_updated_at": null,
+      "note_hlc": null
+    },
+    {
+      "user_assignment_id": 506,
+      "moodle_assignment_id": null,
+      "local_status": "ignored",
+      "local_status_updated_at": "2026-10-24T00:00:04+00:00",
+      "local_status_hlc": 1792800000000500,
+      "note": null,
+      "note_updated_at": null,
+      "note_hlc": null
+    },
+    {
+      "user_assignment_id": 503,
+      "moodle_assignment_id": null,
+      "local_status": "locally_completed",
+      "local_status_updated_at": "2026-10-24T00:00:05+00:00",
+      "local_status_hlc": 1792800000000600,
+      "note": null,
+      "note_updated_at": null,
+      "note_hlc": null
+    }
+  ],
+  "settings_documents": [
+    {
+      "namespace": "notifications",
+      "schema_version": 1,
+      "document": {},
+      "revision": 3,
+      "updated_at": "2026-10-01T00:00:00+00:00"
+    }
+  ],
+  "roster_requests": [
+    "1151"
+  ]
+}

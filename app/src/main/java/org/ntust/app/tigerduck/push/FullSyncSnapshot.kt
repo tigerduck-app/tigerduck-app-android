@@ -5,7 +5,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 // The snapshot of `GET /sync/full` and its types, which the full syncs, the re-enable check and
-// Use Local read.
+// Use Local read. A field marked "protocol 2" is read only from protocol 2's snapshot, the one
+// `/v4` serves ([parseFullSync]'s `protocol2`), and is null from `/v3`, so nothing a `/v3` sync
+// reads changes; SnapshotStamps.kt reads the stamps it adds.
 
 data class CourseOverrideResult(
     val moodleCourseId: String,
@@ -34,6 +36,14 @@ data class CourseOverrideResult(
      * came with an upload rather than a pick.
      */
     val colorHexUpdatedAt: String? = null,
+    /** The course as `/v4`'s override PATCH names it, `client:{term}:{course no}`. Protocol 2. */
+    val courseKey: String? = null,
+    /** The clock value of the edit that set [colorHex]. Protocol 2. */
+    val colorHexHlc: Long? = null,
+    /** The clock value of the edit that set each language's name in [customNames]. Protocol 2. */
+    val customNamesHlc: Map<String, Long>? = null,
+    /** The clock value of the edit that set [ignoreAssignments]. Protocol 2. */
+    val ignoreAssignmentsHlc: Long? = null,
 )
 
 data class ServerCourse(
@@ -67,6 +77,8 @@ data class ServerCourse(
      * enrolled.
      */
     val enrollmentStatus: String? = null,
+    /** The clock value of the hand-add that keeps the course listed; null without one. Protocol 2. */
+    val addedHlc: Long? = null,
 ) {
     /** A roster upload dropped the course; see [enrollmentStatus]. */
     val isDropped: Boolean get() = enrollmentStatus == "dropped"
@@ -84,6 +96,10 @@ data class CourseTombstone(
     val deletedByReset: Boolean = false,
     /** Written by the device this snapshot was served to. */
     val deletedByThisDevice: Boolean = false,
+    /** The clock value of the hide, removal or reset that wrote it. Protocol 2. */
+    val hlc: Long? = null,
+    /** What wrote it; null for a kind this build does not know. Protocol 2. */
+    val kind: TombstoneKind? = null,
 )
 
 data class BackendSyncResult(
@@ -108,13 +124,28 @@ data class BackendSyncResult(
      * a week. Empty from an older backend, which sends no `roster_requests`.
      */
     val rosterRequests: List<String> = emptyList(),
+    /** The backend's clock as the snapshot began, which every write it holds is no later than. Protocol 2. */
+    val serverHlc: Long? = null,
+    /** The clock value of the last full course reset. Protocol 2. */
+    val coursesResetHlc: Long? = null,
+    /** Each term's last course reset, as a clock value. Protocol 2. */
+    val termResets: Map<String, Long>? = null,
+    /**
+     * Every mark the backend holds, by Moodle assignment id, `none` included: a cleared mark is
+     * a stamped `none` (LWW D9). Protocol 2.
+     */
+    val marks: Map<String, StampedValue<String>>? = null,
+    /** Every holiday choice the backend holds, by holiday id, `notify: false` included. Protocol 2. */
+    val holidays: Map<Int, StampedValue<Boolean>>? = null,
 )
 
 /**
  * The snapshot `GET /sync/full` answers, as the syncs read it; its `roster_requests` are
- * [parseRosterRequests]'s, and its fetch time the caller's.
+ * [parseRosterRequests]'s, and its fetch time the caller's. With [protocol2], for the snapshot
+ * `/v4` serves, the fields marked so are read too, and [heard] is told the largest clock value
+ * read, which no edit this device makes may be stamped below (LWW D4).
  */
-internal fun parseFullSync(json: JSONObject): BackendSyncResult {
+internal fun parseFullSync(json: JSONObject, protocol2: Boolean = false, heard: (Long) -> Unit = {}): BackendSyncResult {
     // The snapshot's assignment rows are not read as assignments: every
     // cached assignment comes from Moodle itself (MoodleService). They
     // only key the overrides below by server row id, for a server whose
@@ -122,13 +153,13 @@ internal fun parseFullSync(json: JSONObject): BackendSyncResult {
     val arr = json.optJSONArray("assignments") ?: return BackendSyncResult(
         emptySet(), emptySet(), emptyList(), emptySet(), emptyList(), json.optLong("current_revision", 0)
     )
-    val marks = parseMarks(json, assignmentKeys(arr))
-    val courses = parseCourses(json)
+    val marks = parseMarks(json, assignmentKeys(arr), protocol2)
+    val courses = parseCourses(json, protocol2)
 
     Log.d("SyncApi", "[fullSync] courseMoodleIdToNo: ${courses.moodleIdToNo.size} entries, courses: ${courses.rows.size}")
 
-    val courseOverrides = parseCourseOverrides(json, courses.moodleIdToNo)
-    return BackendSyncResult(
+    val courseOverrides = parseCourseOverrides(json, courses.moodleIdToNo, protocol2)
+    val result = BackendSyncResult(
         ignoredIds = marks.ignored,
         completedIds = marks.completed,
         courseOverrides = courseOverrides,
@@ -136,9 +167,12 @@ internal fun parseFullSync(json: JSONObject): BackendSyncResult {
         serverCourses = courses.rows,
         currentRevision = json.optLong("current_revision", 0),
         coursesResetAt = nullableString(json, "courses_reset_at"),
-        tombstones = parseTombstones(json),
+        tombstones = parseTombstones(json, protocol2),
         holidayOverrides = parseHolidayOverrides(json),
+        marks = marks.stamped,
     )
+    if (!protocol2) return result
+    return result.withSnapshotStamps(json).also { read -> read.clockValues().maxOrNull()?.let(heard) }
 }
 
 /** Each snapshot assignment row's server id, to the Moodle assignment id it carries. */
@@ -153,13 +187,14 @@ private fun assignmentKeys(arr: JSONArray): Map<Int, String> {
     return pkToMoodleId
 }
 
-/** The marks of `assignment_overrides`, by Moodle assignment id. */
-private class SnapshotMarks(val ignored: Set<String>, val completed: Set<String>)
+/** The marks of `assignment_overrides`, by Moodle assignment id; [stamped] only with protocol 2. */
+private class SnapshotMarks(val ignored: Set<String>, val completed: Set<String>, val stamped: Map<String, StampedValue<String>>?)
 
-private fun parseMarks(json: JSONObject, pkToMoodleId: Map<Int, String>): SnapshotMarks {
+private fun parseMarks(json: JSONObject, pkToMoodleId: Map<Int, String>, protocol2: Boolean): SnapshotMarks {
     val ignoredIds = mutableSetOf<String>()
     val completedIds = mutableSetOf<String>()
     val overArr = json.optJSONArray("assignment_overrides")
+    val stamped = if (protocol2 && overArr != null) mutableMapOf<String, StampedValue<String>>() else null
     if (overArr != null) {
         for (i in 0 until overArr.length()) {
             val o = overArr.getJSONObject(i)
@@ -171,9 +206,10 @@ private fun parseMarks(json: JSONObject, pkToMoodleId: Map<Int, String>): Snapsh
                 "ignored", "archived" -> ignoredIds.add(moodleId)
                 "locally_completed" -> completedIds.add(moodleId)
             }
+            stamped?.keepLater(moodleId, StampedValue(nullableString(o, "local_status") ?: "none", nullableLong(o, "local_status_hlc")))
         }
     }
-    return SnapshotMarks(ignoredIds, completedIds)
+    return SnapshotMarks(ignoredIds, completedIds, stamped)
 }
 
 /**
@@ -182,7 +218,7 @@ private fun parseMarks(json: JSONObject, pkToMoodleId: Map<Int, String>): Snapsh
  */
 private class SnapshotCourses(val moodleIdToNo: Map<String, String>, val numbers: Set<String>, val rows: List<ServerCourse>)
 
-private fun parseCourses(json: JSONObject): SnapshotCourses {
+private fun parseCourses(json: JSONObject, protocol2: Boolean): SnapshotCourses {
     val courseMoodleIdToNo = mutableMapOf<String, String>()
     val serverCourseNos = mutableSetOf<String>()
     val serverCourses = mutableListOf<ServerCourse>()
@@ -191,7 +227,7 @@ private fun parseCourses(json: JSONObject): SnapshotCourses {
         for (i in 0 until coursesArr.length()) {
             val c = coursesArr.getJSONObject(i)
             val courseNo = nullableString(c, "course_no")
-            parseServerCourse(c)?.let { course ->
+            parseServerCourse(c, protocol2)?.let { course ->
                 serverCourseNos.add(course.courseNo)
                 serverCourses.add(course)
             }
@@ -212,12 +248,13 @@ private fun parseCourses(json: JSONObject): SnapshotCourses {
     return SnapshotCourses(courseMoodleIdToNo, serverCourseNos, serverCourses)
 }
 
-private fun parseTombstones(json: JSONObject): List<CourseTombstone> {
+private fun parseTombstones(json: JSONObject, protocol2: Boolean): List<CourseTombstone> {
     val tombstones = mutableListOf<CourseTombstone>()
     val tombArr = json.optJSONArray("course_tombstones")
     if (tombArr != null) {
         for (i in 0 until tombArr.length()) {
             val t = tombArr.getJSONObject(i)
+            val stamps = t.takeIf { protocol2 }
             tombstones.add(CourseTombstone(
                 courseKey = t.optString("course_key", ""),
                 courseNo = nullableString(t, "course_no"),
@@ -225,6 +262,8 @@ private fun parseTombstones(json: JSONObject): List<CourseTombstone> {
                 deletedAt = t.optString("deleted_at", ""),
                 deletedByReset = t.optBoolean("deleted_by_reset", false),
                 deletedByThisDevice = t.optBoolean("deleted_by_this_device", false),
+                hlc = stamps?.let { nullableLong(it, "hlc") },
+                kind = stamps?.let { TombstoneKind.of(nullableString(it, "kind")) },
             ))
         }
     }
@@ -246,7 +285,7 @@ private fun parseHolidayOverrides(json: JSONObject): Set<Int>? {
 }
 
 /** One of the snapshot's `courses`, or null for a row without a `course_no`. */
-internal fun parseServerCourse(row: JSONObject): ServerCourse? {
+internal fun parseServerCourse(row: JSONObject, protocol2: Boolean = false): ServerCourse? {
     val courseNo = nullableString(row, "course_no") ?: return null
     val instructors = mutableListOf<String>()
     val instrArr = row.optJSONArray("instructors")
@@ -272,6 +311,7 @@ internal fun parseServerCourse(row: JSONObject): ServerCourse? {
         id = serverCourseRowId(row),
         source = nullableString(row, "source"),
         enrollmentStatus = nullableString(row, "enrollment_status"),
+        addedHlc = row.takeIf { protocol2 }?.let { nullableLong(it, "added_hlc") },
     )
 }
 
@@ -286,6 +326,7 @@ internal fun serverCourseRowId(row: JSONObject): Long? =
 internal fun parseCourseOverrides(
     json: JSONObject,
     courseMoodleIdToNo: Map<String, String>,
+    protocol2: Boolean = false,
 ): List<CourseOverrideResult> {
     val rows = json.optJSONArray("course_overrides") ?: return emptyList()
     val overrides = mutableListOf<CourseOverrideResult>()
@@ -304,6 +345,7 @@ internal fun parseCourseOverrides(
         val resolvedNo = nullableString(co, "course_no") ?: courseMoodleIdToNo[moodleId]
         val colorHex = nullableString(co, "color_hex")
         Log.d("SyncApi", "[fullSync] override moodleId=$moodleId courseNo=$resolvedNo colorHex=$colorHex names=${names.size}")
+        val stamps = co.takeIf { protocol2 }
         overrides.add(
             CourseOverrideResult(
                 moodleCourseId = moodleId,
@@ -321,6 +363,10 @@ internal fun parseCourseOverrides(
                     .takeIf { it in 1..Int.MAX_VALUE }
                     ?.toInt(),
                 colorHexUpdatedAt = nullableString(co, "color_hex_updated_at"),
+                courseKey = stamps?.let { nullableString(it, "course_key") },
+                colorHexHlc = stamps?.let { nullableLong(it, "color_hex_hlc") },
+                customNamesHlc = stamps?.let { clockMap(it.optJSONObject("custom_names_hlc")) },
+                ignoreAssignmentsHlc = stamps?.let { nullableLong(it, "ignore_assignments_hlc") },
             )
         )
     }
