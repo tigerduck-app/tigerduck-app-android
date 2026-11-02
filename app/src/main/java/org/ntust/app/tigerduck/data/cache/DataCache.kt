@@ -1487,6 +1487,8 @@ class DataCache @Inject constructor(
 
     private val moodleDir: File get() = File(cacheDir, MOODLE_DIR)
 
+    private val folderNames = OpaqueFolderNames(context)
+
     /**
      * Where downloaded Moodle files are kept, a folder per account (see [moodleDownloadsDir]):
      * copies the app hands to another app through its FileProvider (`moodle_downloads` in
@@ -1497,53 +1499,7 @@ class DataCache @Inject constructor(
     fun moodleDownloadsRoot(): File = File(context.filesDir, MOODLE_DOWNLOADS_DIR)
 
     /** [account]'s downloaded Moodle files, in a folder whose name does not spell the account. */
-    fun moodleDownloadsDir(account: String): File = File(moodleDownloadsRoot(), opaqueFolder(account))
-
-    /**
-     * A folder name for [account] that does not spell it: its path shows in the content URI
-     * another app is handed.
-     */
-    private fun opaqueFolder(account: String): String {
-        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
-        mac.init(javax.crypto.spec.SecretKeySpec(installSalt(), "HmacSHA256"))
-        return mac.doFinal(account.trim().uppercase().toByteArray())
-            .take(8)
-            .joinToString("") { "%02x".format(it) }
-    }
-
-    /**
-     * A random key made once per install and kept in private preferences, so the account folder's
-     * name cannot be worked back to a student ID by hashing every ID there is. Read from disk
-     * once, then held for the process: one that could not be written still names the folder the
-     * same way until the app restarts. A full reset makes a new one.
-     */
-    @Synchronized
-    private fun installSalt(): ByteArray {
-        salt?.let { return it }
-        val kept = moodleSaltPrefs.getString(MOODLE_SALT_KEY, null)
-            ?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) }.getOrNull() }
-            ?.takeIf { it.size >= 16 }
-        val made = kept ?: ByteArray(32).also {
-            java.security.SecureRandom().nextBytes(it)
-            val written = moodleSaltPrefs.edit()
-                .putString(MOODLE_SALT_KEY, android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP))
-                .commit()
-            if (!written) android.util.Log.w(TAG, "Moodle folder salt not saved")
-        }
-        salt = made
-        return made
-    }
-
-    /** Drops the folder salt, on disk and held, for a full reset. */
-    @Synchronized
-    private fun forgetInstallSalt() {
-        salt = null
-        moodleSaltPrefs.edit().clear().commit()
-    }
-
-    private var salt: ByteArray? = null
-
-    private val moodleSaltPrefs = context.getSharedPreferences(MOODLE_SALT_PREFS, Context.MODE_PRIVATE)
+    fun moodleDownloadsDir(account: String): File = File(moodleDownloadsRoot(), folderNames.folderFor(account))
 
     private fun moodleFile(name: String, account: String): File {
         // A name is the app's own, such as "courses/123/grades"; dot segments never come from it,
@@ -1611,7 +1567,7 @@ class DataCache @Inject constructor(
                         }
                         runCatching { moodleDownloadsRoot().deleteRecursively() }
                         // It names the downloaded files' folders, which are gone, and a fresh install has none.
-                        forgetInstallSalt()
+                        folderNames.forgetInstallSalt()
                     }
                 }
             }
@@ -1803,8 +1759,6 @@ class DataCache @Inject constructor(
         /** Where builds before the downloaded files kept opened copies, a day at a time. */
         private const val MOODLE_OPENED_DIR = "moodle_open"
         private const val MOODLE_DOWNLOADS_DIR = "moodle_files"
-        private const val MOODLE_SALT_PREFS = "moodle_files"
-        private const val MOODLE_SALT_KEY = "folder_salt"
 
         /** See saveMoodleData: bump with any change to the classes in network/model/moodle. */
         internal const val MOODLE_CACHE_SCHEMA = 5
