@@ -153,9 +153,9 @@ internal class PushCourseSyncBackend(
  *
  * On `/v4` ([CourseSyncBackend.stampsOverrides]) each request is stamped
  * at its send, in this order, and the upload carries no colours: every custom
- * colour of a term reset goes up after its deletes, beside its names, as an
- * override of its own stamped later than the reset (X5). Its hand-typed
- * courses go as adds made now.
+ * colour of a term Use Local uploads goes up after its deletes, beside its
+ * names for a term reset, as an override of its own, so later than the reset
+ * (X5). Its hand-typed courses go as adds made now.
  *
  * Every request is awaited and a failure is thrown, for the caller to ask
  * again. Once [isCurrent] turns false, as at a sign-out, nothing more is sent
@@ -196,35 +196,34 @@ internal suspend fun keepLocalCourses(
             ensureCurrent()
             backend.hideCourse("client:$semester:$courseNo")
         }
-        if (reset) {
-            // The reset took the term's override rows, names included, with
-            // its course rows; on /v3 colours ride the upload, names do not.
-            // After the deletes, so a name that fails to go up leaves no
-            // hidden course on the server.
-            val kept = courses.filter { it.courseNo !in hiddenNos }.sortedBy { it.courseNo }
-            for (course in kept) {
-                val names = customNames[course.courseNo].orEmpty().toSortedMap().filterValues { it.isNotEmpty() }
-                if (stamped) {
-                    sendStampedOverrides("client:$semester:${course.courseNo}", course.customColorHex, names, backend, ::ensureCurrent)
-                    continue
-                }
-                // The id the upload stored the row under, as the backend
-                // derives it; see CourseUploadPayload.
-                val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
-                for ((locale, name) in names) {
-                    ensureCurrent()
-                    backend.patchCustomName(moodleId, name, locale)
-                }
+        // A reset takes the term's override rows, names included, with its
+        // course rows, so a reset term's names go up again; on /v3 colours
+        // ride the upload, names do not. After the deletes, so a name that
+        // fails to go up leaves no hidden course on the server.
+        val kept = courses.filter { it.courseNo !in hiddenNos }.sortedBy { it.courseNo }
+        for (course in kept) {
+            val names = if (reset) customNames[course.courseNo].orEmpty().toSortedMap().filterValues { it.isNotEmpty() } else emptyMap()
+            if (stamped) {
+                // On /v4 no colour rides the upload, a reset or none: every one goes as an override.
+                sendStampedOverrides("client:$semester:${course.courseNo}", course.customColorHex, names, backend, ::ensureCurrent)
+                continue
+            }
+            // The id the upload stored the row under, as the backend
+            // derives it; see CourseUploadPayload.
+            val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: "$semester${course.courseNo}"
+            for ((locale, name) in names) {
+                ensureCurrent()
+                backend.patchCustomName(moodleId, name, locale)
             }
         }
     }
 }
 
 /**
- * A course's [colorHex] and [names] (by locale) as `/v4` takes them after a reset of its term:
- * each its own override of the course [courseKey], stamped at its send, so later than the reset
- * Use Local sent before it, which clears every override stamped at or before it (D10; X5). The
- * upload carries no colors there.
+ * A course's [colorHex] and [names] (by locale) as `/v4` takes them after its term's upload: each
+ * its own override of the course [courseKey], stamped at its send, so later than a reset Use Local
+ * sent before it, which clears every override stamped at or before it (D10; X5). The upload
+ * carries no colors there, whether the term was reset or not; names go only for a term reset.
  */
 private suspend fun sendStampedOverrides(
     courseKey: String,

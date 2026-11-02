@@ -244,12 +244,37 @@ class KeepLocalCoursesTest {
             listOf(
                 "reset 1151", "upload 1151", "hide client:1151:CS2",
                 "color client:1151:CS1", "name client:1151:CS1 en", "name client:1151:CS1 zh", "color client:1151:MY1",
-                "upload 1142",
+                // Not reset, and no colour rides its upload either.
+                "upload 1142", "color client:1142:MY9",
             ),
             server.requests,
         )
-        assertEquals(mapOf("client:1151:CS1" to "#FF0000", "client:1151:MY1" to "#0000FF"), server.colors)
+        assertEquals(mapOf("client:1151:CS1" to "#FF0000", "client:1151:MY1" to "#0000FF", "client:1142:MY9" to "#123456"), server.colors)
         assertEquals(mapOf("client:1151:CS1" to mapOf("en" to "Calc", "zh" to "微積分")), server.names)
+    }
+
+    @Test
+    fun `on v4 a term uploaded without a reset sends its colors as overrides after its upload`() = runTest {
+        // The cache lost the term's portal rows: its hand-typed courses go up, and nothing is reset.
+        val server = FakeCourseServer(rows = setOf("client:1151:CS1"), stampsOverrides = true)
+        val terms = listOf(
+            "1151" to listOf(
+                Course(courseNo = "MY1", courseName = "Mine", isManual = true, customColorHex = "#0000FF"),
+                Course(courseNo = "MY2", courseName = "Mine too", isManual = true),
+                Course(courseNo = "MY3", courseName = "Hidden", isManual = true, customColorHex = "#FF00FF"),
+            ),
+        )
+
+        keepLocalCourses(
+            terms,
+            hiding = setOf("1151:MY3"),
+            backend = server,
+            customNames = mapOf("MY1" to mapOf("en" to "Mine")),
+            portalCached = { false },
+        )
+
+        assertEquals(listOf("upload 1151", "hide client:1151:MY3", "color client:1151:MY1"), server.requests)
+        assertEquals(mapOf("client:1151:MY1" to "#0000FF"), server.colors)
     }
 
     @Test
