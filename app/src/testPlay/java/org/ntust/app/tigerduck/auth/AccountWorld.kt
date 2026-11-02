@@ -12,7 +12,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertNotNull
-import org.ntust.app.tigerduck.HeldShareLink
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.analytics.AnalyticsLogger
 import org.ntust.app.tigerduck.auth.session.AccountSessions
@@ -43,6 +42,7 @@ import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.network.MoodleTokenPairStore
 import org.ntust.app.tigerduck.network.MoodleTokenService
 import org.ntust.app.tigerduck.network.NtustSessionManager
+import org.ntust.app.tigerduck.network.SemesterCatalog
 import org.ntust.app.tigerduck.network.SsoLoginService
 import org.ntust.app.tigerduck.network.moodle.MoodleWebservice
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
@@ -73,6 +73,12 @@ internal class AccountWorld(
     val sessions: AccountSessions,
     /** Not started: the caller does, on the scope and at the point it wants. */
     val effects: AccountSessionEffects,
+    val pushApi: PushApiClient,
+    val notificationSettingsSync: NotificationSettingsSync,
+    val courseService: CourseService,
+    val semesterCatalog: SemesterCatalog,
+    val widgetUpdater: WidgetUpdater,
+    val academicCalendar: AcademicCalendarStore,
 )
 
 /**
@@ -86,6 +92,8 @@ internal fun accountWorld(
     credentialPrefs: SharedPreferences,
     appScope: CoroutineScope,
     idleScope: CoroutineScope,
+    /** The backend's stand-in for the requests a sync sends; refused without one. */
+    backend: OkHttpClient? = null,
     /** Runs as the school takes a password, before its answer comes back. */
     schoolAnswering: () -> Unit = {},
 ): AccountWorld {
@@ -103,8 +111,8 @@ internal fun accountWorld(
     val dataCache = DataCache(context, academicCalendar)
     val bulletinCache = BulletinCache(context)
     val imported = ImportedClassTableStore({ ImportedClassTableStore.fileIn(context) }, { credentials.ntustStudentId }, Dispatchers.Unconfined)
-    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported)
-    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures))
+    val demoAccount = DemoAccount(context, fixtures, dataCache, bulletinCache, appPrefs, imported, sessions)
+    val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)
     val latch = PersistedStoredPasswordLatch(context, credentials)
     val sso = SsoLoginService(sessionManager, latch) { school }
     val tokens = AuthTokenManager(credentials.v3Tokens, refusing, appPrefs, "device-1", session = sessions.school)
@@ -131,11 +139,19 @@ internal fun accountWorld(
         scope = idleScope,
         now = System::currentTimeMillis,
     )
-    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, idleScope)
+    val courseService = CourseService(context, sessionManager, sso, dataCache, appPrefs, academicCalendar, sessions, idleScope)
     val uiLanguage = UiLanguageMonitor(appPrefs)
-    val pushApi = PushApiClient(refusing, appPrefs, tokens)
+    val pushApi = PushApiClient(backend ?: refusing, appPrefs, tokens)
     val liveUpdate = LiveActivityPreferences(context)
     val assignmentReminders = AssignmentNotificationScheduler(context)
+    val notificationSettingsSync = NotificationSettingsSync(
+        SettingsDocumentApiClient(refusing, appPrefs, tokens), liveUpdate, appPrefs, tokens, credentials,
+        assignmentReminders, dataCache, idleScope,
+    )
+    val widgetUpdater = WidgetUpdater(
+        context, dataCache, WidgetBoundaryScheduler(context, academicCalendar),
+        AnalyticsLogger(context, appPrefs), idleScope, uiLanguage,
+    )
     val auth = AuthService(
         context = context,
         sessionManager = sessionManager,
@@ -145,31 +161,24 @@ internal fun accountWorld(
             context, PushIdentity(appPrefs, context), pushApi, tokens, appPrefs, uiLanguage, idleScope, fixtures,
             DepartingDeviceUnregister(OwedUnregister(credentials), pushApi, tokens, appPrefs),
         ),
-        notificationSettingsSync = NotificationSettingsSync(
-            SettingsDocumentApiClient(refusing, appPrefs, tokens), liveUpdate, appPrefs, tokens, credentials,
-            assignmentReminders, dataCache, idleScope,
-        ),
+        notificationSettingsSync = notificationSettingsSync,
         authTokenManager = tokens,
         moodleTokenService = moodleTokens,
         storedPasswordLatch = latch,
         courseService = courseService,
         moodleService = MoodleService(
             sessionManager, moodleTokens, courseService, dataCache, appPrefs,
-            MoodleWebservice(sessionManager, moodleTokens), idleScope,
+            MoodleWebservice(sessionManager, moodleTokens), sessions, idleScope,
         ),
         dataCache = dataCache,
         bulletinCache = bulletinCache,
         bulletinReadStateStore = BulletinReadStateStore(context),
         importedClassTables = imported,
-        widgetUpdater = WidgetUpdater(
-            context, dataCache, WidgetBoundaryScheduler(context, academicCalendar),
-            AnalyticsLogger(context, appPrefs), idleScope, uiLanguage,
-        ),
+        widgetUpdater = widgetUpdater,
         appScope = appScope,
         demoAccount = demoAccount,
         prefs = appPrefs,
         classroomUsage = ClassroomUsageService(sessionManager, sso, ClassroomDemoData(context, demoAccount, appPrefs)),
-        heldShareLink = HeldShareLink(),
     )
     // The in-app browser's WebView storage, counted each time it is cleared.
     val browserClearings = MutableStateFlow(0)
@@ -204,7 +213,11 @@ internal fun accountWorld(
         clearBrowser = browser::clear,
         browserClearingOwed = { false },
     )
-    return AccountWorld(appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings, sessions, effects)
+    return AccountWorld(
+        appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings, sessions, effects,
+        pushApi, notificationSettingsSync, courseService, SemesterCatalog(sessionManager, appPrefs, credentials), widgetUpdater,
+        academicCalendar,
+    )
 }
 
 /** The school's pages: its sign-in form for every visit, and the service once a password is posted. */

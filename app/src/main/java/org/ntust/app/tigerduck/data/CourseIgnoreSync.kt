@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushApiException
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -47,8 +48,8 @@ internal fun interface CourseIgnoreEffects {
  * parks it: it keeps its value, but only [retryPending]'s first run in a
  * process sends it again.
  *
- * Work started for one account carries [currentGeneration] and drops its writes
- * once the user data is wiped at sign-out.
+ * Work started for one account carries its sign-in, and drops its writes once
+ * that sign-in has ended.
  */
 @Singleton
 class CourseIgnoreSync internal constructor(
@@ -98,9 +99,6 @@ class CourseIgnoreSync internal constructor(
     // Whether this process has given the parked changes their one more try.
     private val parkedRequeued = AtomicBoolean(false)
 
-    /** Taken before fetching a snapshot that is then passed in here. */
-    fun currentGeneration(): Int = dataCache.userDataGeneration
-
     /**
      * Ignores, or stops ignoring, every assignment of [semester]'s
      * [courseNo]: here at once, then on the backend. [onWritten] runs once
@@ -113,25 +111,25 @@ class CourseIgnoreSync internal constructor(
         moodleId: String,
         moodleCourseId: Int?,
         ignore: Boolean,
+        signIn: SignIn,
         onWritten: () -> Unit = {},
     ) {
-        val generation = currentGeneration()
         val change = PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, clock())
         val key = CourseIgnores.key(semester, courseNo)
         val written = mutex.withLock {
             val keys = dataCache.loadIgnoredCourses()
             val pending = dataCache.loadPendingCourseIgnores()
-            if (!dataCache.saveIgnoredCourses(if (ignore) keys + key else keys - key, generation)) {
+            if (!dataCache.saveIgnoredCourses(if (ignore) keys + key else keys - key, signIn)) {
                 return@withLock false
             }
-            dataCache.savePendingCourseIgnores(pending.with(change), generation)
+            dataCache.savePendingCourseIgnores(pending.with(change), signIn)
             touchedAt[key] = change.changedAtMs
             true
         }
         onWritten()
         if (!written) return
         effects.changed()
-        send(change, generation)
+        send(change, signIn)
     }
 
     /**
@@ -141,23 +139,22 @@ class CourseIgnoreSync internal constructor(
      * full sync runs before every pull and hourly in the background, so
      * trying a parked change at each would send a refused one without end.
      */
-    suspend fun retryPending() {
+    suspend fun retryPending(signIn: SignIn) {
         if (!sends()) return
-        val generation = currentGeneration()
-        if (parkedRequeued.compareAndSet(false, true)) requeueParked(generation)
+        if (parkedRequeued.compareAndSet(false, true)) requeueParked(signIn)
         dataCache.loadPendingCourseIgnores()
             .filterNot { it.isParked }
             .sortedBy { it.changedAtMs }
-            .forEach { send(it, generation) }
+            .forEach { send(it, signIn) }
     }
 
     /** Leaves each parked change one attempt, as `SyncOutbox.requeueParked` on iOS does. */
-    private suspend fun requeueParked(generation: Int) = mutex.withLock {
+    private suspend fun requeueParked(signIn: SignIn) = mutex.withLock {
         val pending = dataCache.loadPendingCourseIgnores()
         if (pending.none { it.isParked }) return@withLock
         dataCache.savePendingCourseIgnores(
             pending.map { if (it.isParked) it.copy(attempts = MAX_ATTEMPTS - 1) else it },
-            generation,
+            signIn,
         )
     }
 
@@ -167,7 +164,7 @@ class CourseIgnoreSync internal constructor(
      * setting of ([CourseIgnoreReconciler.toResend]) are sent again. Returns
      * the new set when it changed, else null.
      */
-    suspend fun applySnapshot(result: BackendSyncResult, generation: Int): Set<String>? {
+    suspend fun applySnapshot(result: BackendSyncResult, signIn: SignIn): Set<String>? {
         val server = serverView(result)
         val applies = sends()
         var resend = emptyList<PendingCourseIgnore>()
@@ -182,12 +179,12 @@ class CourseIgnoreSync internal constructor(
                 val rows = serverRows(result)
                 val lost = CourseIgnoreReconciler.toResend(local, server, protectedKeys)
                 val changes = lost.sorted().map { changeFor(it, true, rows[it], now) }
-                if (changes.isNotEmpty() && dataCache.savePendingCourseIgnores(pending + changes, generation)) {
+                if (changes.isNotEmpty() && dataCache.savePendingCourseIgnores(pending + changes, signIn)) {
                     resend = changes
                 }
             }
             val written = CourseIgnoreReconciler.afterSync(local, server, protectedKeys, takes)
-                ?.takeIf { it != local && dataCache.saveIgnoredCourses(it, generation) }
+                ?.takeIf { it != local && dataCache.saveIgnoredCourses(it, signIn) }
             if (takes && server != null) {
                 // The rows this take saw, for the next one to tell a course
                 // re-added since; last, once what it took is written, so a
@@ -199,14 +196,14 @@ class CourseIgnoreSync internal constructor(
                 dataCache.saveCourseRowsSeen(
                     CourseIgnoreReconciler.listedRows(result.serverCourses)
                         .filterKeys { CourseIgnores.semesterOf(it) !in reset },
-                    generation,
+                    signIn,
                 )
             }
             written
         }
         if (updated != null) effects.changed()
-        resend.forEach { send(it, generation) }
-        if (server != null && applies) fillInMoodleCourseIds(result.courseOverrides, generation)
+        resend.forEach { send(it, signIn) }
+        if (server != null && applies) fillInMoodleCourseIds(result.courseOverrides, signIn)
         return updated
     }
 
@@ -232,7 +229,7 @@ class CourseIgnoreSync internal constructor(
      */
     suspend fun pushLocal(
         result: BackendSyncResult?,
-        generation: Int,
+        signIn: SignIn,
         resetTerms: Set<String> = emptySet(),
         checked: BackendSyncResult? = null,
     ) {
@@ -261,9 +258,9 @@ class CourseIgnoreSync internal constructor(
             // By the course the upload put back, not the old row: the reset
             // replaced it.
             for (key in clearedInReset - local - cleared) pending = pending.with(changeFor(key, false, null, now))
-            if (dataCache.savePendingCourseIgnores(pending, generation)) setChosenAt = now
+            if (dataCache.savePendingCourseIgnores(pending, signIn)) setChosenAt = now
         }
-        retryPending()
+        retryPending(signIn)
     }
 
     /**
@@ -292,14 +289,14 @@ class CourseIgnoreSync internal constructor(
      * next sync brings the backend's: kept, a course ignored only here would
      * read as one the backend lost and go up again.
      */
-    suspend fun adoptServer(result: BackendSyncResult?, generation: Int) {
+    suspend fun adoptServer(result: BackendSyncResult?, signIn: SignIn) {
         val server = result?.let { serverView(it) }
         val updated = mutex.withLock {
-            if (!dataCache.savePendingCourseIgnores(emptyList(), generation)) return@withLock null
+            if (!dataCache.savePendingCourseIgnores(emptyList(), signIn)) return@withLock null
             setChosenAt = clock()
             val local = dataCache.loadIgnoredCourses()
             val adopted = if (result == null) emptySet() else CourseIgnoreReconciler.adopt(local, server)
-            adopted?.takeIf { it != local && dataCache.saveIgnoredCourses(it, generation) }
+            adopted?.takeIf { it != local && dataCache.saveIgnoredCourses(it, signIn) }
         }
         if (updated != null) effects.changed()
     }
@@ -310,8 +307,7 @@ class CourseIgnoreSync internal constructor(
      * backend's override went with its course row. A snapshot fetched
      * before this cannot bring them back.
      */
-    suspend fun forget(matches: (String) -> Boolean) {
-        val generation = currentGeneration()
+    suspend fun forget(signIn: SignIn, matches: (String) -> Boolean) {
         val changed = mutex.withLock {
             val pending = dataCache.loadPendingCourseIgnores()
             val now = clock()
@@ -320,12 +316,12 @@ class CourseIgnoreSync internal constructor(
                 .forEach { touchedAt[it] = now }
             val keptPending = pending.filterNot { it.key?.let(matches) == true }
             if (keptPending.size != pending.size) {
-                dataCache.savePendingCourseIgnores(keptPending, generation)
+                dataCache.savePendingCourseIgnores(keptPending, signIn)
             }
-            forgetRowsSeenLocked(matches, generation)
+            forgetRowsSeenLocked(matches, signIn)
             val keys = dataCache.loadIgnoredCourses()
             val kept = keys.filterNotTo(mutableSetOf(), matches)
-            kept != keys && dataCache.saveIgnoredCourses(kept, generation)
+            kept != keys && dataCache.saveIgnoredCourses(kept, signIn)
         }
         if (changed) effects.changed()
     }
@@ -335,26 +331,25 @@ class CourseIgnoreSync internal constructor(
      * reset (Use Local): their courses come back as new rows, which must not
      * read as re-added elsewhere and take this device's ignores away.
      */
-    suspend fun forgetRowsSeen(terms: Set<String>) {
-        val generation = currentGeneration()
-        mutex.withLock { forgetRowsSeenLocked({ CourseIgnores.semesterOf(it) in terms }, generation) }
+    suspend fun forgetRowsSeen(terms: Set<String>, signIn: SignIn) {
+        mutex.withLock { forgetRowsSeenLocked({ CourseIgnores.semesterOf(it) in terms }, signIn) }
     }
 
     // With [mutex] held.
-    private suspend fun forgetRowsSeenLocked(matches: (String) -> Boolean, generation: Int) {
+    private suspend fun forgetRowsSeenLocked(matches: (String) -> Boolean, signIn: SignIn) {
         val seen = dataCache.loadCourseRowsSeen()
         val kept = seen.filterKeys { !matches(it) }
-        if (kept.size != seen.size) dataCache.saveCourseRowsSeen(kept, generation)
+        if (kept.size != seen.size) dataCache.saveCourseRowsSeen(kept, signIn)
     }
 
-    private suspend fun send(change: PendingCourseIgnore, generation: Int) = sendMutex.withLock {
+    private suspend fun send(change: PendingCourseIgnore, signIn: SignIn) = sendMutex.withLock {
         if (!sends()) return@withLock
         val moodleId = change.moodleId ?: return@withLock
         // Gone from the file: confirmed already, replaced by a later change,
         // or wiped with the account that made it. Sending it would undo
         // whatever replaced it. A parked one waits for its one more try.
         val current = mutex.withLock {
-            generation == currentGeneration() &&
+            signIn.isCurrent &&
                 dataCache.loadPendingCourseIgnores().any { it.isSameChange(change) && !it.isParked }
         }
         if (!current) return@withLock
@@ -367,26 +362,26 @@ class CourseIgnoreSync internal constructor(
             if (refuses(e)) false else null
         }
         when (stored) {
-            true -> settle(change, generation)
-            false -> countRefusal(change, generation)
+            true -> settle(change, signIn)
+            false -> countRefusal(change, signIn)
             null -> Unit
         }
     }
 
-    private suspend fun settle(change: PendingCourseIgnore, generation: Int) = mutex.withLock {
+    private suspend fun settle(change: PendingCourseIgnore, signIn: SignIn) = mutex.withLock {
         val pending = dataCache.loadPendingCourseIgnores()
         if (pending.none { it.isSameChange(change) }) return@withLock
-        if (dataCache.savePendingCourseIgnores(pending.filterNot { it.isSameChange(change) }, generation)) {
+        if (dataCache.savePendingCourseIgnores(pending.filterNot { it.isSameChange(change) }, signIn)) {
             change.key?.let { touchedAt[it] = clock() }
         }
     }
 
-    private suspend fun countRefusal(change: PendingCourseIgnore, generation: Int) = mutex.withLock {
+    private suspend fun countRefusal(change: PendingCourseIgnore, signIn: SignIn) = mutex.withLock {
         val pending = dataCache.loadPendingCourseIgnores()
         val stored = pending.find { it.isSameChange(change) } ?: return@withLock
         val counted = stored.copy(attempts = stored.attempts + 1)
         if (counted.isParked) Log.w(TAG, "course ignore parked after $MAX_ATTEMPTS refusals")
-        dataCache.savePendingCourseIgnores(pending.map { if (it === stored) counted else it }, generation)
+        dataCache.savePendingCourseIgnores(pending.map { if (it === stored) counted else it }, signIn)
     }
 
     /**
@@ -394,7 +389,7 @@ class CourseIgnoreSync internal constructor(
      * fetches itself, for want of the numeric Moodle id, gets the id from
      * this device when it knows it.
      */
-    private suspend fun fillInMoodleCourseIds(overrides: List<CourseOverrideResult>, generation: Int) {
+    private suspend fun fillInMoodleCourseIds(overrides: List<CourseOverrideResult>, signIn: SignIn) {
         val missing = overrides.filter { it.ignoreAssignments == true && it.moodleNumericCourseId == null }
         if (missing.isEmpty()) return
         val known = dataCache.loadMoodleCourseIds()
@@ -408,7 +403,7 @@ class CourseIgnoreSync internal constructor(
                 ?: known[MoodleCourseIds.normalizedIdnumber(o.moodleCourseId)]
                 ?: continue
             sendMutex.withLock {
-                if (generation != currentGeneration()) return
+                if (!signIn.isCurrent) return
                 try {
                     sender.send(o.moodleCourseId, null, numericId, null)
                 } catch (e: CancellationException) {
@@ -494,7 +489,7 @@ class CourseIgnoreSync internal constructor(
          */
         fun syncsCourseIgnores(prefs: AppPreferences): Boolean =
             prefs.cloudSyncEnabled && prefs.syncAssignments && prefs.syncCourses &&
-                REENABLE_CATEGORY !in prefs.pendingConflictCategories
+                REENABLE_CATEGORY !in prefs.school.pendingConflictCategories.get()
 
         /**
          * Whether a failed PATCH says the backend refused the change, as the

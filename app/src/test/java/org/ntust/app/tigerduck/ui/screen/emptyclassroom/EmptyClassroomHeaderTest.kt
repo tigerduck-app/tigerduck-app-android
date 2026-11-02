@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.ui.theme.TigerDuckAppTheme
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDateTime
+import org.ntust.app.tigerduck.util.testSignIn
 
 /** A lazy list's header whose sync dot comes and goes: the room site is only read signed in. */
 @RunWith(RobolectricTestRunner::class)
@@ -43,6 +44,7 @@ class EmptyClassroomHeaderTest {
         override fun now(): LocalDateTime = LocalDateTime.of(2026, 10, 14, 10, 5)
         override fun calendar() = AcademicCalendar.EMPTY
         override fun account() = "B00015999"
+        override fun signIn() = testSignIn()
         override suspend fun courses() = emptyList<Course>()
         override fun credentials() = ClassroomUsageService.Credentials("B00015999", "not-a-password")
         override fun isCurrent(credentials: ClassroomUsageService.Credentials) = true

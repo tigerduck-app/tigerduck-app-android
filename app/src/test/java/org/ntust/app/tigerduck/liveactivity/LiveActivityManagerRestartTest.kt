@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.ClassPreparingNotificationScheduler
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -69,6 +70,7 @@ class LiveActivityManagerRestartTest {
                         dueDate = Date(AppClock.nowMillis() + 20 * 60_000),
                     ),
                 ),
+                testSignIn(),
             )
         }
         return LiveActivityManager(

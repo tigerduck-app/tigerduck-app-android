@@ -3,8 +3,11 @@ package org.ntust.app.tigerduck.data
 import android.content.Context
 import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.screen.settings.REENABLE_CATEGORIES
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.File
@@ -47,6 +50,7 @@ class DataMigration @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val prefs: AppPreferences,
     private val credentials: CredentialManager,
+    private val sessions: AccountSessions,
 ) {
     enum class Outcome {
         /** No migration needed, or all pending steps applied successfully. */
@@ -172,13 +176,15 @@ class DataMigration @Inject constructor(
      * left pending would wait for whoever signs in next, so it is dropped;
      * signed in, its assignments check is (see [settleReenableCheck]).
      */
+    @OptIn(StartsAccountWork::class)
     private fun migrate3to4() {
-        settleReenableCheck(prefs, signedIn = credentials.ntustStudentId != null)
+        settleReenableCheck(prefs, signedIn = credentials.ntustStudentId != null, sessions.school.current)
     }
 
     /** See [dropStaleCoursesCheck]. */
+    @OptIn(StartsAccountWork::class)
     private fun migrate4to5() {
-        dropStaleCoursesCheck(prefs)
+        dropStaleCoursesCheck(prefs, sessions.school.current)
     }
 
     companion object {
@@ -236,9 +242,9 @@ class DataMigration @Inject constructor(
          * (`CourseSyncReconciler.syncsCourseList`), which would freeze it
          * until the user next opened TigerSync.
          */
-        internal fun dropStaleCoursesCheck(prefs: AppPreferences) {
-            val pending = prefs.pendingConflictCategories
-            if ("courses" in pending) prefs.pendingConflictCategories = pending - "courses"
+        internal fun dropStaleCoursesCheck(prefs: AppPreferences, signIn: SignIn) {
+            val pending = prefs.school.pendingConflictCategories.get()
+            if ("courses" in pending) prefs.school.pendingConflictCategories.set(pending - "courses", signIn)
         }
 
         /**
@@ -254,12 +260,12 @@ class DataMigration @Inject constructor(
          * an assignment only one side has marked, where the check would have
          * asked.
          */
-        internal fun settleReenableCheck(prefs: AppPreferences, signedIn: Boolean) {
+        internal fun settleReenableCheck(prefs: AppPreferences, signedIn: Boolean, signIn: SignIn) {
             if (signedIn) {
-                prefs.syncedCategories = REENABLE_CATEGORIES
-                prefs.pendingConflictCategories = prefs.pendingConflictCategories - "assignments"
+                prefs.school.syncedCategories.set(REENABLE_CATEGORIES, signIn)
+                prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() - "assignments", signIn)
             } else {
-                prefs.pendingConflictCategories = emptySet()
+                prefs.school.pendingConflictCategories.set(emptySet(), signIn)
             }
         }
 

@@ -7,8 +7,9 @@ account's device-side clearing is `AuthService.logout()`, which runs `clearAccou
 wipe in `SignOutWipe`, together with `AccountSessionEffects.onSignedOut`, which follows every
 school sign-out wherever it came from. A sign-out a process death cut short is finished at the
 next start by `AuthService.finishOwedSignOut()`, which runs the same `clearAccount`, so what a
-sign-out clears has one list. School Mail's is `MailAccount.signOut()`, and the library's is
-`LibrarySession.signOut()`.
+sign-out clears has one list. A typed sign-in as another student runs that sign-out once the school
+accepts, and stores nothing until its wipe is done. School Mail's is `MailAccount.signOut()`, and
+the library's is `LibrarySession.signOut()`.
 
 `AccountStateInventoryTest` reads the tables of stored state below and fails in these cases:
 
@@ -21,8 +22,9 @@ sign-out clears has one list. School Mail's is `MailAccount.signOut()`, and the 
   `keys`), so a key of an account added to it later gets a row of its own;
 - a row of an account names nothing that clears it, or the function it names no longer clears
   it:
-  - a key is cleared by a `remove` of it or by setting it to an empty value, named directly,
-    through a constant that holds it, or through a function or property declared with it;
+  - a key is cleared by a `remove` of it, by setting it to an empty value, or by the `clear()` of
+    its `AccountKey`, named directly, through a constant that holds it, or through a function or
+    property declared with it;
   - a DataCache file is cleared by a statement that names it and deletes;
   - a file an account owns whole is cleared by a function of a source that opens it, which
     clears the file or removes each of its keys;
@@ -60,11 +62,11 @@ Scopes:
 |---|---|
 | The sign-out a process death may cut short: `tigerduck_account_wipe` `owed`, set before anything is cleared, with a hash of the student who left in `who`, and taken off when the session opens after the last wipe. While it is set the school session stays closed. A start that finds it finishes the sign-out (`clearAccount`, `AccountSessionEffects.onSignedOut` and the wipe) when that student is still stored or nobody is, and drops the marker, clearing nothing, for anyone else. A clearing with a step that failed still wipes, but leaves the marker on and the session closed for the next start to try again; `tries` counts those, and the third failure ends the sign-out as far as it got and opens the session | `SignOutWipe` |
 | The school session's cookies, in memory | `NtustSessionManager.signOut()` in `AuthService.clearAccount()` |
-| Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.clearAccount()` |
+| Answers shared between callers, in memory: the course list, Moodle's enrollments and assignments, the empty-classroom days. No `SignInBound`: the first two are fetches a sign-out must also stop, and a day is a map a read adds to, which keeps only under its sign-in | `CourseService.cancelSharedFetches()`, `MoodleService.cancelSharedFetches()` and `forgetEmptyClassroom` in `AuthService.clearAccount()` |
 | Bulletin snapshots, `filesDir/bulletins/`, and what a write a process death cut short left there | `BulletinCache.clear()` in `AuthService.clearAccount()` |
 | Imported class tables, `noBackupFilesDir/imported_class_tables.json`, and the `.tmp` a write a process death cut short left beside it | `ImportedClassTableStore.clearForSignOut()` in the wipe `AuthService.logout()` starts; another student's sign-in empties it too (`accountDidSignIn`) |
 | Which courses take Moodle's default color, `noBackupFilesDir/moodle_course_colors.json`, and the `.tmp` a write a process death cut short left beside it | `MoodleColorStore.forgetAccount()` in `AccountSessionEffects.onSignedOut`; a sign-out a process death cut short is caught at the next load, which deletes a file whose owner (a hash of the student ID kept in it) is not the student signed in, or any file while signed out (`MoodleColorStore.ensureLoaded()`) |
-| A share link held for a sign-in, in memory | `HeldShareLink.drop()` in `AuthService.clearAccount()` |
+| A share link held for a sign-in, in memory | Nothing: `HeldShareLink` keeps it in a `SignInBound`, which reads empty once its sign-in has ended. So does `HomeSyncState.lastKnownRevision`, the watermark of the backend's change feed |
 | The demo account | `DemoAccount.exit()` in `AuthService.clearAccount()` |
 | The in-app browser's WebView data, cookies, downloads and photo uploads (`cacheDir/browser_uploads/`) | `BrowserDataCleaner.clear()`, which `AccountSessionEffects` runs after each sign-out and sign-in; `BrowserCleanup` keeps it owed across a process death |
 | Delivered notifications of the school account | `AccountNotifications.cancelAll()` in `AccountSessionEffects.onSignedOut` |
@@ -117,8 +119,9 @@ A file listed with an account's scope is cleared whole, and its keys have no row
 
 ## Keys of `tigerduck_prefs`
 
-`AppPreferences`, with the display sizes `DisplayScale` names and the device ID `PushIdentity`
-keeps through `getOrCreateString`.
+`AppPreferences`, with the school account's keys in `SchoolKeys`, which write only with a `SignIn`,
+the display sizes `DisplayScale` names and the device ID `PushIdentity` keeps through
+`getOrCreateString`.
 
 | Store | Name | Scope | Cleared in |
 |---|---|---|---|

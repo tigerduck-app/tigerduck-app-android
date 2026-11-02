@@ -22,6 +22,8 @@ import android.util.Log
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.R
 import org.ntust.app.tigerduck.auth.AuthService
+import org.ntust.app.tigerduck.auth.session.AccountSessions
+import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.data.CourseColorStore
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
@@ -46,6 +48,7 @@ import org.ntust.app.tigerduck.push.PushDiagnostic
 import org.ntust.app.tigerduck.push.PushIdentity
 import org.ntust.app.tigerduck.push.PushRegistrationService
 import org.ntust.app.tigerduck.push.SyncApiClient
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.AppState
 import org.ntust.app.tigerduck.ui.component.ServerStatusTracker
 import org.ntust.app.tigerduck.util.logSummary
@@ -80,15 +83,14 @@ class SettingsViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
     /** Debug builds' Developer page simulates a pin mismatch through it. */
     val pinManager: PinManager,
+    private val sessions: AccountSessions,
 ) : ViewModel() {
 
     /** For the NTUST sign-out, which asks first when it would delete imported class tables. */
     val importedClassTables: StateFlow<ImportedClassTables> = importedClassTableStore.tables
 
-
     private companion object {
         const val TAG = "SyncReenable"
-
     }
 
     private val _syncDiagnostic = MutableStateFlow(PushDiagnostic(false, false, null))
@@ -201,53 +203,51 @@ class SettingsViewModel @Inject constructor(
     private val _reenableConflict = MutableStateFlow<ReenableConflict?>(null)
     val reenableConflict: StateFlow<ReenableConflict?> = _reenableConflict
 
-    fun markCategoryReenabled(category: String) {
-        markForReenableCheck(prefs, category, signedIn = authService.authState.value)
-    }
+    @OptIn(StartsAccountWork::class)
+    fun markCategoryReenabled(category: String) =
+        markForReenableCheck(prefs, category, signedIn = authService.authState.value, sessions.school.current)
 
     /** See [ReenableCheck.check]; a difference is asked about on this screen. */
     fun checkPendingConflicts() {
         reenableCheck.check { _reenableConflict.value = it }
     }
 
+    @OptIn(StartsAccountWork::class)
     fun resolveReenableConflict(keepLocal: Boolean) {
         val conflict = _reenableConflict.value ?: return
+        val signIn = sessions.school.current
         Log.i(TAG, "[reenable] resolve: keepLocal=$keepLocal categories=${conflict.categories}")
         _reenableConflict.value = null
-        // Full syncs leave assignment marks and course ignores alone while
-        // "assignments" is pending, and colours and names while theirs are,
-        // so these are let go only once every answer has sent, queued or
-        // adopted them (heldUntilAnswered).
-        // On the application scope, so leaving Settings cannot strand it,
-        // and tied to this account: a sign-out ends it, and drops any write
-        // still on its way.
+        // Full syncs leave assignment marks and course ignores alone while "assignments" is
+        // pending, and colors and names while theirs are, so these are let go only once every
+        // answer has sent, queued or adopted them (heldUntilAnswered). On the application scope, so
+        // leaving Settings cannot strand it, and tied to this account: a sign-out ends it, and
+        // drops any write still on its way.
         val held = heldUntilAnswered(conflict.categories)
-        val left = unanswered(prefs.pendingConflictCategories, conflict.categories)
+        val left = unanswered(prefs.school.pendingConflictCategories.get(), conflict.categories)
         val holdsCourseIgnores = "assignments" in held
-        // Use Local's terms are latched before the courses check lets the
-        // course list go: a sync in between would un-hide a course deleted
-        // here before Use Local sends its delete.
+        // Use Local's terms are latched before the courses check lets the course list go: a sync in
+        // between would un-hide a course deleted here before Use Local sends its delete.
         val latch = handOverCourseHold(
             useLocal = keepLocal && "courses" in conflict.categories,
             semesters = semesterCatalog::availableSemesters,
-            host = useLocalHost,
+            host = useLocalHost(signIn),
         ) {
-            prefs.pendingConflictCategories = held + left
+            prefs.school.pendingConflictCategories.set(held + left, signIn)
         }
-        val generation = dataCache.userDataGeneration
         reenableCheck.resolutions.start()
-        // What the dialog did not cover is checked from this screen once the
-        // answer has been applied: the check waits for it, and then settles
-        // the hold in its place (ReenableResolutions.finish).
+        // What the dialog did not cover is checked from this screen once the answer has been
+        // applied: the check waits for it, and then settles the hold in its place
+        // (ReenableResolutions.finish).
         if (left.isNotEmpty()) checkPendingConflicts()
-        appScope.launch(DataCache.Generation(generation)) {
+        appScope.launch {
             try {
                 coroutineScope {
                     val signOut = launch {
                         authService.authState.first { !it }
                         this@coroutineScope.cancel()
                     }
-                    resolve(conflict, keepLocal, generation, latch)
+                    resolve(conflict, keepLocal, signIn, latch)
                     signOut.cancel()
                 }
             } finally {
@@ -256,28 +256,27 @@ class SettingsViewModel @Inject constructor(
                 // Each Settings screen has its own view model, and an answer
                 // given on one is still being applied when the next one checks.
                 if (reenableCheck.resolutions.finish()) {
-                    prefs.pendingConflictCategories = prefs.pendingConflictCategories - held
+                    prefs.school.pendingConflictCategories.set(prefs.school.pendingConflictCategories.get() - held, signIn)
                 }
             }
-            if (holdsCourseIgnores) courseIgnoreSync.retryPending()
+            if (holdsCourseIgnores) courseIgnoreSync.retryPending(signIn)
             // Use Local queued its colours and names behind their holds, lifted just above.
-            if (keepLocal && ("course_colors" in held || "course_names" in held)) pendingCourseOverrides.retry()
+            if (keepLocal && ("course_colors" in held || "course_names" in held)) pendingCourseOverrides.retry(signIn)
         }
     }
 
     private suspend fun resolve(
         conflict: ReenableConflict,
         keepLocal: Boolean,
-        generation: Int,
+        signIn: SignIn,
         latch: UseLocalLatch?,
     ) {
         if (keepLocal) {
-            val resetTerms = if (latch != null) sendLocalCourses(generation, latch) else emptySet()
-            // Through the outbox, queued whole at a version reserved before
-            // the colours and names are read, so an edit made from here on is
-            // the newer. The outbox holds them while their category is
-            // pending and sends them once resolveReenableConflict has lifted
-            // the hold; one that fails to land is sent again at the next sync.
+            val resetTerms = if (latch != null) sendLocalCourses(signIn, latch) else emptySet()
+            // Through the outbox, queued whole at a version reserved before the colors and names
+            // are read, so an edit made from here on is the newer. The outbox holds them while
+            // their category is pending and sends them once resolveReenableConflict has lifted the
+            // hold; one that fails to land is sent again at the next sync.
             val version = pendingCourseOverrides.reserveVersion()
             if ("course_colors" in conflict.categories) {
                 pendingCourseOverrides.queue(
@@ -286,7 +285,7 @@ class SettingsViewModel @Inject constructor(
                         val moodleId = course.moodleIdNumber ?: return@mapNotNull null
                         PendingCourseOverrides.Change(moodleId, colorHex = hex)
                     },
-                    version,
+                    version, signIn,
                 )
             }
             if ("course_names" in conflict.categories) {
@@ -300,7 +299,7 @@ class SettingsViewModel @Inject constructor(
                             PendingCourseOverrides.Change(moodleId, customName = name, locale = locale)
                         }
                     },
-                    version,
+                    version, signIn,
                 )
             }
             if ("assignments" in conflict.categories) {
@@ -314,29 +313,29 @@ class SettingsViewModel @Inject constructor(
                         dataCache.loadIgnoredAssignments() to dataCache.loadMarkedCompletedAssignments()
                     },
                     send = pushApiClient::patchAssignmentOverride,
-                    keep = { id, status -> unsentMarks.keep(id, status, generation) },
+                    keep = { id, status -> unsentMarks.keep(id, status, signIn) },
                     pushCourseIgnores = { server ->
                         if (prefs.syncCourses) {
-                            courseIgnoreSync.pushLocal(server, generation, resetTerms, conflict.checked)
+                            courseIgnoreSync.pushLocal(server, signIn, resetTerms, conflict.checked)
                         }
                     },
                 )
             }
         } else {
             if ("courses" in conflict.categories) {
-                dataCache.saveDeletedCourseNos(emptySet())
+                dataCache.saveDeletedCourseNos(emptySet(), signIn)
             }
             if ("course_names" in conflict.categories) {
-                dataCache.saveCourseCustomNames(emptyMap())
+                dataCache.saveCourseCustomNames(emptyMap(), signIn)
             }
             // The server's colours and names win, so changes still waiting
             // to go up are dropped; a category not here is left alone.
-            pendingCourseOverrides.adoptServer(conflict.categories)
+            pendingCourseOverrides.adoptServer(conflict.categories, signIn)
             if ("assignments" in conflict.categories) {
                 // The server's marks win, so taps still waiting to go up are dropped.
-                unsentMarks.forget()
+                unsentMarks.forget(signIn)
                 // Adopted, not replaced: Home reads them again at once.
-                dataCache.adoptAssignmentMarks(emptySet(), emptySet())
+                dataCache.adoptAssignmentMarks(emptySet(), emptySet(), signIn)
             }
             val result = runCatching { syncApiClient.fetchFullSync() }.getOrNull()
             if (result != null) {
@@ -354,7 +353,7 @@ class SettingsViewModel @Inject constructor(
                         for ((semester, nos) in hides) {
                             for (no in nos) deleted = CourseTombstoneKeys.hide(no, semester, deleted)
                         }
-                        dataCache.saveDeletedCourseNos(deleted)
+                        dataCache.saveDeletedCourseNos(deleted, signIn)
                     }
                 }
                 if ("course_colors" in conflict.categories || "course_names" in conflict.categories) {
@@ -369,12 +368,12 @@ class SettingsViewModel @Inject constructor(
                             }
                             c
                         }
-                        dataCache.saveCourses(updated)
+                        dataCache.saveCourses(updated, signIn)
                     }
                 }
                 if ("course_names" in conflict.categories) {
                     // Onto the names as they stand, under their lock: a rename made meanwhile stays.
-                    dataCache.updateCourseCustomNames { current ->
+                    dataCache.updateCourseCustomNames(signIn) { current ->
                         val localNames = current.toMutableMap()
                         for (override in result.courseOverrides) {
                             val courseNo = override.courseNo ?: continue
@@ -390,22 +389,22 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
                 if ("assignments" in conflict.categories) {
-                    dataCache.adoptAssignmentMarks(result.ignoredIds, result.completedIds)
+                    dataCache.adoptAssignmentMarks(result.ignoredIds, result.completedIds, signIn)
                 }
             }
             if ("assignments" in conflict.categories && prefs.syncCourses) {
-                courseIgnoreSync.adoptServer(result, generation)
+                courseIgnoreSync.adoptServer(result, signIn)
             }
         }
     }
 
-    private val useLocalHost = object : UseLocalHost {
+    private fun useLocalHost(signIn: SignIn) = object : UseLocalHost {
         override fun beginReset(semester: String) = dataCache.beginReset(semester)
         override fun endReset(semester: String) = dataCache.endReset(semester)
         override suspend fun stampReset(semester: String, atMs: Long) {
-            dataCache.saveSemesterResetAt(semester, atMs)
+            dataCache.saveSemesterResetAt(semester, atMs, signIn)
             // Its courses come back as new rows, which are not re-added elsewhere.
-            courseIgnoreSync.forgetRowsSeen(setOf(semester))
+            courseIgnoreSync.forgetRowsSeen(setOf(semester), signIn)
         }
         override fun askAgain() = markCategoryReenabled("courses")
     }
@@ -414,14 +413,14 @@ class SettingsViewModel @Inject constructor(
      * Use Local for courses, every term this phone knows — see
      * [useLocalCourses]. Returns the terms it reset.
      */
-    private suspend fun sendLocalCourses(generation: Int, latch: UseLocalLatch): Set<String> {
+    private suspend fun sendLocalCourses(signIn: SignIn, latch: UseLocalLatch): Set<String> {
         // The terms latched on the tap; the catalogue may have moved since.
         val semesters = latch.semesters
         val portalCached = semesters.filterTo(mutableSetOf()) { dataCache.hasPortalCourses(it) }
         return useLocalCourses(
             terms = semesters.map { it to dataCache.loadCourses(it) },
             hiding = dataCache.loadDeletedCourseNos(),
-            backend = PushCourseSyncBackend(pushApiClient, prefs, pendingCourseOverrides),
+            backend = PushCourseSyncBackend(pushApiClient, prefs, pendingCourseOverrides, signIn),
             // A term's reset takes its courses' names off the server with
             // them. With name sync off here nothing can be sent back (the
             // PATCH honours the switch), so names other devices set on that
@@ -429,9 +428,9 @@ class SettingsViewModel @Inject constructor(
             customNames = if (prefs.syncCourseNames) dataCache.loadCourseCustomNames() else emptyMap(),
             portalCached = { it in portalCached },
             latch = latch,
-            host = useLocalHost,
+            host = useLocalHost(signIn),
             now = System::currentTimeMillis,
-            isCurrent = { dataCache.userDataGeneration == generation },
+            isCurrent = { signIn.isCurrent },
         )
     }
 
@@ -492,11 +491,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun logoutNtust() {
-        // Persisted-data clearing now lives in AuthService.logout() on an
-        // application-scoped coroutine, so it survives ViewModel destruction
-        // when the user navigates away from Settings immediately after logout.
-        // The reminders, notifications, Live Update and background sync follow
-        // the sign-out itself: AccountSessionEffects.
+        // Persisted-data clearing now lives in AuthService.logout() on an application-scoped
+        // coroutine, so it survives ViewModel destruction when the user navigates away from
+        // Settings immediately after logout. The reminders, notifications, Live Update and
+        // background sync follow the sign-out itself: AccountSessionEffects.
         authService.logout()
         appState.librarySession.refresh()
     }
@@ -545,8 +543,9 @@ class SettingsViewModel @Inject constructor(
 
     fun clearNtustLoginError() = authService.clearLoginError()
 
+    @OptIn(StartsAccountWork::class)
     fun resetCourseColors() {
-        viewModelScope.launch { courseColorStore.resetAllColors() }
+        viewModelScope.launch { courseColorStore.resetAllColors(sessions.school.current) }
     }
 
     fun setAnalyticsEnabled(enabled: Boolean) {

@@ -14,6 +14,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.CourseGrade
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
 
 /**
@@ -27,6 +28,7 @@ class NtustScoreServiceSaveTest {
     private val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
     private var signedIn: String? = STUDENT
     private val answer = CompletableDeferred<ScoreReport>()
+    private val series = SignInSeries()
 
     private val service = NtustScoreService(
         dataCache = cache,
@@ -43,13 +45,13 @@ class NtustScoreServiceSaveTest {
     fun `a report fetched for the account still signed in is kept`() = runTest {
         answer.complete(report)
 
-        assertEquals(report, service.fetchScoreReport(STUDENT, "not-a-password"))
+        assertEquals(report, service.fetchScoreReport(STUDENT, "not-a-password", series.current))
         assertEquals(report, cache.loadScoreReport(STUDENT)?.report)
     }
 
     @Test
     fun `a report fetched for an account that signed out meanwhile is not kept`() = runTest {
-        val fetch = async { service.fetchScoreReport(STUDENT, "not-a-password") }
+        val fetch = async { service.fetchScoreReport(STUDENT, "not-a-password", series.current) }
         testScheduler.advanceUntilIdle()
         signedIn = null
         answer.complete(report)
@@ -61,7 +63,7 @@ class NtustScoreServiceSaveTest {
 
     @Test
     fun `a report fetched while another account signed in is not kept under the first one`() = runTest {
-        val fetch = async { service.fetchScoreReport(STUDENT, "not-a-password") }
+        val fetch = async { service.fetchScoreReport(STUDENT, "not-a-password", series.current) }
         testScheduler.advanceUntilIdle()
         signedIn = "TEST00002"
         answer.complete(report)
@@ -73,8 +75,7 @@ class NtustScoreServiceSaveTest {
 
     /**
      * The sign-in check and the save are two steps: a sign-out that wipes the data right after
-     * the check passed left the save free to take the wiped data's next generation, and so to put
-     * the departed student's transcript back.
+     * the check passed must not leave the save free to put the departed student's transcript back.
      */
     @Test
     fun `a report whose account signed out between the check and the save is not kept`() = runTest {
@@ -83,6 +84,7 @@ class NtustScoreServiceSaveTest {
             isSignedInAs = { studentId ->
                 val stillSignedIn = studentId == signedIn
                 // The sign-out lands on another thread just after the check read the credentials.
+                series.end()
                 runBlocking { cache.clearAllUserData() }
                 signedIn = null
                 stillSignedIn
@@ -90,7 +92,7 @@ class NtustScoreServiceSaveTest {
             download = { _, _ -> report },
         )
 
-        assertEquals(report, wipingService.fetchScoreReport(STUDENT, "not-a-password"))
+        assertEquals(report, wipingService.fetchScoreReport(STUDENT, "not-a-password", series.current))
         assertNull(cache.loadScoreReport(STUDENT))
     }
 
@@ -98,7 +100,7 @@ class NtustScoreServiceSaveTest {
     fun `an empty page is no report, and nothing is kept`() = runTest {
         answer.complete(ScoreReport.EMPTY)
 
-        val failure = runCatching { service.fetchScoreReport(STUDENT, "not-a-password") }.exceptionOrNull()
+        val failure = runCatching { service.fetchScoreReport(STUDENT, "not-a-password", series.current) }.exceptionOrNull()
         assertTrue(failure is NtustScoreError.ParseFailed)
         assertNull(cache.loadScoreReport(STUDENT))
     }

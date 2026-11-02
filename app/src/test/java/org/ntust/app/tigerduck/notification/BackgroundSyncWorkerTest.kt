@@ -30,6 +30,8 @@ import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.CourseNameOverrides
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
+import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.util.testSignIn
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -391,7 +393,7 @@ class BackgroundSyncWorkerTest {
         val syncNames = CourseSyncReconciler.syncsCourseNames(true, emptySet())
 
         CourseSyncReconciler.applyNameOverrides(
-            cache, listOf(override("CS1001", mapOf("zh-Hant" to "資結"))), syncNames,
+            cache, listOf(override("CS1001", mapOf("zh-Hant" to "資結"))), syncNames, testSignIn(),
         )
 
         assertEquals(mapOf("CS1001" to mapOf("zh-Hant" to "資結")), cache.loadCourseCustomNames())
@@ -404,8 +406,8 @@ class BackgroundSyncWorkerTest {
         val held = CourseSyncReconciler.syncsCourseNames(true, setOf("course_names"))
         val names = listOf(override("CS1001", mapOf("zh-Hant" to "資結")))
 
-        CourseSyncReconciler.applyNameOverrides(cache, names, off)
-        CourseSyncReconciler.applyNameOverrides(cache, names, held)
+        CourseSyncReconciler.applyNameOverrides(cache, names, off, testSignIn())
+        CourseSyncReconciler.applyNameOverrides(cache, names, held, testSignIn())
 
         assertEquals(emptyMap<String, Map<String, String>>(), cache.loadCourseCustomNames())
     }
@@ -416,14 +418,11 @@ class BackgroundSyncWorkerTest {
             prefs = appPrefs,
             sender = HolidayOverrideSender { _, _, _, _ -> true },
             syncs = { true },
-            signInGeneration = { 1 },
-            runIfSignedIn = { _, _ -> true },
         )
 
         HolidayOverrideApply.apply(
-            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = 1,
+            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = SignInSeries().current,
             pending = pending, calendar = calendar,
-            runIfSignedIn = { signIn, block -> if (signIn == 1) { block(); true } else false },
         )
 
         assertEquals(setOf(3, 5), appPrefs.holidayNotifyOverrides)
@@ -436,15 +435,13 @@ class BackgroundSyncWorkerTest {
             prefs = appPrefs,
             sender = HolidayOverrideSender { _, _, _, _ -> true },
             syncs = { true },
-            signInGeneration = { 2 },
-            runIfSignedIn = { _, _ -> true },
         )
+        val series = SignInSeries()
+        val ended = series.end()
 
         HolidayOverrideApply.apply(
-            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = 1,
+            snapshot = setOf(3, 5), fetchedAtMs = 1_000L, signIn = ended,
             pending = pending, calendar = calendar,
-            // The sign-out moved the generation: the block never runs.
-            runIfSignedIn = { _, _ -> false },
         )
 
         assertEquals(setOf(7), appPrefs.holidayNotifyOverrides)
@@ -460,12 +457,12 @@ class BackgroundSyncWorkerTest {
         names: Map<String, String>,
         held: suspend () -> Set<String> = { emptySet() },
     ) = BackgroundCourseOverrides.apply(
-        cache, term, listOf(override(courseNo, names)), held, syncColors = false, syncNames = true, locale = "zh",
+        cache, term, listOf(override(courseNo, names)), held, syncColors = false, syncNames = true, locale = "zh", testSignIn(),
     )
 
     @Test
     fun `a background sync's names reach the cached courses the widgets read, and a removed name clears`() = runTest {
-        cache.saveCourses(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), term)
+        cache.saveCourses(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), term, testSignIn())
 
         applyNames("CS1001", mapOf("zh" to "資結"))
         val named = cache.loadCourses(term)
@@ -482,8 +479,8 @@ class BackgroundSyncWorkerTest {
 
     @Test
     fun `a background sync that changes no name or colour writes no course`() = runTest {
-        cache.saveCourses(listOf(course("CS1001", "Data Structures").copy(customCourseName = "資結")), term)
-        cache.saveCourseCustomNames(mapOf("CS1001" to mapOf("zh" to "資結")))
+        cache.saveCourses(listOf(course("CS1001", "Data Structures").copy(customCourseName = "資結")), term, testSignIn())
+        cache.saveCourseCustomNames(mapOf("CS1001" to mapOf("zh" to "資結")), testSignIn())
         val before = cache.coursesVersion.value
 
         assertNull(applyNames("CS1001", mapOf("zh" to "資結")))
@@ -509,10 +506,10 @@ class BackgroundSyncWorkerTest {
     /** Greptile on #615: the sync saved the list it read before its name writes, without the course. */
     @Test
     fun `a course added while a background sync applies names stays`() = runBlocking {
-        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term)
+        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term, testSignIn())
         // The class table saves its list with the course added.
         val add = landing {
-            cache.saveCourses(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), term)
+            cache.saveCourses(listOf(course("CS1001", "Data Structures"), course("CS1002", "Algorithms")), term, testSignIn())
         }
 
         applyNames("CS1001", mapOf("zh" to "資結"), held = { add(); emptySet() })
@@ -527,9 +524,9 @@ class BackgroundSyncWorkerTest {
      */
     @Test
     fun `a rename saved while a background sync applies names stands over the snapshot's`() = runBlocking {
-        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term)
+        cache.saveCourses(listOf(course("CS1001", "Data Structures")), term, testSignIn())
         val rename = landing {
-            cache.updateCourseCustomNames { CourseNameOverrides.withOverride(it, "CS1001", "zh", "新名") }
+            cache.updateCourseCustomNames(testSignIn()) { CourseNameOverrides.withOverride(it, "CS1001", "zh", "新名") }
         }
 
         // The snapshot's name is the one the rename replaces. The held keys are

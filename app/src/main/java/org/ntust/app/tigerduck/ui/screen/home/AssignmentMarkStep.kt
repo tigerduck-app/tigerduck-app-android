@@ -5,6 +5,7 @@ import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
  * The assignment-mark step of Home's full sync ([HomeBackendSync.pull]), and
@@ -22,7 +23,7 @@ internal class AssignmentMarkStep(
     private val pendingConflicts: () -> Set<String>,
     private val syncedBefore: () -> Boolean,
     private val store: MarkStore,
-    private val send: suspend (assignmentId: Int, status: String, signIn: Int) -> Unit,
+    private val send: suspend (assignmentId: Int, status: String, signIn: SignIn) -> Unit,
     /**
      * Marks tapped here whose PATCH has not landed (`UnsentMarks`): kept at
      * this phone's value like a PATCH still in flight, since the server has
@@ -30,13 +31,13 @@ internal class AssignmentMarkStep(
      */
     private val unsent: suspend () -> Set<String>,
     /** `UnsentMarks.keep`: a first-sync mark that did not land waits there. */
-    private val keepUnsent: suspend (assignmentId: String, status: String, generation: Int) -> Unit,
+    private val keepUnsent: suspend (assignmentId: String, status: String, signIn: SignIn) -> Unit,
 ) {
     /** This phone's marks on disk. */
     interface MarkStore {
         suspend fun ignored(): Set<String>
         suspend fun completed(): Set<String>
-        suspend fun replace(ignored: Set<String>, completed: Set<String>)
+        suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn)
     }
 
     /**
@@ -45,16 +46,14 @@ internal class AssignmentMarkStep(
      * one sent up as the first sync — which the caller records in
      * `AppPreferences.assignmentMarksSyncedOnce`. [syncsMarks] is the switch
      * as the sync read it with the other categories; [signIn] the sign-in it
-     * began under (`AuthTokenManager.signInGeneration`), which the first-sync
-     * upload is pinned to; [generation] the data generation it began under,
-     * which a first-sync mark that did not land is kept for.
+     * began under, which the first-sync upload is pinned to and a first-sync
+     * mark that did not land is kept for.
      */
     suspend fun pull(
         state: HomeSyncState,
         result: BackendSyncResult,
         syncsMarks: Boolean,
-        signIn: Int,
-        generation: Int,
+        signIn: SignIn,
     ): Boolean {
         if (!syncsMarks) {
             Log.i(TAG, "[Sync] leaving assignment marks alone: Assignments sync is off")
@@ -80,7 +79,7 @@ internal class AssignmentMarkStep(
                     // Only while it is still this phone's mark: a tap made
                     // while the PATCH was out is newer, and goes up itself.
                     if (id !in state.pendingOverrides && statusOn(state, id) == status) {
-                        keepUnsent(id, status, generation)
+                        keepUnsent(id, status, signIn)
                     }
                 },
             ) { id, status -> send(id, status, signIn) }
@@ -109,16 +108,18 @@ internal class AssignmentMarkStep(
         )
         // Read again: switched off since, the marks are this phone's own.
         if (!switchOn()) return false
-        commit(state, outcome)
+        commit(state, outcome, signIn)
         if (outcome.conflicts.isNotEmpty()) {
-            state.pendingResult = result
-            state.conflicts.value = outcome.conflicts
+            signIn.ifCurrent {
+                state.pendingResult = result
+                state.conflicts.value = outcome.conflicts
+            }
         }
         return true
     }
 
     /** Takes the server's marks of [result], the user having picked them in the conflict dialog. */
-    suspend fun keepServer(state: HomeSyncState, result: BackendSyncResult) {
+    suspend fun keepServer(state: HomeSyncState, result: BackendSyncResult, signIn: SignIn) {
         // Switched off since the dialog opened, the marks are this phone's own.
         if (!switchOn()) return
         val outcome = AssignmentOverrideReconciler.serverWins(
@@ -128,7 +129,7 @@ internal class AssignmentMarkStep(
             inFlightCompleted = state.markedCompletedIds.value,
             pendingOverrides = state.pendingOverrides + unsent(),
         )
-        commit(state, outcome)
+        commit(state, outcome, signIn)
     }
 
     // The mark Home shows for [id] now; taps change these at once.
@@ -138,10 +139,13 @@ internal class AssignmentMarkStep(
         else -> AssignmentOverrideReconciler.STATUS_NONE
     }
 
-    private suspend fun commit(state: HomeSyncState, outcome: AssignmentOverrideReconciler.Outcome) {
-        store.replace(outcome.ignored, outcome.completed)
-        state.ignoredAssignmentIds.value = outcome.ignored
-        state.markedCompletedIds.value = outcome.completed
+    // What Home shows is the session's on screen: a run past its sign-in changes none of it.
+    private suspend fun commit(state: HomeSyncState, outcome: AssignmentOverrideReconciler.Outcome, signIn: SignIn) {
+        store.replace(outcome.ignored, outcome.completed, signIn)
+        signIn.ifCurrent {
+            state.ignoredAssignmentIds.value = outcome.ignored
+            state.markedCompletedIds.value = outcome.completed
+        }
     }
 
     companion object {
@@ -152,17 +156,17 @@ internal class AssignmentMarkStep(
             prefs: AppPreferences,
             dataCache: DataCache,
             unsentMarks: UnsentMarks,
-            send: suspend (assignmentId: Int, status: String, signIn: Int) -> Unit,
+            send: suspend (assignmentId: Int, status: String, signIn: SignIn) -> Unit,
         ) = AssignmentMarkStep(
             switchOn = { prefs.syncAssignments },
-            pendingConflicts = { prefs.pendingConflictCategories },
-            syncedBefore = { prefs.assignmentMarksSyncedOnce },
+            pendingConflicts = { prefs.school.pendingConflictCategories.get() },
+            syncedBefore = { prefs.school.assignmentMarksSyncedOnce.get() },
             store = object : MarkStore {
                 override suspend fun ignored() = dataCache.loadIgnoredAssignments()
                 override suspend fun completed() = dataCache.loadMarkedCompletedAssignments()
-                override suspend fun replace(ignored: Set<String>, completed: Set<String>) {
-                    dataCache.replaceIgnoredAssignments(ignored)
-                    dataCache.replaceMarkedCompletedAssignments(completed)
+                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
+                    dataCache.replaceIgnoredAssignments(ignored, signIn)
+                    dataCache.replaceMarkedCompletedAssignments(completed, signIn)
                 }
             },
             send = send,

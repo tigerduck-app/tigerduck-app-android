@@ -18,6 +18,7 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * Use Local's requests fail, rather than go quietly unsent, once course sync
@@ -42,7 +43,7 @@ class PushCourseSyncBackendTest {
         val tokenManager = AuthTokenManager(tokens, backend.client, prefs, "device-1")
         val api = PushApiClient(backend.client, prefs, tokenManager)
         val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
-        courses = PushCourseSyncBackend(api, prefs, PendingCourseOverrides(cache, api, prefs, tokenManager))
+        courses = PushCourseSyncBackend(api, prefs, PendingCourseOverrides(cache, api, prefs), testSignIn())
     }
 
     private suspend fun fails(request: suspend () -> Unit): Boolean = runCatching { request() }.isFailure

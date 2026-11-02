@@ -8,6 +8,8 @@
 package org.ntust.app.tigerduck.push
 
 import org.json.JSONObject
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInBound
 
 /** The terms `/v3/sync/full`'s `roster_requests` names, once each; none from a backend before 3.10.1. */
 internal fun parseRosterRequests(json: JSONObject): List<String> {
@@ -25,20 +27,21 @@ internal fun parseRosterRequests(json: JSONObject): List<String> {
  * As iOS `RosterRequestLog` (tigerduck-app#914).
  */
 internal class RosterRequestLog {
-    private val asked = HashMap<String, Pair<Int, Long>>()
+    // When each term was asked, for this sign-in only: the next account's requests owe it nothing.
+    private val asked = SignInBound<Map<String, Long>>(emptyMap())
 
     /**
      * The terms of [requests] to ask course selection for now, each once, recorded as asked at
-     * [nowMs] under [generation], the user data's (`DataCache.userDataGeneration`), which a
-     * sign-out moves on.
+     * [nowMs] under [signIn], which a sign-out ends.
      */
     @Synchronized
-    fun termsToAsk(requests: List<String>, generation: Int, nowMs: Long): List<String> {
+    fun termsToAsk(requests: List<String>, signIn: SignIn, nowMs: Long): List<String> {
+        val before = asked.value
         val due = requests.filter { it.isNotBlank() }.distinct().sorted().filter { term ->
-            val (askedIn, askedAt) = asked[term] ?: return@filter true
-            askedIn != generation || nowMs - askedAt >= RETRY_INTERVAL_MS || nowMs < askedAt
+            val askedAt = before[term] ?: return@filter true
+            nowMs - askedAt >= RETRY_INTERVAL_MS || nowMs < askedAt
         }
-        due.forEach { asked[it] = generation to nowMs }
+        asked.set(before + due.associateWith { nowMs }, signIn)
         return due
     }
 

@@ -1,8 +1,13 @@
 package org.ntust.app.tigerduck.push
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -13,8 +18,10 @@ import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import java.util.Date
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The assignment upload ledger ([UploadLedger]) through [PushApiClient]: what it remembers is
@@ -45,21 +52,47 @@ class AssignmentUploadGateTest {
 
     @Test
     fun `an unchanged list is not sent again`() = runTest {
-        api.uploadAssignments(homework)
-        api.uploadAssignments(homework)
+        api.uploadAssignments(homework, testSignIn())
+        api.uploadAssignments(homework, testSignIn())
 
         assertEquals(1, uploads())
     }
 
     @Test
     fun `a list one backend accepted goes to the backend the app is pointed at next`() = runTest {
-        api.uploadAssignments(homework)
+        api.uploadAssignments(homework, testSignIn())
 
         prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:19/v3"
         assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
-        api.uploadAssignments(homework)
+        api.uploadAssignments(homework, testSignIn())
 
         assertEquals(2, uploads())
+    }
+
+    @Test
+    fun `a list accepted as its sign-in ended leaves the ledger for the next account's upload`() = runBlocking {
+        val series = SignInSeries()
+        val held = backend.hold(UPLOAD)
+        val upload = async(Dispatchers.Default) { api.uploadAssignments(homework, series.current) }
+        withTimeout(10_000) { held.arrived.await() }
+
+        series.end()
+        held.release(200)
+        withTimeout(10_000) { upload.await() }
+
+        assertNull(prefs.school.assignmentsUploadFingerprint.get())
+        assertEquals(0L, prefs.school.assignmentsUploadedAtMs.get())
+    }
+
+    @Test
+    fun `a list of a sign-in that has ended goes unsent`() = runTest {
+        val series = SignInSeries()
+        val signIn = series.current
+        series.end()
+
+        assertTrue(runCatching { api.uploadAssignments(homework, signIn) }.isFailure)
+
+        assertEquals(0, uploads())
     }
 
     private companion object {

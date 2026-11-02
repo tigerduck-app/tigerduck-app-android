@@ -64,7 +64,7 @@ class ClassTableWiringTest {
     /** tigerduck-app-android#241. */
     @Test
     fun `a reset goes through the backend first, and says so when the backend could not take it`() {
-        assertCalls("wipeTerm", "termReset.run(semester) { pushApiClient.deleteAllCourses(semester) }")
+        assertCalls("wipeTerm", "termReset.run(semester, signIn) { pushApiClient.deleteAllCourses(semester) }")
         assertCalls("resetCourses", "if (wiped) fetchData() else _resetFailedEvent.tryEmit(semester)")
     }
 
@@ -77,12 +77,12 @@ class ClassTableWiringTest {
     @Test
     fun `a delete and a reset reach the backend with no course add being sent`() {
         val delete = body("deleteCourse")
-        assertTrue("deleteCourse no longer deletes through the outbox", "pendingCourseDeletes.send(semester, courseNo, queuedAt)" in delete)
+        assertTrue("deleteCourse no longer deletes through the outbox", "pendingCourseDeletes.send(semester, courseNo, queuedAt, signIn)" in delete)
         assertTrue("deleteCourse takes the adds lock the outbox takes itself", "pendingCourseAdds.removing {" !in delete)
 
         val wipe = body("wipeTerm")
         val held = wipe.indexOf("pendingCourseAdds.removing {")
-        assertTrue("wipeTerm no longer holds the course adds back over the reset", held in 0 until wipe.indexOf("termReset.run(semester)"))
+        assertTrue("wipeTerm no longer holds the course adds back over the reset", held in 0 until wipe.indexOf("termReset.run(semester, signIn)"))
     }
 
     /**
@@ -93,8 +93,8 @@ class ClassTableWiringTest {
     @Test
     fun `a reset drops the term's queued deletes before letting the adds lock go`() {
         val wipe = body("wipeTerm")
-        val reset = wipe.indexOf("termReset.run(semester)")
-        val forgot = wipe.indexOf("pendingCourseDeletes.forgetTerm(semester)")
+        val reset = wipe.indexOf("termReset.run(semester, signIn)")
+        val forgot = wipe.indexOf("pendingCourseDeletes.forgetTerm(semester, signIn)")
         val released = wipe.indexOf("?: return false")
         assertTrue("wipeTerm forgets the term's queued deletes after the reset lands", forgot > reset)
         assertTrue("wipeTerm forgets them inside the adds lock", forgot < released)
@@ -105,7 +105,7 @@ class ClassTableWiringTest {
     fun `a deleted course, and a reset term, take their waiting colours and names with them`() {
         assertCalls("deleteCourse", "pendingCourseOverrides.forget(")
         val wipe = body("wipeTerm")
-        val reset = wipe.indexOf("termReset.run(semester)")
+        val reset = wipe.indexOf("termReset.run(semester, signIn)")
         val forgot = wipe.indexOf("pendingCourseOverrides.forget(")
         assertTrue("wipeTerm no longer forgets the term's waiting colours and names after the reset", forgot > reset)
     }
@@ -133,7 +133,7 @@ class ClassTableWiringTest {
      */
     @Test
     fun `a fetch looks the term's hand-added courses up again, onto the list as the user left it`() {
-        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, countsAsUse = true)")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true)")
         assertCalls("fetchTermCourses", "termFetch.lookUp(", "termFetch.foldLatest(", "latestCourses(semester)")
         assertCalls("latestCourses", "if (coursesSemester == semester) _courses.value else dataCache.loadCourses(semester)")
     }
@@ -181,8 +181,8 @@ class ClassTableWiringTest {
         val relabel = source.indexOf("showEdit(relabeled, semester)")
         assertTrue("the abbreviation relabel no longer makes its edit through showEdit", relabel >= 0)
         assertTrue("the abbreviation relabel no longer saves through saveEdit", source.indexOf("saveEdit(relabeled, semester, edit)", relabel) > relabel)
-        assertCalls("showEdit", "_courses.value = updated", "noteTermEdit(semester)", "unsavedEdits[edit] = semester to edited")
-        assertCalls("saveEdit", "dataCache.saveCourses(updated, semester)", "unsavedEdits.remove(edit)")
+        assertCalls("showEdit", "_courses.value = updated", "noteTermEdit(semester)", "unsavedEdits[edit.id] = semester to edited")
+        assertCalls("saveEdit", "dataCache.saveCourses(updated, semester, edit.signIn)", "unsavedEdits.remove(edit.id)")
         assertCalls("fetchTermCourses", "editGeneration = { termEdits[semester] ?: 0 }")
     }
 
@@ -195,7 +195,7 @@ class ClassTableWiringTest {
     @Test
     fun `a fetch folds onto the term's cache under the courses' lock, with the edits still on their way`() {
         val body = body("fetchTermCourses")
-        val locked = body.indexOf("dataCache.updateCourses(semester) { current, _ ->")
+        val locked = body.indexOf("dataCache.updateCourses(semester, signIn) { current, _ ->")
         val fold = body.indexOf("termFetch.foldLatest(")
         assertTrue("fetchTermCourses no longer folds under the courses' lock", locked in 0 until fold)
         assertCalls("fetchTermCourses", "cachedCourses = { current }", "unsavedEdits = { unsavedEditsIn(semester) }")
@@ -222,7 +222,7 @@ class ClassTableWiringTest {
             "resetCourses no longer supersedes the warm before anything else",
             reset.indexOf("termWarm.supersede(") < reset.indexOf("viewModelScope.launch"),
         )
-        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded) {", "isCurrent()")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn) {", "isCurrent()")
         // The commit — the generation check, the snapshot, the fold, the save and the upload —
         // in the order the backend's DELETEs run in, and held through the upload: a reset's
         // DELETE waits for an upload under way, and an upload after it finds the term superseded.
@@ -233,7 +233,7 @@ class ClassTableWiringTest {
         val commit = body.indexOf("pendingCourseAdds.uploading {")
         val fold = body.indexOf("termFetch.foldLatest(")
         // The fold is saved by the courses' lock it is taken under.
-        val save = body.indexOf("dataCache.updateCourses(semester)")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         val checks = Regex("""if \(!mayCommit\(\)\) return""").findAll(body).map { it.range.first }.toList()
         assertTrue("fetchTermCourses no longer commits under PendingCourseAdds.uploading", commit in 0 until fold)
@@ -259,7 +259,7 @@ class ClassTableWiringTest {
     fun `a fetch of a superseded course selection answer saves and uploads nothing`() {
         val body = body("fetchTermCourses")
         val checks = Regex("""answer != null && !dataCache\.isLatestAnswer\(semester, answer\)""").findAll(body).map { it.range.first }.toList()
-        val save = body.indexOf("dataCache.updateCourses(semester)")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
         val fold = body.indexOf("termFetch.foldLatest(")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         assertTrue("fetchTermCourses no longer checks the answer under the courses' lock", checks.any { it in save until fold })
@@ -275,10 +275,10 @@ class ClassTableWiringTest {
     @Test
     fun `a fetch or warm of a refused course selection answer looks up, saves and uploads nothing`() {
         for (name in listOf("fetchData", "warmTerm")) {
-            assertCalls(name, "val recorded = dataCache.recordSelectionRoster(semester, selectionNos, generation)")
+            assertCalls(name, "val recorded = dataCache.recordSelectionRoster(semester, selectionNos, signIn)")
         }
-        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, countsAsUse = true)")
-        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded)")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true)")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn)")
         val body = body("fetchTermCourses")
         val stop = body.indexOf("if (recorded == RecordedSelection.Refused) return true")
         assertTrue("fetchTermCourses no longer stops on a refused answer before the lookups", stop in 0 until body.indexOf("termFetch.lookUp("))
@@ -304,7 +304,7 @@ class ClassTableWiringTest {
         val warmed = fetch.indexOf("warmTerms(")
         assertTrue("fetchData no longer warms the other terms once its own is done", synced in 0 until warmed)
         assertCalls("warmTerms", "termWarm.run(")
-        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded)")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn)")
         val source = source().joinToString("\n")
         for (call in listOf("warmJob?.cancel()", "termWarm.reset()")) {
             assertTrue("a sign-out no longer calls $call", call in source)
@@ -323,9 +323,9 @@ class ClassTableWiringTest {
         assertCalls(
             "fetchData",
             "if (selectionDef.await().isEmpty()) transcript.fetched() else transcript.cachedOnly()",
-            "scoreService.fetchScoreReport(studentId, password)",
+            "scoreService.fetchScoreReport(studentId, password, signIn)",
             "ServerStatusTracker.set(it, ServerKind.SCORE_SYSTEM)",
-            "warmTerms(studentId, password, moodleAll, transcript)",
+            "warmTerms(studentId, password, moodleAll, transcript, signIn)",
             "ClassTableTermSource.of(semester, selectionNos, report, servesSelectionSemester,",
         )
         assertTrue("fetchData forces the transcript past its cache", "forceRefresh" !in body("fetchData"))
@@ -351,9 +351,9 @@ class ClassTableWiringTest {
      */
     @Test
     fun `answers fetched for an account that left reach no term`() {
-        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, countsAsUse = true) { authService.isStillSignedInAs(studentId) }")
-        assertCalls("fetchData", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
-        assertCalls("warmTerms", "stillSignedIn = { authService.isStillSignedInAs(studentId) }")
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn, countsAsUse = true) { signIn.isCurrent }")
+        assertCalls("fetchData", "stillSignedIn = { signIn.isCurrent }")
+        assertCalls("warmTerms", "stillSignedIn = { signIn.isCurrent }")
     }
 
     /**
@@ -366,9 +366,9 @@ class ClassTableWiringTest {
         val body = body("fetchTermCourses")
         val commit = body.indexOf("pendingCourseAdds.uploading {")
         val committed = body.indexOf("termFetch.committed(")
-        val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, generation)")
+        val record = body.indexOf("dataCache.recordFinalRoster(semester, it.roster, alsoListed = it.dropping, signIn)")
         val fold = body.indexOf("termFetch.foldLatest(")
-        val save = body.indexOf("dataCache.updateCourses(semester)")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
         val upload = body.indexOf("pushApiClient.uploadCourses(")
         assertTrue("fetchTermCourses no longer commits the drawn term under the lock", commit in 0 until committed)
         assertTrue("fetchTermCourses no longer records a rebuild's drops in the commit", record in committed until fold)
@@ -410,9 +410,11 @@ class ClassTableWiringTest {
      */
     @Test
     fun `a fetch uploads as the sign-in its lookups began under`() {
-        val body = body("fetchTermCourses")
-        val pinned = body.indexOf("val signIn = authTokenManager.signInGeneration")
-        assertTrue("fetchTermCourses no longer reads the sign-in before its lookups", pinned in 0 until body.indexOf("termFetch.lookUp("))
+        val fetch = body("fetchData")
+        val pinned = fetch.indexOf("val signIn = signInNow()")
+        assertTrue("fetchData no longer reads the sign-in before its fetch", pinned in 0 until fetch.indexOf("courseService.fetchEnrolledCourseNos("))
+        assertCalls("fetchData", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn,", "warmTerms(studentId, password, moodleAll, transcript, signIn)")
+        assertCalls("warmTerm", "fetchTermCourses(semester, source, moodleByNo, recorded, signIn)")
         assertCalls("fetchTermCourses", "signIn = signIn")
     }
 

@@ -24,8 +24,10 @@ import org.ntust.app.tigerduck.data.moodle.SubmissionStatusAnswer
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.ntust.app.tigerduck.network.SubmissionStatusProbe
+import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -44,6 +46,7 @@ class AssignmentReminderCheckTest {
     private lateinit var scheduler: AssignmentNotificationScheduler
     private lateinit var fixtures: DebugFixtureStore
     private lateinit var ledger: AssignmentStatusLedger
+    private val series = SignInSeries()
     private lateinit var writer: AssignmentStatusWriter
     private lateinit var check: AssignmentReminderCheck
 
@@ -77,9 +80,9 @@ class AssignmentReminderCheckTest {
                 .build()
         }.build()
         fixtures = DebugFixtureStore(context)
-        ledger = AssignmentStatusLedger { dataCache.userDataGeneration }
+        ledger = AssignmentStatusLedger()
         // The pages' writer, which tells no one here: what the check itself tells is what is tested.
-        writer = AssignmentStatusWriter(ledger, dataCache) {}
+        writer = AssignmentStatusWriter(ledger, dataCache) { _, _ -> }
         check = AssignmentReminderCheck(
             dataCache, scheduler, SubmissionStatusProbe({ storedToken }, client), fixtures, AppPreferences(context),
             writer,
@@ -114,7 +117,7 @@ class AssignmentReminderCheckTest {
         }
 
     private suspend fun armAll(vararg assignments: Assignment) {
-        dataCache.saveAssignments(assignments.toList())
+        dataCache.saveAssignments(assignments.toList(), testSignIn())
         scheduler.scheduleAll(
             dataCache.loadOutstandingAssignments(),
             setOf(AssignmentReminderOffset.HR24, AssignmentReminderOffset.HR2),
@@ -129,7 +132,7 @@ class AssignmentReminderCheckTest {
 
         moodle = { answer(own = "new") }
 
-        val verdict = check.verdict("20977", assignment.dueDate.time)
+        val verdict = check.verdict("20977", assignment.dueDate.time, series.current)
 
         assertEquals(ReminderVerdict.Show, verdict)
         assertEquals(listOf("20977"), asked)
@@ -144,7 +147,7 @@ class AssignmentReminderCheckTest {
 
         moodle = { answer(own = null) }
 
-        val verdict = check.verdict("20977", assignment.dueDate.time)
+        val verdict = check.verdict("20977", assignment.dueDate.time, series.current)
 
         assertEquals(ReminderVerdict.Show, verdict)
         assertEquals(listOf(assignment), dataCache.loadAssignments())
@@ -160,7 +163,7 @@ class AssignmentReminderCheckTest {
 
             moodle = { answer(own = null, team = "submitted") }
 
-            val verdict = check.verdict("20977", assignment.dueDate.time)
+            val verdict = check.verdict("20977", assignment.dueDate.time, series.current)
 
             assertEquals(ReminderVerdict.Drop(ReminderDropReason.SUBMITTED_ON_MOODLE), verdict)
             assertEquals(
@@ -179,9 +182,9 @@ class AssignmentReminderCheckTest {
         val marked = dueInThreeDays("20977")
         val ofIgnoredCourse = dueInThreeDays("20978").copy(courseNo = "IGNORED")
         val moved = dueInThreeDays("20979")
-        dataCache.saveAssignments(listOf(marked, ofIgnoredCourse, moved))
-        dataCache.saveMarkedCompletedAssignments(setOf("20977"))
-        dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")))
+        dataCache.saveAssignments(listOf(marked, ofIgnoredCourse, moved), testSignIn())
+        dataCache.saveMarkedCompletedAssignments(setOf("20977"), testSignIn())
+        dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")), testSignIn())
         moodle = { answer(own = "new") }
 
         assertEquals(
@@ -192,10 +195,10 @@ class AssignmentReminderCheckTest {
                 ReminderVerdict.Drop(ReminderDropReason.NOT_IN_CACHE),
             ),
             listOf(
-                check.verdict("20977", marked.dueDate.time),
-                check.verdict("20978", ofIgnoredCourse.dueDate.time),
-                check.verdict("20979", moved.dueDate.time - DAY_MS),
-                check.verdict("20980", null),
+                check.verdict("20977", marked.dueDate.time, series.current),
+                check.verdict("20978", ofIgnoredCourse.dueDate.time, series.current),
+                check.verdict("20979", moved.dueDate.time - DAY_MS, series.current),
+                check.verdict("20980", null, series.current),
             ),
         )
         assertEquals(emptyList<String>(), asked)
@@ -206,24 +209,24 @@ class AssignmentReminderCheckTest {
         val marked = dueInThreeDays("20977")
         val ofIgnoredCourse = dueInThreeDays("20978").copy(courseNo = "IGNORED")
         val moved = dueInThreeDays("20979")
-        dataCache.saveAssignments(listOf(marked, ofIgnoredCourse, moved))
+        dataCache.saveAssignments(listOf(marked, ofIgnoredCourse, moved), testSignIn())
         fun changingMeanwhile(change: suspend () -> Unit): () -> String = {
             runBlocking { change() }
             answer(own = "new")
         }
 
-        moodle = changingMeanwhile { dataCache.saveMarkedCompletedAssignments(setOf("20977")) }
-        val afterMark = check.verdict("20977", marked.dueDate.time)
+        moodle = changingMeanwhile { dataCache.saveMarkedCompletedAssignments(setOf("20977"), testSignIn()) }
+        val afterMark = check.verdict("20977", marked.dueDate.time, series.current)
         moodle = changingMeanwhile {
-            dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")))
+            dataCache.saveIgnoredCourses(setOf(CourseIgnores.key(dataCache.currentSemesterCode(), "IGNORED")), testSignIn())
         }
-        val afterIgnore = check.verdict("20978", ofIgnoredCourse.dueDate.time)
+        val afterIgnore = check.verdict("20978", ofIgnoredCourse.dueDate.time, series.current)
         moodle = changingMeanwhile {
-            dataCache.updateAssignments { all ->
+            dataCache.updateAssignments(testSignIn()) { all ->
                 all.map { if (it == moved) it.copy(dueDate = Date(it.dueDate.time + DAY_MS)) else it }
             }
         }
-        val afterMove = check.verdict("20979", moved.dueDate.time)
+        val afterMove = check.verdict("20979", moved.dueDate.time, series.current)
 
         assertEquals(
             listOf(
@@ -238,11 +241,11 @@ class AssignmentReminderCheckTest {
     @Test
     fun `an id Moodle does not number is not asked about`() = runBlocking {
         val manual = dueInThreeDays("manual-1")
-        dataCache.saveAssignments(listOf(manual))
+        dataCache.saveAssignments(listOf(manual), testSignIn())
 
         moodle = { answer(own = "new") }
 
-        val verdict = check.verdict("manual-1", manual.dueDate.time)
+        val verdict = check.verdict("manual-1", manual.dueDate.time, series.current)
 
         assertEquals(ReminderVerdict.Drop(ReminderDropReason.NO_ANSWER), verdict)
         assertEquals(emptyList<String>(), asked)
@@ -252,17 +255,19 @@ class AssignmentReminderCheckTest {
     fun `an answer that outlived a sign-out leaves the next account's cache and reminders alone`() =
         runBlocking {
             val assignment = dueInThreeDays("20977")
-            dataCache.saveAssignments(listOf(assignment))
+            dataCache.saveAssignments(listOf(assignment), testSignIn())
             moodle = {
                 runBlocking {
+                    series.end()
                     dataCache.clearAllUserData()
+                    series.open()
                     // The next account, in the same course, with the assignment still to do.
                     armAll(assignment)
                 }
                 answer(own = "submitted")
             }
 
-            val verdict = check.verdict("20977", assignment.dueDate.time)
+            val verdict = check.verdict("20977", assignment.dueDate.time, series.current)
 
             // The departed account's "handed in" decides nothing for the next one.
             assertEquals(ReminderVerdict.Drop(ReminderDropReason.SUPERSEDED), verdict)
@@ -275,11 +280,12 @@ class AssignmentReminderCheckTest {
         val assignment = dueInThreeDays("20977")
         armAll(assignment)
         moodle = {
+            series.end()
             runBlocking { dataCache.clearAllUserData() }
             answer(own = "new")
         }
 
-        assertEquals(ReminderVerdict.Drop(ReminderDropReason.NOT_IN_CACHE), check.verdict("20977", assignment.dueDate.time))
+        assertEquals(ReminderVerdict.Drop(ReminderDropReason.NOT_IN_CACHE), check.verdict("20977", assignment.dueDate.time, series.current))
     }
 
     @Test
@@ -289,12 +295,12 @@ class AssignmentReminderCheckTest {
         storedToken = null
         val due = dueInThreeDays("900001")
         val handedIn = dueInThreeDays("900003").copy(isCompleted = true)
-        dataCache.saveAssignments(listOf(due, handedIn))
+        dataCache.saveAssignments(listOf(due, handedIn), testSignIn())
 
-        assertEquals(ReminderVerdict.Show, check.verdict("900001", due.dueDate.time))
+        assertEquals(ReminderVerdict.Show, check.verdict("900001", due.dueDate.time, series.current))
         assertEquals(
             ReminderVerdict.Drop(ReminderDropReason.SUBMITTED_IN_CACHE),
-            check.verdict("900003", handedIn.dueDate.time),
+            check.verdict("900003", handedIn.dueDate.time, series.current),
         )
         assertEquals(emptyList<String>(), asked)
     }
@@ -304,7 +310,7 @@ class AssignmentReminderCheckTest {
     @Test
     fun `a rejected token drops the reminder`() = runBlocking {
         val assignment = dueInThreeDays("20977")
-        dataCache.saveAssignments(listOf(assignment))
+        dataCache.saveAssignments(listOf(assignment), testSignIn())
         moodle = {
             """{"exception":"moodle_exception","errorcode":"invalidtoken",""" +
                 """"message":"Invalid token - token not found"}"""
@@ -312,14 +318,14 @@ class AssignmentReminderCheckTest {
 
         assertEquals(
             ReminderVerdict.Drop(ReminderDropReason.TOKEN_REJECTED),
-            check.verdict("20977", assignment.dueDate.time),
+            check.verdict("20977", assignment.dueDate.time, series.current),
         )
     }
 
     @Test
     fun `an expired token's first answer, an access exception, drops the reminder as rejected`() = runBlocking {
         val assignment = dueInThreeDays("20977")
-        dataCache.saveAssignments(listOf(assignment))
+        dataCache.saveAssignments(listOf(assignment), testSignIn())
         moodle = {
             """{"exception":"webservice_access_exception","errorcode":"accessexception",""" +
                 """"message":"Access control exception"}"""
@@ -327,19 +333,19 @@ class AssignmentReminderCheckTest {
 
         assertEquals(
             ReminderVerdict.Drop(ReminderDropReason.TOKEN_REJECTED),
-            check.verdict("20977", assignment.dueDate.time),
+            check.verdict("20977", assignment.dueDate.time, series.current),
         )
     }
 
     @Test
     fun `no stored token drops the reminder without a request`() = runBlocking {
         val assignment = dueInThreeDays("20977")
-        dataCache.saveAssignments(listOf(assignment))
+        dataCache.saveAssignments(listOf(assignment), testSignIn())
         storedToken = null
 
         assertEquals(
             ReminderVerdict.Drop(ReminderDropReason.NO_TOKEN),
-            check.verdict("20977", assignment.dueDate.time),
+            check.verdict("20977", assignment.dueDate.time, series.current),
         )
         assertEquals(emptyList<String>(), asked)
     }
@@ -347,12 +353,12 @@ class AssignmentReminderCheckTest {
     @Test
     fun `no connection drops the reminder`() = runBlocking {
         val assignment = dueInThreeDays("20977")
-        dataCache.saveAssignments(listOf(assignment))
+        dataCache.saveAssignments(listOf(assignment), testSignIn())
         moodle = { throw IOException("unreachable") }
 
         assertEquals(
             ReminderVerdict.Drop(ReminderDropReason.NO_ANSWER),
-            check.verdict("20977", assignment.dueDate.time),
+            check.verdict("20977", assignment.dueDate.time, series.current),
         )
     }
 
@@ -374,7 +380,7 @@ class AssignmentReminderCheckTest {
             """{"lastattempt":{"submissionsenabled":true,"locked":false,"extensionduedate":${extension / 1000}},"warnings":[]}"""
         }
 
-        assertEquals(ReminderVerdict.Show, check.verdict("20977", extension))
+        assertEquals(ReminderVerdict.Show, check.verdict("20977", extension, series.current))
     }
 
     /** A status answer with nothing handed in and the student's extension, epoch milliseconds. */
@@ -395,7 +401,7 @@ class AssignmentReminderCheckTest {
         val extension = (AppClock.nowMillis() + 6 * DAY_MS) / 1000 * 1000
 
         moodle = { extendedTo(extension) }
-        val verdict = check.verdict("20977", assignment.dueDate.time)
+        val verdict = check.verdict("20977", assignment.dueDate.time, series.current)
 
         assertTrue("armed for the date before", verdict is ReminderVerdict.Drop)
         assertEquals(Date(extension), dataCache.loadAssignments().single().extensionDueDate)
@@ -410,7 +416,7 @@ class AssignmentReminderCheckTest {
         armAll(assignment)
 
         moodle = { extendedTo(null) }
-        val verdict = check.verdict("20977", extension)
+        val verdict = check.verdict("20977", extension, series.current)
 
         assertTrue(verdict is ReminderVerdict.Drop)
         assertEquals(null, dataCache.loadAssignments().single().extensionDueDate)
@@ -427,7 +433,7 @@ class AssignmentReminderCheckTest {
             """{"lastattempt":{"submission":{"status":"submitted","timemodified":$SUBMITTED_AT_SECONDS},""" +
                 """"submissionsenabled":true,"locked":false,"extensionduedate":${extension / 1000}},"warnings":[]}"""
         }
-        val verdict = check.verdict("20977", assignment.dueDate.time)
+        val verdict = check.verdict("20977", assignment.dueDate.time, series.current)
 
         assertEquals(ReminderVerdict.Drop(ReminderDropReason.SUBMITTED_ON_MOODLE), verdict)
         assertEquals(
@@ -449,12 +455,12 @@ class AssignmentReminderCheckTest {
             // The assignment's page asks after the reminder's call went out, and answers first.
             runBlocking {
                 writer.take(
-                    SubmissionStatusAnswer("20977", false, null, monotonicNow + 1, dataCache.userDataGeneration, fromPage),
+                    SubmissionStatusAnswer("20977", false, null, monotonicNow + 1, series.current, fromPage),
                 )
             }
             extendedTo(fromReminder)
         }
-        check.verdict("20977", assignment.dueDate.time)
+        check.verdict("20977", assignment.dueDate.time, series.current)
 
         assertEquals(Date(fromPage), dataCache.loadAssignments().single().extensionDueDate)
     }
@@ -464,16 +470,16 @@ class AssignmentReminderCheckTest {
         val assignment = dueInThreeDays("20977")
         armAll(assignment)
         val extension = (AppClock.nowMillis() + 6 * DAY_MS) / 1000 * 1000
-        val generation = dataCache.userDataGeneration
+        val signIn = series.current
         val roundAskedAt = monotonicNow - 1
 
         moodle = { extendedTo(extension) }
-        check.verdict("20977", assignment.dueDate.time)
+        check.verdict("20977", assignment.dueDate.time, series.current)
         // The round writes after the call, with what Moodle told it before: no extension.
         val written = ledger.reconcile(
             listOf(assignment),
-            mapOf("20977" to SubmissionStatusAnswer("20977", false, null, roundAskedAt, generation)),
-            generation,
+            mapOf("20977" to SubmissionStatusAnswer("20977", false, null, roundAskedAt, signIn)),
+            signIn,
         )
 
         assertEquals(Date(extension), written.single().extensionDueDate)
@@ -487,7 +493,7 @@ class AssignmentReminderCheckTest {
 
         moodle = { extendedTo(extension) }
 
-        assertEquals(ReminderVerdict.Drop(ReminderDropReason.DUE_DATE_CHANGED), check.verdict("20977", null))
+        assertEquals(ReminderVerdict.Drop(ReminderDropReason.DUE_DATE_CHANGED), check.verdict("20977", null, series.current))
     }
 
     @Test
@@ -499,11 +505,11 @@ class AssignmentReminderCheckTest {
             // The page asks after the reminder's call went out and hears the work was reopened, then
             // the call's older answer arrives: handed in.
             runBlocking {
-                writer.take(SubmissionStatusAnswer("20977", false, null, monotonicNow + 1, dataCache.userDataGeneration))
+                writer.take(SubmissionStatusAnswer("20977", false, null, monotonicNow + 1, series.current))
             }
             answer(own = "submitted")
         }
-        val verdict = check.verdict("20977", assignment.dueDate.time)
+        val verdict = check.verdict("20977", assignment.dueDate.time, series.current)
 
         assertEquals(ReminderVerdict.Drop(ReminderDropReason.SUPERSEDED), verdict)
         assertEquals(false, dataCache.loadAssignments().single().isCompleted)
@@ -542,7 +548,7 @@ class AssignmentReminderCheckTest {
             AppClock.setOverride(ClockOverride(start + 90 * MINUTE_MS, frozen = true, savedAtRealMillis = 0L))
             moodle = { extendedTo(extension) }
 
-            check.verdict("20977", extended.dueDate.time)
+            check.verdict("20977", extended.dueDate.time, series.current)
 
             assertTrue(
                 "the other assignment's reminder waiting to go off",

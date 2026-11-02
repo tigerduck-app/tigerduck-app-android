@@ -28,6 +28,7 @@ import org.ntust.app.tigerduck.notification.ClassPreparingNotificationReceiver
 import org.ntust.app.tigerduck.notification.ClassReminderAlarms
 import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -149,7 +150,7 @@ class ClassBannerClearingTest {
                         title = "Lab 2",
                         dueDate = java.util.Date(now + 60 * 60_000L),
                     )
-                )
+                ), testSignIn()
             )
         }
         banner(1, startMs = now - 60_000L)

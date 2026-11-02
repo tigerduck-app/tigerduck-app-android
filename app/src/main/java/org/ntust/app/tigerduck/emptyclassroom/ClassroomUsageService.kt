@@ -15,12 +15,12 @@ import okhttp3.Request
 import okhttp3.Response
 import org.ntust.app.tigerduck.network.NtustSessionManager
 import org.ntust.app.tigerduck.network.SsoLoginService
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.util.logSummary
 import java.io.IOException
 import java.time.LocalDate
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -99,8 +99,6 @@ class ClassroomUsageService internal constructor(
 
     private val kept = ConcurrentHashMap<Int, KeptUsage>()
 
-    /** Moved by [forget], so a read running across a sign-out writes nothing back. */
-    private val epoch = AtomicInteger()
     private val oneAtATime = Mutex()
 
     /**
@@ -112,11 +110,14 @@ class ClassroomUsageService internal constructor(
         return kept[ClassroomUsageParser.dayNumber(day)]?.takeIf { nowMs() - it.fetchedAtMs < STALE_LIMIT_MS }
     }
 
-    /** [isToday] sets only how long the day stays fresh: today's date is posted like any other. */
-    suspend fun usage(day: LocalDate, isToday: Boolean, force: Boolean, credentials: Credentials): KeptUsage {
+    /**
+     * [isToday] sets only how long the day stays fresh: today's date is posted like any other.
+     * [ticket], the sign-in the read began under, ends it at a sign-out and keeps its answer from
+     * being kept: asked as the answer is put, so [forget], which comes after the end, takes it.
+     */
+    suspend fun usage(day: LocalDate, isToday: Boolean, force: Boolean, credentials: Credentials, ticket: SignIn): KeptUsage {
         demo(day)?.let { return KeptUsage(it, nowMs()) }
         val number = ClassroomUsageParser.dayNumber(day)
-        val ticket = epoch.get()
         if (!force) fresh(number, isToday)?.let { return it }
         return oneAtATime.withLock {
             // A sign-out while this read waited ends it before any request; a read that waited
@@ -124,19 +125,15 @@ class ClassroomUsageService internal constructor(
             check(ticket)
             if (!force) fresh(number, isToday)?.let { return@withLock it }
             val usage = fetch(number, credentials, ticket)
-            check(ticket)
-            KeptUsage(usage, nowMs()).also { kept[number] = it }
+            KeptUsage(usage, nowMs()).also { read -> ticket.ifCurrent { kept[number] = read } ?: throw ClassroomUsageError.SignedOut() }
         }
     }
 
     /** Sign-out calls this. The cour01 cookies go when the sign-out empties the cookie jar. */
-    fun forget() {
-        epoch.incrementAndGet()
-        kept.clear()
-    }
+    fun forget() = kept.clear()
 
-    private fun check(ticket: Int) {
-        if (ticket != epoch.get()) throw ClassroomUsageError.SignedOut()
+    private fun check(ticket: SignIn) {
+        if (!ticket.isCurrent) throw ClassroomUsageError.SignedOut()
     }
 
     private fun fresh(day: Int, isToday: Boolean): KeptUsage? {
@@ -151,7 +148,7 @@ class ClassroomUsageService internal constructor(
      * to nothing, but it drops the cour01 cookies too, so a session the site broke on its side
      * does not outlive it: the next read or Retry starts clean.
      */
-    private suspend fun fetch(day: Int, credentials: Credentials, ticket: Int): CampusUsage =
+    private suspend fun fetch(day: Int, credentials: Credentials, ticket: SignIn): CampusUsage =
         try {
             try {
                 read(day, credentials, ticket)
@@ -170,7 +167,7 @@ class ClassroomUsageService internal constructor(
             throw e
         }
 
-    private suspend fun read(day: Int, credentials: Credentials, ticket: Int): CampusUsage {
+    private suspend fun read(day: Int, credentials: Credentials, ticket: SignIn): CampusUsage {
         var page = campusPage(credentials, ticket)
         // The campus page shows a grid as well, but nothing on it is known to name that grid's
         // day, which the site may keep from an earlier read, so today's date is posted too
@@ -202,12 +199,12 @@ class ClassroomUsageService internal constructor(
     }
 
     /** The query page with the main campus chosen, reached by signing in when the session has lapsed. */
-    private suspend fun campusPage(credentials: Credentials, ticket: Int): ClassroomUsageParser.Page {
+    private suspend fun campusPage(credentials: Credentials, ticket: SignIn): ClassroomUsageParser.Page {
         var html = transport.get(QUERY_URL)
         if (html == null || !ClassroomUsageParser.isQueryPage(html)) {
             check(ticket)
             // The SSO login waits its turn behind any other; a sign-out meanwhile refuses it there.
-            val signedIn = signIn(credentials) { ticket == epoch.get() }
+            val signedIn = signIn(credentials) { ticket.isCurrent }
             check(ticket)
             if (!signedIn) throw ClassroomUsageError.NotSignedIn()
             html = transport.get(QUERY_URL)
@@ -229,7 +226,7 @@ class ClassroomUsageService internal constructor(
         postback: ClassroomUsageParser.Postback,
         from: ClassroomUsageParser.Page,
         values: Map<String, String> = emptyMap(),
-        ticket: Int,
+        ticket: SignIn,
     ): ClassroomUsageParser.Page {
         check(ticket)
         val overrides = values + mapOf(

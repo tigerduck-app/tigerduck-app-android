@@ -4,6 +4,7 @@ import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.TranscriptTerms
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
  * A fetch's [fetched] rows of [semester], Home's or the background sync's, [merge]d onto the
@@ -31,11 +32,12 @@ internal suspend fun commitFetchedTerm(
     fetched: List<Course>,
     onlyGains: Boolean,
     answer: SelectionAnswer?,
+    signIn: SignIn,
     waitingAdds: suspend () -> Set<String>,
     merge: (fetched: List<Course>, current: List<Course>, hidden: Set<String>) -> List<Course>,
 ): List<Course>? {
     var committed: List<Course>? = null
-    dataCache.updateCourses(semester) { current, hidden ->
+    dataCache.updateCourses(semester, signIn) { current, hidden ->
         if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@updateCourses current
         // The drop list's read takes only the user data's lock, never the drop list's own.
         val dropped = if (onlyGains) dataCache.fetchDropsIn(semester) else emptySet()

@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * What a sync keeps per account goes at sign-out ([AppPreferences.clearSyncStamps]),
@@ -17,9 +18,9 @@ class SyncStampsTest {
     private val prefs = AppPreferences(context)
 
     private fun keep() {
-        prefs.lastSeenCoursesResetAt = "2026-10-10T16:42:49+00:00"
-        prefs.assignmentsUploadFingerprint = "abc"
-        prefs.assignmentsUploadedAtMs = 42L
+        prefs.school.lastSeenCoursesResetAt.set("2026-10-10T16:42:49+00:00", testSignIn())
+        prefs.school.assignmentsUploadFingerprint.set("abc", testSignIn())
+        prefs.school.assignmentsUploadedAtMs.set(42L, testSignIn())
         prefs.recordCoursesUpload("1151", "c1", 7L)
         prefs.recordCoursesUpload("1142", "c2", 8L)
     }
@@ -37,9 +38,9 @@ class SyncStampsTest {
 
         prefs.clearSyncStamps()
 
-        assertNull(prefs.lastSeenCoursesResetAt)
-        assertNull(prefs.assignmentsUploadFingerprint)
-        assertEquals(0L, prefs.assignmentsUploadedAtMs)
+        assertNull(prefs.school.lastSeenCoursesResetAt.get())
+        assertNull(prefs.school.assignmentsUploadFingerprint.get())
+        assertEquals(0L, prefs.school.assignmentsUploadedAtMs.get())
         assertCourseListsForgotten()
     }
 
@@ -49,10 +50,10 @@ class SyncStampsTest {
 
         prefs.forgetUploads()
 
-        assertNull(prefs.assignmentsUploadFingerprint)
-        assertEquals(0L, prefs.assignmentsUploadedAtMs)
+        assertNull(prefs.school.assignmentsUploadFingerprint.get())
+        assertEquals(0L, prefs.school.assignmentsUploadedAtMs.get())
         assertCourseListsForgotten()
-        assertEquals("2026-10-10T16:42:49+00:00", prefs.lastSeenCoursesResetAt)
+        assertEquals("2026-10-10T16:42:49+00:00", prefs.school.lastSeenCoursesResetAt.get())
     }
 
     @Test
@@ -65,7 +66,7 @@ class SyncStampsTest {
         assertEquals(0L, prefs.coursesUploadedAtMs("1151"))
         assertEquals("c2", prefs.coursesUploadFingerprint("1142"))
         assertEquals(8L, prefs.coursesUploadedAtMs("1142"))
-        assertEquals("abc", prefs.assignmentsUploadFingerprint)
+        assertEquals("abc", prefs.school.assignmentsUploadFingerprint.get())
     }
 
     @Test
@@ -96,7 +97,7 @@ class SyncStampsTest {
             flip(false)
             keep()
             flip(true)
-            assertNull(prefs.assignmentsUploadFingerprint)
+            assertNull(prefs.school.assignmentsUploadFingerprint.get())
             assertNull(prefs.coursesUploadFingerprint("1151"))
         }
     }
@@ -108,7 +109,7 @@ class SyncStampsTest {
 
         prefs.syncAssignments = true
 
-        assertEquals("abc", prefs.assignmentsUploadFingerprint)
+        assertEquals("abc", prefs.school.assignmentsUploadFingerprint.get())
         assertEquals("c1", prefs.coursesUploadFingerprint("1151"))
     }
 }

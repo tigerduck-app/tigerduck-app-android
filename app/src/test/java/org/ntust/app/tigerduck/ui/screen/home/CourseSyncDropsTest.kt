@@ -26,6 +26,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermFetch
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableTermSource
 import org.ntust.app.tigerduck.util.JvmContext
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The sync merge's handling of dropped courses: the ones this phone's course selection, or a
@@ -344,7 +345,6 @@ class CourseSyncDropsTest {
             { _, _, _, _, _, _, _ -> false },
             records = { true },
             sends = { false },
-            signInGeneration = { 0 },
         )
     }
 
@@ -370,13 +370,13 @@ class CourseSyncDropsTest {
                 answer = cache.selectionAnswerIn(TERM),
                 fetchedAtMs = fetchedAtMs,
             )
-            cache.recordServerDrops(TERM, outcome.serverDrops)
+            cache.recordServerDrops(TERM, outcome.serverDrops, testSignIn())
             beforeCommit()
-            cache.saveServerKnownNos(mapOf(TERM to outcome.serverKnownNos.sorted()))
+            cache.saveServerKnownNos(mapOf(TERM to outcome.serverKnownNos.sorted()), testSignIn())
             val kept = CourseSyncReconciler.pruneHidden(TERM, localCourses, outcome.tombstones)
             commitReconciledTerm(
                 cache, courseSync, TERM, stored, outcome.tombstones, emptySet(), localCourses, kept, outcome.left,
-                outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides,
+                outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, overrides, testSignIn(),
             )
         } finally {
             cache.endCourseSync(courseSync)
@@ -385,7 +385,7 @@ class CourseSyncDropsTest {
 
     @Test
     fun `a merged copy a roster dropped leaves the term with no hide, and comes back once enrolled again`() = runTest {
-        cache.saveCourses(listOf(fetched(ENROLLED)), TERM)
+        cache.saveCourses(listOf(fetched(ENROLLED)), TERM, testSignIn())
         syncListing(row(ENROLLED), row(MERGED))
         assertEquals(listOf(ENROLLED, MERGED), cache.loadCourses(TERM).map { it.courseNo })
 
@@ -404,14 +404,14 @@ class CourseSyncDropsTest {
      */
     @Test
     fun `a course a fetch cut short dropped leaves the term with no hide, and comes back once listed again`() = runTest {
-        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED)), TERM)
-        cache.recordSelectionRoster(TERM, listOf(ENROLLED))
+        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED)), TERM, testSignIn())
+        cache.recordSelectionRoster(TERM, listOf(ENROLLED), testSignIn())
 
         syncListing(row(ENROLLED), row(FETCHED))
         assertEquals(listOf(ENROLLED), cache.loadCourses(TERM).map { it.courseNo })
         assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
 
-        cache.recordSelectionRoster(TERM, listOf(ENROLLED, FETCHED))
+        cache.recordSelectionRoster(TERM, listOf(ENROLLED, FETCHED), testSignIn())
         syncListing(row(ENROLLED), row(FETCHED))
         assertEquals(listOf(ENROLLED, FETCHED), cache.loadCourses(TERM).map { it.courseNo })
     }
@@ -442,13 +442,13 @@ class CourseSyncDropsTest {
      */
     @Test
     fun `a merged copy listed again while the sync ran stays, with the color waiting for it`() = runTest {
-        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
-        cache.recordFinalRoster(TERM, listOf(ENROLLED), alsoListed = listOf(MERGED))
-        overrides.send(moodleId = "$TERM$MERGED", colorHex = "#2E7D32", semester = TERM, courseNo = MERGED)
+        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM, testSignIn())
+        cache.recordFinalRoster(TERM, listOf(ENROLLED), alsoListed = listOf(MERGED), testSignIn())
+        overrides.send(moodleId = "$TERM$MERGED", colorHex = "#2E7D32", semester = TERM, courseNo = MERGED, signIn = testSignIn())
 
         syncListing(row(ENROLLED), row(MERGED)) {
-            cache.recordFinalRoster(TERM, listOf(ENROLLED, MERGED), alsoListed = emptyList())
-            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+            cache.recordFinalRoster(TERM, listOf(ENROLLED, MERGED), alsoListed = emptyList(), testSignIn())
+            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM, testSignIn())
         }
 
         assertEquals(listOf(ENROLLED, MERGED), cache.loadCourses(TERM).map { it.courseNo })
@@ -462,16 +462,16 @@ class CourseSyncDropsTest {
      */
     @Test
     fun `a merged copy course selection lists stays though the snapshot has it dropped, until an answer leaves it out`() = runTest {
-        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM, testSignIn())
         val anHourAgo = iso(System.currentTimeMillis() - 3_600_000L)
 
         syncListing(row(ENROLLED), row(MERGED, status = "dropped", updatedAt = anHourAgo)) {
-            cache.recordSelectionRoster(TERM, listOf(ENROLLED, MERGED))
-            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+            cache.recordSelectionRoster(TERM, listOf(ENROLLED, MERGED), testSignIn())
+            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM, testSignIn())
         }
         assertEquals(listOf(ENROLLED, MERGED), cache.loadCourses(TERM).map { it.courseNo })
 
-        cache.recordSelectionRoster(TERM, listOf(ENROLLED))
+        cache.recordSelectionRoster(TERM, listOf(ENROLLED), testSignIn())
         syncListing(row(ENROLLED), row(MERGED, status = "dropped", updatedAt = anHourAgo))
         assertEquals(listOf(ENROLLED), cache.loadCourses(TERM).map { it.courseNo })
         assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
@@ -485,8 +485,8 @@ class CourseSyncDropsTest {
      */
     @Test
     fun `a course selection answer older than a roster's drop does not keep the course, and a newer one does`() = runTest {
-        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED), mergedCopy(MERGED)), TERM)
-        cache.recordSelectionRoster(TERM, listOf(ENROLLED, FETCHED, MERGED))
+        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED), mergedCopy(MERGED)), TERM, testSignIn())
+        cache.recordSelectionRoster(TERM, listOf(ENROLLED, FETCHED, MERGED), testSignIn())
         val inAnHour = iso(System.currentTimeMillis() + 3_600_000L)
 
         syncListing(
@@ -499,7 +499,7 @@ class CourseSyncDropsTest {
         assertEquals(emptySet<String>(), cache.loadDeletedCourseNos())
         assertEquals(setOf(FETCHED, MERGED), cache.serverDroppedIn(TERM))
 
-        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED)), TERM)
+        cache.saveCourses(listOf(fetched(ENROLLED), fetched(FETCHED)), TERM, testSignIn())
         syncListing(row(ENROLLED), row(FETCHED, status = "dropped", updatedAt = iso(System.currentTimeMillis() - 3_600_000L)))
         assertEquals(listOf(ENROLLED, FETCHED), cache.loadCourses(TERM).map { it.courseNo })
         assertEquals(emptySet<String>(), cache.serverDroppedIn(TERM))
@@ -508,12 +508,12 @@ class CourseSyncDropsTest {
     /** As above for a past term's rebuild, which keeps no answer but takes the course's drop off. */
     @Test
     fun `a merged copy a rebuild lists again while the sync ran stays though the snapshot has it dropped`() = runTest {
-        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
-        cache.recordFinalRoster(TERM, listOf(ENROLLED), alsoListed = listOf(MERGED))
+        cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM, testSignIn())
+        cache.recordFinalRoster(TERM, listOf(ENROLLED), alsoListed = listOf(MERGED), testSignIn())
 
         syncListing(row(ENROLLED), row(MERGED, status = "dropped")) {
-            cache.recordFinalRoster(TERM, listOf(ENROLLED, MERGED), alsoListed = emptyList())
-            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM)
+            cache.recordFinalRoster(TERM, listOf(ENROLLED, MERGED), alsoListed = emptyList(), testSignIn())
+            cache.saveCourses(listOf(fetched(ENROLLED), mergedCopy(MERGED)), TERM, testSignIn())
         }
 
         assertEquals(listOf(ENROLLED, MERGED), cache.loadCourses(TERM).map { it.courseNo })
@@ -546,11 +546,11 @@ class CourseSyncDropsTest {
             latest = { cache.loadCourses(TERM) },
             waitingAdds = { emptySet() },
             droppedNos = { emptySet() },
-            recordFinalRoster = { cache.recordFinalRoster(TERM, it.roster, alsoListed = it.dropping) },
+            recordFinalRoster = { cache.recordFinalRoster(TERM, it.roster, alsoListed = it.dropping, testSignIn()) },
         ) { drawn ->
             fetch.fold(drawn, cache.loadCourses(TERM), emptyMap(), "zh", CourseTombstoneKeys.hiddenIn(TERM, cache.loadDeletedCourseNos()))
         }
-        cache.saveCourses(rebuilt!!, TERM)
+        cache.saveCourses(rebuilt!!, TERM, testSignIn())
     }
 
     /**
@@ -561,13 +561,13 @@ class CourseSyncDropsTest {
      */
     @Test
     fun `a row a rebuild dropped while the sync ran is not merged, but one added by hand is`() = runTest {
-        cache.saveCourses(listOf(fetched(ENROLLED)), TERM)
+        cache.saveCourses(listOf(fetched(ENROLLED)), TERM, testSignIn())
 
         syncListing(row(ENROLLED), row(JUNK), row(OTHER_DEVICE, source = "user_added"), row(ADDED)) {
             rebuildTerm(moodleNos = listOf(JUNK, OTHER_DEVICE, ADDED))
             assertTrue(cache.loadSelectionDroppedNos()[TERM].orEmpty().containsAll(listOf(JUNK, OTHER_DEVICE, ADDED)))
             // The rebuild took ADDED off, and the student added it back by hand.
-            cache.saveCourses(cache.loadCourses(TERM) + addedHere(ADDED), TERM)
+            cache.saveCourses(cache.loadCourses(TERM) + addedHere(ADDED), TERM, testSignIn())
         }
 
         val term = cache.loadCourses(TERM)

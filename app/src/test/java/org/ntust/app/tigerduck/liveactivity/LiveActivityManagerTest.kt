@@ -38,6 +38,7 @@ import org.ntust.app.tigerduck.notification.NotificationChannelRegistrar
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.util.testSignIn
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -116,7 +117,7 @@ class LiveActivityManagerTest {
     @Before
     fun setUp() {
         shadowOf(context).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
-        runBlocking { dataCache.saveCourses(listOf(course)) }
+        runBlocking { dataCache.saveCourses(listOf(course), testSignIn()) }
     }
 
     @After
@@ -245,8 +246,8 @@ class LiveActivityManagerTest {
         val oldCourse = course.copy(courseNo = "CS1001301")
         val newCourse = course.copy(courseNo = "CS2002301")
         runBlocking {
-            dataCache.saveCourses(listOf(oldCourse), "1142")
-            dataCache.saveCourses(listOf(newCourse), "1151")
+            dataCache.saveCourses(listOf(oldCourse), "1142", testSignIn())
+            dataCache.saveCourses(listOf(newCourse), "1151", testSignIn())
         }
 
         runBlocking { overTwoTerms(day = 12, hour = 7).refreshAndWait() }
@@ -331,7 +332,7 @@ class LiveActivityManagerTest {
         liveUpdate.classPreparingLeadTimeSec = 15 * 60
         appPrefs.classReminderEnabled = true
         appPrefs.classReminderLeadMinutes = 15
-        runBlocking { dataCache.saveCourses(listOf(CourseChangeFixture.course())) }
+        runBlocking { dataCache.saveCourses(listOf(CourseChangeFixture.course()), testSignIn()) }
         return LiveActivityManager(
             preferences = liveUpdate,
             notifier = LiveActivityNotifier(context, liveUpdate, appPrefs, NotificationChannelRegistrar(context, appPrefs)),

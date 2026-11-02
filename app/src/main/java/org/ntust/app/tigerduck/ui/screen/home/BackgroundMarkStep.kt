@@ -4,6 +4,7 @@ import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.shared.account.SignIn
 
 /**
  * The background worker's assignment-mark step: it takes the server's marks
@@ -28,7 +29,7 @@ internal class BackgroundMarkStep(
     /** Whether the server's marks were [taken], and whether that [changed] this phone's. */
     data class Outcome(val taken: Boolean, val changed: Boolean)
 
-    suspend fun pull(result: BackendSyncResult): Outcome {
+    suspend fun pull(result: BackendSyncResult, signIn: SignIn): Outcome {
         val readAt = marksVersion()
         val localIgnored = store.ignored()
         val localCompleted = store.completed()
@@ -44,7 +45,7 @@ internal class BackgroundMarkStep(
         if (!takes) return NOT_TAKEN
         val marks = AssignmentOverrideReconciler.backgroundMarks(result.ignoredIds, result.completedIds, unsent())
         if (!switchOn() || marksVersion() != readAt) return NOT_TAKEN
-        store.replace(marks.ignored, marks.completed)
+        store.replace(marks.ignored, marks.completed, signIn)
         return Outcome(taken = true, changed = marks.ignored != localIgnored || marks.completed != localCompleted)
     }
 
@@ -54,15 +55,15 @@ internal class BackgroundMarkStep(
         /** The step over this phone's preferences and files, as the background worker runs it. */
         fun over(prefs: AppPreferences, dataCache: DataCache, unsentMarks: UnsentMarks) = BackgroundMarkStep(
             switchOn = { prefs.syncAssignments },
-            pendingConflicts = { prefs.pendingConflictCategories },
-            syncedBefore = { prefs.assignmentMarksSyncedOnce },
+            pendingConflicts = { prefs.school.pendingConflictCategories.get() },
+            syncedBefore = { prefs.school.assignmentMarksSyncedOnce.get() },
             marksVersion = { dataCache.assignmentMarksVersion.value },
             store = object : AssignmentMarkStep.MarkStore {
                 override suspend fun ignored() = dataCache.loadIgnoredAssignments()
                 override suspend fun completed() = dataCache.loadMarkedCompletedAssignments()
-                override suspend fun replace(ignored: Set<String>, completed: Set<String>) {
-                    dataCache.replaceIgnoredAssignments(ignored)
-                    dataCache.replaceMarkedCompletedAssignments(completed)
+                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
+                    dataCache.replaceIgnoredAssignments(ignored, signIn)
+                    dataCache.replaceMarkedCompletedAssignments(completed, signIn)
                 }
             },
             unsent = unsentMarks::statuses,

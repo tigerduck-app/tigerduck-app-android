@@ -6,7 +6,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler.STATUS_COMPLETED
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * The background worker's mark step ([BackgroundMarkStep]): it takes the
@@ -35,7 +37,7 @@ class BackgroundMarkStepTest {
         store = object : AssignmentMarkStep.MarkStore {
             override suspend fun ignored() = ignored
             override suspend fun completed() = completed
-            override suspend fun replace(ignored: Set<String>, completed: Set<String>) {
+            override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
                 writes++
                 version++
                 this@BackgroundMarkStepTest.ignored = ignored
@@ -55,7 +57,7 @@ class BackgroundMarkStepTest {
 
     @Test
     fun `the server's marks are taken`() = runTest {
-        val outcome = step.pull(server(ignored = setOf("1")))
+        val outcome = step.pull(server(ignored = setOf("1")), testSignIn())
 
         assertTrue(outcome.taken)
         assertTrue(outcome.changed)
@@ -67,7 +69,7 @@ class BackgroundMarkStepTest {
         completed = setOf("2")
         onUnsentRead = { switchOn = false }
 
-        val outcome = step.pull(server(ignored = setOf("1")))
+        val outcome = step.pull(server(ignored = setOf("1")), testSignIn())
 
         assertFalse(outcome.taken)
         assertEquals(0, writes)
@@ -82,7 +84,7 @@ class BackgroundMarkStepTest {
             version++
         }
 
-        val outcome = step.pull(server(ignored = setOf("1")))
+        val outcome = step.pull(server(ignored = setOf("1")), testSignIn())
 
         assertFalse(outcome.taken)
         assertEquals(setOf("2"), completed)
@@ -92,7 +94,7 @@ class BackgroundMarkStepTest {
     fun `a waiting mark keeps the status its tap set`() = runTest {
         unsent = mapOf("3" to STATUS_COMPLETED)
 
-        step.pull(server(ignored = setOf("3")))
+        step.pull(server(ignored = setOf("3")), testSignIn())
 
         assertEquals(setOf("3"), completed)
         assertEquals(emptySet<String>(), ignored)
@@ -101,14 +103,14 @@ class BackgroundMarkStepTest {
     @Test
     fun `with the switch off, the check pending or a first sync nothing is written`() = runTest {
         switchOn = false
-        assertFalse(step.pull(server(ignored = setOf("1"))).taken)
+        assertFalse(step.pull(server(ignored = setOf("1")), testSignIn()).taken)
         switchOn = true
         pending = setOf("assignments")
-        assertFalse(step.pull(server(ignored = setOf("1"))).taken)
+        assertFalse(step.pull(server(ignored = setOf("1")), testSignIn()).taken)
         pending = emptySet()
         syncedBefore = false
         ignored = setOf("9")
-        assertFalse(step.pull(server()).taken)
+        assertFalse(step.pull(server(), testSignIn()).taken)
 
         assertEquals(0, writes)
     }

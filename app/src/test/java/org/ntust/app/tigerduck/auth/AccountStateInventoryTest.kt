@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.auth
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.util.testSignIn
 
 /**
  * `docs/account-state.md` lists every store the app keeps, with the account it belongs to and
@@ -85,7 +86,18 @@ class AccountStateInventoryTest {
 
     @Test
     fun `a school key the sign-out stops clearing fails`() {
-        val problems = edited("AuthService.kt", "prefs.classTableSelectedSemester = null", "").problems()
+        val problems = edited("AuthService.kt", "prefs.school.classTableSelectedSemester.clear()", "").problems()
+        assertTrue(
+            problems.toString(),
+            "tigerduck_prefs `classTableSelectedSemester`: `clearAccount` in AuthService.kt does not clear it" in problems,
+        )
+    }
+
+    @Test
+    fun `the clear of another key does not stand for a key's own`() {
+        val problems = edited(
+            "AuthService.kt", "prefs.school.classTableSelectedSemester.clear()", "prefs.school.emptyClassroomBuilding.clear()",
+        ).problems()
         assertTrue(
             problems.toString(),
             "tigerduck_prefs `classTableSelectedSemester`: `clearAccount` in AuthService.kt does not clear it" in problems,
