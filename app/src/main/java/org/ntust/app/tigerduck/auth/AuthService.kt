@@ -216,19 +216,16 @@ class AuthService @Inject constructor(
                     if (demoAccount.isActive) demoAccount.importClassmates()
                 },
             ) { signIn, sameStudent ->
-                // Best-effort: v3 JWT login failures must not block the SSO
-                // session. The automatic sign-in tries again later; this one
-                // never waits for its pause.
-                // Harvest a FRESH Moodle token before the v3 login. The backend
-                // verifies it against moodle2, and the stored token is stale or
-                // empty right after SSO (especially on a fresh install) — which
-                // makes the backend reject the login with 401 invalid_token.
-                // iOS does the same obtain-then-login. Best-effort: fall back to
-                // this student's stored token, and never let a harvest failure
-                // block the SSO session. obtainToken stores nothing once the
-                // account has signed out, and stillCurrent then keeps the
-                // fallback from sending anything: the sign-out ends the sign-in
-                // before it drops the credentials.
+                // Best-effort: v3 JWT login failures must not block the SSO session. The automatic
+                // sign-in tries again later; this one never waits for its pause.
+                // Harvest a FRESH Moodle token before the v3 login. The backend verifies it against
+                // moodle2, and the stored token is stale or empty right after SSO (especially on a
+                // fresh install), which makes the backend reject the login with 401 invalid_token.
+                // iOS does the same obtain-then-login. Best-effort: fall back to this student's
+                // stored token, and never let a harvest failure block the SSO session. obtainToken
+                // stores nothing once the account has signed out, and stillCurrent then keeps the
+                // fallback from sending anything: the sign-out ends the sign-in before it drops
+                // the credentials.
                 val stillCurrent = { signIn.isCurrent }
                 val moodleToken = interactiveMoodleToken(
                     harvest = { moodleTokenService.obtainToken(normalizedId, password) },
@@ -252,6 +249,9 @@ class AuthService @Inject constructor(
                     )
                     SignInAttempt.SIGNED_IN
                 } catch (e: CancellationException) {
+                    // Cut off as its reply landed, which cancelling cannot stop: the pair is stored,
+                    // nothing below runs, and an edit made with no copy to measure it against is lost.
+                    if (authTokenManager.isLoggedIn) notificationSettingsSync.pushIfUnconfirmed()
                     throw e
                 } catch (e: Exception) {
                     android.util.Log.w("AuthService", "v3 login failed (best-effort): ${e.logSummary()}")

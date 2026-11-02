@@ -94,6 +94,8 @@ internal fun accountWorld(
     idleScope: CoroutineScope,
     /** The backend's stand-in for the requests a sync sends; refused without one. */
     backend: OkHttpClient? = null,
+    /** The backend's stand-in for its logins; refused without one. */
+    backendLogin: OkHttpClient? = null,
     /** Runs as the school takes a password, before its answer comes back. */
     schoolAnswering: () -> Unit = {},
 ): AccountWorld {
@@ -115,7 +117,7 @@ internal fun accountWorld(
     val sessionManager = NtustSessionManager(appPrefs, DemoModeInterceptor(fixtures), session = sessions.school)
     val latch = PersistedStoredPasswordLatch(context, credentials)
     val sso = SsoLoginService(sessionManager, latch) { school }
-    val tokens = AuthTokenManager(credentials.v3Tokens, refusing, appPrefs, "device-1", session = sessions.school)
+    val tokens = AuthTokenManager(credentials.v3Tokens, backendLogin ?: refusing, appPrefs, "device-1", session = sessions.school)
     // As its Hilt constructor builds it, over the refusing client.
     val moodleTokens = MoodleTokenService(
         clientFor = { refusing },

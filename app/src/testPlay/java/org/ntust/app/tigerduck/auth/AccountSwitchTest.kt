@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.work.testing.WorkManagerTestInitHelper
+import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -19,9 +20,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -35,6 +42,7 @@ import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.model.UnsentMark
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.library.LibraryQRCache
 import org.ntust.app.tigerduck.mail.store.MailCache
 import org.ntust.app.tigerduck.data.sharing.ClassTableShareCode
@@ -323,6 +331,70 @@ class AccountSwitchTest {
         w.auth.logout()
         assertEquals(emptyList<Told>(), told.toList())
         following.cancel()
+    }
+
+    @Test
+    fun `a typed sign-in cancelled as the backend's reply lands still starts the settings copy`() = runBlocking {
+        val credentialPrefs = prefs("tigerduck_credentials")
+        credentialPrefs.edit()
+            .putString("ntust_student_id", FIRST)
+            .putString("ntust_password", "first-password")
+            .putString("moodle_token", "made-up-token")
+            .commit()
+        // An update long past, whose step would have started a record of its own.
+        AppPreferences(context).lastSyncedSettingsSeedDone = true
+        var typing: Job? = null
+        val backend = OkHttpClient.Builder().addInterceptor { chain ->
+            // The user leaves the page with the POST on the wire, which cancelling cannot stop.
+            typing?.cancel()
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(
+                    """{"access_token":"a","refresh_token":"r","expires_in":3600,"device_id":"d"}"""
+                        .toResponseBody("application/json".toMediaType()),
+                )
+                .build()
+        }.build()
+        val w = accountWorld(context, credentialPrefs, signOutScope, idleScope, backendLogin = backend)
+        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
+        assertNull(w.appPrefs.lastSyncedLiveActivitySettings)
+
+        typing = effectsScope.launch(start = CoroutineStart.LAZY) { w.auth.login(FIRST, "first-password") }
+        typing.start()
+        withTimeout(10_000) { typing.join() }
+
+        assertTrue("cancelled", typing.isCancelled)
+        assertTrue("the pair landed all the same", w.tokens.isLoggedIn)
+        assertNotNull("a session with no record loses the next edit", w.appPrefs.lastSyncedLiveActivitySettings)
+    }
+
+    @Test
+    fun `a typed sign-in cancelled before the backend answered starts no copy`() = runBlocking {
+        val credentialPrefs = prefs("tigerduck_credentials")
+        credentialPrefs.edit()
+            .putString("ntust_student_id", FIRST)
+            .putString("ntust_password", "first-password")
+            .putString("moodle_token", "made-up-token")
+            .commit()
+        // An update long past, whose step would have started a record of its own.
+        AppPreferences(context).lastSyncedSettingsSeedDone = true
+        var typing: Job? = null
+        val backend = OkHttpClient.Builder().addInterceptor {
+            typing?.cancel()
+            throw IOException("the line dropped with the user leaving")
+        }.build()
+        val w = accountWorld(context, credentialPrefs, signOutScope, idleScope, backendLogin = backend)
+        w.appPrefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
+
+        typing = effectsScope.launch(start = CoroutineStart.LAZY) { w.auth.login(FIRST, "first-password") }
+        typing.start()
+        withTimeout(10_000) { typing.join() }
+
+        assertFalse(w.tokens.isLoggedIn)
+        assertNull(w.appPrefs.lastSyncedLiveActivitySettings)
     }
 
     @Test
