@@ -79,6 +79,8 @@ internal class AccountWorld(
     val semesterCatalog: SemesterCatalog,
     val widgetUpdater: WidgetUpdater,
     val academicCalendar: AcademicCalendarStore,
+    val demoAccount: DemoAccount,
+    val fixtures: DebugFixtureStore,
 )
 
 /**
@@ -220,7 +222,7 @@ internal fun accountWorld(
     return AccountWorld(
         appPrefs, credentials, dataCache, bulletinCache, imported, tokens, auth, browserClearings, sessions, effects,
         pushApi, notificationSettingsSync, courseService, SemesterCatalog(sessionManager, appPrefs, credentials), widgetUpdater,
-        academicCalendar,
+        academicCalendar, demoAccount, fixtures,
     )
 }
 
