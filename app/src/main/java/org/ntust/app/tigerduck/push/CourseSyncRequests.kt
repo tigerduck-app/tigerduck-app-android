@@ -12,6 +12,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.BackendServices
 import org.ntust.app.tigerduck.network.EmptyBody
 import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncPolicies
@@ -188,7 +190,11 @@ internal class CourseSyncRequests(
     // The courses an upload's answer took, and the timed adds it refused; on /v4, its stamps heard.
     private fun answered(response: Response, api: BackendApi): CourseUploadAnswer {
         if (!response.isSuccessful) {
-            throw PushApiException("uploadCourses failed: HTTP ${response.code}", response.code)
+            val what = "uploadCourses failed: HTTP ${response.code}"
+            // /v4's refusal keeps the backend's code, as every answered write's does (answerOf), so
+            // the course adds can tell a second clock_ahead from a refusal; /v3's is as it was.
+            if (api == BackendApi.V4) throw BackendException(BackendError.of(response), what)
+            throw PushApiException(what, response.code)
         }
         // A 2xx with an unreadable body (a captive portal, a proxy) is
         // still an upload that landed; it just cannot say what was accepted.

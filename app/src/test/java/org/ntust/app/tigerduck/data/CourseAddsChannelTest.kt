@@ -23,6 +23,7 @@ import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
+import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
@@ -35,6 +36,7 @@ import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
+import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
 
@@ -568,6 +570,32 @@ class CourseAddsChannelTest {
                 """{"course_key":"${key(untyped)}","hlc":0}]}""",
             backend.sent.single().body,
         )
+    }
+
+    /**
+     * Refused as ahead of the backend's clock again after the client's one restamp, an add says
+     * nothing about itself: it goes again at the next sync, a retry, not one of its refusals,
+     * which `SendResult.afterFailure` would count a 409 as.
+     */
+    @Test
+    fun `on v4 an add refused as ahead once more is a retry, not a refusal`() = runTest {
+        cache.saveCourses(listOf(typed), term, signIn)
+        val client = pushApiClientAt(v4, backend.client, prefs, syncClock)
+        repeat(2) { backend.answer(upload, 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${NOW_MS * 1_000}")) }
+        val add = CourseAdd(term, typed.courseNo, 1_790_000_000_123L)
+        val sends = CourseAddSends(
+            cache,
+            { courses, semester, forceKeys, pinned, addedAt -> client.uploadCoursesAnswered(courses, semester, pinned, forceKeys, addedAt = addedAt) },
+            MembershipOutbox(SyncPolicies(prefs)),
+            waiting = { listOf(add) },
+            settle = { _, _ -> true },
+        )
+
+        var result: SendResult? = null
+        sends.asking(term, listOf(typed.courseNo), null) { result = sends.sendRequested(add, signIn) }
+
+        assertEquals(2, backend.sent.size)
+        assertEquals(SendResult.Retry, result)
     }
 
     /** Another channel, which hears when a course upload has landed. */

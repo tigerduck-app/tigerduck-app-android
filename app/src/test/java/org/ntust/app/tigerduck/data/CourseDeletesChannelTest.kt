@@ -33,6 +33,7 @@ import org.ntust.app.tigerduck.sync.SyncClockStore
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.Outbox
+import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.util.JvmContext
 import java.io.File
 
@@ -492,6 +493,31 @@ class CourseDeletesChannelTest {
         deletes.retry(signIn)
 
         assertEquals(listOf("$v4/sync/courses/client:$term:$typed?hlc=1790000000020000&kind=hide"), backend.sent.map { it.url })
+    }
+
+    /**
+     * Refused as ahead of the backend's clock again after the client's one restamp, a delete says
+     * nothing about itself: it goes again at the next sync, a retry, not one of its refusals,
+     * which `SendResult.afterFailure` would count a 409 as.
+     */
+    @Test
+    fun `on v4 a delete refused as ahead once more is a retry, not a refusal`() = runTest {
+        val client = pushApiClientAt(v4, backend.client, prefs, syncClock)
+        repeat(2) { backend.answer(deletePath(typed), 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${nowMs * 1_000}")) }
+        val delete = CourseDelete(term, typed, 1_790_000_000_123L)
+        val sends = CourseDeleteSends(
+            cache,
+            { courseKey, pinned, hiddenAt, kind -> client.deleteCourseAnswered(courseKey, pinned, hiddenAt, kind) },
+            MembershipOutbox(SyncPolicies(prefs)),
+            waiting = { listOf(delete) },
+            underQueueLock = { step -> step() },
+        )
+
+        var result: SendResult? = null
+        sends.one { result = sends.sendOnce(delete, signIn) }
+
+        assertEquals(2, backend.sent.size)
+        assertEquals(SendResult.Retry, result)
     }
 
     /** Review Focus 5, on `/v4`. */

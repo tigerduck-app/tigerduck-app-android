@@ -7,6 +7,7 @@ package org.ntust.app.tigerduck.data
 import android.util.Log
 import kotlinx.coroutines.CancellationException
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -23,6 +24,15 @@ import java.util.concurrent.atomic.AtomicReference
 internal fun interface AnsweredCourseDeleter {
     suspend fun delete(courseKey: String, signIn: SignIn, hiddenAt: Long, kind: String?): WriteAnswer
 }
+
+/**
+ * What a course add's or delete's failed send comes to. Refused as ahead of the backend's clock
+ * once more, after the client's one restamp (409 `clock_ahead`), it says nothing about the edit,
+ * which goes again at the next sync ([SendResult.Retry]): [SendResult.afterFailure] would count
+ * the 409 as one of its refusals. Any other failure is as that reads it.
+ */
+private fun afterSendFailure(failure: Exception): SendResult =
+    if (failure.backendError()?.isClockAhead == true) SendResult.Retry else SendResult.afterFailure(failure)
 
 /**
  * The course adds' sends. One send is a term's upload of the adds a caller asked for ([asking]):
@@ -170,7 +180,7 @@ internal class CourseAddSends(
         // waits for the next sync. One sent while course sync is off is kept only where it is
         // kept until sync is on (MembershipOutbox.keepsUnsent), else let go, as before.
         fun resultOf(add: CourseAdd, keepsUnsent: Boolean): SendResult = when {
-            failure != null -> SendResult.afterFailure(failure)
+            failure != null -> afterSendFailure(failure)
             unsent -> if (keepsUnsent) SendResult.NotSent else SendResult.Sent(null)
             add.courseNo in accepted || add.courseNo in refusedNos -> SendResult.Sent(serverClockUs)
             else -> SendResult.Retry
@@ -246,7 +256,7 @@ internal class CourseDeleteSends(
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "course delete failed, kept for the next sync: ${e.logSummary()}")
-            return SendResult.afterFailure(e)
+            return afterSendFailure(e)
         }
         // Nothing went, course sync being off: kept where edits wait for it (/v4), let go on /v3.
         if (!answer.sent) return if (outbox.keepsUnsent()) SendResult.NotSent else SendResult.Sent(null)
