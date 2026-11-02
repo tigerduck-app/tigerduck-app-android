@@ -1,6 +1,11 @@
 package org.ntust.app.tigerduck.data
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
@@ -9,9 +14,11 @@ import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.push.CourseUploadAnswer
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.util.JvmContext
 
@@ -172,5 +179,73 @@ class CourseAddsChannelTest {
         assertEquals(emptyList<RecordingBackend.Sent>(), backend.sent.toList())
         assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
         assertEquals(emptyMap<String, Map<String, Long>>(), cache.loadPendingCourseAddTimes())
+    }
+
+    /**
+     * Runs the test dispatcher until [done]. A launched coroutine's file reads and writes run on
+     * the IO dispatcher and resume into the test dispatcher on their own time, which
+     * `runCurrent()` alone does not wait for; each [done] is itself a real read.
+     */
+    private suspend fun TestScope.settle(done: suspend () -> Boolean) {
+        repeat(500) {
+            if (done()) return
+            runCurrent()
+            yield()
+        }
+        throw AssertionError("the queue did not settle")
+    }
+
+    /** An add is never given up on for its refusals: every sync sends it again, as before it was a channel. */
+    @Test
+    fun `on v3 an add refused time after time still goes at every sync`() = runTest {
+        cache.saveCourses(listOf(typed), term, signIn)
+        var refusals = 0
+        val adds = PendingCourseAdds(cache, { courses, _, _, _, _ ->
+            if (refusals++ < 6) throw PushApiException("uploadCourses failed: HTTP 422", 422)
+            CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
+        })
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn)
+
+        repeat(6) { adds.retry(signIn) }
+
+        assertEquals(7, refusals)
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
+    }
+
+    /**
+     * The course added again while its first add's upload is out: the re-add goes at its own turn
+     * of the send lock, after a DELETE that was waiting for the lock before it, as it always went.
+     */
+    @Test
+    fun `on v3 a re-add made while its first upload is out goes at its own turn of the send lock`() = runTest {
+        cache.saveCourses(listOf(typed), term, signIn)
+        val events = mutableListOf<String>()
+        val out = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var gate: suspend () -> Unit = {}
+        gate = {
+            gate = {}
+            out.complete(Unit)
+            release.await()
+        }
+        val adds = PendingCourseAdds(cache, { courses, _, _, _, addedAt ->
+            gate()
+            events += "upload ${addedAt.values.single()}"
+            CourseUploadAnswer(courses.map { it.courseNo }, emptyList())
+        })
+
+        val first = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 5_000L, signIn = signIn) }
+        out.await()
+        val delete = launch { adds.removing { events += "DELETE" } }
+        runCurrent()
+        val again = launch { adds.send(listOf(typed), term, typed.courseNo, addedAt = 6_000L, signIn = signIn) }
+        settle { cache.loadPendingCourseAddTimes()[term]?.get(typed.courseNo) == 6_000L }
+        release.complete(Unit)
+        first.join()
+        delete.join()
+        again.join()
+
+        assertEquals(listOf("upload 5000", "DELETE", "upload 6000"), events)
+        assertEquals(emptyMap<String, List<String>>(), cache.loadPendingCourseAdds())
     }
 }

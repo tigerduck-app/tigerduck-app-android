@@ -1,6 +1,11 @@
 package org.ntust.app.tigerduck.data
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeTrue
@@ -9,6 +14,7 @@ import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.account.SignInSeries
@@ -115,6 +121,72 @@ class CourseDeletesChannelTest {
         deletes.retry(signIn)
 
         assertEquals(2, backend.sent.size)
+        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
+    }
+
+    /**
+     * Runs the test dispatcher until [done]. A launched coroutine's file reads and writes run on
+     * the IO dispatcher and resume into the test dispatcher on their own time, which
+     * `runCurrent()` alone does not wait for; each [done] is itself a real read.
+     */
+    private suspend fun TestScope.settle(done: suspend () -> Boolean) {
+        repeat(500) {
+            if (done()) return
+            runCurrent()
+            yield()
+        }
+        throw AssertionError("the queue did not settle")
+    }
+
+    /** A delete is never given up on for its refusals: every sync sends it again, as before it was a channel. */
+    @Test
+    fun `on v3 a delete refused time after time still goes at every sync`() = runTest {
+        var refusals = 0
+        val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null })
+        val deletes = PendingCourseDeletes(cache, adds, { _, _, _ ->
+            if (refusals++ < 6) throw PushApiException("deleteCourse failed: HTTP 422", 422)
+        })
+        deletes.send(term, typed, 5_000L, signIn)
+
+        repeat(6) { deletes.retry(signIn) }
+
+        assertEquals(7, refusals)
+        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
+    }
+
+    /**
+     * The course removed again while its first DELETE is out: the second goes at its own turn of
+     * the send lock, after an upload that was waiting for the lock before it, as it always went.
+     */
+    @Test
+    fun `on v3 a removal made while its first DELETE is out goes at its own turn of the send lock`() = runTest {
+        val events = mutableListOf<String>()
+        val out = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        var gate: suspend () -> Unit = {}
+        gate = {
+            gate = {}
+            out.complete(Unit)
+            release.await()
+        }
+        val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null })
+        val deletes = PendingCourseDeletes(cache, adds, { _, _, hiddenAt ->
+            gate()
+            events += "DELETE $hiddenAt"
+        })
+
+        val first = launch { deletes.send(term, typed, 10L, signIn) }
+        out.await()
+        val upload = launch { adds.uploading { events += "upload" } }
+        runCurrent()
+        val again = launch { deletes.send(term, typed, 20L, signIn) }
+        settle { queued()[term]?.get(typed) == 20L }
+        release.complete(Unit)
+        first.join()
+        upload.join()
+        again.join()
+
+        assertEquals(listOf("DELETE 10", "upload", "DELETE 20"), events)
         assertEquals(emptyMap<String, Map<String, Long>>(), queued())
     }
 }
