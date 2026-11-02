@@ -1538,7 +1538,7 @@ class NotificationSettingsSync internal constructor(
      *   record clears.
      *
      * So a start or a landing push records before a sign-out clears or not
-     * at all: `AuthService.logout()` wipes the session and only then comes
+     * at all: the school's sign-out wipes the session and only then comes
      * here, so a start that follows the clear finds no session, and a push
      * that follows it finds the generation moved. And a landing push never
      * records over a restart that came while it was on the wire. Guards
@@ -1549,7 +1549,7 @@ class NotificationSettingsSync internal constructor(
      * - A pull ([recordCleanSectionsAsSynced]) runs under [documentLock],
      *   which keeps a push out, and on `Dispatchers.Main`, with nothing
      *   suspending between its session check and its writes. A restart runs
-     *   on Main too, and so does every caller of `AuthService.logout()`, so
+     *   on Main too, and so does every caller of `SignOutPlans.signOut`, so
      *   neither lands in the middle. A start on another thread only fills a
      *   record that is missing, with this device's values, which is what the
      *   pull writes as well.
@@ -1564,7 +1564,7 @@ class NotificationSettingsSync internal constructor(
      * without suspending, `isLoggedIn` reads the token store without
      * `AuthTokenManager`'s `signInLock`, and no change listener is registered
      * on the stores it touches. Nor does anyone come here holding one:
-     * `AuthService.logout()` calls in after its `accountLock` is released,
+     * the school's sign-out calls in after its `accountLock` is released,
      * and every sign-in path calls in from a suspending function. The one
      * nesting is a push, or a pull leaving a section to one, taking this
      * inside [documentLock], always in that order.
@@ -1895,7 +1895,7 @@ class NotificationSettingsSync internal constructor(
      * Drops every queued push and any pull owed after one, and clears the
      * unconfirmed-edit flags and the record of what each section last synced
      * ([LastSyncedSections]). Called
-     * from `AuthService.logout()`: all of it belongs to the account that is
+     * from the school's sign-out: all of it belongs to the account that is
      * leaving, and none of it may reach whoever signs in next. The flag would
      * make that sign-in push this device's values into the new account's
      * document, and a queued push — one still in its debounce, or a retry

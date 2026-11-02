@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.auth.session
 
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -66,13 +67,20 @@ class SignOutWipe(
     fun finish(cleared: Boolean = true) {
         if (!cleared) clearingFailed()
         scope.launch {
-            oneWipe.withLock { wipe() }
-            synchronized(lock) {
-                if (--unfinished == 0) {
-                    if (!tryingAgain) session.open()
-                    tryingAgain = false
-                }
+            try {
+                oneWipe.withLock { wipe() }
+            } finally {
+                // Not over a wipe its scope stopped: that one is the next start's, marker and all.
+                if (isActive) countOut()
             }
+        }
+    }
+
+    // The last one out takes the marker off and opens the session, unless a clearing failed.
+    private fun countOut() = synchronized(lock) {
+        if (--unfinished == 0) {
+            if (!tryingAgain) session.open()
+            tryingAgain = false
         }
     }
 

@@ -81,6 +81,7 @@ class SettingsViewModel @Inject constructor(
     /** Debug builds' Developer page simulates a pin mismatch through it. */
     val pinManager: PinManager,
     private val sessions: AccountSessions,
+    private val signOutPlans: org.ntust.app.tigerduck.auth.session.SignOutPlans,
 ) : ViewModel() {
 
     /** For the NTUST sign-out, which asks first when it would delete imported class tables. */
@@ -484,14 +485,9 @@ class SettingsViewModel @Inject constructor(
         _signOutConfirmation.value = null
     }
 
-    fun logoutNtust() {
-        // Persisted-data clearing now lives in AuthService.logout() on an application-scoped
-        // coroutine, so it survives ViewModel destruction when the user navigates away from
-        // Settings immediately after logout. The reminders, notifications, Live Update and
-        // background sync follow the sign-out itself: AccountSessionEffects.
-        authService.logout()
-        appState.librarySession.refresh()
-    }
+    // The wipe runs on the application scope, so it survives this ViewModel. The reminders,
+    // notifications, Live Update and background sync follow the sign-out: AccountSessionEffects.
+    fun logoutNtust() = signOutPlans.signOut(org.ntust.app.tigerduck.auth.session.SignOutReason.SCHOOL)
 
     fun loginLibrary(username: String, password: String) {
         viewModelScope.launch {
@@ -526,7 +522,7 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun logoutLibrary() = appState.librarySession.signOut()
+    fun logoutLibrary() = signOutPlans.signOut(org.ntust.app.tigerduck.auth.session.SignOutReason.LIBRARY)
 
     val libraryUsername: String?
         get() = demoAccount.libraryUsername ?: credentials.libraryUsername

@@ -23,11 +23,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
-    "kind": "long-file",
-    "count": 419
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthService.kt",
     "kind": "long-function",
     "name": "AuthService.login(String, String)",
     "lines": 88
@@ -366,7 +361,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/AppState.kt",
     "kind": "long-file",
-    "count": 759
+    "count": 755
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/component/AssignmentItem.kt",
@@ -1316,7 +1311,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",
     "kind": "long-file",
-    "count": 553
+    "count": 549
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/settings/SettingsViewModel.kt",

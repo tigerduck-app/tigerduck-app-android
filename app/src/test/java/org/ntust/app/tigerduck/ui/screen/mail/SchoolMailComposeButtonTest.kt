@@ -30,6 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.session.mailSignOutPlans
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
 import org.ntust.app.tigerduck.mail.FakeSchoolMailRepository
@@ -91,7 +92,7 @@ class SchoolMailComposeButtonTest {
             override val studentId: String? = null
             override val password: String? = null
         }
-        val accountViewModel = MailAccountViewModel(account, schoolMailSite(), noNtustAccount)
+        val accountViewModel = MailAccountViewModel(account, schoolMailSite(), noNtustAccount, mailSignOutPlans(account))
         composeRule.setContent {
             TigerDuckAppTheme(darkTheme = false) {
                 SchoolMailScreen(

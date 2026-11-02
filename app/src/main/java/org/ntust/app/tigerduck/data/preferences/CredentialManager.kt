@@ -200,7 +200,7 @@ class CredentialManager private constructor(
         }
     }
 
-    fun clearLibraryCredentials() {
+    fun clearLibraryCredentials(reason: SignOutReason) {
         // A library sign-in still running for this account then stores nothing.
         val ended = signOutLibrary {
             prefs.edit()
@@ -213,7 +213,7 @@ class CredentialManager private constructor(
                 .apply()
         }
         library.cancelWork()
-        library.emit(AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, ended, address = null))
+        library.emit(AccountEvent.SignedOut(Account.LIBRARY, reason, ended, address = null))
     }
 
     /**
@@ -246,12 +246,12 @@ class CredentialManager private constructor(
             .apply()
     }
 
-    /** Wipe every credential key. Used by the full-reset flow. */
-    fun clearAll() {
+    /** Wipe every credential key. Used by the full-reset flow, which gives its [reason]. */
+    fun clearAll(reason: SignOutReason) {
         // All but the device unregister a sign-out still owes; see PendingUnregisterPrefs.
         val ended = synchronized(this) { signOutLibrary { clearAllButOwedUnregister(prefs) } }
         library.cancelWork()
-        library.emit(AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, ended, address = null))
+        library.emit(AccountEvent.SignedOut(Account.LIBRARY, reason, ended, address = null))
     }
 
     private class Opened(val prefs: SharedPreferences, val encrypted: Boolean, val recreated: Boolean)

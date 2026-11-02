@@ -11,6 +11,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
 import org.ntust.app.tigerduck.mail.FakeSchoolMailRepository
@@ -256,7 +257,7 @@ class SchoolMailMessageViewModelTest {
     @Test
     fun `a mail refused after its account left leaves the next sign-in alone`() {
         repo.add("INBOX", mailSummary(5))
-        repo.onBody = { account.signOut() }
+        repo.onBody = { account.signOut(SignOutReason.MAIL) }
         repo.bodyError = MailError.AuthFailed()
 
         vm().load()
@@ -268,7 +269,7 @@ class SchoolMailMessageViewModelTest {
     fun `a source refused after its account left leaves the next sign-in alone`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
-        repo.onRawSource = { account.signOut() }
+        repo.onRawSource = { account.signOut(SignOutReason.MAIL) }
         repo.rawSourceError = MailError.AuthFailed()
         val vm = vm()
         vm.load()
@@ -282,7 +283,7 @@ class SchoolMailMessageViewModelTest {
     fun `a delete refused after its account left leaves the next sign-in alone`() {
         repo.add("INBOX", mailSummary(5))
         repo.bodies[5] = MailBody(null, "hello", emptyList(), emptyMap())
-        repo.onDelete = { account.signOut() }
+        repo.onDelete = { account.signOut(SignOutReason.MAIL) }
         repo.deleteError = MailError.AuthFailed()
         val vm = vm()
         vm.load()

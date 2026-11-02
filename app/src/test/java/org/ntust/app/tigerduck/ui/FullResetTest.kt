@@ -7,6 +7,11 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.AccountPlan
+import org.ntust.app.tigerduck.auth.session.NoSchool
+import org.ntust.app.tigerduck.auth.session.SchoolPlan
+import org.ntust.app.tigerduck.auth.session.SignOutPlans
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -41,14 +46,24 @@ class FullResetTest {
         credentials.saveLibrarySignIn(credentials.libraryAccountGeneration, "B10000009", "pw", "token", Long.MAX_VALUE, byUser = true)
     }
 
-    private fun fullReset() = FullReset(
-        signOutMail = { steps += "mail" },
-        // As AuthService.logout, after which the app hands the watch the library account again.
-        signOutSchool = {
-            steps += "school"
-            credentials.signOutSchoolAccount()
-            watch += libraryCredentialsForWatch(credentials)
+    /** The reset's sign-out, through the plans, over accounts that say when they go. */
+    private val plans = SignOutPlans(
+        // As the school's sign-out, after which the app hands the watch the library account again.
+        school = object : SchoolPlan by NoSchool {
+            override fun signOut(reason: SignOutReason) {
+                steps += "school"
+                credentials.signOutSchoolAccount()
+                watch += libraryCredentialsForWatch(credentials)
+            }
         },
+        mail = AccountPlan({ true }) { steps += "mail" },
+        library = AccountPlan({ true }) { steps += "library" },
+        readLibraryAgain = {},
+        leaveDemoLibrary = {},
+    )
+
+    private fun fullReset() = FullReset(
+        signOut = { plans.signOut(SignOutReason.FULL_RESET) },
         clearCaches = { steps += "caches" },
         credentials = credentials,
         prefs = prefs,

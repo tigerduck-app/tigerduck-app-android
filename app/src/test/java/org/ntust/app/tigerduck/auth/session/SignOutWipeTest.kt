@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.auth.session
 
 import android.content.Context
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,10 +13,12 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.ntust.app.tigerduck.shared.account.SignInSeries
@@ -245,6 +248,20 @@ class SignOutWipeTest {
 
         assertFalse(session.isOpen)
         assertTrue(owed.owed)
+    }
+
+    @Test
+    fun `a wipe that throws still opens the session, in its finally`() = runBlocking {
+        val quiet = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, _ -> })
+        val session = AccountSession(SignInSeries(), quiet, owed = owed)
+        val wipe = SignOutWipe(wipe = { throw IllegalStateException("made-up failure") }, session = session, scope = quiet)
+
+        wipe.begin(STUDENT)
+        wipe.finish()
+
+        assertNotNull("open though the wipe threw", withTimeoutOrNull(5_000) { session.awaitOpen() })
+        assertFalse(owed.owed)
+        quiet.cancel()
     }
 
     // ---- at process start ----

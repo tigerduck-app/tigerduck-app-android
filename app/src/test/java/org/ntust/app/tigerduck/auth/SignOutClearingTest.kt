@@ -13,7 +13,8 @@ import java.io.File
  */
 class SignOutClearingTest {
 
-    private val source: String = SignOutSource.source(SignOutSource.PLAN)
+    /** The school's plan, from its class on: the file holds the other accounts' plans before it. */
+    private val source: String = SignOutSource.source(SignOutSource.PLAN).let { it.substring(it.indexOf("internal class SchoolSignOut")) }
 
     private fun appDir(): File = SignOutSource.appDir
 
@@ -21,7 +22,7 @@ class SignOutClearingTest {
     private fun body(declaration: String): String = SignOutSource.body(source, declaration)
 
     /** What a sign-out clears at once, which the recovery runs too. */
-    private fun clearing() = body("private fun clearAccount()")
+    private fun clearing() = body("private fun clearAccount(")
 
     /** The wipe logout() starts on the app scope, which SignOutWipe runs. */
     private fun wipeBody(): String {
@@ -47,7 +48,8 @@ class SignOutClearingTest {
             "moodleService.cancelSharedFetches()",
             "sessionManager.signOut()",
             "prefs.clearSyncStamps()",
-            "setSignedIn(false)",
+            // The account shows as signed out: AuthService's setSignedIn(false), told with the reason.
+            "auth.showSignedOut(reason)",
             "pushRegistration.unregister(departing)",
             "demoAccount.exit()",
             "bulletinCache.clearIn(appScope)",
@@ -67,9 +69,18 @@ class SignOutClearingTest {
     }
 
     @Test
+    fun `the sign-out's Show step clears the sign-in's error, then shows the account as signed out with its reason`() {
+        val show = SignOutSource.body(SignOutSource.source("auth/AuthService.kt"), "internal fun showSignedOut(")
+        val at = listOf("_loginError.value = null", "setSignedIn(false, reason = reason)").map { step ->
+            show.indexOf(step).also { assertTrue("showSignedOut() calls $step", it >= 0) }
+        }
+        assertEquals(at.sorted(), at)
+    }
+
+    @Test
     fun `a sign-out counts itself in before anything is cleared, and starts its wipe after`() {
-        val logout = body("fun logout()")
-        val at = listOf("synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }", "wipe.finish(cleared = clearAccount())").map { step ->
+        val logout = body("override fun signOut(")
+        val at = listOf("synchronized(accountLock) { wipe.begin(credentials.ntustStudentId) }", "wipe.finish(cleared = clearAccount(reason))").map { step ->
             logout.indexOf(step).also { assertTrue("logout() calls $step", it >= 0) }
         }
         assertEquals(at.sorted(), at)
@@ -77,7 +88,7 @@ class SignOutClearingTest {
 
     @Test
     fun `the recovery has no list of its own to fall behind the sign-out's`() {
-        assertTrue("clearAccount" in source.substringAfter("fun finishOwedSignOut()").substringBefore("\n"))
+        assertTrue("clearAccount" in source.substringAfter("override fun finishOwedSignOut()").substringBefore("\n\n"))
         // Each clearing once in the whole file: in clearAccount, the function both run.
         val clearings = listOf(
             """credentials\.signOutSchoolAccount\(\)""",
@@ -93,8 +104,9 @@ class SignOutClearingTest {
     /** AuthTokenManager.login refuses an ended sign-in as well, so only the source can show this one. */
     @Test
     fun `a typed sign-in falls back to the stored Moodle token only while its sign-in stands`() {
-        assertTrue("val stillCurrent = { signIn.isCurrent }" in source)
-        assertTrue("stillCurrent = stillCurrent," in source)
+        val auth = SignOutSource.source("auth/AuthService.kt")
+        assertTrue("val stillCurrent = { signIn.isCurrent }" in auth)
+        assertTrue("stillCurrent = stillCurrent," in auth)
     }
 
     @Test
@@ -102,10 +114,10 @@ class SignOutClearingTest {
         val app = File(appDir(), "src/main/java/org/ntust/app/tigerduck/TigerDuckApp.kt").readText()
         val onCreate = app.substringAfter("override fun onCreate() {")
         val afterSuper = onCreate.substringAfter("super.onCreate()\n").lines().map { it.trim() }.filterNot { it.startsWith("//") }
-        assertTrue(afterSuper.first(), afterSuper.first().startsWith("val signOutCutShort = authService.finishOwedSignOut()"))
+        assertTrue(afterSuper.first(), afterSuper.first().startsWith("val signOutCutShort = signOutPlans.finishOwedSignOut()"))
         val at = listOf(
             "dataMigration.run()",
-            "if (signOutCutShort) authService.finishOwedWipe()",
+            "if (signOutCutShort) signOutPlans.finishOwedWipe()",
             "ClassReminders.migrateIfNeeded",
             "accountSessionEffects.start(appScope, signOutCutShort)",
         ).map { step -> onCreate.indexOf(step).also { assertTrue("onCreate calls $step", it >= 0) } }
@@ -117,7 +129,7 @@ class SignOutClearingTest {
         val wipe = File(appDir(), "src/main/java/org/ntust/app/tigerduck/auth/session/SignOutWipe.kt").readText()
         assertEquals(wipe, 1, Regex("""session\.open\(\)""").findAll(wipe.substringBefore("/**\n     * At process start, before")).count())
         // logout() starts it, and nothing in logout() ends or opens the sign-in itself.
-        val logout = body("fun logout()") + clearing()
+        val logout = body("override fun signOut(") + clearing()
         assertTrue(logout, "wipe.finish(" in logout)
         assertFalse(logout, "signIns.end()" in logout || "session.open()" in logout)
     }
@@ -171,8 +183,7 @@ class SignOutClearingTest {
                     // Each store of the list is a step of its own.
                     "stores.atOnce.forEach { store -> must(store.javaClass.simpleName) { store.forgetAccount() } }",
                     "}",
-                    // Only sets a flow's value, and the function's answer.
-                    "_loginError.value = null",
+                    // The function's answer.
                     "cleared",
                 )
         }

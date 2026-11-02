@@ -47,10 +47,13 @@ class AccountSessions @Inject constructor(
         stream.tryEmit(event)
     }
 
-    /** The school account's state moved: it shows as signed in, or a sign-out ended the session's sign-in. */
-    fun schoolChanged(signedIn: Boolean) = emit(
+    /**
+     * The school account's state moved: it shows as signed in, or a sign-out given [reason] ended
+     * the session's sign-in.
+     */
+    fun schoolChanged(signedIn: Boolean, reason: SignOutReason) = emit(
         if (signedIn) AccountEvent.SignedIn(Account.SCHOOL, byHand = false)
-        else AccountEvent.SignedOut(Account.SCHOOL, SignOutReason.SCHOOL, school.signIns.current, address = null),
+        else AccountEvent.SignedOut(Account.SCHOOL, reason, school.signIns.current, address = null),
     )
 
     /**

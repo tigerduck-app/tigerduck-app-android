@@ -26,6 +26,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.session.SignOutOwed
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.debug.DebugFixtureStore
 import org.robolectric.RobolectricTestRunner
@@ -162,7 +163,7 @@ class SignOutRecoveryTest {
         disk.allowed = writes
         disk.counting = true
         try {
-            w.auth.logout()
+            w.plans.signOut(SignOutReason.SCHOOL)
         } catch (_: ProcessDied) {
             // As the table wants: what reached the disk is all that is left of it.
         }
@@ -175,8 +176,8 @@ class SignOutRecoveryTest {
         // constructor, for an account that is on its way out.
         prefs("tigerduck_prefs").edit().putBoolean("lastSyncedSettingsSeedDone", false).commit()
         val w = accountWorld(context, credentialPrefs, appScope, idleScope)
-        val signOutCutShort = w.auth.finishOwedSignOut()
-        if (signOutCutShort) w.auth.finishOwedWipe()
+        val signOutCutShort = w.plans.finishOwedSignOut()
+        if (signOutCutShort) w.plans.finishOwedWipe()
         w.effects.start(effectsScope, signOutCutShort)
         return w to signOutCutShort
     }
@@ -247,7 +248,7 @@ class SignOutRecoveryTest {
         val w = accountWorld(context, credentialPrefs, appScope, idleScope)
 
         assertEquals("the step ran as Hilt built it", "{}", w.appPrefs.lastSyncedAssignmentReminderSettings)
-        assertTrue(w.auth.finishOwedSignOut())
+        assertTrue(w.plans.finishOwedSignOut())
         assertNull(w.appPrefs.lastSyncedLiveActivitySettings)
         assertNull(w.appPrefs.lastSyncedAssignmentReminderSettings)
         assertNull(w.appPrefs.lastSyncedClassReminderSettings)
@@ -265,7 +266,7 @@ class SignOutRecoveryTest {
         w.credentials.v3Tokens.save("access-a", "refresh-a", Long.MAX_VALUE)
         assertTrue(w.tokens.isLoggedIn)
 
-        assertTrue(w.auth.finishOwedSignOut())
+        assertTrue(w.plans.finishOwedSignOut())
 
         assertFalse(w.tokens.isLoggedIn)
         assertNull(w.credentials.v3Tokens.accessToken)
@@ -281,7 +282,7 @@ class SignOutRecoveryTest {
         val w = accountWorld(context, credentialPrefs, appScope, idleScope)
         assertTrue(w.auth.authState.value)
 
-        assertTrue(w.auth.finishOwedSignOut())
+        assertTrue(w.plans.finishOwedSignOut())
 
         assertFalse(fixtures.demoMode)
         assertFalse(w.auth.authState.value)
@@ -332,7 +333,7 @@ class SignOutRecoveryTest {
         val signIn = appScope.async { w.auth.login(SECOND, "second-password") }
         assertTrue(storing.await(10, TimeUnit.SECONDS))
 
-        val signOut = appScope.async { w.auth.logout() }
+        val signOut = appScope.async { w.plans.signOut(SignOutReason.SCHOOL) }
         try {
             delay(200)
             assertFalse("the sign-out waits for the store it would otherwise misname", owed.owed)
@@ -368,8 +369,8 @@ class SignOutRecoveryTest {
         owed.mark(FIRST)
         val w = worldOver(context)
 
-        assertTrue(w.auth.finishOwedSignOut())
-        w.auth.finishOwedWipe()
+        assertTrue(w.plans.finishOwedSignOut())
+        w.plans.finishOwedWipe()
         withTimeout(10_000) { w.sessions.school.awaitOpen() }
 
         assertNull(w.credentials.ntustStudentId)
@@ -384,8 +385,8 @@ class SignOutRecoveryTest {
         owed.mark(FIRST)
         val w = worldOver(refusing("ntust_student_id"))
 
-        assertTrue(w.auth.finishOwedSignOut())
-        w.auth.finishOwedWipe()
+        assertTrue(w.plans.finishOwedSignOut())
+        w.plans.finishOwedWipe()
         wipesDone()
 
         assertEquals("the step that failed", FIRST, w.credentials.ntustStudentId)
@@ -411,8 +412,8 @@ class SignOutRecoveryTest {
         owed.mark(FIRST)
         val w = worldOver(refusing("syncedCategories"))
 
-        assertTrue(w.auth.finishOwedSignOut())
-        w.auth.finishOwedWipe()
+        assertTrue(w.plans.finishOwedSignOut())
+        w.plans.finishOwedWipe()
         wipesDone()
 
         assertEquals("the clearing that failed", setOf("1"), prefs("tigerduck_prefs").getStringSet("syncedCategories", null))
@@ -430,8 +431,8 @@ class SignOutRecoveryTest {
 
         repeat(3) { start ->
             val w = worldOver(refusing("ntust_student_id"))
-            assertTrue(w.auth.finishOwedSignOut())
-            w.auth.finishOwedWipe()
+            assertTrue(w.plans.finishOwedSignOut())
+            w.plans.finishOwedWipe()
             wipesDone()
 
             val last = start == 2
@@ -445,7 +446,7 @@ class SignOutRecoveryTest {
         firstStudentOnTheDevice()
         val w = worldOver(refusing("ntust_student_id"))
 
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         wipesDone()
 
         assertNull(w.credentials.v3Tokens.accessToken)
@@ -488,11 +489,11 @@ class SignOutRecoveryTest {
         owed.mark(FIRST)
         val held = HeldDispatcher()
         val w = accountWorld(context, credentialPrefs, CoroutineScope(SupervisorJob() + held), idleScope)
-        assertTrue(w.auth.finishOwedSignOut())
-        w.auth.finishOwedWipe()
+        assertTrue(w.plans.finishOwedSignOut())
+        w.plans.finishOwedWipe()
 
         // The user signs out again, or a full reset does, before the recovery's wipe has run.
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
         val nextSignIn = appScope.async { w.auth.login(SECOND, "second-password") }
         delay(200)
         assertNull("nothing stored for a wipe to take", w.credentials.ntustStudentId)
@@ -515,8 +516,8 @@ class SignOutRecoveryTest {
         val w = accountWorld(context, credentialPrefs, CoroutineScope(SupervisorJob() + held), idleScope)
         w.effects.start(effectsScope)
 
-        w.auth.logout()
-        w.auth.logout()
+        w.plans.signOut(SignOutReason.SCHOOL)
+        w.plans.signOut(SignOutReason.SCHOOL)
         val nextSignIn = appScope.async { w.auth.login(SECOND, "second-password") }
         delay(200)
         assertNull(w.credentials.ntustStudentId)

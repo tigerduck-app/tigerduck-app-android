@@ -167,7 +167,7 @@ class MailAccountTest {
         val account = account()
         account.signIn("B10000099", "demo")
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
 
         assertFalse(account.isDemo)
         assertFalse(state.demoMailbox)
@@ -297,12 +297,12 @@ class MailAccountTest {
         val other = account.signInNow
         assertNotEquals("another student", again, other)
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         val out = account.signInNow
         assertNotEquals("a sign-out", other, out)
 
         // The time signed out belongs to the next sign-in, and a second sign-out still moves it.
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertNotEquals("a sign-out with no one signed in", out, account.signInNow)
     }
 
@@ -328,15 +328,17 @@ class MailAccountTest {
         told.clear()
         val ended = account.signInNow
         val left = account.ownAddress
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertEquals(listOf<AccountEvent>(AccountEvent.SignedOut(Account.MAIL, SignOutReason.MAIL, ended, left)), told)
         assertFalse(ended.isCurrent)
 
-        // One with nobody signed in is told too, for the cleanup that must run on every one.
+        // One with nobody signed in is told too, for the cleanup that must run on every one, with the
+        // reason it was given.
         told.clear()
-        account.signOut()
+        account.signOut(SignOutReason.FULL_RESET)
         assertEquals(1, told.size)
         assertNull((told.single() as AccountEvent.SignedOut).address)
+        assertEquals(SignOutReason.FULL_RESET, (told.single() as AccountEvent.SignedOut).reason)
         listening.cancel()
     }
 
@@ -357,7 +359,7 @@ class MailAccountTest {
         assertEquals(emptyList<AccountEvent>(), told)
 
         account.signIn("b10000001", "pw")
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         following.cancel()
 
         assertEquals(listOf(false, true, false), changes)
@@ -380,7 +382,7 @@ class MailAccountTest {
         assertEquals("the one who left counts as gone by the time anyone hears", listOf(true), atTheTelling)
 
         atTheTelling.clear()
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertEquals(listOf(true), atTheTelling)
         assertFalse(account.signedIn.value)
         listening.cancel()
@@ -415,7 +417,7 @@ class MailAccountTest {
         assertEquals(account.signInNow, first.signIn)
         assertEquals(state.clears, first.clears)
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertNull(account.snapshot())
     }
 
@@ -431,7 +433,7 @@ class MailAccountTest {
         assertFalse("the same student, the same password", first.isCurrent)
         assertTrue(again.isCurrent)
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertFalse("a sign-out", again.isCurrent)
 
         account.signIn("b10000001", "pw")
@@ -451,7 +453,7 @@ class MailAccountTest {
         assertFalse(account.hasLeft(first))
         assertFalse(account.hasLeft(again))
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertTrue("a sign-out", account.hasLeft(first))
         assertTrue(account.hasLeft(again))
 
@@ -465,7 +467,7 @@ class MailAccountTest {
         val account = account()
         assertFalse(account.hasLeft(account.signInNow))
         assertFalse(account.hasLeft(openSignIn()))
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertFalse("the time signed out is the next sign-in's", account.hasLeft(account.signInNow))
     }
 
@@ -498,7 +500,7 @@ class MailAccountTest {
         )
         account.signIn("b10000001", "pw")
         assertTrue(session.isOpen)
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertTrue(session.isOpen)
     }
 
@@ -559,7 +561,7 @@ class MailAccountTest {
         assertTrue(untilTheSignIn.isCancelled)
 
         val untilTheSignOut = session.launch { awaitCancellation() }
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         withContext(Dispatchers.Default) { withTimeout(5_000) { untilTheSignOut.join() } }
         assertTrue(untilTheSignOut.isCancelled)
     }
@@ -568,7 +570,7 @@ class MailAccountTest {
     private fun signOutWithItsCleanupLate(account: MailAccount, during: () -> Unit) {
         val late = CountDownLatch(1)
         account.onCleanup = { late.await(30, TimeUnit.SECONDS) }
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         during()
         late.countDown()
         runBlocking {
@@ -630,7 +632,7 @@ class MailAccountTest {
         account.signIn("b10000001", "pw")
         cache.attachmentsDir.mkdirs()
         File(cache.attachmentsDir, "a.pdf").writeText("x")
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         // Everything the repository's sign-out collector and the next sign-in depend on
         // has already happened when signOut() returns; both callers are on the main thread.
         assertFalse(account.signedIn.value)
@@ -654,7 +656,7 @@ class MailAccountTest {
         account.signIn("b10000001", "pw")
         account.holdMail("b10000001@mail.ntust.edu.tw")
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
 
         withContext(Dispatchers.Default) {
             withTimeout(5_000) { while (notifier.cancelledAll == 0) delay(10) }
@@ -671,7 +673,7 @@ class MailAccountTest {
         account.signIn("b10000001", "pw")
         indexMail("b10000001@mail.ntust.edu.tw")
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
 
         withContext(Dispatchers.Default) {
             withTimeout(5_000) { while (notifier.cancelledAll == 0) delay(10) }
@@ -686,7 +688,7 @@ class MailAccountTest {
         cache.attachmentsDir.mkdirs()
         File(cache.attachmentsDir, "a.pdf").writeText("x")
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
 
         withContext(Dispatchers.Default) {
             withTimeout(5_000) { while (notifier.cancelledAll == 0) delay(10) }

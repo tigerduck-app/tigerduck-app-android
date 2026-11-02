@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.shared.StoredPasswordSchedule
 import org.ntust.app.tigerduck.util.JvmContext
 
@@ -55,7 +56,7 @@ class CredentialManagerRefusedPasswordTest {
     fun `a library sign-out clears it`() {
         credentials.refuseLibraryPassword(credentials.libraryAccountGeneration, "pw", at = 5_000L)
 
-        credentials.clearLibraryCredentials()
+        credentials.clearLibraryCredentials(SignOutReason.LIBRARY)
 
         assertFalse(credentials.libraryPasswordRefused)
         assertEquals(0, CredentialManager(prefs).libraryPasswordRefusals)
@@ -66,7 +67,7 @@ class CredentialManagerRefusedPasswordTest {
         val generation = credentials.libraryAccountGeneration
         assertFalse(credentials.refuseLibraryPassword(generation, "old", at = 5_000L))
 
-        credentials.clearLibraryCredentials()
+        credentials.clearLibraryCredentials(SignOutReason.LIBRARY)
         credentials.saveLibrarySignIn(credentials.libraryAccountGeneration, "B10000001", "pw", "token", 1L, byUser = true)
         assertFalse(credentials.refuseLibraryPassword(generation, "pw", at = 5_000L))
         assertFalse(credentials.libraryPasswordRefused)

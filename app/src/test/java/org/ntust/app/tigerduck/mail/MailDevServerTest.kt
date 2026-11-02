@@ -13,6 +13,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.store.MailCache
 import java.io.File
 
@@ -210,7 +211,7 @@ class MailDevServerTest {
         File(cache.attachmentsDir, "a.pdf").writeText("x")
         assertTrue(state.inboxSeenUidNext > 0)
 
-        assertTrue(MailDevServerController(store, site, account).apply(gmail))
+        assertTrue(MailDevServerController(store, site) { account.signOut(SignOutReason.MAIL) }.apply(gmail))
 
         assertFalse(account.signedIn.value)
         assertNull("the school credentials may not be reused against another server", credentials.mailStudentId)
@@ -239,7 +240,7 @@ class MailDevServerTest {
         account.onAuthFailure()
         assertTrue(state.authFailed)
 
-        MailDevServerController(store, site, account).apply(gmail)
+        MailDevServerController(store, site) { account.signOut(SignOutReason.MAIL) }.apply(gmail)
 
         // Spec §7.4 stops a rejected password being retried. The lockout is about the
         // credentials, so it goes when they do -- otherwise the test account inherits a
@@ -258,7 +259,7 @@ class MailDevServerTest {
             RecordingScheduler(), RecordingNotifier(), scope = this,
         )
         account.signIn("b10000001", "pw")
-        val controller = MailDevServerController(store, site, account)
+        val controller = MailDevServerController(store, site) { account.signOut(SignOutReason.MAIL) }
 
         // Switched off, so however the fields are filled in the effective server is the school's.
         assertFalse(controller.apply(gmail.copy(enabled = false)))
@@ -276,7 +277,7 @@ class MailDevServerTest {
             InMemoryCredentialStore(), InMemoryMailStateStore(), FakeMailServer().factory(), MailCache(tmp.root),
             FakeDemoGate(), site, RecordingScheduler(), RecordingNotifier(), scope = this,
         )
-        val controller = MailDevServerController(store, site, account)
+        val controller = MailDevServerController(store, site) { account.signOut(SignOutReason.MAIL) }
         controller.apply(gmail)
         assertNotNull(site.activeOverride())
         assertTrue(controller.reset())

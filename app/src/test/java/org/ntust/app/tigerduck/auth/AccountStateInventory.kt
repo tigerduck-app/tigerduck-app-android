@@ -866,7 +866,7 @@ internal class AccountStateInventory(
      * Where the school's sign-out starts, by source and function: its own steps, and what follows
      * every school sign-out. Each store [listedStores] names starts it too, at its `forgetAccount`.
      */
-    private val signOutSteps = listOf("AuthService.kt" to "clearAccount", "AccountSessionEffects.kt" to "onSignedOut")
+    private val signOutSteps = listOf("SignOutPlans.kt" to "clearAccount", "AccountSessionEffects.kt" to "onSignedOut")
 
     /** The functions the school's sign-out reaches, by source and name: what it starts, and what each calls in turn. */
     val signOutReach: Set<Pair<String, String>> by lazy {

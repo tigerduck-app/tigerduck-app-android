@@ -13,7 +13,7 @@ import org.junit.Test
 class AuthServiceLatchClearingTest {
 
     private val clearing = SignOutSource.expanded(
-        SignOutSource.body(SignOutSource.source(SignOutSource.PLAN), "private fun clearAccount()"),
+        SignOutSource.body(SignOutSource.source(SignOutSource.PLAN), "private fun clearAccount("),
     )
 
     @Test

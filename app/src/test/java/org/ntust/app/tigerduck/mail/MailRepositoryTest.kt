@@ -25,6 +25,7 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import org.ntust.app.tigerduck.auth.session.Account
 import org.ntust.app.tigerduck.auth.session.AccountSession
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.compose.MessageBuilder
 import org.ntust.app.tigerduck.mail.compose.OutgoingMail
 import org.ntust.app.tigerduck.mail.imap.MailSession
@@ -135,7 +136,7 @@ class MailRepositoryTest {
         fun signOutAndSettle() {
             val cleaned = CountDownLatch(1)
             notifier.onCancelAll = { cleaned.countDown() }
-            account.signOut()
+            account.signOut(SignOutReason.MAIL)
             assertTrue("sign-out's cleanup never ran", cleaned.await(5, TimeUnit.SECONDS))
             notifier.onCancelAll = null
         }
@@ -1889,7 +1890,7 @@ class MailRepositoryTest {
             // The student signs out while WorkManager is being asked, and the sign-out's cleanup
             // gets as far as it can: its cancel made, or held until the search has asked.
             setup.repository.onSchedulingWait = { reached.countDown() }
-            setup.account.signOut()
+            setup.account.signOut(SignOutReason.MAIL)
             if (!reached.await(30, TimeUnit.SECONDS)) timedOut = true
         }
         val search = async(Dispatchers.IO) { runCatching { repo.search("INBOX", "期中") } }
@@ -2095,7 +2096,7 @@ class MailRepositoryTest {
         repo.updateSearchIndex()
 
         holdingTheCleanup(setup) {
-            setup.account.signOut()
+            setup.account.signOut(SignOutReason.MAIL)
             setup.account.signIn("b10000002", "pw")
             repo.updateSearchIndex()
             assertEquals("downloaded before the cleanup", 1, setup.searchIndex.uids(setup.account.ownAddress!!.lowercase(), "INBOX").size)
@@ -2624,7 +2625,7 @@ class MailRepositoryTest {
         val repo = runBlocking { setup.signedIn() }
         runBlocking { repo.folders() }
         assertEquals(1, server.openSessions)
-        setup.account.signOut()
+        setup.account.signOut(SignOutReason.MAIL)
         withContext(Dispatchers.Default) {
             withTimeout(5_000) {
                 while (server.openSessions != 0) delay(10)
@@ -2642,7 +2643,7 @@ class MailRepositoryTest {
 
         // The same student: the account reads the same once both have landed.
         runBlocking {
-            setup.account.signOut()
+            setup.account.signOut(SignOutReason.MAIL)
             setup.account.signIn("b10000001", "pw")
         }
         withContext(Dispatchers.Default) {
@@ -2658,7 +2659,7 @@ class MailRepositoryTest {
         val repo = setup.signedIn()
         repo.folders()
         assertEquals(1, server.openSessions)
-        setup.account.signOut()
+        setup.account.signOut(SignOutReason.MAIL)
         // The sign-out collector's close hops to a real Dispatchers.IO (so it
         // never blocks the application scope's Dispatchers.Default), so
         // runCurrent() alone can't flush it -- bridge with a short real-time

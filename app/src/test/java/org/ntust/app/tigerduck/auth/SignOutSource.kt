@@ -31,7 +31,7 @@ internal object SignOutSource {
     fun source(path: String): String = File(main, path).readText()
 
     /** The file that holds the school's plan, and its clearing. */
-    const val PLAN = "auth/AuthService.kt"
+    const val PLAN = "auth/session/SignOutPlans.kt"
 
     /**
      * The body of the function [declaration] starts in [source]: its block up to the matching

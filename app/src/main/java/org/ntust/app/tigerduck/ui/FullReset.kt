@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.ui
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.DataMigration
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -18,9 +19,12 @@ import org.ntust.app.tigerduck.data.preferences.CredentialManager
  * should be, since a named list silently stops being complete.
  */
 internal class FullReset(
-    /** The mail account is separate from the NTUST sign-in (spec §7.5), but a full reset wipes it too. */
-    private val signOutMail: () -> Unit,
-    private val signOutSchool: () -> Unit,
+    /**
+     * Every account's sign-out for a reset ([SignOutReason.FULL_RESET]): School Mail, which is
+     * separate from the NTUST sign-in (spec §7.5) but a full reset wipes it too, then the school,
+     * whose sign-out keeps a demo library signed in, as a full reset does not.
+     */
+    private val signOut: () -> Unit,
     private val clearCaches: suspend () -> Unit,
     private val credentials: CredentialManager,
     private val prefs: AppPreferences,
@@ -30,8 +34,7 @@ internal class FullReset(
 ) {
     /** Signs out, then wipes the stores in [scope] and runs [onWiped]. */
     fun start(scope: CoroutineScope, onWiped: () -> Unit): Job {
-        signOutMail()
-        signOutSchool()
+        signOut()
         return scope.launch {
             wipeStores()
             onWiped()
@@ -41,7 +44,7 @@ internal class FullReset(
     private suspend fun wipeStores() {
         runCatching { clearCaches() }
         runCatching { clearBrowser() }
-        credentials.clearAll()
+        credentials.clearAll(SignOutReason.FULL_RESET)
         // Then the watch, so a library account of another student, which the
         // school sign-out before keeps, does not stay on it.
         publishLibraryCredentialsToWatch()

@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -29,10 +30,21 @@ class LibrarySessionTest {
         )
         steps.clear()
 
-        session.signOut()
+        session.signOut(SignOutReason.LIBRARY)
 
         assertEquals(listOf("remove", "read", "signed out", "watch"), steps)
         assertFalse(session.signedIn.value)
+    }
+
+    @Test
+    fun `the removal is told why the account goes`() {
+        val told = mutableListOf<SignOutReason>()
+        val session = LibrarySession(read = { false }, remove = { told += it })
+
+        session.signOut(SignOutReason.ENDPOINT_CHANGE)
+        session.signOut(SignOutReason.LIBRARY)
+
+        assertEquals(listOf(SignOutReason.ENDPOINT_CHANGE, SignOutReason.LIBRARY), told)
     }
 
     @Test
@@ -62,7 +74,7 @@ class LibrarySessionTest {
         }
         val sources = listOf(File(dir, "src/main/java"), File(dir, "app/src/main/java")).first { it.isDirectory }
         val callers = sources.walkTopDown().filter { it.extension == "kt" }
-            .filter { "clearLibraryCredentials()" in it.readText() }.map { it.name }.toSet()
+            .filter { "clearLibraryCredentials(" in it.readText() }.map { it.name }.toSet()
 
         assertEquals(setOf("CredentialManager.kt", "LibrarySession.kt"), callers)
     }

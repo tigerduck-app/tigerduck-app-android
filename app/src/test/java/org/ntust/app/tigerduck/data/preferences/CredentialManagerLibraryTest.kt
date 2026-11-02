@@ -60,7 +60,7 @@ class CredentialManagerLibraryTest {
     fun `a library sign-out ends the library's sign-in, and the next one opens at once`() {
         val before = session.current
 
-        credentials.clearLibraryCredentials()
+        credentials.clearLibraryCredentials(SignOutReason.LIBRARY)
 
         assertFalse(before.isCurrent)
         assertTrue(session.isOpen)
@@ -71,29 +71,29 @@ class CredentialManagerLibraryTest {
     fun `a full reset ends the library's sign-in too`() {
         val before = session.current
 
-        credentials.clearAll()
+        credentials.clearAll(SignOutReason.FULL_RESET)
 
         assertFalse(before.isCurrent)
         assertTrue(session.isOpen)
     }
 
     @Test
-    fun `a library sign-out and a full reset are each told, with the sign-in they ended`() {
+    fun `a library sign-out and a full reset are each told, with the sign-in they ended and the reason given`() {
         val told = mutableListOf<AccountEvent>()
         val listening = CoroutineScope(Dispatchers.Unconfined).launch(start = CoroutineStart.UNDISPATCHED) {
             session.events.collect { told += it }
         }
         val first = session.current
 
-        credentials.clearLibraryCredentials()
+        credentials.clearLibraryCredentials(SignOutReason.ENDPOINT_CHANGE)
         val second = session.current
-        credentials.clearAll()
+        credentials.clearAll(SignOutReason.FULL_RESET)
         listening.cancel()
 
         assertEquals(
             listOf<AccountEvent>(
-                AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, first, address = null),
-                AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.LIBRARY, second, address = null),
+                AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.ENDPOINT_CHANGE, first, address = null),
+                AccountEvent.SignedOut(Account.LIBRARY, SignOutReason.FULL_RESET, second, address = null),
             ),
             told,
         )
@@ -110,9 +110,9 @@ class CredentialManagerLibraryTest {
 
     @Test
     fun `work on the library session goes with its sign-in, by either way out`() {
-        for (signOut in listOf(credentials::clearLibraryCredentials, credentials::clearAll)) {
+        for (signOut in listOf<(SignOutReason) -> Unit>(credentials::clearLibraryCredentials, credentials::clearAll)) {
             val work = session.launch { awaitCancellation() }
-            signOut()
+            signOut(SignOutReason.LIBRARY)
             runBlocking { withTimeout(5_000) { work.join() } }
             assertTrue(work.isCancelled)
         }
@@ -130,7 +130,7 @@ class CredentialManagerLibraryTest {
             }
         }
 
-        CredentialManager(watched, session).clearLibraryCredentials()
+        CredentialManager(watched, session).clearLibraryCredentials(SignOutReason.LIBRARY)
 
         assertEquals(true, endedAtTheRemoval)
     }
@@ -148,7 +148,7 @@ class CredentialManagerLibraryTest {
         signedIn()
         val generation = credentials.libraryAccountGeneration
 
-        credentials.clearLibraryCredentials()
+        credentials.clearLibraryCredentials(SignOutReason.LIBRARY)
 
         assertFalse(save(generation))
         assertFalse(save(generation, byUser = true))
@@ -160,7 +160,7 @@ class CredentialManagerLibraryTest {
         signedIn()
         val generation = credentials.libraryAccountGeneration
 
-        credentials.clearAll()
+        credentials.clearAll(SignOutReason.FULL_RESET)
 
         assertFalse(save(generation))
         assertNoAccount()

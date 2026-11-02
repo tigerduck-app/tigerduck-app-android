@@ -12,6 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.mail.FakeDemoGate
 import org.ntust.app.tigerduck.mail.FakeMailServer
 import org.ntust.app.tigerduck.mail.InMemoryCredentialStore
@@ -72,7 +73,7 @@ class MailCheckerTest {
     private fun signOutAndSettle() {
         val cleaned = CountDownLatch(1)
         notifier.onCancelAll = { cleaned.countDown() }
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
         assertTrue("sign-out's cleanup never ran", cleaned.await(5, TimeUnit.SECONDS))
         notifier.onCancelAll = null
     }
@@ -562,7 +563,7 @@ class MailCheckerTest {
         checker().check(CheckSource.ALARM)
         assertEquals(now, state.fetchedAt("INBOX"))
 
-        account.signOut()
+        account.signOut(SignOutReason.MAIL)
 
         assertEquals(0L, state.fetchedAt("INBOX"))
     }

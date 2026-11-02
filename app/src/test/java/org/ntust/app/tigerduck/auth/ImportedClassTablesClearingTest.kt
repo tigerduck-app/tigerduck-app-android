@@ -25,7 +25,7 @@ class ImportedClassTablesClearingTest {
      * The sign-out: what it clears at once, and the wipe it starts on the app scope, with the lists
      * of the account's stores they run written out.
      */
-    private fun signOut() = SignOutSource.expanded(body("private fun clearAccount()", plan) + wipe)
+    private fun signOut() = SignOutSource.expanded(body("private fun clearAccount(", plan) + wipe)
 
     /** The wipe the sign-out starts on the app scope, which SignOutWipe runs. */
     private val wipe: String = SignOutSource.source("auth/session/SignOutWipe.kt")
