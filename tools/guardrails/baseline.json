@@ -35,7 +35,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/AuthTokenManager.kt",
     "kind": "long-file",
-    "count": 901
+    "count": 878
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/auth/StoredAccountSignIn.kt",
