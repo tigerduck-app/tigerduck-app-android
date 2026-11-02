@@ -1176,6 +1176,9 @@ class DataCache @Inject constructor(
         return semesters.toSortedSet().associateWith { loadCourses(it) }
     }
 
+    /** The file [queue]'s save writes, for a reader that needs its modified time. */
+    fun queueFile(queue: QueueFile): File = File(userDataDir, queue.fileName)
+
     // --- Ignored Assignments (set of assignmentIds) ---
     // Stored in filesDir so the user's ignore decisions survive OS cache eviction
     // and remote re-fetches, mirroring skipped_dates.json handling.
@@ -1215,12 +1218,12 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseIgnores(changes: List<PendingCourseIgnore>, signIn: SignIn): Boolean =
-        saveToUserData(changes, "pending_course_ignores.json", signIn)
+        saveToUserData(changes, QueueFile.COURSE_IGNORES.fileName, signIn)
 
     /** Rows without a usable [PendingCourseIgnore.key] are left out. */
     suspend fun loadPendingCourseIgnores(): List<PendingCourseIgnore> {
         val type = object : TypeToken<List<PendingCourseIgnore>>() {}.type
-        return loadFromUserData<List<PendingCourseIgnore?>>(type, "pending_course_ignores.json")
+        return loadFromUserData<List<PendingCourseIgnore?>>(type, QueueFile.COURSE_IGNORES.fileName)
             ?.filterNotNull()
             ?.filter { it.key != null }
             ?: emptyList()
@@ -1267,12 +1270,12 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun saveUnsentMarks(marks: List<UnsentMark>, signIn: SignIn): Boolean =
-        saveToUserData(marks, "unsent_marks.json", signIn)
+        saveToUserData(marks, QueueFile.UNSENT_MARKS.fileName, signIn)
 
     /** Rows without an id or a status are left out. */
     suspend fun loadUnsentMarks(): List<UnsentMark> {
         val type = object : TypeToken<List<UnsentMark?>>() {}.type
-        return loadFromUserData<List<UnsentMark?>>(type, "unsent_marks.json")
+        return loadFromUserData<List<UnsentMark?>>(type, QueueFile.UNSENT_MARKS.fileName)
             ?.filterNotNull()
             ?.filter { it.assignmentId != null && it.status != null }
             ?: emptyList()
@@ -1285,12 +1288,12 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseAdds(pending: Map<String, List<String>>, signIn: SignIn): Boolean =
-        saveToUserData(pending, "pending_course_adds.json", signIn)
+        saveToUserData(pending, QueueFile.COURSE_ADDS.fileName, signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseAdds(): Map<String, List<String>> {
         val type = object : TypeToken<Map<String, List<String?>?>>() {}.type
-        return loadFromUserData<Map<String?, List<String?>?>>(type, "pending_course_adds.json")
+        return loadFromUserData<Map<String?, List<String?>?>>(type, QueueFile.COURSE_ADDS.fileName)
             .orEmpty()
             .mapNotNull { (semester, nos) ->
                 val kept = nos.orEmpty().filterNotNull().filter(String::isNotBlank)
@@ -1306,12 +1309,12 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseAddTimes(times: Map<String, Map<String, Long>>, signIn: SignIn): Boolean =
-        saveToUserData(times, "pending_course_add_times.json", signIn)
+        saveToUserData(times, QueueFile.COURSE_ADD_TIMES.fileName, signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseAddTimes(): Map<String, Map<String, Long>> {
         val type = object : TypeToken<Map<String?, Map<String?, Long?>?>>() {}.type
-        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, "pending_course_add_times.json")
+        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, QueueFile.COURSE_ADD_TIMES.fileName)
             .orEmpty()
             .mapNotNull { (semester, entries) ->
                 val kept = entries.orEmpty().mapNotNull { (courseNo, addedAt) ->
@@ -1330,12 +1333,12 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseDeletes(pending: Map<String, Map<String, Long>>, signIn: SignIn): Boolean =
-        saveToUserData(pending, "pending_course_deletes.json", signIn)
+        saveToUserData(pending, QueueFile.COURSE_DELETES.fileName, signIn)
 
     /** Null and blank entries are left out, and so is a term left with none. */
     suspend fun loadPendingCourseDeletes(): Map<String, Map<String, Long>> {
         val type = object : TypeToken<Map<String?, Map<String?, Long?>?>>() {}.type
-        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, "pending_course_deletes.json")
+        return loadFromUserData<Map<String?, Map<String?, Long?>?>>(type, QueueFile.COURSE_DELETES.fileName)
             .orEmpty()
             .mapNotNull { (semester, entries) ->
                 val kept = entries.orEmpty().mapNotNull { (courseNo, queuedAt) ->
@@ -1353,12 +1356,12 @@ class DataCache @Inject constructor(
 
     /** False, and nothing written, once [signIn] has ended. */
     suspend fun savePendingCourseOverrides(pending: List<PendingCourseOverride>, signIn: SignIn): Boolean =
-        saveToUserData(pending, "pending_course_overrides.json", signIn)
+        saveToUserData(pending, QueueFile.COURSE_OVERRIDES.fileName, signIn)
 
     /** Rows too damaged to send ([PendingCourseOverride.key] null) are left out. */
     suspend fun loadPendingCourseOverrides(): List<PendingCourseOverride> {
         val type = object : TypeToken<List<PendingCourseOverride?>>() {}.type
-        return loadFromUserData<List<PendingCourseOverride?>>(type, "pending_course_overrides.json")
+        return loadFromUserData<List<PendingCourseOverride?>>(type, QueueFile.COURSE_OVERRIDES.fileName)
             ?.filterNotNull()
             ?.filter { it.key != null }
             ?: emptyList()
@@ -1617,13 +1620,13 @@ class DataCache @Inject constructor(
                         "skipped_dates.json",
                         "ignored_assignments.json",
                         "ignored_courses.json",
-                        "pending_course_ignores.json",
+                        QueueFile.COURSE_IGNORES.fileName,
                         "marked_completed_assignments.json",
-                        "unsent_marks.json",
-                        "pending_course_adds.json",
-                        "pending_course_add_times.json",
-                        "pending_course_deletes.json",
-                        "pending_course_overrides.json",
+                        QueueFile.UNSENT_MARKS.fileName,
+                        QueueFile.COURSE_ADDS.fileName,
+                        QueueFile.COURSE_ADD_TIMES.fileName,
+                        QueueFile.COURSE_DELETES.fileName,
+                        QueueFile.COURSE_OVERRIDES.fileName,
                         "deleted_courses.json",
                         HAND_ADDED_HIDES_FILE,
                         RESTORED_COURSES_FILE,
