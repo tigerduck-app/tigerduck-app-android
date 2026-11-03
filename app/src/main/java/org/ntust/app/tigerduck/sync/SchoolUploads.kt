@@ -4,6 +4,8 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -85,20 +87,28 @@ class SchoolUploads internal constructor(
         }
     }
 
+    // One send of the assignments at a time, at once or released: see [assignments].
+    private val assignmentSends = Mutex()
+
     /**
      * The assignments a Moodle round or an assignment's page wrote, [written] as written, under
      * [signIn]. Once the gate is open they go at once. Before, what goes once it opens is the
      * assignments as stored then: the newest written, as the uploads of two writes may have
-     * waited in either order. [failed] hears a send that failed, now or then; a cancellation of
-     * the caller is no failure, and goes on up.
+     * waited in either order. Each send, at once or released, holds [assignmentSends], and the
+     * released one reads the store under it, so a newer list sent at once never lands before an
+     * older one read before it (the term's sends are ordered by the caller's `uploading` the
+     * same way). [failed] hears a send that failed, now or then; a cancellation of the caller is
+     * no failure, and goes on up.
      */
     suspend fun assignments(written: List<Assignment>, signIn: SignIn, failed: (Exception) -> Unit = {}) = afterFirstPull(
         signIn, ASSIGNMENTS,
-        now = { reporting(failed) { sendAssignments(written, signIn) } },
+        now = { assignmentSends.withLock { reporting(failed) { sendAssignments(written, signIn) } } },
         later = { pinned ->
-            val stored = dataCache.loadAssignments()
-            // Signed out while the file was read: what it held is not this sign-in's.
-            if (pinned.isCurrent) reporting(failed) { sendAssignments(stored, pinned) }
+            assignmentSends.withLock {
+                val stored = dataCache.loadAssignments()
+                // Signed out while the file was read: what it held is not this sign-in's.
+                if (pinned.isCurrent) reporting(failed) { sendAssignments(stored, pinned) }
+            }
         },
     )
 

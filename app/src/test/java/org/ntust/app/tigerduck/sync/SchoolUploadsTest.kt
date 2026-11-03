@@ -318,6 +318,43 @@ class SchoolUploadsTest {
         assertEquals(listOf(listOf(701, 702)), assignmentUploads())
     }
 
+    /**
+     * Codex on PR R, finding 5: a released waiting upload reads the assignments, then pauses before
+     * it sends them; a newer status write stores others and uploads them at once. The released one
+     * must not land after the newer, or the backend keeps the older list.
+     */
+    @Test
+    fun `a released upload of the assignments never lands after a newer one sent at once`() = runBlocking {
+        val sent = java.util.Collections.synchronizedList(mutableListOf<List<String>>())
+        val released = CompletableDeferred<Unit>()
+        val resume = CompletableDeferred<Unit>()
+        var calls = 0
+        val held = SchoolUploads(gate, appScope, cache) { assignments, _ ->
+            // The first send, the released one, pauses with what it read.
+            if (synchronized(sent) { calls++ } == 0) {
+                released.complete(Unit)
+                resume.await()
+            }
+            sent += assignments.map { it.assignmentId }
+        }
+        cache.saveAssignments(listOf(assignment("701")), signIn)
+        held.assignments(listOf(assignment("701")), signIn)
+        withTimeoutOrNull(10_000) { while (gate.waiting != 1) delay(1) }
+        gate.notePull(signIn)
+        withTimeoutOrNull(10_000) { released.await() }
+
+        // A newer write, sent at once now the gate is open.
+        val newer = listOf(assignment("701"), assignment("702"))
+        cache.saveAssignments(newer, signIn)
+        val atOnce = appScope.launch { held.assignments(newer, signIn) }
+        delay(300)
+        resume.complete(Unit)
+        withTimeoutOrNull(10_000) { atOnce.join() }
+
+        until("both went") { sent.size == 2 }
+        assertEquals("the last to land is the newest list", listOf("701", "702"), sent.last())
+    }
+
     @Test
     fun `an upload asked for once this process has pulled goes at once, in its caller`() = runBlocking {
         gate.notePull(signIn)
