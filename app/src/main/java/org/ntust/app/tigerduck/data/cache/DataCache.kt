@@ -116,6 +116,35 @@ class DataCache @Inject constructor(
 
     suspend fun replaceMarkedCompletedAssignments(ids: Set<String>, signIn: SignIn) =
         saveMarkedCompletedAssignments(ids, signIn)
+
+    /**
+     * Writes the ignored and marked-done sets as [change] makes them of the sets as stored and the marks
+     * waiting to go up, read in one step under the folder's lock every save of each takes, so a tap's
+     * write and a pull's never undo each other's. [change] runs on the caller's thread. The marks as
+     * they stand after, or null, with nothing written, once [signIn] has ended.
+     */
+    suspend fun updateAssignmentMarks(signIn: SignIn, change: (AssignmentMarks, List<UnsentMark>) -> AssignmentMarks): AssignmentMarks? {
+        val ids = object : TypeToken<List<String>>() {}.type
+        val ignoredFile = File(userDataDir, "ignored_assignments.json")
+        val completedFile = File(userDataDir, "marked_completed_assignments.json")
+        val waitingFile = File(userDataDir, QueueFile.UNSENT_MARKS.fileName)
+        val (marks, wrote) = userDataMutex.withLock {
+            if (!signIn.isCurrent) return@withLock null
+            val (stored, waiting) = withContext(Dispatchers.IO) {
+                AssignmentMarks(readJson<List<String>>(ignoredFile, ids)?.toSet().orEmpty(), readJson<List<String>>(completedFile, ids)?.toSet().orEmpty()) to
+                    readJson<List<UnsentMark?>>(waitingFile, object : TypeToken<List<UnsentMark?>>() {}.type).orEmpty()
+                        .filterNotNull().filter { it.assignmentId != null && it.status != null }
+            }
+            val next = change(stored, waiting)
+            withContext(Dispatchers.IO) {
+                if (next.ignored != stored.ignored) atomicWrite(ignoredFile, gson.toJson(next.ignored.toList()))
+                if (next.completed != stored.completed) atomicWrite(completedFile, gson.toJson(next.completed.toList()))
+            }
+            next to (next != stored)
+        } ?: return null
+        if (wrote) _assignmentMarksVersion.update { it + 1 }
+        return marks
+    }
     private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")

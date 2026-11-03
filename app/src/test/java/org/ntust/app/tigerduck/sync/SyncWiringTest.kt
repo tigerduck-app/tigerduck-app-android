@@ -658,8 +658,8 @@ class SyncWiringTest {
     @Test
     fun `a tap's save and a lookup's write hold the sign-in of their start`() {
         val tap = body("ui/screen/home/HomeViewModel.kt", "toggleOverride")
-        assertTrue("Home's tap no longer reads its sign-in first", tap.indexOf("val signIn = signInNow()") in 0 until tap.indexOf("primaryChannel.trySend"))
-        assertCalls("ui/screen/home/HomeViewModel.kt", "toggleOverride", "primaryChannel.trySend(primary.value to signIn)", "unsentMarks.send(id, status, signIn)")
+        assertTrue("Home's tap no longer reads its sign-in first", tap.indexOf("val signIn = signInNow()") in 0 until tap.indexOf("markSaves.trySend"))
+        assertCalls("ui/screen/home/HomeViewModel.kt", "toggleOverride", "markSaves.trySend(Triple(id, status, signIn))", "unsentMarks.send(id, status, signIn)")
         val edit = body("ui/screen/classtable/ClassTableViewModel.kt", "showEdit")
         assertTrue("an edit of the class table no longer holds the tap's sign-in", "UnsavedEdit(nextUnsavedEdit++, signInNow())" in edit)
         val lookup = body("network/CourseService.kt", "fetchLookup")

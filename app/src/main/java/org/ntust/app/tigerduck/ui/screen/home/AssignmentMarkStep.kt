@@ -1,8 +1,11 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import android.util.Log
+import kotlinx.coroutines.flow.update
 import org.ntust.app.tigerduck.data.UnsentMarks
+import org.ntust.app.tigerduck.data.cache.AssignmentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -38,6 +41,15 @@ internal class AssignmentMarkStep(
         suspend fun ignored(): Set<String>
         suspend fun completed(): Set<String>
         suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn)
+
+        /**
+         * Writes the marks as [change] makes them of the marks as stored and of those waiting to go
+         * up, all read in one step with every other write of them ([DataCache.updateAssignmentMarks]).
+         * The marks as they stand after, or null once [signIn] has ended. A store with no such step
+         * reads, changes and [replace]s, waiting marks unknown.
+         */
+        suspend fun update(signIn: SignIn, change: (AssignmentMarks, List<UnsentMark>) -> AssignmentMarks): AssignmentMarks? =
+            change(AssignmentMarks(ignored(), completed()), emptyList()).also { replace(it.ignored, it.completed, signIn) }
     }
 
     /**
@@ -108,7 +120,7 @@ internal class AssignmentMarkStep(
         )
         // Read again: switched off since, the marks are this phone's own.
         if (!switchOn()) return false
-        commit(state, outcome, signIn)
+        commit(state, AssignmentMarks(localIgnored, localCompleted), outcome, signIn)
         if (outcome.conflicts.isNotEmpty()) {
             signIn.ifCurrent {
                 state.pendingResult = result
@@ -122,6 +134,7 @@ internal class AssignmentMarkStep(
     suspend fun keepServer(state: HomeSyncState, result: BackendSyncResult, signIn: SignIn) {
         // Switched off since the dialog opened, the marks are this phone's own.
         if (!switchOn()) return
+        val local = AssignmentMarks(store.ignored(), store.completed())
         val outcome = AssignmentOverrideReconciler.serverWins(
             serverIgnored = result.ignoredIds,
             serverCompleted = result.completedIds,
@@ -129,7 +142,7 @@ internal class AssignmentMarkStep(
             inFlightCompleted = state.markedCompletedIds.value,
             pendingOverrides = state.pendingOverrides + unsent(),
         )
-        commit(state, outcome, signIn)
+        commit(state, local, outcome, signIn)
     }
 
     // The mark Home shows for [id] now; taps change these at once.
@@ -139,12 +152,38 @@ internal class AssignmentMarkStep(
         else -> AssignmentOverrideReconciler.STATUS_NONE
     }
 
+    // The marks [outcome] changes of [local], the ones the step read, each written onto the marks
+    // as they stand, as Home's taps are, never as a whole set: a tap during the pull stays, and so
+    // does the pull's mark of another assignment. Not over a mark tapped since the read, whose PATCH
+    // is under way or waits, which the step's read may predate: decided in the write's own step.
+    private suspend fun commit(
+        state: HomeSyncState,
+        local: AssignmentMarks,
+        outcome: AssignmentOverrideReconciler.Outcome,
+        signIn: SignIn,
+    ) = commitChanges(state, AssignmentOverrideReconciler.changes(local, AssignmentMarks(outcome.ignored, outcome.completed)), signIn)
+
+    // [changes], one assignment at a time, onto the marks as they stand, but over a mark this phone
+    // holds as the write runs: one tapped, its PATCH under way ([HomeSyncState.pendingOverrides]) or
+    // waiting, or [kept]. Home then shows the marks as written, but each it holds as it shows it.
     // What Home shows is the session's on screen: a run past its sign-in changes none of it.
-    private suspend fun commit(state: HomeSyncState, outcome: AssignmentOverrideReconciler.Outcome, signIn: SignIn) {
-        store.replace(outcome.ignored, outcome.completed, signIn)
+    private suspend fun commitChanges(
+        state: HomeSyncState,
+        changes: Map<String, String>,
+        signIn: SignIn,
+        kept: (String) -> Boolean = { false },
+    ) {
+        var held = emptySet<String>()
+        val written = store.update(signIn) { stored, waiting ->
+            held = changes.keys.filterTo(HashSet()) { id ->
+                id in state.pendingOverrides || waiting.any { it.assignmentId == id } || kept(id)
+            }
+            AssignmentOverrideReconciler.applied(stored, changes, held)
+        } ?: return
         signIn.ifCurrent {
-            state.ignoredAssignmentIds.value = outcome.ignored
-            state.markedCompletedIds.value = outcome.completed
+            val skip = held + state.pendingOverrides
+            state.ignoredAssignmentIds.update { shown -> written.ignored - skip + (shown intersect skip) }
+            state.markedCompletedIds.update { shown -> written.completed - skip + (shown intersect skip) }
         }
     }
 
@@ -168,6 +207,8 @@ internal class AssignmentMarkStep(
                     dataCache.replaceIgnoredAssignments(ignored, signIn)
                     dataCache.replaceMarkedCompletedAssignments(completed, signIn)
                 }
+                override suspend fun update(signIn: SignIn, change: (AssignmentMarks, List<UnsentMark>) -> AssignmentMarks) =
+                    dataCache.updateAssignmentMarks(signIn, change)
             },
             send = send,
             unsent = unsentMarks::ids,

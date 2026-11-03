@@ -273,9 +273,10 @@ class HomeViewModel @Inject constructor(
         HomeAssignmentFilters.hasIgnored(all, ignoredIncludingCourses(all, ignored, courseKeys))
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    // Each with the sign-in the tap was made in, which the save holds on to.
-    private val saveIgnoredChannel = Channel<Pair<Set<String>, SignIn>>(Channel.CONFLATED)
-    private val saveMarkedCompletedChannel = Channel<Pair<Set<String>, SignIn>>(Channel.CONFLATED)
+    // Each tap's mark, with the sign-in it was made in, which the save holds on to: written in the
+    // order made, one assignment at a time onto the marks as stored, never as Home's whole sets, so
+    // a pull's mark of another assignment saved meanwhile stays.
+    private val markSaves = Channel<Triple<String, String, SignIn>>(Channel.UNLIMITED)
 
     // Swipes on Home, counted on the main thread; see reloadAdoptedMarks.
     private var markTaps = 0
@@ -343,13 +344,8 @@ class HomeViewModel @Inject constructor(
         //     }
         // }
         viewModelScope.launch {
-            for ((ids, signIn) in saveIgnoredChannel) {
-                dataCache.saveIgnoredAssignments(ids, signIn)
-            }
-        }
-        viewModelScope.launch {
-            for ((ids, signIn) in saveMarkedCompletedChannel) {
-                dataCache.saveMarkedCompletedAssignments(ids, signIn)
+            for ((id, status, signIn) in markSaves) {
+                dataCache.updateAssignmentMarks(signIn) { marks, _ -> AssignmentOverrideReconciler.withStatus(marks, id, status) }
             }
         }
         viewModelScope.launch {
@@ -1035,18 +1031,14 @@ class HomeViewModel @Inject constructor(
     fun toggleIgnore(assignment: Assignment) = toggleOverride(
         assignment = assignment,
         primary = _ignoredAssignmentIds,
-        primaryChannel = saveIgnoredChannel,
         secondary = _markedCompletedIds,
-        secondaryChannel = saveMarkedCompletedChannel,
         statusWhenSet = AssignmentOverrideReconciler.STATUS_IGNORED,
     )
 
     fun toggleMarkCompleted(assignment: Assignment) = toggleOverride(
         assignment = assignment,
         primary = _markedCompletedIds,
-        primaryChannel = saveMarkedCompletedChannel,
         secondary = _ignoredAssignmentIds,
-        secondaryChannel = saveIgnoredChannel,
         statusWhenSet = AssignmentOverrideReconciler.STATUS_COMPLETED,
     )
 
@@ -1063,9 +1055,7 @@ class HomeViewModel @Inject constructor(
     private fun toggleOverride(
         assignment: Assignment,
         primary: MutableStateFlow<Set<String>>,
-        primaryChannel: Channel<Pair<Set<String>, SignIn>>,
         secondary: MutableStateFlow<Set<String>>,
-        secondaryChannel: Channel<Pair<Set<String>, SignIn>>,
         statusWhenSet: String,
     ) {
         val signIn = signInNow()
@@ -1073,15 +1063,12 @@ class HomeViewModel @Inject constructor(
         markTaps++
         val wasSet = id in primary.value
         primary.update { if (wasSet) it - id else it + id }
-        if (!wasSet) {
-            secondary.update { it - id }
-            secondaryChannel.trySend(secondary.value to signIn)
-        }
-        primaryChannel.trySend(primary.value to signIn)
+        if (!wasSet) secondary.update { it - id }
+        val status = if (wasSet) AssignmentOverrideReconciler.STATUS_NONE else statusWhenSet
+        markSaves.trySend(Triple(id, status, signIn))
         if (prefs.notifyAssignments) {
             rescheduleAssignmentNotifications(_allAssignments.value)
         }
-        val status = if (wasSet) AssignmentOverrideReconciler.STATUS_NONE else statusWhenSet
         pendingOverrides.add(id)
         revisionPoller.noteActivity()
         viewModelScope.launch {

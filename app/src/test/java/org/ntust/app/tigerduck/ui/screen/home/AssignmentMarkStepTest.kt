@@ -308,4 +308,52 @@ class AssignmentMarkStepTest {
 
     private companion object {
     }
+
+    /**
+     * A tap whose own save lands as the pull goes to write its marks, once the pull has read them:
+     * the pull writes each mark it changes onto the marks as they stand, and not the tapped one,
+     * whose PATCH is under way, so the tap stays on disk and on screen, beside the pull's mark.
+     */
+    @Test
+    fun `a mark tapped while the pull writes the marks stays, on screen and in the store`() = runTest {
+        syncedBefore = true
+        ignored = setOf("7")
+        state.ignoredAssignmentIds.value = setOf("7")
+        var reads = 0
+        var tapped = false
+        // Home's tap: on screen and in flight at once, then its own save; the seam fires once.
+        fun tap() {
+            if (tapped) return
+            tapped = true
+            state.pendingOverrides += "8"
+            state.ignoredAssignmentIds.value = state.ignoredAssignmentIds.value + "8"
+            ignored = ignored + "8"
+        }
+        val racing = AssignmentMarkStep(
+            switchOn = { switchOn },
+            pendingConflicts = { pending },
+            syncedBefore = { syncedBefore },
+            store = object : AssignmentMarkStep.MarkStore {
+                // The pull's read is the first; a second read is its write's own, under the lock.
+                override suspend fun ignored(): Set<String> {
+                    if (++reads == 2) tap()
+                    return ignored
+                }
+                override suspend fun completed() = completed
+                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
+                    tap()
+                    this@AssignmentMarkStepTest.ignored = ignored
+                    this@AssignmentMarkStepTest.completed = completed
+                }
+            },
+            send = { _, _, _ -> },
+            unsent = { unsent },
+            keepUnsent = { _, _, _ -> },
+        )
+
+        racing.pull(state, server(ignored = setOf("7", "9")), syncsMarks = true, signIn = pinned)
+
+        assertEquals("in the store", setOf("7", "8", "9"), ignored)
+        assertEquals("on screen", setOf("7", "8", "9"), state.ignoredAssignmentIds.value)
+    }
 }

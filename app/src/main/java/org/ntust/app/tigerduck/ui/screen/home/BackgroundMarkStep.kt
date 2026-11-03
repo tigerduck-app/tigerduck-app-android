@@ -1,7 +1,9 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.data.UnsentMarks
+import org.ntust.app.tigerduck.data.cache.AssignmentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
@@ -45,7 +47,16 @@ internal class BackgroundMarkStep(
         if (!takes) return NOT_TAKEN
         val marks = AssignmentOverrideReconciler.backgroundMarks(result.ignoredIds, result.completedIds, unsent())
         if (!switchOn() || marksVersion() != readAt) return NOT_TAKEN
-        store.replace(marks.ignored, marks.completed, signIn)
+        // In one step with every other write of the marks: a tap saved since the read, which the
+        // version above may not have seen yet, leaves them to the next sync as well.
+        val local = AssignmentMarks(localIgnored, localCompleted)
+        var taken = false
+        store.update(signIn) { stored, _ ->
+            if (stored != local) return@update stored
+            taken = true
+            AssignmentMarks(marks.ignored, marks.completed)
+        } ?: return NOT_TAKEN
+        if (!taken) return NOT_TAKEN
         return Outcome(taken = true, changed = marks.ignored != localIgnored || marks.completed != localCompleted)
     }
 
@@ -65,6 +76,8 @@ internal class BackgroundMarkStep(
                     dataCache.replaceIgnoredAssignments(ignored, signIn)
                     dataCache.replaceMarkedCompletedAssignments(completed, signIn)
                 }
+                override suspend fun update(signIn: SignIn, change: (AssignmentMarks, List<UnsentMark>) -> AssignmentMarks) =
+                    dataCache.updateAssignmentMarks(signIn, change)
             },
             unsent = unsentMarks::statuses,
         )

@@ -33,6 +33,8 @@ import org.ntust.app.tigerduck.auth.session.Account
 import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseColorStore
+import org.ntust.app.tigerduck.data.MarkSender
+import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.CredentialManager
@@ -72,6 +74,7 @@ class HomeViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private lateinit var cache: DataCache
     private lateinit var home: HomeViewModel
+    private lateinit var prefs: AppPreferences
     private val series = SignInSeries()
     private val signedIn = SignedInState(true)
     private val session = AccountSession(series, CoroutineScope(SupervisorJob())).also { it.signedInFrom(signedIn.signedIn) }
@@ -80,7 +83,7 @@ class HomeViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         val context = RuntimeEnvironment.getApplication()
-        val prefs = AppPreferences(context)
+        prefs = AppPreferences(context)
         val calendar = AcademicCalendarStore(context, OkHttpClient(), prefs)
         cache = DataCache(context, calendar)
         val credentials = CredentialManager(context.getSharedPreferences("credentials-test", 0))
@@ -96,8 +99,13 @@ class HomeViewModelTest {
         home = HomeViewModel(
             bare(), auth, cache, courses, bare(), AssignmentNotificationScheduler(context), prefs, colors, bare(),
             liveActivity(context, prefs, calendar), bare(), bare(),
-            bare(), bare(), tokens, bare(), bare(), LocalEdits(), bare(), bare(), bare(), bare(),
+            bare(), bare(), tokens, bare(), unsentMarks, LocalEdits(), bare(), bare(), bare(), bare(),
         )
+    }
+
+    /** Taps kept on this phone alone, as with sync off: nothing leaves for a backend. */
+    private val unsentMarks by lazy {
+        UnsentMarks(cache, MarkSender { _, _, _, _ -> true }, records = { false }, sends = { false })
     }
 
     /**
@@ -145,6 +153,32 @@ class HomeViewModelTest {
             assertEquals(listOf("CS1001"), homeCourseNos())
         } finally {
             // Home's clock ticker never ends, and runTest waits for every coroutine on its scheduler.
+            home.viewModelScope.cancel()
+        }
+    }
+
+    /**
+     * A tap saves its own assignment's mark onto the marks as stored, never Home's whole sets: a
+     * pull's mark of another assignment, saved where Home has not read it yet (the background's,
+     * or Home's own before it shows it), stays.
+     */
+    @Test
+    fun `a tap saves only its own assignment, so a pull's mark Home has not read yet stays`() = runTest {
+        try {
+            dispatcher.scheduler.runCurrent()
+            prefs.notifyAssignments = false
+            cache.saveIgnoredAssignments(setOf("7"), testSignIn())
+
+            home.toggleMarkCompleted(assignment("8", taipei("12:00:00")))
+            repeat(400) {
+                dispatcher.scheduler.runCurrent()
+                if (cache.loadMarkedCompletedAssignments().isNotEmpty()) return@repeat
+                Thread.sleep(5)
+            }
+
+            assertEquals(setOf("8"), cache.loadMarkedCompletedAssignments())
+            assertEquals("the pull's mark of another assignment", setOf("7"), cache.loadIgnoredAssignments())
+        } finally {
             home.viewModelScope.cancel()
         }
     }
