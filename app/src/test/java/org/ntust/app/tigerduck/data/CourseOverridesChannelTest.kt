@@ -362,6 +362,56 @@ class CourseOverridesChannelTest {
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
+    /** A 404 that names no missing course, as a backend without the route gives, is a refusal like any other. */
+    @Test
+    fun `on v3 a 404 that names no missing course is counted, and goes again at the next sync`() = runTest {
+        queue(color(calculus, "#FF0000"))
+        v3Backend.answer(pathOf(calculus), 404, """{"detail":"Not Found"}""")
+        val overrides = v3Overrides()
+
+        overrides.retry(signIn)
+        assertEquals(listOf(1), waiting().map { it.attempts })
+        overrides.retry(signIn)
+
+        assertEquals(2, v3Backend.sent.size)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** The process's one more try is a sign-in's: the next student's parked changes get their own. */
+    @Test
+    fun `a sign-out gives the next student's parked changes their own try in this process`() = runTest {
+        val overrides = v3Overrides()
+        val outbox = Outbox(setOf(overrides))
+        overrides.retry(signIn)
+        series.end()
+        outbox.forgetAccount()
+        cache.clearAllUserData()
+        series.open()
+        queue(color(calculus, "#FF0000").copy(attempts = max))
+
+        overrides.retry(signIn)
+
+        assertEquals(1, v3Backend.sent.size)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** Work of an ended sign-in that runs after its sign-out takes nothing of the next student's. */
+    @Test
+    fun `an ended sign-in's retry leaves the next student's try in this process`() = runTest {
+        val overrides = v3Overrides()
+        val ended = series.end()
+        Outbox(setOf(overrides)).forgetAccount()
+        cache.clearAllUserData()
+        overrides.retry(ended)
+        series.open()
+        queue(color(calculus, "#FF0000").copy(attempts = max))
+
+        overrides.retry(signIn)
+
+        assertEquals(1, v3Backend.sent.size)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
     // --- Let go when the upload that should have made its course skipped it (xinshou, Telegram 1663) ---
 
     private val typed = Course(courseNo = "XA0000009", courseName = "Typed", isManual = true, moodleIdNumber = "1151XA0000009")
