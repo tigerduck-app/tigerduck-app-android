@@ -658,4 +658,52 @@ class UnsentMarksChannelTest {
         assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
         assertNull("nor is the departing student's acknowledgment the next one's", ack.lastAck(SyncField.mark("7")))
     }
+
+    // --- Rules either version keeps, which their /v3 cases pinned, on /v4 ---
+
+    @Test
+    fun `on v4 two waiting marks of one status and one time each go`() = runTest {
+        queue(UnsentMark("7", "ignored", madeAtMs = madeAtMs), UnsentMark("8", "ignored", madeAtMs = madeAtMs), UnsentMark("9", "none"), UnsentMark("10", "none"))
+
+        v4Marks().retry(signIn)
+
+        assertEquals(listOf("7", "8", "9", "10").map { "$v4/sync/assignments/$it/override" }, v4Backend.sent.map { it.url })
+        assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
+    }
+
+    @Test
+    fun `on v4 a mark whose id names no assignment goes nowhere and is let go`() = runTest {
+        queue(UnsentMark("x7", "ignored", madeAtMs = madeAtMs), UnsentMark("8", "ignored", madeAtMs = madeAtMs))
+
+        v4Marks().retry(signIn)
+
+        assertEquals(listOf("$v4/sync/assignments/8/override"), v4Backend.sent.map { it.url })
+        assertEquals(emptyList<UnsentMark>(), cache.loadUnsentMarks())
+    }
+
+    @Test
+    fun `on v4 a mark the backend refuses is counted, parked at five, and not sent again in this process`() = runTest {
+        repeat(UnsentMarks.MAX_ATTEMPTS + 3) { v4Backend.answer(v4MarkPath, 404, """{"detail":"Not found"}""") }
+        queue(UnsentMark("7", "ignored", madeAtMs = madeAtMs))
+        val marks = v4Marks()
+
+        repeat(UnsentMarks.MAX_ATTEMPTS + 2) { marks.retry(signIn) }
+
+        assertEquals(UnsentMarks.MAX_ATTEMPTS, v4Backend.sent.size)
+        assertEquals(UnsentMarks.MAX_ATTEMPTS, cache.loadUnsentMarks().single().attempts)
+    }
+
+    @Test
+    fun `on v4 a server error or no answer keeps a mark without counting it`() = runTest {
+        repeat(3) { v4Backend.answer(v4MarkPath, 503, """{"detail":"down"}""") }
+        queue(UnsentMark("7", "ignored", madeAtMs = madeAtMs))
+        val marks = v4Marks()
+
+        repeat(3) { marks.retry(signIn) }
+
+        assertEquals(3, v4Backend.sent.size)
+        val kept = cache.loadUnsentMarks().single()
+        assertEquals(0, kept.attempts)
+        assertEquals(madeAtMs, kept.madeAtMs)
+    }
 }

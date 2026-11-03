@@ -105,6 +105,27 @@ class UseLocalRequestsTest {
             ?: Regex("[?&]hlc=(\\d+)").find(sent.url)?.groupValues?.get(1)?.toLong()
 
     @Test
+    fun `a term whose portal courses are not cached is not reset, and its names are not sent`() = runTest {
+        val onV4 = onV4()
+        val manual = Course(courseNo = "MY1", courseName = "Mine", isManual = true)
+        onV4.holds("1151", listOf(manual), mapOf("MY1" to mapOf("en" to "Mine")))
+
+        keepLocalCourses(
+            terms = listOf("1151" to listOf(manual)),
+            hiding = setOf("1151:CS2"),
+            backend = onV4.courses,
+            customNames = mapOf("MY1" to mapOf("en" to "Mine")),
+            portalCached = { false },
+        )
+
+        assertEquals(
+            listOf("POST", "DELETE"),
+            onV4.backend.sent.map { it.method },
+        )
+        assertEquals("http://127.0.0.1:9/v4/sync/courses/client:1151:CS2", onV4.backend.sent[1].url.substringBefore('?'))
+    }
+
+    @Test
     fun `each color override's stamp is later than the reset's`() = runTest {
         val onV4 = onV4()
         val (courses, v4) = onV4.courses to onV4.backend

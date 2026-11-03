@@ -617,4 +617,33 @@ class CourseIgnoreChannelTest {
         const val FIRST_RUN_MS = 1_785_000_000_000L
         const val CLOCK_US = 1_790_000_000_500_000L
     }
+
+    // --- Rules either version keeps, which their /v3 cases pinned, on /v4 ---
+
+    @Test
+    fun `on v4 a change the server fails waits uncounted`() = runTest {
+        queue(change("AAA"))
+        v4Backend.answer(v4PathOf("AAA"), 503, """{"detail":"unavailable"}""")
+
+        v4Ignores().retryPending(signIn)
+
+        assertEquals(1, v4Backend.sent.size)
+        assertEquals(listOf(0), waiting().map { it.attempts })
+    }
+
+    @Test
+    fun `on v4 a change refused five times is parked, and goes once more in the next process only`() = runTest {
+        queue(change("AAA"))
+        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 3) { v4Backend.answer(v4PathOf("AAA"), 404, """{"error":"course_not_found","message":"made up"}""") }
+        val ignores = v4Ignores()
+
+        repeat(CourseIgnoreSync.MAX_ATTEMPTS + 2) { ignores.retryPending(signIn) }
+        assertEquals(CourseIgnoreSync.MAX_ATTEMPTS, v4Backend.sent.size)
+        assertEquals(listOf(CourseIgnoreSync.MAX_ATTEMPTS), waiting().map { it.attempts })
+
+        val next = v4Ignores()
+        repeat(2) { next.retryPending(signIn) }
+        assertEquals(CourseIgnoreSync.MAX_ATTEMPTS + 1, v4Backend.sent.size)
+        assertEquals(listOf(CourseIgnoreSync.MAX_ATTEMPTS), waiting().map { it.attempts })
+    }
 }

@@ -963,4 +963,110 @@ class CourseOverridesChannelTest {
         const val FIRST_RUN_MS = 1_785_000_000_000L
         const val CLOCK_US = 1_790_000_000_500_000L
     }
+
+    // --- Rules either version keeps, which their /v3 cases pinned, on /v4 ---
+
+    private val notARoute = """{"error":"not_found","message":"No such route."}"""
+
+    @Test
+    fun `on v4 a key written twice goes once, as its last change`() = runTest {
+        queue(placed(color(calculus, "#FF0000"), calculus), placed(color(physics, "#00FF00"), physics), placed(color(calculus, "#0000FF"), calculus))
+
+        v4Overrides().retry(signIn)
+
+        assertEquals(
+            listOf(
+                v4Patch("client:1151:MA1010002", """{"color_hex":"#0000FF","hlc":1790000000123000}"""),
+                v4Patch("client:1151:PH1010003", """{"color_hex":"#00FF00","hlc":1790000000123000}"""),
+            ),
+            v4Shapes(),
+        )
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    @Test
+    fun `on v4 a change the server fails waits uncounted and goes at the next retry`() = runTest {
+        queue(placed(color(calculus, "#FF0000"), calculus))
+        v4Backend.answer(v4PathOf(calculus), 503, """{"error":"internal_error","message":"made up"}""")
+        val overrides = v4Overrides()
+
+        overrides.retry(signIn)
+        assertEquals(0, waiting().single().attempts)
+        overrides.retry(signIn)
+
+        assertEquals(List(2) { v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}""") }, v4Shapes())
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    @Test
+    fun `on v4 a change the backend refuses is counted on disk and kept`() = runTest {
+        queue(placed(color(calculus, "#FF0000"), calculus))
+        v4Backend.answer(v4PathOf(calculus), 422, """{"error":"invalid_request","message":"made up","fields":[]}""")
+
+        v4Overrides().retry(signIn)
+
+        assertEquals(1, v4Backend.sent.size)
+        assertEquals(listOf(1), waiting().map { it.attempts })
+    }
+
+    @Test
+    fun `on v4 a 404 for a course gone from this phone lets its change go at once`() = runTest {
+        // Calculus is no longer cached in the term the change was made in.
+        cache.saveCourses(listOf(physics), term, testSignIn())
+        queue(placed(color(calculus, "#FF0000", semester = term), calculus))
+        v4Backend.answer(v4PathOf(calculus), 404, notFound)
+
+        v4Overrides().retry(signIn)
+
+        assertEquals(1, v4Backend.sent.size)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    @Test
+    fun `on v4 a 404 for a course still on this phone parks its change at once, and a landed course upload sends it`() = runTest {
+        cache.saveCourses(listOf(calculus), term, testSignIn())
+        queue(placed(color(calculus, "#FF0000", semester = term), calculus))
+        v4Backend.answer(v4PathOf(calculus), 404, notFound)
+        val overrides = v4Overrides()
+
+        repeat(3) { overrides.retry(signIn) }
+        assertEquals("parked at the first 404, and not sent again", 1, v4Backend.sent.size)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+
+        Outbox(setOf(overrides)).courseUploadLanded(signIn)
+        overrides.retry(signIn)
+
+        assertEquals(List(2) { v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}""") }, v4Shapes())
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    @Test
+    fun `on v4 a parked change goes once more at the first retry of the next process`() = runTest {
+        queue(placed(color(calculus, "#FF0000"), calculus).copy(attempts = max))
+        repeat(2) { v4Backend.answer(v4PathOf(calculus), 422, """{"error":"invalid_request","message":"made up","fields":[]}""") }
+
+        val first = v4Overrides()
+        repeat(2) { first.retry(signIn) }
+        val next = v4Overrides()
+        repeat(2) { next.retry(signIn) }
+
+        assertEquals("once per process, refused again and parked", 2, v4Backend.sent.size)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+    }
+
+    @Test
+    fun `on v4 a 404 that names no missing course is counted, and goes again at the next sync`() = runTest {
+        // Still on this phone, so the 404 is no word that the course left it.
+        cache.saveCourses(listOf(calculus), term, testSignIn())
+        queue(placed(color(calculus, "#FF0000"), calculus))
+        v4Backend.answer(v4PathOf(calculus), 404, notARoute)
+        val overrides = v4Overrides()
+
+        overrides.retry(signIn)
+        assertEquals(listOf(1), waiting().map { it.attempts })
+        overrides.retry(signIn)
+
+        assertEquals(2, v4Backend.sent.size)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
 }

@@ -630,4 +630,40 @@ class CourseDeletesChannelTest {
             backend.sent.map { "${it.method} ${it.url}" },
         )
     }
+
+    // --- Rules either version keeps, which their /v3 cases pinned, on /v4 ---
+
+    @Test
+    fun `on v4 a delete goes with its moment, and a retry goes on past one that fails`() = runTest {
+        val (deletes, _) = v4Deletes()
+        backend.answer("/v4/sync/courses/client:$term:$typed", 500, "{}")
+        deletes.send(term, typed, 1_790_000_000_123L, signIn)
+        deletes.keep(term, other, 1_790_000_000_456L, signIn)
+        backend.answer("/v4/sync/courses/client:$term:$typed", 500, "{}")
+
+        deletes.retry(signIn)
+
+        assertEquals(
+            listOf(
+                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
+                listOf("DELETE", "$v4/sync/courses/client:$term:$typed?hlc=1790000000123000", listOf(bearer), null, ""),
+                listOf("DELETE", "$v4/sync/courses/client:$term:$other?hlc=1790000000456000", listOf(bearer), null, ""),
+            ),
+            backend.sent.map { it.shape() },
+        )
+        assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_123L)), queued())
+    }
+
+    @Test
+    fun `on v4 a refused delete is kept and sent again at the next retry`() = runTest {
+        val (deletes, _) = v4Deletes()
+        backend.answer("/v4/sync/courses/client:$term:$typed", 404, """{"detail":"Course not found"}""")
+        deletes.send(term, typed, 1_790_000_000_123L, signIn)
+        assertEquals(mapOf(term to mapOf(typed to 1_790_000_000_123L)), queued())
+
+        deletes.retry(signIn)
+
+        assertEquals(2, backend.sent.size)
+        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
+    }
 }
