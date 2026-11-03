@@ -9,6 +9,8 @@ import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 
 /**
  * The assignment-mark step of Home's full sync ([HomeBackendSync.pull]), and
@@ -66,11 +68,13 @@ internal class AssignmentMarkStep(
         result: BackendSyncResult,
         syncsMarks: Boolean,
         signIn: SignIn,
+        holds: PullHolds? = null,
     ): Boolean {
         if (!syncsMarks) {
             Log.i(TAG, "[Sync] leaving assignment marks alone: Assignments sync is off")
             return false
         }
+        if (holds != null) return pullStamped(state, result, holds, signIn)
         val localIgnored = store.ignored()
         val localCompleted = store.completed()
 
@@ -130,6 +134,24 @@ internal class AssignmentMarkStep(
         return true
     }
 
+    /**
+     * A `/v4` pull's marks (LWW D12): every mark the snapshot's, one it lacks or holds as `none`
+     * cleared, but each this phone keeps, decided in the write's own step: tapped, waiting to go up,
+     * or acknowledged since the snapshot began ([holds]). No conflict is offered and nothing goes up
+     * as a first sync: a category's first sync queues this phone's marks as the oldest (LWW D13).
+     */
+    private suspend fun pullStamped(state: HomeSyncState, result: BackendSyncResult, holds: PullHolds, signIn: SignIn): Boolean {
+        AssignmentOverrideReconciler.reasonToLeaveMarks(true, pendingConflicts())?.let { reason ->
+            Log.i(TAG, "[Sync] leaving assignment marks alone: $reason")
+            return false
+        }
+        val server = AssignmentMarks(result.ignoredIds, result.completedIds)
+        // Read again: switched off since, the marks are this phone's own.
+        if (!switchOn()) return false
+        commitChanges(state, signIn, kept = { holds.keeps(SyncField.mark(it)) }) { stored -> AssignmentOverrideReconciler.changes(stored, server) }
+        return true
+    }
+
     /** Takes the server's marks of [result], the user having picked them in the conflict dialog. */
     suspend fun keepServer(state: HomeSyncState, result: BackendSyncResult, signIn: SignIn) {
         // Switched off since the dialog opened, the marks are this phone's own.
@@ -161,20 +183,24 @@ internal class AssignmentMarkStep(
         local: AssignmentMarks,
         outcome: AssignmentOverrideReconciler.Outcome,
         signIn: SignIn,
-    ) = commitChanges(state, AssignmentOverrideReconciler.changes(local, AssignmentMarks(outcome.ignored, outcome.completed)), signIn)
+    ) = AssignmentOverrideReconciler.changes(local, AssignmentMarks(outcome.ignored, outcome.completed)).let { changes ->
+        commitChanges(state, signIn) { changes }
+    }
 
-    // [changes], one assignment at a time, onto the marks as they stand, but over a mark this phone
-    // holds as the write runs: one tapped, its PATCH under way ([HomeSyncState.pendingOverrides]) or
-    // waiting, or [kept]. Home then shows the marks as written, but each it holds as it shows it.
-    // What Home shows is the session's on screen: a run past its sign-in changes none of it.
+    // The changes [decide] makes of the marks as they stand, one assignment at a time, but over a
+    // mark this phone holds as the write runs: one tapped, its PATCH under way
+    // ([HomeSyncState.pendingOverrides]) or waiting, or [kept]. Home then shows the marks as written,
+    // but each it holds as it shows it. What Home shows is the session's on screen: a run past its
+    // sign-in changes none of it.
     private suspend fun commitChanges(
         state: HomeSyncState,
-        changes: Map<String, String>,
         signIn: SignIn,
         kept: (String) -> Boolean = { false },
+        decide: (stored: AssignmentMarks) -> Map<String, String>,
     ) {
         var held = emptySet<String>()
         val written = store.update(signIn) { stored, waiting ->
+            val changes = decide(stored)
             held = changes.keys.filterTo(HashSet()) { id ->
                 id in state.pendingOverrides || waiting.any { it.assignmentId == id } || kept(id)
             }

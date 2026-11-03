@@ -78,6 +78,8 @@ internal class ForegroundSteps(
 
     override fun policy(): SyncPolicy = syncPolicies.current
 
+    override fun syncedBefore(): Set<SyncCategory> = categoriesSyncedBefore(prefs)
+
     /**
      * Only what this sync took, and only for the sign-in it was for: recorded after a sign-out, it
      * would mark the next session's categories before their first sync.
@@ -159,3 +161,12 @@ internal class ForegroundSteps(
         const val TAG = "HomeViewModel"
     }
 }
+
+/**
+ * The categories this account has synced on this phone (LWW D13): `syncedCategories`, and the marks
+ * once a sync took them (`assignmentMarksSyncedOnce`), which is recorded at once, before a later
+ * step of the pass can fail.
+ */
+internal fun categoriesSyncedBefore(prefs: AppPreferences): Set<SyncCategory> =
+    SyncCategory.of(prefs.school.syncedCategories.get()) +
+        if (prefs.school.assignmentMarksSyncedOnce.get()) setOf(SyncCategory.ASSIGNMENTS) else emptySet()

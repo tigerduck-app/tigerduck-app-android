@@ -27,4 +27,20 @@ object SyncField {
 
     /** Whether a course is on the class table: an add, a hide or a removal of it. */
     fun membership(courseKey: String): String = "courses/$courseKey"
+
+    /** The course and the locale a [name] field names, or null for another field. */
+    fun nameParts(field: String): Pair<String, String>? {
+        if (!field.startsWith(OVERRIDES)) return null
+        val rest = field.removePrefix(OVERRIDES)
+        val at = rest.lastIndexOf(NAMES).takeIf { it > 0 } ?: return null
+        return rest.substring(0, at) to rest.substring(at + NAMES.length)
+    }
+
+    /** The course number a [courseKey] names, or null for a course named another way, as by its Moodle id. */
+    fun courseNoOf(course: String): String? =
+        course.takeIf { it.startsWith(CLIENT) }?.removePrefix(CLIENT)?.substringAfter(':', "")?.ifEmpty { null }
+
+    private const val OVERRIDES = "course_overrides/"
+    private const val NAMES = "/custom_names/"
+    private const val CLIENT = "client:"
 }

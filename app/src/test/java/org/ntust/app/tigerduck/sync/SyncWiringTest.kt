@@ -352,7 +352,7 @@ class SyncWiringTest {
         val body = body("sync/reconcile/MarksReconciler.kt", "reconcile")
         assertTrue(
             "the worker's pass no longer records the marks under its sign-in",
-            "SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn)" in body &&
+            "SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn," in body &&
                 "prefs.school.assignmentMarksSyncedOnce.set(true, signIn)" in body,
         )
     }
@@ -375,18 +375,23 @@ class SyncWiringTest {
         // Sent by the outbox's drain, the holidays one of its channels (OutboxDrainWiringTest).
         assertTrue("the holiday choices are no longer an outbox channel", "OutboxChannelId.HOLIDAYS" in source("data/PendingHolidayOverrides.kt").joinToString("\n"))
         // Before the fetch, and the snapshot applied after it: SynchronizerOrderTest.
-        assertCalls("sync/reconcile/HolidaysReconciler.kt", "reconcile", "HolidayOverrideApply.apply(")
+        assertCalls("sync/reconcile/HolidaysReconciler.kt", "apply", "HolidayOverrideApply.apply(", "HolidayOverrideApply.applyStamped(")
     }
 
     /** tigerduck-app-android#404: applied after the sign-out cleared them, the departing account's choices came back. */
     @Test
     fun `Home's sync and the worker apply the holiday snapshot through the one apply, under the sign-in it fetched with`() {
-        val holidays = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
-        assertEquals("each mode no longer applies through the one apply", 2, Regex("""HolidayOverrideApply\.apply\([^)]*signIn, pendingHolidayOverrides, academicCalendar\)""").findAll(holidays).count())
+        val reconcile = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
+        assertEquals("each mode no longer applies through the one apply", 2, Regex("""apply\(pass, snapshot, holds, stamped\)""").findAll(reconcile).count())
+        // The v3 snapshot's set, or the v4 one's field by field (LWW D12), under the pass's sign-in.
+        val holidays = body("sync/reconcile/HolidaysReconciler.kt", "apply")
+        assertEquals(1, Regex("""HolidayOverrideApply\.apply\([^)]*signIn, pendingHolidayOverrides, academicCalendar\)""").findAll(holidays).count())
+        assertTrue("val signIn = pass.signIn" in holidays && "signIn, pendingHolidayOverrides, academicCalendar,\n" in holidays)
         val apply = source("data/HolidayOverrideApply.kt").joinToString("\n")
         assertTrue(
             "the holiday snapshot is no longer applied under signIn.ifCurrent",
-            Regex("""signIn\.ifCurrent \{\s*pending\.merged\(""").containsMatchIn(apply),
+            Regex("""signIn\.ifCurrent \{\s*pending\.merged\(""").containsMatchIn(apply) &&
+                Regex("""signIn\.ifCurrent \{\s*val local = calendar\.optedInHolidayIds\s*val kept = pending\.keptOver""").containsMatchIn(apply),
         )
     }
 
@@ -396,7 +401,7 @@ class SyncWiringTest {
         val body = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
         assertTrue(
             "the worker's pass no longer applies the holiday snapshot inside withContext(Dispatchers.Main)",
-            Regex("""SyncMode\.BACKGROUND -> withContext\(Dispatchers\.Main\) \{\s*HolidayOverrideApply\.apply\(""").containsMatchIn(body),
+            Regex("""SyncMode\.BACKGROUND -> withContext\(Dispatchers\.Main\) \{ apply\(pass, snapshot, holds, stamped\) \}""").containsMatchIn(body),
         )
     }
 

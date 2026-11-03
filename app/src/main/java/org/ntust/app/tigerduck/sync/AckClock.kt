@@ -35,4 +35,7 @@ class AckClock @Inject constructor() {
 
     /** The clock of the last acknowledged write of [field], in µs; null with none under the current sign-in. */
     fun lastAck(field: String): Long? = acks.value[field]
+
+    /** Every field whose last acknowledged write answered at [clockUs] or later, under the current sign-in. */
+    fun acknowledgedSince(clockUs: Long): Set<String> = acks.value.filterValues { it >= clockUs }.keys
 }

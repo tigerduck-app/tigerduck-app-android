@@ -136,6 +136,28 @@ object CourseIgnoreReconciler {
     }
 
     /**
+     * This device's set after a `/v4` pull, course by course (LWW D12): each course the snapshot's
+     * [overrides] ignore is ignored and every other is not, an absent setting included, but a course
+     * this device [keeps] (its change waits, or its last acknowledged write may postdate the
+     * snapshot) and one of [resetTerms] (this device's own reset under way, or made after the
+     * fetch), which stay as [local] has them. Replaces, on `/v4`, the settings lost and resent
+     * ([toResend]) and the courses re-added elsewhere ([recreated]).
+     */
+    fun stamped(
+        local: Set<String>,
+        overrides: List<CourseOverrideResult>,
+        resetTerms: Set<String>,
+        keeps: (String) -> Boolean,
+    ): Set<String> {
+        val server = overrides.asSequence()
+            .filter { it.ignoreAssignments == true }
+            .mapNotNullTo(mutableSetOf()) { keyOf(it.semester, it.courseNo) }
+        return (local + server).filterTo(mutableSetOf()) { key ->
+            if (CourseIgnores.semesterOf(key) in resetTerms || keeps(key)) key in local else key in server
+        }
+    }
+
+    /**
      * This device's set when the user takes the backend's, or null when
      * [server] is: [server]'s in every term it covers, lost settings included.
      */

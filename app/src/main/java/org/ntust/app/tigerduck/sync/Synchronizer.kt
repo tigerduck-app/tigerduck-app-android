@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
 import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
 import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
 import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 import org.ntust.app.tigerduck.sync.reconcile.Reconciler
 import org.ntust.app.tigerduck.sync.reconcile.Reconcilers
 import org.ntust.app.tigerduck.sync.outbox.Outbox
@@ -56,9 +57,25 @@ class SyncPass(
     val state: HomeSyncState?,
     val courseSync: DataCache.CourseSync,
     val beforeFetch: Long,
+    /** The categories this account had synced on this phone before the pass (LWW D13), read with [policy]. */
+    val syncedBefore: Set<SyncCategory> = emptySet(),
+    private val heldFields: suspend () -> Set<String> = { emptySet() },
+    private val ack: AckClock = AckClock(),
 ) {
     /** Home's own state, which a pass in the foreground updates as it goes. */
     val home: HomeSyncState get() = checkNotNull(state) { "a foreground pass runs over Home's state" }
+
+    private var holds: PullHolds? = null
+
+    /**
+     * What this phone keeps over the snapshot, field by field (LWW D12), or null for a snapshot
+     * without a `server_hlc`, as `/v3`'s, whose own rules apply. The outbox's held fields are read
+     * once, at the first step that asks, after the first sync's queued values (FirstSyncReconciler).
+     */
+    suspend fun holds(): PullHolds? {
+        val serverHlc = result.serverHlc ?: return null
+        return holds ?: PullHolds(serverHlc, heldFields(), ack).also { holds = it }
+    }
 
     /**
      * Whether the marks step changed this phone's marks, set as it runs: the background worker
@@ -93,6 +110,11 @@ class Synchronizer internal constructor(
     private val reset: Reconciler,
     private val holidays: Reconciler,
     private val roster: Reconciler,
+    /** A category's first sync on `/v4` (LWW D13); none takes nothing. */
+    private val firstSync: Reconciler = NO_FIRST_SYNC,
+    /** Every field the outbox holds an edit of ([Outbox.heldFields]), read once per pull. */
+    private val heldFields: suspend () -> Set<String> = { emptySet() },
+    private val ack: AckClock = AckClock(),
 ) {
     @Inject constructor(
         prefs: AppPreferences,
@@ -115,6 +137,7 @@ class Synchronizer internal constructor(
         reset: CourseResetReconciler,
         holidays: HolidaysReconciler,
         roster: RosterReconciler,
+        ack: AckClock = AckClock(),
     ) : this(
         drain = outbox::drain,
         ForegroundSteps(
@@ -125,10 +148,10 @@ class Synchronizer internal constructor(
             prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, authService::attemptRelogin,
             pendingCourseAdds, firstPullGate,
         ),
-        marks, ignores, overrides, reset, holidays, roster,
+        marks, ignores, overrides, reset, holidays, roster, NO_FIRST_SYNC, outbox::heldFields, ack,
     )
 
-    private val inOrder = Reconcilers.inOrder(marks, ignores, overrides, reset, holidays, roster)
+    private val inOrder = Reconcilers.inOrder(firstSync, marks, ignores, overrides, reset, holidays, roster)
 
     /**
      * Sends what waits to go up: the outbox's one drain, every channel in its pinned order,
@@ -168,7 +191,7 @@ class Synchronizer internal constructor(
             // Marks the course window's fetch, each attempt's: see PassSteps.fetch.
             val result = steps.fetch(signIn, courseSync)
             steps.listed(result, signIn)
-            val pass = SyncPass(result, signIn, mode, steps.policy(), state, courseSync, beforeFetch)
+            val pass = SyncPass(result, signIn, mode, steps.policy(), state, courseSync, beforeFetch, steps.syncedBefore(), heldFields, ack)
             val took = inOrder.associateWith { it.reconcile(pass) }
             steps.recordTaken(pass, taken(pass, took))
             steps.noteRevision(pass)
@@ -203,6 +226,11 @@ class Synchronizer internal constructor(
 
     private companion object {
         const val TAG = "HomeViewModel"
+
+        // No first sync: a pass that queues nothing.
+        val NO_FIRST_SYNC = object : Reconciler {
+            override suspend fun reconcile(pass: SyncPass): Boolean = false
+        }
     }
 }
 
@@ -226,6 +254,9 @@ internal interface PassSteps {
     /** The adds the snapshot lists have landed. */
     suspend fun listed(result: BackendSyncResult, signIn: SignIn)
     fun policy(): SyncPolicy
+
+    /** The categories the account had synced here before this pass, as `syncedCategories` records them (LWW D13). */
+    fun syncedBefore(): Set<SyncCategory> = emptySet()
     fun recordTaken(pass: SyncPass, took: Set<String>)
     fun noteRevision(pass: SyncPass)
     fun notePull(pass: SyncPass)

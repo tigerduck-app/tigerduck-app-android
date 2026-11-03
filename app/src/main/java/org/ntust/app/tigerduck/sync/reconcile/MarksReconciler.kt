@@ -18,7 +18,8 @@ import javax.inject.Inject
  * The assignment marks: Home's mark step ([AssignmentMarkStep]), with the Assignments switch as the
  * pass read it, and the conflict dialog's "keep the server's" answer. In the background, the
  * worker's ([BackgroundMarkStep]), which takes the server's marks and sends none up (C2): a first
- * sync's marks are Home's to send.
+ * sync's marks are Home's to send. On `/v4` both take the snapshot's marks field by field, but
+ * those this phone keeps ([SyncPass.holds], LWW D12).
  */
 class MarksReconciler @Inject constructor(
     private val prefs: AppPreferences,
@@ -35,9 +36,10 @@ class MarksReconciler @Inject constructor(
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
         val signIn = pass.signIn
+        val holds = pass.holds()
         val marksTaken = when (pass.mode) {
-            SyncMode.FOREGROUND -> markStep.pull(pass.home, pass.result, SyncCategory.ASSIGNMENTS in pass.policy.switchedOn, signIn)
-            SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn).let { marks ->
+            SyncMode.FOREGROUND -> markStep.pull(pass.home, pass.result, SyncCategory.ASSIGNMENTS in pass.policy.switchedOn, signIn, holds)
+            SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn, holds, SyncCategory.ASSIGNMENTS in pass.syncedBefore).let { marks ->
                 pass.marksChanged = marks.changed
                 marks.taken
             }

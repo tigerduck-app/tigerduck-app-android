@@ -309,6 +309,50 @@ class AssignmentMarkStepTest {
     private companion object {
     }
 
+    /** Home's tap of [id] as [status]: on screen and in flight at once, then its own save. */
+    private fun tap(id: String, status: String) {
+        state.pendingOverrides += id
+        state.ignoredAssignmentIds.value = if (status == STATUS_IGNORED) state.ignoredAssignmentIds.value + id else state.ignoredAssignmentIds.value - id
+        ignored = if (status == STATUS_IGNORED) ignored + id else ignored - id
+    }
+
+    /**
+     * The mark step over a store where [tap] lands as the pull goes to write its marks, once the
+     * pull has read them: at the [atRead]th read of the marks, its write's own under the lock (a
+     * `/v3` pull reads them once before), or as a store with no such step writes. Fires once.
+     */
+    private fun racingStep(atRead: Int = 2, afterWrite: Boolean = false, tap: () -> Unit): AssignmentMarkStep {
+        var reads = 0
+        var tapped = false
+        val once = {
+            if (!tapped) {
+                tapped = true
+                tap()
+            }
+        }
+        return AssignmentMarkStep(
+            switchOn = { switchOn },
+            pendingConflicts = { pending },
+            syncedBefore = { syncedBefore },
+            store = object : AssignmentMarkStep.MarkStore {
+                override suspend fun ignored(): Set<String> {
+                    if (++reads == atRead) once()
+                    return ignored
+                }
+                override suspend fun completed() = completed
+                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
+                    if (!afterWrite) once()
+                    this@AssignmentMarkStepTest.ignored = ignored
+                    this@AssignmentMarkStepTest.completed = completed
+                    if (afterWrite) once()
+                }
+            },
+            send = { _, _, _ -> },
+            unsent = { unsent },
+            keepUnsent = { _, _, _ -> },
+        )
+    }
+
     /**
      * A tap whose own save lands as the pull goes to write its marks, once the pull has read them:
      * the pull writes each mark it changes onto the marks as they stand, and not the tapped one,
@@ -319,41 +363,49 @@ class AssignmentMarkStepTest {
         syncedBefore = true
         ignored = setOf("7")
         state.ignoredAssignmentIds.value = setOf("7")
-        var reads = 0
-        var tapped = false
-        // Home's tap: on screen and in flight at once, then its own save; the seam fires once.
-        fun tap() {
-            if (tapped) return
-            tapped = true
-            state.pendingOverrides += "8"
-            state.ignoredAssignmentIds.value = state.ignoredAssignmentIds.value + "8"
-            ignored = ignored + "8"
-        }
-        val racing = AssignmentMarkStep(
-            switchOn = { switchOn },
-            pendingConflicts = { pending },
-            syncedBefore = { syncedBefore },
-            store = object : AssignmentMarkStep.MarkStore {
-                // The pull's read is the first; a second read is its write's own, under the lock.
-                override suspend fun ignored(): Set<String> {
-                    if (++reads == 2) tap()
-                    return ignored
-                }
-                override suspend fun completed() = completed
-                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
-                    tap()
-                    this@AssignmentMarkStepTest.ignored = ignored
-                    this@AssignmentMarkStepTest.completed = completed
-                }
-            },
-            send = { _, _, _ -> },
-            unsent = { unsent },
-            keepUnsent = { _, _, _ -> },
-        )
 
-        racing.pull(state, server(ignored = setOf("7", "9")), syncsMarks = true, signIn = pinned)
+        racingStep { tap("8", STATUS_IGNORED) }.pull(state, server(ignored = setOf("7", "9")), syncsMarks = true, signIn = pinned)
 
         assertEquals("in the store", setOf("7", "8", "9"), ignored)
         assertEquals("on screen", setOf("7", "8", "9"), state.ignoredAssignmentIds.value)
+    }
+
+    /**
+     * A tap made as the pull's write lands, its own save after it: Home shows the marks as written,
+     * but the tapped one, in flight, as Home holds it.
+     */
+    @Test
+    fun `a mark tapped as the pull's write lands stays on screen`() = runTest {
+        syncedBefore = true
+        ignored = setOf("7")
+        state.ignoredAssignmentIds.value = setOf("7")
+
+        racingStep(atRead = 0, afterWrite = true) { tap("8", STATUS_IGNORED) }
+            .pull(state, server(ignored = setOf("7", "9")), syncsMarks = true, signIn = pinned)
+
+        assertEquals("in the store, its own save after the pull's", setOf("7", "8", "9"), ignored)
+        assertEquals("on screen", setOf("7", "8", "9"), state.ignoredAssignmentIds.value)
+    }
+
+    /**
+     * On `/v4` (LWW D12) the snapshot's marks are taken, a mark the two sides disagree on
+     * included, with no conflict to offer, and a mark tapped as the pull writes stays.
+     */
+    @Test
+    fun `on v4 a mark tapped during the pull stays, the rest are the snapshot's, and no conflict is offered`() = runTest {
+        syncedBefore = true
+        ignored = setOf("7")
+        state.ignoredAssignmentIds.value = setOf("7")
+        val holds = org.ntust.app.tigerduck.sync.reconcile.PullHolds(1L, emptySet(), org.ntust.app.tigerduck.sync.AckClock())
+
+        val synced = racingStep(atRead = 1) { tap("8", STATUS_IGNORED) }
+            .pull(state, server(ignored = setOf("9"), completed = setOf("7")), syncsMarks = true, signIn = pinned, holds = holds)
+
+        assertTrue(synced)
+        assertEquals(setOf("8", "9"), ignored)
+        assertEquals(setOf("7"), completed)
+        assertEquals(setOf("8", "9"), state.ignoredAssignmentIds.value)
+        assertEquals(setOf("7"), state.markedCompletedIds.value)
+        assertEquals(emptyList<AssignmentSyncConflict>(), state.conflicts.value)
     }
 }
