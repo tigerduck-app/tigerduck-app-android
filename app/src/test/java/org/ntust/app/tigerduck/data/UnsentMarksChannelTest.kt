@@ -211,6 +211,61 @@ class UnsentMarksChannelTest {
         assertEquals("refused once", 1, cache.loadUnsentMarks().single().attempts)
     }
 
+    /**
+     * Codex on 671844752: the timed requeue reaches parked marks only, as on dev. A mark whose
+     * fifth PATCH is out as a second sync's requeue finds it past its wait parks at that refusal,
+     * and nothing of it goes again inside its eight hours.
+     */
+    @Test
+    fun `a mark refused a fifth time while a second sync requeues waits out its eight hours`() = runTest {
+        val wait = UnsentMarks.PARKED_RETRY_MS
+        var nowMs = 1_790_000_000_000L
+        val sent = mutableListOf<Int>()
+        val out = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val marks = UnsentMarks(
+            cache,
+            MarkSender { assignmentId, _, _, _ ->
+                sent += assignmentId
+                if (assignmentId == 7 && !out.isCompleted) {
+                    out.complete(Unit)
+                    reply.await()
+                }
+                throw PushApiException("HTTP 404", 404)
+            },
+            records = { true },
+            sends = { true },
+            clock = { nowMs },
+        )
+        // The process's one more try is spent, with nothing parked.
+        marks.retry(signIn)
+        // Mark 7 has four refusals, the last long ago; mark 8 is parked, its wait over a moment from now.
+        queue(
+            UnsentMark("7", "ignored", attempts = UnsentMarks.MAX_ATTEMPTS - 1, lastRefusedAtMs = nowMs - 2 * wait, madeAtMs = madeAtMs),
+            UnsentMark("8", "ignored", attempts = UnsentMarks.MAX_ATTEMPTS, lastRefusedAtMs = nowMs - wait + 1, madeAtMs = madeAtMs),
+        )
+        val first = launch { marks.retry(signIn) }
+        out.await()
+
+        // A second sync a moment later requeues mark 8, and is cancelled.
+        nowMs += 1
+        val second = launch { marks.retry(signIn) }
+        withContext(Dispatchers.Default) {
+            while (cache.loadUnsentMarks().first { it.assignmentId == "8" }.attempts == UnsentMarks.MAX_ATTEMPTS) delay(5)
+        }
+        second.cancel()
+        reply.complete(Unit)
+        first.join()
+        second.join()
+
+        // Mark 7's fifth refusal parked it: the next sync, inside its wait, sends nothing of it.
+        nowMs += 1
+        marks.retry(signIn)
+
+        assertEquals(listOf(7, 8), sent)
+        assertEquals(List(2) { UnsentMarks.MAX_ATTEMPTS }, cache.loadUnsentMarks().map { it.attempts })
+    }
+
     @Test
     fun `on v3 a tap goes at once, stamped with the wall clock as it was made`() = runTest {
         val before = System.currentTimeMillis()

@@ -237,7 +237,7 @@ class PendingCourseOverrides internal constructor(
 
     /** [retry]. */
     override suspend fun drain(signIn: SignIn) {
-        if (memory.firstParkedTry(signIn)) requeueParked(signIn)
+        if (memory.firstParkedTry(signIn)) requeue(signIn, inFlightToo = false)
         lane.drain(signIn)
     }
 
@@ -246,7 +246,10 @@ class PendingCourseOverrides internal constructor(
      * does the one whose PATCH is out, which the upload may have made the row for (the lane's rule),
      * but none of a course the last upload left out as tombstoned ([courseUploadAnswered]).
      */
-    override suspend fun requeueParked(signIn: SignIn) = mutex.withLock { lane.requeueParked(signIn) { !memory.skips(it) } }
+    override suspend fun requeueParked(signIn: SignIn) = requeue(signIn, inFlightToo = true)
+
+    // The lane's requeue, but of no change of a skipped course; the skips are read under [mutex].
+    private suspend fun requeue(signIn: SignIn, inFlightToo: Boolean) = mutex.withLock { lane.requeueParked(signIn, inFlightToo) { !memory.skips(it) } }
 
     /**
      * A course upload of [semester] was answered: the backend took the courses [accepted] and left

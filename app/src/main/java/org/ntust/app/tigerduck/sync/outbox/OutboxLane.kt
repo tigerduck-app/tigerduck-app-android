@@ -40,13 +40,17 @@ import org.ntust.app.tigerduck.util.logSummary
  *   kept at this phone's value, and not sent until [requeueParked] gives it one more try.
  *   [SendResult.WaitsForUpload] parks it at once. An entry leaves only when sent, superseded or
  *   cleared by a sign-out.
- * - **A requeue reaches the entry in flight.** [requeueParked] marks the entry whose request is
- *   out, when it is of the requeue's sign-in and due: a reply that would park it (a refusal that
- *   reaches `maxAttempts`, or [SendResult.WaitsForUpload]) leaves it one try short of parked
- *   instead, so it has one more try, as a parked entry has. The mark is honored as the reply is
- *   stored, on [scope], whatever its caller does meanwhile, and goes with it: one requeue is one
- *   more try at most for each entry. A course upload that lands while a request is out may have
- *   made the row that request is refused for.
+ * - **A requeue may reach the entry in flight**, when its caller asks ([requeueParked]'s
+ *   `inFlightToo`). The course overrides' requeue at a landed course upload does: an override's
+ *   404 `course_not_found` ([SendResult.WaitsForUpload]) waits for that upload, which may land while
+ *   its PATCH is out and have made the row it is refused for. The mark covers the entry whose
+ *   request is out, when it is of the requeue's sign-in and due: a reply that would park it (a
+ *   refusal that reaches `maxAttempts`, or [SendResult.WaitsForUpload]) leaves it one try short of
+ *   parked instead, so it has one more try, as a parked entry has. The mark is honored as the reply
+ *   is stored, on [scope], whatever its caller does meanwhile, and goes with it: one requeue is one
+ *   more try at most for each entry. Every other requeue (a channel's own wait, its try in a new
+ *   process, another channel's upload requeue) reaches parked entries only: a refusal it did not
+ *   wait for keeps its channel's wait.
  * - **The sign-in guard.** Entries read from disk belong to the [SignIn] the caller hands in, the
  *   open session's. One read under a sign-in that has ended is neither sent nor written back, and
  *   the reply to a request that crossed a sign-out lands nowhere: the next student's files are not
@@ -176,14 +180,14 @@ class OutboxLane<E : Any>(
 
     /**
      * Gives each parked entry that is [due] one more try at the next [drain]: one refusal parks it
-     * again. A course upload has landed, or the channel's own wait for a parked entry is over. The
-     * entry in flight under [signIn], when [due], has the same: a reply that would park it leaves
-     * it due for one more try.
+     * again. A course upload has landed, or the channel's own wait for a parked entry is over. With
+     * [inFlightToo], the entry in flight under [signIn], when [due], has the same: a reply that
+     * would park it leaves it due for one more try.
      */
-    suspend fun requeueParked(signIn: SignIn, due: (E) -> Boolean = { true }) {
+    suspend fun requeueParked(signIn: SignIn, inFlightToo: Boolean = false, due: (E) -> Boolean = { true }) {
         storeLock.withLock {
             if (!signIn.isCurrent) return@withLock
-            flight?.takeIf { it.signIn === signIn && due(it.entry) }?.woken = true
+            if (inFlightToo) flight?.takeIf { it.signIn === signIn && due(it.entry) }?.woken = true
             val entries = loaded(signIn)
             val book = policy.attempts
             val requeued = entries.indices.filter { book.attempts(entries[it]) >= policy.maxAttempts && due(entries[it]) }.toSet()

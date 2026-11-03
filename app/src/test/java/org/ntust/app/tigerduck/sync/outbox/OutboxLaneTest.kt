@@ -297,7 +297,22 @@ class OutboxLaneTest {
     }
 
     @Test
-    fun `a requeue while an edit is in flight leaves it one more try though its reply would park it`() = runTest {
+    fun `a requeue that does not ask for the edit in flight leaves it to its reply`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val signIn = series.current
+        val draining = launch { lane.drain(signIn) }
+        runCurrent()
+
+        lane.requeueParked(signIn)
+        backend.reply(SendResult.WaitsForUpload)
+        draining.join()
+
+        assertEquals(listOf(5), store.entries.map { it.attempts })
+    }
+
+    @Test
+    fun `a requeue that asks for the edit in flight leaves it one more try though its reply would park it`() = runTest {
         for ((result, before) in listOf(SendResult.WaitsForUpload to 0, SendResult.Refused to 4)) {
             backend.sent.clear()
             backend.answer = { null }
@@ -307,7 +322,7 @@ class OutboxLaneTest {
             val draining = launch { lane.drain(signIn) }
             runCurrent()
 
-            lane.requeueParked(signIn)
+            lane.requeueParked(signIn, inFlightToo = true)
             backend.reply(result)
             draining.join()
             assertEquals("$result", listOf(4), store.entries.map { it.attempts })
@@ -328,7 +343,7 @@ class OutboxLaneTest {
         val caller = launch { lane.drain(signIn) }
         runCurrent()
 
-        lane.requeueParked(signIn)
+        lane.requeueParked(signIn, inFlightToo = true)
         caller.cancelAndJoin()
         backend.reply(SendResult.WaitsForUpload)
         runCurrent()
@@ -344,7 +359,7 @@ class OutboxLaneTest {
         val draining = launch { lane.drain(signIn) }
         runCurrent()
 
-        lane.requeueParked(signIn) { it.field == "f2" }
+        lane.requeueParked(signIn, inFlightToo = true) { it.field == "f2" }
         backend.reply(SendResult.WaitsForUpload)
         draining.join()
 
@@ -360,7 +375,7 @@ class OutboxLaneTest {
         val draining = launch { lane.drain(signIn) }
         runCurrent()
 
-        lane.requeueParked(signIn)
+        lane.requeueParked(signIn, inFlightToo = true)
         backend.reply(SendResult.Sent(null))
         draining.join()
 
