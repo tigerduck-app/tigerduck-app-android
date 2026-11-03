@@ -240,6 +240,28 @@ class LwwOverridesTest {
     }
 
     /**
+     * Round 2, finding 2: an older build's rename queued by a Moodle id two terms' courses share
+     * holds the name of each, as it may be either's: holding one too many is safe, and losing a
+     * waiting rename is not.
+     */
+    @Test
+    fun `an older build's rename by a Moodle id two terms' courses share holds the name of each`() = runBlocking {
+        val past = "1101"
+        w.dataCache.saveCourses(listOf(Course(courseNo = "SHA", courseName = "A", moodleIdNumber = "SHARED1")), past, signIn)
+        show(Course(courseNo = "SHB", courseName = "B", moodleIdNumber = "SHARED1"))
+        val names = mapOf("SHA" to mapOf(locale to "Renamed A"), "SHB" to mapOf(locale to "Renamed B"))
+        w.dataCache.saveCourseCustomNames(names, signIn)
+        w.dataCache.savePendingCourseOverrides(
+            listOf(PendingCourseOverride("SHARED1", colorHex = null, customName = "Renamed A", locale = locale, changedAtMs = 1L, madeAtMs = 1L)),
+            signIn,
+        )
+
+        reconciler().reconcile(pass(snapshot()))
+
+        assertEquals(names, w.dataCache.loadCourseCustomNames())
+    }
+
+    /**
      * Finding 4: a name the snapshot no longer holds leaves the names and the courses Home and the
      * widgets show it from, the cached term's and Home's.
      */

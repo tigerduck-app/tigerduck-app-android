@@ -92,14 +92,17 @@ internal object StampedCourseOverrides {
     /**
      * The course numbers and locales whose name this phone keeps, from the [fields] it keeps: a
      * name's field by its course key names its number, and one by a Moodle id (an older build's
-     * change with no term) the number [courses], every term's, or [overrides] give that id.
+     * change with no term) every number [courses], every term's, or [overrides] give that id: two
+     * terms' courses may share one, and the change may be either's, so it holds both, as holding
+     * one too many is safe and losing a waiting rename is not.
      */
     fun heldNames(fields: Set<String>, courses: List<Course>, overrides: List<CourseOverrideResult>): Set<Pair<String, String>> {
-        val byMoodleId = overrides.mapNotNull { o -> o.courseNo?.let { o.moodleCourseId to it } }.toMap() +
-            courses.mapNotNull { c -> c.moodleIdNumber?.let { it to c.courseNo } }
-        return fields.mapNotNullTo(HashSet()) { field ->
-            val (course, locale) = SyncField.nameParts(field) ?: return@mapNotNullTo null
-            (SyncField.courseNoOf(course) ?: byMoodleId[course])?.let { it to locale }
+        val byMoodleId = (overrides.mapNotNull { o -> o.courseNo?.let { o.moodleCourseId to it } } +
+            courses.mapNotNull { c -> c.moodleIdNumber?.let { it to c.courseNo } })
+            .groupBy({ it.first }, { it.second })
+        return fields.flatMapTo(HashSet()) { field ->
+            val (course, locale) = SyncField.nameParts(field) ?: return@flatMapTo emptyList()
+            (SyncField.courseNoOf(course)?.let(::listOf) ?: byMoodleId[course].orEmpty()).map { it to locale }
         }
     }
 
