@@ -50,9 +50,9 @@ import java.io.File
  *
  * On `/v4` each tap is stamped by the sync clock, a mark an older build wrote with no time goes with
  * its old-entry time (Review Focus 1), an edit made with marks off is kept and goes once they are
- * on, the reply's clock is the mark's acknowledgment, and a reply that says the backend kept a
- * later mark puts it on this phone unless a newer tap waits (LWW D12). The queue is the outbox's
- * marks channel, registered from its own file.
+ * on, and the reply's clock is the mark's acknowledgment. A reply never writes a mark on this
+ * phone: when the backend kept a later mark, the next pull applies it (LWW D12). The queue is the
+ * outbox's marks channel, registered from its own file.
  */
 class UnsentMarksChannelTest {
 
