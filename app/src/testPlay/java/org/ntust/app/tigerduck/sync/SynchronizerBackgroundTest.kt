@@ -33,6 +33,8 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.backgroundSyncWorker
 import org.ntust.app.tigerduck.notification.settingsSyncAt
 import org.ntust.app.tigerduck.push.BackendSyncResult
+import org.ntust.app.tigerduck.push.SyncApiClient
+import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,8 +54,9 @@ import java.util.concurrent.TimeUnit
 
 /**
  * The background mode of the one synchronizer over the real stores and clients: the worker's
- * pull opens the first-pull gate, its fetch signs in again once and marks each attempt, and its
- * marks step tells the worker's own after-steps whether this phone's marks changed. What it sends,
+ * pull opens the first-pull gate, its fetch signs in again once and marks each attempt (Home's
+ * marks its one), its marks step tells the worker's own after-steps whether this phone's marks
+ * changed, and its steps need no screen. What it sends,
  * and what it leaves to Home (C2), is `BackgroundPullRequestsTest`'s.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -189,6 +192,48 @@ class SynchronizerBackgroundTest {
 
         assertEquals("taken, then the same again", listOf(true, false), changed)
         assertEquals(setOf("7"), w.dataCache.loadIgnoredAssignments())
+    }
+
+    @Test
+    fun `a background pass takes the server's ignored courses with no screen to show them on`() = runBlocking {
+        val term = w.courseService.currentSemesterCode()
+        val snapshot = JSONObject(snapshot())
+            .put("courses", JSONArray().put(JSONObject().put("course_no", "CS1001").put("course_name", "Kept").put("semester", term).put("moodle_id", "${term}CS1001")))
+            .put(
+                "course_overrides",
+                JSONArray().put(
+                    JSONObject().put("moodle_id", "${term}CS1001").put("course_no", "CS1001").put("semester", term)
+                        .put("ignore_assignments", true).put("ignore_assignments_updated_at", "2026-10-13T00:00:00Z"),
+                ),
+            )
+        backend.answer("GET /sync/full", 200, snapshot.toString())
+
+        assertEquals(SyncOutcome.SYNCED, rig.synchronizer.sync(SyncMode.BACKGROUND, signIn))
+
+        assertEquals(setOf("$term:CS1001"), w.dataCache.loadIgnoredCourses())
+    }
+
+    @Test
+    fun `Home's fetch marks the course window's fetch once, and leaves a refused session to Home`() = runBlocking {
+        val log = Collections.synchronizedList(mutableListOf<String>())
+        val steps = ForegroundSteps(
+            w.appPrefs, SyncPolicies(w.appPrefs), w.dataCache, w.tokens,
+            fetchSnapshot = { log += "fetch"; throw BackendException(BackendError(401, "session_revoked"), "refused") },
+            pendingCourseAdds = rig.adds, pendingCourseDeletes = rig.deletes, firstPullGate = rig.gate, widgetUpdater = w.widgetUpdater,
+            reenableCheck = ReenableCheck(
+                w.appPrefs, SyncApiClient(w.tokens, w.appPrefs, backend.client), w.dataCache, w.semesterCatalog, rig.ignores, w.auth,
+                w.sessions, idleScope, context,
+            ),
+            notificationSettingsSync = w.notificationSettingsSync, appScope = idleScope,
+        )
+
+        try {
+            steps.fetch(signIn, DataCache.CourseSync(0L) { log += "fetching"; 0L })
+            fail("the refusal was swallowed")
+        } catch (e: BackendException) {
+            assertEquals(401, e.error.status)
+        }
+        assertEquals("one attempt: Home's pass runs again after its relogin", listOf("fetching", "fetch"), log.toList())
     }
 
     /** The background's steps over the rig's stores, its snapshot from [fetch] and its relogin [relogin]. */
