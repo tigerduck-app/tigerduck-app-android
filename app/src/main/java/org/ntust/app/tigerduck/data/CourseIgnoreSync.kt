@@ -1,22 +1,32 @@
 package org.ntust.app.tigerduck.data
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.auth.NotSignedInException
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.PendingCourseIgnore
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Sends one course's setting; see [PushApiClient.patchCourseIgnore]. */
+/** Sends one course's setting, and says whether it went and was stored; for a test that sends through one. */
 internal fun interface CourseIgnoreSender {
     suspend fun send(moodleId: String, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): Boolean?
 }
@@ -44,24 +54,42 @@ internal fun interface CourseIgnoreEffects {
  * process sends it again.
  *
  * Work started for one account carries its sign-in, and drops its writes once
- * that sign-in has ended. The queue half is [CourseIgnoreQueue]'s.
+ * that sign-in has ended. The queue half is [CourseIgnoreQueue]'s, the
+ * outbox's course ignores channel.
  */
 @Singleton
 class CourseIgnoreSync internal constructor(
     private val dataCache: DataCache,
-    private val sender: CourseIgnoreSender,
+    writer: CourseIgnoreWriter,
     private val effects: CourseIgnoreEffects,
     private val sends: () -> Boolean,
     private val clock: () -> Long,
+    outbox: IgnoreOutbox = IgnoreOutbox(clock, { false }, AckClock(), CallersScope(), null),
 ) {
+    /** The sync for a test that sends through a [CourseIgnoreSender], as the queue's own tests do. */
+    internal constructor(
+        dataCache: DataCache,
+        sender: CourseIgnoreSender,
+        effects: CourseIgnoreEffects,
+        sends: () -> Boolean,
+        clock: () -> Long,
+    ) : this(dataCache, sender.answering(), effects, sends, clock)
+
     @Inject constructor(
         dataCache: DataCache,
         pushApiClient: PushApiClient,
         prefs: AppPreferences,
         scheduler: AssignmentNotificationScheduler,
+        policies: SyncPolicies = SyncPolicies(prefs),
+        /** What a change is stamped by; null only in tests, for the wall clock. */
+        syncClock: SyncClock? = null,
+        ack: AckClock = AckClock(),
+        @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        /** The old-entry time of a change an older build wrote with no time; null only in tests, for none. */
+        oldEntryTime: OldEntryTime? = null,
     ) : this(
         dataCache = dataCache,
-        sender = CourseIgnoreSender(pushApiClient::patchCourseIgnore),
+        writer = CourseIgnoreWriter(pushApiClient::patchCourseIgnoreAnswered),
         effects = CourseIgnoreEffects {
             if (prefs.notifyAssignments) {
                 scheduler.scheduleAll(
@@ -70,8 +98,15 @@ class CourseIgnoreSync internal constructor(
                 )
             }
         },
-        sends = { syncsCourseIgnores(prefs) },
+        sends = { syncsCourseIgnores(policies) },
         clock = System::currentTimeMillis,
+        outbox = IgnoreOutbox(
+            stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
+            lastWriterWins = { policies.current.lastWriterWins },
+            ack = ack,
+            scope = scope,
+            oldEntryTime = oldEntryTime,
+        ),
     )
 
     private val mutex = Mutex()
@@ -88,7 +123,10 @@ class CourseIgnoreSync internal constructor(
     private var setChosenAt = Long.MIN_VALUE
 
     // The queue half: the changes waiting, their sends and the fill-in.
-    private val queue = CourseIgnoreQueue(dataCache, sender, effects, sends, clock, mutex, touchedAt)
+    private val queue = CourseIgnoreQueue(dataCache, writer, effects, sends, clock, mutex, touchedAt, outbox)
+
+    /** The outbox's course ignores channel: the queue half. */
+    internal val channel: OutboxChannel get() = queue
 
     /**
      * Ignores, or stops ignoring, every assignment of [semester]'s
@@ -110,6 +148,13 @@ class CourseIgnoreSync internal constructor(
     suspend fun retryPending(signIn: SignIn) = queue.retryPending(signIn)
 
     /**
+     * Keeps [ignore] as [semester]'s [courseNo]'s setting stamped 0, the oldest, unless a change of
+     * the course waits (LWW D13); see [CourseIgnoreQueue.queueAsOldest]. False once [signIn] has ended.
+     */
+    suspend fun queueAsOldest(semester: String, courseNo: String, moodleId: String, moodleCourseId: Int?, ignore: Boolean, signIn: SignIn): Boolean =
+        queue.queueAsOldest(queue.changeNow(semester, courseNo, moodleId, moodleCourseId, ignore), signIn)
+
+    /**
      * Brings the ignored courses in line with a full sync; see
      * [CourseIgnoreReconciler.afterSync]. Courses the backend lost the
      * setting of ([CourseIgnoreReconciler.toResend]) are sent again. Returns
@@ -121,7 +166,7 @@ class CourseIgnoreSync internal constructor(
         var resend = emptyList<PendingCourseIgnore>()
         val updated = mutex.withLock {
             val local = dataCache.loadIgnoredCourses()
-            val pending = dataCache.loadPendingCourseIgnores()
+            val pending = queue.entries()
             val protectedKeys = pending.mapNotNullTo(mutableSetOf()) { it.key } +
                 touchedAt.filterValues { it >= result.fetchedAtMs }.keys
             val takes = applies && result.fetchedAtMs >= setChosenAt
@@ -129,8 +174,8 @@ class CourseIgnoreSync internal constructor(
                 val now = clock()
                 val rows = serverRows(result)
                 val lost = CourseIgnoreReconciler.toResend(local, server, protectedKeys)
-                val changes = lost.sorted().map { changeFor(it, true, rows[it], now) }
-                if (changes.isNotEmpty() && dataCache.savePendingCourseIgnores(pending + changes, signIn)) {
+                val changes = lost.sorted().map { queue.changeFor(it, true, rows[it], now) }
+                if (changes.isNotEmpty() && queue.edit(signIn) { it + changes }) {
                     resend = changes
                 }
             }
@@ -203,13 +248,11 @@ class CourseIgnoreSync internal constructor(
             }
             val cleared = server?.keys.orEmpty() - local
             val now = clock()
-            var pending = dataCache.loadPendingCourseIgnores()
-            for (key in ignored) pending = pending.with(changeFor(key, true, serverRows[key], now))
-            for (key in cleared) pending = pending.with(changeFor(key, false, serverRows[key], now))
-            // By the course the upload put back, not the old row: the reset
-            // replaced it.
-            for (key in clearedInReset - local - cleared) pending = pending.with(changeFor(key, false, null, now))
-            if (dataCache.savePendingCourseIgnores(pending, signIn)) setChosenAt = now
+            val changes = ignored.map { queue.changeFor(it, true, serverRows[it], now) } +
+                cleared.map { queue.changeFor(it, false, serverRows[it], now) } +
+                // By the course the upload put back, not the old row: the reset replaced it.
+                (clearedInReset - local - cleared).map { queue.changeFor(it, false, null, now) }
+            if (queue.edit(signIn) { pending -> changes.fold(pending) { kept, change -> kept.with(change) } }) setChosenAt = now
         }
         retryPending(signIn)
     }
@@ -243,7 +286,7 @@ class CourseIgnoreSync internal constructor(
     suspend fun adoptServer(result: BackendSyncResult?, signIn: SignIn) {
         val server = result?.let { serverView(it) }
         val updated = mutex.withLock {
-            if (!dataCache.savePendingCourseIgnores(emptyList(), signIn)) return@withLock null
+            if (!queue.edit(signIn) { emptyList() }) return@withLock null
             setChosenAt = clock()
             val local = dataCache.loadIgnoredCourses()
             val adopted = if (result == null) emptySet() else CourseIgnoreReconciler.adopt(local, server)
@@ -260,15 +303,11 @@ class CourseIgnoreSync internal constructor(
      */
     suspend fun forget(signIn: SignIn, matches: (String) -> Boolean) {
         val changed = mutex.withLock {
-            val pending = dataCache.loadPendingCourseIgnores()
             val now = clock()
-            (pending.mapNotNull { it.key } + dataCache.loadIgnoredCourses())
+            (queue.entries().mapNotNull { it.key } + dataCache.loadIgnoredCourses())
                 .filter(matches)
                 .forEach { touchedAt[it] = now }
-            val keptPending = pending.filterNot { it.key?.let(matches) == true }
-            if (keptPending.size != pending.size) {
-                dataCache.savePendingCourseIgnores(keptPending, signIn)
-            }
+            queue.edit(signIn) { pending -> pending.filterNot { it.key?.let(matches) == true } }
             forgetRowsSeenLocked(matches, signIn)
             val keys = dataCache.loadIgnoredCourses()
             val kept = keys.filterNotTo(mutableSetOf(), matches)
@@ -291,28 +330,6 @@ class CourseIgnoreSync internal constructor(
         val seen = dataCache.loadCourseRowsSeen()
         val kept = seen.filterKeys { !matches(it) }
         if (kept.size != seen.size) dataCache.saveCourseRowsSeen(kept, signIn)
-    }
-
-    private suspend fun changeFor(
-        key: String,
-        ignore: Boolean,
-        serverRow: CourseOverrideResult?,
-        now: Long,
-    ): PendingCourseIgnore {
-        val semester = CourseIgnores.semesterOf(key)
-        val courseNo = key.substringAfter(':')
-        val course = dataCache.loadCourses(semester).find { it.courseNo == courseNo }
-        val moodleId = serverRow?.moodleCourseId
-            ?: course?.moodleIdNumber?.takeIf { it.isNotEmpty() }
-            ?: "$semester$courseNo"
-        return PendingCourseIgnore(
-            semester = semester,
-            courseNo = courseNo,
-            moodleId = moodleId,
-            moodleCourseId = serverRow?.moodleNumericCourseId ?: course?.moodleNumericCourseId,
-            ignore = ignore,
-            changedAtMs = now,
-        )
     }
 
     /**
@@ -345,9 +362,6 @@ class CourseIgnoreSync internal constructor(
         }
 
     internal companion object {
-        /** The re-enable conflict category course ignores are part of. */
-        private const val REENABLE_CATEGORY = "assignments"
-
         /** Refusals before a change is parked, as on the iOS outbox. */
         const val MAX_ATTEMPTS = 5
 
@@ -355,11 +369,14 @@ class CourseIgnoreSync internal constructor(
          * Whether changes go out and a full sync applies the backend's set:
          * cloud, assignment and course sync on, the last as the backend drops
          * the settings with the course rows once no device syncs courses, and
-         * no assignments re-enable conflict open.
+         * no assignments re-enable conflict open (`SyncPolicy.sendsCourseIgnores`
+         * and `sends` of the assignments).
          */
-        fun syncsCourseIgnores(prefs: AppPreferences): Boolean =
-            prefs.cloudSyncEnabled && prefs.syncAssignments && prefs.syncCourses &&
-                REENABLE_CATEGORY !in prefs.school.pendingConflictCategories.get()
+        fun syncsCourseIgnores(prefs: AppPreferences): Boolean = syncsCourseIgnores(SyncPolicies(prefs))
+
+        /** [syncsCourseIgnores] as [policies] read the switches now. */
+        fun syncsCourseIgnores(policies: SyncPolicies): Boolean =
+            policies.current.let { it.sendsCourseIgnores && it.sends(SyncCategory.ASSIGNMENTS) }
 
         /**
          * Whether a failed PATCH says the backend refused the change, as the
