@@ -112,6 +112,23 @@ internal fun placeOf(row: PendingCourseOverride): CoursePlace? {
     return CoursePlace(semester, courseNo)
 }
 
+/** Whether [this] waits for a course upload, or for its one more try after its refusals: parked. */
+internal val PendingCourseOverride.isParked: Boolean
+    get() = attempts >= PendingCourseOverrides.MAX_ATTEMPTS
+
+/**
+ * [rows] with each parked change given one more try, one more refusal parking it again, but one
+ * whose course an upload left out as tombstoned ([skips]), which goes: no upload makes its row.
+ */
+internal fun requeued(rows: List<PendingCourseOverride>, skips: (PendingCourseOverride) -> Boolean): List<PendingCourseOverride> =
+    rows.mapNotNull { row ->
+        when {
+            !row.isParked -> row
+            skips(row) -> null
+            else -> row.copy(attempts = PendingCourseOverrides.MAX_ATTEMPTS - 1)
+        }
+    }
+
 /**
  * The current term's courses by their Moodle id, read once: where a change that names no term is,
  * as the class table holds the course now. The first course with an id, as a lookup finds it.

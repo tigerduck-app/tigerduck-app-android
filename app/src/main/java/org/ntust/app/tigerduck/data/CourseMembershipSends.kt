@@ -137,6 +137,8 @@ internal class CourseAddSends(
         return try {
             val forceKeys = courseNos.map { PendingCourseAdds.forceKey(semester, it) }
             val answer = uploader.upload(courses, semester, forceKeys, signIn, addedAt) ?: return Taken(adds, unsent = true)
+            // The courses it took, and those it left out as tombstoned, settle what waited for their rows.
+            outbox.courseUploadAnswered(semester, answer.accepted, answer.skippedOf(courses.map { it.courseNo }), signIn)
             val taken = Taken(adds, courseNos.filter { it in answer.accepted }, courseNos.filter { it in answer.refusedAdds }, serverClockUs = answer.serverClockUs)
             if (taken.accepted.size + taken.refusedNos.size < courseNos.size) Log.w(TAG, "course add not accepted, kept for the next sync")
             taken

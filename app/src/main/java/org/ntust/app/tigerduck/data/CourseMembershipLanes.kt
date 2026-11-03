@@ -148,6 +148,7 @@ internal fun deletesByTerm(deletes: List<CourseDelete>): Map<String, Map<String,
  * - [ack] is the outbox's [AckClock], [scope] the application's, where a send runs to its end.
  * - [oldEntryTime] gives an add an older build kept with no moment its old-entry time (X1).
  * - [outbox] is told when a course upload has landed.
+ * - [overrides], the course colors and names, are told what an upload took and left out.
  */
 internal class MembershipOutbox(
     private val policies: SyncPolicies? = null,
@@ -155,6 +156,7 @@ internal class MembershipOutbox(
     scope: CoroutineScope? = null,
     val oldEntryTime: OldEntryTime? = null,
     private val outbox: Lazy<Outbox>? = null,
+    private val overrides: Lazy<PendingCourseOverrides>? = null,
 ) {
     val ack: AckClock = ack ?: AckClock()
 
@@ -184,6 +186,22 @@ internal class MembershipOutbox(
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "a landed course upload's news failed: ${e.logSummary()}")
+        }
+    }
+
+    /**
+     * A course upload of [semester] under [signIn] was answered: the backend took [accepted], and
+     * left [skipped] out as tombstoned. Never the upload's failure: what the course colors and
+     * names do with the news is their own.
+     */
+    suspend fun courseUploadAnswered(semester: String, accepted: List<String>, skipped: List<String>, signIn: SignIn) {
+        val overrides = overrides?.get() ?: return
+        try {
+            overrides.courseUploadAnswered(semester, accepted, skipped, signIn)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "an upload's answer was not told: ${e.logSummary()}")
         }
     }
 

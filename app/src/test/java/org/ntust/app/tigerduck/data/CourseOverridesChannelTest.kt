@@ -362,6 +362,126 @@ class CourseOverridesChannelTest {
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
+    // --- Let go when the upload that should have made its course skipped it (xinshou, Telegram 1663) ---
+
+    private val typed = Course(courseNo = "XA0000009", courseName = "Typed", isManual = true, moodleIdNumber = "1151XA0000009")
+    private val other = Course(courseNo = "XA0000010", courseName = "Other", isManual = true, moodleIdNumber = "1151XA0000010")
+    private val upload = "/v3/sync/courses/upload"
+
+    /** The adds and the colors and names as the app wires them, on `/v3`, in one outbox. */
+    private fun v3AddsAndOverrides(): Triple<Outbox, PendingCourseAdds, PendingCourseOverrides> {
+        val client = pushApiClientAt(v3, v3Backend.client, prefs)
+        lateinit var outbox: Outbox
+        lateinit var overrides: PendingCourseOverrides
+        val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs), outbox = dagger.Lazy { outbox }, overrides = dagger.Lazy { overrides })
+        overrides = PendingCourseOverrides(cache, client, prefs)
+        outbox = Outbox(setOf(adds, overrides))
+        return Triple(outbox, adds, overrides)
+    }
+
+    /** An upload's answer that left [typed] out, its add refused as a hide elsewhere is newer. */
+    private fun skipped() =
+        """{"upserted":0,"skipped_tombstoned":1,"accepted_keys":[],""" +
+            """"adds":[{"course_key":"client:$term:${typed.courseNo}","applied":false,"hlc":1790000900000000}]}"""
+
+    /**
+     * The rename parked for its course's upload, which then leaves the course out as tombstoned (a
+     * hide elsewhere is newer than the add): no upload will make its row, so the rename goes.
+     */
+    @Test
+    fun `a parked rename goes when the upload that should have made its course skips it as tombstoned`() = runTest {
+        cache.saveCourses(listOf(typed), term, signIn)
+        val (outbox, adds, overrides) = v3AddsAndOverrides()
+        v3Backend.answer(upload, 503, """{"detail":"unavailable"}""")
+        v3Backend.answer(pathOf(typed), 404, """{"detail":"course_not_found"}""")
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = madeAtMs, signIn = signIn)
+        overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+
+        v3Backend.sent.clear()
+        v3Backend.answer(upload, 200, skipped())
+        outbox.drain(signIn)
+
+        assertEquals(listOf("$v3/sync/courses/upload"), v3Backend.sent.map { it.url })
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** Skipped before its rename was refused: the rename parks at its 404, and goes at the next upload's landing. */
+    @Test
+    fun `a rename refused after its course's upload skipped it goes at the next upload's landing`() = runTest {
+        cache.saveCourses(listOf(typed, other), term, signIn)
+        val (outbox, adds, overrides) = v3AddsAndOverrides()
+        v3Backend.answer(upload, 200, skipped())
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = madeAtMs, signIn = signIn)
+        v3Backend.answer(pathOf(typed), 404, """{"detail":"course_not_found"}""")
+        overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+
+        v3Backend.sent.clear()
+        // Another course's add lands.
+        v3Backend.answer(upload, 200, """{"accepted_keys":["client:$term:${other.courseNo}"]}""")
+        adds.send(listOf(other), term, other.courseNo, addedAt = madeAtMs, signIn = signIn)
+        outbox.drain(signIn)
+
+        assertEquals(listOf("$v3/sync/courses/upload"), v3Backend.sent.map { it.url })
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** Only an answer that says it left courses out and names the ones it took tells which. */
+    @Test
+    fun `a rename stays parked for its try when the upload does not say which courses it skipped`() = runTest {
+        cache.saveCourses(listOf(typed), term, signIn)
+        val (outbox, adds, overrides) = v3AddsAndOverrides()
+        v3Backend.answer(upload, 503, """{"detail":"unavailable"}""")
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = madeAtMs, signIn = signIn)
+        v3Backend.answer(pathOf(typed), 404, """{"detail":"course_not_found"}""")
+        overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
+
+        v3Backend.sent.clear()
+        v3Backend.answer(upload, 200, """{"skipped_tombstoned":1,"adds":[{"course_key":"client:$term:${typed.courseNo}","applied":true,"hlc":1}]}""")
+        outbox.drain(signIn)
+
+        assertEquals(listOf("$v3/sync/courses/upload", "$v3/sync/courses/1151XA0000009/override"), v3Backend.sent.map { it.url })
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** A course an upload left out, and a later upload took, is no longer skipped: a rename parked since gets its try. */
+    @Test
+    fun `a rename parked after its course was skipped and then taken gets its try at the next landing`() = runTest {
+        cache.saveCourses(listOf(typed, other), term, signIn)
+        val (outbox, adds, overrides) = v3AddsAndOverrides()
+        v3Backend.answer(upload, 200, skipped())
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = madeAtMs, signIn = signIn)
+        v3Backend.answer(upload, 200, """{"skipped_tombstoned":0,"accepted_keys":["client:$term:${typed.courseNo}"]}""")
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = madeAtMs + 1, signIn = signIn)
+        v3Backend.answer(pathOf(typed), 404, """{"detail":"course_not_found"}""")
+        overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+
+        v3Backend.sent.clear()
+        v3Backend.answer(upload, 200, """{"accepted_keys":["client:$term:${other.courseNo}"]}""")
+        adds.send(listOf(other), term, other.courseNo, addedAt = madeAtMs, signIn = signIn)
+        outbox.drain(signIn)
+
+        assertEquals(listOf("$v3/sync/courses/upload", "$v3/sync/courses/1151XA0000009/override"), v3Backend.sent.map { it.url })
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** An upload's answer for an ended sign-in settles nothing of the next student's. */
+    @Test
+    fun `an upload's skip under an ended sign-in lets go of nothing of the next student's`() = runTest {
+        val (_, _, overrides) = v3AddsAndOverrides()
+        val ended = signIn
+        series.end()
+        series.open()
+        queue(placed(name(typed, "Mine", "en"), typed).copy(attempts = max))
+
+        overrides.courseUploadAnswered(term, emptyList(), listOf(typed.courseNo), ended)
+        overrides.requeueParked(signIn)
+
+        assertEquals(listOf(max - 1), waiting().map { it.attempts })
+    }
+
     // --- /v4 ---
 
     private val v4 = "http://127.0.0.1:9/v4"

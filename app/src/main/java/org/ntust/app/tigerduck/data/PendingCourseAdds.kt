@@ -86,12 +86,13 @@ class PendingCourseAdds internal constructor(
         @ApplicationScope scope: CoroutineScope? = null,
         oldEntryTime: OldEntryTime? = null,
         outbox: dagger.Lazy<Outbox>? = null,
+        overrides: dagger.Lazy<PendingCourseOverrides>? = null,
     ) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
             pushApiClient.uploadCoursesAnswered(courses, semester, signIn, forceKeys, addedAt = addedAt)
         },
-        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime, outbox),
+        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime, outbox, overrides),
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.COURSE_ADDS

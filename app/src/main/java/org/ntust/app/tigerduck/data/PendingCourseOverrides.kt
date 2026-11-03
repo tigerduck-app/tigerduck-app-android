@@ -25,7 +25,6 @@ import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.outbox.OutboxLane
-import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -54,8 +53,9 @@ import javax.inject.Singleton
  * row went with the course. Refused [MAX_ATTEMPTS] times, or answered that
  * the backend has no such course yet, it parks, never let go: kept at this
  * phone's value, and tried again once a course upload lands ([requeueParked])
- * and at a process's first [retry] (spec §5.3 race 3). Account-scoped: sent
- * only under the sign-in that made it, and wiped with the user data at sign-out.
+ * and at a process's first [retry] (spec §5.3 race 3), unless its course's
+ * upload left it out ([courseUploadAnswered]). Account-scoped: sent only
+ * under the sign-in that made it, and wiped with the user data at sign-out.
  *
  * With TigerSync or the kind's switch off ([records] false) colours or names
  * are this phone's own: a change goes nowhere and is not kept, but replaces
@@ -149,9 +149,6 @@ class PendingCourseOverrides internal constructor(
     // The versions given out and the keys' last changes, under [mutex].
     private val memory = CourseOverrideMemory(clock)
 
-    // Whether this process has given the parked changes their one more try.
-    private val parkedRequeued = AtomicBoolean(false)
-
     private val sendPath = CourseOverrideSends(
         dataCache, writer, sends, lastWriterWins,
         waiting = { lane.entries() },
@@ -190,9 +187,7 @@ class PendingCourseOverrides internal constructor(
         signIn: SignIn,
     ) {
         val recorded = record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn)
-        for (change in recorded.values) {
-            if (sends(change.isColor)) lane.drain(signIn, setOf(fieldOf(change)))
-        }
+        recorded.values.filter { sends(it.isColor) }.forEach { lane.drain(signIn, setOf(fieldOf(it))) }
     }
 
     /**
@@ -243,17 +238,35 @@ class PendingCourseOverrides internal constructor(
 
     /** [retry]. */
     override suspend fun drain(signIn: SignIn) {
-        if (signIn.ifCurrent { parkedRequeued.compareAndSet(false, true) } == true) lane.requeueParked(signIn)
+        if (memory.firstParkedTry(signIn)) requeueParked(signIn)
         lane.drain(signIn)
     }
 
-    /** A course upload has landed: each parked change gets one more try at the next [retry]. */
-    override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
+    /**
+     * A course upload has landed: each parked change gets one more try at the next [retry], but one
+     * whose course the last upload answering for it left out as tombstoned goes, in the same step.
+     */
+    override suspend fun requeueParked(signIn: SignIn) {
+        mutex.withLock { lane.edit(signIn) { rows -> requeued(rows, memory::skips) } }
+    }
+
+    /**
+     * A course upload of [semester] was answered: the backend took the courses [accepted] and left
+     * [skipped] out as tombstoned, as it does a course hidden or reset since elsewhere. No upload
+     * makes a row for one, so a change parked for its row goes now, and one parked later goes at
+     * the next upload's landing (xinshou, Telegram 1663); a course taken since is no longer skipped.
+     */
+    suspend fun courseUploadAnswered(semester: String, accepted: Collection<String>, skipped: Collection<String>, signIn: SignIn) {
+        mutex.withLock {
+            memory.uploadAnswered(semester, accepted, skipped, signIn)
+            lane.edit(signIn) { rows -> rows.filterNot { it.isParked && memory.skips(it) } }
+        }
+    }
 
     override suspend fun heldFields(): Set<String> = lane.heldFields()
 
     /** At a sign-out: the next student's parked changes get their own one more try in this process. */
-    override fun forgetMemory() = lane.forgetMemory().also { parkedRequeued.set(false) }
+    override fun forgetMemory() = lane.forgetMemory().also { memory.forgetParkedTry() }
 
     /**
      * The keys ([PendingCourseOverride.key]) a snapshot fetched at
@@ -261,9 +274,7 @@ class PendingCourseOverrides internal constructor(
      * every one made or confirmed since the fetch, which the snapshot
      * predates.
      */
-    suspend fun held(fetchedAtMs: Long): Set<String> = mutex.withLock {
-        waiting().keys + memory.touchedSince(fetchedAtMs)
-    }
+    suspend fun held(fetchedAtMs: Long): Set<String> = mutex.withLock { waiting().keys + memory.touchedSince(fetchedAtMs) }
 
     /**
      * Forgets what waits for the courses [moodleIds]: deleted by hand or on

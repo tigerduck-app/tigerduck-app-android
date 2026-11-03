@@ -211,6 +211,8 @@ internal class CourseSyncRequests(
             refusedAdds = answers.filter { !it.optBoolean("applied", true) }
                 .map { it.optString("course_key") }.filter { it.isNotEmpty() }.map(::no).distinct(),
             serverClockUs = serverClockOf(response),
+            // Only beside the keys it took, which tell the courses it left out from the rest.
+            skippedTombstoned = json?.takeIf { keys != null }?.optInt(SKIPPED)?.takeIf { it > 0 },
         )
     }
 
@@ -301,6 +303,9 @@ internal class CourseSyncRequests(
     private companion object {
         // The header value of an upload whose adds carry their time.
         const val PROTOCOL_STAMPED = "2"
+
+        // How many of the courses sent an upload's answer left out as tombstoned.
+        const val SKIPPED = "skipped_tombstoned"
     }
 }
 
@@ -309,7 +314,18 @@ internal class CourseSyncRequests(
  * timed adds it answered but did not apply ([refusedAdds]), as a hide or reset made after them
  * elsewhere is newer. Both are settled: the backend has the final word on each. [serverClockUs] is
  * the answer's `X-TigerSync-Clock`, null for an upload the ledger held back or an answer without one.
+ * [skippedTombstoned] is how many of the courses sent it left out as tombstoned, made no row for:
+ * null for none, and when the answer does not say or names no keys it took to tell which.
  */
-data class CourseUploadAnswer(val accepted: List<String>, val refusedAdds: List<String>, val serverClockUs: Long? = null) {
+data class CourseUploadAnswer(
+    val accepted: List<String>,
+    val refusedAdds: List<String>,
+    val serverClockUs: Long? = null,
+    val skippedTombstoned: Int? = null,
+) {
     val settled: List<String> get() = (accepted + refusedAdds).distinct()
+
+    /** The course numbers of [sent] the backend left out as tombstoned: those it did not take, when it says it left any out. */
+    fun skippedOf(sent: Collection<String>): List<String> =
+        if ((skippedTombstoned ?: 0) > 0) sent.filter { it !in accepted }.distinct() else emptyList()
 }
