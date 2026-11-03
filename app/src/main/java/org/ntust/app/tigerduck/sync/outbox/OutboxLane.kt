@@ -40,6 +40,13 @@ import org.ntust.app.tigerduck.util.logSummary
  *   kept at this phone's value, and not sent until [requeueParked] gives it one more try.
  *   [SendResult.WaitsForUpload] parks it at once. An entry leaves only when sent, superseded or
  *   cleared by a sign-out.
+ * - **A requeue reaches the entry in flight.** [requeueParked] marks the entry whose request is
+ *   out, when it is of the requeue's sign-in and due: a reply that would park it (a refusal that
+ *   reaches `maxAttempts`, or [SendResult.WaitsForUpload]) leaves it one try short of parked
+ *   instead, so it has one more try, as a parked entry has. The mark is honored as the reply is
+ *   stored, on [scope], whatever its caller does meanwhile, and goes with it: one requeue is one
+ *   more try at most for each entry. A course upload that lands while a request is out may have
+ *   made the row that request is refused for.
  * - **The sign-in guard.** Entries read from disk belong to the [SignIn] the caller hands in, the
  *   open session's. One read under a sign-in that has ended is neither sent nor written back, and
  *   the reply to a request that crossed a sign-out lands nowhere: the next student's files are not
@@ -72,6 +79,15 @@ class OutboxLane<E : Any>(
     // of that sign-in add to, under [underWay]. Equal only to itself.
     private class Drain<T>(val signIn: SignIn) {
         val tried = ArrayList<T>()
+    }
+
+    // The entry whose request is out, set as it is read and taken back as its reply is stored, under
+    // [storeLock]: a requeue meanwhile marks it [woken] (see [requeueParked]).
+    private var flight: Flight<E>? = null
+
+    // One request out: the entry read for it, under its sign-in, and whether a requeue has woken it.
+    private class Flight<T>(val entry: T, val signIn: SignIn) {
+        var woken = false
     }
 
     /**
@@ -160,11 +176,14 @@ class OutboxLane<E : Any>(
 
     /**
      * Gives each parked entry that is [due] one more try at the next [drain]: one refusal parks it
-     * again. A course upload has landed, or the channel's own wait for a parked entry is over.
+     * again. A course upload has landed, or the channel's own wait for a parked entry is over. The
+     * entry in flight under [signIn], when [due], has the same: a reply that would park it leaves
+     * it due for one more try.
      */
     suspend fun requeueParked(signIn: SignIn, due: (E) -> Boolean = { true }) {
         storeLock.withLock {
             if (!signIn.isCurrent) return@withLock
+            flight?.takeIf { it.signIn === signIn && due(it.entry) }?.woken = true
             val entries = loaded(signIn)
             val book = policy.attempts
             val requeued = entries.indices.filter { book.attempts(entries[it]) >= policy.maxAttempts && due(entries[it]) }.toSet()
@@ -191,7 +210,9 @@ class OutboxLane<E : Any>(
                 // Ended while it waited for the request before: what the store holds now may be the
                 // next student's, which it neither reads nor counts.
                 if (!signIn.isCurrent) return@async null
-                val entry = storeLock.withLock { loaded(signIn).firstOrNull { it.isDue(fields, drain) } } ?: return@async null
+                val entry = storeLock.withLock {
+                    loaded(signIn).firstOrNull { it.isDue(fields, drain) }?.also { flight = Flight(it, signIn) }
+                } ?: return@async null
                 // Had by every drain of this sign-in under way, this one included: none of them sends
                 // it again. A drain of another sign-in is another student's, which this was not read for.
                 synchronized(underWay) { underWay.forEach { if (it.signIn === signIn) it.tried += entry } }
@@ -220,13 +241,15 @@ class OutboxLane<E : Any>(
     }
 
     // Stores what [result] does to [entry], unless [signIn] has ended: then the files are no
-    // longer the ones it was read from.
+    // longer the ones it was read from. Takes back its flight, and with it a requeue's mark.
     private suspend fun settle(entry: E, result: SendResult, signIn: SignIn) {
         val field = policy.field(entry)
         // Before the entry goes, so a pull in between holds the field by one or the other.
         if (result is SendResult.Sent) result.serverClockUs?.let { ack.acknowledged(field, it, signIn) }
-        if (result == SendResult.NotSent || result == SendResult.Retry) return
         storeLock.withLock {
+            val woken = flight?.takeIf { it.entry === entry }?.woken == true
+            flight = null
+            if (result == SendResult.NotSent || result == SendResult.Retry) return@withLock
             if (!signIn.isCurrent) return@withLock
             val entries = loaded(signIn)
             val book = policy.attempts
@@ -239,7 +262,9 @@ class OutboxLane<E : Any>(
                 SendResult.Refused, SendResult.WaitsForUpload -> countedWhileCurrent(signIn) {
                     val attempts = book.attempts(stored)
                     val counted = if (result == SendResult.Refused) attempts + 1 else maxOf(attempts, policy.maxAttempts)
-                    entries.replacedAt(at, book.counted(stored, counted, refused = true))
+                    // Woken while out: one try short of parked, its one more try.
+                    val kept = if (woken) minOf(counted, policy.maxAttempts - 1) else counted
+                    entries.replacedAt(at, book.counted(stored, kept, refused = true))
                 } ?: return@withLock
                 SendResult.NotSent, SendResult.Retry -> return@withLock
             }

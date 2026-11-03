@@ -4,7 +4,6 @@ import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInBound
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * What the course colors and names' queue ([PendingCourseOverrides]) keeps in memory beside its
@@ -32,9 +31,6 @@ internal class CourseOverrideMemory(private val clock: () -> Long) {
 
     // Whether this process has given the parked changes their one more try.
     private val parkedTried = AtomicBoolean(false)
-
-    // The course uploads that have landed in this process, to tell one that lands during a send.
-    private val uploadsLanded = AtomicLong(0)
 
     /**
      * Later than every version an entry still [waiting] carries and than every one given out in
@@ -86,18 +82,6 @@ internal class CourseOverrideMemory(private val clock: () -> Long) {
 
     /** At a sign-out: the next student's parked changes get their own try in this process. */
     fun forgetParkedTry() = parkedTried.set(false)
-
-    /** A course upload has landed. */
-    fun uploadLanded() {
-        uploadsLanded.incrementAndGet()
-    }
-
-    /** Runs [block], and says whether a course upload landed while it ran. */
-    suspend fun landedDuring(block: suspend () -> Unit): Boolean {
-        val before = uploadsLanded.get()
-        block()
-        return uploadsLanded.get() != before
-    }
 
     /** The keys changed or confirmed at [fetchedAtMs] or after, which a snapshot fetched then predates. */
     fun touchedSince(fetchedAtMs: Long): Set<String> = touchedAt.value.filterValues { it >= fetchedAtMs }.keys

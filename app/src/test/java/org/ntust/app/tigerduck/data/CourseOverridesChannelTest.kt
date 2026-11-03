@@ -458,6 +458,76 @@ class CourseOverridesChannelTest {
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
+    /**
+     * A sender whose first PATCH of [held] is out ([out]) until [reply] completes, each PATCH
+     * recorded in [sent] and answered 404 `course_not_found` unless [stored] says it lands.
+     */
+    private fun holding(held: String, out: CompletableDeferred<Unit>, reply: CompletableDeferred<Unit>, sent: MutableList<String>, stored: (String) -> Boolean) =
+        CourseOverrideSender { moodleId, _, _, _, _, _, _ ->
+            sent += moodleId
+            if (moodleId == held && !out.isCompleted) {
+                out.complete(Unit)
+                reply.await()
+            }
+            if (!stored(moodleId)) throw BackendException(BackendError(404, "course_not_found"), "patchCourseOverride failed: HTTP 404")
+            true
+        }
+
+    /** Codex on Greptile r1: the wake is the lane's, which a caller cancelled before the 404 does not skip. */
+    @Test
+    fun `an upload that lands while a change's PATCH is out leaves it due though its caller is cancelled before the 404`() = runTest {
+        cache.saveCourses(listOf(calculus), term, signIn)
+        val sent = mutableListOf<String>()
+        val out = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val overrides = PendingCourseOverrides(cache, holding(calculus.moodleIdNumber!!, out, reply, sent) { sent.size > 1 }, records = { true }, sends = { true })
+        val outbox = Outbox(setOf(overrides))
+        // The process's one more try is spent, with nothing parked.
+        overrides.retry(signIn)
+
+        val pick = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
+        out.await()
+        outbox.courseUploadLanded(signIn)
+        pick.cancel()
+        reply.complete(Unit)
+        pick.join()
+        overrides.retry(signIn)
+
+        assertEquals(List(2) { calculus.moodleIdNumber }, sent)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** Codex on Greptile r1: one upload is one more try for each change, though a drain is out as it lands. */
+    @Test
+    fun `one upload that lands while a drain is out gives a parked change one more try, not two`() = runTest {
+        cache.saveCourses(listOf(calculus, physics), term, signIn)
+        val sent = mutableListOf<String>()
+        val out = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val overrides = PendingCourseOverrides(
+            cache,
+            holding(calculus.moodleIdNumber!!, out, reply, sent) { it == calculus.moodleIdNumber },
+            records = { true },
+            sends = { true },
+        )
+        val outbox = Outbox(setOf(overrides))
+        // The physics color parks at its 404 at the process's first retry, which spends the one more try.
+        queue(color(physics, "#00FF00", semester = term))
+        overrides.retry(signIn)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+
+        queue(*waiting().toTypedArray(), color(calculus, "#FF0000", semester = term))
+        val sync = launch { overrides.retry(signIn) }
+        out.await()
+        outbox.courseUploadLanded(signIn)
+        reply.complete(Unit)
+        sync.join()
+        overrides.retry(signIn)
+
+        assertEquals(listOf(physics.moodleIdNumber, calculus.moodleIdNumber, physics.moodleIdNumber), sent)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+    }
+
     // --- Let go when the upload that should have made its course skipped it (xinshou, Telegram 1663) ---
 
     private val typed = Course(courseNo = "XA0000009", courseName = "Typed", isManual = true, moodleIdNumber = "1151XA0000009")

@@ -186,14 +186,10 @@ class PendingCourseOverrides internal constructor(
         courseNo: String? = null,
         signIn: SignIn,
     ) {
-        // Under way from before it is kept (a drain running that sends it counts for it), and requeued
-        // after it if a course upload landed meanwhile, as [drain] is.
-        val landed = memory.landedDuring {
-            lane.keepAndDrain(signIn, { sends(colorHex != null) }) {
-                record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn).values.mapTo(HashSet(), ::fieldOf)
-            }
+        // Under way from before it is kept, so a drain already running that sends it does not leave it to send again.
+        lane.keepAndDrain(signIn, { sends(colorHex != null) }) {
+            record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn).values.mapTo(HashSet(), ::fieldOf)
         }
-        if (landed) lane.requeueParked(signIn)
     }
 
     /**
@@ -239,17 +235,17 @@ class PendingCourseOverrides internal constructor(
      */
     suspend fun retry(signIn: SignIn) = drain(signIn)
 
-    /** [retry]. A send during which a course upload landed requeues after it, as [send] does: its 404 may predate the row. */
+    /** [retry]. */
     override suspend fun drain(signIn: SignIn) {
-        if (memory.firstParkedTry(signIn)) lane.requeueParked(signIn)
-        if (memory.landedDuring { lane.drain(signIn) }) lane.requeueParked(signIn)
+        if (memory.firstParkedTry(signIn)) requeueParked(signIn)
+        lane.drain(signIn)
     }
 
-    /** A course upload has landed: each parked change gets one more try at the next [retry]. */
-    override suspend fun requeueParked(signIn: SignIn) {
-        memory.uploadLanded()
-        lane.requeueParked(signIn)
-    }
+    /**
+     * A course upload has landed: each parked change gets one more try at the next [retry], and so
+     * does the one whose PATCH is out, which the upload may have made the row for (the lane's rule).
+     */
+    override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
 
     /**
      * A course upload of [semester] was answered: the backend took the courses [accepted] and left
