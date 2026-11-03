@@ -80,19 +80,55 @@ object ClassTableCourseMerge {
     /**
      * [stored], the term's list as it stands, with what an edit of [before], the list on screen
      * at the tap, into [after] changed, and nothing else (race 5, refactor-v4 R6 and R8): a course
-     * the edit added goes in, one it took off goes, and one it changed takes the edit's copy, while
-     * every course it did not touch stays as stored. So a pull's colours or names and another
-     * device's course, or a newer roster a fetch wrote since the tap, are not written back as the
-     * tap found them; and a changed course the term no longer has is not brought back.
+     * the edit added goes in, one it took off goes, and one it changed takes the fields the edit
+     * changed ([changedOnto]), while every course it did not touch stays as stored. So a pull's
+     * colours or names and another device's course, or a newer roster a fetch wrote since the tap,
+     * are not written back as the tap found them, nor the rest of a course the edit changed one
+     * field of; and a changed course the term no longer has is not brought back.
      */
     fun editOnto(stored: List<Course>, before: List<Course>, after: List<Course>): List<Course> {
         val edited = editedNos(before, after)
         if (edited.isEmpty()) return stored
         val was = before.associateBy { it.courseNo }
         val now = after.associateBy { it.courseNo }
-        val kept = stored.mapNotNull { course -> if (course.courseNo in edited) now[course.courseNo] else course }
+        val kept = stored.mapNotNull { course ->
+            if (course.courseNo !in edited) return@mapNotNull course
+            val edit = now[course.courseNo] ?: return@mapNotNull null
+            // A course the edit added, which another write stored meanwhile, goes as the edit made it.
+            was[course.courseNo]?.let { changedOnto(course, it, edit) } ?: edit
+        }
         val storedNos = stored.mapTo(mutableSetOf()) { it.courseNo }
         return kept + after.filter { it.courseNo in edited && it.courseNo !in storedNos && it.courseNo !in was }
+    }
+
+    /**
+     * [stored] with each field an edit changed from [before] to [after], and every other field as
+     * stored: a colour, a room or a time a pull saved onto the course while the rename or the pick
+     * waited is kept, not written back as the tap found it (Greptile on PR #686). Every field of
+     * [Course] is named; `ClassTableCourseMergeTest` reads them off the class and fails on one
+     * added to it that is not.
+     */
+    internal fun changedOnto(stored: Course, before: Course, after: Course): Course {
+        fun <T> field(of: (Course) -> T): T = if (of(after) != of(before)) of(after) else of(stored)
+        return Course(
+            courseNo = stored.courseNo,
+            courseName = field { it.courseName },
+            instructor = field { it.instructor },
+            credits = field { it.credits },
+            classroom = field { it.classroom },
+            enrolledCount = field { it.enrolledCount },
+            maxCount = field { it.maxCount },
+            scheduleJson = field { it.scheduleJson },
+            classroomMapJson = field { it.classroomMapJson },
+            moodleIdNumber = field { it.moodleIdNumber },
+            moodleNumericCourseId = field { it.moodleNumericCourseId },
+            customColorHex = field { it.customColorHex },
+            isManual = field { it.isManual },
+            customCourseName = field { it.customCourseName },
+            dimension = field { it.dimension },
+            allYear = field { it.allYear },
+            requireOption = field { it.requireOption },
+        )
     }
 
     // --- Looking a stored course up again (tigerduck-app-android#264) ---

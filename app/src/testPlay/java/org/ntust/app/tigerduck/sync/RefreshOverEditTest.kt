@@ -294,6 +294,62 @@ class RefreshOverEditTest {
         assertEquals(mapOf("A1" to "Renamed A", "X9" to null), stored().associate { it.courseNo to it.customCourseName })
     }
 
+    /**
+     * Holds [change] of the term, a pull's write, while [edit] of the list on screen, made at the
+     * tap, goes to save behind it; the term as both leave it.
+     */
+    private suspend fun CoroutineScope.editBehindWrite(change: (Course) -> Course, edit: (Course) -> Course): Course {
+        val before = stored()
+        val (gate, pull) = holdTermWrite { courses -> courses.map(change) }
+        val save = launch(Dispatchers.Default) { w.dataCache.saveClassTableEdit(term, signIn, before, before.map(edit)) }
+        delay(300)
+        gate.complete(Unit)
+        withTimeout(10_000) {
+            pull.join()
+            save.join()
+        }
+        return stored().single()
+    }
+
+    private fun roomed(room: String) = Course(
+        courseNo = "A1", courseName = "A", moodleIdNumber = "${term}A1", customColorHex = "#111111",
+        classroom = room, scheduleJson = "{\"2\":[\"5\"]}", classroomMapJson = "{\"2-5\":\"$room\"}",
+    )
+
+    /** Greptile on PR #686, P1: a rename of A saved behind a pull's color for A writes the name alone. */
+    @Test
+    fun `a rename saved while a pull gives the same course a color keeps that color`() = runBlocking {
+        show(roomed("IB-202"))
+        val a = editBehindWrite(change = { it.copy(customColorHex = "#222222") }, edit = { it.copy(customCourseName = "Renamed A") })
+        assertEquals("Renamed A" to "#222222", a.customCourseName to a.customColorHex)
+    }
+
+    /** Greptile on PR #686, P1: a rename of A saved behind a pull's new rooms for A keeps those rooms. */
+    @Test
+    fun `a rename saved while a pull gives the same course new rooms keeps those rooms`() = runBlocking {
+        show(roomed("IB-202"))
+        val moved = roomed("TR-313")
+        val a = editBehindWrite(
+            change = { it.copy(classroom = moved.classroom, classroomMapJson = moved.classroomMapJson) },
+            edit = { it.copy(customCourseName = "Renamed A") },
+        )
+        assertEquals("Renamed A", a.customCourseName)
+        assertEquals(moved.classroom to moved.classroomMapJson, a.classroom to a.classroomMapJson)
+    }
+
+    /** Greptile on PR #686, P1: a color picked for A saved behind a pull's room change of A keeps the new rooms. */
+    @Test
+    fun `a color picked while a pull gives the same course new rooms keeps those rooms`() = runBlocking {
+        show(roomed("IB-202"))
+        val moved = roomed("TR-313")
+        val a = editBehindWrite(
+            change = { it.copy(classroom = moved.classroom, classroomMapJson = moved.classroomMapJson) },
+            edit = { it.copy(customColorHex = "#333333") },
+        )
+        assertEquals("#333333", a.customColorHex)
+        assertEquals(moved.classroom to moved.classroomMapJson, a.classroom to a.classroomMapJson)
+    }
+
     /** R6: the rooms found for the list on screen go onto a newer roster a fetch wrote meanwhile. */
     @Test
     fun `rooms found for the list on screen are saved onto a newer roster, which they do not undo`() = runBlocking {
