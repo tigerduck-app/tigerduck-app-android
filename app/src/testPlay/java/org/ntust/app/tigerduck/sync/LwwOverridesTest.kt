@@ -187,6 +187,70 @@ class LwwOverridesTest {
         assertEquals(mapOf("OLD1" to mapOf(locale to "Renamed Old")), w.dataCache.loadCourseCustomNames())
     }
 
+    /**
+     * Finding 2: a pick saved and queued while the pull waits on the names' lock, after it read
+     * the courses, is not saved over by the pull's older copy of the list: the colors are decided
+     * from the courses as the write that commits them reads them.
+     */
+    @Test
+    fun `a color picked while the pull waits on the names is not saved over by the pull's older list`() = runBlocking {
+        show(
+            Course(courseNo = "A1", courseName = "A", moodleIdNumber = "${term}A1", customColorHex = "#111111"),
+            Course(courseNo = "B1", courseName = "B", moodleIdNumber = "${term}B1"),
+        )
+        val gate = CompletableDeferred<Unit>()
+        val holding = CompletableDeferred<Unit>()
+        val holder = launch(Dispatchers.Default) {
+            w.dataCache.updateCourseCustomNames(signIn) { names ->
+                holding.complete(Unit)
+                gate.await()
+                names
+            }
+        }
+        withTimeout(10_000) { holding.await() }
+        val pull = launch(Dispatchers.Default) { reconciler().reconcile(pass(snapshot(colorRow("B1", "#222222")))) }
+        delay(300)
+        // The class table's pick: saved onto the term, then kept to go up.
+        val pick = launch(Dispatchers.Default) {
+            w.dataCache.updateCourses(term, signIn) { courses, _ ->
+                courses.map { if (it.courseNo == "A1") it.copy(customColorHex = "#333333") else it }
+            }
+            overrides.queue(
+                listOf(PendingCourseOverrides.Change("${term}A1", colorHex = "#333333", semester = term, courseNo = "A1")),
+                overrides.reserveVersion(),
+                signIn,
+            )
+        }
+        delay(300)
+        gate.complete(Unit)
+        withTimeout(10_000) {
+            holder.join()
+            pull.join()
+            pick.join()
+        }
+
+        assertEquals(
+            mapOf("A1" to "#333333", "B1" to "#222222"),
+            w.dataCache.loadCourses(term).associate { it.courseNo to it.customColorHex },
+        )
+    }
+
+    /**
+     * Finding 4: a name the snapshot no longer holds leaves the names and the courses Home and the
+     * widgets show it from, the cached term's and Home's.
+     */
+    @Test
+    fun `a name the snapshot takes away leaves the cached courses and Home's too`() = runBlocking {
+        show(Course(courseNo = "N1", courseName = "School Name", moodleIdNumber = "${term}N1", customCourseName = "Gone Name"))
+        w.dataCache.saveCourseCustomNames(mapOf("N1" to mapOf(locale to "Gone Name")), signIn)
+
+        reconciler().reconcile(pass(snapshot()))
+
+        assertEquals(emptyMap<String, Map<String, String>>(), w.dataCache.loadCourseCustomNames())
+        assertEquals(listOf<String?>(null), w.dataCache.loadCourses(term).map { it.customCourseName })
+        assertEquals(listOf<String?>(null), state.allCourses.value.map { it.customCourseName })
+    }
+
     private companion object {
         const val STUDENT = "B00015999"
     }

@@ -45,7 +45,7 @@ class OverridesReconciler @Inject constructor(
         // On /v4 an empty snapshot is news too: a color or name it lacks goes (LWW D12).
         pass.holds()?.let { holds ->
             if (!(syncColors || syncNames)) return state.allCourses.value.isNotEmpty()
-            return applyStamped(state, stamped(result, holds, dataCache.currentSemesterCode()), pass.signIn, syncColors, syncNames)
+            return applyStamped(state, result, holds, pass.signIn, syncColors, syncNames)
         }
         if (result.courseOverrides.isEmpty() || !(syncColors || syncNames)) return state.allCourses.value.isNotEmpty()
         // Not over a colour or name this phone has waiting to go up,
@@ -107,14 +107,28 @@ class OverridesReconciler @Inject constructor(
     )
 
     /**
-     * [applyCourseOverrides] on `/v4` (LWW D12): the names, under their lock, and the colors over
-     * Home's courses, each field the snapshot's, its absence included, but those this phone keeps.
-     * Returns false when it applied nothing, the course list not having loaded.
+     * [applyCourseOverrides] on `/v4` (LWW D12), each field the snapshot's, its absence included, but
+     * those this phone keeps: over Home's term's courses as they stand, in one step under their
+     * lock with the names' ([BackgroundCourseOverrides.apply], the background's own), so the colors
+     * are decided from the list that step commits, and a pick saved meanwhile is not saved over;
+     * and the names are stamped onto the courses Home and the widgets show them from. Then Home
+     * shows the list written. Returns false when it applied nothing, the course list not having loaded.
      */
-    private suspend fun applyStamped(state: HomeSyncState, merges: StampedMerges, signIn: SignIn, syncColors: Boolean, syncNames: Boolean): Boolean {
-        val courses = state.allCourses.value.ifEmpty { return false }
-        if (syncNames) dataCache.updateCourseCustomNames(signIn) { current -> merges.names(current) ?: current }
-        if (syncColors) merges.colors(courses)?.let { showColors(state, it, signIn) }
+    private suspend fun applyStamped(
+        state: HomeSyncState,
+        result: BackendSyncResult,
+        holds: PullHolds,
+        signIn: SignIn,
+        syncColors: Boolean,
+        syncNames: Boolean,
+    ): Boolean {
+        if (state.allCourses.value.isEmpty()) return false
+        val term = dataCache.currentSemesterCode()
+        val applied = BackgroundCourseOverrides.apply(
+            dataCache, term, result.courseOverrides, { emptySet() }, syncColors, syncNames,
+            AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage), signIn, stamped(result, holds, term),
+        ) ?: return true
+        showColors(state, applied, signIn, saved = true)
         return true
     }
 
@@ -152,12 +166,12 @@ class OverridesReconciler @Inject constructor(
         return true
     }
 
-    // The colors [outcome] applied, on Home and on disk, and the colors it moved off a duplicate sent.
-    private suspend fun showColors(state: HomeSyncState, outcome: CourseSyncReconciler.ColorOutcome, signIn: SignIn) {
+    // The colors [outcome] applied, on Home and on disk unless [saved] already, and the colors it moved off a duplicate sent.
+    private suspend fun showColors(state: HomeSyncState, outcome: CourseSyncReconciler.ColorOutcome, signIn: SignIn, saved: Boolean = false) {
         val updated = outcome.courses
         Log.i(TAG, "[sync-color] applying ${updated.count { c -> c.customColorHex != null }} custom colors")
         if (signIn.ifCurrent { state.allCourses.value = updated } != null) TigerDuckTheme.buildCourseColorMap(updated)
-        dataCache.saveCourses(updated, signIn)
+        if (!saved) dataCache.saveCourses(updated, signIn)
         widgetUpdater.requestUpdate()
         sendMovedColors(updated, outcome.moved) { moodleId, hex ->
             pendingCourseOverrides.send(moodleId, colorHex = hex, signIn = signIn)
