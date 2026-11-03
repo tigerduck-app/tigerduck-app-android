@@ -39,8 +39,6 @@ internal class CurrentTermCourses(
     private val pendingCourseAdds: PendingCourseAdds,
     private val pendingCourseDeletes: PendingCourseDeletes,
     private val pendingCourseOverrides: PendingCourseOverrides,
-    /** A fetch's courses whose upload waits for the first pull: `SchoolUploads.waitingIn`. */
-    private val uploadsWaitingIn: (String) -> Set<String> = { emptySet() },
 ) {
     /**
      * The current term. [holds] is a `/v4` pull's (LWW D12), whose course list, never synced here
@@ -88,8 +86,6 @@ internal class CurrentTermCourses(
             // A course it listed since a roster dropped it elsewhere stays: see SelectionAnswer.listsSince.
             answer = dataCache.selectionAnswerIn(semester),
             fetchedAtMs = result.fetchedAtMs,
-            // A fetch's courses whose upload waits for this pull: not on the server yet either.
-            uploadingNos = uploadsWaitingIn(semester),
         )
         // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
         dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)

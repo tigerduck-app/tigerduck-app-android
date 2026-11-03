@@ -93,17 +93,6 @@ class SchoolUploadsWiringTest {
         }
     }
 
-    /** Codex on PR R, finding 1: both passes' course list reads the terms waiting to go up in the term's step. */
-    @Test
-    fun `the pull's course list spares the courses whose upload waits for it`() {
-        assertHas(
-            "RosterReconciler", source("sync/reconcile/RosterReconciler.kt"),
-            "uploadingNos = termCourseSync.uploadsWaitingIn(semester),", "termCourseSync::uploadsWaitingIn,",
-        )
-        assertHas("CurrentTermCourses", source("sync/reconcile/CurrentTermCourses.kt"), "uploadingNos = uploadsWaitingIn(semester),")
-        assertHas("TermCourseSync", source("notification/TermCourseSync.kt"), "fun uploadsWaitingIn(semester: String): Set<String> = uploads.waitingIn(semester)")
-    }
-
     /** The coordinator's ruling (fix round 3): the gate holds school uploads on /v4 alone, read as each upload decides. */
     @Test
     fun `the first-pull gate holds school uploads only on v4`() {

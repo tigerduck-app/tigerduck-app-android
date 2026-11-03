@@ -128,8 +128,6 @@ object CourseSyncReconciler {
      * elsewhere. A tombstone still hides them: the backend leaves the one
      * this device's delete wrote out of its snapshot, so one there is another
      * device's. [tombstones] holds none of their hides: see [withoutRestored].
-     * So with [uploadingNos], a fetch's courses whose upload waits for the first pull
-     * (`SchoolUploads.waitingIn`): the server's silence about them is not yet theirs.
      */
     fun reconcileSemester(
         semester: String,
@@ -144,7 +142,6 @@ object CourseSyncReconciler {
         restoredNos: Set<String> = emptySet(),
         answer: SelectionAnswer? = null,
         fetchedAtMs: Long = 0L,
-        uploadingNos: Set<String> = emptySet(),
     ): SemesterOutcome {
         // Misfiled rows are neither a roster nor evidence of presence, nor is a dropped course, unless added by hand.
         val filed = serverRows.filter { isFiled(it.moodleId, it.courseNo, semester) }
@@ -236,13 +233,14 @@ object CourseSyncReconciler {
         // a snapshot has carried the number, absence is a deletion.
         for (course in localCourses) {
             if (course.courseNo in serverNos) continue
-            if (notOnServerYet(course) || course.courseNo in restoredNos || course.courseNo in uploadingNos) continue
+            if (notOnServerYet(course) || course.courseNo in restoredNos) continue
             // Dropped, not deleted: a hide would outlast its next enrollment.
             if (course.courseNo in skippedNos || course.courseNo in left) continue
             if (CourseTombstoneKeys.isHidden(course.courseNo, semester, updated)) continue
             updated = CourseTombstoneKeys.hide(course.courseNo, semester, updated)
         }
-        // Hidden here but back on the server → un-hide, unless our own delete is in flight and not yet landed.
+        // Hidden here but back on the server → un-hide, unless our own delete
+        // is still in flight and the backend has not caught up yet.
         for (courseNo in serverNos) {
             if (CourseTombstoneKeys.isHidden(courseNo, semester, updated) &&
                 courseNo !in graceCourseNos

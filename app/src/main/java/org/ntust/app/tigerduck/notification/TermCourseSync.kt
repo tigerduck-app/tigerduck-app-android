@@ -112,9 +112,6 @@ class TermCourseSync internal constructor(
     // One for the process, Home's full syncs and the worker's alike.
     private val rosterRequestLog = RosterRequestLog()
 
-    /** The course numbers of [semester] whose fetch's upload waits for the first pull: see [SchoolUploads.waitingIn]. */
-    fun uploadsWaitingIn(semester: String): Set<String> = uploads.waitingIn(semester)
-
     /**
      * Answers a full sync's [requests], the terms the backend asks this account's roster of
      * (`roster_requests`), as [studentId]: each term [sync]ed as [rosterRequested], once per
