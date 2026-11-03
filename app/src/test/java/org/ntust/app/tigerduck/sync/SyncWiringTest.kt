@@ -518,11 +518,14 @@ class SyncWiringTest {
         }
         val main = root?.let { listOf(File(it, "app/src/main/java"), File(it, "src/main/java")).first(File::isDirectory) }
             ?: throw AssertionError("Could not locate app/src/main/java from ${File("").absolutePath}")
+        // Either form, the answered one too. Use Local's stamped override on /v4 goes by itself
+        // until the re-enable hold goes (PR Q).
+        val use = Regex("""\.patchCourseOverride(?:Answered)?\(""")
         val callers = main.walkTopDown()
-            .filter { it.isFile && it.extension == "kt" && ".patchCourseOverride(" in it.readText() }
+            .filter { it.isFile && it.extension == "kt" && use.containsMatchIn(it.readText()) }
             .map { it.name }
             .toSortedSet()
-        assertEquals(setOf("PendingCourseOverrides.kt"), callers)
+        assertEquals(setOf("KeepLocalCourses.kt", "PendingCourseOverrides.kt"), callers)
     }
 
     /** tigerduck-app-android#380: queued one by one as each is sent, a reset's older colour replaced a pick made meanwhile. */

@@ -1,9 +1,16 @@
 package org.ntust.app.tigerduck.data
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
@@ -14,12 +21,21 @@ import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.ApiVersionGate
 import org.ntust.app.tigerduck.network.ApiVersionInterceptor
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.push.RecordingBackend
+import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
+import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignInSeries
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
+import java.io.File
 
 /**
  * The course colors and names' queue ([PendingCourseOverrides]) over the real backend client and
@@ -29,6 +45,12 @@ import org.ntust.app.tigerduck.util.testSignIn
  * method, the address, every header the client builds, the body and its type, for a pick, a waiting
  * change with its time or with none, a resend after a `clock_ahead`, and what an outage, a refusal,
  * a course gone from this phone, the switches and the re-enable hold leave waiting.
+ *
+ * On `/v4` (dormant until the flip) a change goes by its course's key, stamped as it was made, a
+ * change an older build wrote with no time goes with its old-entry time (Review Focus 1), one made
+ * with its kind off is kept and goes once it is on, the reply's clock is the field's
+ * acknowledgment, and a reply that says the backend kept a later value puts it on this phone
+ * unless a newer change waits or this phone's value is no longer the one answered (LWW D12).
  */
 class CourseOverridesChannelTest {
 
@@ -91,6 +113,23 @@ class CourseOverridesChannelTest {
                 patch("1151MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}"""),
                 patch("1151MA1010002", """{"custom_name":"Calc","locale":"en","hlc":1790000000123000}"""),
                 patch("1151PH1010003", """{"color_hex":"#00FF00"}"""),
+            ),
+            v3Shapes(),
+        )
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** A key the file holds twice reads as its last change, in its first place, as the queue has always read it. */
+    @Test
+    fun `on v3 a key written twice goes once, as its last change`() = runTest {
+        queue(color(calculus, "#FF0000"), color(physics, "#00FF00"), color(calculus, "#0000FF"))
+
+        v3Overrides().retry(signIn)
+
+        assertEquals(
+            listOf(
+                patch("1151MA1010002", """{"color_hex":"#0000FF","hlc":1790000000123000}"""),
+                patch("1151PH1010003", """{"color_hex":"#00FF00","hlc":1790000000123000}"""),
             ),
             v3Shapes(),
         )
@@ -186,5 +225,294 @@ class CourseOverridesChannelTest {
 
         assertEquals(emptyList<RecordingBackend.Sent>(), v3Backend.sent.toList())
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    // --- /v4 ---
+
+    private val v4 = "http://127.0.0.1:9/v4"
+    private val v4Backend = RecordingBackend()
+
+    /** The wall clock the sync clock and the old-entry time read; a test moves it. */
+    private var nowMs = 1_790_000_500_000L
+    private val syncClock = SyncClock(SyncClockStore(context.getSharedPreferences("sync-clock", 0)), { BackendApi.V4 }, { nowMs })
+    private val ack = AckClock()
+    private val oldEntryTime = OldEntryTime(context.getSharedPreferences("tigerduck_outbox", 0), Dispatchers.Unconfined) { nowMs }
+    private val queueFile = File(context.filesDir, "TigerDuckData/pending_course_overrides.json")
+
+    /** The queue as the app builds it, over the client at `/v4`, stamping with [syncClock]. */
+    private fun TestScope.v4Overrides() = PendingCourseOverrides(
+        cache, pushApiClientAt(v4, v4Backend.client, prefs, syncClock), prefs,
+        syncClock = syncClock, ack = ack, scope = backgroundScope, oldEntryTime = oldEntryTime,
+    )
+
+    private fun v4Patch(key: String, body: String) = listOf("PATCH", "$v4/sync/courses/$key/override", listOf(bearer), json, body)
+
+    private fun v4PathOf(course: Course, semester: String = term) = "/v4/sync/courses/client:$semester:${course.courseNo}/override"
+
+    private fun v4Shapes() = v4Backend.sent.map { it.shape() }
+
+    private fun colorField(course: Course, semester: String = term) = SyncField.color(SyncField.courseKey(semester, course.courseNo))
+
+    private fun placed(row: PendingCourseOverride, course: Course, semester: String = term) = row.copy(semester = semester, courseNo = course.courseNo)
+
+    /** A reply that the backend kept a later value: green, and the name Algo in English. */
+    private val lost = syncFixture("v4/answer-course-override-lost.json")
+
+    /** This build first ran at [firstRunMs]; an older build wrote the queue file [rows] at [fileMs]. */
+    private fun olderBuildWrote(rows: String, fileMs: Long, firstRunMs: Long) {
+        val now = nowMs
+        nowMs = firstRunMs
+        oldEntryTime.recordFirstRun()
+        nowMs = now
+        queueFile.parentFile?.mkdirs()
+        queueFile.writeText(rows)
+        assertTrue(queueFile.setLastModified(fileMs))
+    }
+
+    @Test
+    fun `on v4 a change goes by its course's key, stamped as it was made, and its reply's clock acknowledges it`() = runTest {
+        queue(placed(color(calculus, "#FF0000"), calculus), placed(name(calculus, "Calc", "en"), calculus))
+        v4Backend.answer(v4PathOf(calculus), 200, syncFixture("v4/answer-course-override.json"), mapOf("X-TigerSync-Clock" to "$CLOCK_US"))
+
+        v4Overrides().retry(signIn)
+
+        assertEquals(
+            listOf(
+                v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}"""),
+                v4Patch("client:1151:MA1010002", """{"custom_name":"Calc","locale":"en","hlc":1790000000123000}"""),
+            ),
+            v4Shapes(),
+        )
+        assertEquals(CLOCK_US, ack.lastAck(colorField(calculus)))
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /**
+     * The key parts go with the change: its own term and number, though the cached course with its
+     * Moodle id is now another. A row an older build wrote with none goes by the current term's
+     * course with its Moodle id, and one no course names waits, uncounted, until one does.
+     */
+    @Test
+    fun `on v4 a change goes to its own row's course, and a row with no term by the current term's course with its Moodle id`() = runTest {
+        val current = cache.currentSemesterCode()
+        val renumbered = calculus.copy(courseNo = "MA9990002")
+        cache.saveCourses(listOf(renumbered), current, signIn)
+        queue(placed(color(calculus, "#FF0000"), calculus), name(calculus, "Calc", "en"), name(physics, "Phys", "en"))
+
+        v4Overrides().retry(signIn)
+
+        assertEquals(
+            listOf(
+                v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":1790000000123000}"""),
+                v4Patch("client:$current:MA9990002", """{"custom_name":"Calc","locale":"en","hlc":1790000000123000}"""),
+            ),
+            v4Shapes(),
+        )
+        assertEquals(listOf(physics.moodleIdNumber to 0), waiting().map { it.moodleId to it.attempts })
+    }
+
+    /** Review Focus 1: never its send time, and never refused for want of a stamp. */
+    @Test
+    fun `an entry an older build wrote goes out on v4 stamped with its old-entry time`() = runTest {
+        olderBuildWrote(
+            """[{"moodleId":"1151MA1010002","colorHex":"#FF0000","changedAtMs":1000,"semester":"1151","courseNo":"MA1010002","attempts":0,"seq":5}]""",
+            fileMs = FILE_MS, firstRunMs = FIRST_RUN_MS,
+        )
+        val overrides = v4Overrides()
+
+        // Given its time at its first read under the sign-in, and written back, though nothing goes yet.
+        prefs.syncCourseColors = false
+        overrides.retry(signIn)
+        assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
+        assertEquals(listOf<Long?>(FILE_MS), cache.loadPendingCourseOverrides().map { it.madeAtMs })
+        nowMs += 60_000
+        prefs.syncCourseColors = true
+        overrides.retry(signIn)
+
+        assertEquals(listOf(v4Patch("client:1151:MA1010002", """{"color_hex":"#FF0000","hlc":${FILE_MS * 1_000}}""")), v4Shapes())
+    }
+
+    @Test
+    fun `an edit made with the category off is kept on v4 and sent once it is on`() = runTest {
+        prefs.syncCourseNames = false
+        val overrides = v4Overrides()
+
+        overrides.send(calculus.moodleIdNumber!!, customName = "Calc", locale = "en", semester = term, courseNo = calculus.courseNo, signIn = signIn)
+        overrides.retry(signIn)
+        assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
+        assertEquals(listOf("Calc"), waiting().map { it.customName })
+
+        prefs.syncCourseNames = true
+        overrides.retry(signIn)
+
+        assertEquals(listOf("PATCH", "$v4/sync/courses/client:1151:MA1010002/override"), v4Backend.sent.single().shape().take(2))
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    @Test
+    fun `a refused v4 write applies the backend's value unless a newer edit waits`() = runTest {
+        cache.saveCourses(listOf(calculus.copy(customColorHex = "#FF0000"), physics.copy(customColorHex = "#FF0000")), term, signIn)
+        cache.saveCourseCustomNames(mapOf(calculus.courseNo to mapOf("en" to "Calc")), signIn)
+        queue(placed(color(calculus, "#FF0000"), calculus), placed(name(calculus, "Calc", "en"), calculus))
+        repeat(2) { v4Backend.answer(v4PathOf(calculus), 200, lost) }
+
+        v4Overrides().retry(signIn)
+
+        assertEquals(listOf("#00FF00", "#FF0000"), cache.loadCourses(term).map { it.customColorHex })
+        assertEquals(mapOf(calculus.courseNo to mapOf("en" to "Algo")), cache.loadCourseCustomNames())
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** A newer pick queued while the reply is out, or saved here and not queued yet, keeps its value. */
+    @Test
+    fun `a refused v4 write leaves a newer pick, waiting or saved, as it is`() = runTest {
+        cache.saveCourses(listOf(calculus.copy(customColorHex = "#FF0000")), term, signIn)
+        cache.saveCourseCustomNames(mapOf(calculus.courseNo to mapOf("en" to "Calc")), signIn)
+        lateinit var overrides: PendingCourseOverrides
+        var calls = 0
+        overrides = PendingCourseOverrides(
+            cache,
+            CourseOverrideWriter { change, _, pinned, _ ->
+                if (calls++ == 0) {
+                    // Blue picked while red's PATCH is out, queued and not yet saved here.
+                    overrides.queue(listOf(PendingCourseOverrides.Change(calculus.moodleIdNumber!!, colorHex = "#0000FF", semester = term, courseNo = calculus.courseNo)), overrides.reserveVersion(), pinned)
+                } else if (change.customName != null) {
+                    // A newer name saved here while the older one's PATCH is out.
+                    cache.saveCourseCustomNames(mapOf(calculus.courseNo to mapOf("en" to "Calculus")), pinned)
+                }
+                WriteAnswer(sent = true, serverClockUs = null, applied = emptySet(), values = mapOf("color_hex" to "#00FF00", "custom_names" to mapOf("en" to "Algo")))
+            },
+            records = { true }, sends = { true }, lastWriterWins = { true },
+        )
+        queue(placed(color(calculus, "#FF0000"), calculus), placed(name(calculus, "Calc", "en"), calculus))
+
+        overrides.retry(signIn)
+
+        assertEquals(listOf("#FF0000"), cache.loadCourses(term).map { it.customColorHex })
+        assertEquals(mapOf(calculus.courseNo to mapOf("en" to "Calculus")), cache.loadCourseCustomNames())
+    }
+
+    /**
+     * The check that no newer pick waits is made inside the courses' lock, with the write: a pick
+     * queued while the reply's value waits for the lock keeps its value.
+     */
+    @Test
+    fun `a pick queued while a refused v4 write waits for the courses' lock keeps its value`() = runTest {
+        cache.saveCourses(listOf(calculus.copy(customColorHex = "#FF0000")), term, signIn)
+        val replied = CompletableDeferred<Unit>()
+        val overrides = PendingCourseOverrides(
+            cache,
+            CourseOverrideWriter { _, _, _, _ ->
+                replied.complete(Unit)
+                WriteAnswer(sent = true, serverClockUs = null, applied = emptySet(), values = mapOf("color_hex" to "#00FF00"))
+            },
+            records = { true }, sends = { true }, lastWriterWins = { true },
+        )
+        queue(placed(color(calculus, "#FF0000"), calculus))
+        val lockHeld = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val holder = launch(Dispatchers.Default) {
+            cache.updateCourses(term, signIn) { courses, _ ->
+                lockHeld.complete(Unit)
+                release.await()
+                courses
+            }
+        }
+        lockHeld.await()
+
+        val drain = launch(Dispatchers.Default) { overrides.retry(signIn) }
+        replied.await()
+        // The reply's value now waits for the lock; blue is picked and queued meanwhile.
+        withContext(Dispatchers.Default) { delay(300) }
+        overrides.queue(listOf(PendingCourseOverrides.Change(calculus.moodleIdNumber!!, colorHex = "#0000FF", semester = term, courseNo = calculus.courseNo)), overrides.reserveVersion(), signIn)
+        release.complete(Unit)
+        holder.join()
+        drain.join()
+
+        assertEquals(listOf("#FF0000"), cache.loadCourses(term).map { it.customColorHex })
+    }
+
+    @Test
+    fun `on v4 a change refused as ahead once more is a retry, not a refusal`() = runTest {
+        queue(placed(color(calculus, "#FF0000"), calculus))
+        repeat(2) { v4Backend.answer(v4PathOf(calculus), 409, syncFixture("v4/error-clock-ahead.json"), mapOf("X-TigerSync-Clock" to "${nowMs * 1_000}")) }
+
+        v4Overrides().retry(signIn)
+
+        assertEquals(2, v4Backend.sent.size)
+        assertEquals(listOf(0), waiting().map { it.attempts })
+    }
+
+    /** The gap between the sign-in's end and the wipe: the entries are still on disk, and stay as they are. */
+    @Test
+    fun `an entry read under an ended sign-in is neither sent nor rewritten`() = runTest {
+        olderBuildWrote(
+            """[{"moodleId":"1151MA1010002","colorHex":"#FF0000","changedAtMs":1000,"semester":"1151","courseNo":"MA1010002","attempts":5,"seq":5}]""",
+            fileMs = FILE_MS, firstRunMs = FIRST_RUN_MS,
+        )
+        val before = queueFile.readText()
+        val overrides = v4Overrides()
+
+        val ended = series.end()
+        overrides.retry(ended)
+        overrides.requeueParked(ended)
+        overrides.send(calculus.moodleIdNumber!!, colorHex = "#00FF00", semester = term, courseNo = calculus.courseNo, signIn = ended)
+        overrides.queue(listOf(PendingCourseOverrides.Change(physics.moodleIdNumber!!, colorHex = "#0000FF")), overrides.reserveVersion(), ended)
+        overrides.queueAsOldest(PendingCourseOverrides.Change(physics.moodleIdNumber!!, customName = "P", locale = "en"), ended)
+        overrides.forget(listOf(calculus.moodleIdNumber!!), signIn = ended)
+        overrides.adoptServer(listOf("course_colors"), ended)
+
+        assertEquals(emptyList<RecordingBackend.Sent>(), v4Backend.sent.toList())
+        assertEquals(before, queueFile.readText())
+    }
+
+    /** Review Focus 5: a reply that crosses a sign-out lands nowhere, the next student's courses included. */
+    @Test
+    fun `a v4 reply that lands after a sign-out writes, counts and holds nothing for the next student`() = runTest {
+        cache.saveCourses(listOf(calculus.copy(customColorHex = "#FF0000")), term, signIn)
+        val ack = AckClock()
+        val overrides = PendingCourseOverrides(
+            cache,
+            CourseOverrideWriter { _, _, _, _ ->
+                // The student signs out, and the next signs in and holds the same course, red.
+                series.end()
+                cache.clearAllUserData()
+                series.open()
+                cache.saveCourses(listOf(calculus.copy(customColorHex = "#FF0000")), term, signIn)
+                WriteAnswer(sent = true, serverClockUs = CLOCK_US, applied = emptySet(), values = mapOf("color_hex" to "#00FF00"))
+            },
+            records = { true }, sends = { true }, lastWriterWins = { true }, ack = ack,
+        )
+        queue(placed(color(calculus, "#FF0000"), calculus))
+
+        overrides.retry(signIn)
+
+        assertEquals(listOf("#FF0000"), cache.loadCourses(term).map { it.customColorHex })
+        assertNull(ack.lastAck(colorField(calculus)))
+        assertEquals(emptySet<String>(), overrides.held(0L))
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** LWW D13's stamp-0 change: kept only where none waits, and sent as the oldest. */
+    @Test
+    fun `a change queued as the oldest goes stamped 0, and leaves a waiting change as it is`() = runTest {
+        val overrides = v4Overrides()
+        prefs.syncCourseColors = false
+        overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn)
+
+        assertTrue(overrides.queueAsOldest(PendingCourseOverrides.Change(calculus.moodleIdNumber!!, colorHex = "#123456", semester = term, courseNo = calculus.courseNo), signIn))
+        assertTrue(overrides.queueAsOldest(PendingCourseOverrides.Change(physics.moodleIdNumber!!, colorHex = "#654321", semester = term, courseNo = physics.courseNo), signIn))
+        prefs.syncCourseColors = true
+        overrides.retry(signIn)
+
+        assertEquals(listOf("#FF0000", "#654321"), v4Backend.sent.map { Regex(""""color_hex":"([^"]+)"""").find(it.body.orEmpty())?.groupValues?.get(1) })
+        assertTrue(v4Backend.sent.last().body.orEmpty().endsWith(""","hlc":0}"""))
+    }
+
+    private companion object {
+        // An older build last wrote the queue file then, before this build first ran.
+        const val FILE_MS = 1_780_000_000_000L
+        const val FIRST_RUN_MS = 1_785_000_000_000L
+        const val CLOCK_US = 1_790_000_000_500_000L
     }
 }

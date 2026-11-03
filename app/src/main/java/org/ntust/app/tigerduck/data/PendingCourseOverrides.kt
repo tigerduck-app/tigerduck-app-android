@@ -1,35 +1,32 @@
 package org.ntust.app.tigerduck.data
 
-import android.util.Log
-import kotlinx.coroutines.CancellationException
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import dagger.multibindings.IntoSet
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.cache.QueueFile
 import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.push.PushApiClient
-import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.util.logSummary
+import org.ntust.app.tigerduck.sync.AckClock
+import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
+import org.ntust.app.tigerduck.sync.outbox.OutboxLane
 import javax.inject.Inject
 import javax.inject.Singleton
-
-/**
- * Sends one course's colour, or its name in one locale, as sign-in [signIn]; see
- * [PushApiClient.patchCourseOverride]. [stillAllowed] is read once more right before the request
- * goes, after whatever suspends in between.
- */
-internal fun interface CourseOverrideSender {
-    suspend fun send(
-        moodleId: String,
-        colorHex: String?,
-        customName: String?,
-        locale: String?,
-        signIn: SignIn,
-        stillAllowed: () -> Boolean,
-        madeAtMs: Long?,
-    ): Boolean
-}
 
 /**
  * Colours and names set on the class table that the backend has not
@@ -47,49 +44,87 @@ internal fun interface CourseOverrideSender {
  * grows ([PendingCourseOverride.seq]); a batch ([queue]) is written whole at
  * a version reserved before its data was read, so a change made while the
  * batch is read or goes up one by one is the newer, landed already or not,
- * and is not replaced when the batch's own reaches its turn. A change goes
- * once the backend confirms it, once the
- * backend has refused it [MAX_ATTEMPTS] times, or at once on a 404 for a
- * course no longer cached in the term it was made in: the row went with the
- * course. Account-scoped: sent only under the sign-in that made it, and wiped
- * with the user data at sign-out.
+ * and is not replaced when the batch's own reaches its turn. The changes
+ * wait in an [OutboxLane] over the queue's own file, one per colour or name
+ * ([fieldOf]), one PATCH at a time ([CourseOverrideSends]). A change goes
+ * once the backend confirms it, once the backend has refused it
+ * [MAX_ATTEMPTS] times, or at once on a 404 for a course no longer cached in
+ * the term it was made in: the row went with the course. Account-scoped: sent
+ * only under the sign-in that made it, and wiped with the user data at sign-out.
  *
  * With TigerSync or the kind's switch off ([records] false) colours or names
  * are this phone's own: a change goes nowhere and is not kept, but replaces
  * one waiting for the same key, as a mark does in [UnsentMarks]. One already
  * waiting when the switch goes off is kept and not sent, and so is every one
  * while the kind's re-enable check waits for the user ([sends] false): the
- * answer decides them. Use Server drops them ([adoptServer]); Use Local
- * queues its own and sends them once the hold is lifted. The hold is read
- * right before each request, and once more by the sender after the header is
- * made: the checks before suspend, and sync switched off and on again
- * meanwhile puts the kind on hold, which the switch alone would let through.
+ * answer decides them ([records] is `SyncPolicy.keeps`, [sends]
+ * `SyncPolicy.sends`). Use Server drops them ([adoptServer]); Use Local
+ * queues its own and sends them once the hold is lifted. A snapshot fetched
+ * before a change, or before its PATCH landed, still has the old value;
+ * [held] names what a sync must not take from it.
  *
- * A snapshot fetched before a change, or before its PATCH landed, still has
- * the old value; [held] names what a sync must not take from it.
+ * Each change is stamped by the sync clock, which on `/v3` is the wall clock
+ * as it always was. On `/v4` a change goes by its course's key
+ * (`client:{semester}:{course_no}`), from its own term and number or, for a
+ * row an older build wrote without them, the current term's course with its
+ * Moodle id; one made while its kind does not sync is kept and goes once it
+ * does (LWW D12); one an older build wrote with no time goes with its
+ * old-entry time (X1); and a reply that says the backend kept a later value
+ * puts it on this phone unless a newer change waits.
  */
 @Singleton
 class PendingCourseOverrides internal constructor(
     private val dataCache: DataCache,
-    private val sender: CourseOverrideSender,
+    writer: CourseOverrideWriter,
     private val records: (color: Boolean) -> Boolean,
     private val sends: (color: Boolean) -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
-) {
+    // The time a change is stamped with: the sync clock's, which is the wall clock on /v3.
+    private val stamp: () -> Long = clock,
+    // Whether the backend settles each field by its stamp, as /v4 does.
+    private val lastWriterWins: () -> Boolean = { false },
+    ack: AckClock = AckClock(),
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+    private val oldEntryTime: OldEntryTime? = null,
+) : OutboxChannel {
+
+    /** The queue for a test that sends through a [CourseOverrideSender], as the queue's own tests do. */
+    internal constructor(
+        dataCache: DataCache,
+        sender: CourseOverrideSender,
+        records: (color: Boolean) -> Boolean,
+        sends: (color: Boolean) -> Boolean,
+        clock: () -> Long = System::currentTimeMillis,
+    ) : this(dataCache, sender.answering(), records, sends, clock)
+
     @Inject constructor(
         dataCache: DataCache,
         pushApiClient: PushApiClient,
         prefs: AppPreferences,
+        policies: SyncPolicies = SyncPolicies(prefs),
+        /** What a change is stamped by; null only in tests, for the wall clock. */
+        syncClock: SyncClock? = null,
+        ack: AckClock = AckClock(),
+        @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
+        /** The old-entry time of a change an older build wrote with no time; null only in tests, for none. */
+        oldEntryTime: OldEntryTime? = null,
     ) : this(
         dataCache = dataCache,
-        sender = CourseOverrideSender { moodleId, colorHex, customName, locale, signIn, stillAllowed, madeAtMs ->
-            pushApiClient.patchCourseOverride(
-                moodleId, signIn, colorHex, customName, locale, stillAllowed, madeAtMs,
+        writer = CourseOverrideWriter { change, target, signIn, allowed ->
+            pushApiClient.patchCourseOverrideAnswered(
+                target, signIn, change.colorHex, change.customName, change.locale, allowed, change.madeAtMs,
             )
         },
-        records = { color -> records(prefs, color) },
-        sends = { color -> sends(prefs, color) },
+        records = { color -> policies.current.keeps(kindOf(color)) },
+        sends = { color -> policies.current.sends(kindOf(color)) },
+        stamp = syncClock?.let { it::stampMs } ?: System::currentTimeMillis,
+        lastWriterWins = { policies.current.lastWriterWins },
+        ack = ack,
+        scope = scope,
+        oldEntryTime = oldEntryTime,
     )
+
+    override val id: OutboxChannelId get() = OutboxChannelId.COURSE_OVERRIDES
 
     /**
      * One change for [queue]: the colour [colorHex], or the name [customName]
@@ -108,24 +143,27 @@ class PendingCourseOverrides internal constructor(
 
     private val mutex = Mutex()
 
-    // One PATCH at a time, so changes reach the backend in the order they
-    // were made: the backend keeps whichever request lands last.
-    private val sendMutex = Mutex()
+    // The versions given out and the keys' last changes, under [mutex].
+    private val memory = CourseOverrideMemory(clock)
 
-    // When each key last changed here or was confirmed by the backend, under
-    // [mutex]. A snapshot fetched before then may predate the change, so its
-    // value for the key is not taken. In memory: only a sync running in this
-    // process can be that old.
-    private val touchedAt = HashMap<String, Long>()
+    private val sendPath = CourseOverrideSends(
+        dataCache, writer, sends, lastWriterWins,
+        waiting = { lane.entries() },
+        confirmed = { key, signIn -> mutex.withLock { memory.touched(listOf(key), clock(), signIn) } },
+    )
 
-    // The last version given out, under [mutex]; see [nextSeq].
-    private var lastSeq = 0L
-
-    // The version last recorded under each key, under [mutex], kept past the
-    // entry's send: a batch reserved before a change that has since landed
-    // is still the older, and the file no longer says so. In memory, as a
-    // reservation is: neither outlives the process.
-    private val latestSeq = HashMap<String, Long>()
+    // One PATCH at a time, so changes reach the backend in the order they were
+    // made: the backend keeps whichever request lands last.
+    private val lane: OutboxLane<PendingCourseOverride> = OutboxLane(
+        OutboxChannelId.COURSE_OVERRIDES,
+        CourseOverridesStore(dataCache),
+        courseOverridesPolicy(MAX_ATTEMPTS, lastWriterWins) {
+            oldEntryTime?.oldEntryTimeMs(dataCache.queueFile(QueueFile.COURSE_OVERRIDES)) ?: 0L
+        },
+        ack,
+        scope,
+        sendPath::send,
+    )
 
     /** Whether a colour or name set here has yet to reach the backend: data a sign-out would lose. */
     suspend fun hasPending(): Boolean = waiting().isNotEmpty()
@@ -146,8 +184,8 @@ class PendingCourseOverrides internal constructor(
         signIn: SignIn,
     ) {
         val recorded = record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn)
-        for ((key, change) in recorded) {
-            if (sends(change.isColor)) trySend(key, change, signIn)
+        for (change in recorded.values) {
+            if (sends(change.isColor)) lane.drain(signIn, setOf(fieldOf(change)))
         }
     }
 
@@ -172,17 +210,39 @@ class PendingCourseOverrides internal constructor(
      * replaces it nor goes up over it. In memory only: a reservation lives in
      * its caller and does not outlive the process.
      */
-    suspend fun reserveVersion(): Long = mutex.withLock { nextSeq(waiting()) }
+    suspend fun reserveVersion(): Long = mutex.withLock { memory.nextSeq(lane.entries()) }
+
+    /**
+     * Keeps [change] stamped 0, the oldest stamp there is, unless a change of
+     * its colour or name waits: a value this phone held before the kind ever
+     * synced, which fills only a field the backend holds no stamp for (LWW
+     * D13). Its version is the oldest too, so any change made later replaces
+     * it. Sends nothing; nothing calls it until a kind's first sync on `/v4`
+     * does. False once [signIn] has ended.
+     */
+    suspend fun queueAsOldest(change: Change, signIn: SignIn): Boolean = mutex.withLock {
+        val row = PendingCourseOverride(
+            change.moodleId, change.colorHex, change.customName, change.locale, clock(), change.semester, change.courseNo,
+            seq = 0L, madeAtMs = OLDEST,
+        )
+        val key = row.key ?: return@withLock false
+        lane.edit(signIn) { rows -> if (rows.any { it.key == key }) rows else rows + row }
+    }
 
     /**
      * Sends every change still waiting whose kind goes out; each full sync
      * starts with this, so the snapshot it fetches has them.
      */
-    suspend fun retry(signIn: SignIn) {
-        for ((key, change) in waiting()) {
-            if (sends(change.isColor)) trySend(key, change, signIn)
-        }
-    }
+    suspend fun retry(signIn: SignIn) = drain(signIn)
+
+    /** [retry]: each change in turn, a failed one waiting for the next sync and the next one going. */
+    override suspend fun drain(signIn: SignIn) = lane.drain(signIn)
+
+    override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
+
+    override suspend fun heldFields(): Set<String> = lane.heldFields()
+
+    override fun forgetMemory() = lane.forgetMemory()
 
     /**
      * The keys ([PendingCourseOverride.key]) a snapshot fetched at
@@ -191,7 +251,7 @@ class PendingCourseOverrides internal constructor(
      * predates.
      */
     suspend fun held(fetchedAtMs: Long): Set<String> = mutex.withLock {
-        waiting().keys + touchedAt.filterValues { it >= fetchedAtMs }.keys
+        waiting().keys + memory.touchedSince(fetchedAtMs)
     }
 
     /**
@@ -206,9 +266,7 @@ class PendingCourseOverrides internal constructor(
     suspend fun forget(moodleIds: Collection<String>, madeBefore: Long = Long.MAX_VALUE, signIn: SignIn) {
         if (moodleIds.isEmpty()) return
         mutex.withLock {
-            val waiting = waiting()
-            val kept = waiting.filterValues { it.moodleId !in moodleIds || it.seq >= madeBefore }
-            if (kept.size != waiting.size) save(kept, signIn)
+            lane.edit(signIn) { rows -> rows.filter { it.moodleId !in moodleIds || it.seq >= madeBefore } }
         }
     }
 
@@ -220,10 +278,11 @@ class PendingCourseOverrides internal constructor(
      */
     suspend fun adoptServer(categories: Collection<String>, signIn: SignIn) {
         mutex.withLock {
-            val waiting = waiting()
-            val kept = waiting.filterValues { category(it.isColor) !in categories }
-            if (kept.size == waiting.size) return@withLock
-            if (save(kept, signIn)) (waiting.keys - kept.keys).forEach(touchedAt::remove)
+            var dropped = emptySet<String>()
+            val written = lane.edit(signIn) { rows ->
+                rows.filter { category(it.isColor) !in categories }.also { kept -> dropped = (rows - kept.toSet()).mapNotNullTo(HashSet()) { it.key } }
+            }
+            if (written) memory.untouched(dropped, signIn)
         }
     }
 
@@ -242,142 +301,72 @@ class PendingCourseOverrides internal constructor(
         version: Long? = null,
     ): Map<String, PendingCourseOverride> =
         mutex.withLock {
-            val waiting = waiting()
-            val seq = version ?: nextSeq(waiting)
             val now = clock()
-            val updated = LinkedHashMap(waiting)
-            val recorded = LinkedHashMap<String, PendingCourseOverride>()
-            for (c in changes) {
-                val entry = PendingCourseOverride(
-                    c.moodleId, c.colorHex, c.customName, c.locale, now, c.semester, c.courseNo, seq = seq, madeAtMs = now,
-                )
-                val key = entry.key ?: continue
-                if (maxOf(waiting[key]?.seq ?: 0L, latestSeq[key] ?: 0L) > seq) continue
-                if (!records(entry.isColor)) {
-                    updated.remove(key)
-                    latestSeq[key] = seq
-                    continue
+            val madeAtMs = stamp()
+            var seq = 0L
+            var recorded = LinkedHashMap<String, PendingCourseOverride>()
+            // In one step with the lane's own writes; the versions are this queue's, under [mutex].
+            val written = lane.edit(signIn) { rows ->
+                val waiting = rows.associateByTo(LinkedHashMap()) { it.key.orEmpty() }
+                seq = version ?: memory.nextSeq(waiting.values)
+                val updated = LinkedHashMap(waiting)
+                recorded = LinkedHashMap()
+                for (c in changes) {
+                    val entry = PendingCourseOverride(
+                        c.moodleId, c.colorHex, c.customName, c.locale, now, c.semester, c.courseNo, seq = seq, madeAtMs = madeAtMs,
+                    )
+                    val key = entry.key ?: continue
+                    if (memory.outbids(key, waiting[key]?.seq, seq)) continue
+                    if (!records(entry.isColor)) {
+                        updated.remove(key)
+                        memory.recordedAt(key, seq)
+                        continue
+                    }
+                    updated[key] = entry
+                    recorded[key] = entry
                 }
-                updated[key] = entry
-                recorded[key] = entry
+                if (updated == waiting) recorded = LinkedHashMap()
+                updated.values.toList()
             }
-            if (updated == waiting) return@withLock emptyMap()
-            if (!save(updated, signIn)) return@withLock emptyMap()
-            for (key in recorded.keys) {
-                touchedAt[key] = now
-                latestSeq[key] = seq
-            }
+            if (!written || recorded.isEmpty()) return@withLock emptyMap()
+            memory.touched(recorded.keys, now, signIn)
+            for (key in recorded.keys) memory.recordedAt(key, seq)
             recorded
         }
 
-    // Under [mutex]: later than every version an entry still waiting carries
-    // and than every one given out in this process, reservations included.
-    // A version is only ever compared with the entries waiting when it is
-    // used, and a reservation does not outlive the process, so it need not
-    // keep growing across restarts beyond theirs: the clock where it is
-    // ahead, else one past the last.
-    private fun nextSeq(waiting: Map<String, PendingCourseOverride>): Long {
-        val floor = maxOf(lastSeq, waiting.values.maxOfOrNull { it.seq } ?: 0L)
-        lastSeq = maxOf(clock(), floor + 1)
-        return lastSeq
-    }
-
-    /**
-     * Sends [change] if it is still the change waiting under [key], under the
-     * sign-in [signIn] it was read with.
-     * Checked under the send lock, right before the request: a newer change
-     * of the key, a send of it that landed meanwhile, a sign-out, or a hold
-     * put on its kind since each make it stale, and sent it would undo the
-     * newer change, repeat the request, land on the next account, or pre-empt
-     * the user's answer. The hold and the account are read after the check
-     * that suspends for the file, and once more by the sender right before
-     * the request. The request itself carries [signIn], so a sign-out after
-     * the check sends it without a token rather than with the next account's.
-     * Let go once confirmed, unless a newer change replaced it meanwhile;
-     * kept when nothing went out, for the switch's re-enable check to decide.
-     */
-    private suspend fun trySend(key: String, change: PendingCourseOverride, signIn: SignIn) {
-        val moodleId = change.moodleId ?: return
-        val allowed = { sends(change.isColor) && signIn.isCurrent }
-        val sent = sendMutex.withLock {
-            val current = mutex.withLock { isWaiting(key, change) } && allowed()
-            if (!current) return
-            try {
-                sender.send(moodleId, change.colorHex, change.customName, change.locale, signIn, allowed, change.madeAtMs)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "course override PATCH failed, kept for the next sync: ${e.logSummary()}")
-                if (CourseIgnoreSync.refuses(e)) countRefusal(key, change, signIn, gone = courseGone(e, change))
-                return
-            }
-        }
-        if (!sent) return
-        mutex.withLock {
-            val waiting = waiting()
-            if (!isWaiting(key, change)) return@withLock
-            if (save(waiting - key, signIn)) touchedAt[key] = clock()
-        }
-    }
-
-    /**
-     * A refusal the backend gave [change] (see [CourseIgnoreSync.refuses]),
-     * counted; the change is let go at [MAX_ATTEMPTS], or at once when its
-     * course is [gone]: the backend will not take it, and kept it would be
-     * sent, and refused, at every sync, and count as unsynced data for good.
-     */
-    private suspend fun countRefusal(key: String, change: PendingCourseOverride, signIn: SignIn, gone: Boolean) =
-        mutex.withLock {
-            val waiting = waiting()
-            val stored = waiting[key]?.takeIf { it.isSameChange(change) } ?: return@withLock
-            val counted = stored.copy(attempts = stored.attempts + 1)
-            if (gone || counted.attempts >= MAX_ATTEMPTS) {
-                val why = if (gone) "its course has left this phone" else "refused $MAX_ATTEMPTS times"
-                Log.w(TAG, "course override let go: $why")
-                save(waiting - key, signIn)
-            } else {
-                save(waiting + (key to counted), signIn)
-            }
-        }
-
-    // Whether [e] is a 404 for a course no longer cached in the term [change]
-    // was made in: deleted on another device, with the backend's row, and
-    // pruned here by a sync. Not known without the term.
-    private suspend fun courseGone(e: Exception, change: PendingCourseOverride): Boolean {
-        if ((e as? PushApiException)?.statusCode != 404) return false
-        val semester = change.semester ?: return false
-        val courseNo = change.courseNo ?: return false
-        return dataCache.loadCourses(semester).none { it.courseNo == courseNo }
-    }
-
-    private suspend fun isWaiting(key: String, change: PendingCourseOverride): Boolean =
-        waiting()[key]?.isSameChange(change) == true
-
     // By key, in the order the changes were made.
     private suspend fun waiting(): Map<String, PendingCourseOverride> =
-        dataCache.loadPendingCourseOverrides().associateByTo(LinkedHashMap()) { it.key.orEmpty() }
-
-    private suspend fun save(waiting: Map<String, PendingCourseOverride>, signIn: SignIn): Boolean =
-        dataCache.savePendingCourseOverrides(waiting.values.toList(), signIn)
+        lane.entries().associateByTo(LinkedHashMap()) { it.key.orEmpty() }
 
     private val PendingCourseOverride.isColor: Boolean
         get() = colorHex != null
 
     companion object {
-        private const val TAG = "PendingCourseOverrides"
-
         /** Refusals before a change is let go; the marks and course ignores park after as many. */
         const val MAX_ATTEMPTS = 5
 
+        // The stamp of a value queued as the oldest there is (LWW D13).
+        private const val OLDEST = 0L
+
+        // The sync category colours ([color]) or names are.
+        private fun kindOf(color: Boolean): SyncCategory = if (color) SyncCategory.COURSE_COLORS else SyncCategory.COURSE_NAMES
+
         /** The re-enable conflict category colours ([color]) or names belong to. */
-        fun category(color: Boolean): String = if (color) "course_colors" else "course_names"
+        fun category(color: Boolean): String = kindOf(color).stored
 
-        /** Whether colours ([color]) or names sync at all: TigerSync and their switch on. */
-        fun records(prefs: AppPreferences, color: Boolean): Boolean =
-            prefs.cloudSyncEnabled && if (color) prefs.syncCourseColors else prefs.syncCourseNames
+        /** Whether a colour ([color]) or name is kept to send: `SyncPolicy.keeps` of its kind, as the switches stand. */
+        fun records(prefs: AppPreferences, color: Boolean): Boolean = SyncPolicies(prefs).current.keeps(kindOf(color))
 
-        /** Whether they go out: they sync, and no re-enable check of theirs is pending. */
-        fun sends(prefs: AppPreferences, color: Boolean): Boolean =
-            records(prefs, color) && category(color) !in prefs.school.pendingConflictCategories.get()
+        /** Whether it goes out: `SyncPolicy.sends` of its kind, which its re-enable check holds. */
+        fun sends(prefs: AppPreferences, color: Boolean): Boolean = SyncPolicies(prefs).current.sends(kindOf(color))
     }
+}
+
+/** The course colors and names join the outbox's channels (`OutboxModule`). */
+@Module
+@InstallIn(SingletonComponent::class)
+object CourseOverridesChannelModule {
+    @Provides
+    @IntoSet
+    fun channel(overrides: PendingCourseOverrides): OutboxChannel = overrides
 }
