@@ -7,6 +7,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -56,6 +57,19 @@ class SchoolUploads internal constructor(
     // and the one released by it, until it is sent.
     private val waiting = HashMap<String, Later>()
     private val sending = HashMap<String, Later>()
+
+    // Under [lock], by term: the course selection answer the term was last committed with in this
+    // process, by a fetch under the sign-in held with it (null for a term committed with none).
+    private val committedWith = HashMap<String, Pair<SignIn, SelectionAnswer?>>()
+
+    /**
+     * [semester]'s term has just been committed by a fetch of course selection's [answer], or of
+     * none, under [signIn]: a waiting term goes with that answer's roster (see [term]). Home's fetch,
+     * which uploads no term, tells it here; a fetch that uploads tells it by asking for the upload.
+     */
+    fun committedFor(signIn: SignIn, semester: String, answer: SelectionAnswer?) = synchronized(lock) {
+        committedWith[semester] = signIn to answer
+    }
 
     /** How many uploads wait for the first pull, for a test. */
     internal val waitingUploads: Int get() = synchronized(lock) { waiting.size }
@@ -148,11 +162,12 @@ class SchoolUploads internal constructor(
      * [roster], at once. Before, once it opens, it is handed [semester]'s courses as this phone
      * holds them then, the pull's changes included, built under [uploading] again so a reset's
      * DELETE orders with it as with the fetch's own; and only when [stillWanted] says so there (a
-     * warm superseded since has nothing to send). A [roster] that is a course selection answer
-     * ([answered]) is then the newest answer's: a later answer recorded meanwhile, by a fetch that
-     * uploads no roster of its own, such as Home's, is the term's roster now, and a later fetch
-     * that does upload takes this one's place. [requested] marks the backend's own request for the
-     * roster, which waits apart from a fetch's upload.
+     * warm superseded since has nothing to send). A [roster] that is a course selection [answer]'s
+     * then goes as the roster of the answer the term was last committed with: this fetch's, unless
+     * a fetch that uploads none, such as Home's, committed the term since ([committedFor]). A newer
+     * answer whose fetch has not committed yet is no roster of this term, which goes as on dev,
+     * where it went at its commit; a later fetch that does upload takes this one's place.
+     * [requested] marks the backend's own request for the roster, which waits apart from a fetch's.
      */
     internal suspend fun term(
         signIn: SignIn,
@@ -162,20 +177,24 @@ class SchoolUploads internal constructor(
         uploading: suspend (suspend () -> Unit) -> Unit,
         stillWanted: () -> Boolean = { true },
         requested: Boolean = false,
-        answered: Boolean = false,
+        answer: SelectionAnswer? = null,
         send: suspend (CourseUpload) -> Unit,
-    ) = afterFirstPull(
-        signIn, "$COURSES$semester" + if (requested) REQUESTED else "", semester, committed.mapTo(mutableSetOf()) { it.courseNo },
-        now = { send(upload(committed, semester, roster)) },
-        later = { pinned ->
-            uploading {
-                if (!pinned.isCurrent || !stillWanted()) return@uploading
-                val held = dataCache.loadCourses(semester)
-                val newest = if (answered) dataCache.selectionAnswerIn(semester)?.courseNos ?: roster else roster
-                if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, newest))
-            }
-        },
-    )
+    ) {
+        committedFor(signIn, semester, answer)
+        afterFirstPull(
+            signIn, "$COURSES$semester" + if (requested) REQUESTED else "", semester, committed.mapTo(mutableSetOf()) { it.courseNo },
+            now = { send(upload(committed, semester, roster)) },
+            later = { pinned ->
+                uploading {
+                    if (!pinned.isCurrent || !stillWanted()) return@uploading
+                    val held = dataCache.loadCourses(semester)
+                    val last = synchronized(lock) { committedWith[semester]?.takeIf { it.first === pinned } }
+                    val paired = if (answer == null || last == null) roster else last.second?.courseNos
+                    if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, paired))
+                }
+            },
+        )
+    }
 
     private suspend fun upload(courses: List<Course>, semester: String, roster: Collection<String>?): CourseUpload =
         CourseUpload.of(courses, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()))

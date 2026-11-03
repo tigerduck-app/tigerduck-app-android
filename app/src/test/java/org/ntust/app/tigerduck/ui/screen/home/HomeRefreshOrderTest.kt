@@ -80,6 +80,15 @@ class HomeRefreshOrderTest {
         assertTrue("fetchData no longer hands the fetch its afterPull", "fetchCoursesAndAssignments(studentId, password, afterPull)" in body("fetchData"))
     }
 
+    /** Fix round 1, finding 2: Home's commit, which uploads no term, tells the answer it committed the term with. */
+    @Test
+    fun `Home's commit tells which answer the term was committed with`() {
+        val body = body("fetchData")
+        val commit = at(body, "courses = commitFetchedTerm(")
+        val told = at(body, "?.also { schoolUploads.committedFor(remote.signIn, remote.semester, remote.answer) }")
+        assertTrue("told once the term is committed", commit < told)
+    }
+
     @Test
     fun `the assignments the fetch wrote go up after the first pull`() {
         val body = body("fetchData")

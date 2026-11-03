@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.auth.session.AccountEvent
 import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.auth.session.accountEventStream
 import org.ntust.app.tigerduck.data.PendingCourseAdds
+import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -285,15 +286,38 @@ class SchoolUploadsTest {
     }
 
     /**
-     * A later answer that dropped a course, recorded and committed as Home's fetch does before the
-     * first pull: the waiting term goes with the newest answer's roster, of the term as it stands.
+     * Codex on PR R, fix round 1, finding 2: Home records a newer course selection answer, one that
+     * lists a course this phone has not got, and is still looking its courses up when the first
+     * pull lets the waiting term go. The term goes with the answer it was committed for, as the
+     * fetch's at-once upload went on dev, not paired with the newer answer, whose fetch commits no
+     * term yet; Home's commit sends no course upload, as on dev.
      */
     @Test
-    fun `a waiting term goes with the newest course selection answer's roster`() = runBlocking {
+    fun `a waiting term goes with the answer it was committed for while a newer answer's fetch has not committed`() = runBlocking {
         termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         untilParked(1)
-        cache.recordSelectionRoster(TERM, listOf(CS1), signIn)
+        // Home's fetch, held between recording its answer and committing the term.
+        cache.recordSelectionRoster(TERM, listOf(CS1, CS3), signIn)
+
+        gate.notePull(signIn)
+
+        until("the term went up") { termUploads().isNotEmpty() }
+        delay(300)
+        assertEquals(listOf(listOf(CS1, CS2) to listOf(TERM)), termUploads())
+    }
+
+    /**
+     * A later answer that dropped a course, recorded and committed as Home's fetch does before the
+     * first pull, its commit told: the waiting term goes with that answer's roster, of the term as
+     * it stands.
+     */
+    @Test
+    fun `a waiting term goes with the answer of the fetch that committed it last`() = runBlocking {
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        val newer = cache.recordSelectionRoster(TERM, listOf(CS1), signIn) as RecordedSelection.Kept
         cache.saveCourses(cache.loadCourses(TERM).filter { it.courseNo == CS1 }, TERM, signIn)
+        uploads.committedFor(signIn, TERM, newer.answer)
 
         gate.notePull(signIn)
 
@@ -397,6 +421,7 @@ class SchoolUploadsTest {
         const val PASSWORD = "not-a-password"
         const val CS1 = "XA0000001"
         const val CS2 = "XB0000002"
+        const val CS3 = "XC0000003"
         const val HAND = "XH0000008"
     }
 }

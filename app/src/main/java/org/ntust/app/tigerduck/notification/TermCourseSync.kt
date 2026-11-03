@@ -269,7 +269,7 @@ class TermCourseSync internal constructor(
             } ?: return@uploading
             // Superseded since the commit: the newer answer's fetch sends the term's roster.
             if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
-            uploads.term(signIn, semester, merged, term.roster, uploading, requested = rosterRequested, answered = answer != null) { upload ->
+            uploads.term(signIn, semester, merged, term.roster, uploading, requested = rosterRequested, answer = answer) { upload ->
                 try {
                     // Past the ledger only as the roster asked for; anything less goes as any fetch's.
                     uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
