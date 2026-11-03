@@ -16,6 +16,7 @@ import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
@@ -44,6 +45,7 @@ import org.ntust.app.tigerduck.ui.screen.home.commitFetchedTerm
 import org.ntust.app.tigerduck.ui.screen.settings.PushCourseSyncBackend
 import org.ntust.app.tigerduck.ui.screen.settings.keepLocalCourses
 import org.ntust.app.tigerduck.util.JvmContext
+import java.io.File
 import java.util.Date
 
 /**
@@ -635,6 +637,51 @@ class SchoolUploadsTest {
 
         until("both went") { sent.size == 2 }
         assertEquals("the last to land is the newest list", listOf("701", "702"), sent.last())
+    }
+
+    /**
+     * Greptile on PR #686, P1: a round writes {701} and pauses before it asks for the upload; a
+     * newer write, {701, 702}, goes up at once. The late ask sends the assignments as stored, the
+     * newer write's, so its older list never lands last.
+     */
+    @Test
+    fun `an older write's assignments asked for after a newer one went at once never land last`() = runBlocking {
+        gate.notePull(signIn)
+        val older = cache.updateAssignments(signIn) { listOf(assignment("701")) }!!
+        val newer = cache.updateAssignments(signIn) { listOf(assignment("701"), assignment("702")) }!!
+        uploads.assignments(newer, signIn)
+        uploads.assignments(older, signIn)
+
+        assertEquals(listOf(701, 702), assignmentUploads().last())
+    }
+
+    /** As above, the newer write's upload released by the first pull before the older write asks. */
+    @Test
+    fun `an older write's assignments asked for after a newer one was released never land last`() = runBlocking {
+        val older = cache.updateAssignments(signIn) { listOf(assignment("701")) }!!
+        val newer = cache.updateAssignments(signIn) { listOf(assignment("701"), assignment("702")) }!!
+        uploads.assignments(newer, signIn)
+        untilParked(1)
+        gate.notePull(signIn)
+        until("the newer list went up") { assignmentUploads().isNotEmpty() }
+        uploads.assignments(older, signIn)
+
+        assertEquals(listOf(701, 702), assignmentUploads().last())
+    }
+
+    /**
+     * The cache's file can be gone between the write and its send (the system clears an app's
+     * cache): read as none, it would go up as an empty list and take every assignment off the
+     * backend. The list goes as the write left it, as on dev.
+     */
+    @Test
+    fun `assignments whose stored file went go up as written, never as none`() = runBlocking {
+        gate.notePull(signIn)
+        val written = cache.updateAssignments(signIn) { listOf(assignment("701")) }!!
+        assertTrue(File(context.cacheDir, "TigerDuckCache/assignments.json").delete())
+        uploads.assignments(written, signIn)
+
+        assertEquals(listOf(listOf(701)), assignmentUploads())
     }
 
     @Test

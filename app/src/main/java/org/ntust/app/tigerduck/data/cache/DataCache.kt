@@ -365,10 +365,10 @@ class DataCache @Inject constructor(
         return true
     }
 
-    suspend fun loadAssignments(): List<Assignment> {
-        val type = object : TypeToken<List<Assignment>>() {}.type
-        return load(type, "assignments.json") ?: emptyList()
-    }
+    suspend fun loadAssignments(): List<Assignment> = storedAssignments() ?: emptyList()
+
+    /** The assignments as stored; null when their file is missing or unreadable, as once the system clears the cache. */
+    suspend fun storedAssignments(): List<Assignment>? = load(object : TypeToken<List<Assignment>>() {}.type, "assignments.json")
 
     /**
      * Stores what [transform] makes of the cached assignments, read and

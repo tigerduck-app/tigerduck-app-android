@@ -132,25 +132,27 @@ class SchoolUploads internal constructor(
 
     /**
      * The assignments a Moodle round or an assignment's page wrote, [written] as written, under
-     * [signIn]. Once the gate is open they go at once. Before, what goes once it opens is the
-     * assignments as stored then: the newest written, as the uploads of two writes may have
-     * waited in either order. Each send, at once or released, holds [assignmentSends], and the
-     * released one reads the store under it, so a newer list sent at once never lands before an
-     * older one read before it (the term's sends are ordered by the caller's `uploading` the
-     * same way). [failed] hears a send that failed, now or then; a cancellation of the caller is
-     * no failure, and goes on up.
+     * [signIn]: once the gate is open at once, before it once it opens. Every send, at once or
+     * released, holds [assignmentSends] and goes as the assignments are stored then ([sendStored]):
+     * [written] itself when no write came since, as every caller's [written] is the whole list its
+     * write left, and the newest list when one did. So an older write whose ask came late, after
+     * a newer list went up, never lands last (Greptile on PR #686), nor does a released one (the
+     * term's sends are ordered by the caller's `uploading` the same way). [failed] hears a send
+     * that failed, now or then; a cancellation of the caller is no failure, and goes on up.
      */
     suspend fun assignments(written: List<Assignment>, signIn: SignIn, failed: (Exception) -> Unit = {}) = afterFirstPull(
         signIn, ASSIGNMENTS,
-        now = { assignmentSends.withLock { reporting(failed) { sendAssignments(written, signIn) } } },
-        later = { pinned ->
-            assignmentSends.withLock {
-                val stored = dataCache.loadAssignments()
-                // Signed out while the file was read: what it held is not this sign-in's.
-                if (pinned.isCurrent) reporting(failed) { sendAssignments(stored, pinned) }
-            }
-        },
+        now = { sendStored(written, signIn, failed) },
+        later = { pinned -> sendStored(written, pinned, failed) },
     )
+
+    // Under [assignmentSends], the assignments as stored, or [written] when their file is gone: read
+    // as none, it would go up as an empty list and take every assignment off the backend.
+    private suspend fun sendStored(written: List<Assignment>, signIn: SignIn, failed: (Exception) -> Unit) = assignmentSends.withLock {
+        val stored = dataCache.storedAssignments() ?: written
+        // Signed out while the file was read: what it held is not this sign-in's.
+        if (signIn.isCurrent) reporting(failed) { sendAssignments(stored, signIn) }
+    }
 
     /**
      * A school fetch's upload of [semester]'s courses under [signIn], asked for inside the
