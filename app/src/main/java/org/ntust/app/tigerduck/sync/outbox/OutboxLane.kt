@@ -86,11 +86,21 @@ class OutboxLane<E : Any>(
      * drains its field. Under way from before the entry is kept, so a drain already running that
      * sends this edit first does not leave it to be sent again here. False when it was not kept.
      */
-    suspend fun enqueueAndDrain(entry: E, signIn: SignIn, sends: () -> Boolean): Boolean {
+    suspend fun enqueueAndDrain(entry: E, signIn: SignIn, sends: () -> Boolean): Boolean =
+        keepAndDrain(signIn, sends) { if (enqueue(entry, signIn)) setOf(policy.field(entry)) else null }
+
+    /**
+     * A send now of what a channel keeps itself, [keep]: its own write, which may keep nothing (a
+     * newer edit outbids it, the edit stays this phone's own) and may take the channel's own locks
+     * (two files written as one), returning the fields it kept, or null for none. Under way from
+     * before it is kept, as [enqueueAndDrain], and drains those fields when [sends] then says so.
+     * False when nothing was kept.
+     */
+    suspend fun keepAndDrain(signIn: SignIn, sends: () -> Boolean, keep: suspend () -> Set<String>?): Boolean {
         val drain = startDrain(signIn)
         try {
-            if (!enqueue(entry, signIn)) return false
-            if (sends()) drainWith(signIn, setOf(policy.field(entry)), drain)
+            val fields = keep()?.takeIf { it.isNotEmpty() } ?: return false
+            if (sends()) drainWith(signIn, fields, drain)
             return true
         } finally {
             endDrain(drain)

@@ -464,6 +464,63 @@ class OutboxLaneTest {
         assertEquals(listOf(Edit("f2", "other")), store.entries)
     }
 
+    @Test
+    fun `a send now of a channel's own write drains the fields it kept, and none when it kept none`() = runTest {
+        val store = FakeStore(listOf(Edit("f2", "other")))
+        val lane = lane(store)
+        backend.answer = { SendResult.Sent(null) }
+        val signIn = series.current
+
+        assertFalse("kept nothing", lane.keepAndDrain(signIn, { true }) { null })
+        assertFalse("kept no field", lane.keepAndDrain(signIn, { true }) { emptySet() })
+        assertTrue(lane.keepAndDrain(signIn, { false }) { setOf("f1").takeIf { lane.enqueue(Edit("f1", "a"), signIn) } })
+        assertEquals("kept, not sent", emptyList<String>(), backend.values)
+        assertTrue(lane.keepAndDrain(signIn, { true }) { setOf("f1").takeIf { lane.enqueue(Edit("f1", "b"), signIn) } })
+
+        assertEquals("only the fields it kept", listOf("b"), backend.values)
+        assertEquals(listOf(Edit("f2", "other")), store.entries)
+    }
+
+    /**
+     * As [enqueueAndDrain]'s, for a write of the channel's own: the edit is kept, and the drain under
+     * way takes it and fails while the write has yet to return. The send now was under way from
+     * before the write, so it does not send the edit again.
+     */
+    @Test
+    fun `a send now of a channel's own write counts as under way from before the write`() = runBlocking {
+        val store = FakeStore(listOf(Edit("f1", "old", madeAtMs = 1)))
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val lane = OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, scope, backend::send)
+        val newTried = CountDownLatch(1)
+        backend.answer = { edit -> if (edit.value == "new") SendResult.Retry.also { newTried.countDown() } else null }
+        val signIn = series.current
+        try {
+            val draining = launch(Dispatchers.Default) { lane.drain(signIn) }
+            // The old edit is out, its reply held.
+            withTimeout(5_000) { while (backend.pending.isEmpty()) delay(1) }
+            val kept = CountDownLatch(1)
+            val goOn = CountDownLatch(1)
+            val sending = launch(Dispatchers.IO) {
+                lane.keepAndDrain(signIn, { true }) {
+                    lane.enqueue(Edit("f1", "new", madeAtMs = 2), signIn)
+                    kept.countDown()
+                    goOn.await(5, TimeUnit.SECONDS)
+                    setOf("f1")
+                }
+            }
+            assertTrue(kept.await(5, TimeUnit.SECONDS))
+            backend.reply(SendResult.Sent(null))
+            assertTrue("the drain under way took the new edit", newTried.await(5, TimeUnit.SECONDS))
+            withTimeout(5_000) { draining.join() }
+            goOn.countDown()
+            withTimeout(5_000) { sending.join() }
+
+            assertEquals(listOf("old", "new"), backend.values)
+        } finally {
+            scope.cancel()
+        }
+    }
+
     /**
      * On threads of their own, as a tap and a sync run: the send now's edit is kept, and before it
      * has asked whether to send, the drain under way takes the edit and fails. The send now counted
