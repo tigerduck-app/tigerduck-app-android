@@ -274,6 +274,37 @@ class CourseDeletesChannelTest {
         assertEquals(listOf("DELETE", "upload"), events)
     }
 
+    /**
+     * Codex on 671844752: a course upload's requeue reaches parked deletes only, as on dev, and a
+     * delete never parks: one refused while an upload lands is kept and goes at the next retry.
+     */
+    @Test
+    fun `a delete refused while a course upload lands is kept and goes again at the next retry`() = runTest {
+        var calls = 0
+        val out = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val adds = PendingCourseAdds(cache, { _, _, _, _, _ -> null })
+        val deletes = PendingCourseDeletes(cache, adds, { _, _, _ ->
+            if (++calls == 1) {
+                out.complete(Unit)
+                reply.await()
+                throw PushApiException("course DELETE failed: HTTP 404", 404)
+            }
+        })
+
+        val caller = launch { deletes.send(term, typed, 10L, signIn) }
+        out.await()
+        Outbox(setOf(adds, deletes)).courseUploadLanded(signIn)
+        reply.complete(Unit)
+        caller.join()
+        assertEquals(mapOf(term to mapOf(typed to 10L)), queued())
+
+        deletes.retry(signIn)
+
+        assertEquals(2, calls)
+        assertEquals(emptyMap<String, Map<String, Long>>(), queued())
+    }
+
     /** Review Focus 1: a delete an older build kept goes out once on `/v4`, with the moment it was asked. */
     @Test
     fun `an entry an older build wrote goes out on v4 stamped`() = runTest {

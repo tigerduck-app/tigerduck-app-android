@@ -1,6 +1,8 @@
 package org.ntust.app.tigerduck.push
 
+import android.util.Log
 import com.google.gson.Gson
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -17,7 +19,18 @@ import org.ntust.app.tigerduck.network.backend.BackendException
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.ConcurrentHashMap
+
+/**
+ * Hears each course upload the backend answered, whichever path sent it (a timetable fetch, a
+ * term's roster, Use Local, the course adds), under the sign-in it went with: the outbox waits on
+ * some of them ([org.ntust.app.tigerduck.data.CourseUploadNews]).
+ */
+fun interface CourseUploadListener {
+    /** [sent], the course numbers of [semester] that went up, of which [answer] says what the backend took. */
+    suspend fun landed(semester: String, sent: List<String>, answer: CourseUploadAnswer, signIn: SignIn)
+}
 
 /**
  * The course list's sync requests: a term's upload, one course's delete and a term's reset, with
@@ -33,6 +46,8 @@ internal class CourseSyncRequests(
     private val baseUrl: () -> String,
     private val authHeader: suspend (SignIn) -> String,
     private val clock: WriteClock,
+    // Told of each upload that landed; none for a client a test builds alone.
+    private val news: dagger.Lazy<CourseUploadListener>? = null,
 ) {
     private val gson = Gson()
     private val jsonType = "application/json".toMediaType()
@@ -114,6 +129,7 @@ internal class CourseSyncRequests(
         // What the accepted list enrolled as the term's roster, for serverDropped.
         val roster = if (semester in rosterTerms) courses.map { it.courseNo } else null
         var accepted = CourseUploadAnswer(emptyList(), emptyList())
+        var landed = false
         try {
             courseUploads(semester).sendIfDue(
                 fingerprint = courseUploadFingerprint(base, courses, semester, rosterTerms),
@@ -142,11 +158,27 @@ internal class CourseSyncRequests(
                     response = service.coursesUpload(header, again(serverClockUs), null).execute()
                 }
                 accepted = response.use { answered(it, api) }
+                landed = true
             }
         } catch (e: ResendHeldBack) {
             return@withContext null
         }
+        if (landed) tell(semester, courses, accepted, signIn)
         accepted
+    }
+
+    // An upload of [courses] that landed under [signIn], told to what waits on one ([news]): a
+    // change that waited for its course's row, or one the upload left out. Its failing is not the
+    // upload's, which the backend has.
+    private suspend fun tell(semester: String, courses: List<Course>, answer: CourseUploadAnswer, signIn: SignIn) {
+        val heard = news?.get() ?: return
+        try {
+            heard.landed(semester, courses.map { it.courseNo }, answer, signIn)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "a landed course upload was not told: ${e.logSummary()}")
+        }
     }
 
     // Whether the course list's writes go: the gate each checks first, and on /v4 again before a resend.
@@ -211,6 +243,8 @@ internal class CourseSyncRequests(
             refusedAdds = answers.filter { !it.optBoolean("applied", true) }
                 .map { it.optString("course_key") }.filter { it.isNotEmpty() }.map(::no).distinct(),
             serverClockUs = serverClockOf(response),
+            // Only beside the keys it took, which tell the courses it left out from the rest.
+            skippedTombstoned = json?.takeIf { keys != null }?.optInt(SKIPPED)?.takeIf { it > 0 },
         )
     }
 
@@ -301,6 +335,11 @@ internal class CourseSyncRequests(
     private companion object {
         // The header value of an upload whose adds carry their time.
         const val PROTOCOL_STAMPED = "2"
+
+        // How many of the courses sent an upload's answer left out as tombstoned.
+        const val SKIPPED = "skipped_tombstoned"
+
+        const val TAG = "CourseSyncRequests"
     }
 }
 
@@ -309,7 +348,18 @@ internal class CourseSyncRequests(
  * timed adds it answered but did not apply ([refusedAdds]), as a hide or reset made after them
  * elsewhere is newer. Both are settled: the backend has the final word on each. [serverClockUs] is
  * the answer's `X-TigerSync-Clock`, null for an upload the ledger held back or an answer without one.
+ * [skippedTombstoned] is how many of the courses sent it left out as tombstoned, made no row for:
+ * null for none, and when the answer does not say or names no keys it took to tell which.
  */
-data class CourseUploadAnswer(val accepted: List<String>, val refusedAdds: List<String>, val serverClockUs: Long? = null) {
+data class CourseUploadAnswer(
+    val accepted: List<String>,
+    val refusedAdds: List<String>,
+    val serverClockUs: Long? = null,
+    val skippedTombstoned: Int? = null,
+) {
     val settled: List<String> get() = (accepted + refusedAdds).distinct()
+
+    /** The course numbers of [sent] the backend left out as tombstoned: those it did not take, when it says it left any out. */
+    fun skippedOf(sent: Collection<String>): List<String> =
+        if ((skippedTombstoned ?: 0) > 0) sent.filter { it !in accepted }.distinct() else emptyList()
 }

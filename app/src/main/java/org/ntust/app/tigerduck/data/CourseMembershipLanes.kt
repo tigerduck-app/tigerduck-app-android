@@ -4,9 +4,6 @@
 
 package org.ntust.app.tigerduck.data
 
-import android.util.Log
-import dagger.Lazy
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -19,8 +16,6 @@ import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.SyncPolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
-import org.ntust.app.tigerduck.sync.outbox.Outbox
-import org.ntust.app.tigerduck.util.logSummary
 
 /** A course added by hand to [semester] whose upload waits, with the moment it was asked, if it has one. */
 internal data class CourseAdd(val semester: String, val courseNo: String, val addedAtMs: Long?) {
@@ -147,14 +142,15 @@ internal fun deletesByTerm(deletes: List<CourseDelete>): Map<String, Map<String,
  * - [policies] are read once per question; none is `/v3`'s.
  * - [ack] is the outbox's [AckClock], [scope] the application's, where a send runs to its end.
  * - [oldEntryTime] gives an add an older build kept with no moment its old-entry time (X1).
- * - [outbox] is told when a course upload has landed.
+ *
+ * A course upload that lands, the adds' as any other, is told to the outbox by the client that
+ * sent it ([org.ntust.app.tigerduck.push.CourseUploadListener]).
  */
 internal class MembershipOutbox(
     private val policies: SyncPolicies? = null,
     ack: AckClock? = null,
     scope: CoroutineScope? = null,
     val oldEntryTime: OldEntryTime? = null,
-    private val outbox: Lazy<Outbox>? = null,
 ) {
     val ack: AckClock = ack ?: AckClock()
 
@@ -171,23 +167,4 @@ internal class MembershipOutbox(
      * was: the re-enable check answers for the courses once sync is back on.
      */
     fun keepsUnsent(): Boolean = policy()?.let { it.lastWriterWins && it.keeps(SyncCategory.COURSES) } == true
-
-    /**
-     * A course upload has landed under [signIn]: an edit that waited for the course goes again.
-     * Never the upload's failure: what another channel does with the news is its own.
-     */
-    suspend fun courseUploadLanded(signIn: SignIn) {
-        val outbox = outbox?.get() ?: return
-        try {
-            outbox.courseUploadLanded(signIn)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w(TAG, "a landed course upload's news failed: ${e.logSummary()}")
-        }
-    }
-
-    private companion object {
-        const val TAG = "MembershipOutbox"
-    }
 }

@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.data.model.PendingCourseOverride
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import java.io.File
 import java.io.IOException
 import org.ntust.app.tigerduck.util.JvmContext
@@ -386,17 +387,25 @@ class PendingCourseOverridesTest {
         assertFalse(PendingCourseOverride.colorKey(calculus) in overrides.held(0L))
     }
 
+    /**
+     * Spec §5.3 race 3 (refactor-v4 R3): let go at its fifth refusal, a rename made before its
+     * course's upload landed was lost. Parked instead, it keeps its value and goes again once a
+     * course upload lands.
+     */
     @Test
-    fun `a change the backend refuses five times is let go`() = runTest {
-        answer = refused(404)
-        overrides.send(calculus, colorHex = "#FF0000", signIn = signIn)
-        repeat(3) { overrides.retry(signIn) }
-        assertEquals(4, patches.size)
-        assertTrue("kept through four refusals", overrides.hasPending())
+    fun `a rename refused five times waits for the next course upload and is sent then`() = runTest {
+        answer = refused(422)
+        overrides.send(calculus, customName = "Calc", locale = "en", signIn = signIn)
+        repeat(6) { overrides.retry(signIn) }
+        assertEquals("parked at the fifth refusal, and not sent again", 5, patches.size)
+        assertTrue("kept, at this phone's value", overrides.hasPending())
 
+        answer = { true }
+        Outbox(setOf(overrides)).courseUploadLanded(signIn)
         overrides.retry(signIn)
-        assertEquals(5, patches.size)
-        assertFalse("let go on the fifth", overrides.hasPending())
+
+        assertEquals(Patch(calculus, null, "Calc", "en"), patches.drop(5).single())
+        assertFalse(overrides.hasPending())
     }
 
     @Test

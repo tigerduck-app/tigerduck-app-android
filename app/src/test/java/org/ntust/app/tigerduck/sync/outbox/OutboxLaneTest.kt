@@ -297,6 +297,93 @@ class OutboxLaneTest {
     }
 
     @Test
+    fun `a requeue that does not ask for the edit in flight leaves it to its reply`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val signIn = series.current
+        val draining = launch { lane.drain(signIn) }
+        runCurrent()
+
+        lane.requeueParked(signIn)
+        backend.reply(SendResult.WaitsForUpload)
+        draining.join()
+
+        assertEquals(listOf(5), store.entries.map { it.attempts })
+    }
+
+    @Test
+    fun `a requeue that asks for the edit in flight leaves it one more try though its reply would park it`() = runTest {
+        for ((result, before) in listOf(SendResult.WaitsForUpload to 0, SendResult.Refused to 4)) {
+            backend.sent.clear()
+            backend.answer = { null }
+            val store = FakeStore(listOf(Edit("f1", "a", attempts = before)))
+            val lane = lane(store)
+            val signIn = series.current
+            val draining = launch { lane.drain(signIn) }
+            runCurrent()
+
+            lane.requeueParked(signIn, inFlightToo = true)
+            backend.reply(result)
+            draining.join()
+            assertEquals("$result", listOf(4), store.entries.map { it.attempts })
+
+            // One more try, and only one: the next reply that would park it parks it.
+            backend.answer = { result }
+            repeat(2) { lane.drain(signIn) }
+            assertEquals("$result", listOf("a", "a"), backend.values)
+            assertEquals("$result", listOf(5), store.entries.map { it.attempts })
+        }
+    }
+
+    @Test
+    fun `the edit in flight a requeue marks has its one more try though its caller is cancelled`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val signIn = series.current
+        val caller = launch { lane.drain(signIn) }
+        runCurrent()
+
+        lane.requeueParked(signIn, inFlightToo = true)
+        caller.cancelAndJoin()
+        backend.reply(SendResult.WaitsForUpload)
+        runCurrent()
+
+        assertEquals(listOf(4), store.entries.map { it.attempts })
+    }
+
+    @Test
+    fun `an edit in flight the requeue does not find due is left to its reply`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val signIn = series.current
+        val draining = launch { lane.drain(signIn) }
+        runCurrent()
+
+        lane.requeueParked(signIn, inFlightToo = true) { it.field == "f2" }
+        backend.reply(SendResult.WaitsForUpload)
+        draining.join()
+
+        assertEquals(listOf(5), store.entries.map { it.attempts })
+    }
+
+    @Test
+    fun `a requeue's mark is the edit in flight's alone`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a"), Edit("f2", "b", attempts = 4)))
+        val lane = lane(store)
+        val signIn = series.current
+        backend.answer = { if (it.field == "f1") null else SendResult.Refused }
+        val draining = launch { lane.drain(signIn) }
+        runCurrent()
+
+        lane.requeueParked(signIn, inFlightToo = true)
+        backend.reply(SendResult.Sent(null))
+        draining.join()
+
+        assertEquals(listOf("a", "b"), backend.values)
+        assertEquals(listOf(Edit("f2", "b", attempts = 5, refusedAtMs = 99L)), store.entries)
+    }
+
+    @Test
     fun `counted in memory, refusals park the edit for this process only, and a newer edit starts from none`() = runTest {
         val store = FakeStore(listOf(Edit("f1", "a")))
         val lane = lane(store, LanePolicy(Edit::field, 2, InMemoryAttempts(Edit::field)))
@@ -462,6 +549,63 @@ class OutboxLaneTest {
         assertFalse(lane.enqueueAndDrain(Edit("f3", "c"), ended) { true })
         assertEquals(listOf("b"), backend.values)
         assertEquals(listOf(Edit("f2", "other")), store.entries)
+    }
+
+    @Test
+    fun `a send now of a channel's own write drains the fields it kept, and none when it kept none`() = runTest {
+        val store = FakeStore(listOf(Edit("f2", "other")))
+        val lane = lane(store)
+        backend.answer = { SendResult.Sent(null) }
+        val signIn = series.current
+
+        assertFalse("kept nothing", lane.keepAndDrain(signIn, { true }) { null })
+        assertFalse("kept no field", lane.keepAndDrain(signIn, { true }) { emptySet() })
+        assertTrue(lane.keepAndDrain(signIn, { false }) { setOf("f1").takeIf { lane.enqueue(Edit("f1", "a"), signIn) } })
+        assertEquals("kept, not sent", emptyList<String>(), backend.values)
+        assertTrue(lane.keepAndDrain(signIn, { true }) { setOf("f1").takeIf { lane.enqueue(Edit("f1", "b"), signIn) } })
+
+        assertEquals("only the fields it kept", listOf("b"), backend.values)
+        assertEquals(listOf(Edit("f2", "other")), store.entries)
+    }
+
+    /**
+     * As [enqueueAndDrain]'s, for a write of the channel's own: the edit is kept, and the drain under
+     * way takes it and fails while the write has yet to return. The send now was under way from
+     * before the write, so it does not send the edit again.
+     */
+    @Test
+    fun `a send now of a channel's own write counts as under way from before the write`() = runBlocking {
+        val store = FakeStore(listOf(Edit("f1", "old", madeAtMs = 1)))
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val lane = OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, scope, backend::send)
+        val newTried = CountDownLatch(1)
+        backend.answer = { edit -> if (edit.value == "new") SendResult.Retry.also { newTried.countDown() } else null }
+        val signIn = series.current
+        try {
+            val draining = launch(Dispatchers.Default) { lane.drain(signIn) }
+            // The old edit is out, its reply held.
+            withTimeout(5_000) { while (backend.pending.isEmpty()) delay(1) }
+            val kept = CountDownLatch(1)
+            val goOn = CountDownLatch(1)
+            val sending = launch(Dispatchers.IO) {
+                lane.keepAndDrain(signIn, { true }) {
+                    lane.enqueue(Edit("f1", "new", madeAtMs = 2), signIn)
+                    kept.countDown()
+                    goOn.await(5, TimeUnit.SECONDS)
+                    setOf("f1")
+                }
+            }
+            assertTrue(kept.await(5, TimeUnit.SECONDS))
+            backend.reply(SendResult.Sent(null))
+            assertTrue("the drain under way took the new edit", newTried.await(5, TimeUnit.SECONDS))
+            withTimeout(5_000) { draining.join() }
+            goOn.countDown()
+            withTimeout(5_000) { sending.join() }
+
+            assertEquals(listOf("old", "new"), backend.values)
+        } finally {
+            scope.cancel()
+        }
     }
 
     /**
