@@ -164,17 +164,18 @@ class Synchronizer internal constructor(
      */
     suspend fun retryUnsent(signIn: SignIn) = drain(signIn)
 
-    // Under [lock]: the pass under way, and the one more pass the syncs asked for meanwhile wait for.
+    // Under [lock]: the pass under way, and the passes queued after it, in order, none started yet.
     private val lock = Any()
     private var running: Running? = null
-    private var next: Running? = null
+    private val queued = ArrayList<Running>()
 
     /**
-     * A pass under [signIn], and what it came to once that is known: null when it was cut short.
-     * A pass run [after] another starts once that one is done.
+     * A pass in [mode] under [signIn], and what it came to once that is known: null when it was cut
+     * short. One queued [after] another starts once that one is done. Under [lock], but [landed].
      */
-    private class Running(val signIn: SignIn, val after: Running? = null) {
+    private class Running(val signIn: SignIn, val mode: SyncMode, var after: Running? = null) {
         val landed = CompletableDeferred<Landed?>()
+        var started = after == null
     }
 
     /** What a pass came to, and the pass itself once it synced. */
@@ -193,13 +194,15 @@ class Synchronizer internal constructor(
      * course window closes: Home's relogin, which runs the sync again.
      *
      * One at a time (`tigersync-refresh-order`, "One refresh at a time"), as iOS's `FullSyncGate`
-     * with a follow-up: asked for while a pass runs under the same sign-in, in either mode, the
-     * sync waits for it, then one more pass runs, whose snapshot is fetched after it asked, for
-     * every sync asked for meanwhile. So passes never overlap, however many ask, and each reads
-     * what the outbox holds once. The pass's steps, its [state] and its [afterFailure] are its
-     * first caller's; another caller gets its outcome, and once it synced runs its own [afterSync]
-     * over it. A pass under another sign-in is never waited for, and one cut short by its caller's
-     * cancellation is run again by a caller that waited for it.
+     * with a follow-up: asked for while a pass runs under the same sign-in, the sync waits for it,
+     * then one more pass runs, whose snapshot is fetched after it asked, for every sync of its mode
+     * asked for meanwhile. A sync of the other mode queues its own pass after those (iOS has one
+     * mode; Home's steps and the worker's differ, and neither stands for the other's). So passes
+     * never overlap, however many ask, and each reads what the outbox holds once. The pass's
+     * steps, its [state] and its [afterFailure] are its first caller's; another caller gets its
+     * outcome, and once it synced runs its own [afterSync] over it. A pass under another sign-in
+     * is never waited for, and one cut short by its caller's cancellation is run again by a caller
+     * that waited for it.
      */
     suspend fun sync(
         mode: SyncMode,
@@ -210,12 +213,12 @@ class Synchronizer internal constructor(
     ): SyncOutcome {
         while (true) {
             val (shared, starts) = synchronized(lock) {
-                next?.takeIf { it.signIn === signIn }?.let { return@synchronized it to false }
-                val under = running?.takeIf { it.signIn === signIn }
-                Running(signIn, after = under).also { if (under == null) running = it else next = it } to true
+                queued.firstOrNull { it.signIn === signIn && it.mode == mode }?.let { return@synchronized it to false }
+                val last = queued.lastOrNull { it.signIn === signIn } ?: running?.takeIf { it.signIn === signIn }
+                Running(signIn, mode, after = last).also { if (last == null) running = it else queued += it } to true
             }
             if (starts) {
-                shared.after?.let { awaitDone(shared, it) }
+                if (!shared.started) awaitDone(shared)
                 return run(shared, mode, signIn, state, afterSync, afterFailure)
             }
             val landed = waitingFor { shared.landed.await() }
@@ -234,17 +237,27 @@ class Synchronizer internal constructor(
         }
     }
 
-    /** [shared] starts once [under] is done; cancelled meanwhile, it is cut short for who waits on it. */
-    private suspend fun awaitDone(shared: Running, under: Running) {
+    /**
+     * [shared], queued, starts once the pass ahead of it is done: one let go before it started
+     * never ran, so then it waits for what that one waited for. Cancelled meanwhile, it is cut
+     * short for who waits on it.
+     */
+    private suspend fun awaitDone(shared: Running) {
         try {
-            waitingFor { under.landed.await() }
+            while (true) {
+                val ahead = synchronized(lock) { shared.after } ?: break
+                waitingFor { ahead.landed.await() }
+                synchronized(lock) { if (shared.after === ahead) shared.after = if (ahead.started) null else ahead.after }
+            }
         } catch (e: CancellationException) {
             land(shared, null)
             throw e
         }
         synchronized(lock) {
-            if (next === shared) next = null
-            running = shared
+            queued.remove(shared)
+            shared.started = true
+            // A pass of the next sign-in under way keeps its place: the departing one's is not waited for.
+            if (running?.signIn?.let { it === shared.signIn } != false) running = shared
         }
     }
 
@@ -261,7 +274,7 @@ class Synchronizer internal constructor(
     private fun land(shared: Running, outcome: SyncOutcome?, pass: SyncPass? = null) {
         synchronized(lock) {
             if (running === shared) running = null
-            if (next === shared) next = null
+            queued.remove(shared)
         }
         shared.landed.complete(outcome?.let { Landed(it, pass) })
     }

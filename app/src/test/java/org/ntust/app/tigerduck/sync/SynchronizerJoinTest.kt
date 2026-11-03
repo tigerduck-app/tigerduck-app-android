@@ -114,29 +114,60 @@ class SynchronizerJoinTest {
     }
 
     /**
-     * The worker's sync, asked for while Home's pass runs, waits for it and runs the one more pass
-     * in its own mode; a Home sync asked for meanwhile shares it, its steps after it over that pass.
+     * Codex on PR R, finding 3: a follow-up is shared only by syncs of its mode, as each mode's
+     * steps are its own (a background pass merges no course another device added). The worker's
+     * sync, asked for while Home's pass runs, waits and runs its own pass; a Home sync asked for
+     * meanwhile runs a foreground pass after that, never sharing the worker's. Still one at a time.
      */
     @Test
-    fun `a sync in the other mode waits too, and the one more pass is in the mode of its first caller`() = runBlocking {
+    fun `a sync of the other mode runs its own pass after the one under way, and shares only its own mode's`() = runBlocking {
         val home = scope.async { synchronizer.sync(SyncMode.FOREGROUND, school.current) }
         untilFetches(1)
         val worker = scope.async { synchronizer.sync(SyncMode.BACKGROUND, school.current) }
         untilWaiting(1)
-        val sharedModes = Collections.synchronizedList(mutableListOf<SyncMode>())
+        val passModes = Collections.synchronizedList(mutableListOf<SyncMode>())
         val homeAgain = scope.async {
-            synchronizer.sync(SyncMode.FOREGROUND, school.current, afterSync = { pass -> sharedModes += pass.mode })
+            synchronizer.sync(SyncMode.FOREGROUND, school.current, afterSync = { pass -> passModes += pass.mode })
         }
-        untilWaiting(2)
+        val homeOnceMore = scope.async { synchronizer.sync(SyncMode.FOREGROUND, school.current) }
+        untilWaiting(3)
         fetchHeld.complete(Unit)
 
-        for (sync in listOf(home, worker, homeAgain)) assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { sync.await() })
-        assertEquals(2, fetches.get())
-        assertEquals("Home's second sync ran its steps after the worker's pass", listOf(SyncMode.BACKGROUND), sharedModes.toList())
+        for (sync in listOf(home, worker, homeAgain, homeOnceMore)) assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { sync.await() })
+        assertEquals("Home's second sync ran its steps after a foreground pass", listOf(SyncMode.FOREGROUND), passModes.toList())
         assertEquals(
-            listOf("foreground fetch", "foreground after-steps", "background fetch", "background after-steps"),
+            "one pass at a time, Home's two later syncs sharing one",
+            listOf(
+                "foreground fetch", "foreground after-steps", "background fetch", "background after-steps",
+                "foreground fetch", "foreground after-steps",
+            ),
             log.toList(),
         )
+    }
+
+    /**
+     * A follow-up whose only caller was cancelled while it waited leaves the queue: the pass
+     * queued behind it waits for the pass under way all the same, never beside it.
+     */
+    @Test
+    fun `a pass queued behind a follow-up let go still waits for the pass under way`() = runBlocking {
+        val home = scope.async { synchronizer.sync(SyncMode.FOREGROUND, school.current) }
+        untilFetches(1)
+        val homeAgain = scope.async { synchronizer.sync(SyncMode.FOREGROUND, school.current) }
+        untilWaiting(1)
+        val worker = scope.async { synchronizer.sync(SyncMode.BACKGROUND, school.current) }
+        untilWaiting(2)
+
+        homeAgain.cancelAndJoin()
+        untilWaiting(1)
+        // Long enough for the worker's pass, had it started, to have reached its fetch.
+        delay(300)
+        assertEquals("nothing beside the pass under way", 1, fetches.get())
+        fetchHeld.complete(Unit)
+
+        assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { home.await() })
+        assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { worker.await() })
+        assertEquals(listOf("foreground fetch", "foreground after-steps", "background fetch", "background after-steps"), log.toList())
     }
 
     /**
