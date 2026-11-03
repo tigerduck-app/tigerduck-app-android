@@ -380,13 +380,16 @@ class RefreshOverEditTest {
         val path = "PATCH /v4/sync/courses/${SyncField.courseKey(term, "R1")}/override"
         val held = backend.hold(path)
         val kept = CompletableDeferred<Unit>()
+        // Read as it is told, on the thread that tells it: what the queue holds at that moment.
+        var heldWhenTold: List<String?>? = null
+        kept.invokeOnCompletion { heldWhenTold = runBlocking { w.dataCache.loadPendingCourseOverrides().map { it.customName } } }
         val before = stored()
         val renamed = before.map { it.copy(customCourseName = "Renamed R") }
         val send = launch(Dispatchers.Default) {
             overrides.send("${term}R1", customName = "Renamed R", locale = locale, semester = term, courseNo = "R1", signIn = signIn, kept = kept)
         }
         withTimeout(10_000) { rename(before, renamed, "R1", "Renamed R", kept) }
-        assertEquals("kept before it is answered", listOf("Renamed R"), w.dataCache.loadPendingCourseOverrides().map { it.customName })
+        assertEquals("kept when told, before it is answered", listOf("Renamed R"), heldWhenTold)
 
         reconciler().reconcile(pass(snapshot()))
 
