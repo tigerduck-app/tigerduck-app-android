@@ -186,8 +186,10 @@ class PendingCourseOverrides internal constructor(
         courseNo: String? = null,
         signIn: SignIn,
     ) {
-        val recorded = record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn)
-        recorded.values.filter { sends(it.isColor) }.forEach { lane.drain(signIn, setOf(fieldOf(it))) }
+        // Under way from before it is kept, so a drain already running that sends it does not leave it to send again.
+        lane.keepAndDrain(signIn, { sends(colorHex != null) }) {
+            record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn).values.mapTo(HashSet(), ::fieldOf)
+        }
     }
 
     /**

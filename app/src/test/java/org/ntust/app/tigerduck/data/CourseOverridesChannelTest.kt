@@ -662,6 +662,56 @@ class CourseOverridesChannelTest {
         assertEquals("refused once", listOf(1), waiting().map { it.attempts })
     }
 
+    /**
+     * A newer pick goes once, though a drain already under way reaches it before the pick's own
+     * drain has started: that drain is under way from before the pick is kept.
+     */
+    @Test
+    fun `a newer pick goes once though a drain under way sends it before the pick's own drain starts`() = runTest {
+        val sentColors = java.util.Collections.synchronizedList(mutableListOf<String?>())
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val newerSent = java.util.concurrent.CountDownLatch(1)
+        var armed = false
+        val overrides = PendingCourseOverrides(
+            cache,
+            CourseOverrideSender { _, colorHex, _, _, _, _, _ ->
+                sentColors += colorHex
+                if (colorHex == "#FF0000") {
+                    firstOut.complete(Unit)
+                    release.await()
+                    return@CourseOverrideSender true
+                }
+                newerSent.countDown()
+                throw PushApiException("patchCourseOverride failed: HTTP 422", 422)
+            },
+            records = { true },
+            // Once armed, the newer pick is kept: the older's reply comes, and its drain sends the
+            // newer pick, before this call returns.
+            sends = {
+                if (armed) {
+                    armed = false
+                    release.complete(Unit)
+                    newerSent.await(10, java.util.concurrent.TimeUnit.SECONDS)
+                }
+                true
+            },
+        )
+
+        // The older pick's drain on threads of its own, so it goes on while the newer pick's call holds this one.
+        val first = launch(Dispatchers.Default) { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
+        firstOut.await()
+        armed = true
+        overrides.send(calculus.moodleIdNumber!!, colorHex = "#0000FF", semester = term, courseNo = calculus.courseNo, signIn = signIn)
+        first.join()
+        withContext(Dispatchers.Default) {
+            repeat(1_000) { if (sentColors.size < 2 || cache.loadPendingCourseOverrides().singleOrNull()?.attempts == 0) delay(5) }
+        }
+
+        assertEquals(listOf("#FF0000", "#0000FF"), sentColors.toList())
+        assertEquals("refused once", listOf(1), waiting().map { it.attempts })
+    }
+
     // --- /v4 ---
 
     private val v4 = "http://127.0.0.1:9/v4"
