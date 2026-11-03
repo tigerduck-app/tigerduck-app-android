@@ -46,7 +46,8 @@ enum class SyncOutcome { SYNCED, SKIPPED, FAILED }
 /**
  * One full sync after its fetch, as each [Reconciler] reads it: the snapshot ([result]), the
  * sign-in it was fetched as, and one reading of the switches and the hold ([policy]), taken once
- * the snapshot is in, so every step decides from the same one. [courseSync] is the window the
+ * the snapshot is in, so every step of Home's decides from the same one. The background's colors
+ * and names and its course list read theirs at their own step, as the worker always did. [courseSync] is the window the
  * course steps commit against (`DataCache.beginCourseSync`), and [beforeFetch] the deletes'
  * stamp taken before the fetch (`PendingCourseDeletes.stamp`).
  */

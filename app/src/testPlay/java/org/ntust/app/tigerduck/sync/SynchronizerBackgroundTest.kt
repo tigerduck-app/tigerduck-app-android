@@ -26,6 +26,8 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
+import org.ntust.app.tigerduck.data.CourseIgnoreSync
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
@@ -211,6 +213,63 @@ class SynchronizerBackgroundTest {
         assertEquals(SyncOutcome.SYNCED, rig.synchronizer.sync(SyncMode.BACKGROUND, signIn))
 
         assertEquals(setOf("$term:CS1001"), w.dataCache.loadIgnoredCourses())
+    }
+
+    /**
+     * A rig whose course-ignore step runs [whileIgnoring] once it has written the snapshot's
+     * ignores, before its own requests (the `moodle_course_id` fill-in) go: a switch turned there
+     * is turned after the pass read its policy, and before the steps after it read theirs.
+     */
+    private fun rigTurning(whileIgnoring: () -> Unit, asked: MutableList<String> = mutableListOf()) = homeSyncRig(
+        context, w, backend.client, idleScope,
+        ignores = CourseIgnoreSync(
+            w.dataCache,
+            sender = { _, _, _, _, _ -> true },
+            effects = { whileIgnoring() },
+            sends = { CourseIgnoreSync.syncsCourseIgnores(w.appPrefs) },
+            clock = System::currentTimeMillis,
+        ),
+        termSync = idleTermSync(w, asked),
+    )
+
+    /** A snapshot whose ignore of the term's course changes this phone's, with the course's color and a roster request. */
+    private fun ignoreAndColor(term: String) = JSONObject(snapshot())
+        .put("courses", JSONArray().put(JSONObject().put("course_no", "CS1001").put("course_name", "Kept").put("semester", term).put("moodle_id", "${term}CS1001")))
+        .put(
+            "course_overrides",
+            JSONArray().put(
+                JSONObject().put("moodle_id", "${term}CS1001").put("course_no", "CS1001").put("semester", term).put("color_hex", "#123456")
+                    .put("ignore_assignments", true).put("ignore_assignments_updated_at", "2026-10-13T00:00:00Z"),
+            ),
+        )
+        .put("roster_requests", JSONArray().put("1141"))
+        .toString()
+
+    @Test
+    fun `a color switch turned off while the background ignores step runs keeps the snapshot's color off this phone`() = runBlocking {
+        val term = w.courseService.currentSemesterCode()
+        w.dataCache.saveCourses(listOf(Course(courseNo = "CS1001", courseName = "Kept", moodleIdNumber = "${term}CS1001")), term, signIn)
+        val rig = rigTurning({ w.appPrefs.syncCourseColors = false })
+        backend.answer("GET /sync/full", 200, ignoreAndColor(term))
+
+        assertEquals(SyncOutcome.SYNCED, rig.synchronizer.sync(SyncMode.BACKGROUND, signIn))
+
+        assertEquals("the ignores step ran", setOf("$term:CS1001"), w.dataCache.loadIgnoredCourses())
+        assertEquals("applied after the switch went off", listOf<String?>(null), w.dataCache.loadCourses(term).map { it.customColorHex })
+    }
+
+    @Test
+    fun `a course switch turned off while the background ignores step runs leaves the course list and its roster requests`() = runBlocking {
+        val term = w.courseService.currentSemesterCode()
+        val asked = mutableListOf<String>()
+        val rig = rigTurning({ w.appPrefs.syncCourses = false }, asked)
+        backend.answer("GET /sync/full", 200, ignoreAndColor(term))
+
+        rig.synchronizer.sync(SyncMode.BACKGROUND, signIn)
+
+        assertEquals("the ignores step ran", setOf("$term:CS1001"), w.dataCache.loadIgnoredCourses())
+        assertEquals("answered after the switch went off", emptyList<String>(), asked)
+        assertEquals("reconciled after the switch went off", emptyMap<String, List<String>>(), w.dataCache.loadServerKnownNos())
     }
 
     @Test

@@ -54,12 +54,18 @@ class OverridesReconciler @Inject constructor(
      * courses ([BackgroundCourseOverrides.apply]), not over a color or name this phone has waiting
      * to go up or sent since the fetch; then the widgets, and the colors moved off a duplicate go
      * up. Returns whether the pass applied the colors or names at all.
+     *
+     * The switches and the re-enable hold are read here, once the steps before have run, as the
+     * worker always read them, not from the pass's reading: a switch turned off while the ignores
+     * step waits on its requests keeps the snapshot's colors and names off the timetable and the
+     * widgets.
      */
     private suspend fun reconcileCachedTerm(pass: SyncPass): Boolean {
         val result = pass.result
         val signIn = pass.signIn
-        val syncColors = pass.policy.applies(SyncCategory.COURSE_COLORS)
-        val syncNames = pass.policy.applies(SyncCategory.COURSE_NAMES)
+        val policy = syncPolicies.current
+        val syncColors = policy.applies(SyncCategory.COURSE_COLORS)
+        val syncNames = policy.applies(SyncCategory.COURSE_NAMES)
         if (!(syncColors || syncNames) || result.courseOverrides.isEmpty()) return false
         val applied = BackgroundCourseOverrides.apply(
             dataCache, dataCache.currentSemesterCode(), result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) },

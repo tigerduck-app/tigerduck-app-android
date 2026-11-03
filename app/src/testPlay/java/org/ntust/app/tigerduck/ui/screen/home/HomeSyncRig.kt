@@ -90,7 +90,7 @@ internal fun homeSyncRig(
         holidays = HolidaysReconciler(holidays, w.academicCalendar),
         roster = RosterReconciler(
             w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, adds, deletes, overrides,
-            termSync, idleScope, w.appPrefs,
+            termSync, idleScope, w.appPrefs, policies,
         ),
     )
     val sync = HomeBackendSync(synchronizer, w.auth, w.pushApi, w.notificationSettingsSync, marksReconciler, overridesReconciler)

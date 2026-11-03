@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.SyncPass
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import org.ntust.app.tigerduck.util.logSummary
@@ -32,7 +33,7 @@ import javax.inject.Inject
  * The course list, every term this phone knows of, and the roster requests the snapshot makes,
  * while course sync is on and no re-enable check holds the list. Returns whether it reconciled
  * the list. In the background, the current term's alone ([CurrentTermCourses]), and the roster
- * requests answered before the run ends.
+ * requests answered before the run ends, the switch and the hold read at the step.
  */
 class RosterReconciler @Inject constructor(
     private val dataCache: DataCache,
@@ -47,6 +48,7 @@ class RosterReconciler @Inject constructor(
     private val termCourseSync: TermCourseSync,
     @param:ApplicationScope private val appScope: CoroutineScope,
     prefs: AppPreferences,
+    private val syncPolicies: SyncPolicies,
 ) : Reconciler {
 
     private val currentTerm = CurrentTermCourses(
@@ -56,18 +58,20 @@ class RosterReconciler @Inject constructor(
     override suspend fun reconcile(pass: SyncPass): Boolean {
         val result = pass.result
         val signIn = pass.signIn
-        val takesCourseList = pass.policy.applies(SyncCategory.COURSES)
-        when (pass.mode) {
-            SyncMode.FOREGROUND -> {
+        return when (pass.mode) {
+            SyncMode.FOREGROUND -> pass.policy.applies(SyncCategory.COURSES).also { takesCourseList ->
                 syncCourseList(result, takesCourseList, pass.courseSync, signIn)
                 if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)
             }
-            SyncMode.BACKGROUND -> if (takesCourseList) {
-                currentTerm.reconcile(result, pass.courseSync, signIn)
-                answerRosterRequestsNow(result.rosterRequests, signIn)
+            // Read here, once the steps before have run, as the worker always read it: a course
+            // switch turned off while they ran leaves the list and its roster requests.
+            SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES).also { takesCourseList ->
+                if (takesCourseList) {
+                    currentTerm.reconcile(result, pass.courseSync, signIn)
+                    answerRosterRequestsNow(result.rosterRequests, signIn)
+                }
             }
         }
-        return takesCourseList
     }
 
     /**
