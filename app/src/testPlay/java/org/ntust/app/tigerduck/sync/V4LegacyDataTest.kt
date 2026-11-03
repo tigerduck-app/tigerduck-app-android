@@ -1,0 +1,181 @@
+package org.ntust.app.tigerduck.sync
+
+import android.app.Application
+import android.content.Context
+import androidx.work.testing.WorkManagerTestInitHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
+import org.json.JSONArray
+import org.json.JSONObject
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.ntust.app.tigerduck.auth.AccountWorld
+import org.ntust.app.tigerduck.auth.ScriptedBackend
+import org.ntust.app.tigerduck.auth.accountWorld
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.clock.AppClock
+import org.ntust.app.tigerduck.shared.clock.ClockOverride
+import org.ntust.app.tigerduck.ui.screen.home.HomeSyncState
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+
+/**
+ * What an upgraded student's older data does at the first `/v4` syncs (PR V, Codex fix round 1):
+ * data a build from before hides had terms, or before a change kept its term, left on the phone,
+ * which only `/v4`'s rules read. Over the app's own clients, queues and synchronizer
+ * ([appSyncRig]), the endpoint setting and the session as the released build left them, the phone
+ * in term [TERM] with [PAST] cached before it. Made-up accounts and course numbers.
+ */
+@RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class)
+class V4LegacyDataTest {
+
+    private val context = RuntimeEnvironment.getApplication()
+    private val backend = ScriptedBackend()
+    private val rules = V4WriteRules()
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val idleScope = CoroutineScope(Job().apply { cancel() })
+
+    private lateinit var w: AccountWorld
+    private lateinit var rig: AppSyncRig
+    private lateinit var signIn: SignIn
+
+    private val state = HomeSyncState(
+        ignoredAssignmentIds = MutableStateFlow(emptySet()),
+        markedCompletedIds = MutableStateFlow(emptySet()),
+        ignoredCourseKeys = MutableStateFlow(emptySet()),
+        allAssignments = MutableStateFlow(emptyList()),
+        allCourses = MutableStateFlow(emptyList()),
+        conflicts = MutableStateFlow(emptyList()),
+        pendingOverrides = mutableSetOf(),
+    )
+
+    @Before
+    fun setUp() {
+        WorkManagerTestInitHelper.initializeTestWorkManager(context)
+        AppClock.setOverride(ClockOverride(IN_TERM.toInstant(ZoneOffset.ofHours(8)).toEpochMilli(), frozen = true, savedAtRealMillis = 0L))
+        val prefs = AppPreferences(context)
+        prefs.announcementApiBaseUrlOverride = STORED
+        assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
+        // The two terms as the school's calendar publishes them.
+        context.getSharedPreferences("academic_calendar", Context.MODE_PRIVATE).edit()
+            .putString(
+                "payload",
+                """{"revision":1,"semesters":[{"code":"$PAST","start":"2025-09-01","end":"2026-01-31"},""" +
+                    """{"code":"$TERM","start":"2026-09-01","end":"2027-01-31"}],"holidays":[]}""",
+            )
+            .commit()
+        val clock = SyncClock(SyncClockStore(context), prefs)
+        val client = appBackendClient(prefs, clock, backend.client, rules)
+        val credentialPrefs = context.getSharedPreferences("tigerduck_credentials", Context.MODE_PRIVATE)
+        w = accountWorld(context, credentialPrefs, appScope, idleScope, backend = client, backendLogin = client)
+        rig = appSyncRig(context, w, client, clock, appScope, idleScope, oldEntryTimeAt(context, FIRST_RUN_MS))
+        runBlocking {
+            assertTrue(w.auth.login(STUDENT, "made-up-password"))
+            w.credentials.v3Tokens.save("access-1", "refresh-1", Long.MAX_VALUE, issuedBy = STORED, studentId = STUDENT)
+        }
+        signIn = w.sessions.school.signIns.current
+        assertEquals(TERM, w.dataCache.currentSemesterCode())
+        w.appPrefs.semesterCatalogTerms = listOf(TERM, PAST)
+    }
+
+    @After
+    fun tearDown() {
+        appScope.cancel()
+        AppClock.setOverride(null)
+    }
+
+    private fun course(courseNo: String, term: String = TERM) =
+        Course(courseNo = courseNo, courseName = "Course $courseNo", moodleIdNumber = "$term$courseNo")
+
+    private fun synced(vararg categories: SyncCategory) {
+        w.appPrefs.school.syncedCategories.set(categories.map { it.stored }.toSet(), signIn)
+    }
+
+    /** Each request after the first [from] whose endpoint has [part]: method and path with its query, then its body. */
+    private fun sent(from: Int, part: String): List<String> = backend.endpoints().indices.drop(from).mapNotNull { i ->
+        val endpoint = backend.endpoints()[i]
+        if (part !in endpoint) return@mapNotNull null
+        val request = backend.received(endpoint)[backend.endpoints().subList(0, i).count { it == endpoint }]
+        val query = request.query.takeIf { it.isNotEmpty() }?.let { "?$it" }.orEmpty()
+        "$endpoint$query | ${request.body}"
+    }
+
+    /** A `/v4` snapshot that holds nothing of this phone's courses: no rows, no tombstones. */
+    private fun emptySnapshot() = JSONObject()
+        .put("current_revision", 7)
+        .put("server_hlc", 1_793_000_000_000_000L)
+        .put("assignments", JSONArray())
+        .put("assignment_overrides", JSONArray())
+        .put("courses", JSONArray())
+        .put("course_overrides", JSONArray())
+        .put("course_tombstones", JSONArray())
+        .put("holiday_overrides", JSONArray())
+        .toString()
+
+    // --- Codex P2 1: a legacy bare hide at the first course sync ---
+
+    @Test
+    fun `a hide from before hides had terms stays through the first course sync, and goes up as its term's delete stamped 0`() =
+        runBlocking {
+            // The course list never synced here; every other category has.
+            synced(SyncCategory.ASSIGNMENTS, SyncCategory.COURSE_COLORS, SyncCategory.COURSE_NAMES)
+            assertTrue(w.dataCache.saveCourses(listOf(course("CS1001"), course("CS1002")), TERM, signIn))
+            // As a build from before hides had terms left them: CS1001's, and one of a number no term here holds.
+            w.dataCache.saveDeletedCourseNos(setOf("CS1001", "ZZ9999"), signIn)
+            backend.answer("GET /v4/sync/full", 200, emptySnapshot())
+            backend.answer(
+                "POST /v4/sync/courses/upload", 200,
+                """{"upserted":1,"skipped_tombstoned":0,"accepted_keys":["client:$TERM:CS1002"]}""",
+            )
+            val from = backend.endpoints().size
+
+            rig.home.sync.pull(state, signIn)
+
+            // Still hidden, now by its term, and waiting as that term's delete; the one no term holds stays as it was.
+            assertEquals(setOf("$TERM:CS1001", "ZZ9999"), w.dataCache.loadDeletedCourseNos())
+            assertTrue(CourseTombstoneKeys.isHidden("CS1001", TERM, w.dataCache.loadDeletedCourseNos()))
+            assertEquals(setOf("CS1001"), rig.home.deletes.waitingIn(TERM))
+            // The hidden course leaves the term's list, as every hidden one does (CourseSyncReconciler.committedCourses);
+            // the visible one stays, and is the only one the term's upload lists.
+            assertEquals(listOf("CS1002"), w.dataCache.loadCourses(TERM).map { it.courseNo })
+            assertEquals(
+                listOf(listOf("CS1002")),
+                sent(from, "/courses/upload").map { line ->
+                    val courses = JSONObject(line.substringAfter(" | ")).getJSONArray("courses")
+                    (0 until courses.length()).map { courses.getJSONObject(it).getString("course_no") }
+                },
+            )
+
+            rig.outbox.drain(signIn)
+
+            assertEquals(listOf("DELETE /v4/sync/courses/client:$TERM:CS1001?hlc=0 | "), sent(from, "DELETE "))
+            assertEquals(emptyList<String>(), rules.refused)
+        }
+
+    private companion object {
+        const val STUDENT = "B00015999"
+        const val STORED = "http://127.0.0.1:9/v3"
+        const val TERM = "1151"
+        const val PAST = "1141"
+        val IN_TERM: LocalDateTime = LocalDateTime.of(2026, 10, 15, 10, 0)
+        const val FIRST_RUN_MS = 1_760_000_000_000L
+    }
+}

@@ -5,7 +5,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthService
-import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
@@ -177,7 +176,7 @@ class RosterReconciler @Inject constructor(
         val selectionDropped = dataCache.loadSelectionDroppedNos()
         val serverKnown = dataCache.loadServerKnownNos()
         val run = CourseListRun(
-            result, courseSync, signIn, rowsBySemester, selectionDropped, serverKnown, migratedTombstones(semesters, signIn), holds,
+            result, courseSync, signIn, rowsBySemester, selectionDropped, serverKnown, dataCache.pinnedLegacyHides(semesters, signIn), holds,
         )
         val currentSemester = courseService.currentSemesterCode()
         var touchedCurrent = false
@@ -293,32 +292,6 @@ class RosterReconciler @Inject constructor(
             }
             .onFailure { e -> Log.w(TAG, "[Sync] $semester: auto-upload failed: ${e.logSummary()}") }
         Log.i(TAG, "[Sync] $semester: server empty, uploaded ${outcome.toUpload.size} local courses")
-    }
-
-    /**
-     * The tombstone store with legacy bare entries pinned to the terms whose
-     * cached roster carries them.
-     *
-     * Bare entries pre-date semester scoping and hide a course number in
-     * every term, so the per-term reconcile would keep flip-flopping them:
-     * one term un-hides on the server's say-so and clears the bare entry for
-     * all the others. Pinning them once, here, is the upgrade path — see
-     * [CourseTombstoneKeys.migrateLegacyEntries], which leaves anything no
-     * roster knows bare rather than guessing.
-     */
-    private suspend fun migratedTombstones(semesters: List<String>, signIn: SignIn): Set<String> {
-        val stored = dataCache.loadDeletedCourseNos()
-        if (stored.none { ':' !in it }) return stored
-        val rosters = semesters.associateWith { semester ->
-            dataCache.loadCourses(semester).map { it.courseNo }.toSet()
-        }
-        // Under the hides lock: a bare one lifted while the rosters were read stays lifted.
-        val migrated = dataCache.pinLegacyCourseHides(stored, rosters, signIn)
-        val bare = migrated.count { ':' !in it }
-        if (bare < stored.count { ':' !in it }) {
-            Log.i(TAG, "[Sync] pinned ${stored.count { ':' !in it } - bare} legacy tombstones to their terms")
-        }
-        return migrated
     }
 
     private companion object {

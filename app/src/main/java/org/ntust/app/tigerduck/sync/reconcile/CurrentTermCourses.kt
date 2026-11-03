@@ -27,7 +27,7 @@ import org.ntust.app.tigerduck.util.logSummary
  *
  * Deliberately narrower than Home's (C2): only the current term, no merge of rows this device
  * lacks (that is left to Home's sync), and no pinning of legacy bare tombstones to terms
- * (`RosterReconciler.migratedTombstones`), so an un-hide here can lift a bare entry for every
+ * (`pinnedLegacyHides`), so an un-hide here can lift a bare entry for every
  * term at once, as the code it replaced also did, and the cache prune ignores bare entries rather
  * than delete a retaken course on the strength of one.
  */
