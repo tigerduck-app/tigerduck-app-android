@@ -58,7 +58,7 @@ import java.io.File
  * change with its time or with none, a resend after a `clock_ahead` and the numeric Moodle id's
  * fill-in, and what an outage, a refusal, an older backend's answer and the switches leave waiting.
  *
- * On `/v4` (dormant until the flip) a change goes by its course's key, stamped as it was made, one
+ * On `/v4` (every build's since the move) a change goes by its course's key, stamped as it was made, one
  * an older build wrote with no time goes with its old-entry time (Review Focus 1), the reply's
  * clock is the field's acknowledgment, and a reply that says the backend kept a later setting puts
  * it on this phone unless a newer change waits or this phone's setting is no longer the one

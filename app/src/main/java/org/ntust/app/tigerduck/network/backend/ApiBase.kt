@@ -38,8 +38,12 @@ enum class BackendApi(val segment: String) {
  * names is moved by [of] as it is sent, and nothing stored is rewritten.
  */
 object ApiBase {
-    /** The API the app speaks. A base ending in `/v3` moves to it; one ending in `/v4` already speaks it. */
-    val TARGET: BackendApi = BackendApi.V3
+    /**
+     * The API the app speaks: `/v4`. A base ending in `/v3` moves to it, whoever runs it (as iOS's
+     * `apiBase` moves any server's, S3), and one ending in `/v4` already speaks it. A base with no
+     * version segment is spoken to as it always was, as `/v3` is.
+     */
+    val TARGET: BackendApi = BackendApi.V4
 
     // The API a base ending in `/v3` moves to: TARGET, except while a test that pins what `/v3`
     // sends runs, until Z1 deletes those requests (moveBasesTo).

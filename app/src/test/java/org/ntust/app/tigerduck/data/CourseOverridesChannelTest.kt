@@ -56,7 +56,7 @@ import java.io.File
  * change with its time or with none, a resend after a `clock_ahead`, and what an outage, a refusal,
  * a course gone from this phone, the switches and the re-enable hold leave waiting.
  *
- * On `/v4` (dormant until the flip) a change goes by its course's key, stamped as it was made, a
+ * On `/v4` (every build's since the move) a change goes by its course's key, stamped as it was made, a
  * change an older build wrote with no time goes with its old-entry time (Review Focus 1), one made
  * with its kind off is kept and goes once it is on, the reply's clock is the field's
  * acknowledgment, and a reply that says the backend kept a later value puts it on this phone

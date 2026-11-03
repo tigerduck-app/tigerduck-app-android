@@ -1,11 +1,20 @@
 package org.ntust.app.tigerduck.network.backend
 
+import android.content.Context
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.Description
+import org.junit.runners.model.Statement
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.canonicalBackend
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.sync.SyncClock
+import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.util.JvmContext
 
 /**
  * One backend across its API versions: which API a base speaks, the base moved to the API the app
@@ -14,8 +23,8 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 class ApiBaseTest {
 
     @Test
-    fun `the app speaks v3 until the move to v4`() {
-        assertEquals(BackendApi.V3, ApiBase.TARGET)
+    fun `the app speaks v4`() {
+        assertEquals(BackendApi.V4, ApiBase.TARGET)
     }
 
     @Test
@@ -56,16 +65,63 @@ class ApiBaseTest {
     }
 
     @Test
-    fun `the default target changes no base`() {
-        val bases = listOf(
-            "https://api.example.test/v3",
-            "https://api.example.test/prefix/v3/",
-            "https://api.example.test/v4",
-            "https://api.example.test",
-            "http://10.0.2.2:40000/v3",
+    fun `by default a base ending in v3 moves to v4, and no other base moves`() {
+        val moves = mapOf(
+            "https://api.example.test/v3" to "https://api.example.test/v4",
+            "https://api.example.test/prefix/v3/" to "https://api.example.test/prefix/v4/",
+            "http://10.0.2.2:40000/v3" to "http://10.0.2.2:40000/v4",
+            "https://api.example.test/v4" to "https://api.example.test/v4",
+            "https://api.example.test" to "https://api.example.test",
+            "https://api.example.test/prefix" to "https://api.example.test/prefix",
         )
 
-        assertEquals(bases.associateWith { it }, bases.associateWith { ApiBase.of(it) })
+        assertEquals(moves, moves.keys.associateWith { ApiBase.of(it) })
+    }
+
+    @Test
+    fun `a self-hosted backend's base ending in v3 moves to v4 too, as iOS moves any server's`() {
+        // S3: the move is by the base's last segment alone, whoever runs the backend.
+        val settings = mapOf(
+            "https://tigerduck.self-hosted.example/v3" to "https://tigerduck.self-hosted.example/v4",
+            "https://self-hosted.example/tigerduck/api/v3" to "https://self-hosted.example/tigerduck/api/v4",
+            "http://192.168.1.5:8000/v3" to "http://192.168.1.5:8000/v4",
+        )
+
+        assertEquals(settings, settings.keys.associateWith { resolveAnnouncementEndpoint(it).url })
+        assertEquals(settings.keys.associateWith { BackendApi.V4 }, settings.keys.associateWith { BackendApi.of(resolveAnnouncementEndpoint(it).url) })
+    }
+
+    @Test
+    fun `a base with no version segment, or another host's, is spoken to as before the move`() {
+        // No version segment: as given, and spoken to as every base without one always was, as /v3.
+        val unversioned = listOf("https://self-hosted.example", "https://self-hosted.example/tigerduck/api", "http://192.168.1.5:8000")
+        assertEquals(unversioned.associateWith { it }, unversioned.associateWith { resolveAnnouncementEndpoint(it).url })
+        assertEquals(unversioned.associateWith { BackendApi.V3 }, unversioned.associateWith { BackendApi.of(resolveAnnouncementEndpoint(it).url) })
+        // Another host's requests are not the backend's, at either version: no session, no clock read.
+        val school = listOf("https://moodle2.ntust.edu.tw/v3/webservice", "https://ssoam2.ntust.edu.tw/v4/account/login")
+        for (base in listOf("https://api.example.test/v3", "https://api.example.test/v4")) {
+            assertEquals(school.associateWith { false }, school.associateWith { ApiBase.serves(ApiBase.of(base), it.toHttpUrl()) })
+        }
+    }
+
+    @Test
+    fun `a test that pins v3 keeps a base ending in v3 there, and the move is back after it`() {
+        assertEquals("https://api.example.test/v3", speakingV3 { ApiBase.of("https://api.example.test/v3") })
+        assertEquals("https://api.example.test/v4", ApiBase.of("https://api.example.test/v3"))
+        runCatching { speakingV3 { error("a test that fails") } }
+        assertEquals("https://api.example.test/v4", ApiBase.of("https://api.example.test/v3"))
+
+        // The rule, around a test that fails as its base is read.
+        var seen: String? = null
+        val test = object : Statement() {
+            override fun evaluate() {
+                seen = ApiBase.of("https://api.example.test/v3")
+                error("a test that fails")
+            }
+        }
+        runCatching { SpeaksV3().apply(test, Description.EMPTY).evaluate() }
+        assertEquals("https://api.example.test/v3", seen)
+        assertEquals("https://api.example.test/v4", ApiBase.of("https://api.example.test/v3"))
     }
 
     @Test
@@ -174,16 +230,30 @@ class ApiBaseTest {
     }
 
     @Test
-    fun `the endpoint setting speaks the API the app does`() {
-        val default = canonicalBackend(BuildConfig.PUSH_BASE_URL)
+    fun `the endpoint setting speaks v4, the default and a setting ending in v3 alike`() {
+        // The default, PUSH_BASE_URL, ends in /v3 in the debug build and the release alike.
+        val default = canonicalBackend(BuildConfig.PUSH_BASE_URL).let { if (it.endsWith("/v3")) it.dropLast(2) + "v4" else it }
         val settings = mapOf(
-            null to ApiBase.of(default),
-            "https://api.example.test/v3" to ApiBase.of("https://api.example.test/v3"),
-            "https://API.Example.TEST:443/prefix/v3/" to ApiBase.of("https://api.example.test/prefix/v3"),
+            null to default,
+            "https://api.example.test/v3" to "https://api.example.test/v4",
+            "https://API.Example.TEST:443/prefix/v3/" to "https://api.example.test/prefix/v4",
             "https://api.example.test/v4" to "https://api.example.test/v4",
             "https://api.example.test" to "https://api.example.test",
         )
 
         assertEquals(settings, settings.keys.associateWith { resolveAnnouncementEndpoint(it).url })
+    }
+
+    @Test
+    fun `a setting ending in v3 takes every v4 rule, last writer wins and the clock's stamps`() {
+        val context = JvmContext()
+        val prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "https://api.example.test/v3" }
+        val clock = SyncClock(SyncClockStore(context.getSharedPreferences("tigerduck_sync_clock", Context.MODE_PRIVATE)), prefs)
+        val ahead = System.currentTimeMillis() + 3_600_000
+        clock.heardInSnapshot(ahead * 1_000)
+
+        assertTrue(SyncPolicies(prefs).current.lastWriterWins)
+        // Not the wall clock, as /v3's stamp was: never below the backend's clock as last seen.
+        assertEquals(ahead + 1, clock.stampMs())
     }
 }

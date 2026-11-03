@@ -201,7 +201,8 @@ class SessionBackendMatchTest {
 
         assertEquals(
             listOf(
-                Triple("http://192.168.1.5:40000/v3/", DepartingDeviceUnregister.Outcome.DONE, listOf("http://192.168.1.5:40000/v3")),
+                // To the debt's backend, at the API the app speaks.
+                Triple("http://192.168.1.5:40000/v3/", DepartingDeviceUnregister.Outcome.DONE, listOf("http://192.168.1.5:40000/v4")),
                 Triple("http://192.168.1.6:40000/v3", DepartingDeviceUnregister.Outcome.RETRY, emptyList<String>()),
                 Triple("http://192.168.1.5:40001/v3", DepartingDeviceUnregister.Outcome.RETRY, emptyList<String>()),
                 Triple("http://192.168.1.5:40000/prefix/v3", DepartingDeviceUnregister.Outcome.RETRY, emptyList<String>()),

@@ -92,7 +92,7 @@ class SchoolUploadsTest {
 
     @Before
     fun setUp() {
-        // The gate holds school uploads on /v4 alone, whose base no build speaks yet; each /v3 test sets /v3.
+        // The gate holds school uploads on /v4 alone, which every build speaks since the move; each /v3 test sets /v3.
         prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4" }
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
