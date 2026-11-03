@@ -30,6 +30,7 @@ import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.push.syncFixture
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.SyncClock
@@ -246,6 +247,49 @@ class HolidayChannelTest {
 
         assertEquals(listOf(true, false), sent)
         assertEquals(setOf(3), prefs.holidayOverridesAwaitingUpload)
+    }
+
+    /**
+     * The first student's choice out, and a sync of theirs waiting behind it, when they sign out and
+     * the next student makes one: the next student's goes, once, under their own sign-in.
+     */
+    @Test
+    fun `on v3 a waiting sync of an ended sign-in does not keep the next student's choice from going`() = runTest {
+        val sent = mutableListOf<Pair<Int, SignIn>>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val holidays = PendingHolidayOverrides(
+            prefs,
+            HolidayOverrideSender { id, _, sentAs, _ ->
+                sent += id to sentAs
+                if (sent.size == 1) {
+                    firstOut.complete(Unit)
+                    release.await()
+                }
+                true
+            },
+            syncs = { true },
+        )
+        val first = signIn
+
+        val a = launch { holidays.send(3, first) }
+        firstOut.await()
+        val c = launch { holidays.retry(first) }
+        testScheduler.runCurrent()
+        // Signed out: the choices cleared, and the next student signs in and makes one.
+        series.end()
+        prefs.forgetHolidayOverrides()
+        series.open()
+        val second = series.current
+        val next = launch { holidays.send(4, second) }
+        testScheduler.runCurrent()
+        release.complete(Unit)
+        a.join()
+        c.join()
+        next.join()
+
+        assertEquals(listOf(3 to first, 4 to second), sent)
+        assertEquals(emptySet<Int>(), prefs.holidayOverridesAwaitingUpload)
     }
 
     @Test

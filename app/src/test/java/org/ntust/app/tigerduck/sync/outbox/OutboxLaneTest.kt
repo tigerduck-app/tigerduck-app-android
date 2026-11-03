@@ -366,6 +366,69 @@ class OutboxLaneTest {
         assertEquals(listOf("a", "a", "a"), backend.values)
     }
 
+    /**
+     * A drain of the first student's, waiting behind their request while they sign out and the
+     * next student edits: once its sign-in has ended it neither sends nor counts anything as tried
+     * for the next student's drain, which sends the edit.
+     */
+    @Test
+    fun `a drain whose sign-in ended while it waited leaves the next student's edit to the next student's drain`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val first = series.current
+        backend.answer = { if (it.value == "b") SendResult.Sent(null) else null }
+        val sending = launch { lane.drain(first) }
+        runCurrent()
+        val waiting = launch { lane.drain(first) }
+        runCurrent()
+        // Signed out, the queue wiped, and the next student signs in and edits.
+        series.end()
+        store.entries = emptyList()
+        series.open()
+        val second = series.current
+        assertTrue(lane.enqueue(Edit("f2", "b"), second))
+        val next = launch { lane.drain(second) }
+        runCurrent()
+
+        backend.reply(SendResult.Sent(null))
+        sending.join()
+        waiting.join()
+        next.join()
+
+        assertEquals(listOf("a" to first, "b" to second), backend.sent.map { (edit, signIn) -> edit.value to signIn })
+        assertEquals(emptyList<Edit>(), store.entries)
+    }
+
+    /**
+     * The first student's drain past its sign-in check, its read of the queue slow, as the student
+     * signs out and the next one's edit and drain arrive: what it reads it counts for drains of its
+     * own sign-in only, so the next student's drain still sends the edit.
+     */
+    @Test
+    fun `an edit read under an ended sign-in counts as tried for no drain of another sign-in`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val first = series.current
+        backend.answer = { SendResult.Sent(null) }
+        val read = CompletableDeferred<Unit>()
+        store.holdNextLoad = read
+        val draining = launch { lane.drain(first) }
+        runCurrent()
+        // Signed out while its read waits: the queue wiped, then the next student's edit in it.
+        series.end()
+        store.entries = listOf(Edit("f2", "b"))
+        series.open()
+        val second = series.current
+        val next = launch { lane.drain(second) }
+        runCurrent()
+
+        read.complete(Unit)
+        draining.join()
+        next.join()
+
+        assertEquals(listOf("b" to second), backend.sent.map { (edit, signIn) -> edit.value to signIn })
+    }
+
     /** "Tried" is kept by field: two fields' edits a channel's sameEdit calls alike are two edits. */
     @Test
     fun `edits of two fields that look alike each go`() = runTest {
