@@ -46,7 +46,7 @@ internal object BackgroundCourseOverrides {
             if (cached.isEmpty()) return@updateCoursesIfChanged cached
             val names = when {
                 stamped == null -> CourseSyncReconciler.applyNameOverrides(dataCache, overrides, syncNames, signIn, held)
-                syncNames -> dataCache.updateCourseCustomNames(signIn) { current -> stamped.names(current, cached) ?: current }
+                syncNames -> dataCache.updateCourseCustomNames(signIn) { current -> stamped.names(current) ?: current }
                 else -> null
             }
             val named = if (names != null) CourseNameOverrides.stamp(cached, names, locale) else cached

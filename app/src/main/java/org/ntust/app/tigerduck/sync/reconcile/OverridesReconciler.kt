@@ -102,8 +102,9 @@ class OverridesReconciler @Inject constructor(
     }
 
     // A /v4 pull's merges over [term]'s courses, the override channel's waiting changes read at each.
-    private fun stamped(result: BackendSyncResult, holds: PullHolds, term: String) =
-        StampedMerges(result.courseOverrides, term, holds, pendingCourseOverrides::heldFields)
+    private suspend fun stamped(result: BackendSyncResult, holds: PullHolds, term: String) = StampedMerges(
+        result.courseOverrides, term, holds, pendingCourseOverrides::heldFields, dataCache.loadEveryTermCourses().values.flatten(),
+    )
 
     /**
      * [applyCourseOverrides] on `/v4` (LWW D12): the names, under their lock, and the colors over
@@ -112,7 +113,7 @@ class OverridesReconciler @Inject constructor(
      */
     private suspend fun applyStamped(state: HomeSyncState, merges: StampedMerges, signIn: SignIn, syncColors: Boolean, syncNames: Boolean): Boolean {
         val courses = state.allCourses.value.ifEmpty { return false }
-        if (syncNames) dataCache.updateCourseCustomNames(signIn) { current -> merges.names(current, courses) ?: current }
+        if (syncNames) dataCache.updateCourseCustomNames(signIn) { current -> merges.names(current) ?: current }
         if (syncColors) merges.colors(courses)?.let { showColors(state, it, signIn) }
         return true
     }

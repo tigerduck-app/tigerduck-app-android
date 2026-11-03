@@ -16,6 +16,11 @@ import org.ntust.app.tigerduck.ui.screen.classtable.CourseColorPick
  * A change an older build queued with no term names its course by its Moodle id
  * ([org.ntust.app.tigerduck.data.fieldOf]); its field is asked by that id too, so it holds the
  * course whatever term the snapshot's row is in.
+ *
+ * A course with no Moodle id, added by hand here, has a color and names no device here can send:
+ * the class table and a first sync send an override only by a Moodle id. No snapshot can hold one
+ * this phone set, so their absence takes nothing away; a value the snapshot does hold, another
+ * device's, is still taken.
  */
 internal object StampedCourseOverrides {
 
@@ -41,7 +46,8 @@ internal object StampedCourseOverrides {
             val row = rowOf(course, key, term, overrides)
             val hex = if (held) course.customColorHex else row?.colorHex
             if (hex == null) {
-                if (course.customColorHex != null) cleared += course.courseNo
+                // One no device here can send stays, as a course no pick names.
+                if (course.customColorHex != null && !course.moodleIdNumber.isNullOrEmpty()) cleared += course.courseNo
                 return@mapNotNull null
             }
             serverHex[course.courseNo] = hex.uppercase()
@@ -53,26 +59,30 @@ internal object StampedCourseOverrides {
 
     /**
      * [existing] names (course number to locale to name) with [overrides]' as D12 has them: each
-     * course's name in each locale the snapshot's, an empty or absent one cleared, but those of
-     * [held] (course number and locale), which stay as they are. Null when nothing changes.
+     * course's name in each locale the snapshot's, an empty one cleared, an absent one too but on a
+     * course of [unsendable] (no course of its number here has a Moodle id to send it by), and those
+     * of [held] (course number and locale) as they are. Null when nothing changes.
      */
     fun names(
         existing: Map<String, Map<String, String>>,
         overrides: List<CourseOverrideResult>,
         held: Set<Pair<String, String>>,
+        unsendable: Set<String> = emptySet(),
     ): Map<String, Map<String, String>>? {
+        // "" kept: a name some device cleared, which clears it here too.
         val server = mutableMapOf<String, MutableMap<String, String>>()
-        for (o in overrides) {
-            val no = o.courseNo ?: continue
-            val entry = server.getOrPut(no) { mutableMapOf() }
-            for ((locale, name) in o.customNames) if (name.isEmpty()) entry.remove(locale) else entry[locale] = name
-        }
+        for (o in overrides) server.getOrPut(o.courseNo ?: continue) { mutableMapOf() }.putAll(o.customNames)
         val merged = mutableMapOf<String, Map<String, String>>()
         for (no in existing.keys + server.keys) {
             val mine = existing[no].orEmpty()
             val theirs = server[no].orEmpty()
             val entry = (mine.keys + theirs.keys).mapNotNull { locale ->
-                (if (no to locale in held) mine[locale] else theirs[locale])?.let { locale to it }
+                when {
+                    no to locale in held -> mine[locale]
+                    locale in theirs -> theirs.getValue(locale).ifEmpty { null }
+                    no in unsendable -> mine[locale]
+                    else -> null
+                }?.let { locale to it }
             }.toMap()
             if (entry.isNotEmpty()) merged[no] = entry
         }
@@ -82,7 +92,7 @@ internal object StampedCourseOverrides {
     /**
      * The course numbers and locales whose name this phone keeps, from the [fields] it keeps: a
      * name's field by its course key names its number, and one by a Moodle id (an older build's
-     * change with no term) the number [courses] or [overrides] give that id.
+     * change with no term) the number [courses], every term's, or [overrides] give that id.
      */
     fun heldNames(fields: Set<String>, courses: List<Course>, overrides: List<CourseOverrideResult>): Set<Pair<String, String>> {
         val byMoodleId = overrides.mapNotNull { o -> o.courseNo?.let { o.moodleCourseId to it } }.toMap() +
@@ -131,18 +141,22 @@ internal fun colorPicksApplied(
  * A `/v4` pull's two merges over [term]'s courses (LWW D12), as Home's pass and the background's
  * run them: what this phone keeps is what [holds] names, and what the course overrides' channel
  * holds as each merge runs ([waiting]), read again there, so a pick or a rename kept since the
- * pull read the outbox holds too.
+ * pull read the outbox holds too. [everyCourse] is every term's courses on this phone, read before
+ * the step: which course an older build's change names by its Moodle id, in whatever term, and
+ * which course numbers no course here has a Moodle id for, whose names nothing can send.
  */
 internal class StampedMerges(
     private val overrides: List<CourseOverrideResult>,
     private val term: String,
     private val holds: PullHolds,
     private val waiting: suspend () -> Set<String>,
+    private val everyCourse: List<Course>,
 ) {
-    /** The names as [StampedCourseOverrides.names] merges them over [current], [courses] naming the Moodle ids. */
-    suspend fun names(current: Map<String, Map<String, String>>, courses: List<Course>): Map<String, Map<String, String>>? {
-        val held = StampedCourseOverrides.heldNames(holds.fields() + waiting(), courses, overrides)
-        return StampedCourseOverrides.names(current, overrides, held)
+    /** The names as [StampedCourseOverrides.names] merges them over [current]. */
+    suspend fun names(current: Map<String, Map<String, String>>): Map<String, Map<String, String>>? {
+        val held = StampedCourseOverrides.heldNames(holds.fields() + waiting(), everyCourse, overrides)
+        val unsendable = everyCourse.groupBy { it.courseNo }.filterValues { all -> all.all { it.moodleIdNumber.isNullOrEmpty() } }.keys
+        return StampedCourseOverrides.names(current, overrides, held, unsendable)
     }
 
     /** [courses] with the colors as [StampedCourseOverrides.colors] has them. */
