@@ -267,17 +267,38 @@ class SchoolUploadsTest {
         assertEquals(listOf(CS1), termUploads().single().first)
     }
 
+    /**
+     * Codex on PR R, finding 2: Home's fetch records a later course selection answer, the same
+     * courses, before the first pull, and uploads no roster of its own. The waiting term still
+     * goes once the pull lands, as the term's roster.
+     */
     @Test
-    fun `a waiting term whose course selection answer a newer one replaced sends nothing`() = runBlocking {
+    fun `a waiting term still goes once a later answer that uploads nothing is recorded`() = runBlocking {
         termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         untilParked(1)
-        cache.recordSelectionRoster(TERM, listOf(CS1), signIn)
+        cache.recordSelectionRoster(TERM, listOf(CS1, CS2), signIn)
 
         gate.notePull(signIn)
 
-        until("the waiting upload let go") { uploads.waitingUploads == 0 && gate.waiting == 0 }
-        delay(300)
-        assertEquals(emptyList<Any>(), termUploads())
+        until("the term went up") { termUploads().isNotEmpty() }
+        assertEquals(listOf(listOf(CS1, CS2) to listOf(TERM)), termUploads())
+    }
+
+    /**
+     * A later answer that dropped a course, recorded and committed as Home's fetch does before the
+     * first pull: the waiting term goes with the newest answer's roster, of the term as it stands.
+     */
+    @Test
+    fun `a waiting term goes with the newest course selection answer's roster`() = runBlocking {
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        cache.recordSelectionRoster(TERM, listOf(CS1), signIn)
+        cache.saveCourses(cache.loadCourses(TERM).filter { it.courseNo == CS1 }, TERM, signIn)
+
+        gate.notePull(signIn)
+
+        until("the term went up") { termUploads().isNotEmpty() }
+        assertEquals(listOf(listOf(CS1) to listOf(TERM)), termUploads())
     }
 
     @Test

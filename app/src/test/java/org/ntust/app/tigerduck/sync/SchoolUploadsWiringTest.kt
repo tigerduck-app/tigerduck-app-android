@@ -47,8 +47,7 @@ class SchoolUploadsWiringTest {
         val body = body("ui/screen/classtable/ClassTableViewModel.kt", "fetchTermCourses")
         assertHas(
             "fetchTermCourses", body,
-            "schoolUploads.term(signIn, semester, merged, roster, { pendingCourseAdds.uploading(it) }, stillWanted = {",
-            "mayCommit() && (answer == null || dataCache.isLatestAnswer(semester, answer))",
+            "schoolUploads.term(signIn, semester, merged, roster, { pendingCourseAdds.uploading(it) }, mayCommit, answered = answer != null) {",
             "runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }",
         )
         val lock = body.indexOf("pendingCourseAdds.uploading {")
@@ -63,8 +62,7 @@ class SchoolUploadsWiringTest {
             "TermCourseSync", source,
             "pushApiClient.uploadCourses(courses, semester, signIn, resend = resend, rosterTerms = rosterTerms)",
             "uploads = schoolUploads,",
-            "uploads.term(signIn, semester, merged, term.roster, uploading, requested = rosterRequested, stillWanted = {",
-            "answer == null || dataCache.isLatestAnswer(semester, answer)",
+            "uploads.term(signIn, semester, merged, term.roster, uploading, requested = rosterRequested, answered = answer != null) {",
         )
     }
 

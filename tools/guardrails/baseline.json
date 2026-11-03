@@ -286,7 +286,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/TermCourseSync.kt",
     "kind": "long-function",
     "name": "TermCourseSync.sync(String, String, String, Boolean, SignIn)",
-    "lines": 120
+    "lines": 118
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/notification/TermCourseSync.kt",
@@ -731,7 +731,7 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-file",
-    "count": 2076
+    "count": 2074
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
@@ -743,7 +743,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
     "name": "ClassTableViewModel.fetchTermCourses(String, ClassTableTermSource, Map<String,MoodleEnrolledCourse>, RecordedSelection?, SignIn, Boolean, ()->Boolean)",
-    "lines": 94
+    "lines": 92
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",

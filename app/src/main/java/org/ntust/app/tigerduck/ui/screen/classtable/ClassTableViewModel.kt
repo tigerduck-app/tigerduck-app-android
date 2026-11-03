@@ -1923,9 +1923,7 @@ class ClassTableViewModel @Inject constructor(
                 else -> null
             }
             // After this process's first pull; until then the term waits, as it stands once it opens.
-            schoolUploads.term(signIn, semester, merged, roster, { pendingCourseAdds.uploading(it) }, stillWanted = {
-                mayCommit() && (answer == null || dataCache.isLatestAnswer(semester, answer))
-            }) { upload ->
+            schoolUploads.term(signIn, semester, merged, roster, { pendingCourseAdds.uploading(it) }, mayCommit, answered = answer != null) { upload ->
                 runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }
                     .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             }

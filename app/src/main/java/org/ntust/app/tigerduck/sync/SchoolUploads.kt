@@ -118,9 +118,12 @@ class SchoolUploads internal constructor(
      * [committed], the courses as the fetch saved them, as [CourseUpload.of] makes them with
      * [roster], at once. Before, once it opens, it is handed [semester]'s courses as this phone
      * holds them then, the pull's changes included, built under [uploading] again so a reset's
-     * DELETE orders with it as with the fetch's own; and only when [stillWanted] says so there,
-     * as an answer a newer one replaced, or a term reset since, has nothing to send. [requested]
-     * marks the backend's own request for the roster, which waits apart from a fetch's upload.
+     * DELETE orders with it as with the fetch's own; and only when [stillWanted] says so there (a
+     * warm superseded since has nothing to send). A [roster] that is a course selection answer
+     * ([answered]) is then the newest answer's: a later answer recorded meanwhile, by a fetch that
+     * uploads no roster of its own, such as Home's, is the term's roster now, and a later fetch
+     * that does upload takes this one's place. [requested] marks the backend's own request for the
+     * roster, which waits apart from a fetch's upload.
      */
     internal suspend fun term(
         signIn: SignIn,
@@ -128,8 +131,9 @@ class SchoolUploads internal constructor(
         committed: List<Course>,
         roster: Collection<String>?,
         uploading: suspend (suspend () -> Unit) -> Unit,
-        stillWanted: suspend () -> Boolean,
+        stillWanted: () -> Boolean = { true },
         requested: Boolean = false,
+        answered: Boolean = false,
         send: suspend (CourseUpload) -> Unit,
     ) = afterFirstPull(
         signIn, "$COURSES$semester" + if (requested) REQUESTED else "",
@@ -138,7 +142,8 @@ class SchoolUploads internal constructor(
             uploading {
                 if (!pinned.isCurrent || !stillWanted()) return@uploading
                 val held = dataCache.loadCourses(semester)
-                if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, roster))
+                val newest = if (answered) dataCache.selectionAnswerIn(semester)?.courseNos ?: roster else roster
+                if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, newest))
             }
         },
     )
