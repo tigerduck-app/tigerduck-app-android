@@ -280,6 +280,29 @@ class CourseIgnoreChannelTest {
         assertEquals(emptyList<PendingCourseIgnore>(), waiting())
     }
 
+    /** Fix round 1: one batch, one time, as each change of a batch always went on v3, however the clock moves as its courses are read. */
+    @Test
+    fun `on v3 every change of a batch goes with the batch's one time`() = runTest {
+        var clockMs = 5_000L
+        val stamps = mutableListOf<Long?>()
+        val ignores = CourseIgnoreSync(
+            cache,
+            CourseIgnoreSender { _, _, _, _, madeAtMs ->
+                stamps += madeAtMs
+                true
+            },
+            CourseIgnoreEffects {},
+            sends = { true },
+            clock = { clockMs++ },
+        )
+        cache.saveIgnoredCourses(setOf("$term:AAA", "$term:BBB"), signIn)
+
+        ignores.pushLocal(null, signIn)
+
+        assertEquals(2, stamps.size)
+        assertEquals("one time for the batch: $stamps", 1, stamps.toSet().size)
+    }
+
     /** A landed course upload gives a parked ignore no try: it follows its own rule, once per process. */
     @Test
     fun `on v3 a landed course upload leaves a parked change parked`() = runTest {

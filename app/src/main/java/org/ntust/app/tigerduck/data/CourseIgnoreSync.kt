@@ -172,9 +172,10 @@ class CourseIgnoreSync internal constructor(
             val takes = applies && result.fetchedAtMs >= setChosenAt
             if (takes && server != null) {
                 val now = clock()
+                val madeAt = queue.madeAt(now)
                 val rows = serverRows(result)
                 val lost = CourseIgnoreReconciler.toResend(local, server, protectedKeys)
-                val changes = lost.sorted().map { queue.changeFor(it, true, rows[it], now) }
+                val changes = lost.sorted().map { queue.changeFor(it, true, rows[it], now, madeAt) }
                 if (changes.isNotEmpty() && queue.edit(signIn) { it + changes }) {
                     resend = changes
                 }
@@ -248,10 +249,11 @@ class CourseIgnoreSync internal constructor(
             }
             val cleared = server?.keys.orEmpty() - local
             val now = clock()
-            val changes = ignored.map { queue.changeFor(it, true, serverRows[it], now) } +
-                cleared.map { queue.changeFor(it, false, serverRows[it], now) } +
+            val madeAt = queue.madeAt(now)
+            val changes = ignored.map { queue.changeFor(it, true, serverRows[it], now, madeAt) } +
+                cleared.map { queue.changeFor(it, false, serverRows[it], now, madeAt) } +
                 // By the course the upload put back, not the old row: the reset replaced it.
-                (clearedInReset - local - cleared).map { queue.changeFor(it, false, null, now) }
+                (clearedInReset - local - cleared).map { queue.changeFor(it, false, null, now, madeAt) }
             if (queue.edit(signIn) { pending -> changes.fold(pending) { kept, change -> kept.with(change) } }) setChosenAt = now
         }
         retryPending(signIn)

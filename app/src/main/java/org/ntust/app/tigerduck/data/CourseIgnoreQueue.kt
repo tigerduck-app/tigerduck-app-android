@@ -143,10 +143,16 @@ internal class CourseIgnoreQueue(
 
     /** A change of [semester]'s [courseNo] made now: its time as the clock reads it, and its stamp. */
     fun changeNow(semester: String, courseNo: String, moodleId: String, moodleCourseId: Int?, ignore: Boolean) =
-        PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, clock(), madeAtMs = outbox.stamp())
+        clock().let { now -> PendingCourseIgnore(semester, courseNo, moodleId, moodleCourseId, ignore, now, madeAtMs = madeAt(now)) }
 
     /**
-     * A change of the course [key] names to [ignore], made at [now] and stamped as it is made, by
+     * The stamp of every change of a batch made at [now], taken once for the batch: on `/v4` the
+     * sync clock's, and on `/v3` [now] itself, as each change of a batch always went.
+     */
+    fun madeAt(now: Long): Long = if (outbox.lastWriterWins()) outbox.stamp() else now
+
+    /**
+     * A change of the course [key] names to [ignore], made at [now] and stamped [madeAtMs], its batch's ([madeAt]), by
      * the Moodle id the backend's row [serverRow] has, else this phone's course's, else the one the
      * backend keys a course added by hand by.
      */
@@ -155,6 +161,7 @@ internal class CourseIgnoreQueue(
         ignore: Boolean,
         serverRow: CourseOverrideResult?,
         now: Long,
+        madeAtMs: Long,
     ): PendingCourseIgnore {
         val semester = CourseIgnores.semesterOf(key)
         val courseNo = key.substringAfter(':')
@@ -169,7 +176,7 @@ internal class CourseIgnoreQueue(
             moodleCourseId = serverRow?.moodleNumericCourseId ?: course?.moodleNumericCourseId,
             ignore = ignore,
             changedAtMs = now,
-            madeAtMs = outbox.stamp(),
+            madeAtMs = madeAtMs,
         )
     }
 
