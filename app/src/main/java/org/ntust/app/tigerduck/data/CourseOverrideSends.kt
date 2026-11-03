@@ -152,6 +152,30 @@ internal fun placesByMoodleId(everyTerm: Map<String, List<Course>>, current: Str
 }
 
 /**
+ * Where a change an older build kept with no term goes on `/v4`, in iOS's order
+ * (`OutboxSender.courseKey`): the first course with [moodleId] in the terms this phone caches
+ * ([placesByMoodleId], [current]'s first); with none, the term and number the id itself names
+ * ([termAndNumber]) among [current] and then [catalogue]'s terms, the catalogue's order, newest
+ * first. A term this phone never cached names a course too, once it is the current term or the
+ * catalogue's. Null when neither does: the change parks, for an upload that brings its course.
+ */
+internal fun legacyPlaceOf(moodleId: String, everyTerm: Map<String, List<Course>>, current: String?, catalogue: List<String>): CoursePlace? =
+    placesByMoodleId(everyTerm, current)[moodleId]?.firstOrNull()
+        ?: termAndNumber(moodleId, listOfNotNull(current) + catalogue.filter { it != current })
+
+/**
+ * iOS's `OutboxSender.termAndNumber`: [moodleId] read as a term code followed by a course number,
+ * the first of [terms] that it starts with and is longer than, the rest its course number. Nothing
+ * else is checked, as on iOS: an id no term of [terms] begins, or one that is only a term, names
+ * none. A blank term is none of [terms], where iOS's `hasPrefix("")` would take it and name the
+ * whole id as the course; no term this phone offers is blank.
+ */
+internal fun termAndNumber(moodleId: String, terms: List<String>): CoursePlace? {
+    val term = terms.firstOrNull { it.isNotBlank() && moodleId.startsWith(it) && moodleId.length > it.length } ?: return null
+    return CoursePlace(term, moodleId.substring(term.length))
+}
+
+/**
  * The field ([SyncField]) [row] edits: its course's color, or its name in its locale, by the
  * course's key where the row names its term, else by its Moodle id, which no snapshot row names.
  * Read from the row alone, so one row always edits one field.
@@ -172,6 +196,8 @@ internal class CourseOverrideSends(
     private val writer: CourseOverrideWriter,
     private val sends: (color: Boolean) -> Boolean,
     private val lastWriterWins: () -> Boolean,
+    // The catalogue's terms, newest first, for an older build's change by its Moodle id.
+    private val catalogue: () -> List<String>,
     private val waiting: suspend () -> List<PendingCourseOverride>,
     private val confirmed: suspend (key: String, signIn: SignIn) -> Unit,
 ) {
@@ -234,14 +260,13 @@ internal class CourseOverrideSends(
         return dataCache.loadCourses(place.semester).none { it.courseNo == place.courseNo }
     }
 
-    // A row an older build wrote with no term: the course with its Moodle id in the current term,
-    // else in the newest other term this phone caches (placesByMoodleId), as `/v4` names a course by
-    // its key. Null when no term here holds one: the row parks (CourseKeyUnknownException), and each
-    // later try is this lookup again, on this phone's files, with no request, as the key is built
-    // before the request is.
+    // A row an older build wrote with no term: where its Moodle id leads (legacyPlaceOf), as `/v4`
+    // names a course by its key. Null when nothing does: the row parks (CourseKeyUnknownException),
+    // and each later try is this lookup again, on this phone's files, with no request, as the key is
+    // built before the request is.
     private suspend fun located(change: PendingCourseOverride): CoursePlace? {
         val moodleId = change.moodleId ?: return null
-        return placesByMoodleId(dataCache.loadEveryTermCourses(), dataCache.currentSemesterCode())[moodleId]?.firstOrNull()
+        return legacyPlaceOf(moodleId, dataCache.loadEveryTermCourses(), dataCache.currentSemesterCode(), catalogue())
     }
 
     /**

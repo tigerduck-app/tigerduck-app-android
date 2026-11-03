@@ -226,12 +226,35 @@ class V4LegacyDataTest {
     }
 
     /**
-     * One no term here resolves still parks, kept for an upload that brings its course. Each try is
+     * iOS's fallback (`OutboxSender.termAndNumber`): no term here holds the course, and the Moodle id
+     * reads as a catalogue term, one this phone never cached, followed by a course number.
+     */
+    @Test
+    fun `an older build's change whose course no term here holds goes by the term and number its id names`() = runBlocking {
+        synced(*SyncCategory.entries.toTypedArray())
+        w.appPrefs.semesterCatalogTerms = listOf(TERM, PAST, OLDER)
+        queuedByAnOlderBuild("""[{"moodleId":"${OLDER}CS1009","colorHex":"#445566","changedAtMs":1700000002000,"attempts":0,"seq":0}]""")
+        assertTrue(w.dataCache.saveCourses(listOf(course("CS2001")), TERM, signIn))
+        colorTaken("client:$OLDER:CS1009", "#445566")
+        val from = backend.endpoints().size
+
+        rig.outbox.drain(signIn)
+
+        assertEquals(
+            listOf("""PATCH /v4/sync/courses/client:$OLDER:CS1009/override | {"color_hex":"#445566","hlc":${OVERRIDES_FILE_MS * 1_000}}"""),
+            sent(from, "/override"),
+        )
+        assertEquals(emptyList<Any>(), w.dataCache.loadPendingCourseOverrides())
+    }
+
+    /**
+     * One nothing resolves still parks: no term here holds its course, and its id begins with no
+     * term of the catalogue's. Kept for an upload that brings its course. Each try is
      * the lookup alone, on this phone's files: the key is built before the request, so a try costs
      * no request and no session.
      */
     @Test
-    fun `an older build's change whose course no term here holds parks, and its tries send nothing`() = runBlocking {
+    fun `an older build's change nothing resolves parks, and its tries send nothing`() = runBlocking {
         synced(*SyncCategory.entries.toTypedArray())
         queuedByAnOlderBuild("""[{"moodleId":"1132ZZ0001","colorHex":"#112233","changedAtMs":1700000002000,"attempts":0,"seq":0}]""")
         assertTrue(w.dataCache.saveCourses(listOf(course("CS2001")), TERM, signIn))

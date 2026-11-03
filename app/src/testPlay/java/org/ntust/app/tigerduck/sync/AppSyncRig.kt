@@ -103,8 +103,8 @@ internal class AppSyncRig(
 /**
  * Home's full sync over [w]'s stores as Hilt builds it, where [org.ntust.app.tigerduck.ui.screen.home.homeSyncRig]
  * leaves parts out: every `/v4` write stamped by one [SyncClock] that hears each answer, each queue
- * given [oldEntryTime] (X1), one [AckClock], the course uploads told to the outbox, and the first
- * sync among the reconcilers. Its requests go through [client] ([appBackendClient]); the token
+ * given [oldEntryTime] (X1), one [AckClock], the course uploads told to the outbox, the catalogue
+ * for an older build's course change, and the first sync among the reconcilers. Its requests go through [client] ([appBackendClient]); the token
  * manager's are [w]'s. What would run past the sync on the application scope goes to [idleScope];
  * the sends the queues run on it go to [appScope].
  */
@@ -126,7 +126,7 @@ internal fun appSyncRig(
     val marks = UnsentMarks(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime)
     val adds = PendingCourseAdds(w.dataCache, pushApi, policies, ack, appScope, oldEntryTime)
     val deletes = PendingCourseDeletes(w.dataCache, adds, pushApi, clock, policies, ack, appScope)
-    overrides = PendingCourseOverrides(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime)
+    overrides = PendingCourseOverrides(w.dataCache, pushApi, w.appPrefs, policies, clock, ack, appScope, oldEntryTime, w.semesterCatalog)
     val holidays = PendingHolidayOverrides(w.appPrefs, pushApi, policies, clock, ack, appScope, oldEntryTime, w.academicCalendar)
     val ignores = CourseIgnoreSync(
         w.dataCache, pushApi, w.appPrefs, AssignmentNotificationScheduler(context), policies, clock, ack, appScope, oldEntryTime,

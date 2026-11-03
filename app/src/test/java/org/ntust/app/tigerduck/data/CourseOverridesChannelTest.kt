@@ -298,6 +298,8 @@ class CourseOverridesChannelTest {
     @Test
     fun `on v4 a change whose course key cannot be built parks until a course upload lands`() = runTest {
         val current = cache.currentSemesterCode()
+        // A Moodle id that names no term, so the id itself gives no key either (iOS's termAndNumber).
+        val calculus = calculus.copy(moodleIdNumber = "45510")
         queue(name(calculus, "Calc", "en"))
         val overrides = v4Overrides()
 
@@ -925,6 +927,8 @@ class CourseOverridesChannelTest {
     @Test
     fun `on v4 a change goes to its own row's course, and a row with no term by the current term's course with its Moodle id`() = runTest {
         val current = cache.currentSemesterCode()
+        // Cached in no term, and by a Moodle id that names no term (iOS's termAndNumber): it parks.
+        val physics = physics.copy(moodleIdNumber = "45511")
         val renumbered = calculus.copy(courseNo = "MA9990002")
         cache.saveCourses(listOf(renumbered), current, signIn)
         queue(placed(color(calculus, "#FF0000"), calculus), name(calculus, "Calc", "en"), name(physics, "Phys", "en"))

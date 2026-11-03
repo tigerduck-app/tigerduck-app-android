@@ -68,14 +68,11 @@ import javax.inject.Singleton
  * before a change, or before its PATCH landed, still has the old value;
  * [held] names what a sync must not take from it.
  *
- * Each change is stamped by the sync clock, which on `/v3` is the wall clock
- * as it always was. On `/v4` a change goes by its course's key
- * (`client:{semester}:{course_no}`), from its own term and number or, for a
- * row an older build wrote without them, the current term's course with its
- * Moodle id; one made while its kind does not sync is kept and goes once it
- * does (LWW D12); one an older build wrote with no time goes with its
- * old-entry time (X1); and a reply that says the backend kept a later value
- * puts it on this phone unless a newer change waits.
+ * Each change is stamped by the sync clock, the wall clock on `/v3`. On `/v4` it goes by its
+ * course's key (`client:{semester}:{course_no}`), from its own term and number or, for a row an
+ * older build wrote without, its Moodle id ([legacyPlaceOf]); one made while its kind does not
+ * sync goes once it does (LWW D12), one with no time with its old-entry time (X1), and a reply
+ * that the backend kept a later value puts it here unless a newer change waits.
  */
 @Singleton
 class PendingCourseOverrides internal constructor(
@@ -91,6 +88,7 @@ class PendingCourseOverrides internal constructor(
     ack: AckClock = AckClock(),
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
     private val oldEntryTime: OldEntryTime? = null,
+    catalogue: () -> List<String> = { emptyList() },
 ) : OutboxChannel {
 
     /** The queue for a test that sends through a [CourseOverrideSender], as the queue's own tests do. */
@@ -113,6 +111,7 @@ class PendingCourseOverrides internal constructor(
         @ApplicationScope scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined),
         /** The old-entry time of a change an older build wrote with no time; null only in tests, for none. */
         oldEntryTime: OldEntryTime? = null,
+        semesterCatalog: org.ntust.app.tigerduck.network.SemesterCatalog? = null,
     ) : this(
         dataCache = dataCache,
         writer = CourseOverrideWriter { change, target, signIn, allowed ->
@@ -125,6 +124,7 @@ class PendingCourseOverrides internal constructor(
         ack = ack,
         scope = scope,
         oldEntryTime = oldEntryTime,
+        catalogue = { semesterCatalog?.availableSemesters().orEmpty() },
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.COURSE_OVERRIDES
@@ -150,7 +150,7 @@ class PendingCourseOverrides internal constructor(
     private val memory = CourseOverrideMemory(clock)
 
     private val sendPath = CourseOverrideSends(
-        dataCache, writer, sends, lastWriterWins,
+        dataCache, writer, sends, lastWriterWins, catalogue,
         waiting = { lane.entries() },
         confirmed = { key, signIn -> mutex.withLock { memory.touched(listOf(key), clock(), signIn) } },
     )
