@@ -5,8 +5,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
@@ -18,6 +20,10 @@ import org.ntust.app.tigerduck.util.testSignIn
  * that keeps the backend's code. Otherwise every fetch in the next minute sends the same roster.
  */
 class CourseUploadRefusedPauseTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private val signIn = testSignIn()
     private val school = Course(courseNo = "CS1010001", courseName = "Portal", moodleIdNumber = "1151CS1010001")

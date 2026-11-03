@@ -3,9 +3,11 @@ package org.ntust.app.tigerduck.sync
 import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CountDownLatch
@@ -17,6 +19,10 @@ import kotlin.concurrent.thread
  * the backend's time plus five seconds once the backend has been heard (Review Focus 3).
  */
 class SyncClockTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private val context = JvmContext()
     private val file = context.getSharedPreferences("tigerduck_sync_clock", Context.MODE_PRIVATE)

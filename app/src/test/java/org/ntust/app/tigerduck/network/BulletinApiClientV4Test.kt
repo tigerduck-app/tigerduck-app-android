@@ -12,6 +12,7 @@ import okhttp3.ResponseBody.Companion.toResponseBody
 import okio.Buffer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -19,6 +20,7 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
 import org.ntust.app.tigerduck.network.backend.BackendException
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -33,6 +35,10 @@ import java.util.concurrent.CopyOnWriteArrayList
  * client built it: `Accept`, which the client's own interceptor adds after that, is not in it.
  */
 class BulletinApiClientV4Test {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private class Sent(val line: String, val headers: List<Pair<String, String>>, val contentType: String?, val body: String?)
 

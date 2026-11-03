@@ -8,10 +8,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.backend.BackendError
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.SyncClock
@@ -27,6 +29,10 @@ import org.ntust.app.tigerduck.util.testSignIn
  * backend's clock is stamped again from the refusal's clock and sent once (Review Focus 3).
  */
 class V4WritesTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     private val v4 = "http://127.0.0.1:9/v4"
     private val context = JvmContext()

@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Rule
 import org.junit.Test
+import org.ntust.app.tigerduck.network.backend.SpeaksV3
 import org.ntust.app.tigerduck.network.model.SubscriptionRule
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.FIRST
 import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionPage.Companion.V3
@@ -16,6 +17,10 @@ import org.ntust.app.tigerduck.ui.screen.announcements.SubscriptionSettingsViewM
  * its rule by its ids (`client_id` on `/v4`, the backend's id on `/v3`), never by its place.
  */
 class SubscriptionRuleEditorTest {
+
+    // Pins /v3's requests and rules until Z1 and Z2 delete them: a base ending in /v3 stays there.
+    @get:Rule
+    val speaksV3 = SpeaksV3()
 
     @get:Rule val page = SubscriptionPage()
 
