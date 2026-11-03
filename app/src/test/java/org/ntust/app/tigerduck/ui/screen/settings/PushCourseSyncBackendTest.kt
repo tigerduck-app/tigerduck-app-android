@@ -11,6 +11,7 @@ import okhttp3.OkHttpClient
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.ScriptedBackend
+import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -18,6 +19,8 @@ import org.ntust.app.tigerduck.data.preferences.V3TokenStore
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.SchoolUploads
+import org.ntust.app.tigerduck.sync.TermResets
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
@@ -45,7 +48,8 @@ class PushCourseSyncBackendTest {
         val api = PushApiClient(backend.client, prefs, tokenManager)
         val cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
         val overrides = PendingCourseOverrides(cache, api, prefs)
-        courses = PushCourseSyncBackend(api, prefs, overrides, testSignIn(), runBlocking { overrides.reserveVersion() }, cache)
+        val resets = TermResets(PendingCourseAdds(cache, api), SchoolUploads.atOnce(cache))
+        courses = PushCourseSyncBackend(api, prefs, overrides, testSignIn(), runBlocking { overrides.reserveVersion() }, cache, resets)
     }
 
     private suspend fun fails(request: suspend () -> Unit): Boolean = runCatching { request() }.isFailure

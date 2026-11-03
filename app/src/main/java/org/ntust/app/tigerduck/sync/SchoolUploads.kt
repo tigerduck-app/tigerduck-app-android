@@ -1,0 +1,226 @@
+package org.ntust.app.tigerduck.sync
+
+import android.util.Log
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.Assignment
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.di.ApplicationScope
+import org.ntust.app.tigerduck.network.backend.BackendApi
+import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
+import org.ntust.app.tigerduck.push.CourseUpload
+import org.ntust.app.tigerduck.push.PushApiClient
+import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.util.logSummary
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.coroutines.EmptyCoroutineContext
+
+/**
+ * What goes up from a school or Moodle fetch: a term's courses, and the assignments. On `/v4` each
+ * waits for this process's first pull under its sign-in ([FirstPullGate]), so a roster or a list
+ * fetched before the pull is not sent ahead of what the backend holds (`sync-order`, "A refresh
+ * reads the backend before it uploads school data"; refactor-v4 D13; iOS `SchoolDataUploader`). On
+ * `/v3` none waits: it goes at once, in its caller, as it always did, as `/v3`'s pull hides a
+ * fetched school course the backend does not list, so an upload held past the pull would lose it
+ * (the coordinator's ruling, PR R fix round 3). The version is read as each upload decides. A
+ * local edit never comes here: it goes at once, through its channel's outbox, and so does the
+ * full sync's own resend of a term.
+ *
+ * Asked for once the gate is open for its sign-in, an upload goes at once, in its caller, as it
+ * always did. Asked for before, it goes on the application scope once the gate opens, built then
+ * from what this phone holds, in place of an older one of its kind still waiting; it is dropped
+ * when its sign-in ends, and as the `UploadLedger` never recorded it, the next fetch sends it.
+ */
+@Singleton
+class SchoolUploads internal constructor(
+    /** Null for none: every upload at once, as before the gate (see [atOnce]). */
+    private val gate: FirstPullGate?,
+    private val scope: CoroutineScope,
+    private val dataCache: DataCache,
+    /** The API the backend's base speaks now; only `/v4`'s uploads wait for the first pull. */
+    private val api: () -> BackendApi,
+    private val sendAssignments: suspend (List<Assignment>, SignIn) -> Unit,
+) {
+    @Inject constructor(
+        gate: FirstPullGate,
+        @ApplicationScope scope: CoroutineScope,
+        dataCache: DataCache,
+        pushApiClient: PushApiClient,
+        prefs: AppPreferences,
+    ) : this(
+        gate, scope, dataCache, { BackendApi.of(resolveAnnouncementEndpoint(prefs).url.trimEnd('/')) },
+        { assignments, signIn -> pushApiClient.uploadAssignments(assignments, signIn) },
+    )
+
+    private class Later(val signIn: SignIn)
+
+    private val lock = Any()
+
+    // Under [lock], by what each sends: the upload waiting for the first pull, the newest asked for,
+    // and the one the pull let go, until it is sent; a reset of its term lets go of both (forgetTerm).
+    private val waiting = HashMap<String, Later>()
+    private val released = HashMap<String, Later>()
+
+    /** How many uploads wait for the first pull, for a test. */
+    internal val waitingUploads: Int get() = synchronized(lock) { waiting.size }
+
+    /**
+     * Runs [now] at once, in the caller, on `/v3`, or when this process has pulled under [signIn]: a
+     * caller's cancellation stops it, as it always did. Otherwise [later] runs on the application scope once
+     * a pull under [signIn] lands, which a cancelled caller no longer stops: it is not the caller's
+     * any more. It does not run once [signIn] has ended, nor once a newer upload of the same [what]
+     * was asked for, waiting or sent at once, as the newest has what it would send.
+     */
+    suspend fun afterFirstPull(signIn: SignIn, what: String, now: suspend () -> Unit, later: suspend (SignIn) -> Unit) {
+        if (gate == null || api() != BackendApi.V4 || gate.hasPulled(signIn)) {
+            synchronized(lock) { waiting.remove(what) }
+            return now()
+        }
+        if (!signIn.isCurrent) return
+        val mine = Later(signIn)
+        synchronized(lock) { waiting[what] = mine }
+        scope.launch {
+            val pulled = gate.awaitPull(signIn)
+            // Taken under the lock: only the newest of its kind goes, and only once.
+            val newest = synchronized(lock) {
+                (waiting[what] === mine).also { newest ->
+                    if (newest) waiting.remove(what)
+                    if (newest && pulled) released[what] = mine
+                }
+            }
+            if (!pulled || !newest) return@launch
+            try {
+                later(signIn)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "$what after the first pull failed (non-fatal): ${e.logSummary()}")
+            } finally {
+                synchronized(lock) { if (released[what] === mine) released.remove(what) }
+            }
+        }
+    }
+
+    /**
+     * A reset of [semester] lets go of the term's uploads waiting for the first pull, the fetch's and
+     * the roster request's, and of one the pull let go that has not gone yet: their fetch is of a term
+     * gone. Only [TermResets.run] calls it, under the adds' send lock the reset holds, which a released
+     * term takes before it reads the term, so one let go meanwhile finds nothing to send.
+     */
+    internal fun forgetTerm(semester: String) {
+        synchronized(lock) {
+            for (what in listOf("$COURSES$semester", "$COURSES$semester$REQUESTED")) {
+                waiting.remove(what)
+                released.remove(what)
+            }
+        }
+    }
+
+    // Whether the term's upload the pull let go under [what] still stands: no reset let go of it
+    // since. By its sign-in: once that sign-in has pulled, its next ask goes at once, never waits.
+    private fun stands(what: String, signIn: SignIn): Boolean = synchronized(lock) { released[what]?.signIn === signIn }
+
+    // One send of the assignments at a time, at once or released: see [assignments].
+    private val assignmentSends = Mutex()
+
+    /**
+     * The assignments a Moodle round or an assignment's page wrote, [written] as written, under
+     * [signIn]: once the gate is open at once, before it once it opens. Every send, at once or
+     * released, holds [assignmentSends] and goes as the assignments are stored then ([sendStored]):
+     * [written] itself when no write came since, as every caller's [written] is the whole list its
+     * write left, and the newest list when one did. So an older write whose ask came late, after
+     * a newer list went up, never lands last (Greptile on PR #686), nor does a released one (the
+     * term's sends are ordered by the caller's `uploading` the same way). [failed] hears a send
+     * that failed, now or then; a cancellation of the caller is no failure, and goes on up.
+     */
+    suspend fun assignments(written: List<Assignment>, signIn: SignIn, failed: (Exception) -> Unit = {}) = afterFirstPull(
+        signIn, ASSIGNMENTS,
+        now = { sendStored(written, signIn, failed) },
+        later = { pinned -> sendStored(written, pinned, failed) },
+    )
+
+    // Under [assignmentSends], the assignments as stored, or [written] when their file is gone: read
+    // as none, it would go up as an empty list and take every assignment off the backend.
+    private suspend fun sendStored(written: List<Assignment>, signIn: SignIn, failed: (Exception) -> Unit) = assignmentSends.withLock {
+        val stored = dataCache.storedAssignments() ?: written
+        // Signed out while the file was read: what it held is not this sign-in's.
+        if (signIn.isCurrent) reporting(failed) { sendAssignments(stored, signIn) }
+    }
+
+    /**
+     * A school fetch's upload of [semester]'s courses under [signIn], asked for inside the
+     * caller's [uploading] block that committed them. Once the gate is open, [send] is handed
+     * [committed], the courses as the fetch saved them, as [CourseUpload.of] makes them with
+     * [roster], at once. Before, once it opens, it is handed [semester]'s courses as this phone
+     * holds them then, the pull's changes included, built under [uploading] again so a reset's
+     * DELETE orders with it as with the fetch's own; and only when [stillWanted] says so there (a
+     * warm superseded since has nothing to send) and no reset of the term let go of it ([forgetTerm]).
+     * It then goes with the roster stored with the commit of the term it reads, read with the term as
+     * one (`DataCache.termAndCommit`): this fetch's, unless a fetch that uploads none, such as Home's,
+     * committed the term since; and with none, no `roster_terms`, when no commit stored one, never
+     * the [roster] it was asked with, which may predate a reset or a newer answer. A newer answer
+     * whose fetch has not committed yet is no roster of this term, which goes as on dev, where it
+     * went at its commit; a later fetch that does upload takes this one's place. [requested] marks
+     * the backend's own request for the roster, which waits apart from a fetch's.
+     */
+    internal suspend fun term(
+        signIn: SignIn,
+        semester: String,
+        committed: List<Course>,
+        roster: Collection<String>?,
+        uploading: suspend (suspend () -> Unit) -> Unit,
+        stillWanted: () -> Boolean = { true },
+        requested: Boolean = false,
+        send: suspend (CourseUpload) -> Unit,
+    ) {
+        val what = "$COURSES$semester" + if (requested) REQUESTED else ""
+        afterFirstPull(
+            signIn, what,
+            now = { send(upload(committed, semester, roster)) },
+            later = { pinned ->
+                uploading {
+                    if (!pinned.isCurrent || !stillWanted() || !stands(what, pinned)) return@uploading
+                    val (held, commit) = dataCache.termAndCommit(semester)
+                    val stored = commit?.takeIf { it.first === pinned }?.second
+                    if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, stored))
+                }
+            },
+        )
+    }
+
+    private suspend fun upload(courses: List<Course>, semester: String, roster: Collection<String>?): CourseUpload =
+        CourseUpload.of(courses, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()))
+
+    private suspend fun reporting(failed: (Exception) -> Unit, send: suspend () -> Unit) {
+        try {
+            send()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failed(e)
+        }
+    }
+
+    internal companion object {
+        private const val TAG = "SchoolUploads"
+        private const val ASSIGNMENTS = "assignments"
+        private const val COURSES = "courses/"
+        private const val REQUESTED = "/requested"
+
+        /**
+         * Every upload at once, as before the first-pull gate: the default of a constructor
+         * parameter added with it, so a caller built by hand keeps today's timing.
+         */
+        fun atOnce(dataCache: DataCache, pushApiClient: PushApiClient? = null) =
+            SchoolUploads(null, CoroutineScope(EmptyCoroutineContext), dataCache, { BackendApi.V3 }) { assignments, signIn ->
+                pushApiClient?.uploadAssignments(assignments, signIn)
+            }
+    }
+}

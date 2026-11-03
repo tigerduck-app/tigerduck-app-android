@@ -143,8 +143,7 @@ object CourseSyncReconciler {
         answer: SelectionAnswer? = null,
         fetchedAtMs: Long = 0L,
     ): SemesterOutcome {
-        // Misfiled rows are neither a roster nor evidence of presence, and
-        // neither is a dropped course, unless it was added by hand.
+        // Misfiled rows are neither a roster nor evidence of presence, nor is a dropped course, unless added by hand.
         val filed = serverRows.filter { isFiled(it.moodleId, it.courseNo, semester) }
         val dropTimes = serverDropTimes(filed, fetchedAtMs)
         val droppedOnServer = dropTimes.filterNot { (courseNo, at) -> answer?.listsSince(courseNo, at) == true }.keys
@@ -156,8 +155,7 @@ object CourseSyncReconciler {
         val serverNos = rows.map { it.courseNo }.toSet()
         // Dropped, not deleted: the server still holds these rows.
         val skippedNos = filed.mapTo(mutableSetOf()) { it.courseNo } - serverNos
-        // A dropped course leaves the term with no hide, even when the drops
-        // leave the term no row, so the course can come back.
+        // A dropped course leaves the term with no hide, even when the drops leave it no row, so it can come back.
         val left = localCourses
             .filter { it.courseNo !in serverNos && it.courseNo !in pendingAddNos }
             .filter { leaves(it, selectionDroppedNos, droppedOnServer) }

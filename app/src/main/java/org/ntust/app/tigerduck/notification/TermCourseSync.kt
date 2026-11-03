@@ -11,7 +11,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.ntust.app.tigerduck.data.CourseRosterMerge
-import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.RecordedSelection
 import org.ntust.app.tigerduck.data.TranscriptTerms
@@ -27,6 +26,7 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RosterRequestLog
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SchoolUploads
 import org.ntust.app.tigerduck.ui.screen.classtable.ClassTableCourseMerge
 import org.ntust.app.tigerduck.ui.screen.home.commitFetchedTerm
 import org.ntust.app.tigerduck.util.logSummary
@@ -44,6 +44,8 @@ class TermCourseSync internal constructor(
     private val courseLocale: () -> String,
     private val uploadFailed: () -> Unit,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** When a fetched term goes up: after this process's first pull in the app, at once unless a test says. */
+    private val uploads: SchoolUploads = SchoolUploads.atOnce(dataCache),
 ) {
     @Inject constructor(
         courseService: CourseService,
@@ -53,6 +55,7 @@ class TermCourseSync internal constructor(
         pushApiClient: PushApiClient,
         pendingCourseAdds: PendingCourseAdds,
         prefs: AppPreferences,
+        schoolUploads: SchoolUploads,
     ) : this(
         dataCache = dataCache,
         sources = object : Sources {
@@ -80,6 +83,7 @@ class TermCourseSync internal constructor(
         uploading = { block -> pendingCourseAdds.uploading(block) },
         courseLocale = { AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage) },
         uploadFailed = { prefs.setLastSyncSource(SyncSource.LOCAL) },
+        uploads = schoolUploads,
     )
 
     /** What a term's fetch reads from the school; the services in the app. */
@@ -141,7 +145,9 @@ class TermCourseSync internal constructor(
      * reached, and nothing stands in for it.
      *
      * The upload goes as the term's roster when course selection answered it, and lists every
-     * course of the answer that is not hidden here; see [CourseUpload.of].
+     * course of the answer that is not hidden here; see [CourseUpload.of]. It goes once this
+     * process has pulled under [signIn], as everything a school fetch derives does, and waits
+     * for that pull until then ([SchoolUploads.term]).
      *
      * [rosterRequested] is the answer to the backend's request for the term's roster: course
      * selection is asked afresh, and the upload goes past the ledger, as the backend asks
@@ -258,21 +264,19 @@ class TermCourseSync internal constructor(
                     alsoKeeps = { term.onlyGains || it.courseNo in unresolvedNos },
                 )
             } ?: return@uploading
-            val upload = CourseUpload.of(
-                merged, semester, roster = term.roster,
-                hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()),
-            )
             // Superseded since the commit: the newer answer's fetch sends the term's roster.
             if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
-            try {
-                // Past the ledger only as the roster asked for; anything less goes as any fetch's.
-                uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Not the next account's sync state: its own sync has not failed.
-                if (signIn.isCurrent) uploadFailed()
-                Log.w(TAG, "uploadCourses failed (non-fatal): ${e.logSummary()}")
+            uploads.term(signIn, semester, merged, term.roster, uploading, requested = rosterRequested) { upload ->
+                try {
+                    // Past the ledger only as the roster asked for; anything less goes as any fetch's.
+                    uploader.upload(upload.courses, semester, resend = rosterRequested && upload.rosterTerms.isNotEmpty(), upload.rosterTerms, signIn)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    // Not the next account's sync state: its own sync has not failed.
+                    if (signIn.isCurrent) uploadFailed()
+                    Log.w(TAG, "uploadCourses failed (non-fatal): ${e.logSummary()}")
+                }
             }
         }
         return true

@@ -31,7 +31,8 @@ class HomeBackendSyncResetTest {
 
     @Test
     fun `a reset read from another device lets go of the deletes asked before its fetch, under the adds lock`() {
-        val pull = source("sync/Synchronizer.kt").substringAfter("suspend fun sync(").substringBefore("\n    }\n")
+        // The pass itself, which sync runs once no other is under way.
+        val pull = source("sync/Synchronizer.kt").substringAfter("private suspend fun pass(").substringBefore("\n    }\n")
         val steps = source("sync/ForegroundSteps.kt")
         val step = source("sync/reconcile/CourseResetReconciler.kt")
         val reset = step.substringAfter("private suspend fun applyCourseReset(").substringBefore("\n    }\n")

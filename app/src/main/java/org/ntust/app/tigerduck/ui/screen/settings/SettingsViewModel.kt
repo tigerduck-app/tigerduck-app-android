@@ -74,6 +74,7 @@ class SettingsViewModel @Inject constructor(
     private val courseIgnoreSync: CourseIgnoreSync,
     private val unsentMarks: UnsentMarks,
     private val pendingCourseOverrides: PendingCourseOverrides,
+    private val termResets: org.ntust.app.tigerduck.sync.TermResets,
     private val reenableCheck: ReenableCheck,
     private val importedClassTableStore: ImportedClassTableStore,
     @param:ApplicationScope private val appScope: CoroutineScope,
@@ -404,10 +405,7 @@ class SettingsViewModel @Inject constructor(
         override fun askAgain() = markCategoryReenabled("courses")
     }
 
-    /**
-     * Use Local for courses, every term this phone knows — see
-     * [useLocalCourses]. Returns the terms it reset.
-     */
+    /** Use Local for courses, every term this phone knows — see [useLocalCourses]. Returns the terms it reset. */
     private suspend fun sendLocalCourses(signIn: SignIn, latch: UseLocalLatch): Set<String> {
         // The terms latched on the tap; the catalogue may have moved since.
         val semesters = latch.semesters
@@ -417,7 +415,8 @@ class SettingsViewModel @Inject constructor(
         return useLocalCourses(
             terms = semesters.map { it to dataCache.loadCourses(it) },
             hiding = dataCache.loadDeletedCourseNos(),
-            backend = PushCourseSyncBackend(pushApiClient, prefs, pendingCourseOverrides, signIn, version, dataCache),
+            // Each term's reset through TermResets, as the class table's: the term's waiting school uploads go with it.
+            backend = PushCourseSyncBackend(pushApiClient, prefs, pendingCourseOverrides, signIn, version, dataCache, termResets),
             // A reset takes its term's names off the server; with name sync off none goes back (the
             // PATCH honours the switch), and names set elsewhere on the term are lost.
             customNames = if (prefs.syncCourseNames) dataCache.loadCourseCustomNames() else emptyMap(),

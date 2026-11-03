@@ -172,10 +172,9 @@ class PendingCourseOverrides internal constructor(
     suspend fun hasPending(): Boolean = waiting().isNotEmpty()
 
     /**
-     * Keeps one change (see [Change] for the arguments), in place of any
-     * older change of the same, and sends it unless its kind's re-enable
-     * check is pending. Called in the order the changes were made; nothing
-     * to do without a colour or a name.
+     * Keeps one change (see [Change] for the arguments), in place of any older change of the same,
+     * and sends it unless its kind's re-enable check is pending; [kept] hears once it is kept, before
+     * it is sent. Called in the order the changes were made; nothing to do without a colour or a name.
      */
     suspend fun send(
         moodleId: String,
@@ -185,10 +184,12 @@ class PendingCourseOverrides internal constructor(
         semester: String? = null,
         courseNo: String? = null,
         signIn: SignIn,
+        kept: kotlinx.coroutines.CompletableDeferred<Unit>? = null,
     ) {
         // Under way from before it is kept, so a drain already running that sends it does not leave it to send again.
         lane.keepAndDrain(signIn, { sends(colorHex != null) }) {
             record(listOf(Change(moodleId, colorHex, customName, locale, semester, courseNo)), signIn).values.mapTo(HashSet(), ::fieldOf)
+                .also { kept?.complete(Unit) }
         }
     }
 

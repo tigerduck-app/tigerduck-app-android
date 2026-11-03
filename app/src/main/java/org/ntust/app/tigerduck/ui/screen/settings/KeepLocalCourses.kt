@@ -13,6 +13,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.sync.TermResets
 
 /**
  * The course requests Use Local sends, so a test can stand in for the backend. Its steps are named
@@ -94,6 +95,8 @@ internal class PushCourseSyncBackend(
     private val namesVersion: Long,
     /** The phone's courses and custom names, which [currentChoices] reads. */
     private val dataCache: DataCache,
+    /** Where a term's reset goes, as every reset does: see [resetTerm]. */
+    private val termResets: TermResets,
 ) : CourseSyncBackend {
     private val policies = SyncPolicies(prefs)
 
@@ -106,7 +109,9 @@ internal class PushCourseSyncBackend(
 
     override suspend fun resetTerm(semester: String) {
         ensureSends()
-        api.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null)
+        // Under the adds' send lock, the term's school uploads waiting for the first pull let go
+        // once it lands: one sent after it would go over the local list as the term's roster.
+        termResets.run(semester) { api.deleteAllCoursesAnswered(semester, signIn, resetAtMs = null).takeIf { it.sent } }
     }
 
     override suspend fun uploadTerm(courses: List<Course>, semester: String) {

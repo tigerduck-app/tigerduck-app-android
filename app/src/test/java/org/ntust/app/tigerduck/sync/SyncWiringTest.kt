@@ -111,8 +111,8 @@ class SyncWiringTest {
             "dataCache.addCourseBack(course.courseNo, semester, signIn)",
             "} finally {\n                dataCache.courseAddSent(course.courseNo, semester)",
         )
-        // Both modes' pass, Home's and the worker's.
-        val sync = body("sync/Synchronizer.kt", "sync")
+        // Both modes' pass, Home's and the worker's, whoever joins it.
+        val sync = body("sync/Synchronizer.kt", "pass")
         val begin = sync.indexOf("val courseSync = steps.beginCourseSync()")
         val fetch = sync.indexOf("steps.fetch(signIn, courseSync)")
         assertTrue("the synchronizer no longer begins its course sync before the fetch", begin in 0 until fetch)
@@ -279,7 +279,7 @@ class SyncWiringTest {
             assertCalls(rel, "listed", "pendingCourseAdds.listed(result.serverCourses, signIn)")
         }
         // Both modes' order is SynchronizerOrderTest's.
-        val body = body("sync/Synchronizer.kt", "sync")
+        val body = body("sync/Synchronizer.kt", "pass")
         val retry = body.indexOf("drain(signIn)")
         val fetch = body.indexOf("steps.fetch(")
         val listed = body.indexOf("steps.listed(result, signIn)")
@@ -569,7 +569,7 @@ class SyncWiringTest {
         val reserved = body.indexOf("val version = pendingCourseOverrides.reserveVersion()")
         val read = body.indexOf("dataCache.loadCourseCustomNames()")
         assertTrue("sendLocalCourses no longer reserves the names' version before reading them", reserved in 0 until read)
-        assertTrue("sendLocalCourses no longer hands the version to its backend", "pendingCourseOverrides, signIn, version, dataCache)" in body)
+        assertTrue("sendLocalCourses no longer hands the version to its backend", "pendingCourseOverrides, signIn, version, dataCache, termResets)" in body)
     }
 
     /** tigerduck-app-android#380: a course gone from this phone would be PATCHed, and refused, at every sync. */
@@ -666,7 +666,7 @@ class SyncWiringTest {
         assertTrue("Home's tap no longer reads its sign-in first", tap.indexOf("val signIn = signInNow()") in 0 until tap.indexOf("markSaves.trySend"))
         assertCalls("ui/screen/home/HomeViewModel.kt", "toggleOverride", "markSaves.trySend(Triple(id, status, signIn))", "unsentMarks.send(id, status, signIn)")
         val edit = body("ui/screen/classtable/ClassTableViewModel.kt", "showEdit")
-        assertTrue("an edit of the class table no longer holds the tap's sign-in", "UnsavedEdit(nextUnsavedEdit++, signInNow())" in edit)
+        assertTrue("an edit of the class table no longer holds the tap's sign-in", "UnsavedEdit(nextUnsavedEdit++, signInNow(), before = _courses.value)" in edit)
         val lookup = body("network/CourseService.kt", "fetchLookup")
         assertTrue(
             "a lookup no longer reads its sign-in before the request",
@@ -682,8 +682,8 @@ class SyncWiringTest {
     @Test
     fun `Home's fetch lets a sign-out's cancellation through its assignment upload`() {
         val body = body("ui/screen/home/HomeViewModel.kt", "fetchData")
-        assertTrue("fetchData no longer uploads the assignments", "pushApiClient.uploadAssignments(written, remoteAssignments.answer.signIn)" in body)
-        assertTrue("fetchData catches the upload's cancellation", "runCatching { pushApiClient.uploadAssignments" !in body)
+        assertTrue("fetchData no longer uploads the assignments", "schoolUploads.assignments(written, remoteAssignments.answer.signIn)" in body)
+        assertTrue("fetchData catches the upload's cancellation", "runCatching { schoolUploads.assignments" !in body)
     }
 
     /**
@@ -757,7 +757,7 @@ class SyncWiringTest {
             "notification/TermCourseSync.kt", "sync",
             "val merged = commitFetchedTerm(",
             "waitingAdds = { waitingAdds(semester) }",
-            "merged, semester, roster = term.roster,",
+            "uploads.term(signIn, semester, merged, term.roster, uploading,",
             "uploader.upload(upload.courses, semester,",
         )
         val sync = source("notification/TermCourseSync.kt").joinToString("\n")
@@ -778,7 +778,7 @@ class SyncWiringTest {
     fun `Home and the background sync commit an answer only while it is the term's latest, and the sync uploads under the adds lock`() {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments",
-            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }",
+            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn, answeredAt) }",
             "answer = recorded?.answer,",
         )
         assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "remote.onlyGains, remote.answer, remote.signIn,")

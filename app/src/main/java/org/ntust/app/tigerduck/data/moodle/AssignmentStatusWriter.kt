@@ -6,8 +6,8 @@ import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.liveactivity.LiveActivityManager
 import org.ntust.app.tigerduck.network.MoodleService
 import org.ntust.app.tigerduck.notification.AssignmentNotificationScheduler
-import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SchoolUploads
 import java.util.Date
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -30,7 +30,7 @@ class AssignmentStatusWriter internal constructor(
     constructor(
         dataCache: DataCache,
         moodleService: MoodleService,
-        pushApiClient: PushApiClient,
+        schoolUploads: SchoolUploads,
         notificationScheduler: AssignmentNotificationScheduler,
         liveActivityManager: LiveActivityManager,
         prefs: AppPreferences,
@@ -40,11 +40,12 @@ class AssignmentStatusWriter internal constructor(
         published = { assignments, signIn ->
             // As the calendar's and the class table's rounds publish theirs: the reminders and
             // the Live Update follow the cache, and Home reads it again. The upload is what the
-            // backend builds the reminders of other devices from, and goes only with TigerSync on.
+            // backend builds the reminders of other devices from, and goes only with TigerSync on,
+            // once this process has pulled.
             notificationScheduler.rescheduleFromCache(dataCache, prefs)
             liveActivityManager.refresh()
             dataCache.notifyBackgroundSyncComplete()
-            runCatching { pushApiClient.uploadAssignments(assignments, signIn) }
+            runCatching { schoolUploads.assignments(assignments, signIn) }
         },
     )
 

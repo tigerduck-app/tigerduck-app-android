@@ -14,6 +14,7 @@ import org.junit.Before
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.AuthTokenManager
+import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -23,8 +24,10 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.sync.SchoolUploads
 import org.ntust.app.tigerduck.sync.SyncClock
 import org.ntust.app.tigerduck.sync.SyncClockStore
+import org.ntust.app.tigerduck.sync.TermResets
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 
@@ -70,6 +73,9 @@ class UseLocalRequestsTest {
         else -> value
     }
 
+    /** Where Use Local's term resets go, as the app's: no school upload waits in these. */
+    private fun termResets(cache: DataCache, api: PushApiClient) = TermResets(PendingCourseAdds(cache, api), SchoolUploads.atOnce(cache))
+
     @Test
     fun `a term is reset, uploaded with its colors, its hidden courses deleted and its names queued, in that order`() = runTest {
         val colored = Course(courseNo = "CS1", courseName = "CS1", moodleIdNumber = "1151CS1", customColorHex = "#FF0000")
@@ -79,7 +85,7 @@ class UseLocalRequestsTest {
         keepLocalCourses(
             terms = listOf("1151" to listOf(colored, manual, hidden)),
             hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache),
+            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache, termResets(cache, api)),
             customNames = mapOf("CS1" to mapOf("zh" to "微積分", "en" to "Calc"), "CS2" to mapOf("en" to "Gone")),
         )
 
@@ -110,7 +116,7 @@ class UseLocalRequestsTest {
         keepLocalCourses(
             terms = listOf("1151" to listOf(manual)),
             hiding = setOf("1151:CS2"),
-            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache),
+            backend = PushCourseSyncBackend(api, prefs, overrides, signIn, overrides.reserveVersion(), cache, termResets(cache, api)),
             customNames = mapOf("MY1" to mapOf("en" to "Mine")),
             portalCached = { false },
         )
@@ -160,7 +166,7 @@ class UseLocalRequestsTest {
         val v4Api = pushApiClientAt("http://127.0.0.1:9/v4", v4.client, v4Prefs, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, v4Api, v4Prefs)
-        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache), v4, cache, outbox).also { built = it }
+        return OnV4(PushCourseSyncBackend(v4Api, v4Prefs, outbox, signIn, outbox.reserveVersion(), cache, termResets(cache, v4Api)), v4, cache, outbox).also { built = it }
     }
 
     private fun hlcOf(sent: RecordingBackend.Sent): Long? =
@@ -293,7 +299,7 @@ class UseLocalRequestsTest {
         val api = PushApiClient(v4.client, v4Prefs, manager, clock)
         val cache = DataCache(v4Context, AcademicCalendarStore(v4Context, OkHttpClient(), v4Prefs))
         val outbox = PendingCourseOverrides(cache, api, v4Prefs)
-        val courses = PushCourseSyncBackend(api, v4Prefs, outbox, current, outbox.reserveVersion(), cache)
+        val courses = PushCourseSyncBackend(api, v4Prefs, outbox, current, outbox.reserveVersion(), cache, termResets(cache, api))
 
         val thrown = runCatching { courses.patchStampedOverride("1142", "CS9", "1142CS9", name = "Old name", locale = "en") }.exceptionOrNull()
 
