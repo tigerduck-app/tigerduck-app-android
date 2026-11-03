@@ -267,7 +267,15 @@ internal class CourseIgnoreQueue(
         if (!sends()) return SendResult.NotSent
         val moodleId = change.moodleId ?: return SendResult.NotSent
         val answer = try {
-            sendMutex.withLock { writer.write(CourseRef(moodleId, courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAtMs) }
+            sendMutex.withLock {
+                // Read again once the lock is had, which the fill-in keeps across its own request: a
+                // change taken back meanwhile (Use Server, a forget) is not sent over what replaced it.
+                val current = mutex.withLock {
+                    signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
+                }
+                if (!current) return SendResult.NotSent
+                writer.write(CourseRef(moodleId, courseKeyOf(change)), change.ignore, change.moodleCourseId, signIn, change.madeAtMs)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
