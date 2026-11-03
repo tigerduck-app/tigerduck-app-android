@@ -111,8 +111,8 @@ class SyncWiringTest {
             "dataCache.addCourseBack(course.courseNo, semester, signIn)",
             "} finally {\n                dataCache.courseAddSent(course.courseNo, semester)",
         )
-        // Both modes' pass, Home's and the worker's.
-        val sync = body("sync/Synchronizer.kt", "sync")
+        // Both modes' pass, Home's and the worker's, whoever joins it.
+        val sync = body("sync/Synchronizer.kt", "pass")
         val begin = sync.indexOf("val courseSync = steps.beginCourseSync()")
         val fetch = sync.indexOf("steps.fetch(signIn, courseSync)")
         assertTrue("the synchronizer no longer begins its course sync before the fetch", begin in 0 until fetch)
@@ -279,7 +279,7 @@ class SyncWiringTest {
             assertCalls(rel, "listed", "pendingCourseAdds.listed(result.serverCourses, signIn)")
         }
         // Both modes' order is SynchronizerOrderTest's.
-        val body = body("sync/Synchronizer.kt", "sync")
+        val body = body("sync/Synchronizer.kt", "pass")
         val retry = body.indexOf("drain(signIn)")
         val fetch = body.indexOf("steps.fetch(")
         val listed = body.indexOf("steps.listed(result, signIn)")

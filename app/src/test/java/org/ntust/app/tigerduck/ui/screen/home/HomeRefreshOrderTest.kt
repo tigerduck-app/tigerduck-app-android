@@ -38,15 +38,23 @@ class HomeRefreshOrderTest {
         assertTrue("fetchData no longer has $text", it >= 0)
     }
 
+    /**
+     * Through [org.ntust.app.tigerduck.sync.RefreshOrder], whose order RefreshOrderTest holds: the
+     * pull and the school's fetch start together, and what the fetch brought is read and
+     * committed only once `afterPull()` says the pull has been applied.
+     */
     @Test
-    fun `the backend's pull is applied before the school's fetch starts, and the fetch commits after it`() {
+    fun `the backend's pull and the school's fetch start together, and the fetch commits after the pull`() {
         val body = body("fetchData")
-        val pull = at(body, "pullFromBackend()")
-        val reread = at(body, "courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }")
+        val order = at(body, "RefreshOrder.run(pull = ::pullFromBackend, pushOutbox = {}) { afterPull ->")
         val fetch = at(body, "fetchCoursesAndAssignments(studentId, password)")
+        val afterPull = at(body, "afterPull()")
+        val reread = at(body, "courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }")
         val commit = at(body, "commitFetchedTerm(")
-        assertTrue("the pull no longer comes first", pull < reread && reread < fetch)
-        assertTrue("the fetch no longer commits after it", fetch < commit)
+        val store = at(body, "moodleService.storeAssignments(it.assignments, it.answer)")
+        assertTrue("the fetch no longer starts beside the pull", order < fetch && fetch < afterPull)
+        assertTrue("the fetch no longer waits for the pull before it applies anything", afterPull < reread && reread < commit && afterPull < store)
+        assertTrue("Home pulls outside the refresh order", body.indexOf("pullFromBackend()") < 0)
     }
 
     @Test

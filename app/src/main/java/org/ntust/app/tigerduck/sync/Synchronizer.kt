@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync
 
 import android.util.Log
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
@@ -33,6 +34,7 @@ import org.ntust.app.tigerduck.ui.screen.settings.ReenableCheck
 import org.ntust.app.tigerduck.ui.screen.settings.categoriesTaken
 import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.widget.WidgetUpdater
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -162,12 +164,36 @@ class Synchronizer internal constructor(
      */
     suspend fun retryUnsent(signIn: SignIn) = drain(signIn)
 
+    // Under [lock]: the pass under way, which a sync asked for under the same sign-in joins.
+    private val lock = Any()
+    private var running: Running? = null
+
+    /** A pass under way under [signIn], and what it came to once that is known: null when it was cut short. */
+    private class Running(val signIn: SignIn) {
+        val landed = CompletableDeferred<Landed?>()
+    }
+
+    /** What a pass came to, and the pass itself once it synced. */
+    private class Landed(val outcome: SyncOutcome, val pass: SyncPass?)
+
+    private val joinedCallers = AtomicInteger()
+
+    /** How many callers wait on a pass they joined, for a test. */
+    internal val joined: Int get() = joinedCallers.get()
+
     /**
      * Runs one full sync under [signIn], the sign-in its caller read once where it started, over
      * Home's [state] in the foreground. [afterSync] runs once a pass has landed, before its course
      * window closes and as part of the pass: the worker's settings pull and reminders, which it
      * starts on its session. [afterFailure] runs once a pass that failed has said so, before its
      * course window closes: Home's relogin, which runs the sync again.
+     *
+     * One at a time (`tigersync-refresh-order`, "One refresh at a time"): asked for while a pass
+     * runs under the same sign-in, in either mode, the sync joins it, so two refreshes make one
+     * pull and the pass reads what the outbox holds once. A joining caller gets that pass's
+     * outcome, and once it synced runs its own [afterSync] over it; the pass's steps, its [state]
+     * and its [afterFailure] are its first caller's. A pass under another sign-in is never joined,
+     * and one cut short by its caller's cancellation is run again by the next caller waiting.
      */
     suspend fun sync(
         mode: SyncMode,
@@ -176,11 +202,65 @@ class Synchronizer internal constructor(
         afterSync: suspend (SyncPass) -> Unit = {},
         afterFailure: suspend (Exception) -> Unit = {},
     ): SyncOutcome {
+        while (true) {
+            val (shared, joins) = synchronized(lock) {
+                running?.takeIf { it.signIn === signIn }?.let { it to true } ?: (Running(signIn).also { running = it } to false)
+            }
+            if (!joins) return run(shared, mode, signIn, state, afterSync, afterFailure)
+            joinedCallers.incrementAndGet()
+            val landed = try {
+                shared.landed.await()
+            } finally {
+                joinedCallers.decrementAndGet()
+            }
+            // Cut short by its caller's cancellation: this caller runs it again.
+            if (landed == null) continue
+            val pass = landed.pass ?: return landed.outcome
+            return try {
+                afterSync(pass)
+                SyncOutcome.SYNCED
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "[Sync] the steps after a joined sync failed: ${e.logSummary()}")
+                SyncOutcome.FAILED
+            }
+        }
+    }
+
+    /** What [shared] came to, told to whoever joined it; it is no longer joined from here. */
+    private fun land(shared: Running, outcome: SyncOutcome?, pass: SyncPass? = null) {
+        synchronized(lock) { if (running === shared) running = null }
+        shared.landed.complete(outcome?.let { Landed(it, pass) })
+    }
+
+    private suspend fun run(
+        shared: Running,
+        mode: SyncMode,
+        signIn: SignIn,
+        state: HomeSyncState?,
+        afterSync: suspend (SyncPass) -> Unit,
+        afterFailure: suspend (Exception) -> Unit,
+    ): SyncOutcome = try {
+        pass(shared, mode, signIn, state, afterSync, afterFailure)
+    } finally {
+        // Cut short, by a cancellation: who waited runs a pass of its own.
+        land(shared, null)
+    }
+
+    private suspend fun pass(
+        shared: Running,
+        mode: SyncMode,
+        signIn: SignIn,
+        state: HomeSyncState?,
+        afterSync: suspend (SyncPass) -> Unit,
+        afterFailure: suspend (Exception) -> Unit,
+    ): SyncOutcome {
         val steps = when (mode) {
             SyncMode.FOREGROUND -> foreground
             SyncMode.BACKGROUND -> background
         }
-        if (!steps.mayRun()) return SyncOutcome.SKIPPED
+        if (!steps.mayRun()) return SyncOutcome.SKIPPED.also { land(shared, it) }
         // Before anything it sends or fetches, until it is done: see DataCache.beginCourseSync.
         val courseSync = steps.beginCourseSync()
         try {
@@ -199,6 +279,8 @@ class Synchronizer internal constructor(
             steps.noteRevision(pass)
             steps.notePull(pass)
             steps.synced()
+            // Landed: who joined goes on to its own steps after it, and a sync asked for from here is a pass of its own.
+            land(shared, SyncOutcome.SYNCED, pass)
             steps.afterSync(pass)
             afterSync(pass)
             return SyncOutcome.SYNCED
@@ -206,8 +288,10 @@ class Synchronizer internal constructor(
             throw e
         } catch (e: Exception) {
             // A run past its sign-out says nothing of the backend: the status is the next account's.
-            if (!signIn.isCurrent) return SyncOutcome.SKIPPED
+            if (!signIn.isCurrent) return SyncOutcome.SKIPPED.also { land(shared, it) }
             steps.failed()
+            // Before the failure step, whose relogin runs the sync again as a pass of its own.
+            land(shared, SyncOutcome.FAILED)
             afterFailure(e)
             Log.w(TAG, "[Sync] override sync failed: ${e.logSummary()}")
             return SyncOutcome.FAILED

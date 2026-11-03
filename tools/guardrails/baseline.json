@@ -1011,7 +1011,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-function",
     "name": "HomeViewModel.fetchData(Boolean)",
-    "lines": 83
+    "lines": 82
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",

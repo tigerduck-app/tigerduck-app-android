@@ -39,6 +39,7 @@ import org.ntust.app.tigerduck.auth.session.StartsAccountWork
 import org.ntust.app.tigerduck.coursechanges.CourseChangeStore
 import org.ntust.app.tigerduck.shared.timeline.CourseChanges
 import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.sync.RefreshOrder
 import org.ntust.app.tigerduck.sync.SchoolUploads
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -714,19 +715,18 @@ class HomeViewModel @Inject constructor(
             var assignments = dataCache.loadAssignments()
 
             if (forceRemote) {
-                // Moodle-direct for the assignment/course list (proven,
-                // correct semester filtering). Backend handles override
-                // sync only (done/ignored marks across devices).
-                pullFromBackend()
-                // Re-read after backend sync so server-merged courses and
-                // deletions are reflected even if the Moodle fetch below fails.
-                courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
-
-                val studentId = authService.storedStudentId
-                val password = authService.storedPassword
-                if (!studentId.isNullOrBlank() && !password.isNullOrBlank()) {
-                    val (remote, remoteAssignments) =
-                        fetchCoursesAndAssignments(studentId, password)
+                // The backend's pull and the school's fetch together, the pull applied first (RefreshOrder):
+                // Moodle-direct for the course and assignment lists, the backend for the marks across devices.
+                // No outbox step of its own: the pass sends what waits first, so its snapshot has it.
+                RefreshOrder.run(pull = ::pullFromBackend, pushOutbox = {}) { afterPull ->
+                    val studentId = authService.storedStudentId
+                    val password = authService.storedPassword
+                    val fetched = if (studentId.isNullOrBlank() || password.isNullOrBlank()) null else fetchCoursesAndAssignments(studentId, password)
+                    afterPull()
+                    // Re-read after the pull so server-merged courses and
+                    // deletions are reflected even if the Moodle fetch failed.
+                    courses = dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
+                    val (remote, remoteAssignments) = fetched ?: return@run
 
                     if (remote != null && remote.courses.isNotEmpty()) {
                         // Onto the term as it stands, so a concurrent color change isn't
