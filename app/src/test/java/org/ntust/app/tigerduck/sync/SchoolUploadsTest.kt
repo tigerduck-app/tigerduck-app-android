@@ -1,6 +1,7 @@
 package org.ntust.app.tigerduck.sync
 
 import android.content.Context
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -233,6 +234,37 @@ class SchoolUploadsTest {
         until("the term went up") { termUploads().isNotEmpty() }
         delay(300)
         assertEquals(listOf(listOf(CS1, CS2, HAND) to listOf(TERM)), termUploads())
+    }
+
+    /**
+     * Waiting, the term goes under the adds' send lock again, as the fetch's own upload did: a
+     * course delete or a term reset under way when the pull lands goes first, and the term is read
+     * after it.
+     */
+    @Test
+    fun `a waiting term goes in its turn behind a delete or reset under way, and reads the term after it`() = runBlocking {
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        val resetting = CompletableDeferred<Unit>()
+        val holding = CompletableDeferred<Unit>()
+        val reset = appScope.launch {
+            adds.removing {
+                holding.complete(Unit)
+                resetting.await()
+                cache.saveCourses(cache.loadCourses(TERM).filter { it.courseNo != CS2 }, TERM, signIn)
+            }
+        }
+        withTimeoutOrNull(10_000) { holding.await() }
+
+        gate.notePull(signIn)
+        until("the waiting upload left the gate") { gate.waiting == 0 }
+        delay(300)
+        assertEquals("not past the reset under way", emptyList<Any>(), termUploads())
+
+        resetting.complete(Unit)
+        reset.join()
+        until("the term went up") { termUploads().isNotEmpty() }
+        assertEquals(listOf(CS1), termUploads().single().first)
     }
 
     @Test
