@@ -242,19 +242,15 @@ class PendingCourseOverrides internal constructor(
         lane.drain(signIn)
     }
 
-    /**
-     * A course upload has landed: each parked change gets one more try at the next [retry], but one
-     * whose course the last upload answering for it left out as tombstoned goes, in the same step.
-     */
-    override suspend fun requeueParked(signIn: SignIn) {
-        mutex.withLock { lane.edit(signIn) { rows -> requeued(rows, memory::skips) } }
-    }
+    /** A course upload has landed: each parked change gets one more try at the next [retry]. */
+    override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
 
     /**
      * A course upload of [semester] was answered: the backend took the courses [accepted] and left
      * [skipped] out as tombstoned, as it does a course hidden or reset since elsewhere. No upload
-     * makes a row for one, so a change parked for its row goes now, and one parked later goes at
-     * the next upload's landing (xinshou, Telegram 1663); a course taken since is no longer skipped.
+     * makes a row for one, so a change parked for its row goes, now or at the next answer, which
+     * the course adds' every upload gives (xinshou, Telegram 1663); a course taken since is no
+     * longer skipped. The check and the drop are one step under the queue's lock.
      */
     suspend fun courseUploadAnswered(semester: String, accepted: Collection<String>, skipped: Collection<String>, signIn: SignIn) {
         mutex.withLock {
