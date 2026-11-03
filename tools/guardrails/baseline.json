@@ -78,19 +78,9 @@
     "count": 2
   },
   {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/PendingHolidayOverrides.kt",
-    "kind": "sync-switch-read",
-    "count": 1
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/UnsentMarks.kt",
-    "kind": "sync-switch-read",
-    "count": 2
-  },
-  {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/cache/DataCache.kt",
     "kind": "long-file",
-    "count": 1815
+    "count": 1781
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/moodle/AssignmentStatusWriter.kt",

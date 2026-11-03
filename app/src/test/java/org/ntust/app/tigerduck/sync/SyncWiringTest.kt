@@ -486,8 +486,8 @@ class SyncWiringTest {
             root = root.parentFile
         }
         val main = File(root ?: throw AssertionError("no :app module"), if (File(root, "app").isDirectory) "app/src/main/java" else "src/main/java")
-        // A call or a reference, outside comments.
-        val use = Regex("""(?:\.|::)putHolidayOverride\b""")
+        // A call or a reference, outside comments, of either form: the answered one too.
+        val use = Regex("""(?:\.|::)putHolidayOverride(?:Answered)?\b""")
         val callers = main.walk().filter { it.isFile && it.extension == "kt" }
             .filter { file -> file.readLines().any { line -> !line.trimStart().startsWith("*") && !line.trimStart().startsWith("//") && use.containsMatchIn(line) } }
             .map { it.name }.toSet()

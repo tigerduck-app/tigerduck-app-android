@@ -2,8 +2,15 @@ package org.ntust.app.tigerduck.sync.outbox
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -16,6 +23,8 @@ import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.EARLIEST_CLOCK_US
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /**
  * One channel's lane over a queue file in memory and a backend that answers when told: one request
@@ -310,6 +319,188 @@ class OutboxLaneTest {
         lane.enqueue(Edit("f1", "b", madeAtMs = 2), signIn)
         lane.drain(signIn)
         assertEquals(listOf("a", "a", "a", "a", "a", "b"), backend.values)
+    }
+
+    /**
+     * Two drains under way at once: the one that sent a field's last edit, and a send now of a
+     * newer edit of it, kept while the last was out. Whichever of them takes the newer edit, it is
+     * tried once: an attempt counts for every drain under way then, as each tap sent only its own
+     * edit before there was one lane.
+     */
+    @Test
+    fun `an edit one drain tried is not tried again by another under way with it`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "old", madeAtMs = 1)))
+        val lane = lane(store)
+        val signIn = series.current
+        backend.answer = { if (it.value == "new") SendResult.Retry else null }
+        val draining = launch { lane.drain(signIn) }
+        runCurrent()
+        val sending = launch {
+            lane.enqueue(Edit("f1", "new", madeAtMs = 2), signIn)
+            lane.drain(signIn, setOf("f1"))
+        }
+        runCurrent()
+
+        backend.reply(SendResult.Sent(null))
+        draining.join()
+        sending.join()
+
+        assertEquals(listOf("old", "new"), backend.values)
+        assertEquals(listOf(Edit("f1", "new", madeAtMs = 2)), store.entries)
+    }
+
+    /**
+     * One after the other, never at once, as a queue that drains under a lock of its own does: each
+     * drain is a fresh one, and tries a failed edit again.
+     */
+    @Test
+    fun `drains one after another each try a failed edit once`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        backend.answer = { SendResult.Retry }
+
+        lane.drain(series.current)
+        lane.drain(series.current, setOf("f1"))
+        lane.enqueueAndDrain(Edit("f1", "a"), series.current) { true }
+
+        assertEquals(listOf("a", "a", "a"), backend.values)
+    }
+
+    /**
+     * A drain of the first student's, waiting behind their request while they sign out and the
+     * next student edits: once its sign-in has ended it neither sends nor counts anything as tried
+     * for the next student's drain, which sends the edit.
+     */
+    @Test
+    fun `a drain whose sign-in ended while it waited leaves the next student's edit to the next student's drain`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val first = series.current
+        backend.answer = { if (it.value == "b") SendResult.Sent(null) else null }
+        val sending = launch { lane.drain(first) }
+        runCurrent()
+        val waiting = launch { lane.drain(first) }
+        runCurrent()
+        // Signed out, the queue wiped, and the next student signs in and edits.
+        series.end()
+        store.entries = emptyList()
+        series.open()
+        val second = series.current
+        assertTrue(lane.enqueue(Edit("f2", "b"), second))
+        val next = launch { lane.drain(second) }
+        runCurrent()
+
+        backend.reply(SendResult.Sent(null))
+        sending.join()
+        waiting.join()
+        next.join()
+
+        assertEquals(listOf("a" to first, "b" to second), backend.sent.map { (edit, signIn) -> edit.value to signIn })
+        assertEquals(emptyList<Edit>(), store.entries)
+    }
+
+    /**
+     * The first student's drain past its sign-in check, its read of the queue slow, as the student
+     * signs out and the next one's edit and drain arrive: what it reads it counts for drains of its
+     * own sign-in only, so the next student's drain still sends the edit.
+     */
+    @Test
+    fun `an edit read under an ended sign-in counts as tried for no drain of another sign-in`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "a")))
+        val lane = lane(store)
+        val first = series.current
+        backend.answer = { SendResult.Sent(null) }
+        val read = CompletableDeferred<Unit>()
+        store.holdNextLoad = read
+        val draining = launch { lane.drain(first) }
+        runCurrent()
+        // Signed out while its read waits: the queue wiped, then the next student's edit in it.
+        series.end()
+        store.entries = listOf(Edit("f2", "b"))
+        series.open()
+        val second = series.current
+        val next = launch { lane.drain(second) }
+        runCurrent()
+
+        read.complete(Unit)
+        draining.join()
+        next.join()
+
+        assertEquals(listOf("b" to second), backend.sent.map { (edit, signIn) -> edit.value to signIn })
+    }
+
+    /** "Tried" is kept by field: two fields' edits a channel's sameEdit calls alike are two edits. */
+    @Test
+    fun `edits of two fields that look alike each go`() = runTest {
+        val store = FakeStore(listOf(Edit("f1", "x"), Edit("f2", "x")))
+        val alike = OnDiskAttempts<Edit>(
+            attempts = { it.attempts },
+            counted = { e, n, _ -> e.copy(attempts = n) },
+            sameEdit = { a, b -> a.value == b.value && a.madeAtMs == b.madeAtMs },
+        )
+        val lane = lane(store, LanePolicy(Edit::field, 5, alike))
+        backend.answer = { SendResult.Retry }
+
+        lane.drain(series.current)
+
+        assertEquals(listOf("f1", "f2"), backend.sent.map { it.first.field })
+    }
+
+    @Test
+    fun `a send now keeps its edit and sends its field, and under an ended sign-in does neither`() = runTest {
+        val store = FakeStore(listOf(Edit("f2", "other")))
+        val lane = lane(store)
+        backend.answer = { SendResult.Sent(null) }
+        val signIn = series.current
+
+        assertTrue(lane.enqueueAndDrain(Edit("f1", "a"), signIn) { false })
+        assertEquals("kept, not sent", emptyList<String>(), backend.values)
+        assertTrue(lane.enqueueAndDrain(Edit("f1", "b"), signIn) { true })
+        assertEquals("only its own field", listOf("b"), backend.values)
+
+        val ended = series.end()
+        assertFalse(lane.enqueueAndDrain(Edit("f3", "c"), ended) { true })
+        assertEquals(listOf("b"), backend.values)
+        assertEquals(listOf(Edit("f2", "other")), store.entries)
+    }
+
+    /**
+     * On threads of their own, as a tap and a sync run: the send now's edit is kept, and before it
+     * has asked whether to send, the drain under way takes the edit and fails. The send now counted
+     * as under way from before its edit was kept, so it does not send the edit again.
+     */
+    @Test
+    fun `a send now counts as under way from before its edit is kept, whichever thread takes the edit`() = runBlocking {
+        val store = FakeStore(listOf(Edit("f1", "old", madeAtMs = 1)))
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val lane = OutboxLane(OutboxChannelId.MARKS, store, LanePolicy(Edit::field, 5, onDisk()), ack, scope, backend::send)
+        val newTried = CountDownLatch(1)
+        backend.answer = { edit -> if (edit.value == "new") SendResult.Retry.also { newTried.countDown() } else null }
+        val signIn = series.current
+        try {
+            val draining = launch(Dispatchers.Default) { lane.drain(signIn) }
+            // The old edit is out, its reply held.
+            withTimeout(5_000) { while (backend.pending.isEmpty()) delay(1) }
+            val kept = CountDownLatch(1)
+            val goOn = CountDownLatch(1)
+            val sending = launch(Dispatchers.IO) {
+                lane.enqueueAndDrain(Edit("f1", "new", madeAtMs = 2), signIn) {
+                    kept.countDown()
+                    goOn.await(5, TimeUnit.SECONDS)
+                    true
+                }
+            }
+            assertTrue(kept.await(5, TimeUnit.SECONDS))
+            backend.reply(SendResult.Sent(null))
+            assertTrue("the drain under way took the new edit", newTried.await(5, TimeUnit.SECONDS))
+            withTimeout(5_000) { draining.join() }
+            goOn.countDown()
+            withTimeout(5_000) { sending.join() }
+
+            assertEquals(listOf("old", "new"), backend.values)
+        } finally {
+            scope.cancel()
+        }
     }
 
     @Test
