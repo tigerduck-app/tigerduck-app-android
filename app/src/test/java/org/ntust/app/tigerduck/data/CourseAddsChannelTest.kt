@@ -20,6 +20,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.push.CourseUploadAnswer
+import org.ntust.app.tigerduck.push.CourseUploadListener
 import org.ntust.app.tigerduck.push.PushApiException
 import org.ntust.app.tigerduck.push.RecordingBackend
 import org.ntust.app.tigerduck.push.pushApiClientAt
@@ -94,8 +95,12 @@ class CourseAddsChannelTest {
 
     /** The adds as Hilt builds them, on `/v4`, telling [outbox] once an upload lands. */
     private fun TestScope.v4Adds(outbox: (() -> Outbox)? = null) = PendingCourseAdds(
-        cache, pushApiClientAt(v4, backend.client, prefs, syncClock), SyncPolicies(prefs), ack, backgroundScope, oldEntryTime,
-        outbox?.let { get -> dagger.Lazy { get() } },
+        cache,
+        pushApiClientAt(
+            v4, backend.client, prefs, syncClock,
+            uploadNews = outbox?.let { get -> CourseUploadListener { _, _, _, signIn -> get().courseUploadLanded(signIn) } },
+        ),
+        SyncPolicies(prefs), ack, backgroundScope, oldEntryTime,
     )
 
     private fun field(course: Course, semester: String = term) = SyncField.membership(SyncField.courseKey(semester, course.courseNo))

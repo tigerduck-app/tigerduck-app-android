@@ -94,19 +94,20 @@ internal fun syncApiClientAt(base: String, backend: OkHttpClient, clock: SyncClo
 
 /**
  * A [PushApiClient] whose endpoint setting is [base], signed in with the pair `access`/`refresh`,
- * reaching nothing but [backend]; [prefs] for a test that turns the switches, and [clock] for one
- * whose `/v4` writes it stamps.
+ * reaching nothing but [backend]; [prefs] for a test that turns the switches, [clock] for one
+ * whose `/v4` writes it stamps, and [uploadNews] for one that hears each course upload that landed.
  */
 internal fun pushApiClientAt(
     base: String,
     backend: OkHttpClient,
     prefs: AppPreferences = AppPreferences(JvmContext()),
     clock: SyncClock? = null,
+    uploadNews: CourseUploadListener? = null,
 ): PushApiClient {
     prefs.announcementApiBaseUrlOverride = base
     // Never the real backend, even past the recording one.
     assertTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
     val tokens = V3TokenStore(JvmContext().getSharedPreferences("v3-tokens-recording", Context.MODE_PRIVATE))
     tokens.save("access", "refresh", Long.MAX_VALUE)
-    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clock)
+    return PushApiClient(backend, prefs, AuthTokenManager(tokens, backend, prefs, "device-1"), clock, uploadNews?.let { dagger.Lazy { it } })
 }

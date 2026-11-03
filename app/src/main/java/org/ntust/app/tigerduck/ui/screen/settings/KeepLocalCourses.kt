@@ -155,14 +155,15 @@ internal class PushCourseSyncBackend(
         // A name that did not go waits in the course outbox, as every name does on /v3: kept, held
         // while the names check is open, and sent once the student's answer lifts the hold. The
         // reset took the server's copy, and nothing else would put it back. Queued at the version
-        // reserved before the name was read, so a rename made since stays the one waiting. The
-        // outbox's own /v4 form, the course's key and its stamp, comes with its channel (wave 3);
-        // until then its entry waits on a /v4 base as a CourseKeyUnknownException.
+        // reserved before the name was read, so a rename made since stays the one waiting. With
+        // the course's term and number, which a derived Moodle id names no cached course by, so
+        // the outbox goes by the course's key on /v4, and tells a course still here from one gone.
         if (name != null && !answer.sent) {
             // Course sync can have gone off while the request was made, which the outbox's own
             // rule for names does not read: stopped, as every other step.
             ensureSends()
-            overrides.queue(listOf(PendingCourseOverrides.Change(moodleId, customName = name, locale = locale)), namesVersion, signIn)
+            val change = PendingCourseOverrides.Change(moodleId, customName = name, locale = locale, semester = semester, courseNo = courseNo)
+            overrides.queue(listOf(change), namesVersion, signIn)
         }
     }
 
