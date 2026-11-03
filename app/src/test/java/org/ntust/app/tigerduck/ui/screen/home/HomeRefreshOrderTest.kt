@@ -80,6 +80,40 @@ class HomeRefreshOrderTest {
         assertTrue("fetchData no longer hands the fetch its afterPull", "fetchCoursesAndAssignments(studentId, password, afterPull)" in body("fetchData"))
     }
 
+    /**
+     * Codex on PR R, fix round 4, finding 1: recorded after the pull, an answer course selection gave
+     * before it would be dated then, and taken for newer than one another fetch committed meanwhile.
+     * Its time is taken as course selection answers, before any wait, and recorded with it, as on dev,
+     * where the record came straight after the answer; `recordSelectionRoster` then refuses it as older.
+     */
+    @Test
+    fun `Home dates its course selection answer when it came, not when it is recorded after the pull`() {
+        val body = body("fetchCoursesAndAssignments")
+        val fetched = at(body, "courseService.fetchEnrolledCourseNos(studentId, password)")
+        val dated = at(body, "answeredAt = System.currentTimeMillis()")
+        val afterPull = at(body, "afterPull()")
+        val recorded = at(body, "dataCache.recordSelectionRoster(semester, it, signIn, answeredAt)")
+        assertTrue("dated before the waits", fetched < dated && dated < afterPull)
+        assertTrue("recorded with that time, after the pull", afterPull < recorded)
+    }
+
+    /** What that time decides, on the real cache: an answer older than one kept meanwhile is refused. */
+    @Test
+    fun `an answer older than one kept meanwhile is refused, and the newer stays`() = kotlinx.coroutines.runBlocking {
+        val context = org.ntust.app.tigerduck.util.JvmContext()
+        val prefs = org.ntust.app.tigerduck.data.preferences.AppPreferences(context)
+        val cache = org.ntust.app.tigerduck.data.cache.DataCache(
+            context, org.ntust.app.tigerduck.academic.AcademicCalendarStore(context, okhttp3.OkHttpClient(), prefs),
+        )
+        val signIn = org.ntust.app.tigerduck.util.testSignIn()
+        cache.recordSelectionRoster("1151", listOf("XA0000001", "XC0000003"), signIn, answeredAt = 2_000L)
+
+        val older = cache.recordSelectionRoster("1151", listOf("XA0000001", "XB0000002"), signIn, answeredAt = 1_000L)
+
+        assertTrue("refused", older == org.ntust.app.tigerduck.data.RecordedSelection.Refused)
+        assertTrue(cache.selectionAnswerIn("1151")?.courseNos == setOf("XA0000001", "XC0000003"))
+    }
+
     @Test
     fun `the assignments the fetch wrote go up after the first pull on v4`() {
         val body = body("fetchData")

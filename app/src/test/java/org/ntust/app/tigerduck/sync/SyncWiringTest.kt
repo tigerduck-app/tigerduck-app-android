@@ -778,7 +778,7 @@ class SyncWiringTest {
     fun `Home and the background sync commit an answer only while it is the term's latest, and the sync uploads under the adds lock`() {
         assertCalls(
             "ui/screen/home/HomeViewModel.kt", "fetchCoursesAndAssignments",
-            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }",
+            "val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn, answeredAt) }",
             "answer = recorded?.answer,",
         )
         assertCalls("ui/screen/home/HomeViewModel.kt", "fetchData", "remote.onlyGains, remote.answer, remote.signIn,")

@@ -838,6 +838,8 @@ class HomeViewModel @Inject constructor(
                 null
             }
         }
+        // When course selection answered, before any wait: the answer's age, recorded with it (finding 4, round 4).
+        var answeredAt = 0L
         val courseNosDef = async {
             if (!servesSelectionSemester) return@async emptyList()
             val authed = runCatching { authService.ensureAuthenticated() }.getOrDefault(false)
@@ -845,6 +847,7 @@ class HomeViewModel @Inject constructor(
             try {
                 if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.COURSE_SELECTION)
                 val nos = courseService.fetchEnrolledCourseNos(studentId, password)
+                answeredAt = System.currentTimeMillis()
                 ServerStatusTracker.set(ServerStatus.OK, ServerKind.COURSE_SELECTION)
                 nos
             } catch (e: CancellationException) {
@@ -862,16 +865,14 @@ class HomeViewModel @Inject constructor(
         afterPull()
         // Before anything overwrites the cache: a course that was in the portal roster and is not
         // in this answer was dropped in 加退選, and the backend keeps serving it until deleted by hand.
-        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }
+        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn, answeredAt) }
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
-        // Moodle adds no course to the term, but its courses are still whose
-        // assignments are asked for when course selection gave nothing.
+        // Moodle adds no course to the term, but its courses' assignments are asked for when course selection gave nothing.
         val rosterCourseNos = CourseRosterMerge.assignmentCourseNos(courseNos, moodleForSemester).toSet()
         val cached = dataCache.loadCourses(semester)
-        // Course selection's answer, else the transcript's classes added to
-        // the term, else the term stays as it is (tigerduck-app#890). The
-        // transcript on disk: Home never signs in to the score system.
+        // Course selection's answer, else the transcript's classes added to the term, else the term stays
+        // as it is (tigerduck-app#890). The transcript on disk: Home never signs in to the score system.
         val term = TranscriptTerms.termFrom(courseNos, dataCache.loadScoreReport(studentId)?.report, semester, cached)
 
         val coursesDef = async {
@@ -879,9 +880,8 @@ class HomeViewModel @Inject constructor(
             if (recorded == RecordedSelection.Refused) return@async null
             term ?: return@async null
 
-            // A course whose query fails, or brings no rows, keeps its row in
-            // the term, where Moodle's stand-in would take its times and room
-            // off this phone and, uploaded, off every other device (#417).
+            // A course whose query fails, or brings no rows, keeps its row in the term, where Moodle's stand-in
+            // would take its times and room off this phone and, uploaded, off every other device (#417).
             val cachedByNo = cached.associateBy { it.courseNo }
             val looked = term.courseNos.map { courseNo ->
                 async {
