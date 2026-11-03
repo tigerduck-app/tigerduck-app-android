@@ -59,11 +59,6 @@
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/data/CourseIgnoreSync.kt",
-    "kind": "long-file",
-    "count": 506
-  },
-  {
-    "path": "app/src/main/java/org/ntust/app/tigerduck/data/CourseIgnoreSync.kt",
     "kind": "sync-switch-read",
     "count": 2
   },
