@@ -35,8 +35,12 @@ import org.ntust.app.tigerduck.notification.settingsSyncAt
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.clock.AppClock
+import kotlinx.coroutines.flow.MutableStateFlow
+import org.ntust.app.tigerduck.notification.SyncSource
 import org.ntust.app.tigerduck.ui.screen.home.HomeSyncRig
+import org.ntust.app.tigerduck.ui.screen.home.HomeSyncState
 import org.ntust.app.tigerduck.ui.screen.home.homeSyncRig
+import org.ntust.app.tigerduck.ui.screen.home.idleTermSync
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
@@ -134,12 +138,42 @@ class SynchronizerBackgroundTest {
     }
 
     @Test
-    fun `a background run whose pull fails leaves the gate shut`() {
+    fun `a background run whose pull fails leaves the gate shut, and says the data is this phone's`() {
         backend.answer("GET /sync/full", 503)
 
         runWorker()
 
         assertFalse(rig.gate.hasPulled(signIn))
+        assertEquals(SyncSource.LOCAL, w.appPrefs.lastSyncSource.value)
+    }
+
+    @Test
+    fun `a background pass with TigerSync off sends nothing, and says no sync was attempted`() = runBlocking {
+        w.appPrefs.cloudSyncEnabled = false
+        w.appPrefs.setLastSyncSource(SyncSource.BACKEND)
+        val from = backend.endpoints().size
+
+        assertEquals(SyncOutcome.SKIPPED, rig.synchronizer.sync(SyncMode.BACKGROUND, signIn))
+
+        assertEquals(emptyList<String>(), backend.endpoints().drop(from))
+        assertEquals(SyncSource.NONE, w.appPrefs.lastSyncSource.value)
+    }
+
+    @Test
+    fun `a background pass answers the snapshot's roster requests before it ends, Home's later`() = runBlocking {
+        val asked = mutableListOf<String>()
+        val roster = homeSyncRig(context, w, backend.client, idleScope, termSync = idleTermSync(w, asked))
+        val requests = JSONObject(snapshot()).put("roster_requests", JSONArray().put("1141")).toString()
+
+        backend.answer("GET /sync/full", 200, requests)
+        assertEquals(SyncOutcome.SYNCED, roster.synchronizer.sync(SyncMode.BACKGROUND, signIn))
+        assertEquals(listOf("1141"), asked)
+
+        // Home's goes on the application scope, which never runs here.
+        asked.clear()
+        backend.answer("GET /sync/full", 200, requests)
+        roster.sync.pull(homeState(), signIn)
+        assertEquals(emptyList<String>(), asked)
     }
 
     @Test
@@ -209,6 +243,16 @@ class SynchronizerBackgroundTest {
             assertEquals(if (failure.error.status == 401) 1 else 0, reloginAsked)
         }
     }
+
+    private fun homeState() = HomeSyncState(
+        ignoredAssignmentIds = MutableStateFlow(emptySet()),
+        markedCompletedIds = MutableStateFlow(emptySet()),
+        ignoredCourseKeys = MutableStateFlow(emptySet()),
+        allAssignments = MutableStateFlow(emptyList()),
+        allCourses = MutableStateFlow(emptyList()),
+        conflicts = MutableStateFlow(emptyList()),
+        pendingOverrides = mutableSetOf(),
+    )
 
     private companion object {
         const val STUDENT = "B00015999"

@@ -233,7 +233,42 @@ class BackgroundPullRequestsTest {
         )
     }
 
+    @Test
+    fun `a background sync sends the color it moved off a course the server holds on another's`() {
+        val first = Course(courseNo = COURSE, courseName = "Kept", moodleIdNumber = moodleId())
+        val second = Course(courseNo = OTHER, courseName = "Other", moodleIdNumber = "$term$OTHER")
+        runBlocking { w.dataCache.saveCourses(listOf(first, second), term, signIn) }
+        // An older build left both on one color: the later pick, by course number, keeps it.
+        val snapshot = JSONObject(snapshot(rows = true))
+            .put(
+                "courses",
+                JSONArray()
+                    .put(JSONObject().put("course_no", COURSE).put("course_name", "Kept").put("semester", term).put("moodle_id", moodleId()))
+                    .put(JSONObject().put("course_no", OTHER).put("course_name", "Other").put("semester", term).put("moodle_id", "$term$OTHER")),
+            )
+            .put(
+                "course_overrides",
+                JSONArray()
+                    .put(JSONObject().put("moodle_id", moodleId()).put("course_no", COURSE).put("semester", term).put("color_hex", "#123456"))
+                    .put(JSONObject().put("moodle_id", "$term$OTHER").put("course_no", OTHER).put("semester", term).put("color_hex", "#123456")),
+            )
+        backend.answer("GET /sync/full", 200, snapshot.toString())
+        val from = backend.endpoints().size
+
+        assertEquals(ListenableWorker.Result.success(), runWorker())
+
+        assertEquals(
+            listOf("GET /sync/full | Bearer access-1 | null | ", MOVED_COLOR.replace("{id}", moodleId())) + SETTINGS_PULL,
+            sentSince(from),
+        )
+    }
+
     private companion object {
+        const val OTHER = "CS1002"
+
+        /** The color the course that moved takes, as the class table's pick gives it one. */
+        const val MOVED_COLOR = """PATCH /sync/courses/{id}/override | Bearer access-1 | null | {"color_hex":"#DDA0DD","hlc":<time>}"""
+
         const val STUDENT = "B00015999"
         const val OTHER_TERM = "1132"
         const val COURSE = "CS1001"
