@@ -59,10 +59,10 @@ class SynchronizerJoinTest {
         override suspend fun stampDeletes() = 0L
         override suspend fun fetch(signIn: SignIn, courseSync: DataCache.CourseSync): BackendSyncResult {
             val number = fetches.incrementAndGet()
-            log += "$name fetch"
+            log += "$name fetch $number"
             fetchHeld.await()
             if (number in failing) throw IOException("made-up failure")
-            return result
+            return result.copy(currentRevision = number.toLong())
         }
         override suspend fun listed(result: BackendSyncResult, signIn: SignIn) = Unit
         override fun policy() = policy
@@ -71,7 +71,7 @@ class SynchronizerJoinTest {
         override fun notePull(pass: SyncPass) = Unit
         override fun synced() = Unit
         override fun afterSync(pass: SyncPass) {
-            log += "$name after-steps"
+            log += "$name after-steps ${pass.result.currentRevision}"
         }
         override fun failed() = Unit
     }
@@ -84,6 +84,22 @@ class SynchronizerJoinTest {
         drain = {}, foreground = Steps("foreground"), background = Steps("background"),
         marks = none, ignores = none, overrides = none, reset = none, holidays = none, roster = none,
     )
+
+    /**
+     * The passes as they ran, each fetch's mode in order, every one with its own steps after it,
+     * once, after its fetch. A pass runs those steps once it has landed, when the next pass may
+     * start (`Synchronizer.pass`), so they are not ordered against the next pass's fetch.
+     */
+    private fun passesRun(): List<String> {
+        val entries = log.toList()
+        val fetched = entries.filter { " fetch " in it }
+        for (fetch in fetched) {
+            val (name, _, number) = fetch.split(" ")
+            assertTrue("$fetch's steps after it ran after it: $entries", entries.indexOf("$name after-steps $number") > entries.indexOf(fetch))
+        }
+        assertEquals("every pass's steps after it, once: $entries", fetched.size, entries.count { " after-steps " in it })
+        return fetched.map { it.substringBefore(" fetch") }
+    }
 
     private suspend fun untilFetches(count: Int) {
         withTimeout(10_000) { while (fetches.get() < count) delay(1) }
@@ -106,11 +122,7 @@ class SynchronizerJoinTest {
 
         for (sync in listOf(first, second, third)) assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { sync.await() })
         assertEquals("snapshot fetches", 2, fetches.get())
-        assertEquals(
-            "the one more pass fetched once the first was done",
-            listOf("foreground fetch", "foreground after-steps", "foreground fetch", "foreground after-steps"),
-            log.toList(),
-        )
+        assertEquals("the one more pass fetched once the first was done", listOf("foreground", "foreground"), passesRun())
     }
 
     /**
@@ -135,14 +147,7 @@ class SynchronizerJoinTest {
 
         for (sync in listOf(home, worker, homeAgain, homeOnceMore)) assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { sync.await() })
         assertEquals("Home's second sync ran its steps after a foreground pass", listOf(SyncMode.FOREGROUND), passModes.toList())
-        assertEquals(
-            "one pass at a time, Home's two later syncs sharing one",
-            listOf(
-                "foreground fetch", "foreground after-steps", "background fetch", "background after-steps",
-                "foreground fetch", "foreground after-steps",
-            ),
-            log.toList(),
-        )
+        assertEquals("one pass at a time, Home's two later syncs sharing one", listOf("foreground", "background", "foreground"), passesRun())
     }
 
     /**
@@ -167,7 +172,7 @@ class SynchronizerJoinTest {
 
         assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { home.await() })
         assertEquals(SyncOutcome.SYNCED, withTimeout(10_000) { worker.await() })
-        assertEquals(listOf("foreground fetch", "foreground after-steps", "background fetch", "background after-steps"), log.toList())
+        assertEquals(listOf("foreground", "background"), passesRun())
     }
 
     /**
@@ -258,6 +263,6 @@ class SynchronizerJoinTest {
         assertEquals(SyncOutcome.SYNCED, synchronizer.sync(SyncMode.FOREGROUND, school.current))
         assertEquals(SyncOutcome.SYNCED, synchronizer.sync(SyncMode.FOREGROUND, school.current))
         assertEquals(2, fetches.get())
-        assertTrue(log.count { it == "foreground after-steps" } == 2)
+        assertEquals(listOf("foreground", "foreground"), passesRun())
     }
 }
