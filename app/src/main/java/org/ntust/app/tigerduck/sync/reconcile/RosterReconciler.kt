@@ -10,6 +10,7 @@ import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
 import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.network.SemesterCatalog
@@ -19,7 +20,9 @@ import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.SyncPass
+import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import org.ntust.app.tigerduck.util.logSummary
@@ -29,7 +32,8 @@ import javax.inject.Inject
 /**
  * The course list, every term this phone knows of, and the roster requests the snapshot makes,
  * while course sync is on and no re-enable check holds the list. Returns whether it reconciled
- * the list.
+ * the list. In the background, the current term's alone ([CurrentTermCourses]), and the roster
+ * requests answered before the run ends, the switch and the hold read at the step.
  */
 class RosterReconciler @Inject constructor(
     private val dataCache: DataCache,
@@ -43,15 +47,49 @@ class RosterReconciler @Inject constructor(
     private val pendingCourseOverrides: PendingCourseOverrides,
     private val termCourseSync: TermCourseSync,
     @param:ApplicationScope private val appScope: CoroutineScope,
+    prefs: AppPreferences,
+    private val syncPolicies: SyncPolicies,
 ) : Reconciler {
+
+    private val currentTerm = CurrentTermCourses(
+        prefs, dataCache, courseService, pushApiClient, pendingCourseAdds, pendingCourseDeletes, pendingCourseOverrides,
+    )
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
         val result = pass.result
         val signIn = pass.signIn
-        val takesCourseList = pass.policy.applies(SyncCategory.COURSES)
-        syncCourseList(result, takesCourseList, pass.courseSync, signIn)
-        if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)
-        return takesCourseList
+        return when (pass.mode) {
+            SyncMode.FOREGROUND -> pass.policy.applies(SyncCategory.COURSES).also { takesCourseList ->
+                syncCourseList(result, takesCourseList, pass.courseSync, signIn)
+                if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)
+            }
+            // Read here, once the steps before have run, as the worker always read it: a course
+            // switch turned off while they ran leaves the list and its roster requests.
+            SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES).also { takesCourseList ->
+                if (takesCourseList) {
+                    currentTerm.reconcile(result, pass.courseSync, signIn)
+                    answerRosterRequestsNow(result.rosterRequests, signIn)
+                }
+            }
+        }
+    }
+
+    /**
+     * The background worker's [answerRosterRequests]: answered before the run ends, as the worker
+     * has no screen to come back to. A failure there is no failed sync: the backend asks again
+     * until a roster arrives.
+     */
+    private suspend fun answerRosterRequestsNow(requests: List<String>, signIn: SignIn) {
+        if (requests.isEmpty()) return
+        val studentId = authService.storedStudentId ?: return
+        val password = authService.storedPassword ?: return
+        try {
+            termCourseSync.answerRosterRequests(requests, studentId, password, signIn)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "roster request failed: ${e.logSummary()}")
+        }
     }
 
     /**

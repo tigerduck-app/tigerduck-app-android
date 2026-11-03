@@ -3,10 +3,14 @@ package org.ntust.app.tigerduck.sync.reconcile
 import android.util.Log
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.preferences.AppLanguageManager
+import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.notification.BackgroundCourseOverrides
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.CourseOverrideResult
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.SyncPass
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
@@ -20,15 +24,19 @@ import javax.inject.Inject
  * The course colors and custom names. They always run, the first sync of an account included, but
  * not over a re-enable check still waiting for the user's answer ([SyncPass.policy]). Returns
  * whether Home's course list was loaded for them, which is what lets the pass count them as taken.
+ * In the background, over the current term's cached courses ([BackgroundCourseOverrides]), as the
+ * worker has no course list on screen.
  */
 class OverridesReconciler @Inject constructor(
     private val dataCache: DataCache,
     private val widgetUpdater: WidgetUpdater,
     private val pendingCourseOverrides: PendingCourseOverrides,
     private val syncPolicies: SyncPolicies,
+    private val prefs: AppPreferences,
 ) : Reconciler {
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
+        if (pass.mode == SyncMode.BACKGROUND) return reconcileCachedTerm(pass)
         val result = pass.result
         val state = pass.home
         val syncColors = pass.policy.applies(SyncCategory.COURSE_COLORS)
@@ -39,6 +47,35 @@ class OverridesReconciler @Inject constructor(
         return applyCourseOverrides(
             state, result.courseOverrides, pass.signIn, { pendingCourseOverrides.held(result.fetchedAtMs) }, syncColors, syncNames,
         )
+    }
+
+    /**
+     * The background worker's pass: the snapshot's colors and names over the current term's cached
+     * courses ([BackgroundCourseOverrides.apply]), not over a color or name this phone has waiting
+     * to go up or sent since the fetch; then the widgets, and the colors moved off a duplicate go
+     * up. Returns whether the pass applied the colors or names at all.
+     *
+     * The switches and the re-enable hold are read here, once the steps before have run, as the
+     * worker always read them, not from the pass's reading: a switch turned off while the ignores
+     * step waits on its requests keeps the snapshot's colors and names off the timetable and the
+     * widgets.
+     */
+    private suspend fun reconcileCachedTerm(pass: SyncPass): Boolean {
+        val result = pass.result
+        val signIn = pass.signIn
+        val policy = syncPolicies.current
+        val syncColors = policy.applies(SyncCategory.COURSE_COLORS)
+        val syncNames = policy.applies(SyncCategory.COURSE_NAMES)
+        if (!(syncColors || syncNames) || result.courseOverrides.isEmpty()) return false
+        val applied = BackgroundCourseOverrides.apply(
+            dataCache, dataCache.currentSemesterCode(), result.courseOverrides, { pendingCourseOverrides.held(result.fetchedAtMs) },
+            syncColors, syncNames, AppLanguageManager.resolvedCourseApiLanguage(prefs.appLanguage), signIn,
+        ) ?: return true
+        widgetUpdater.requestUpdate()
+        sendMovedColors(applied.courses, applied.moved) { moodleId, hex ->
+            pendingCourseOverrides.send(moodleId, colorHex = hex, signIn = signIn)
+        }
+        return true
     }
 
     /**

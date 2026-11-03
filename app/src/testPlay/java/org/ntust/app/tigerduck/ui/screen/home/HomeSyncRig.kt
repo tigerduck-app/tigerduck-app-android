@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.FirstPullGate
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.Synchronizer
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.sync.reconcile.CourseResetReconciler
 import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
 import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
@@ -35,14 +36,16 @@ internal class HomeSyncRig(
     val holidays: PendingHolidayOverrides,
     val ignores: CourseIgnoreSync,
     val gate: FirstPullGate,
+    val synchronizer: Synchronizer,
     val sync: HomeBackendSync,
 )
 
 /**
- * Builds [HomeSyncRig] over [w], its backend requests answered by [backend]. What would run past the
+ * Builds [HomeSyncRig] over [w], its backend requests answered by [backend]; the background worker
+ * runs its [Synchronizer] too (`backgroundSyncWorker`). What would run past the
  * sync, on the application scope, goes to [idleScope], which never runs it: the notification
  * settings pull, the roster requests, a re-enable check and the first-pull gate's sign-out watch. [ignores] is the course-ignore queue,
- * the real one unless a test needs its own.
+ * the real one unless a test needs its own, and [termSync] answers the roster requests.
  */
 internal fun homeSyncRig(
     context: Context,
@@ -50,6 +53,7 @@ internal fun homeSyncRig(
     backend: OkHttpClient,
     idleScope: CoroutineScope,
     ignores: CourseIgnoreSync = CourseIgnoreSync(w.dataCache, w.pushApi, w.appPrefs, AssignmentNotificationScheduler(context)),
+    termSync: TermCourseSync = idleTermSync(w),
 ): HomeSyncRig {
     val syncApi = SyncApiClient(w.tokens, w.appPrefs, backend)
     val marks = UnsentMarks(w.dataCache, w.pushApi, w.appPrefs)
@@ -60,19 +64,18 @@ internal fun homeSyncRig(
     val policies = SyncPolicies(w.appPrefs)
     val gate = FirstPullGate(w.sessions, idleScope)
     val marksReconciler = MarksReconciler(w.appPrefs, w.dataCache, marks, w.pushApi)
-    val overridesReconciler = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies)
+    val overridesReconciler = OverridesReconciler(w.dataCache, w.widgetUpdater, overrides, policies, w.appPrefs)
     val synchronizer = Synchronizer(
         prefs = w.appPrefs,
         syncPolicies = policies,
         dataCache = w.dataCache,
         authTokenManager = w.tokens,
+        authService = w.auth,
         syncApiClient = syncApi,
-        courseIgnoreSync = ignores,
-        unsentMarks = marks,
+        // The six channels the app registers with its outbox.
+        outbox = Outbox(setOf(ignores.channel, marks, adds, deletes, overrides, holidays)),
         pendingCourseAdds = adds,
         pendingCourseDeletes = deletes,
-        pendingCourseOverrides = overrides,
-        pendingHolidayOverrides = holidays,
         firstPullGate = gate,
         widgetUpdater = w.widgetUpdater,
         reenableCheck = ReenableCheck(w.appPrefs, syncApi, w.dataCache, w.semesterCatalog, ignores, w.auth, w.sessions, idleScope, context),
@@ -85,18 +88,18 @@ internal fun homeSyncRig(
         holidays = HolidaysReconciler(holidays, w.academicCalendar),
         roster = RosterReconciler(
             w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, adds, deletes, overrides,
-            idleTermSync(w), idleScope,
+            termSync, idleScope, w.appPrefs, policies,
         ),
     )
     val sync = HomeBackendSync(synchronizer, w.auth, w.pushApi, w.notificationSettingsSync, marksReconciler, overridesReconciler)
-    return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, gate, sync)
+    return HomeSyncRig(syncApi, marks, adds, deletes, overrides, holidays, ignores, gate, synchronizer, sync)
 }
 
-/** Asks the school nothing: a run's roster requests never reach it. */
-private fun idleTermSync(w: AccountWorld) = TermCourseSync(
+/** Asks the school nothing: a run's roster requests never reach it. Each term asked of goes in [asked]. */
+internal fun idleTermSync(w: AccountWorld, asked: MutableList<String> = mutableListOf()) = TermCourseSync(
     w.dataCache,
     sources = object : TermCourseSync.Sources {
-        override fun servesSelection(semester: String) = false
+        override fun servesSelection(semester: String) = false.also { asked += semester }
         override suspend fun selection(studentId: String, password: String, fresh: Boolean) = emptyList<String>()
         override suspend fun moodle() = emptyList<org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse>()
         override suspend fun lookUp(

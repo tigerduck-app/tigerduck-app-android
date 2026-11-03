@@ -77,8 +77,9 @@ class HomeBackendSync @Inject constructor(
 
     /**
      * Sends what waits to go up: course-ignore changes, marks, course adds and
-     * deletes, course colours and names, and holiday choices. A full sync
-     * starts with this; see [Synchronizer.retryUnsent].
+     * deletes, course colours and names, and holiday choices, through the
+     * outbox's one drain that every full sync starts with; see
+     * [Synchronizer.retryUnsent].
      */
     suspend fun retryUnsent(signIn: SignIn) = synchronizer.retryUnsent(signIn)
 

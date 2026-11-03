@@ -4,13 +4,10 @@ import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import org.ntust.app.tigerduck.BuildConfig
+import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
-import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.data.PendingHolidayOverrides
-import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -25,6 +22,7 @@ import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
 import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
 import org.ntust.app.tigerduck.sync.reconcile.Reconciler
 import org.ntust.app.tigerduck.sync.reconcile.Reconcilers
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.sync.reconcile.RosterReconciler
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -45,7 +43,8 @@ enum class SyncOutcome { SYNCED, SKIPPED, FAILED }
 /**
  * One full sync after its fetch, as each [Reconciler] reads it: the snapshot ([result]), the
  * sign-in it was fetched as, and one reading of the switches and the hold ([policy]), taken once
- * the snapshot is in, so every step decides from the same one. [courseSync] is the window the
+ * the snapshot is in, so every step of Home's decides from the same one. The background's colors
+ * and names and its course list read theirs at their own step, as the worker always did. [courseSync] is the window the
  * course steps commit against (`DataCache.beginCourseSync`), and [beforeFetch] the deletes'
  * stamp taken before the fetch (`PendingCourseDeletes.stamp`).
  */
@@ -60,12 +59,22 @@ class SyncPass(
 ) {
     /** Home's own state, which a pass in the foreground updates as it goes. */
     val home: HomeSyncState get() = checkNotNull(state) { "a foreground pass runs over Home's state" }
+
+    /**
+     * Whether the marks step changed this phone's marks, set as it runs: the background worker
+     * arms the assignment reminders again then, as homework ignored or marked done on another
+     * device takes its reminders with it.
+     */
+    var marksChanged: Boolean = false
+        internal set
 }
 
 /**
- * Every full sync: the retries, the fetch, then each category's [Reconciler] in the order
- * [Reconcilers.inOrder] pins, then what the pass took, its watermark, its status and, in the
- * foreground, the steps after it. `SynchronizerOrderTest` holds the order.
+ * Every full sync: the outbox's drain, the fetch, then each category's [Reconciler] in the order
+ * [Reconcilers.inOrder] pins, then what the pass took, its watermark, its status and the steps
+ * after it. `SynchronizerOrderTest` holds the order. Home's runs in [SyncMode.FOREGROUND] over
+ * [ForegroundSteps]; the background worker's in [SyncMode.BACKGROUND] over [BackgroundSteps], the
+ * narrower pass it always ran (C2), each reconciler doing the worker's step where the two differed.
  *
  * Failure policy is "degrade to local, never lose a tap": a throw reports the backend as failed
  * and leaves the cache alone. A pass that fails must never look like one that found nothing.
@@ -74,7 +83,10 @@ class SyncPass(
  */
 @Singleton
 class Synchronizer internal constructor(
-    private val steps: PassSteps,
+    /** Sends what waits to go up under a sign-in: the outbox's one drain ([Outbox.drain]). */
+    private val drain: suspend (SignIn) -> Unit,
+    private val foreground: PassSteps,
+    private val background: PassSteps,
     private val marks: Reconciler,
     private val ignores: Reconciler,
     private val overrides: Reconciler,
@@ -87,13 +99,11 @@ class Synchronizer internal constructor(
         syncPolicies: SyncPolicies,
         dataCache: DataCache,
         authTokenManager: AuthTokenManager,
+        authService: AuthService,
         syncApiClient: SyncApiClient,
-        courseIgnoreSync: CourseIgnoreSync,
-        unsentMarks: UnsentMarks,
+        outbox: Outbox,
         pendingCourseAdds: PendingCourseAdds,
         pendingCourseDeletes: PendingCourseDeletes,
-        pendingCourseOverrides: PendingCourseOverrides,
-        pendingHolidayOverrides: PendingHolidayOverrides,
         firstPullGate: FirstPullGate,
         widgetUpdater: WidgetUpdater,
         reenableCheck: ReenableCheck,
@@ -106,10 +116,14 @@ class Synchronizer internal constructor(
         holidays: HolidaysReconciler,
         roster: RosterReconciler,
     ) : this(
+        drain = outbox::drain,
         ForegroundSteps(
-            prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync,
-            UnsentQueues(courseIgnoreSync, unsentMarks, pendingCourseAdds, pendingCourseDeletes, pendingCourseOverrides, pendingHolidayOverrides),
+            prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, pendingCourseAdds, pendingCourseDeletes,
             firstPullGate, widgetUpdater, reenableCheck, notificationSettingsSync, appScope,
+        ),
+        BackgroundSteps(
+            prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, authService::attemptRelogin,
+            pendingCourseAdds, firstPullGate,
         ),
         marks, ignores, overrides, reset, holidays, roster,
     )
@@ -117,37 +131,42 @@ class Synchronizer internal constructor(
     private val inOrder = Reconcilers.inOrder(marks, ignores, overrides, reset, holidays, roster)
 
     /**
-     * Sends what waits to go up, every queue in the order the retries always ran. A full sync
-     * starts with this, and Home's revision poll sends it without one.
+     * Sends what waits to go up: the outbox's one drain, every channel in its pinned order,
+     * the order the queues were always sent in. Every full sync starts with this, in either mode,
+     * and Home's revision poll sends it without one.
      */
-    suspend fun retryUnsent(signIn: SignIn) = steps.retryUnsent(signIn)
+    suspend fun retryUnsent(signIn: SignIn) = drain(signIn)
 
     /**
      * Runs one full sync under [signIn], the sign-in its caller read once where it started, over
-     * Home's [state]. [afterFailure] runs once a pass that failed has said so, before its course
-     * window closes: Home's relogin, which runs the sync again. Only [SyncMode.FOREGROUND] runs
-     * here yet; the worker keeps its own sync until it moves.
+     * Home's [state] in the foreground. [afterSync] runs once a pass has landed, before its course
+     * window closes and as part of the pass: the worker's settings pull and reminders, which it
+     * starts on its session. [afterFailure] runs once a pass that failed has said so, before its
+     * course window closes: Home's relogin, which runs the sync again.
      */
     suspend fun sync(
         mode: SyncMode,
         signIn: SignIn,
         state: HomeSyncState? = null,
+        afterSync: suspend (SyncPass) -> Unit = {},
         afterFailure: suspend (Exception) -> Unit = {},
     ): SyncOutcome {
-        require(mode == SyncMode.FOREGROUND) { "the background mode runs in the worker until it moves here" }
+        val steps = when (mode) {
+            SyncMode.FOREGROUND -> foreground
+            SyncMode.BACKGROUND -> background
+        }
         if (!steps.mayRun()) return SyncOutcome.SKIPPED
         // Before anything it sends or fetches, until it is done: see DataCache.beginCourseSync.
         val courseSync = steps.beginCourseSync()
         try {
-            if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
+            if (mode == SyncMode.FOREGROUND && BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
             // What waits to go up goes first, so the snapshot has it.
-            steps.retryUnsent(signIn)
+            drain(signIn)
             // Every class-table delete asked before the fetch ranks below it, every later one
             // above: a course reset the snapshot reads lets go of the first only; see CourseResetReconciler.
             val beforeFetch = steps.stampDeletes()
-            // An add back made from here on is newer than a course reset the snapshot reads.
-            courseSync.fetching()
-            val result = steps.fetch(signIn)
+            // Marks the course window's fetch, each attempt's: see PassSteps.fetch.
+            val result = steps.fetch(signIn, courseSync)
             steps.listed(result, signIn)
             val pass = SyncPass(result, signIn, mode, steps.policy(), state, courseSync, beforeFetch)
             val took = inOrder.associateWith { it.reconcile(pass) }
@@ -156,6 +175,7 @@ class Synchronizer internal constructor(
             steps.notePull(pass)
             steps.synced()
             steps.afterSync(pass)
+            afterSync(pass)
             return SyncOutcome.SYNCED
         } catch (e: CancellationException) {
             throw e
@@ -195,9 +215,14 @@ internal interface PassSteps {
     suspend fun mayRun(): Boolean
     fun beginCourseSync(): DataCache.CourseSync
     fun endCourseSync(courseSync: DataCache.CourseSync)
-    suspend fun retryUnsent(signIn: SignIn)
     suspend fun stampDeletes(): Long
-    suspend fun fetch(signIn: SignIn): BackendSyncResult
+
+    /**
+     * The snapshot under [signIn], marking [courseSync]'s fetch ([DataCache.CourseSync.fetching])
+     * for the attempt the snapshot comes from: an add back made from there on is newer than a
+     * course reset it reads.
+     */
+    suspend fun fetch(signIn: SignIn, courseSync: DataCache.CourseSync): BackendSyncResult
     /** The adds the snapshot lists have landed. */
     suspend fun listed(result: BackendSyncResult, signIn: SignIn)
     fun policy(): SyncPolicy

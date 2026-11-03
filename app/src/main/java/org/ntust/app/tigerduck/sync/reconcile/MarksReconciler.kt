@@ -7,14 +7,18 @@ import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.SyncPass
 import org.ntust.app.tigerduck.ui.screen.home.AssignmentMarkStep
+import org.ntust.app.tigerduck.ui.screen.home.BackgroundMarkStep
 import org.ntust.app.tigerduck.ui.screen.home.HomeSyncState
 import javax.inject.Inject
 
 /**
  * The assignment marks: Home's mark step ([AssignmentMarkStep]), with the Assignments switch as the
- * pass read it, and the conflict dialog's "keep the server's" answer.
+ * pass read it, and the conflict dialog's "keep the server's" answer. In the background, the
+ * worker's ([BackgroundMarkStep]), which takes the server's marks and sends none up (C2): a first
+ * sync's marks are Home's to send.
  */
 class MarksReconciler @Inject constructor(
     private val prefs: AppPreferences,
@@ -27,11 +31,19 @@ class MarksReconciler @Inject constructor(
         prefs, dataCache, unsentMarks, pushApiClient::patchAssignmentOverride,
     )
 
+    private val backgroundStep = BackgroundMarkStep.over(prefs, dataCache, unsentMarks)
+
     override suspend fun reconcile(pass: SyncPass): Boolean {
         val signIn = pass.signIn
+        val marksTaken = when (pass.mode) {
+            SyncMode.FOREGROUND -> markStep.pull(pass.home, pass.result, SyncCategory.ASSIGNMENTS in pass.policy.switchedOn, signIn)
+            SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn).let { marks ->
+                pass.marksChanged = marks.changed
+                marks.taken
+            }
+        }
         // Recorded at once, for this sign-in only: a later step that fails must
         // not leave the next sync reading an empty server as this phone's first.
-        val marksTaken = markStep.pull(pass.home, pass.result, SyncCategory.ASSIGNMENTS in pass.policy.switchedOn, signIn)
         if (marksTaken) prefs.school.assignmentMarksSyncedOnce.set(true, signIn)
         return marksTaken
     }

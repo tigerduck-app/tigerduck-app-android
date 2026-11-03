@@ -8,8 +8,9 @@ import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 
 /**
  * The background sync's pass of a snapshot's course colours and names over the
- * term it caches. Out of [BackgroundSyncWorker], which a JVM test cannot build,
- * so its tests run it over a real cache.
+ * term it caches, which the synchronizer's colors and names step runs in the
+ * background (`OverridesReconciler`). An object of its own, so its tests run it
+ * over a real cache.
  */
 internal object BackgroundCourseOverrides {
 
