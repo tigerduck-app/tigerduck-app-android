@@ -323,6 +323,78 @@ class RefreshOverEditTest {
         assertEquals("IB-202", stored().single { it.courseNo == "A1" }.classroom)
     }
 
+    /**
+     * The class table's rename, as it writes: the course first, onto the term as it stands, then
+     * the name once its change is [kept] (`ClassTableViewModel.setCustomCourseName`).
+     */
+    private suspend fun rename(before: List<Course>, after: List<Course>, courseNo: String, name: String, kept: CompletableDeferred<Unit>) {
+        w.dataCache.saveClassTableEdit(term, signIn, before, after)
+        kept.await()
+        w.dataCache.updateCourseCustomNames(signIn) { it + (courseNo to mapOf(locale to name)) }
+    }
+
+    /**
+     * PR L's gap: a name given to a course added by hand whose own save still waits, here behind a
+     * fetch's commit with a `/v4` pull's overrides step queued before it. The pull's step, reading
+     * every course and the names in one step, must not find the name without its course: it would
+     * take it away as a name no course here holds.
+     */
+    @Test
+    fun `a name given to a course whose add still waits behind a pull's step stays`() = runBlocking {
+        show(Course(courseNo = "C1", courseName = "C", moodleIdNumber = "${term}C1"))
+        val names = holdNames()
+        val (commit, committing) = holdTermWrite { it }
+        val pull = launch(Dispatchers.Default) { reconciler().reconcile(pass(snapshot())) }
+        delay(300)
+        // The add, made of the list on screen, its save queued behind the pull's step.
+        val before = stored()
+        val added = before + Course(courseNo = "ADD2", courseName = "Added", isManual = true)
+        val add = launch(Dispatchers.Default) { w.dataCache.saveClassTableEdit(term, signIn, before, added) }
+        delay(300)
+        // Then its rename, nothing to keep for a course with no Moodle id.
+        val renamed = added.map { if (it.courseNo == "ADD2") it.copy(customCourseName = "My Added") else it }
+        val rename = launch(Dispatchers.Default) { rename(added, renamed, "ADD2", "My Added", CompletableDeferred(Unit)) }
+        delay(300)
+        names.complete(Unit)
+        delay(300)
+        commit.complete(Unit)
+        withTimeout(10_000) {
+            committing.join()
+            pull.join()
+            add.join()
+            rename.join()
+        }
+
+        assertEquals(mapOf("ADD2" to mapOf(locale to "My Added")), w.dataCache.loadCourseCustomNames())
+        assertEquals("My Added", stored().single { it.courseNo == "ADD2" }.customCourseName)
+    }
+
+    /**
+     * PR L's gap: a rename writes its name and records its change in two steps. Its change is kept
+     * before the name lands, and before the change is answered, so a `/v4` pull's step after the
+     * name holds it however the snapshot reads.
+     */
+    @Test
+    fun `a rename's name lands once its change is kept, so a pull's step after it keeps the name`() = runBlocking {
+        show(Course(courseNo = "R1", courseName = "School R", moodleIdNumber = "${term}R1"))
+        val path = "PATCH /v4/sync/courses/${SyncField.courseKey(term, "R1")}/override"
+        val held = backend.hold(path)
+        val kept = CompletableDeferred<Unit>()
+        val before = stored()
+        val renamed = before.map { it.copy(customCourseName = "Renamed R") }
+        val send = launch(Dispatchers.Default) {
+            overrides.send("${term}R1", customName = "Renamed R", locale = locale, semester = term, courseNo = "R1", signIn = signIn, kept = kept)
+        }
+        withTimeout(10_000) { rename(before, renamed, "R1", "Renamed R", kept) }
+        assertEquals("kept before it is answered", listOf("Renamed R"), w.dataCache.loadPendingCourseOverrides().map { it.customName })
+
+        reconciler().reconcile(pass(snapshot()))
+
+        assertEquals(mapOf("R1" to mapOf(locale to "Renamed R")), w.dataCache.loadCourseCustomNames())
+        held.release(200)
+        withTimeout(10_000) { send.join() }
+    }
+
     private companion object {
         const val STUDENT = "B00015999"
         const val CS1 = "XA0000001"

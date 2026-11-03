@@ -261,6 +261,25 @@ class ClassTableWiringTest {
         )
     }
 
+    /**
+     * Race 5, PR L's gaps: a rename saves its course first, onto the term as it stands, then its
+     * name once its change is kept, so a pull's names step between finds neither a name with no
+     * course nor one with no change held (RefreshOverEditTest drives the same writes).
+     */
+    @Test
+    fun `a rename saves its course, then its name once its change is kept`() {
+        for (name in listOf("setCustomCourseName", "revertCourseName")) {
+            val body = body(name)
+            val kept = body.indexOf("val kept = ")
+            val save = body.indexOf("saveEdit(updated, _currentSemester.value, edit)")
+            val waits = body.indexOf(".await()", save)
+            val names = body.indexOf("dataCache.updateCourseCustomNames(edit.signIn)")
+            assertTrue("$name no longer records its change first", kept in 0 until save)
+            assertTrue("$name no longer saves its course, then waits for the change, then its name", save < waits && waits < names)
+        }
+        assertCalls("syncCourseOverride", "courseNo = course.courseNo, signIn = signInNow(), kept = kept,", "kept.complete(Unit)")
+    }
+
     /** tigerduck-app-android#264: rooms are announced late, and the page fetches on launch only. */
     /**
      * A fetch whose course selection answer a newer one replaced (Home's, the background's or

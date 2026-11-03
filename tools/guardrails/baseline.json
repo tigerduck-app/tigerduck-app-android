@@ -743,7 +743,7 @@
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",
     "kind": "long-function",
     "name": "ClassTableViewModel.fetchTermCourses(String, ClassTableTermSource, Map<String,MoodleEnrolledCourse>, RecordedSelection?, SignIn, Boolean, ()->Boolean)",
-    "lines": 96
+    "lines": 94
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/classtable/ClassTableViewModel.kt",

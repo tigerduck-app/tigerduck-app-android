@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -1211,13 +1212,15 @@ class ClassTableViewModel @Inject constructor(
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, override)
         val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, override)
+        val kept = syncCourseOverride(course, semester, customName = trimmed.ifEmpty { "" }, locale = locale)
         viewModelScope.launch {
+            // The course, then its name once its change is kept: a pull between would take the name away (race 5).
+            saveEdit(updated, _currentSemester.value, edit)
+            kept.await()
             // Onto the names as they stand, not this screen's copy: a sync may have changed others since.
             dataCache.updateCourseCustomNames(edit.signIn) { CourseNameOverrides.withOverride(it, courseNo, locale, override) }
-            saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
-        syncCourseOverride(course, semester, customName = trimmed.ifEmpty { "" }, locale = locale)
         localEdits.noteEdit()
     }
 
@@ -1244,13 +1247,14 @@ class ClassTableViewModel @Inject constructor(
         val updated = ClassTableSelection.renamed(_courses.value, courseNo, null)
         val edit = showEdit(updated, _currentSemester.value)
         _liveSemesterCourses.value = ClassTableSelection.renamed(_liveSemesterCourses.value, courseNo, null)
+        val kept = if (course != null && semester != null) syncCourseOverride(course, semester, customName = "", locale = locale) else null
         viewModelScope.launch {
-            // As setCustomCourseName: onto the names as they stand.
-            dataCache.updateCourseCustomNames(edit.signIn) { CourseNameOverrides.withOverride(it, courseNo, locale, null) }
+            // As setCustomCourseName: the course, then the names as they stand once the change is kept.
             saveEdit(updated, _currentSemester.value, edit)
+            kept?.await()
+            dataCache.updateCourseCustomNames(edit.signIn) { CourseNameOverrides.withOverride(it, courseNo, locale, null) }
             widgetUpdater.requestUpdate()
         }
-        if (course != null && semester != null) syncCourseOverride(course, semester, customName = "", locale = locale)
         localEdits.noteEdit()
     }
 
@@ -1322,8 +1326,7 @@ class ClassTableViewModel @Inject constructor(
             null
         }
         viewModelScope.launch {
-            // First, as for an add: a re-add asked before this removal must
-            // not let its delete go, however long the writes below take.
+            // First, as for an add: a re-add asked before this removal must not let its delete go, however long the writes take.
             val queuedAt = pendingCourseDeletes.stamp()
             if (tombstoneEdit != null) {
                 try {
@@ -1379,8 +1382,7 @@ class ClassTableViewModel @Inject constructor(
             saveEdit(updated, _currentSemester.value, edit)
             widgetUpdater.requestUpdate()
         }
-        // A concrete hex each, a default included: the backend reads a
-        // missing one as "unchanged".
+        // A concrete hex each, a default included: the backend reads a missing one as "unchanged".
         for ((no, hex) in pick.toSync) {
             updated.firstOrNull { it.courseNo == no }?.let { syncCourseOverride(it, _currentSemester.value, colorHex = hex) }
         }
@@ -1398,7 +1400,7 @@ class ClassTableViewModel @Inject constructor(
      * from, for the outbox to tell a course that has since left this phone.
      * On the application scope, and started at once: leaving the table must
      * not cut the write short, and two changes in a row must reach the
-     * outbox in the order they were made.
+     * outbox in the order they were made. Returns what completes once the change is kept, or not.
      */
     private fun syncCourseOverride(
         course: Course,
@@ -1406,19 +1408,20 @@ class ClassTableViewModel @Inject constructor(
         colorHex: String? = null,
         customName: String? = null,
         locale: String? = null,
-    ) {
-        val moodleId = course.moodleIdNumber ?: return
+    ): CompletableDeferred<Unit> {
+        val kept = CompletableDeferred<Unit>()
+        val moodleId = course.moodleIdNumber ?: return kept.apply { complete(Unit) }
         appScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            pendingCourseOverrides.send(
-                moodleId,
-                colorHex = colorHex,
-                customName = customName,
-                locale = locale,
-                semester = semester,
-                courseNo = course.courseNo,
-                signIn = signInNow(),
-            )
+            try {
+                pendingCourseOverrides.send(
+                    moodleId, colorHex = colorHex, customName = customName, locale = locale, semester = semester,
+                    courseNo = course.courseNo, signIn = signInNow(), kept = kept,
+                )
+            } finally {
+                kept.complete(Unit)
+            }
         }
+        return kept
     }
 
     fun load() {
@@ -1902,13 +1905,11 @@ class ClassTableViewModel @Inject constructor(
                 }
                 folded
             } ?: run {
-                // Nothing to draw, edited throughout its reads, or a newer
-                // answer's: left as it is, for the next fetch.
+                // Nothing to draw, edited throughout its reads, or a newer answer's: left as it is, for the next fetch.
                 Log.w("ClassTableVM", "fetchTermCourses: $semester drew nothing, was edited throughout the snapshot or superseded, left as it is")
                 return@uploading
             }
-            // The class table loaded: a day of use towards the Play rating ask
-            // (issue #332).
+            // The class table loaded: a day of use towards the Play rating ask (issue #332).
             if (countsAsUse) reviewPrompt.classTableLoaded()
             // Superseded during the save: the reset's wipe, or the newer fetch's save, takes the file, and
             // these rows need not go up to be taken down again. A newer answer's roster would be undone.
@@ -2054,8 +2055,7 @@ class ClassTableViewModel @Inject constructor(
         val signIn = signInNow()
         viewModelScope.launch {
             val found = courseNos.map { courseNo ->
-                // Without Moodle to fall back on: null for a query that failed
-                // or a course it does not know, which the row then waits out.
+                // Without Moodle to fall back on: null for a failed query or an unknown course, which the row waits out.
                 async { courseNo to courseService.lookupOrFallback(semester, courseNo, moodle = null).course }
             }.awaitAll().mapNotNull { (courseNo, course) -> course?.let { courseNo to it } }.toMap()
             if (!authService.authState.value || !signIn.isCurrent || coursesSemester != semester) return@launch
