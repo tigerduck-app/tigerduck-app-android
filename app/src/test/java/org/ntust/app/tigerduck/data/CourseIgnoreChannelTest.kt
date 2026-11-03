@@ -235,6 +235,54 @@ class CourseIgnoreChannelTest {
     }
 
     /**
+     * Greptile r1: a change the lane read, then held behind the numeric Moodle id's fill-in, asks
+     * the gate again once it has the lock: assignment sync switched off and on meanwhile puts the
+     * re-enable check's hold on the ignores, and the change waits for the student's answer.
+     */
+    @Test
+    fun `a change the re-enable check holds while it waits behind the fill-in's request does not go`() = runTest {
+        cache.saveCourses(listOf(Course(courseNo = "BBB", courseName = "B", moodleIdNumber = "${term}BBB", moodleNumericCourseId = 41)), term, signIn)
+        queue(change("AAA"))
+        val sent = mutableListOf<Pair<String?, Boolean?>>()
+        val fillOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val reachedSend = CompletableDeferred<Unit>()
+        var armed = false
+        var held = false
+        var sendsAsked = 0
+        val ignores = CourseIgnoreSync(
+            cache,
+            CourseIgnoreWriter { target, ignore, _, _, _ ->
+                sent += target.moodleId to ignore
+                if (ignore == null) {
+                    fillOut.complete(Unit)
+                    release.await()
+                }
+                WriteAnswer(sent = true, serverClockUs = null, applied = null, values = mapOf("ignore_assignments" to (ignore ?: true)))
+            },
+            CourseIgnoreEffects {},
+            // Once armed, the retry asks as it starts, and its send once more right before the lock.
+            sends = {
+                if (armed && ++sendsAsked == 2) reachedSend.complete(Unit)
+                !held
+            },
+            clock = { 9_000L },
+        )
+        val fill = launch { ignores.applySnapshot(snapshot(fetchedAtMs = 9_000L, "BBB" to true), signIn) }
+        fillOut.await()
+        armed = true
+        val retry = launch { ignores.retryPending(signIn) }
+        reachedSend.await()
+        held = true
+        release.complete(Unit)
+        fill.join()
+        retry.join()
+
+        assertEquals(listOf<Pair<String?, Boolean?>>("${term}BBB" to null), sent)
+        assertEquals(listOf("$term:AAA" to true), waiting().map { it.key to it.ignore })
+    }
+
+    /**
      * Fix round 1: a change the lane read, then held behind the numeric Moodle id's fill-in, which
      * keeps the send lock across its own request, is read again once it has the lock: Use Server
      * took it back meanwhile, and it does not go.

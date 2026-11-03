@@ -275,8 +275,8 @@ internal class CourseIgnoreQueue(
         val answer = try {
             sendMutex.withLock {
                 // Read again once the lock is had, which the fill-in keeps across its own request: a
-                // change taken back meanwhile (Use Server, a forget) is not sent over what replaced it.
-                val current = mutex.withLock {
+                // change taken back (Use Server, a forget) or held (a re-enable check) meanwhile waits.
+                val current = sends() && mutex.withLock {
                     signIn.isCurrent && lane.entries().any { it.isSameChange(change) && it.attempts < CourseIgnoreSync.MAX_ATTEMPTS }
                 }
                 if (!current) return SendResult.NotSent
