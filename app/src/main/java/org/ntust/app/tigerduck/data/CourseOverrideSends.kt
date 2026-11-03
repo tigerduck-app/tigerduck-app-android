@@ -12,7 +12,9 @@ import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.CourseKeyUnknownException
 import org.ntust.app.tigerduck.push.CourseRef
 import org.ntust.app.tigerduck.push.WriteAnswer
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.time.AcademicTerm
 import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.LaneStore
@@ -117,15 +119,34 @@ internal val PendingCourseOverride.isParked: Boolean
     get() = attempts >= PendingCourseOverrides.MAX_ATTEMPTS
 
 /**
- * The current term's courses by their Moodle id, read once: where a change that names no term is,
- * as the class table holds the course now. The first course with an id, as a lookup finds it.
+ * The current term's courses by their Moodle id, read once: where a change made now that names no
+ * term is, as the class table holds the course now. The first course with an id, as a lookup finds it.
  */
 internal suspend fun currentTermPlaces(dataCache: DataCache): Map<String, CoursePlace> {
     val semester = dataCache.currentSemesterCode()
-    val places = LinkedHashMap<String, CoursePlace>()
-    for (course in dataCache.loadCourses(semester)) {
-        val moodleId = course.moodleIdNumber ?: continue
-        places.putIfAbsent(moodleId, CoursePlace(semester, course.courseNo))
+    return placesByMoodleId(mapOf(semester to dataCache.loadCourses(semester))).mapValues { (_, places) -> places.first() }
+}
+
+/**
+ * Every course of [everyTerm] (each term's courses, as `DataCache.loadEveryTermCourses` reads them)
+ * that has a Moodle id, by that id, each with its term: [current]'s first, then the other terms
+ * newest first. Two terms' courses can share an id, and a change an older build kept with no term
+ * names its course by that id alone; its first place is where it goes, as iOS looks such a change
+ * up in its own term and then in the catalogue's, newest first (`OutboxSender.courseKey`). The one
+ * lookup of an id's courses: the send resolves a key by it, and a pull's held names hold every
+ * course it gives ([org.ntust.app.tigerduck.ui.screen.home.StampedCourseOverrides.heldNames]).
+ */
+internal fun placesByMoodleId(everyTerm: Map<String, List<Course>>, current: String? = null): Map<String, List<CoursePlace>> {
+    val order = listOfNotNull(current?.takeIf(everyTerm::containsKey)) +
+        everyTerm.keys.filter { it != current }.sortedWith(AcademicTerm.newestFirstStable)
+    val places = LinkedHashMap<String, MutableList<CoursePlace>>()
+    for (semester in order) {
+        for (course in everyTerm.getValue(semester)) {
+            val moodleId = course.moodleIdNumber?.takeIf { it.isNotEmpty() } ?: continue
+            val place = CoursePlace(semester, course.courseNo)
+            val known = places.getOrPut(moodleId) { mutableListOf() }
+            if (place !in known) known += place
+        }
     }
     return places
 }
@@ -213,10 +234,15 @@ internal class CourseOverrideSends(
         return dataCache.loadCourses(place.semester).none { it.courseNo == place.courseNo }
     }
 
-    // A row an older build wrote with no term: the current term's course with its Moodle id, as
-    // `/v4` names a course by its key. Null when no such course is cached.
-    private suspend fun located(change: PendingCourseOverride): CoursePlace? =
-        change.moodleId?.let { currentTermPlaces(dataCache)[it] }
+    // A row an older build wrote with no term: the course with its Moodle id in the current term,
+    // else in the newest other term this phone caches (placesByMoodleId), as `/v4` names a course by
+    // its key. Null when no term here holds one: the row parks (CourseKeyUnknownException), and each
+    // later try is this lookup again, on this phone's files, with no request, as the key is built
+    // before the request is.
+    private suspend fun located(change: PendingCourseOverride): CoursePlace? {
+        val moodleId = change.moodleId ?: return null
+        return placesByMoodleId(dataCache.loadEveryTermCourses(), dataCache.currentSemesterCode())[moodleId]?.firstOrNull()
+    }
 
     /**
      * LWW D12, a write response's winner: when the backend kept a later value of [change]'s field,

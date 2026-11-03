@@ -170,11 +170,89 @@ class V4LegacyDataTest {
             assertEquals(emptyList<String>(), rules.refused)
         }
 
+    // --- Codex P2 2: a color or name an older build queued with no term, after a term rollover ---
+
+    /** The course overrides' queue file as an older build left it, [rows] written straight to it, last written at [OVERRIDES_FILE_MS]. */
+    private fun queuedByAnOlderBuild(rows: String) {
+        val file = java.io.File(java.io.File(context.filesDir, "TigerDuckData").apply { mkdirs() }, "pending_course_overrides.json")
+        file.writeText(rows)
+        assertTrue(file.setLastModified(OVERRIDES_FILE_MS))
+    }
+
+    private fun fixture(name: String): String =
+        checkNotNull(javaClass.getResource("/account/$name")) { "missing fixture $name" }.readText().trimEnd()
+
+    private fun colorTaken(key: String, hex: String) = backend.answer(
+        "PATCH /v4/sync/courses/$key/override", 200,
+        """{"color_hex":"$hex","color_hex_hlc":${OVERRIDES_FILE_MS * 1_000},"applied":["color_hex"]}""",
+    )
+
+    @Test
+    fun `an older build's color with no term goes to its course in a past term`() = runBlocking {
+        synced(*SyncCategory.entries.toTypedArray())
+        // The committed fixture: 1141CS1001's color, queued with no term and no time.
+        queuedByAnOlderBuild(fixture("queues/pending_course_overrides.json"))
+        assertTrue(w.dataCache.saveCourses(listOf(course("CS1001", PAST)), PAST, signIn))
+        assertTrue(w.dataCache.saveCourses(listOf(course("CS2001")), TERM, signIn))
+        colorTaken("client:$PAST:CS1001", "#336699")
+        val from = backend.endpoints().size
+
+        rig.outbox.drain(signIn)
+
+        assertEquals(
+            listOf("""PATCH /v4/sync/courses/client:$PAST:CS1001/override | {"color_hex":"#336699","hlc":${OVERRIDES_FILE_MS * 1_000}}"""),
+            sent(from, "/override"),
+        )
+        assertEquals(emptyList<Any>(), w.dataCache.loadPendingCourseOverrides())
+    }
+
+    @Test
+    fun `an older build's change whose Moodle id two past terms' courses share goes to the newer term's`() = runBlocking {
+        synced(*SyncCategory.entries.toTypedArray())
+        queuedByAnOlderBuild("""[{"moodleId":"SHARED01","colorHex":"#123456","changedAtMs":1700000002000,"attempts":0,"seq":0}]""")
+        val shared = { courseNo: String -> Course(courseNo = courseNo, courseName = "Shared", moodleIdNumber = "SHARED01") }
+        assertTrue(w.dataCache.saveCourses(listOf(shared("XA0000001")), OLDER, signIn))
+        assertTrue(w.dataCache.saveCourses(listOf(shared("XB0000002")), PAST, signIn))
+        assertTrue(w.dataCache.saveCourses(listOf(course("CS2001")), TERM, signIn))
+        colorTaken("client:$PAST:XB0000002", "#123456")
+        val from = backend.endpoints().size
+
+        rig.outbox.drain(signIn)
+
+        assertEquals(
+            listOf("""PATCH /v4/sync/courses/client:$PAST:XB0000002/override | {"color_hex":"#123456","hlc":${OVERRIDES_FILE_MS * 1_000}}"""),
+            sent(from, "/override"),
+        )
+    }
+
+    /**
+     * One no term here resolves still parks, kept for an upload that brings its course. Each try is
+     * the lookup alone, on this phone's files: the key is built before the request, so a try costs
+     * no request and no session.
+     */
+    @Test
+    fun `an older build's change whose course no term here holds parks, and its tries send nothing`() = runBlocking {
+        synced(*SyncCategory.entries.toTypedArray())
+        queuedByAnOlderBuild("""[{"moodleId":"1132ZZ0001","colorHex":"#112233","changedAtMs":1700000002000,"attempts":0,"seq":0}]""")
+        assertTrue(w.dataCache.saveCourses(listOf(course("CS2001")), TERM, signIn))
+        val from = backend.endpoints().size
+
+        rig.outbox.drain(signIn)
+        // Woken by a course upload that lands, as a parked change is, and drained again.
+        rig.outbox.courseUploadLanded(signIn)
+        rig.outbox.drain(signIn)
+
+        assertEquals(emptyList<String>(), backend.endpoints().drop(from))
+        assertEquals(listOf("1132ZZ0001"), w.dataCache.loadPendingCourseOverrides().map { it.moodleId })
+    }
+
     private companion object {
         const val STUDENT = "B00015999"
         const val STORED = "http://127.0.0.1:9/v3"
         const val TERM = "1151"
         const val PAST = "1141"
+        const val OLDER = "1132"
+        const val OVERRIDES_FILE_MS = 1_700_000_200_000L
         val IN_TERM: LocalDateTime = LocalDateTime.of(2026, 10, 15, 10, 0)
         const val FIRST_RUN_MS = 1_760_000_000_000L
     }
