@@ -38,19 +38,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.ContinuationInterceptor
 import kotlin.coroutines.CoroutineContext
 
-/**
- * Sends whether every assignment of the course [target] names is ignored, and its numeric Moodle
- * id, as sign-in [signIn], and says what the backend answered; see
- * [org.ntust.app.tigerduck.push.PushApiClient.patchCourseIgnoreAnswered].
- */
+/** Sends a course's setting and numeric Moodle id with the answer; see `PushApiClient.patchCourseIgnoreAnswered`. */
 internal fun interface CourseIgnoreWriter {
     suspend fun write(target: CourseRef, ignore: Boolean?, moodleCourseId: Int?, signIn: SignIn, madeAtMs: Long?): WriteAnswer
 }
 
 /**
- * The scope of a queue built without the application's, as a test builds it: each request runs on
- * the dispatcher of the call that sends it ([from]), as the queue's requests ran in their caller
- * before it was a channel, so a test's dispatcher orders them as it always has.
+ * The scope of a queue a test builds without the application's: each request runs on its caller's
+ * dispatcher ([from]), as before the queue was a channel, so a test's dispatcher orders them.
  */
 internal class CallersScope : CoroutineScope {
     private val job = SupervisorJob()
@@ -90,8 +85,7 @@ internal class IgnoreOutbox(
  * and only the first retry of a process sends it again. On `/v4` a change goes by its course's key
  * stamped as it was made, one an older build wrote with no time goes with its old-entry time (X1),
  * and a reply that says the backend kept a later setting puts it on this phone unless a newer
- * change waits (LWW D12). The fill-in is no user's edit, so it goes unstamped, which `/v4` stamps
- * as it goes.
+ * change waits (LWW D12). The fill-in is no user's edit: it goes unstamped, `/v4` stamping it.
  */
 internal class CourseIgnoreQueue(
     private val dataCache: DataCache,
@@ -197,19 +191,24 @@ internal class CourseIgnoreQueue(
     ) {
         val change = changeNow(semester, courseNo, moodleId, moodleCourseId, ignore)
         val key = CourseIgnores.key(semester, courseNo)
-        val written = mutex.withLock {
-            val keys = dataCache.loadIgnoredCourses()
-            if (!dataCache.saveIgnoredCourses(if (ignore) keys + key else keys - key, signIn)) {
-                return@withLock false
+        // Under way from before it is kept (a drain running that sends it counts for it); both files as one.
+        draining {
+            lane.keepAndDrain(signIn, sends) {
+                val written = mutex.withLock {
+                    val keys = dataCache.loadIgnoredCourses()
+                    if (!dataCache.saveIgnoredCourses(if (ignore) keys + key else keys - key, signIn)) {
+                        return@withLock false
+                    }
+                    lane.edit(signIn) { it.with(change) }
+                    touchedAt[key] = change.changedAtMs
+                    true
+                }
+                onWritten()
+                if (!written) return@keepAndDrain null
+                effects.changed()
+                setOf(fieldOf(change))
             }
-            lane.edit(signIn) { it.with(change) }
-            touchedAt[key] = change.changedAtMs
-            true
         }
-        onWritten()
-        if (!written) return
-        effects.changed()
-        send(change, signIn)
     }
 
     /**

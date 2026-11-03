@@ -341,6 +341,54 @@ class CourseIgnoreChannelTest {
         assertEquals("refused once", listOf(1), waiting().map { it.attempts })
     }
 
+    /**
+     * A newer tap goes once, though a drain already under way sends it while the tap's reminders are
+     * re-armed, before the tap's own drain has started: that drain is under way from before the
+     * tap is kept.
+     */
+    @Test
+    fun `a newer tap goes once though a drain under way sends it while its reminders are re-armed`() = runTest {
+        val sent = mutableListOf<Boolean?>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val newerSent = CompletableDeferred<Unit>()
+        var armed = false
+        var clockMs = 1_000L
+        val ignores = CourseIgnoreSync(
+            cache,
+            CourseIgnoreSender { _, ignore, _, _, _ ->
+                sent += ignore
+                if (ignore == true) {
+                    firstOut.complete(Unit)
+                    release.await()
+                    return@CourseIgnoreSender true
+                }
+                newerSent.complete(Unit)
+                throw PushApiException("patchCourseIgnore failed: HTTP 422", 422)
+            },
+            // Once armed, the newer tap is kept: the older's reply comes, and its drain sends the
+            // newer tap, while the reminders are re-armed.
+            CourseIgnoreEffects {
+                if (armed) {
+                    armed = false
+                    release.complete(Unit)
+                    newerSent.await()
+                }
+            },
+            sends = { true },
+            clock = { clockMs++ },
+        )
+
+        val first = launch { ignores.setIgnored(term, "AAA", "${term}AAA", null, ignore = true, signIn = signIn) }
+        firstOut.await()
+        armed = true
+        ignores.setIgnored(term, "AAA", "${term}AAA", null, ignore = false, signIn = signIn)
+        first.join()
+
+        assertEquals(listOf<Boolean?>(true, false), sent)
+        assertEquals("refused once", listOf(1), waiting().map { it.attempts })
+    }
+
     /** A landed course upload gives a parked ignore no try: it follows its own rule, once per process. */
     @Test
     fun `on v3 a landed course upload leaves a parked change parked`() = runTest {
