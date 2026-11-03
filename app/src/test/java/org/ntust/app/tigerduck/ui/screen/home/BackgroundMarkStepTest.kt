@@ -114,4 +114,35 @@ class BackgroundMarkStepTest {
 
         assertEquals(0, writes)
     }
+
+    /**
+     * A tap saved after the step checked the marks' version and before its write: the write's own
+     * step reads the marks again and, finding them moved, takes nothing, so the tap stays and the
+     * next sync merges it.
+     */
+    @Test
+    fun `a tap saved between the version check and the write leaves the marks to the next sync`() = runTest {
+        var reads = 0
+        val racing = BackgroundMarkStep(
+            switchOn = { switchOn },
+            pendingConflicts = { pending },
+            syncedBefore = { syncedBefore },
+            marksVersion = { version },
+            store = object : AssignmentMarkStep.MarkStore {
+                // The step's read is the first; the second is its write's own, after the tap's save.
+                override suspend fun ignored() = if (++reads == 2) ignored + "9" else ignored
+                override suspend fun completed() = completed
+                override suspend fun replace(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
+                    this@BackgroundMarkStepTest.ignored = ignored
+                    this@BackgroundMarkStepTest.completed = completed
+                }
+            },
+            unsent = { unsent },
+        )
+
+        val outcome = racing.pull(server(ignored = setOf("1")), testSignIn())
+
+        assertFalse(outcome.taken)
+        assertEquals(setOf("9"), ignored)
+    }
 }

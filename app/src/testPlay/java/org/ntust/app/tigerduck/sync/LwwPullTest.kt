@@ -122,7 +122,12 @@ class LwwPullTest {
         return parseFullSync(JSONObject(raw).also(edit), protocol2 = true)
     }
 
-    private fun pass(result: BackendSyncResult, mode: SyncMode, syncedBefore: Set<SyncCategory> = SyncCategory.entries.toSet()) = SyncPass(
+    private fun pass(
+        result: BackendSyncResult,
+        mode: SyncMode,
+        syncedBefore: Set<SyncCategory> = SyncCategory.entries.toSet(),
+        heldFields: suspend () -> Set<String> = outbox::heldFields,
+    ) = SyncPass(
         result = result,
         signIn = signIn,
         mode = mode,
@@ -131,7 +136,7 @@ class LwwPullTest {
         courseSync = DataCache.CourseSync(0L) { 0L },
         beforeFetch = 0L,
         syncedBefore = syncedBefore,
-        heldFields = outbox::heldFields,
+        heldFields = heldFields,
         ack = ack,
     )
 
@@ -241,6 +246,26 @@ class LwwPullTest {
         offMain { for (step in reconcilers()) step.reconcile(pass) }
 
         assertFieldByField(home = false)
+    }
+
+    /**
+     * Each step decides in its own write, from its channel's edits waiting there: an edit kept
+     * after the pull read the outbox (here, a read that found none) is kept all the same, and so is
+     * a holiday chosen after the snapshot began whose choice is not waiting yet.
+     */
+    @Test
+    fun `each step keeps the edits its channel holds as it writes, though the pull read the outbox before them`() = runBlocking {
+        seed()
+        w.appPrefs.holidayOverrideEditTimes = mapOf(10 to serverHlc / 1000 + 1)
+        val pass = pass(snapshot(), SyncMode.FOREGROUND, heldFields = { emptySet() })
+
+        for (step in reconcilers()) step.reconcile(pass)
+
+        assertEquals("the waiting mark", setOf("7", "8"), w.dataCache.loadMarkedCompletedAssignments())
+        assertTrue("the waiting ignore", "$term:XA0000005" in w.dataCache.loadIgnoredCourses())
+        assertEquals("the waiting color", "#444444", w.dataCache.loadCourses(term).single { it.courseNo == "XA0000004" }.customColorHex)
+        assertEquals("the waiting name", mapOf("en" to "Held Four"), w.dataCache.loadCourseCustomNames()["XA0000004"])
+        assertEquals("the waiting choice and the one made since", setOf(7, 9, 10), w.academicCalendar.optedInHolidayIds)
     }
 
     /** A category never synced here is Home's first sync's (LWW D13, C2): the background's v4 pull leaves it. */

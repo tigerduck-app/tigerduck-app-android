@@ -151,6 +151,37 @@ class MembershipPullTest {
         assertEquals("2026-10-30T00:00:00+00:00", w.appPrefs.school.lastSeenCoursesResetAt.get())
     }
 
+    /**
+     * A delete kept after the pull read the outbox (here, a read that found none) is read again
+     * at the term's own step, as `/v3` reads its deletes there: its hide stays, though the snapshot
+     * lists the course.
+     */
+    @Test
+    fun `a delete waiting as the term's step runs keeps its hide, though the pull read the outbox before it`() = runBlocking {
+        w.dataCache.saveCourses(listOf(Course(courseNo = "C", courseName = "School C", moodleIdNumber = "${term}C")), term, signIn)
+        w.dataCache.saveDeletedCourseNos(setOf("$term:F"), signIn)
+        assertTrue(rig.deletes.keep(term, "F", 1L, signIn))
+        val result = org.ntust.app.tigerduck.push.parseFullSync(
+            JSONObject().put("current_revision", 3).put("server_hlc", 1_793_000_000_000_000L).put("assignments", JSONArray())
+                .put("courses", JSONArray().put(row("C")).put(row("F"))).put("course_tombstones", JSONArray()),
+            protocol2 = true,
+        )
+        val policies = SyncPolicies(w.appPrefs)
+        val roster = org.ntust.app.tigerduck.sync.reconcile.RosterReconciler(
+            w.dataCache, w.auth, w.pushApi, w.courseService, w.semesterCatalog, w.widgetUpdater, rig.adds, rig.deletes, rig.overrides,
+            org.ntust.app.tigerduck.ui.screen.home.idleTermSync(w), idleScope, w.appPrefs, policies,
+        )
+        val pass = SyncPass(
+            result, signIn, SyncMode.FOREGROUND, policies.current, state, org.ntust.app.tigerduck.data.cache.DataCache.CourseSync(0L) { 0L }, 0L,
+            syncedBefore = SyncCategory.entries.toSet(), heldFields = { emptySet() },
+        )
+
+        roster.reconcile(pass)
+
+        assertEquals(setOf("$term:F"), w.dataCache.loadDeletedCourseNos())
+        assertEquals(listOf("C"), w.dataCache.loadCourses(term).map { it.courseNo })
+    }
+
     private companion object {
         const val STUDENT = "B00015999"
     }

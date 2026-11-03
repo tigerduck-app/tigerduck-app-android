@@ -878,4 +878,17 @@ class SyncWiringTest {
         val fetched = source("ui/screen/home/FetchedTermCommit.kt").joinToString("\n")
         assertTrue("a fetch only gaining no longer leaves out the server drops", "dataCache.fetchDropsIn(semester)" in fetched)
     }
+
+    /**
+     * The synchronizer Hilt builds runs a category's first sync, first, and reads the outbox's held
+     * fields and the acknowledgments every pull keeps a field by (LWW D12, D13). Read from the
+     * source: the synchronizer takes a dozen collaborators, and the rigs build it without the first sync.
+     */
+    @Test
+    fun `the synchronizer runs the first sync first and reads the outbox and the acknowledgments`() {
+        val source = source("sync/Synchronizer.kt").joinToString("\n")
+        assertTrue("firstSync ?: NO_FIRST_SYNC, outbox::heldFields, ack," in source)
+        assertTrue("Reconcilers.inOrder(firstSync, marks, ignores, overrides, reset, holidays, roster)" in source)
+        assertTrue("steps.syncedBefore(), heldFields, ack)" in source)
+    }
 }
