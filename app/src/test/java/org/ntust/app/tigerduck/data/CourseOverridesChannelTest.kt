@@ -27,6 +27,7 @@ import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.push.pushApiClientAt
 import org.ntust.app.tigerduck.push.syncFixture
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.SyncClock
@@ -35,6 +36,8 @@ import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
 import org.ntust.app.tigerduck.sync.outbox.Outbox
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.util.JvmContext
 import org.ntust.app.tigerduck.util.testSignIn
 import java.io.File
@@ -338,10 +341,11 @@ class CourseOverridesChannelTest {
     fun `a rename of a course added by hand waits for its add's upload, however many syncs that takes`() = runTest {
         val typed = Course(courseNo = "XA0000009", courseName = "Typed", isManual = true, moodleIdNumber = "1151XA0000009")
         cache.saveCourses(listOf(typed), term, signIn)
-        val client = pushApiClientAt(v3, v3Backend.client, prefs)
         lateinit var outbox: Outbox
-        val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs), outbox = dagger.Lazy { outbox })
-        val overrides = PendingCourseOverrides(cache, client, prefs)
+        lateinit var overrides: PendingCourseOverrides
+        val client = pushApiClientAt(v3, v3Backend.client, prefs, uploadNews = CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }))
+        val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs))
+        overrides = PendingCourseOverrides(cache, client, prefs)
         outbox = Outbox(setOf(adds, overrides))
         val upload = "/v3/sync/courses/upload"
         repeat(max + 1) { v3Backend.answer(upload, 503, """{"detail":"unavailable"}""") }
@@ -418,12 +422,12 @@ class CourseOverridesChannelTest {
     private val other = Course(courseNo = "XA0000010", courseName = "Other", isManual = true, moodleIdNumber = "1151XA0000010")
     private val upload = "/v3/sync/courses/upload"
 
-    /** The adds and the colors and names as the app wires them, on `/v3`, in one outbox. */
+    /** The adds and the colors and names as the app wires them, on `/v3`, in one outbox their client tells of its uploads. */
     private fun v3AddsAndOverrides(): Triple<Outbox, PendingCourseAdds, PendingCourseOverrides> {
-        val client = pushApiClientAt(v3, v3Backend.client, prefs)
         lateinit var outbox: Outbox
         lateinit var overrides: PendingCourseOverrides
-        val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs), outbox = dagger.Lazy { outbox }, overrides = dagger.Lazy { overrides })
+        val client = pushApiClientAt(v3, v3Backend.client, prefs, uploadNews = CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }))
+        val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs))
         overrides = PendingCourseOverrides(cache, client, prefs)
         outbox = Outbox(setOf(adds, overrides))
         return Triple(outbox, adds, overrides)
@@ -544,6 +548,65 @@ class CourseOverridesChannelTest {
         series.open()
 
         assertEquals(emptySet<String>(), overrides.held(0L))
+    }
+
+    /**
+     * Fix round 1: every course upload that lands tells the queue, not the course adds' alone. The
+     * class table's timetable fetch uploads the term: the course it takes gets its parked rename
+     * sent, and the one it leaves out as tombstoned has its parked rename let go.
+     */
+    @Test
+    fun `a parked rename goes after a timetable fetch's upload lands, and is let go when that upload left its course out`() = runTest {
+        cache.saveCourses(listOf(typed, other), term, signIn)
+        lateinit var overrides: PendingCourseOverrides
+        lateinit var outbox: Outbox
+        val client = pushApiClientAt(v3, v3Backend.client, prefs, uploadNews = CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }))
+        overrides = PendingCourseOverrides(cache, client, prefs)
+        outbox = Outbox(setOf(overrides))
+        repeat(2) {
+            v3Backend.answer(pathOf(typed), 404, """{"detail":"course_not_found"}""")
+            v3Backend.answer(pathOf(other), 404, """{"detail":"course_not_found"}""")
+        }
+        overrides.send(typed.moodleIdNumber!!, customName = "Mine", locale = "en", semester = term, courseNo = typed.courseNo, signIn = signIn)
+        overrides.send(other.moodleIdNumber!!, customName = "Theirs", locale = "en", semester = term, courseNo = other.courseNo, signIn = signIn)
+        // The process's one more try is spent: both parked again.
+        overrides.retry(signIn)
+        assertEquals(listOf(max, max), waiting().map { it.attempts })
+
+        v3Backend.sent.clear()
+        v3Backend.answer(upload, 200, """{"upserted":1,"skipped_tombstoned":1,"accepted_keys":["client:$term:${typed.courseNo}"]}""")
+        client.uploadCourses(listOf(typed, other), term, signIn)
+        overrides.retry(signIn)
+
+        assertEquals(listOf("$v3/sync/courses/upload", "$v3/sync/courses/1151XA0000009/override"), v3Backend.sent.map { it.url })
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
+    /** Fix round 1: the course adds' upload is told once, by the client that sends it, as every upload is. */
+    @Test
+    fun `a course add's upload that lands tells the outbox once`() = runTest {
+        cache.saveCourses(listOf(typed), term, signIn)
+        lateinit var outbox: Outbox
+        lateinit var overrides: PendingCourseOverrides
+        val client = pushApiClientAt(v3, v3Backend.client, prefs, uploadNews = CourseUploadNews(dagger.Lazy { overrides }, dagger.Lazy { outbox }))
+        val adds = PendingCourseAdds(cache, client, SyncPolicies(prefs))
+        overrides = PendingCourseOverrides(cache, client, prefs)
+        val landings = mutableListOf<SignIn>()
+        val probe = object : OutboxChannel {
+            override val id = OutboxChannelId.HOLIDAYS
+            override suspend fun drain(signIn: SignIn) = Unit
+            override suspend fun requeueParked(signIn: SignIn) {
+                landings += signIn
+            }
+            override suspend fun heldFields(): Set<String> = emptySet()
+            override fun forgetMemory() = Unit
+        }
+        outbox = Outbox(setOf(adds, overrides, probe))
+        v3Backend.answer(upload, 200, """{"accepted_keys":["client:$term:${typed.courseNo}"]}""")
+
+        adds.send(listOf(typed), term, typed.courseNo, addedAt = madeAtMs, signIn = signIn)
+
+        assertEquals(listOf(signIn), landings)
     }
 
     /** An upload's answer for an ended sign-in settles nothing of the next student's. */

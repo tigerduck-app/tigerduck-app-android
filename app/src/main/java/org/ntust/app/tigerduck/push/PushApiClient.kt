@@ -39,6 +39,7 @@ class PushApiClient @Inject constructor(
     private val authTokenManager: AuthTokenManager,
     /** What a `/v4` write is stamped by, and hears its answers; null only in tests, for the wall clock. */
     syncClock: SyncClock? = null,
+    uploadNews: dagger.Lazy<CourseUploadListener>? = null,
 ) {
     // Whether a write goes, as the switches stand at each read; the re-enable hold is the callers'.
     private val policies = SyncPolicies(prefs)
@@ -70,7 +71,7 @@ class PushApiClient @Inject constructor(
     // The sync writes, each in a file of its own beside this one, stamped by one clock on /v4.
     private val clock = WriteClock(syncClock)
     private val overrides = OverrideRequests(api, policies, { baseUrl }, ::authHeader, clock)
-    private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader, clock)
+    private val courseSync = CourseSyncRequests(api, uploads, prefs, policies, { baseUrl }, ::authHeader, clock, uploadNews)
 
     /** The stamp of an edit made now, by the clock the `/v4` writes take theirs from: for a caller's own adds. */
     internal fun stampMs(): Long = clock.stampMs()

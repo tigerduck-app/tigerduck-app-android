@@ -23,7 +23,6 @@ import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.outbox.InMemoryAttempts
 import org.ntust.app.tigerduck.sync.outbox.LanePolicy
 import org.ntust.app.tigerduck.sync.outbox.OldEntryTime
-import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannel
 import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.outbox.OutboxLane
@@ -85,14 +84,12 @@ class PendingCourseAdds internal constructor(
         ackClock: AckClock? = null,
         @ApplicationScope scope: CoroutineScope? = null,
         oldEntryTime: OldEntryTime? = null,
-        outbox: dagger.Lazy<Outbox>? = null,
-        overrides: dagger.Lazy<PendingCourseOverrides>? = null,
     ) : this(
         dataCache = dataCache,
         uploader = CourseUploader { courses, semester, forceKeys, signIn, addedAt ->
             pushApiClient.uploadCoursesAnswered(courses, semester, signIn, forceKeys, addedAt = addedAt)
         },
-        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime, outbox, overrides),
+        outbox = MembershipOutbox(syncPolicies, ackClock, scope, oldEntryTime),
     )
 
     override val id: OutboxChannelId get() = OutboxChannelId.COURSE_ADDS
@@ -252,10 +249,9 @@ class PendingCourseAdds internal constructor(
         val landed = sendingOne(
             block = {
                 if (!signIn.isCurrent) return@sendingOne null
+                // A landing is told by the client that sends it, as every course upload's is.
                 sends.asking(semester, courseNos, courses) { lane.drain(signIn, fields) }
             },
-            // An edit that waited for the backend to have the course goes again.
-            then = { landed -> if (landed == true) outbox.courseUploadLanded(signIn) },
         )
         return landed != null
     }
