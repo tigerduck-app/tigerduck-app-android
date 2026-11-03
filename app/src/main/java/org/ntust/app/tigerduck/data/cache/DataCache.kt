@@ -202,15 +202,15 @@ class DataCache @Inject constructor(
     // Every write of a term's courses, one at a time; see updateCourses.
     private val coursesMutex = Mutex()
 
-    // In memory, by term: the sign-in and course selection answer a fetch last committed it with; a reset lets go of it.
-    private val committedAnswers = java.util.concurrent.ConcurrentHashMap<String, Pair<SignIn, SelectionAnswer?>>()
+    // In memory, by term: the sign-in and school roster a fetch last committed it as; a reset lets go of it.
+    private val committedRosters = java.util.concurrent.ConcurrentHashMap<String, Pair<SignIn, Collection<String>?>>()
 
-    /** Inside [updateCourses]' change: a fetch commits [semester] for [answer], or none, stored with the write. */
-    fun committedWith(semester: String, answer: SelectionAnswer?, signIn: SignIn) { committedAnswers[semester] = signIn to answer }
+    /** Inside [updateCourses]' change: a fetch commits [semester] as [roster], or as none, stored with the write. */
+    fun committedWith(semester: String, roster: Collection<String>?, signIn: SignIn) { committedRosters[semester] = signIn to roster }
 
     /** [semester]'s courses as stored and the fetch commit they last had (see [committedWith]), read as one. */
-    suspend fun termAndCommit(semester: String): Pair<List<Course>, Pair<SignIn, SelectionAnswer?>?> =
-        coursesMutex.withLock { loadCourses(semester) to committedAnswers[semester] }
+    suspend fun termAndCommit(semester: String): Pair<List<Course>, Pair<SignIn, Collection<String>?>?> =
+        coursesMutex.withLock { loadCourses(semester) to committedRosters[semester] }
 
     // Both files or, with [signIn] ended, neither that counts: the wipe that follows takes what landed.
     private suspend fun writeCourses(courses: List<Course>, semester: String, signIn: SignIn): Boolean {
@@ -712,7 +712,7 @@ class DataCache @Inject constructor(
     fun resettingSemesters(): Set<String> = resetting.toSet()
 
     suspend fun saveSemesterResetAt(semester: String, atMs: Long, signIn: SignIn) =
-        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json", signIn).also { committedAnswers.remove(semester) }
+        saveToUserData(loadSemesterResetAt() + (semester to atMs), "semester_reset_at.json", signIn).also { committedRosters.remove(semester) }
 
     /** Drops stamps a newer snapshot has outlived — see [CourseSyncReconciler.resetStampsOutlived]. */
     suspend fun clearSemesterResetAt(semesters: Set<String>, signIn: SignIn) {

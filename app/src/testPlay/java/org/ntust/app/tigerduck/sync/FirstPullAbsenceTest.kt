@@ -219,9 +219,9 @@ class FirstPullAbsenceTest {
         setUp("v4")
         val older = (w.dataCache.recordSelectionRoster(term, listOf(OLD, NEW), signIn) as RecordedSelection.Kept).answer
         val committed = listOf(OLD, NEW).map { Course(courseNo = it, courseName = "School $it", moodleIdNumber = "$term$it") }
-        // The class table's commit, under its lock, its answer stored with the write.
+        // The class table's commit, under its lock, its roster stored with the write.
         rig.adds.uploading {
-            w.dataCache.updateCourses(term, signIn) { _, _ -> committed.also { w.dataCache.committedWith(term, older, signIn) } }
+            w.dataCache.updateCourses(term, signIn) { _, _ -> committed.also { w.dataCache.committedWith(term, older.courseNos, signIn) } }
         }
         // The newer answer, its fetch still looking up: the older one is no longer the latest, so it asks for nothing.
         w.dataCache.recordSelectionRoster(term, listOf(OLD, NEW), signIn)

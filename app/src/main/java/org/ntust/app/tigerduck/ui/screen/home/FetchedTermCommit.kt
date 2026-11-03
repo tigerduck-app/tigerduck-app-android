@@ -48,8 +48,8 @@ internal suspend fun commitFetchedTerm(
             hidden,
         ).also {
             committed = it
-            // With the write, under its lock: the answer a waiting upload of the term pairs it with.
-            dataCache.committedWith(semester, answer, signIn)
+            // With the write, under its lock: the roster a waiting upload of the term pairs it with.
+            dataCache.committedWith(semester, answer?.courseNos, signIn)
         }
     }
     return committed

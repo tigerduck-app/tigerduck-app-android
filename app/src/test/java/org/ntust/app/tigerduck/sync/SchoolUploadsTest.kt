@@ -375,7 +375,7 @@ class SchoolUploadsTest {
 
     /**
      * An older fetch's ask for its upload, landing after a newer commit, tells nothing of which
-     * answer the term was committed for: only a commit does, as it writes.
+     * roster the term was committed as: only a commit does, as it writes.
      */
     @Test
     fun `an older ask for the upload never stands for a newer commit's answer`() = runBlocking {
@@ -385,7 +385,7 @@ class SchoolUploadsTest {
         val newer = cache.recordSelectionRoster(TERM, listOf(CS1), signIn) as RecordedSelection.Kept
         homeCommits(newer.answer, CS1)
         // The older fetch's ask, late, as a class table's would land behind Home's commit.
-        uploads.term(signIn, TERM, cache.loadCourses(TERM), older.courseNos, { block -> adds.uploading(block) }, answer = older) { upload ->
+        uploads.term(signIn, TERM, cache.loadCourses(TERM), older.courseNos, { block -> adds.uploading(block) }) { upload ->
             api.uploadCourses(upload.courses, TERM, signIn, rosterTerms = upload.rosterTerms)
         }
 
@@ -396,18 +396,23 @@ class SchoolUploadsTest {
         assertEquals(listOf(listOf(CS1) to listOf(TERM)), termUploads())
     }
 
+    /** The class table's reset of [TERM] as `wipeTerm` makes it, under the adds' send lock. */
+    private suspend fun classTableReset() {
+        adds.removing { ClassTableTermReset(cache).run(TERM, signIn) {}?.also { uploads.forgetTerm(TERM) } }
+    }
+
     /**
      * Codex on PR R, fix round 4, finding 2: a roster waits, the student resets the term (the class
      * table's reset, under the adds' send lock), its refetch fails, and the first pull restores the
      * server's school courses, one merged down as another device's. Nothing goes from the wait from
-     * before the reset, and nothing pairs the restored term with the answer from before it.
+     * before the reset, and nothing pairs the restored term with the roster from before it.
      */
     @Test
-    fun `a term reset lets go of the term waiting to go up and of the answer stored with its commit`() = runBlocking {
+    fun `a term reset lets go of the term waiting to go up and of the roster stored with its commit`() = runBlocking {
         answer = listOf(CS1)
         termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         untilParked(1)
-        adds.removing { ClassTableTermReset(cache).run(TERM, signIn) {} }
+        classTableReset()
         // The pull's restore: the server's rows, the second merged down as another device's.
         cache.saveCourses(
             listOf(
@@ -422,7 +427,91 @@ class SchoolUploadsTest {
         until("the waiting upload let go") { gate.waiting == 0 && uploads.waitingUploads == 0 }
         delay(300)
         assertEquals("nothing went from the wait before the reset", emptyList<Any>(), termUploads())
-        assertEquals("no commit's answer stands for the term after its reset", null, cache.termAndCommit(TERM).second)
+        assertEquals("no commit's roster stands for the term after its reset", null, cache.termAndCommit(TERM).second)
+    }
+
+    /**
+     * Fix round 5, the reset's half: the first pull lets the waiting term go while the class
+     * table's reset holds the adds' send lock, so the released upload waits for the lock behind
+     * it, and the pull's restore of the term lands before the lock goes. The reset lets go of the
+     * upload there: nothing goes from the wait from before the reset, roster or not.
+     */
+    @Test
+    fun `a term the pull let go while a reset held the lock goes not after it`() = runBlocking {
+        answer = listOf(CS1)
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        val released = CompletableDeferred<Unit>()
+        val holding = CompletableDeferred<Unit>()
+        val reset = appScope.launch {
+            adds.removing {
+                holding.complete(Unit)
+                released.await()
+                ClassTableTermReset(cache).run(TERM, signIn) {}?.also { uploads.forgetTerm(TERM) }
+                // The pull's restore of the server's rows, landing while the reset still holds the lock.
+                cache.saveCourses(listOf(Course(courseNo = CS1, courseName = CS1, moodleIdNumber = "$TERM$CS1")), TERM, signIn)
+            }
+        }
+        withTimeoutOrNull(10_000) { holding.await() }
+        gate.notePull(signIn)
+        until("the waiting upload left the gate") { gate.waiting == 0 && uploads.waitingUploads == 0 }
+
+        released.complete(Unit)
+        reset.join()
+        delay(300)
+        assertEquals("nothing went from the wait before the reset", emptyList<Any>(), termUploads())
+    }
+
+    /**
+     * Fix round 5, the roster's half, where a commit did store one: a past term's rebuild, which
+     * records no course selection answer, stores its final transcript's roster with its commit, and
+     * the term waiting for the pull goes as that roster, `roster_terms` and all, as on dev.
+     */
+    @Test
+    fun `a waiting term goes as the roster its commit stored, though it has no course selection answer`() = runBlocking {
+        val rows = listOf(Course(courseNo = CS3, courseName = CS3, moodleIdNumber = "$OTHER$CS3"))
+        adds.uploading {
+            cache.updateCourses(OTHER, signIn) { _, _ -> rows.also { cache.committedWith(OTHER, listOf(CS3), signIn) } }
+            uploads.term(signIn, OTHER, rows, listOf(CS3), { block -> adds.uploading(block) }) { upload ->
+                api.uploadCourses(upload.courses, OTHER, signIn, rosterTerms = upload.rosterTerms)
+            }
+        }
+        untilParked(1)
+
+        gate.notePull(signIn)
+
+        until("the term went up") { termUploads().isNotEmpty() }
+        assertEquals(listOf(listOf(CS3) to listOf(OTHER)), termUploads())
+    }
+
+    /**
+     * Codex on PR R, fix round 5: as above, but the first pull that lands is fetched more than a
+     * minute after the reset, so it clears the reset's stamp as one it has outlived, and it restores
+     * the term with a course merged down as another device's. The term from before the reset must
+     * not go as a roster that leaves that course out.
+     */
+    @Test
+    fun `a reset's waiting term sends no pre-reset roster once a later pull clears the reset stamp`() = runBlocking {
+        answer = listOf(CS1)
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        adds.removing { ClassTableTermReset(cache).run(TERM, signIn) {} }
+        // The pull, fetched more than a minute after the reset: its stamp outlived, and the server's rows restored.
+        cache.clearSemesterResetAt(setOf(TERM), signIn)
+        cache.saveCourses(
+            listOf(
+                Course(courseNo = CS1, courseName = CS1, moodleIdNumber = "$TERM$CS1"),
+                Course(courseNo = CS2, courseName = CS2, moodleIdNumber = "$TERM$CS2", isManual = true),
+            ),
+            TERM, signIn,
+        )
+
+        gate.notePull(signIn)
+
+        until("the waiting upload let go") { gate.waiting == 0 && uploads.waitingUploads == 0 }
+        delay(300)
+        val dropping = termUploads().filter { (nos, terms) -> terms != null && CS2 !in nos }
+        assertEquals("a roster that leaves the restored course out", emptyList<Any>(), dropping)
     }
 
     @Test

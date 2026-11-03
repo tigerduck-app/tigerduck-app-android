@@ -1573,10 +1573,10 @@ class ClassTableViewModel @Inject constructor(
         // With no course add sent between the DELETE and the wipe; see PendingCourseAdds.removing.
         val held = pendingCourseAdds.removing {
             termReset.run(semester, signIn) { pushApiClient.deleteAllCourses(semester, signIn) }
-                // The wipe took the term's rows, queued single deletes included.
-                // Before the lock goes: a retry waiting behind the wipe would
-                // otherwise send one after the refetch re-uploads the roster.
+                // The wipe took the term's rows, queued single deletes and uploads waiting for the first pull
+                // included, before the lock goes: one sent after the refetch would undo the reset.
                 ?.also { pendingCourseDeletes.forgetTerm(semester, signIn) }
+                ?.also { schoolUploads.forgetTerm(semester) }
         } ?: return false
         if (_currentSemester.value == semester) _courses.value = emptyList()
         // Their names went from the file with the term.
@@ -1860,6 +1860,13 @@ class ClassTableViewModel @Inject constructor(
         if (answers.isEmpty && source !is ClassTableTermSource.Rebuild) return answers.answered
         // A rebuilt past term's roster, read off its final transcript as it is committed.
         var rebuiltRoster: List<String>? = null
+        // As the term's roster when this fetch's course selection answer or a past term's final
+        // transcript gave it, and the upload lists all of it; see CourseUpload.of.
+        fun roster(): List<String>? = when (source) {
+            is ClassTableTermSource.Selection -> source.rosterNos
+            is ClassTableTermSource.Rebuild -> rebuiltRoster
+            else -> null
+        }
         pendingCourseAdds.uploading {
             if (!mayCommit()) return@uploading
             val merged = termFetch.committed(
@@ -1893,9 +1900,9 @@ class ClassTableViewModel @Inject constructor(
                         names = { courseCustomNames },
                         locale = currentCourseLocale,
                     )
-                    // With the write, the answer it was committed for (DataCache.committedWith); shown if the picker is still on the term.
+                    // With the write, the roster it was committed as (DataCache.committedWith); shown if the picker is still on the term.
                     folded?.let { merged ->
-                        dataCache.committedWith(semester, answer, signIn)
+                        dataCache.committedWith(semester, roster(), signIn)
                         if (_currentSemester.value == semester) {
                             showCourses(merged, semester)
                             TigerDuckTheme.buildCourseColorMap(merged)
@@ -1915,15 +1922,8 @@ class ClassTableViewModel @Inject constructor(
             // these rows need not go up to be taken down again. A newer answer's roster would be undone.
             if (!mayCommit()) return@uploading
             if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@uploading
-            // As the term's roster when this fetch's course selection answer or a past term's final
-            // transcript gave it, and the upload lists all of it; see CourseUpload.of.
-            val roster = when (source) {
-                is ClassTableTermSource.Selection -> source.rosterNos
-                is ClassTableTermSource.Rebuild -> rebuiltRoster
-                else -> null
-            }
             // After this process's first pull; until then the term waits, as it stands once it opens.
-            schoolUploads.term(signIn, semester, merged, roster, { pendingCourseAdds.uploading(it) }, mayCommit, answer = answer) { upload ->
+            schoolUploads.term(signIn, semester, merged, roster(), { pendingCourseAdds.uploading(it) }, mayCommit) { upload ->
                 runCatching { pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms) }
                     .onFailure { Log.w("ClassTableVM", "uploadCourses failed (non-fatal): ${it.logSummary()}") }
             }

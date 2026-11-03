@@ -111,6 +111,21 @@ class ClassTableWiringTest {
         assertTrue("wipeTerm forgets them inside the adds lock", forgot < released)
     }
 
+    /**
+     * PR R fix round 5: a term upload waiting for the first pull, or let go by it and waiting for
+     * the adds lock, would send the term from before the reset; the reset lets go of it inside the
+     * lock, once the backend has forgotten the term (SchoolUploadsTest drives what that drops).
+     */
+    @Test
+    fun `a reset lets go of the term's uploads waiting for the first pull before letting the adds lock go`() {
+        val wipe = body("wipeTerm")
+        val reset = wipe.indexOf("termReset.run(semester, signIn)")
+        val forgot = wipe.indexOf("?.also { schoolUploads.forgetTerm(semester) }")
+        val released = wipe.indexOf("?: return false")
+        assertTrue("wipeTerm lets go of the term's waiting uploads after the reset lands", forgot > reset)
+        assertTrue("wipeTerm lets go of them inside the adds lock", forgot < released)
+    }
+
     /** tigerduck-app-android#380: sent again later, a waiting colour or name would bring a row the user removed back. */
     @Test
     fun `a deleted course, and a reset term, take their waiting colours and names with them`() {
@@ -281,17 +296,17 @@ class ClassTableWiringTest {
     }
 
     /**
-     * PR R fix round 3: the class table's commit stores the course selection answer it committed the
-     * term for with the write, under the courses' lock, as `commitFetchedTerm` does for Home and the
-     * background (SchoolUploadsTest drives that one).
+     * PR R fix rounds 3 and 5: the class table's commit stores the roster it committed the term as,
+     * course selection's or a rebuilt past term's, with the write, under the courses' lock, as
+     * `commitFetchedTerm` does for Home and the background (SchoolUploadsTest drives that one).
      */
     @Test
-    fun `the class table's commit stores its answer with the term's write`() {
+    fun `the class table's commit stores its roster with the term's write`() {
         val body = body("fetchTermCourses")
         val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
-        val stored = body.indexOf("dataCache.committedWith(semester, answer, signIn)")
+        val stored = body.indexOf("dataCache.committedWith(semester, roster(), signIn)")
         val fold = body.indexOf("termFetch.foldLatest(")
-        assertTrue("the commit no longer stores its answer inside the write", save in 0 until fold && fold < stored)
+        assertTrue("the commit no longer stores its roster inside the write", save in 0 until fold && fold < stored)
         assertTrue("stored outside the courses' lock", body.indexOf("folded ?: current", stored) > stored)
     }
 
@@ -445,7 +460,7 @@ class ClassTableWiringTest {
             "is ClassTableTermSource.Selection -> source.rosterNos",
             "is ClassTableTermSource.Rebuild -> rebuiltRoster",
             // The upload SchoolUploads.term builds of the term with that roster, under SchoolUploadsTest.
-            "schoolUploads.term(signIn, semester, merged, roster,",
+            "schoolUploads.term(signIn, semester, merged, roster(),",
             "pushApiClient.uploadCourses(upload.courses, semester, signIn, rosterTerms = upload.rosterTerms)",
         )
         assertTrue("fetchTermCourses decides the roster before the commit records it", body.indexOf("rebuiltRoster = it.roster") < body.indexOf("schoolUploads.term("))

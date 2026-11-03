@@ -7,7 +7,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
-import org.ntust.app.tigerduck.data.SelectionAnswer
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
@@ -64,8 +63,10 @@ class SchoolUploads internal constructor(
 
     private val lock = Any()
 
-    // Under [lock], by what each sends: the upload waiting for the first pull, the newest asked for.
+    // Under [lock], by what each sends: the upload waiting for the first pull, the newest asked for,
+    // and the one the pull let go, until it is sent; a reset of its term lets go of both (forgetTerm).
     private val waiting = HashMap<String, Later>()
+    private val released = HashMap<String, Later>()
 
     /** How many uploads wait for the first pull, for a test. */
     internal val waitingUploads: Int get() = synchronized(lock) { waiting.size }
@@ -88,7 +89,12 @@ class SchoolUploads internal constructor(
         scope.launch {
             val pulled = gate.awaitPull(signIn)
             // Taken under the lock: only the newest of its kind goes, and only once.
-            val newest = synchronized(lock) { (waiting[what] === mine).also { if (it) waiting.remove(what) } }
+            val newest = synchronized(lock) {
+                (waiting[what] === mine).also { newest ->
+                    if (newest) waiting.remove(what)
+                    if (newest && pulled) released[what] = mine
+                }
+            }
             if (!pulled || !newest) return@launch
             try {
                 later(signIn)
@@ -96,9 +102,30 @@ class SchoolUploads internal constructor(
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "$what after the first pull failed (non-fatal): ${e.logSummary()}")
+            } finally {
+                synchronized(lock) { if (released[what] === mine) released.remove(what) }
             }
         }
     }
+
+    /**
+     * A reset of [semester] lets go of the term's uploads waiting for the first pull, the fetch's and
+     * the roster request's, and of one the pull let go that has not gone yet: their fetch is of a term
+     * gone. Called under the adds' send lock the reset holds, which a released term takes before it
+     * reads the term, so one let go meanwhile finds nothing to send.
+     */
+    fun forgetTerm(semester: String) {
+        synchronized(lock) {
+            for (what in listOf("$COURSES$semester", "$COURSES$semester$REQUESTED")) {
+                waiting.remove(what)
+                released.remove(what)
+            }
+        }
+    }
+
+    // Whether the term's upload the pull let go under [what] still stands: no reset let go of it
+    // since. By its sign-in: once that sign-in has pulled, its next ask goes at once, never waits.
+    private fun stands(what: String, signIn: SignIn): Boolean = synchronized(lock) { released[what]?.signIn === signIn }
 
     // One send of the assignments at a time, at once or released: see [assignments].
     private val assignmentSends = Mutex()
@@ -132,15 +159,14 @@ class SchoolUploads internal constructor(
      * [roster], at once. Before, once it opens, it is handed [semester]'s courses as this phone
      * holds them then, the pull's changes included, built under [uploading] again so a reset's
      * DELETE orders with it as with the fetch's own; and only when [stillWanted] says so there (a
-     * warm superseded since has nothing to send). A [roster] that is a course selection [answer]'s
-     * then goes as the roster of the answer the term it reads was last committed with, stored with
-     * that write and read with the term as one (`DataCache.termAndCommit`): this fetch's, unless a
-     * fetch that uploads none, such as Home's, committed the term since. A newer
-     * answer whose fetch has not committed yet is no roster of this term, which goes as on dev,
-     * where it went at its commit; a later fetch that does upload takes this one's place.
-     * [requested] marks the backend's own request for the roster, which waits apart from a fetch's.
-     * A reset of the term since the ask (`DataCache.saveSemesterResetAt`, under the adds' send lock the
-     * reset holds and the released upload takes) lets the waiting term go: its fetch is of a term gone.
+     * warm superseded since has nothing to send) and no reset of the term let go of it ([forgetTerm]).
+     * It then goes with the roster stored with the commit of the term it reads, read with the term as
+     * one (`DataCache.termAndCommit`): this fetch's, unless a fetch that uploads none, such as Home's,
+     * committed the term since; and with none, no `roster_terms`, when no commit stored one, never
+     * the [roster] it was asked with, which may predate a reset or a newer answer. A newer answer
+     * whose fetch has not committed yet is no roster of this term, which goes as on dev, where it
+     * went at its commit; a later fetch that does upload takes this one's place. [requested] marks
+     * the backend's own request for the roster, which waits apart from a fetch's.
      */
     internal suspend fun term(
         signIn: SignIn,
@@ -150,28 +176,22 @@ class SchoolUploads internal constructor(
         uploading: suspend (suspend () -> Unit) -> Unit,
         stillWanted: () -> Boolean = { true },
         requested: Boolean = false,
-        answer: SelectionAnswer? = null,
         send: suspend (CourseUpload) -> Unit,
     ) {
-        val resetBefore = dataCache.loadSemesterResetAt()[semester]
+        val what = "$COURSES$semester" + if (requested) REQUESTED else ""
         afterFirstPull(
-            signIn, "$COURSES$semester" + if (requested) REQUESTED else "",
+            signIn, what,
             now = { send(upload(committed, semester, roster)) },
             later = { pinned ->
                 uploading {
-                    if (!pinned.isCurrent || !stillWanted() || resetSince(semester, resetBefore)) return@uploading
+                    if (!pinned.isCurrent || !stillWanted() || !stands(what, pinned)) return@uploading
                     val (held, commit) = dataCache.termAndCommit(semester)
-                    val last = commit?.takeIf { it.first === pinned }
-                    val paired = if (answer == null || last == null) roster else last.second?.courseNos
-                    if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, paired))
+                    val stored = commit?.takeIf { it.first === pinned }?.second
+                    if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, stored))
                 }
             },
         )
     }
-
-    // A reset stamp newer than [before]; one a snapshot outlived and cleared is no reset.
-    private suspend fun resetSince(semester: String, before: Long?): Boolean =
-        dataCache.loadSemesterResetAt()[semester]?.let { now -> before == null || now > before } == true
 
     private suspend fun upload(courses: List<Course>, semester: String, roster: Collection<String>?): CourseUpload =
         CourseUpload.of(courses, semester, roster, hidden = CourseTombstoneKeys.hiddenIn(semester, dataCache.loadDeletedCourseNos()))
