@@ -57,8 +57,7 @@ internal class CurrentTermCourses(
         )
         if (semester in stale) return
         if (holds != null) return if (syncedBefore) reconcileStamped(result, courseSync, signIn, holds, semester) else Unit
-        // As Home's course list reads it: under the adds' send lock, with what waits to go up (RosterReconciler.reconcileTerm).
-        val (localCourses, uploadingNos) = pendingCourseAdds.uploading { dataCache.loadCourses(semester) to uploadsWaitingIn(semester) }
+        val localCourses = dataCache.loadCourses(semester)
         // After the courses: see CourseSyncReconciler.withoutRestored.
         val restored = dataCache.restoredCoursesIn(semester, result.fetchedAtMs)
         val stored = CourseSyncReconciler.withoutRestored(semester, dataCache.loadDeletedCourseNos(), restored)
@@ -90,7 +89,7 @@ internal class CurrentTermCourses(
             answer = dataCache.selectionAnswerIn(semester),
             fetchedAtMs = result.fetchedAtMs,
             // A fetch's courses whose upload waits for this pull: not on the server yet either.
-            uploadingNos = uploadingNos,
+            uploadingNos = uploadsWaitingIn(semester),
         )
         // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
         dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)

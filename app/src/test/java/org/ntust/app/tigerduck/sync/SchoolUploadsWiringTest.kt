@@ -96,16 +96,11 @@ class SchoolUploadsWiringTest {
     /** Codex on PR R, finding 1: both passes' course list reads the terms waiting to go up in the term's step. */
     @Test
     fun `the pull's course list spares the courses whose upload waits for it`() {
-        // Read with the term under the adds' send lock, which a fetch's commit and its upload's ask hold (FirstPullAbsenceTest).
         assertHas(
             "RosterReconciler", source("sync/reconcile/RosterReconciler.kt"),
-            "val (localCourses, uploadingNos) = pendingCourseAdds.uploading {",
-            "dataCache.loadCourses(semester) to termCourseSync.uploadsWaitingIn(semester)", "termCourseSync::uploadsWaitingIn,",
+            "uploadingNos = termCourseSync.uploadsWaitingIn(semester),", "termCourseSync::uploadsWaitingIn,",
         )
-        assertHas(
-            "CurrentTermCourses", source("sync/reconcile/CurrentTermCourses.kt"),
-            "val (localCourses, uploadingNos) = pendingCourseAdds.uploading { dataCache.loadCourses(semester) to uploadsWaitingIn(semester) }",
-        )
+        assertHas("CurrentTermCourses", source("sync/reconcile/CurrentTermCourses.kt"), "uploadingNos = uploadsWaitingIn(semester),")
         assertHas("TermCourseSync", source("notification/TermCourseSync.kt"), "fun uploadsWaitingIn(semester: String): Set<String> = uploads.waitingIn(semester)")
     }
 

@@ -203,11 +203,7 @@ class RosterReconciler @Inject constructor(
         val result = run.result
         val signIn = run.signIn
         val rowsBySemester = run.rowsBySemester
-        // With the courses whose fetch's upload waits, under the adds' send lock a fetch commits its term and
-        // asks for that upload under: the term as read and what waits to go up are of one moment.
-        val (localCourses, uploadingNos) = pendingCourseAdds.uploading {
-            dataCache.loadCourses(semester) to termCourseSync.uploadsWaitingIn(semester)
-        }
+        val localCourses = dataCache.loadCourses(semester)
         // After the courses: see CourseSyncReconciler.withoutRestored. On /v4 a hide is the snapshot's to lift.
         val restored = if (run.holds != null) emptySet() else dataCache.restoredCoursesIn(semester, result.fetchedAtMs)
         run.tombstones = CourseSyncReconciler.withoutRestored(semester, run.tombstones, restored)
@@ -231,7 +227,7 @@ class RosterReconciler @Inject constructor(
             answer = dataCache.selectionAnswerIn(semester),
             fetchedAtMs = result.fetchedAtMs,
             // A fetch's courses whose upload waits for this pull: not on the server yet either.
-            uploadingNos = uploadingNos,
+            uploadingNos = termCourseSync.uploadsWaitingIn(semester),
         )
         // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
         dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)
