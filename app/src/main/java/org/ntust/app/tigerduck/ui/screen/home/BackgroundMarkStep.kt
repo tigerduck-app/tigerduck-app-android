@@ -1,10 +1,14 @@
 package org.ntust.app.tigerduck.ui.screen.home
 
 import org.ntust.app.tigerduck.data.UnsentMarks
+import org.ntust.app.tigerduck.data.cache.AssignmentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
+import org.ntust.app.tigerduck.data.model.UnsentMark
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.sync.reconcile.PullHolds
 
 /**
  * The background worker's assignment-mark step: it takes the server's marks
@@ -29,7 +33,13 @@ internal class BackgroundMarkStep(
     /** Whether the server's marks were [taken], and whether that [changed] this phone's. */
     data class Outcome(val taken: Boolean, val changed: Boolean)
 
-    suspend fun pull(result: BackendSyncResult, signIn: SignIn): Outcome {
+    /**
+     * [holds] is a `/v4` pull's (LWW D12), null for `/v3`'s rules; [syncedBefore] whether the
+     * account's marks have synced here before, without which a `/v4` pull leaves them to Home's
+     * first sync, which queues them as the oldest first (LWW D13, C2).
+     */
+    suspend fun pull(result: BackendSyncResult, signIn: SignIn, holds: PullHolds? = null, syncedBefore: Boolean = true): Outcome {
+        if (holds != null) return pullStamped(result, signIn, holds, syncedBefore)
         val readAt = marksVersion()
         val localIgnored = store.ignored()
         val localCompleted = store.completed()
@@ -45,8 +55,35 @@ internal class BackgroundMarkStep(
         if (!takes) return NOT_TAKEN
         val marks = AssignmentOverrideReconciler.backgroundMarks(result.ignoredIds, result.completedIds, unsent())
         if (!switchOn() || marksVersion() != readAt) return NOT_TAKEN
-        store.replace(marks.ignored, marks.completed, signIn)
+        // In one step with every other write of the marks: a tap saved since the read, which the
+        // version above may not have seen yet, leaves them to the next sync as well.
+        val local = AssignmentMarks(localIgnored, localCompleted)
+        var taken = false
+        store.update(signIn) { stored, _ ->
+            if (stored != local) return@update stored
+            taken = true
+            AssignmentMarks(marks.ignored, marks.completed)
+        } ?: return NOT_TAKEN
+        if (!taken) return NOT_TAKEN
         return Outcome(taken = true, changed = marks.ignored != localIgnored || marks.completed != localCompleted)
+    }
+
+    // Every mark the snapshot's, a missing one cleared, but each this phone keeps: waiting to go up,
+    // or acknowledged since the snapshot began. Decided in the write's own step, with the switch
+    // read again there: one turned off makes the marks this phone's own.
+    private suspend fun pullStamped(result: BackendSyncResult, signIn: SignIn, holds: PullHolds, syncedBefore: Boolean): Outcome {
+        if (!syncedBefore || AssignmentOverrideReconciler.reasonToLeaveMarks(switchOn(), pendingConflicts()) != null) return NOT_TAKEN
+        val server = AssignmentMarks(result.ignoredIds, result.completedIds)
+        var taken: Outcome = NOT_TAKEN
+        store.update(signIn) { stored, waiting ->
+            if (!switchOn()) return@update stored
+            val changes = AssignmentOverrideReconciler.changes(stored, server)
+            val held = waiting.mapNotNullTo(HashSet()) { it.assignmentId } + changes.keys.filter { holds.keeps(SyncField.mark(it)) }
+            AssignmentOverrideReconciler.applied(stored, changes, held).also {
+                taken = Outcome(taken = true, changed = it != stored)
+            }
+        } ?: return NOT_TAKEN
+        return taken
     }
 
     companion object {
@@ -65,6 +102,8 @@ internal class BackgroundMarkStep(
                     dataCache.replaceIgnoredAssignments(ignored, signIn)
                     dataCache.replaceMarkedCompletedAssignments(completed, signIn)
                 }
+                override suspend fun update(signIn: SignIn, change: (AssignmentMarks, List<UnsentMark>) -> AssignmentMarks) =
+                    dataCache.updateAssignmentMarks(signIn, change)
             },
             unsent = unsentMarks::statuses,
         )

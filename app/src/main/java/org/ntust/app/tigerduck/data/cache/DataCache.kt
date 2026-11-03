@@ -4,8 +4,6 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.CourseIgnores
@@ -118,6 +116,35 @@ class DataCache @Inject constructor(
 
     suspend fun replaceMarkedCompletedAssignments(ids: Set<String>, signIn: SignIn) =
         saveMarkedCompletedAssignments(ids, signIn)
+
+    /**
+     * Writes the ignored and marked-done sets as [change] makes them of the sets as stored and the marks
+     * waiting to go up, read in one step under the folder's lock every save of each takes, so a tap's
+     * write and a pull's never undo each other's. [change] runs on the caller's thread. The marks as
+     * they stand after, or null, with nothing written, once [signIn] has ended.
+     */
+    suspend fun updateAssignmentMarks(signIn: SignIn, change: (AssignmentMarks, List<UnsentMark>) -> AssignmentMarks): AssignmentMarks? {
+        val ids = object : TypeToken<List<String>>() {}.type
+        val ignoredFile = File(userDataDir, "ignored_assignments.json")
+        val completedFile = File(userDataDir, "marked_completed_assignments.json")
+        val waitingFile = File(userDataDir, QueueFile.UNSENT_MARKS.fileName)
+        val (marks, wrote) = userDataMutex.withLock {
+            if (!signIn.isCurrent) return@withLock null
+            val (stored, waiting) = withContext(Dispatchers.IO) {
+                AssignmentMarks(readJson<List<String>>(ignoredFile, ids)?.toSet().orEmpty(), readJson<List<String>>(completedFile, ids)?.toSet().orEmpty()) to
+                    readJson<List<UnsentMark?>>(waitingFile, object : TypeToken<List<UnsentMark?>>() {}.type).orEmpty()
+                        .filterNotNull().filter { it.assignmentId != null && it.status != null }
+            }
+            val next = change(stored, waiting)
+            withContext(Dispatchers.IO) {
+                if (next.ignored != stored.ignored) atomicWrite(ignoredFile, gson.toJson(next.ignored.toList()))
+                if (next.completed != stored.completed) atomicWrite(completedFile, gson.toJson(next.completed.toList()))
+            }
+            next to (next != stored)
+        } ?: return null
+        if (wrote) _assignmentMarksVersion.update { it + 1 }
+        return marks
+    }
     private val userDataMutex = Mutex()
     private val gson: Gson = GsonBuilder()
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
@@ -384,7 +411,7 @@ class DataCache @Inject constructor(
         val written = cacheMutex.withLock {
             if (!signIn.isCurrent) return@withLock false
             withContext(Dispatchers.IO) {
-                writeMoodleEnvelope(File(cacheDir, ASSIGNMENT_RECORDS_FILE), records, System.currentTimeMillis())
+                writeMoodleEnvelope(gson, File(cacheDir, ASSIGNMENT_RECORDS_FILE), records, System.currentTimeMillis())
             }
             true
         }
@@ -396,7 +423,7 @@ class DataCache @Inject constructor(
         val type = object : TypeToken<List<MoodleAssignmentRecord>>() {}.type
         return cacheMutex.withLock {
             withContext(Dispatchers.IO) {
-                readMoodleEnvelope<List<MoodleAssignmentRecord>>(File(cacheDir, ASSIGNMENT_RECORDS_FILE), type)?.value
+                readMoodleEnvelope<List<MoodleAssignmentRecord>>(gson, File(cacheDir, ASSIGNMENT_RECORDS_FILE), type)?.value
             }
         }.orEmpty()
     }
@@ -1448,41 +1475,14 @@ class DataCache @Inject constructor(
     suspend fun saveMoodleData(value: Any, fetchedAtMs: Long, name: String, account: String, signIn: SignIn) {
         cacheMutex.withLock {
             if (!signIn.isCurrent) return@withLock
-            withContext(Dispatchers.IO) { writeMoodleEnvelope(moodleFile(name, account), value, fetchedAtMs) }
+            withContext(Dispatchers.IO) { writeMoodleEnvelope(gson, moodleFile(name, account), value, fetchedAtMs) }
         }
     }
 
     suspend fun <T> loadMoodleData(type: java.lang.reflect.Type, name: String, account: String): MoodleCached<T>? =
         cacheMutex.withLock {
-            withContext(Dispatchers.IO) { readMoodleEnvelope(moodleFile(name, account), type) }
+            withContext(Dispatchers.IO) { readMoodleEnvelope(gson, moodleFile(name, account), type) }
         }
-
-    /** Writes [value] to [file] under the Moodle cache's schema number, with when it was fetched. */
-    private fun writeMoodleEnvelope(file: File, value: Any, fetchedAtMs: Long) {
-        val envelope = JsonObject().apply {
-            addProperty("v", MOODLE_CACHE_SCHEMA)
-            addProperty("fetchedAt", fetchedAtMs)
-            add("value", gson.toJsonTree(value))
-        }
-        file.parentFile?.mkdirs()
-        atomicWrite(file, gson.toJson(envelope))
-    }
-
-    /** What [writeMoodleEnvelope] wrote to [file]; null for a file in another shape, or none. */
-    private fun <T> readMoodleEnvelope(file: File, type: java.lang.reflect.Type): MoodleCached<T>? = try {
-        if (!file.exists()) {
-            null
-        } else {
-            val envelope = JsonParser.parseString(file.readText()).asJsonObject
-            if (envelope.get("v")?.asInt != MOODLE_CACHE_SCHEMA) {
-                null
-            } else {
-                gson.fromJson<T>(envelope.get("value"), type)?.let { MoodleCached(it, envelope.get("fetchedAt").asLong) }
-            }
-        }
-    } catch (_: Exception) {
-        null
-    }
 
     /** Where files of [account]'s Moodle data that are not JSON, such as member pictures, go. */
     fun moodleFilesDir(account: String): File = File(moodleDir, moodleAccountFolder(account))

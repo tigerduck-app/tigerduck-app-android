@@ -18,7 +18,7 @@ import java.util.Collections
 /**
  * The full sync's steps in the order they always ran in Home's pull, recorded by fake steps: the
  * retries (the outbox's drain), the fetch inside the course window, the adds the snapshot lists, the one reading of
- * the policy, each reconciler, then what the pass took, the watermark, the first-pull gate, the
+ * the policy, each reconciler (a category's first sync first), then what the pass took, the watermark, the first-pull gate, the
  * status and the steps after it. Swapping any two fails.
  */
 class SynchronizerOrderTest {
@@ -111,6 +111,7 @@ class SynchronizerOrderTest {
         reset = step("course reset"),
         holidays = step("holidays"),
         roster = step("course list and roster requests", roster),
+        firstSync = step("first sync", took = false),
     )
 
     @Test
@@ -121,7 +122,7 @@ class SynchronizerOrderTest {
         assertEquals(
             listOf(
                 "may run", "course window opens", "retries", "deletes stamped", "fetching", "fetch", "adds listed", "policy read",
-                "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
+                "first sync", "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
                 "categories taken", "watermark", "gate opens", "status", "after-steps", "course window closes",
             ),
             log.toList(),
@@ -138,7 +139,7 @@ class SynchronizerOrderTest {
             listOf(
                 "background may run", "background course window opens", "retries", "background deletes stamped",
                 "background fetching", "background fetch", "background adds listed", "background policy read",
-                "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
+                "first sync", "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
                 "background categories taken", "background watermark", "background gate opens", "background status",
                 "background after-steps", "caller's after-steps", "background course window closes",
             ),

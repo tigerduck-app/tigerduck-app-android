@@ -128,6 +128,8 @@ class CourseIgnoreSync internal constructor(
     /** The outbox's course ignores channel: the queue half. */
     internal val channel: OutboxChannel get() = queue
 
+    private val stamped = StampedCourseIgnores(dataCache, queue, mutex, effects)
+
     /**
      * Ignores, or stops ignoring, every assignment of [semester]'s
      * [courseNo]: here at once, then on the backend. [onWritten] runs once
@@ -155,12 +157,13 @@ class CourseIgnoreSync internal constructor(
         queue.queueAsOldest(queue.changeNow(semester, courseNo, moodleId, moodleCourseId, ignore), signIn)
 
     /**
-     * Brings the ignored courses in line with a full sync; see
-     * [CourseIgnoreReconciler.afterSync]. Courses the backend lost the
-     * setting of ([CourseIgnoreReconciler.toResend]) are sent again. Returns
-     * the new set when it changed, else null.
+     * Brings the ignored courses in line with a full sync; see [CourseIgnoreReconciler.afterSync].
+     * Courses the backend lost the setting of ([CourseIgnoreReconciler.toResend]) are sent again.
+     * On `/v4`, with [keeps] (LWW D12), course by course ([StampedCourseIgnores]). Returns the new
+     * set when it changed, else null.
      */
-    suspend fun applySnapshot(result: BackendSyncResult, signIn: SignIn): Set<String>? {
+    suspend fun applySnapshot(result: BackendSyncResult, signIn: SignIn, keeps: ((String) -> Boolean)? = null): Set<String>? {
+        if (keeps != null) return stamped.apply(result, signIn, keeps, resetSince(result)) { sends() && result.fetchedAtMs >= setChosenAt }
         val server = serverView(result)
         val applies = sends()
         var resend = emptyList<PendingCourseIgnore>()

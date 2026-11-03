@@ -352,7 +352,7 @@ class SyncWiringTest {
         val body = body("sync/reconcile/MarksReconciler.kt", "reconcile")
         assertTrue(
             "the worker's pass no longer records the marks under its sign-in",
-            "SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn)" in body &&
+            "SyncMode.BACKGROUND -> backgroundStep.pull(pass.result, signIn," in body &&
                 "prefs.school.assignmentMarksSyncedOnce.set(true, signIn)" in body,
         )
     }
@@ -375,18 +375,23 @@ class SyncWiringTest {
         // Sent by the outbox's drain, the holidays one of its channels (OutboxDrainWiringTest).
         assertTrue("the holiday choices are no longer an outbox channel", "OutboxChannelId.HOLIDAYS" in source("data/PendingHolidayOverrides.kt").joinToString("\n"))
         // Before the fetch, and the snapshot applied after it: SynchronizerOrderTest.
-        assertCalls("sync/reconcile/HolidaysReconciler.kt", "reconcile", "HolidayOverrideApply.apply(")
+        assertCalls("sync/reconcile/HolidaysReconciler.kt", "apply", "HolidayOverrideApply.apply(", "HolidayOverrideApply.applyStamped(")
     }
 
     /** tigerduck-app-android#404: applied after the sign-out cleared them, the departing account's choices came back. */
     @Test
     fun `Home's sync and the worker apply the holiday snapshot through the one apply, under the sign-in it fetched with`() {
-        val holidays = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
-        assertEquals("each mode no longer applies through the one apply", 2, Regex("""HolidayOverrideApply\.apply\([^)]*signIn, pendingHolidayOverrides, academicCalendar\)""").findAll(holidays).count())
+        val reconcile = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
+        assertEquals("each mode no longer applies through the one apply", 2, Regex("""apply\(pass, snapshot, holds, stamped\)""").findAll(reconcile).count())
+        // The v3 snapshot's set, or the v4 one's field by field (LWW D12), under the pass's sign-in.
+        val holidays = body("sync/reconcile/HolidaysReconciler.kt", "apply")
+        assertEquals(1, Regex("""HolidayOverrideApply\.apply\([^)]*signIn, pendingHolidayOverrides, academicCalendar\)""").findAll(holidays).count())
+        assertTrue("val signIn = pass.signIn" in holidays && "signIn, pendingHolidayOverrides, academicCalendar,\n" in holidays)
         val apply = source("data/HolidayOverrideApply.kt").joinToString("\n")
         assertTrue(
             "the holiday snapshot is no longer applied under signIn.ifCurrent",
-            Regex("""signIn\.ifCurrent \{\s*pending\.merged\(""").containsMatchIn(apply),
+            Regex("""signIn\.ifCurrent \{\s*pending\.merged\(""").containsMatchIn(apply) &&
+                Regex("""signIn\.ifCurrent \{\s*val local = calendar\.optedInHolidayIds\s*val kept = pending\.keptOver""").containsMatchIn(apply),
         )
     }
 
@@ -396,7 +401,7 @@ class SyncWiringTest {
         val body = body("sync/reconcile/HolidaysReconciler.kt", "reconcile")
         assertTrue(
             "the worker's pass no longer applies the holiday snapshot inside withContext(Dispatchers.Main)",
-            Regex("""SyncMode\.BACKGROUND -> withContext\(Dispatchers\.Main\) \{\s*HolidayOverrideApply\.apply\(""").containsMatchIn(body),
+            Regex("""SyncMode\.BACKGROUND -> withContext\(Dispatchers\.Main\) \{ apply\(pass, snapshot, holds, stamped\) \}""").containsMatchIn(body),
         )
     }
 
@@ -571,7 +576,7 @@ class SyncWiringTest {
     @Test
     fun `the syncs forget the waiting colours and names of the courses they prune or a reset elsewhere wipes`() {
         // The term's commit hands the courses it took out to the forget (commitReconciledTerm).
-        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn,\n")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),\n")
         assertCalls("sync/reconcile/CourseResetReconciler.kt", "applyCourseReset", "pendingCourseOverrides.forget(")
         assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "pendingCourseOverrides, signIn,\n")
     }
@@ -606,10 +611,10 @@ class SyncWiringTest {
      */
     @Test
     fun `Home's sync and the worker write nothing once a sign-out has wiped the data`() {
-        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcile", "syncCourseList(result, takesCourseList, pass.courseSync, signIn)")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcile", "syncCourseList(result, takesCourseList, pass.courseSync, signIn, pass.holds())")
         assertCalls(
             "sync/reconcile/RosterReconciler.kt", "reconcile",
-            "SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES)", "currentTerm.reconcile(result, pass.courseSync, signIn)",
+            "SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES)", "currentTerm.reconcile(result, pass.courseSync, signIn,",
         )
     }
 
@@ -658,8 +663,8 @@ class SyncWiringTest {
     @Test
     fun `a tap's save and a lookup's write hold the sign-in of their start`() {
         val tap = body("ui/screen/home/HomeViewModel.kt", "toggleOverride")
-        assertTrue("Home's tap no longer reads its sign-in first", tap.indexOf("val signIn = signInNow()") in 0 until tap.indexOf("primaryChannel.trySend"))
-        assertCalls("ui/screen/home/HomeViewModel.kt", "toggleOverride", "primaryChannel.trySend(primary.value to signIn)", "unsentMarks.send(id, status, signIn)")
+        assertTrue("Home's tap no longer reads its sign-in first", tap.indexOf("val signIn = signInNow()") in 0 until tap.indexOf("markSaves.trySend"))
+        assertCalls("ui/screen/home/HomeViewModel.kt", "toggleOverride", "markSaves.trySend(Triple(id, status, signIn))", "unsentMarks.send(id, status, signIn)")
         val edit = body("ui/screen/classtable/ClassTableViewModel.kt", "showEdit")
         assertTrue("an edit of the class table no longer holds the tap's sign-in", "UnsavedEdit(nextUnsavedEdit++, signInNow())" in edit)
         val lookup = body("network/CourseService.kt", "fetchLookup")
@@ -836,7 +841,7 @@ class SyncWiringTest {
             "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)",
         )
         val worker = body("sync/reconcile/RosterReconciler.kt", "reconcile")
-        val reconcile = worker.indexOf("currentTerm.reconcile(result, pass.courseSync, signIn)")
+        val reconcile = worker.indexOf("currentTerm.reconcile(result, pass.courseSync, signIn,")
         val answer = worker.indexOf("answerRosterRequestsNow(result.rosterRequests, signIn)")
         assertTrue("the worker's pass no longer answers roster requests after its reconcile", reconcile in 0 until answer)
         val run = body("notification/BackgroundSyncWorker.kt", "doWork")
@@ -872,5 +877,18 @@ class SyncWiringTest {
         assertTrue("the commit no longer reads the term's answer with its time", "dataCache.selectionAnswerIn(semester)" in commit)
         val fetched = source("ui/screen/home/FetchedTermCommit.kt").joinToString("\n")
         assertTrue("a fetch only gaining no longer leaves out the server drops", "dataCache.fetchDropsIn(semester)" in fetched)
+    }
+
+    /**
+     * The synchronizer Hilt builds runs a category's first sync, first, and reads the outbox's held
+     * fields and the acknowledgments every pull keeps a field by (LWW D12, D13). Read from the
+     * source: the synchronizer takes a dozen collaborators, and the rigs build it without the first sync.
+     */
+    @Test
+    fun `the synchronizer runs the first sync first and reads the outbox and the acknowledgments`() {
+        val source = source("sync/Synchronizer.kt").joinToString("\n")
+        assertTrue("firstSync ?: NO_FIRST_SYNC, outbox::heldFields, ack," in source)
+        assertTrue("Reconcilers.inOrder(firstSync, marks, ignores, overrides, reset, holidays, roster)" in source)
+        assertTrue("steps.syncedBefore(), heldFields, ack)" in source)
     }
 }

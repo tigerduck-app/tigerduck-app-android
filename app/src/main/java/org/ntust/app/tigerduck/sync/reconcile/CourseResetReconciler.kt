@@ -38,9 +38,17 @@ class CourseResetReconciler @Inject constructor(
     private val pendingCourseOverrides: PendingCourseOverrides,
 ) : Reconciler {
 
-    override suspend fun reconcile(pass: SyncPass): Boolean = when (pass.mode) {
-        SyncMode.FOREGROUND -> applyCourseReset(pass.result, pass.beforeFetch, pass.courseSync, pass.signIn)
-        SyncMode.BACKGROUND -> false
+    override suspend fun reconcile(pass: SyncPass): Boolean = when {
+        pass.mode == SyncMode.BACKGROUND -> false
+        // On /v4 the reset's tombstones take the courses it cleared, field by field (LWW D10): remembered, not applied.
+        pass.holds() != null -> false.also { rememberReset(pass.result, pass.signIn) }
+        else -> applyCourseReset(pass.result, pass.beforeFetch, pass.courseSync, pass.signIn)
+    }
+
+    // The server's reset as the next /v3 pass compares it, so it never applies one /v4 has settled.
+    private fun rememberReset(result: BackendSyncResult, signIn: SignIn) {
+        val reset = CourseSyncReconciler.coursesReset(result.coursesResetAt, prefs.school.lastSeenCoursesResetAt.get(), prefs.legacyLastCourseSyncAtMs)
+        if (prefs.school.lastSeenCoursesResetAt.set(reset.remember, signIn)) prefs.forgetLegacyLastCourseSyncAt()
     }
 
     private suspend fun applyCourseReset(

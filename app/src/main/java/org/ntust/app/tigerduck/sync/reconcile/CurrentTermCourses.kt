@@ -10,6 +10,8 @@ import org.ntust.app.tigerduck.network.CourseService
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.sync.SyncField
+import org.ntust.app.tigerduck.ui.screen.home.CourseMembership
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import org.ntust.app.tigerduck.util.logSummary
@@ -38,7 +40,11 @@ internal class CurrentTermCourses(
     private val pendingCourseDeletes: PendingCourseDeletes,
     private val pendingCourseOverrides: PendingCourseOverrides,
 ) {
-    suspend fun reconcile(result: BackendSyncResult, courseSync: DataCache.CourseSync, signIn: SignIn) {
+    /**
+     * The current term. [holds] is a `/v4` pull's (LWW D12), whose course list, never synced here
+     * before ([syncedBefore] false), is Home's first sync's (LWW D13, C2).
+     */
+    suspend fun reconcile(result: BackendSyncResult, courseSync: DataCache.CourseSync, signIn: SignIn, holds: PullHolds? = null, syncedBefore: Boolean = true) {
         val semester = courseService.currentSemesterCode()
         // Mid-reset, or a snapshot fetched before this device reset the
         // term — see CourseSyncReconciler.termsResetAfter.
@@ -48,6 +54,7 @@ internal class CurrentTermCourses(
             result.fetchedAtMs, resetAt, dataCache.resettingSemesters(),
         )
         if (semester in stale) return
+        if (holds != null) return if (syncedBefore) reconcileStamped(result, courseSync, signIn, holds, semester) else Unit
         val localCourses = dataCache.loadCourses(semester)
         // After the courses: see CourseSyncReconciler.withoutRestored.
         val restored = dataCache.restoredCoursesIn(semester, result.fetchedAtMs)
@@ -111,6 +118,37 @@ internal class CurrentTermCourses(
                 current + (semester to (current[semester].orEmpty() + known).distinct().sorted())
             }
         }
+    }
+
+    /**
+     * The current term on a `/v4` pull ([CourseMembership]), as Home's but for what the background
+     * leaves to Home: no merge of rows this phone lacks, and no upload. A course this phone holds
+     * (its add or delete waiting, or acknowledged since the snapshot began) stays as it has it.
+     */
+    private suspend fun reconcileStamped(result: BackendSyncResult, courseSync: DataCache.CourseSync, signIn: SignIn, holds: PullHolds, semester: String) {
+        val localCourses = dataCache.loadCourses(semester)
+        val stored = dataCache.loadDeletedCourseNos()
+        val waiting = pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)
+        val membership = CourseMembership.reconcileTerm(
+            semester = semester,
+            localCourses = localCourses,
+            serverRows = result.serverCourses.filter { it.semester == semester },
+            tombstones = result.tombstones,
+            hides = stored,
+            keeps = { it in waiting || holds.keeps(SyncField.membership(SyncField.courseKey(semester, it))) },
+            selectionDroppedNos = dataCache.loadSelectionDroppedNos()[semester].orEmpty().toSet(),
+            answer = dataCache.selectionAnswerIn(semester),
+            fetchedAtMs = result.fetchedAtMs,
+        )
+        val outcome = membership.outcome
+        dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)
+        pushApiClient.serverDropped(semester, outcome.serverDrops.keys)
+        val pruned = CourseSyncReconciler.pruneHidden(semester, localCourses, outcome.tombstones, legacyBare = false)
+        commitReconciledTerm(
+            dataCache, courseSync, semester, stored, outcome.tombstones, CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones),
+            localCourses, pruned, outcome.left, outcome.droppedOnServer, emptyList(), outcome.handAddedNos, pendingCourseOverrides, signIn,
+            membership.gone,
+        )
     }
 
     private companion object {

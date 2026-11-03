@@ -415,7 +415,7 @@ object CourseSyncReconciler {
      * not come from an NTUST enrolment fetch, and a later refresh must not
      * wipe it.
      */
-    private fun toCourse(it: ServerCourse) = Course(
+    internal fun toCourse(it: ServerCourse) = Course(
         courseNo = it.courseNo,
         courseName = it.courseName,
         instructor = it.instructors.joinToString(", "),
@@ -647,19 +647,7 @@ object CourseSyncReconciler {
             val pickedAt = if (pending) Instant.MAX else backendInstant(override?.colorHexUpdatedAt) ?: Instant.MIN
             Triple(course.courseNo, hex, pickedAt)
         }.sortedWith(compareBy({ it.third }, { it.first }))
-
-        var updated = courses
-        val displaced = mutableSetOf<String>()
-        for ((courseNo, hex, _) in picks) {
-            val pick = CourseColorPick.assign(updated, courseNo, hex, CourseColorPick.shownColors(updated))
-            updated = pick.courses
-            displaced += pick.changed.keys - courseNo
-        }
-        val moved = updated
-            .filter { it.courseNo in displaced && it.customColorHex?.uppercase() != serverHex[it.courseNo] }
-            .mapNotNull { course -> course.customColorHex?.let { course.courseNo to it } }
-            .toMap()
-        return if (updated == courses && moved.isEmpty()) null else ColorOutcome(updated, moved)
+        return colorPicksApplied(courses, courses, picks.map { it.first to it.second }, serverHex)
     }
 
     /**

@@ -230,6 +230,14 @@ class PendingHolidayOverrides internal constructor(
     }
 
     /**
+     * The holidays whose choice a `/v4` pull keeps as this phone has it (LWW D12), read in the step
+     * that writes the pull's: each waiting to go up, and each chosen after the snapshot began (its
+     * time later than [serverHlc], in µs), whose choice may not be waiting yet.
+     */
+    fun keptOver(serverHlc: Long): Set<Int> =
+        waitingIds + prefs.holidayOverrideEditTimes.filterValues { it > serverHlc / 1000 }.keys
+
+    /**
      * Forgets the edit times of [holidayIds], whose choice a pull just replaced: the value is the
      * server's now, and a time kept for it would stamp a PUT of someone else's choice.
      */

@@ -5,6 +5,8 @@ import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.data.HolidayOverrideApply
 import org.ntust.app.tigerduck.data.PendingHolidayOverrides
+import org.ntust.app.tigerduck.push.StampedValue
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.SyncPass
 import javax.inject.Inject
@@ -15,8 +17,9 @@ import javax.inject.Inject
  * Not gated on any of the per-category sync switches: a holiday exception is a notification
  * setting, not course or assignment data, and the categories the user can turn off do not cover
  * it. A snapshot without the section, from an older backend, leaves the local set. A choice whose
- * PUT has not landed stays as this phone has it, and a snapshot that may predate one is not
- * applied: see [PendingHolidayOverrides.merged].
+ * PUT has not landed stays as this phone has it, and a `/v3` snapshot that may predate one is not
+ * applied: see [PendingHolidayOverrides.merged]. A `/v4` one is applied holiday by holiday, but
+ * those this phone keeps (LWW D12): see [HolidayOverrideApply.applyStamped].
  *
  * On the main thread, where the Calendar's switch writes a choice, so a switch turned between the
  * merge's check and its write cannot be erased by the older set (its upload would then send the
@@ -29,14 +32,25 @@ class HolidaysReconciler @Inject constructor(
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
         val result = pass.result
-        val signIn = pass.signIn
         val snapshot = result.holidayOverrides ?: return false
+        val holds = pass.holds()
+        val stamped = result.holidays
         when (pass.mode) {
-            SyncMode.FOREGROUND -> HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
-            SyncMode.BACKGROUND -> withContext(Dispatchers.Main) {
-                HolidayOverrideApply.apply(snapshot, result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
-            }
+            SyncMode.FOREGROUND -> apply(pass, snapshot, holds, stamped)
+            SyncMode.BACKGROUND -> withContext(Dispatchers.Main) { apply(pass, snapshot, holds, stamped) }
         }
         return true
+    }
+
+    // The `/v4` snapshot's choices field by field (LWW D12), the `/v3` one's as its set.
+    private fun apply(pass: SyncPass, snapshot: Set<Int>, holds: PullHolds?, stamped: Map<Int, StampedValue<Boolean>>?) {
+        val signIn = pass.signIn
+        if (holds == null || stamped == null) {
+            HolidayOverrideApply.apply(snapshot, pass.result.fetchedAtMs, signIn, pendingHolidayOverrides, academicCalendar)
+        } else {
+            HolidayOverrideApply.applyStamped(
+                stamped, holds.serverHlc, { holds.keeps(SyncField.holiday(it)) }, signIn, pendingHolidayOverrides, academicCalendar,
+            )
+        }
     }
 }

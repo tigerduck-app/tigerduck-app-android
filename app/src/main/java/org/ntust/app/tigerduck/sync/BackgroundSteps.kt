@@ -66,6 +66,8 @@ internal class BackgroundSteps(
 
     override fun policy(): SyncPolicy = syncPolicies.current
 
+    override fun syncedBefore(): Set<SyncCategory> = categoriesSyncedBefore(prefs)
+
     /** Nothing: Home's sync alone records the categories it took, its pass being the whole one. */
     override fun recordTaken(pass: SyncPass, took: Set<String>) = Unit
 

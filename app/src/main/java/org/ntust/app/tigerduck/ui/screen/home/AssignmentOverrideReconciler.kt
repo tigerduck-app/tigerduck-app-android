@@ -15,6 +15,8 @@
 
 package org.ntust.app.tigerduck.ui.screen.home
 
+import org.ntust.app.tigerduck.data.cache.AssignmentMarks
+
 /**
  * One assignment whose local override disagrees with the server's.
  *
@@ -269,6 +271,28 @@ object AssignmentOverrideReconciler {
         completed = serverCompleted - unsent.keys + unsent.filterValues { it == STATUS_COMPLETED }.keys,
         conflicts = emptyList(),
     )
+
+    /** [id]'s mark in [marks]. */
+    fun statusIn(marks: AssignmentMarks, id: String): String = statusOf(id, marks.ignored, marks.completed)
+
+    /** [marks] with [id] at [status]: in the set it names and out of the other, or out of both for [STATUS_NONE]. */
+    fun withStatus(marks: AssignmentMarks, id: String, status: String): AssignmentMarks = AssignmentMarks(
+        ignored = if (status == STATUS_IGNORED) marks.ignored + id else marks.ignored - id,
+        completed = if (status == STATUS_COMPLETED) marks.completed + id else marks.completed - id,
+    )
+
+    /**
+     * Each id whose mark [to] gives otherwise than [from], at [to]'s: what a sync's result changes
+     * of the marks it read, written one assignment at a time onto the marks as they stand then.
+     */
+    fun changes(from: AssignmentMarks, to: AssignmentMarks): Map<String, String> =
+        (from.ignored + from.completed + to.ignored + to.completed)
+            .filter { statusIn(from, it) != statusIn(to, it) }
+            .associateWith { statusIn(to, it) }
+
+    /** [marks] with each of [changes] made, but those of [held], whose mark this phone keeps as it stands. */
+    fun applied(marks: AssignmentMarks, changes: Map<String, String>, held: Set<String>): AssignmentMarks =
+        changes.entries.fold(marks) { m, (id, status) -> if (id in held) m else withStatus(m, id, status) }
 
     private fun statusOf(id: String, ignored: Set<String>, completed: Set<String>): String = when (id) {
         in ignored -> STATUS_IGNORED
