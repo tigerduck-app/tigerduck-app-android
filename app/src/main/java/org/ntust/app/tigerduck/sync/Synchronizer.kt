@@ -10,8 +10,6 @@ import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.data.PendingHolidayOverrides
-import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -26,6 +24,8 @@ import org.ntust.app.tigerduck.sync.reconcile.MarksReconciler
 import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
 import org.ntust.app.tigerduck.sync.reconcile.Reconciler
 import org.ntust.app.tigerduck.sync.reconcile.Reconcilers
+import org.ntust.app.tigerduck.sync.outbox.Outbox
+import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.reconcile.RosterReconciler
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -72,7 +72,7 @@ class SyncPass(
 }
 
 /**
- * Every full sync: the retries, the fetch, then each category's [Reconciler] in the order
+ * Every full sync: the outbox's drain, the fetch, then each category's [Reconciler] in the order
  * [Reconcilers.inOrder] pins, then what the pass took, its watermark, its status and the steps
  * after it. `SynchronizerOrderTest` holds the order. Home's runs in [SyncMode.FOREGROUND] over
  * [ForegroundSteps]; the background worker's in [SyncMode.BACKGROUND] over [BackgroundSteps], the
@@ -85,6 +85,8 @@ class SyncPass(
  */
 @Singleton
 class Synchronizer internal constructor(
+    /** Sends what waits to go up under a sign-in: the outbox's one drain ([Outbox.drain]). */
+    private val drain: suspend (SignIn) -> Unit,
     private val foreground: PassSteps,
     private val background: PassSteps,
     private val marks: Reconciler,
@@ -101,12 +103,11 @@ class Synchronizer internal constructor(
         authTokenManager: AuthTokenManager,
         authService: AuthService,
         syncApiClient: SyncApiClient,
+        outbox: Outbox,
         courseIgnoreSync: CourseIgnoreSync,
-        unsentMarks: UnsentMarks,
         pendingCourseAdds: PendingCourseAdds,
         pendingCourseDeletes: PendingCourseDeletes,
         pendingCourseOverrides: PendingCourseOverrides,
-        pendingHolidayOverrides: PendingHolidayOverrides,
         firstPullGate: FirstPullGate,
         widgetUpdater: WidgetUpdater,
         reenableCheck: ReenableCheck,
@@ -119,15 +120,24 @@ class Synchronizer internal constructor(
         holidays: HolidaysReconciler,
         roster: RosterReconciler,
     ) : this(
+        drain = { signIn ->
+            // Until they are channels of their own (PR I), the course ignores and the course
+            // overrides go in their channels' places, so every sync sends in the order it always did.
+            outbox.drain(
+                signIn,
+                standIns = mapOf(
+                    OutboxChannelId.COURSE_IGNORES to { courseIgnoreSync.retryPending(it) },
+                    OutboxChannelId.COURSE_OVERRIDES to { pendingCourseOverrides.retry(it) },
+                ),
+            )
+        },
         ForegroundSteps(
-            prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync,
-            UnsentQueues(courseIgnoreSync, unsentMarks, pendingCourseAdds, pendingCourseDeletes, pendingCourseOverrides, pendingHolidayOverrides),
+            prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, pendingCourseAdds, pendingCourseDeletes,
             firstPullGate, widgetUpdater, reenableCheck, notificationSettingsSync, appScope,
         ),
         BackgroundSteps(
             prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, authService::attemptRelogin,
-            UnsentQueues(courseIgnoreSync, unsentMarks, pendingCourseAdds, pendingCourseDeletes, pendingCourseOverrides, pendingHolidayOverrides),
-            firstPullGate,
+            pendingCourseAdds, firstPullGate,
         ),
         marks, ignores, overrides, reset, holidays, roster,
     )
@@ -135,10 +145,11 @@ class Synchronizer internal constructor(
     private val inOrder = Reconcilers.inOrder(marks, ignores, overrides, reset, holidays, roster)
 
     /**
-     * Sends what waits to go up, every queue in the order the retries always ran. A full sync
-     * starts with this, and Home's revision poll sends it without one.
+     * Sends what waits to go up: the outbox's one drain, every channel in [OutboxChannelId] order,
+     * the order the queues were always sent in. Every full sync starts with this, in either mode,
+     * and Home's revision poll sends it without one.
      */
-    suspend fun retryUnsent(signIn: SignIn) = foreground.retryUnsent(signIn)
+    suspend fun retryUnsent(signIn: SignIn) = drain(signIn)
 
     /**
      * Runs one full sync under [signIn], the sign-in its caller read once where it started, over
@@ -164,7 +175,7 @@ class Synchronizer internal constructor(
         try {
             if (mode == SyncMode.FOREGROUND && BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.BACKEND)
             // What waits to go up goes first, so the snapshot has it.
-            steps.retryUnsent(signIn)
+            drain(signIn)
             // Every class-table delete asked before the fetch ranks below it, every later one
             // above: a course reset the snapshot reads lets go of the first only; see CourseResetReconciler.
             val beforeFetch = steps.stampDeletes()
@@ -218,7 +229,6 @@ internal interface PassSteps {
     suspend fun mayRun(): Boolean
     fun beginCourseSync(): DataCache.CourseSync
     fun endCourseSync(courseSync: DataCache.CourseSync)
-    suspend fun retryUnsent(signIn: SignIn)
     suspend fun stampDeletes(): Long
 
     /**

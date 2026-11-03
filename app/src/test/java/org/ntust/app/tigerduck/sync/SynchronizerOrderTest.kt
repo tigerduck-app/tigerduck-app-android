@@ -17,7 +17,7 @@ import java.util.Collections
 
 /**
  * The full sync's steps in the order they always ran in Home's pull, recorded by fake steps: the
- * retries, the fetch inside the course window, the adds the snapshot lists, the one reading of
+ * retries (the outbox's drain), the fetch inside the course window, the adds the snapshot lists, the one reading of
  * the policy, each reconciler, then what the pass took, the watermark, the first-pull gate, the
  * status and the steps after it. Swapping any two fails.
  */
@@ -49,9 +49,6 @@ class SynchronizerOrderTest {
         }.also { note("course window opens") }
         override fun endCourseSync(courseSync: DataCache.CourseSync) {
             note("course window closes")
-        }
-        override suspend fun retryUnsent(signIn: SignIn) {
-            note("retries")
         }
         override suspend fun stampDeletes() = 7L.also { note("deletes stamped") }
         override suspend fun fetch(signIn: SignIn, courseSync: DataCache.CourseSync): BackendSyncResult {
@@ -104,6 +101,8 @@ class SynchronizerOrderTest {
         overrides: Boolean = true,
         roster: Boolean = true,
     ) = Synchronizer(
+        // One drain whatever the mode.
+        drain = { log += "retries" },
         foreground = RecordingSteps(),
         background = RecordingSteps(prefix = "background "),
         marks = step("marks", marks),
@@ -137,7 +136,7 @@ class SynchronizerOrderTest {
         assertEquals(SyncOutcome.SYNCED, outcome)
         assertEquals(
             listOf(
-                "background may run", "background course window opens", "background retries", "background deletes stamped",
+                "background may run", "background course window opens", "retries", "background deletes stamped",
                 "background fetching", "background fetch", "background adds listed", "background policy read",
                 "marks", "ignores", "overrides", "course reset", "holidays", "course list and roster requests",
                 "background categories taken", "background watermark", "background gate opens", "background status",

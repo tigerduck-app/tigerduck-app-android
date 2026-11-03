@@ -17,6 +17,7 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.FirstPullGate
 import org.ntust.app.tigerduck.sync.SyncPolicies
 import org.ntust.app.tigerduck.sync.Synchronizer
+import org.ntust.app.tigerduck.sync.outbox.Outbox
 import org.ntust.app.tigerduck.sync.reconcile.CourseResetReconciler
 import org.ntust.app.tigerduck.sync.reconcile.HolidaysReconciler
 import org.ntust.app.tigerduck.sync.reconcile.IgnoresReconciler
@@ -70,12 +71,12 @@ internal fun homeSyncRig(
         authTokenManager = w.tokens,
         authService = w.auth,
         syncApiClient = syncApi,
+        // The channels the app registers with its outbox; the course ignores and overrides are not channels yet.
+        outbox = Outbox(setOf(marks, adds, deletes, holidays)),
         courseIgnoreSync = ignores,
-        unsentMarks = marks,
         pendingCourseAdds = adds,
         pendingCourseDeletes = deletes,
         pendingCourseOverrides = overrides,
-        pendingHolidayOverrides = holidays,
         firstPullGate = gate,
         widgetUpdater = w.widgetUpdater,
         reenableCheck = ReenableCheck(w.appPrefs, syncApi, w.dataCache, w.semesterCatalog, ignores, w.auth, w.sessions, idleScope, context),

@@ -162,8 +162,7 @@ class SynchronizerBackgroundTest {
         fetch: suspend (SignIn) -> BackendSyncResult,
         relogin: suspend (SignIn) -> Boolean,
     ) = BackgroundSteps(
-        w.appPrefs, SyncPolicies(w.appPrefs), w.dataCache, w.tokens, fetch, relogin,
-        UnsentQueues(rig.ignores, rig.marks, rig.adds, rig.deletes, rig.overrides, rig.holidays), rig.gate,
+        w.appPrefs, SyncPolicies(w.appPrefs), w.dataCache, w.tokens, fetch, relogin, rig.adds, rig.gate,
     )
 
     private val result = BackendSyncResult(

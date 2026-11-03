@@ -6,12 +6,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
-import org.ntust.app.tigerduck.data.PendingCourseOverrides
-import org.ntust.app.tigerduck.data.PendingHolidayOverrides
-import org.ntust.app.tigerduck.data.UnsentMarks
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.SyncSource
@@ -26,26 +22,6 @@ import org.ntust.app.tigerduck.ui.screen.settings.categoriesSynced
 import org.ntust.app.tigerduck.util.logSummary
 import org.ntust.app.tigerduck.widget.WidgetUpdater
 
-/** The six queues, which a full sync sends from before it fetches. */
-internal class UnsentQueues(
-    val courseIgnoreSync: CourseIgnoreSync,
-    val unsentMarks: UnsentMarks,
-    val pendingCourseAdds: PendingCourseAdds,
-    val pendingCourseDeletes: PendingCourseDeletes,
-    val pendingCourseOverrides: PendingCourseOverrides,
-    val pendingHolidayOverrides: PendingHolidayOverrides,
-) {
-    /** Sends what waits in each, one queue after the other, in the order the retries always ran. */
-    suspend fun retry(signIn: SignIn) {
-        courseIgnoreSync.retryPending(signIn)
-        unsentMarks.retry(signIn)
-        pendingCourseAdds.retry(signIn)
-        pendingCourseDeletes.retry(signIn)
-        pendingCourseOverrides.retry(signIn)
-        pendingHolidayOverrides.retry(signIn)
-    }
-}
-
 /** Home's pass over the real stores, clients and status. */
 internal class ForegroundSteps(
     private val prefs: AppPreferences,
@@ -54,7 +30,8 @@ internal class ForegroundSteps(
     private val authTokenManager: AuthTokenManager,
     /** The snapshot's fetch, `SyncApiClient.fetchFullSync`, which the [Synchronizer] alone hands out. */
     private val fetchSnapshot: suspend (SignIn) -> BackendSyncResult,
-    private val queues: UnsentQueues,
+    private val pendingCourseAdds: PendingCourseAdds,
+    private val pendingCourseDeletes: PendingCourseDeletes,
     private val firstPullGate: FirstPullGate,
     private val widgetUpdater: WidgetUpdater,
     private val reenableCheck: ReenableCheck,
@@ -87,9 +64,7 @@ internal class ForegroundSteps(
 
     override fun endCourseSync(courseSync: DataCache.CourseSync) = dataCache.endCourseSync(courseSync)
 
-    override suspend fun retryUnsent(signIn: SignIn) = queues.retry(signIn)
-
-    override suspend fun stampDeletes(): Long = queues.pendingCourseDeletes.stamp()
+    override suspend fun stampDeletes(): Long = pendingCourseDeletes.stamp()
 
     override suspend fun fetch(signIn: SignIn, courseSync: DataCache.CourseSync): BackendSyncResult {
         // An add back made from here on is newer than a course reset the snapshot reads. One
@@ -99,7 +74,7 @@ internal class ForegroundSteps(
     }
 
     override suspend fun listed(result: BackendSyncResult, signIn: SignIn) =
-        queues.pendingCourseAdds.listed(result.serverCourses, signIn)
+        pendingCourseAdds.listed(result.serverCourses, signIn)
 
     override fun policy(): SyncPolicy = syncPolicies.current
 

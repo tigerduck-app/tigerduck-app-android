@@ -2,6 +2,7 @@ package org.ntust.app.tigerduck.sync
 
 import org.ntust.app.tigerduck.auth.AuthTokenManager
 import org.ntust.app.tigerduck.auth.retryingAfterRelogin
+import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.notification.SyncSource
@@ -25,7 +26,7 @@ internal class BackgroundSteps(
     private val fetchSnapshot: suspend (SignIn) -> BackendSyncResult,
     /** Signs in again after the backend refused the session: `AuthService.attemptRelogin`. */
     private val relogin: suspend (SignIn) -> Boolean,
-    private val queues: UnsentQueues,
+    private val pendingCourseAdds: PendingCourseAdds,
     private val firstPullGate: FirstPullGate,
 ) : PassSteps {
 
@@ -41,8 +42,6 @@ internal class BackgroundSteps(
     override fun beginCourseSync(): DataCache.CourseSync = dataCache.beginCourseSync()
 
     override fun endCourseSync(courseSync: DataCache.CourseSync) = dataCache.endCourseSync(courseSync)
-
-    override suspend fun retryUnsent(signIn: SignIn) = queues.retry(signIn)
 
     /**
      * Nothing: the background leaves a course reset made elsewhere to Home (C2), so no delete is
@@ -63,7 +62,7 @@ internal class BackgroundSteps(
         }
 
     override suspend fun listed(result: BackendSyncResult, signIn: SignIn) =
-        queues.pendingCourseAdds.listed(result.serverCourses, signIn)
+        pendingCourseAdds.listed(result.serverCourses, signIn)
 
     override fun policy(): SyncPolicy = syncPolicies.current
 
