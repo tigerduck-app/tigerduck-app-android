@@ -262,6 +262,38 @@ class LwwOverridesTest {
     }
 
     /**
+     * Round 2, finding 3: a course added by hand, and its name, saved after the pull began and
+     * before its step takes the courses' lock, are read by that step: which course numbers no
+     * course here can send a name for is decided in the step that writes.
+     */
+    @Test
+    fun `a hand-added course and its name saved just before the step are read by it, and the name stays`() = runBlocking {
+        show(Course(courseNo = "C1", courseName = "C", moodleIdNumber = "${term}C1"))
+        val gate = CompletableDeferred<Unit>()
+        val holding = CompletableDeferred<Unit>()
+        // A save of the term under way as the pull starts: the hand-add, which lands once let go.
+        val add = launch(Dispatchers.Default) {
+            w.dataCache.updateCourses(term, signIn) { courses, _ ->
+                holding.complete(Unit)
+                gate.await()
+                courses + Course(courseNo = "ADD2", courseName = "Added", isManual = true)
+            }
+        }
+        withTimeout(10_000) { holding.await() }
+        val pull = launch(Dispatchers.Default) { reconciler().reconcile(pass(snapshot())) }
+        delay(300)
+        w.dataCache.updateCourseCustomNames(signIn) { it + ("ADD2" to mapOf(locale to "My Added")) }
+        gate.complete(Unit)
+        withTimeout(10_000) {
+            add.join()
+            pull.join()
+        }
+
+        assertEquals(mapOf("ADD2" to mapOf(locale to "My Added")), w.dataCache.loadCourseCustomNames())
+        assertEquals("My Added", w.dataCache.loadCourses(term).single { it.courseNo == "ADD2" }.customCourseName)
+    }
+
+    /**
      * Finding 4: a name the snapshot no longer holds leaves the names and the courses Home and the
      * widgets show it from, the cached term's and Home's.
      */

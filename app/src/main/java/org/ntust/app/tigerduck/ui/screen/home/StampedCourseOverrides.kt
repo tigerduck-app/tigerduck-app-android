@@ -144,19 +144,22 @@ internal fun colorPicksApplied(
  * A `/v4` pull's two merges over [term]'s courses (LWW D12), as Home's pass and the background's
  * run them: what this phone keeps is what [holds] names, and what the course overrides' channel
  * holds as each merge runs ([waiting]), read again there, so a pick or a rename kept since the
- * pull read the outbox holds too. [everyCourse] is every term's courses on this phone, read before
- * the step: which course an older build's change names by its Moodle id, in whatever term, and
- * which course numbers no course here has a Moodle id for, whose names nothing can send.
+ * pull read the outbox holds too. [everyCourse] reads every term's courses on this phone, in the
+ * step that writes the names, under the courses' lock and the names' (`BackgroundCourseOverrides.apply`),
+ * so a course and its name saved before that step are both read by it: which course an older
+ * build's change names by its Moodle id, in whatever term, and which course numbers no course here
+ * has a Moodle id for, whose names nothing can send.
  */
 internal class StampedMerges(
     private val overrides: List<CourseOverrideResult>,
     private val term: String,
     private val holds: PullHolds,
     private val waiting: suspend () -> Set<String>,
-    private val everyCourse: List<Course>,
+    private val everyCourse: suspend () -> List<Course>,
 ) {
-    /** The names as [StampedCourseOverrides.names] merges them over [current]. */
+    /** The names as [StampedCourseOverrides.names] merges them over [current], the courses read here too. */
     suspend fun names(current: Map<String, Map<String, String>>): Map<String, Map<String, String>>? {
+        val everyCourse = everyCourse()
         val held = StampedCourseOverrides.heldNames(holds.fields() + waiting(), everyCourse, overrides)
         val unsendable = everyCourse.groupBy { it.courseNo }.filterValues { all -> all.all { it.moodleIdNumber.isNullOrEmpty() } }.keys
         return StampedCourseOverrides.names(current, overrides, held, unsendable)

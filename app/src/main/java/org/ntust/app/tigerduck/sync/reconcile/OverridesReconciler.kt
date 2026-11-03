@@ -101,9 +101,9 @@ class OverridesReconciler @Inject constructor(
         )
     }
 
-    // A /v4 pull's merges over [term]'s courses, the override channel's waiting changes read at each.
-    private suspend fun stamped(result: BackendSyncResult, holds: PullHolds, term: String) = StampedMerges(
-        result.courseOverrides, term, holds, pendingCourseOverrides::heldFields, dataCache.loadEveryTermCourses().values.flatten(),
+    // A /v4 pull's merges over [term]'s courses, the override channel's waiting changes and every term's courses read at each.
+    private fun stamped(result: BackendSyncResult, holds: PullHolds, term: String) = StampedMerges(
+        result.courseOverrides, term, holds, pendingCourseOverrides::heldFields, { dataCache.loadEveryTermCourses().values.flatten() },
     )
 
     /**
