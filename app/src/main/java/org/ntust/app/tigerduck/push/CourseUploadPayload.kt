@@ -77,7 +77,7 @@ internal object CourseUploadPayload {
                 // reach the user's other devices even with course-name sync
                 // switched off, and "revert to default" would then restore the
                 // rename instead of the real title. A rename travels on its
-                // own channel — patchCourseOverride(customName=, locale=),
+                // own channel — patchCourseOverrideAnswered(customName=, locale=),
                 // which the syncCourseNames pref actually gates.
                 "course_name" to c.courseName,
                 "course_name_en" to null,

@@ -86,7 +86,7 @@ internal class CourseSyncRequests(
      * them lately, and said so then.
      *
      * [signIn] pins the request, and the ledger's record, to that sign-in, as
-     * `patchAssignmentOverride`'s is.
+     * `patchAssignmentOverrideAnswered`'s is.
      *
      * [rosterTerms] names the terms the list is the school's whole roster
      * of; see [CourseUpload.of], which decides it. A roster the backend asks

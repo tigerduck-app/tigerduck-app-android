@@ -83,7 +83,7 @@ class SyncPolicy(
     /**
      * Whether a course's ignore goes up: TigerSync, assignment and course sync on, the last since
      * the backend drops the settings with the course rows once no device syncs courses, as
-     * `PushApiClient.patchCourseIgnore` decides. `CourseIgnoreSync` also waits while the
+     * `PushApiClient.patchCourseIgnoreAnswered` decides. `CourseIgnoreSync` also waits while the
      * assignments check holds them, which is this and [sends] of [SyncCategory.ASSIGNMENTS].
      */
     val sendsCourseIgnores: Boolean get() = syncs(SyncCategory.ASSIGNMENTS) && syncs(SyncCategory.COURSES)
