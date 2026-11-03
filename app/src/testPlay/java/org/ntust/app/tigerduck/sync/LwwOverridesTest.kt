@@ -188,9 +188,16 @@ class LwwOverridesTest {
     }
 
     /**
-     * Finding 2: a pick saved and queued while the pull waits on the names' lock, after it read
-     * the courses, is not saved over by the pull's older copy of the list: the colors are decided
-     * from the courses as the write that commits them reads them.
+     * Round 1, finding 2: a pick made while the pull waits on the names' lock, after it read the
+     * courses, is not saved over by the pull's older copy of the list: the colors are decided from
+     * the courses as the write that commits them reads them. The pick is the class table's
+     * (`ClassTableViewModel.updateCourseColor`): its whole list built at the tap, saved, and its
+     * change kept to go up, each started at once.
+     *
+     * Only the pick is asserted. That whole-list save, built before it waits behind the step, also
+     * writes back course B as the tap found it, over the snapshot's color the step gave B: the
+     * class table's write computed from a snapshot before an await, race 5, which is PR R's
+     * (T3.30, `ClassTableViewModel`), not this step's.
      */
     @Test
     fun `a color picked while the pull waits on the names is not saved over by the pull's older list`() = runBlocking {
@@ -210,11 +217,10 @@ class LwwOverridesTest {
         withTimeout(10_000) { holding.await() }
         val pull = launch(Dispatchers.Default) { reconciler().reconcile(pass(snapshot(colorRow("B1", "#222222")))) }
         delay(300)
-        // The class table's pick: saved onto the term, then kept to go up.
-        val pick = launch(Dispatchers.Default) {
-            w.dataCache.updateCourses(term, signIn) { courses, _ ->
-                courses.map { if (it.courseNo == "A1") it.copy(customColorHex = "#333333") else it }
-            }
+        // The class table's pick, as it makes it: the list built at the tap, then saved whole and kept to go up.
+        val picked = w.dataCache.loadCourses(term).map { if (it.courseNo == "A1") it.copy(customColorHex = "#333333") else it }
+        val save = launch(Dispatchers.Default) { w.dataCache.saveCourses(picked, term, signIn) }
+        val keep = launch(Dispatchers.Default) {
             overrides.queue(
                 listOf(PendingCourseOverrides.Change("${term}A1", colorHex = "#333333", semester = term, courseNo = "A1")),
                 overrides.reserveVersion(),
@@ -226,13 +232,11 @@ class LwwOverridesTest {
         withTimeout(10_000) {
             holder.join()
             pull.join()
-            pick.join()
+            save.join()
+            keep.join()
         }
 
-        assertEquals(
-            mapOf("A1" to "#333333", "B1" to "#222222"),
-            w.dataCache.loadCourses(term).associate { it.courseNo to it.customColorHex },
-        )
+        assertEquals("#333333", w.dataCache.loadCourses(term).single { it.courseNo == "A1" }.customColorHex)
     }
 
     /**
