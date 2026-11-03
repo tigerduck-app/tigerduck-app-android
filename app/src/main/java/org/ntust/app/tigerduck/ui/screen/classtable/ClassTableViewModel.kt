@@ -1878,8 +1878,7 @@ class ClassTableViewModel @Inject constructor(
                 var folded: List<Course>? = null
                 dataCache.updateCourses(semester, signIn) { current, _ ->
                     if (answer != null && !dataCache.isLatestAnswer(semester, answer)) return@updateCourses current
-                    // The reads that suspend first, the list chosen and folded
-                    // after them with nothing in between; the order is foldLatest's.
+                    // The reads that suspend first, the list chosen and folded after them with nothing in between; foldLatest's order.
                     folded = termFetch.foldLatest(
                         drawn, semester,
                         editGeneration = { termEdits[semester] ?: 0 },
@@ -1894,8 +1893,9 @@ class ClassTableViewModel @Inject constructor(
                         names = { courseCustomNames },
                         locale = currentCourseLocale,
                     )
-                    // Shown only if the picker is still on the term.
+                    // With the write, the answer it was committed for (DataCache.committedWith); shown if the picker is still on the term.
                     folded?.let { merged ->
+                        dataCache.committedWith(semester, answer, signIn)
                         if (_currentSemester.value == semester) {
                             showCourses(merged, semester)
                             TigerDuckTheme.buildCourseColorMap(merged)

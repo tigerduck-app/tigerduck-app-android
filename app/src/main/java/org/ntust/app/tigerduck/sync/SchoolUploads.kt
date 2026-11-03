@@ -67,19 +67,6 @@ class SchoolUploads internal constructor(
     // Under [lock], by what each sends: the upload waiting for the first pull, the newest asked for.
     private val waiting = HashMap<String, Later>()
 
-    // Under [lock], by term: the course selection answer the term was last committed with in this
-    // process, by a fetch under the sign-in held with it (null for a term committed with none).
-    private val committedWith = HashMap<String, Pair<SignIn, SelectionAnswer?>>()
-
-    /**
-     * [semester]'s term has just been committed by a fetch of course selection's [answer], or of
-     * none, under [signIn]: a waiting term goes with that answer's roster (see [term]). Home's fetch,
-     * which uploads no term, tells it here; a fetch that uploads tells it by asking for the upload.
-     */
-    fun committedFor(signIn: SignIn, semester: String, answer: SelectionAnswer?) = synchronized(lock) {
-        committedWith[semester] = signIn to answer
-    }
-
     /** How many uploads wait for the first pull, for a test. */
     internal val waitingUploads: Int get() = synchronized(lock) { waiting.size }
 
@@ -146,8 +133,9 @@ class SchoolUploads internal constructor(
      * holds them then, the pull's changes included, built under [uploading] again so a reset's
      * DELETE orders with it as with the fetch's own; and only when [stillWanted] says so there (a
      * warm superseded since has nothing to send). A [roster] that is a course selection [answer]'s
-     * then goes as the roster of the answer the term was last committed with: this fetch's, unless
-     * a fetch that uploads none, such as Home's, committed the term since ([committedFor]). A newer
+     * then goes as the roster of the answer the term it reads was last committed with, stored with
+     * that write and read with the term as one (`DataCache.termAndCommit`): this fetch's, unless a
+     * fetch that uploads none, such as Home's, committed the term since. A newer
      * answer whose fetch has not committed yet is no roster of this term, which goes as on dev,
      * where it went at its commit; a later fetch that does upload takes this one's place.
      * [requested] marks the backend's own request for the roster, which waits apart from a fetch's.
@@ -163,15 +151,14 @@ class SchoolUploads internal constructor(
         answer: SelectionAnswer? = null,
         send: suspend (CourseUpload) -> Unit,
     ) {
-        committedFor(signIn, semester, answer)
         afterFirstPull(
             signIn, "$COURSES$semester" + if (requested) REQUESTED else "",
             now = { send(upload(committed, semester, roster)) },
             later = { pinned ->
                 uploading {
                     if (!pinned.isCurrent || !stillWanted()) return@uploading
-                    val held = dataCache.loadCourses(semester)
-                    val last = synchronized(lock) { committedWith[semester]?.takeIf { it.first === pinned } }
+                    val (held, commit) = dataCache.termAndCommit(semester)
+                    val last = commit?.takeIf { it.first === pinned }
                     val paired = if (answer == null || last == null) roster else last.second?.courseNos
                     if (held.isNotEmpty() && pinned.isCurrent) send(upload(held, semester, paired))
                 }

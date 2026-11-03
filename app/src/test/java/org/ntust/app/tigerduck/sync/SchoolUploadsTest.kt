@@ -38,6 +38,7 @@ import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.shared.Course
+import org.ntust.app.tigerduck.ui.screen.home.commitFetchedTerm
 import org.ntust.app.tigerduck.util.JvmContext
 import java.util.Date
 
@@ -347,22 +348,50 @@ class SchoolUploadsTest {
         assertEquals(listOf(listOf(CS1, CS2) to listOf(TERM)), termUploads())
     }
 
+    /** Home's commit of [answer]'s term, [courses], as its fetch makes it: `commitFetchedTerm`. */
+    private suspend fun homeCommits(answer: org.ntust.app.tigerduck.data.SelectionAnswer, vararg courses: String) {
+        val rows = courses.map { Course(courseNo = it, courseName = it, moodleIdNumber = "$TERM$it") }
+        commitFetchedTerm(cache, TERM, rows, onlyGains = false, answer = answer, signIn = signIn, waitingAdds = { emptySet() }) { fetched, _, _ -> fetched }
+    }
+
     /**
-     * A later answer that dropped a course, recorded and committed as Home's fetch does before the
-     * first pull, its commit told: the waiting term goes with that answer's roster, of the term as
-     * it stands.
+     * Codex on PR R, fix round 2, P2: Home commits a newer answer's term, one that dropped a course;
+     * the waiting term released right after, before anything else is told, goes with that answer's
+     * roster, as the term is stored with the answer it was committed for, never another commit's.
      */
     @Test
-    fun `a waiting term goes with the answer of the fetch that committed it last`() = runBlocking {
+    fun `a waiting term goes with the answer stored with the commit it reads`() = runBlocking {
         termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
         untilParked(1)
         val newer = cache.recordSelectionRoster(TERM, listOf(CS1), signIn) as RecordedSelection.Kept
-        cache.saveCourses(cache.loadCourses(TERM).filter { it.courseNo == CS1 }, TERM, signIn)
-        uploads.committedFor(signIn, TERM, newer.answer)
+        homeCommits(newer.answer, CS1)
 
         gate.notePull(signIn)
 
         until("the term went up") { termUploads().isNotEmpty() }
+        assertEquals(listOf(listOf(CS1) to listOf(TERM)), termUploads())
+    }
+
+    /**
+     * An older fetch's ask for its upload, landing after a newer commit, tells nothing of which
+     * answer the term was committed for: only a commit does, as it writes.
+     */
+    @Test
+    fun `an older ask for the upload never stands for a newer commit's answer`() = runBlocking {
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        untilParked(1)
+        val older = cache.selectionAnswerIn(TERM)!!
+        val newer = cache.recordSelectionRoster(TERM, listOf(CS1), signIn) as RecordedSelection.Kept
+        homeCommits(newer.answer, CS1)
+        // The older fetch's ask, late, as a class table's would land behind Home's commit.
+        uploads.term(signIn, TERM, cache.loadCourses(TERM), older.courseNos, { block -> adds.uploading(block) }, answer = older) { upload ->
+            api.uploadCourses(upload.courses, TERM, signIn, rosterTerms = upload.rosterTerms)
+        }
+
+        gate.notePull(signIn)
+
+        until("the term went up") { termUploads().isNotEmpty() }
+        delay(300)
         assertEquals(listOf(listOf(CS1) to listOf(TERM)), termUploads())
     }
 

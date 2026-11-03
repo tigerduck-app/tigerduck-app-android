@@ -746,8 +746,7 @@ class HomeViewModel @Inject constructor(
                                 onlyGains = remote.onlyGains,
                             )
                         }
-                            // The answer a term waiting to go up is paired with; else a newer answer's fetch committed it instead.
-                            ?.also { schoolUploads.committedFor(remote.signIn, remote.semester, remote.answer) }
+                            // A newer course selection answer's fetch committed the term instead.
                             ?: dataCache.loadCourses().filterNot { it.courseNo in hiddenNow() }
                         // The class table loaded: a day of use towards the Play rating ask
                         // (issue #332). A source that failed is a status dot, which ReviewPrompt reads.

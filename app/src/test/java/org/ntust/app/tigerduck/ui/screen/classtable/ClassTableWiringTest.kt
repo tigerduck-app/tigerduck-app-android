@@ -280,6 +280,21 @@ class ClassTableWiringTest {
         assertCalls("syncCourseOverride", "courseNo = course.courseNo, signIn = signInNow(), kept = kept,", "kept.complete(Unit)")
     }
 
+    /**
+     * PR R fix round 3: the class table's commit stores the course selection answer it committed the
+     * term for with the write, under the courses' lock, as `commitFetchedTerm` does for Home and the
+     * background (SchoolUploadsTest drives that one).
+     */
+    @Test
+    fun `the class table's commit stores its answer with the term's write`() {
+        val body = body("fetchTermCourses")
+        val save = body.indexOf("dataCache.updateCourses(semester, signIn)")
+        val stored = body.indexOf("dataCache.committedWith(semester, answer, signIn)")
+        val fold = body.indexOf("termFetch.foldLatest(")
+        assertTrue("the commit no longer stores its answer inside the write", save in 0 until fold && fold < stored)
+        assertTrue("stored outside the courses' lock", body.indexOf("folded ?: current", stored) > stored)
+    }
+
     /** tigerduck-app-android#264: rooms are announced late, and the page fetches on launch only. */
     /**
      * A fetch whose course selection answer a newer one replaced (Home's, the background's or

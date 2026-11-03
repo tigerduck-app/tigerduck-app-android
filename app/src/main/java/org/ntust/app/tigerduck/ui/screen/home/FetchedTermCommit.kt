@@ -46,7 +46,11 @@ internal suspend fun commitFetchedTerm(
             TranscriptTerms.withoutDrops(fetched, dropped, current, waiting),
             TranscriptTerms.withoutDroppedRows(current, dropped, waiting),
             hidden,
-        ).also { committed = it }
+        ).also {
+            committed = it
+            // With the write, under its lock: the answer a waiting upload of the term pairs it with.
+            dataCache.committedWith(semester, answer, signIn)
+        }
     }
     return committed
 }

@@ -89,23 +89,20 @@ class DataCache @Inject constructor(
     private val _assignmentMarksVersion = MutableStateFlow(0)
 
     /**
-     * Bumped after every write of the ignored, marked-done and ignored-course
-     * sets, so a screen that only reads them reads them again.
+     * Bumped after every write of the ignored, marked-done and ignored-course sets, so a screen that only reads them reads them again.
      */
     val assignmentMarksVersion: StateFlow<Int> = _assignmentMarksVersion.asStateFlow()
 
     private val _marksAdoptedVersion = MutableStateFlow(0)
 
     /**
-     * Bumped after [adoptAssignmentMarks], for Home to read the marks again
-     * before its next swipe writes the ones it holds back over them.
+     * Bumped after [adoptAssignmentMarks], for Home to read the marks again before its next swipe writes the ones it holds back over them.
      */
     val marksAdoptedVersion: StateFlow<Int> = _marksAdoptedVersion.asStateFlow()
 
     /**
-     * Replaces the ignored and marked-done sets with the ones a re-enable
-     * answer took (Use Server), and says so on [marksAdoptedVersion]. Not for
-     * Home's own writes: reading those back could undo a newer swipe.
+     * Replaces the ignored and marked-done sets with the ones a re-enable answer took (Use Server), and
+     * says so on [marksAdoptedVersion]. Not for Home's own writes: reading those back could undo a newer swipe.
      */
     suspend fun adoptAssignmentMarks(ignored: Set<String>, completed: Set<String>, signIn: SignIn) {
         val ignoredKept = saveIgnoredAssignments(ignored, signIn)
@@ -150,9 +147,8 @@ class DataCache @Inject constructor(
         .setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ")
         .create()
 
-    // One-shot legacy cache migration is deferred to the first course op so
-    // the file I/O never lands on the main thread via Hilt-driven singleton
-    // construction (would trip StrictMode and risk ANR on slow storage).
+    // One-shot legacy cache migration is deferred to the first course op so the file I/O never lands on
+    // the main thread via Hilt-driven singleton construction (would trip StrictMode, risk ANR on slow storage).
     @Volatile
     private var legacyCourseCacheAbsorbed = false
 
@@ -166,24 +162,21 @@ class DataCache @Inject constructor(
     // --- Courses (semester-scoped) ---
 
     /**
-     * Save courses for a specific semester. Splits the list: remote-fetched
-     * courses go to `cacheDir/courses_<semester>.json` (evictable), manual
-     * courses go to `userDataDir/manual_courses_<semester>.json` (durable).
-     * Manual courses have no remote source — if the cache is evicted they
-     * can only be recovered from userDataDir.
+     * Save courses for a specific semester. Splits the list: remote-fetched courses go to
+     * `cacheDir/courses_<semester>.json` (evictable), manual courses go to
+     * `userDataDir/manual_courses_<semester>.json` (durable). Manual courses have no remote source:
+     * if the cache is evicted they can only be recovered from userDataDir.
      */
     suspend fun saveCourses(courses: List<Course>, semester: String, signIn: SignIn) =
         coursesMutex.withLock { writeCourses(courses, semester, signIn) }
 
     /**
-     * [semester]'s courses as [change] makes them of the list as it stands
-     * and of the course numbers hidden in the term now, with no other save of
-     * a term between the read and the write, for a sync that commits only
-     * what it changed: a delete or a fetch saved while it ran stays as that
-     * left it. A delete writes its hide before its list, so a course deleted
-     * before this read is in the hides, and one deleted after it is taken off
-     * by the delete's own save. What else [change] reads is read with no save
-     * of a term meanwhile either.
+     * [semester]'s courses as [change] makes them of the list as it stands and of the course numbers
+     * hidden in the term now, with no other save of a term between the read and the write, for a sync
+     * that commits only what it changed: a delete or a fetch saved while it ran stays as that left it.
+     * A delete writes its hide before its list, so a course deleted before this read is in the hides,
+     * and one deleted after it is taken off by the delete's own save. What else [change] reads is
+     * read with no save of a term meanwhile either.
      */
     suspend fun updateCourses(semester: String, signIn: SignIn, change: suspend (List<Course>, Set<String>) -> List<Course>) =
         coursesMutex.withLock {
@@ -209,6 +202,16 @@ class DataCache @Inject constructor(
     // Every write of a term's courses, one at a time; see updateCourses.
     private val coursesMutex = Mutex()
 
+    // Under [coursesMutex], in memory, by term: the sign-in and course selection answer a fetch last committed it with.
+    private val committedAnswers = HashMap<String, Pair<SignIn, SelectionAnswer?>>()
+
+    /** Inside [updateCourses]' change: a fetch commits [semester] for [answer], or none, stored with the write. */
+    fun committedWith(semester: String, answer: SelectionAnswer?, signIn: SignIn) { committedAnswers[semester] = signIn to answer }
+
+    /** [semester]'s courses as stored and the fetch commit they last had (see [committedWith]), read as one. */
+    suspend fun termAndCommit(semester: String): Pair<List<Course>, Pair<SignIn, SelectionAnswer?>?> =
+        coursesMutex.withLock { loadCourses(semester) to committedAnswers[semester] }
+
     // Both files or, with [signIn] ended, neither that counts: the wipe that follows takes what landed.
     private suspend fun writeCourses(courses: List<Course>, semester: String, signIn: SignIn): Boolean {
         absorbLegacyCourseCache()
@@ -222,23 +225,20 @@ class DataCache @Inject constructor(
     }
 
     /**
-     * Load courses for a specific semester. Merges remote-fetched (cacheDir)
-     * and manual (userDataDir) files; manual courses win on courseNo collision
-     * so the user's isManual flag is preserved even if the remote list was
-     * evicted and a re-fetch has not yet repopulated it.
+     * Load courses for a specific semester. Merges remote-fetched (cacheDir) and manual (userDataDir)
+     * files; manual courses win on courseNo collision so the user's isManual flag is preserved even if
+     * the remote list was evicted and a re-fetch has not yet repopulated it.
      */
     suspend fun loadCourses(semester: String): List<Course> {
         absorbLegacyCourseCache()
         migrateManualCoursesToUserData(semester)
         val type = object : TypeToken<List<Course>>() {}.type
-        // requireContent: v1.4.0 shipped without a keep rule for the moved
-        // shared.Course, so cache files written by that build have R8-
-        // obfuscated keys. Deserializing them returns Course objects with
-        // null-typed-as-non-null Strings — the first caller that reads
-        // `courseNo` / `displayName` NPEs. DataMigration sweeps these
-        // files on first injection of AppState, but Application.onCreate
-        // launches wearBridge.publish() on Dispatchers.IO and can race
-        // ahead of MainActivity-triggered migration. Guard at every read.
+        // requireContent: v1.4.0 shipped without a keep rule for the moved shared.Course, so cache
+        // files written by that build have R8-obfuscated keys. Deserializing them returns Course
+        // objects with null-typed-as-non-null Strings — the first caller that reads `courseNo` /
+        // `displayName` NPEs. DataMigration sweeps these files on first injection of AppState, but
+        // Application.onCreate launches wearBridge.publish() on Dispatchers.IO and can race ahead of
+        // MainActivity-triggered migration. Guard at every read.
         val remote = load<List<Course>>(
             type,
             coursesFilename(semester),
