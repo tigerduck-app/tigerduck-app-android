@@ -22,22 +22,11 @@ class Outbox @Inject constructor(channels: Set<@JvmSuppressWildcards OutboxChann
         require(ids.distinct() == ids) { "two outbox channels share an id: $ids" }
     }
 
-    private val byId: Map<OutboxChannelId, OutboxChannel> = this.channels.associateBy { it.id }
-
     /** Sends what waits in every channel under [signIn], one channel after the other, in [OutboxChannelId] order. */
-    suspend fun drain(signIn: SignIn) = drain(signIn, standIns = emptyMap())
-
-    /**
-     * [drain], with a queue that is not a channel yet sent in the place its channel will take:
-     * [standIns] by that channel's id, each sending what waits in its queue under [signIn]. A
-     * channel registered under the id goes in its place instead, so a queue that becomes a channel
-     * is never sent twice. Nothing goes once [signIn] has ended.
-     */
-    suspend fun drain(signIn: SignIn, standIns: Map<OutboxChannelId, suspend (SignIn) -> Unit>) {
-        for (id in OutboxChannelId.entries) {
+    suspend fun drain(signIn: SignIn) {
+        for (channel in channels) {
             if (!signIn.isCurrent) return
-            val channel = byId[id]
-            if (channel != null) channel.drain(signIn) else standIns[id]?.invoke(signIn)
+            channel.drain(signIn)
         }
     }
 

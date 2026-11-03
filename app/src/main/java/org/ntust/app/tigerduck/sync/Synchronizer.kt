@@ -6,10 +6,8 @@ import kotlinx.coroutines.CoroutineScope
 import org.ntust.app.tigerduck.BuildConfig
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.AuthTokenManager
-import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseAdds
 import org.ntust.app.tigerduck.data.PendingCourseDeletes
-import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.di.ApplicationScope
@@ -25,7 +23,6 @@ import org.ntust.app.tigerduck.sync.reconcile.OverridesReconciler
 import org.ntust.app.tigerduck.sync.reconcile.Reconciler
 import org.ntust.app.tigerduck.sync.reconcile.Reconcilers
 import org.ntust.app.tigerduck.sync.outbox.Outbox
-import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.reconcile.RosterReconciler
 import org.ntust.app.tigerduck.ui.component.ServerFailureSimulator
 import org.ntust.app.tigerduck.ui.component.ServerKind
@@ -105,10 +102,8 @@ class Synchronizer internal constructor(
         authService: AuthService,
         syncApiClient: SyncApiClient,
         outbox: Outbox,
-        courseIgnoreSync: CourseIgnoreSync,
         pendingCourseAdds: PendingCourseAdds,
         pendingCourseDeletes: PendingCourseDeletes,
-        pendingCourseOverrides: PendingCourseOverrides,
         firstPullGate: FirstPullGate,
         widgetUpdater: WidgetUpdater,
         reenableCheck: ReenableCheck,
@@ -121,17 +116,7 @@ class Synchronizer internal constructor(
         holidays: HolidaysReconciler,
         roster: RosterReconciler,
     ) : this(
-        drain = { signIn ->
-            // Until they are channels of their own (PR I), the course ignores and the course
-            // overrides go in their channels' places, so every sync sends in the order it always did.
-            outbox.drain(
-                signIn,
-                standIns = mapOf(
-                    OutboxChannelId.COURSE_IGNORES to { courseIgnoreSync.retryPending(it) },
-                    OutboxChannelId.COURSE_OVERRIDES to { pendingCourseOverrides.retry(it) },
-                ),
-            )
-        },
+        drain = outbox::drain,
         ForegroundSteps(
             prefs, syncPolicies, dataCache, authTokenManager, syncApiClient::fetchFullSync, pendingCourseAdds, pendingCourseDeletes,
             firstPullGate, widgetUpdater, reenableCheck, notificationSettingsSync, appScope,
@@ -146,7 +131,7 @@ class Synchronizer internal constructor(
     private val inOrder = Reconcilers.inOrder(marks, ignores, overrides, reset, holidays, roster)
 
     /**
-     * Sends what waits to go up: the outbox's one drain, every channel in [OutboxChannelId] order,
+     * Sends what waits to go up: the outbox's one drain, every channel in its pinned order,
      * the order the queues were always sent in. Every full sync starts with this, in either mode,
      * and Home's revision poll sends it without one.
      */

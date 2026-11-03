@@ -72,12 +72,10 @@ internal fun homeSyncRig(
         authTokenManager = w.tokens,
         authService = w.auth,
         syncApiClient = syncApi,
-        // The channels the app registers with its outbox; the course ignores and overrides are not channels yet.
-        outbox = Outbox(setOf(marks, adds, deletes, holidays)),
-        courseIgnoreSync = ignores,
+        // The six channels the app registers with its outbox.
+        outbox = Outbox(setOf(ignores.channel, marks, adds, deletes, overrides, holidays)),
         pendingCourseAdds = adds,
         pendingCourseDeletes = deletes,
-        pendingCourseOverrides = overrides,
         firstPullGate = gate,
         widgetUpdater = w.widgetUpdater,
         reenableCheck = ReenableCheck(w.appPrefs, syncApi, w.dataCache, w.semesterCatalog, ignores, w.auth, w.sessions, idleScope, context),
