@@ -25,6 +25,7 @@ import org.junit.runner.RunWith
 import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
+import org.ntust.app.tigerduck.auth.session.SignOutReason
 import org.ntust.app.tigerduck.data.CourseIgnoreSync
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.PendingHolidayOverrides
@@ -266,6 +267,26 @@ class LwwPullTest {
         assertEquals("the waiting color", "#444444", w.dataCache.loadCourses(term).single { it.courseNo == "XA0000004" }.customColorHex)
         assertEquals("the waiting name", mapOf("en" to "Held Four"), w.dataCache.loadCourseCustomNames()["XA0000004"])
         assertEquals("the waiting choice and the one made since", setOf(7, 9, 10), w.academicCalendar.optedInHolidayIds)
+    }
+
+    /** A `/v4` pull that runs on past its sign-out writes nothing into the next sign-in's files. */
+    @Test
+    fun `a v4 pull past its sign-out writes nothing for the next sign-in`() = runBlocking {
+        val pass = pass(snapshot(), SyncMode.FOREGROUND)
+        w.plans.signOut(SignOutReason.SCHOOL)
+        withTimeout(10_000) { w.sessions.school.awaitOpen() }
+        assertTrue(w.auth.login(STUDENT, "made-up-password"))
+        state.allCourses.value = listOf(course("XA0000001", null))
+
+        for (step in reconcilers()) step.reconcile(pass)
+
+        assertEquals(emptySet<String>(), w.dataCache.loadIgnoredAssignments())
+        assertEquals(emptySet<String>(), w.dataCache.loadMarkedCompletedAssignments())
+        assertEquals(emptySet<String>(), w.dataCache.loadIgnoredCourses())
+        assertEquals(emptyMap<String, Map<String, String>>(), w.dataCache.loadCourseCustomNames())
+        assertEquals(emptyList<Course>(), w.dataCache.loadCourses(term))
+        assertEquals(emptySet<Int>(), w.academicCalendar.optedInHolidayIds)
+        assertTrue(w.dataCache.loadUnsentMarks().isEmpty())
     }
 
     /** A category never synced here is Home's first sync's (LWW D13, C2): the background's v4 pull leaves it. */

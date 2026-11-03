@@ -57,6 +57,15 @@ class CourseMembershipTest {
         assertEquals(emptyList<String>(), out.merged)
     }
 
+    /** Nor does a hidden course this phone lacks come down from the roster that lists it. */
+    @Test
+    fun `a hidden course another device's roster lists is not merged down`() {
+        val out = reconcile(rows = listOf(row("A")), tombstones = listOf(tombstone("A", TombstoneKind.HIDE, 100)))
+
+        assertEquals(emptyList<String>(), out.merged)
+        assertEquals(emptyList<String>(), out.outcome.toUpload.map { it.courseNo })
+    }
+
     /** "Tombstone older than 30 days": every tombstone binds, however old. */
     @Test
     fun `a hide however old binds, its course number named by its key alone`() {
