@@ -32,6 +32,7 @@ import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
 import org.ntust.app.tigerduck.data.preferences.V3TokenStore
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
@@ -42,7 +43,7 @@ import java.util.Date
 
 /**
  * When an upload derived from a school or Moodle fetch goes (`sync-order`, "A refresh reads the
- * backend before it uploads school data"), against a scripted backend: the background's fetch of a
+ * backend before it uploads school data"; on `/v4` only, on `/v3` at once), against a scripted backend: the background's fetch of a
  * term as the app wires it, and the assignments, through [SchoolUploads] over a real first-pull
  * gate. Waiting uploads run on [Dispatchers.Default] and the cache writes on IO, so each may land
  * at any moment; every assertion waits for what it reads. Made-up account and course numbers.
@@ -78,7 +79,8 @@ class SchoolUploadsTest {
 
     @Before
     fun setUp() {
-        prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3" }
+        // The gate holds school uploads on /v4 alone, whose base no build speaks yet; each /v3 test sets /v3.
+        prefs = AppPreferences(context).apply { announcementApiBaseUrlOverride = "http://127.0.0.1:9/v4" }
         // Never the real backend, even past the scripted one.
         assumeTrue(resolveAnnouncementEndpoint(prefs).overrideApplied)
         // TigerSync is off for good on F-Droid, where no upload goes out at all.
@@ -89,7 +91,7 @@ class SchoolUploadsTest {
         api = PushApiClient(backend.client, prefs, auth)
         cache = DataCache(context, AcademicCalendarStore(context, OkHttpClient(), prefs))
         gate = FirstPullGate(events, appScope)
-        uploads = SchoolUploads(gate, appScope, cache) { assignments, signIn -> api.uploadAssignments(assignments, signIn) }
+        uploads = SchoolUploads(gate, appScope, cache, ::speaks) { assignments, signIn -> api.uploadAssignments(assignments, signIn) }
     }
 
     @After
@@ -97,7 +99,10 @@ class SchoolUploadsTest {
         appScope.cancel()
     }
 
-    /** The app's wiring of [TermCourseSync] but its sources: the upload, as the app's, after the first pull. */
+    /** The API the base speaks as each upload decides, as the app reads it. */
+    private fun speaks() = BackendApi.of(resolveAnnouncementEndpoint(prefs).url.trimEnd('/'))
+
+    /** The app's wiring of [TermCourseSync] but its sources: the upload, as the app's, after the first pull on /v4. */
     private fun termSync() = TermCourseSync(
         cache, sources,
         uploader = TermCourseSync.Uploader { courses, semester, resend, rosterTerms, signIn ->
@@ -156,6 +161,42 @@ class SchoolUploadsTest {
         cache.clearAllUserData()
         auth.session.open()
         tokens.save("access-b", "refresh-b", Long.MAX_VALUE)
+    }
+
+    // --- /v3: no gate (the coordinator's ruling, fix round 3) ---
+
+    /** Each `/v3` course upload's courses and `roster_terms`, in order. */
+    private fun v3TermUploads() = backend.received(V3_UPLOAD).map { request ->
+        val body = JSONObject(request.body)
+        val courses = body.getJSONArray("courses")
+        val terms = body.optJSONArray("roster_terms")
+        List(courses.length()) { courses.getJSONObject(it).getString("course_no") } to
+            terms?.let { List(it.length()) { i -> it.getString(i) } }
+    }
+
+    /**
+     * On `/v3` nothing waits for the first pull: the class table's and TermCourseSync's term, and
+     * the assignments, go at once, in the caller, as on dev, though this process has not pulled.
+     * `/v3`'s absence rule hides a fetched course the server has never carried, so an upload held
+     * past the pull would fight it.
+     */
+    @Test
+    fun `on v3 a fetch's uploads go at once, though this process has not pulled`() = runBlocking {
+        prefs.announcementApiBaseUrlOverride = "http://127.0.0.1:9/v3"
+        termSync().sync(STUDENT, PASSWORD, TERM, signIn = signIn)
+        assertEquals("TermCourseSync's term", listOf(listOf(CS1, CS2) to listOf(TERM)), v3TermUploads())
+
+        val classTable = listOf(Course(courseNo = CS3, courseName = "School $CS3", moodleIdNumber = "$OTHER$CS3"))
+        cache.saveCourses(classTable, OTHER, signIn)
+        uploads.term(signIn, OTHER, classTable, listOf(CS3), { block -> adds.uploading(block) }, stillWanted = { true }) { upload ->
+            api.uploadCourses(upload.courses, OTHER, signIn, rosterTerms = upload.rosterTerms)
+        }
+        assertEquals("the class table's term", listOf(CS3) to listOf(OTHER), v3TermUploads().last())
+
+        uploads.assignments(listOf(assignment("701")), signIn)
+        assertEquals(1, backend.received(V3_ASSIGNMENTS).size)
+        assertEquals("nothing waits", 0, uploads.waitingUploads)
+        assertFalse(gate.hasPulled(signIn))
     }
 
     @Test
@@ -374,7 +415,7 @@ class SchoolUploadsTest {
         val released = CompletableDeferred<Unit>()
         val resume = CompletableDeferred<Unit>()
         var calls = 0
-        val held = SchoolUploads(gate, appScope, cache) { assignments, _ ->
+        val held = SchoolUploads(gate, appScope, cache, ::speaks) { assignments, _ ->
             // The first send, the released one, pauses with what it read.
             if (synchronized(sent) { calls++ } == 0) {
                 released.complete(Unit)
@@ -414,8 +455,11 @@ class SchoolUploadsTest {
     }
 
     private companion object {
-        const val UPLOAD = "POST /sync/courses/upload"
-        const val ASSIGNMENTS = "POST /sync/assignments/upload"
+        const val UPLOAD = "POST /v4/sync/courses/upload"
+        const val V3_UPLOAD = "POST /sync/courses/upload"
+        const val V3_ASSIGNMENTS = "POST /sync/assignments/upload"
+        const val OTHER = "1152"
+        const val ASSIGNMENTS = "POST /v4/sync/assignments/upload"
         const val TERM = "1151"
         const val STUDENT = "B00015999"
         const val PASSWORD = "not-a-password"

@@ -43,7 +43,7 @@ class SchoolUploadsWiringTest {
      * built under that lock again, and checked again there.
      */
     @Test
-    fun `the class table's term fetch uploads its term after the first pull`() {
+    fun `the class table's term fetch uploads its term after the first pull on v4`() {
         val body = body("ui/screen/classtable/ClassTableViewModel.kt", "fetchTermCourses")
         assertHas(
             "fetchTermCourses", body,
@@ -56,7 +56,7 @@ class SchoolUploadsWiringTest {
     }
 
     @Test
-    fun `the background's term fetch uploads after the first pull, through the app's push client`() {
+    fun `the background's term fetch uploads after the first pull on v4, through the app's push client`() {
         val source = source("notification/TermCourseSync.kt")
         assertHas(
             "TermCourseSync", source,
@@ -67,7 +67,7 @@ class SchoolUploadsWiringTest {
     }
 
     @Test
-    fun `the background uploads the assignments its round wrote after the first pull`() {
+    fun `the background uploads the assignments its round wrote after the first pull on v4`() {
         assertHas(
             "syncAssignments", body("notification/BackgroundSyncWorker.kt", "syncAssignments"),
             "schoolUploads.assignments(written, answer.signIn) {",
@@ -76,7 +76,7 @@ class SchoolUploadsWiringTest {
     }
 
     @Test
-    fun `a status an assignment's page fetched goes up with the list it wrote after the first pull`() {
+    fun `a status an assignment's page fetched goes up with the list it wrote after the first pull on v4`() {
         assertHas(
             "AssignmentStatusWriter", source("data/moodle/AssignmentStatusWriter.kt"),
             "runCatching { schoolUploads.assignments(assignments, signIn) }",
@@ -102,6 +102,17 @@ class SchoolUploadsWiringTest {
         )
         assertHas("CurrentTermCourses", source("sync/reconcile/CurrentTermCourses.kt"), "uploadingNos = uploadsWaitingIn(semester),")
         assertHas("TermCourseSync", source("notification/TermCourseSync.kt"), "fun uploadsWaitingIn(semester: String): Set<String> = uploads.waitingIn(semester)")
+    }
+
+    /** The coordinator's ruling (fix round 3): the gate holds school uploads on /v4 alone, read as each upload decides. */
+    @Test
+    fun `the first-pull gate holds school uploads only on v4`() {
+        val source = source("sync/SchoolUploads.kt")
+        assertHas(
+            "SchoolUploads", source,
+            "{ BackendApi.of(resolveAnnouncementEndpoint(prefs).url.trimEnd('/')) },",
+            "if (gate == null || api() != BackendApi.V4 || gate.hasPulled(signIn)) {",
+        )
     }
 
     /** `sync-order`, "A local edit SHALL be sent at once": a delete's upload waits for no pull. */

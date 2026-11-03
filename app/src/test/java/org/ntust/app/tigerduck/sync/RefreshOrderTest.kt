@@ -22,6 +22,7 @@ import org.ntust.app.tigerduck.academic.AcademicCalendarStore
 import org.ntust.app.tigerduck.auth.session.accountEventStream
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.preferences.AppPreferences
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.shared.account.SignInSeries
@@ -50,7 +51,8 @@ class RefreshOrderTest {
         val context = JvmContext()
         DataCache(context, AcademicCalendarStore(context, OkHttpClient(), AppPreferences(context)))
     }
-    private val uploads by lazy { SchoolUploads(gate, scope, cache) { _, _ -> } }
+    // On /v4, the one API whose school uploads wait for the first pull.
+    private val uploads by lazy { SchoolUploads(gate, scope, cache, { BackendApi.V4 }) { _, _ -> } }
 
     @After
     fun tearDown() {

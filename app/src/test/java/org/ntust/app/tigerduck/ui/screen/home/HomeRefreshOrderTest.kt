@@ -90,7 +90,7 @@ class HomeRefreshOrderTest {
     }
 
     @Test
-    fun `the assignments the fetch wrote go up after the first pull`() {
+    fun `the assignments the fetch wrote go up after the first pull on v4`() {
         val body = body("fetchData")
         val store = at(body, "moodleService.storeAssignments(it.assignments, it.answer)")
         val upload = at(body, "schoolUploads.assignments(written, remoteAssignments.answer.signIn) { e ->")

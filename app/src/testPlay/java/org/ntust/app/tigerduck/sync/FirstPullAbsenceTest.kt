@@ -24,6 +24,7 @@ import org.ntust.app.tigerduck.auth.AccountWorld
 import org.ntust.app.tigerduck.auth.ScriptedBackend
 import org.ntust.app.tigerduck.auth.accountWorld
 import org.ntust.app.tigerduck.data.CourseTombstoneKeys
+import org.ntust.app.tigerduck.network.backend.BackendApi
 import org.ntust.app.tigerduck.network.model.MoodleEnrolledCourse
 import org.ntust.app.tigerduck.network.resolveAnnouncementEndpoint
 import org.ntust.app.tigerduck.notification.TermCourseSync
@@ -88,7 +89,9 @@ class FirstPullAbsenceTest {
         w.appPrefs.semesterCatalogTerms = listOf(term)
         // The process's gate, shut: no pull has landed yet.
         gate = FirstPullGate(w.sessions, idleScope)
-        uploads = SchoolUploads(gate, appScope, w.dataCache) { assignments, s -> w.pushApi.uploadAssignments(assignments, s) }
+        uploads = SchoolUploads(gate, appScope, w.dataCache, {
+            BackendApi.of(resolveAnnouncementEndpoint(w.appPrefs).url.trimEnd('/'))
+        }) { assignments, s -> w.pushApi.uploadAssignments(assignments, s) }
         termSync = TermCourseSync(
             w.dataCache,
             sources = object : TermCourseSync.Sources {
@@ -170,35 +173,27 @@ class FirstPullAbsenceTest {
         List(courses.length()) { courses.getJSONObject(it).getString("course_no") }
     }
 
+    /**
+     * The coordinator's ruling (fix round 3): on `/v3` nothing waits for the first pull, so a
+     * fetched course goes up as its fetch commits it, as on dev, and the backend lists it by the
+     * time a pull reads the term. Whether the background's fetch or the class table's.
+     */
     @Test
-    fun `on v3 the background's fetched course its upload waits for is not taken for one deleted elsewhere`() = runBlocking {
+    fun `on v3 the background's fetched course goes up at once, before any pull`() = runBlocking {
         setUp("v3")
-        pullOver(::backgroundFetch)
+        backgroundFetch()
 
-        assertEquals("hidden", emptySet<String>(), hidden())
-        assertEquals(setOf(OLD, NEW), shown())
-
-        gate.notePull(signIn)
-        withTimeoutOrNull(10_000) { while (uploadedNos().isEmpty()) delay(5) }
-        assertEquals("the term, the new course in it, went up after the pull", listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
+        assertEquals("nothing waits", 0, gate.waiting)
+        assertEquals(listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
     }
 
     @Test
-    fun `on v3 the class table's fetched course its upload waits for is not taken for one deleted elsewhere`() = runBlocking {
+    fun `on v3 the class table's fetched course goes up at once, before any pull`() = runBlocking {
         setUp("v3")
-        pullOver(::classTableFetch)
+        classTableFetch()
 
-        assertEquals("hidden", emptySet<String>(), hidden())
-        assertEquals(setOf(OLD, NEW), shown())
-    }
-
-    /** Absence only: a tombstone another device wrote still hides the course, as before. */
-    @Test
-    fun `on v3 a tombstone from another device still hides a course whose upload waits`() = runBlocking {
-        setUp("v3")
-        pullOver(::backgroundFetch, NEW)
-
-        assertEquals(setOf(NEW), hidden())
+        assertEquals("nothing waits", 0, gate.waiting)
+        assertEquals(listOf(listOf(OLD, NEW)), uploadedNos().map { it.sorted() })
     }
 
     /** `/v4` takes no absence for a delete: membership follows the tombstones (LWW D10). */
