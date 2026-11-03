@@ -497,6 +497,34 @@ class CourseOverridesChannelTest {
         assertEquals(emptyList<PendingCourseOverride>(), waiting())
     }
 
+    /**
+     * Codex on Greptile r1: an upload that left a change's course out as tombstoned while its PATCH
+     * was out wakes nothing: its 404 parks it, and the next answer that skips the course lets it go.
+     */
+    @Test
+    fun `an upload that skips a change's course while its PATCH is out leaves the 404 to park it`() = runTest {
+        cache.saveCourses(listOf(calculus), term, signIn)
+        val sent = mutableListOf<String>()
+        val out = CompletableDeferred<Unit>()
+        val reply = CompletableDeferred<Unit>()
+        val overrides = PendingCourseOverrides(cache, holding(calculus.moodleIdNumber!!, out, reply, sent) { false }, records = { true }, sends = { true })
+        val outbox = Outbox(setOf(overrides))
+        overrides.retry(signIn)
+
+        val pick = launch { overrides.send(calculus.moodleIdNumber!!, colorHex = "#FF0000", semester = term, courseNo = calculus.courseNo, signIn = signIn) }
+        out.await()
+        overrides.courseUploadAnswered(term, accepted = emptyList(), skipped = listOf(calculus.courseNo), signIn = signIn)
+        outbox.courseUploadLanded(signIn)
+        reply.complete(Unit)
+        pick.join()
+        overrides.retry(signIn)
+
+        assertEquals(listOf(calculus.moodleIdNumber), sent)
+        assertEquals(listOf(max), waiting().map { it.attempts })
+        overrides.courseUploadAnswered(term, accepted = emptyList(), skipped = listOf(calculus.courseNo), signIn = signIn)
+        assertEquals(emptyList<PendingCourseOverride>(), waiting())
+    }
+
     /** Codex on Greptile r1: one upload is one more try for each change, though a drain is out as it lands. */
     @Test
     fun `one upload that lands while a drain is out gives a parked change one more try, not two`() = runTest {

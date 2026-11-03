@@ -243,9 +243,10 @@ class PendingCourseOverrides internal constructor(
 
     /**
      * A course upload has landed: each parked change gets one more try at the next [retry], and so
-     * does the one whose PATCH is out, which the upload may have made the row for (the lane's rule).
+     * does the one whose PATCH is out, which the upload may have made the row for (the lane's rule),
+     * but none of a course the last upload left out as tombstoned ([courseUploadAnswered]).
      */
-    override suspend fun requeueParked(signIn: SignIn) = lane.requeueParked(signIn)
+    override suspend fun requeueParked(signIn: SignIn) = mutex.withLock { lane.requeueParked(signIn) { !memory.skips(it) } }
 
     /**
      * A course upload of [semester] was answered: the backend took the courses [accepted] and left
