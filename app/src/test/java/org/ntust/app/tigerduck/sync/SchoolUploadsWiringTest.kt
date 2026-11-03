@@ -89,8 +89,19 @@ class SchoolUploadsWiringTest {
         for (rel in listOf("sync/reconcile/RosterReconciler.kt", "sync/reconcile/CurrentTermCourses.kt")) {
             val source = source(rel)
             assertTrue("$rel no longer resends the term itself", "pushApiClient.uploadCourses(outcome.toUpload, semester," in source)
-            assertTrue("$rel waits for the first pull", "SchoolUploads" !in source && "schoolUploads" !in source)
+            assertTrue("$rel waits for the first pull", ".term(" !in source && "afterFirstPull" !in source)
         }
+    }
+
+    /** Codex on PR R, finding 1: both passes' course list reads the terms waiting to go up in the term's step. */
+    @Test
+    fun `the pull's course list spares the courses whose upload waits for it`() {
+        assertHas(
+            "RosterReconciler", source("sync/reconcile/RosterReconciler.kt"),
+            "uploadingNos = termCourseSync.uploadsWaitingIn(semester),", "termCourseSync::uploadsWaitingIn,",
+        )
+        assertHas("CurrentTermCourses", source("sync/reconcile/CurrentTermCourses.kt"), "uploadingNos = uploadsWaitingIn(semester),")
+        assertHas("TermCourseSync", source("notification/TermCourseSync.kt"), "fun uploadsWaitingIn(semester: String): Set<String> = uploads.waitingIn(semester)")
     }
 
     /** `sync-order`, "A local edit SHALL be sent at once": a delete's upload waits for no pull. */

@@ -56,6 +56,7 @@ class RosterReconciler @Inject constructor(
 
     private val currentTerm = CurrentTermCourses(
         prefs, dataCache, courseService, pushApiClient, pendingCourseAdds, pendingCourseDeletes, pendingCourseOverrides,
+        termCourseSync::uploadsWaitingIn,
     )
 
     override suspend fun reconcile(pass: SyncPass): Boolean {
@@ -225,6 +226,8 @@ class RosterReconciler @Inject constructor(
             // A course it listed since a roster dropped it elsewhere stays: see SelectionAnswer.listsSince.
             answer = dataCache.selectionAnswerIn(semester),
             fetchedAtMs = result.fetchedAtMs,
+            // A fetch's courses whose upload waits for this pull: not on the server yet either.
+            uploadingNos = termCourseSync.uploadsWaitingIn(semester),
         )
         // For the fetches that only gain, which leave them out; see DataCache.fetchDropsIn.
         dataCache.recordServerDrops(semester, outcome.serverDrops, signIn)

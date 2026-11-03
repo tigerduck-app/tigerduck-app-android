@@ -47,15 +47,27 @@ class SchoolUploads internal constructor(
         pushApiClient: PushApiClient,
     ) : this(gate, scope, dataCache, { assignments, signIn -> pushApiClient.uploadAssignments(assignments, signIn) })
 
-    private class Later(val signIn: SignIn)
+    /** An upload asked for before the first pull, and for a term's, [semester] and the course numbers it [holds]. */
+    private class Later(val signIn: SignIn, val semester: String? = null, val holds: Set<String> = emptySet())
 
     private val lock = Any()
 
-    // Under [lock], by what each sends: the upload waiting for the first pull, the newest asked for.
+    // Under [lock], by what each sends: the upload waiting for the first pull, the newest asked for,
+    // and the one released by it, until it is sent.
     private val waiting = HashMap<String, Later>()
+    private val sending = HashMap<String, Later>()
 
     /** How many uploads wait for the first pull, for a test. */
     internal val waitingUploads: Int get() = synchronized(lock) { waiting.size }
+
+    /**
+     * The course numbers of [semester] a fetch committed whose upload waits for the first pull, or
+     * goes now it has landed: the backend may not list them yet, so a pull's silence about them is
+     * no delete made elsewhere (`CourseSyncReconciler.reconcileSemester`). Read in the term's step.
+     */
+    fun waitingIn(semester: String): Set<String> = synchronized(lock) {
+        (waiting.values + sending.values).filter { it.semester == semester }.flatMapTo(mutableSetOf()) { it.holds }
+    }
 
     /**
      * Runs [now] at once, in the caller, when this process has pulled under [signIn]: a caller's
@@ -64,18 +76,33 @@ class SchoolUploads internal constructor(
      * any more. It does not run once [signIn] has ended, nor once a newer upload of the same [what]
      * was asked for, waiting or sent at once, as the newest has what it would send.
      */
-    suspend fun afterFirstPull(signIn: SignIn, what: String, now: suspend () -> Unit, later: suspend (SignIn) -> Unit) {
+    suspend fun afterFirstPull(signIn: SignIn, what: String, now: suspend () -> Unit, later: suspend (SignIn) -> Unit) =
+        afterFirstPull(signIn, what, null, emptySet(), now, later)
+
+    private suspend fun afterFirstPull(
+        signIn: SignIn,
+        what: String,
+        semester: String?,
+        holds: Set<String>,
+        now: suspend () -> Unit,
+        later: suspend (SignIn) -> Unit,
+    ) {
         if (gate == null || gate.hasPulled(signIn)) {
             synchronized(lock) { waiting.remove(what) }
             return now()
         }
         if (!signIn.isCurrent) return
-        val mine = Later(signIn)
+        val mine = Later(signIn, semester, holds)
         synchronized(lock) { waiting[what] = mine }
         scope.launch {
             val pulled = gate.awaitPull(signIn)
             // Taken under the lock: only the newest of its kind goes, and only once.
-            val newest = synchronized(lock) { (waiting[what] === mine).also { if (it) waiting.remove(what) } }
+            val newest = synchronized(lock) {
+                val newest = waiting[what] === mine
+                if (newest) waiting.remove(what)
+                if (newest && pulled) sending[what] = mine
+                newest
+            }
             if (!pulled || !newest) return@launch
             try {
                 later(signIn)
@@ -83,6 +110,8 @@ class SchoolUploads internal constructor(
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "$what after the first pull failed (non-fatal): ${e.logSummary()}")
+            } finally {
+                synchronized(lock) { if (sending[what] === mine) sending.remove(what) }
             }
         }
     }
@@ -136,7 +165,7 @@ class SchoolUploads internal constructor(
         answered: Boolean = false,
         send: suspend (CourseUpload) -> Unit,
     ) = afterFirstPull(
-        signIn, "$COURSES$semester" + if (requested) REQUESTED else "",
+        signIn, "$COURSES$semester" + if (requested) REQUESTED else "", semester, committed.mapTo(mutableSetOf()) { it.courseNo },
         now = { send(upload(committed, semester, roster)) },
         later = { pinned ->
             uploading {

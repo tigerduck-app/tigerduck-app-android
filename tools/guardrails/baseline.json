@@ -943,8 +943,8 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/CourseSyncReconciler.kt",
     "kind": "long-function",
-    "name": "CourseSyncReconciler.reconcileSemester(String, List<Course>, List<ServerCourse>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, SelectionAnswer?, Long)",
-    "lines": 144
+    "name": "CourseSyncReconciler.reconcileSemester(String, List<Course>, List<ServerCourse>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, Set<String>, SelectionAnswer?, Long, Set<String>)",
+    "lines": 142
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/CourseSyncReconciler.kt",
