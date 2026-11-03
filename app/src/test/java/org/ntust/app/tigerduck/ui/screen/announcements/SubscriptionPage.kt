@@ -136,7 +136,7 @@ class SubscriptionPage : TestWatcher() {
     }
 
     /**
-     * Waits until [page] has handled [count] answers to its reads and `/v3` saves since it opened,
+     * Waits until [page] has handled [count] answers to its reads since it opened,
      * the first read's among them, and fails if it handled more: an answer is read on OkHttp's
      * thread and handled on the page's a moment later, which only the page itself can tell.
      */
@@ -146,7 +146,7 @@ class SubscriptionPage : TestWatcher() {
     }
 
     /**
-     * Waits until the app's `/v4` saves have handled [count] answers or refusals, and fails if
+     * Waits until the app's saves have handled [count] answers or refusals, and fails if
      * they handled more; then until the pages have shown what those left.
      */
     fun awaitSaves(count: Int) {
@@ -155,7 +155,7 @@ class SubscriptionPage : TestWatcher() {
         onMain { }
     }
 
-    /** How many `/v4` saves the app has begun, once the pages' thread has run what is queued there. */
+    /** How many saves the app has begun, once the pages' thread has run what is queued there. */
     fun savesBegun(): Int = onMain { saves.probe.savesBegun.get() }
 
     /** The first student signs out, and the second ([SECOND]) signs in with a session of their own. */
@@ -169,7 +169,6 @@ class SubscriptionPage : TestWatcher() {
     companion object {
         const val FIRST = "access-a"
         const val SECOND = "access-b"
-        const val V3 = "http://127.0.0.1:9/v3"
         const val V4 = "http://127.0.0.1:9/v4"
     }
 }

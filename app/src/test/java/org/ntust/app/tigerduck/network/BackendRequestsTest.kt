@@ -11,7 +11,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.ntust.app.tigerduck.academic.AcademicCalendarApi
 import org.ntust.app.tigerduck.auth.AuthApi
-import org.ntust.app.tigerduck.network.model.SubscriptionRuleRequest
 import org.ntust.app.tigerduck.push.AnonymousDeviceRequest
 import org.ntust.app.tigerduck.push.DeviceRegisterRequest
 import org.ntust.app.tigerduck.push.HolidayOverrideRequest
@@ -152,11 +151,6 @@ class BackendRequestsTest {
                     .build(),
             ).get().build(),
             api.bulletins(30, null, "true"),
-        )
-        val rule = SubscriptionRuleRequest(name = "Scholarships", orgs = listOf("Office"))
-        assertSameRequest(
-            Request.Builder().url("$base/bulletin-subscriptions/3").patch(json(rule)).header("Authorization", auth).build(),
-            api.subscription(auth, 3, rule),
         )
     }
 
