@@ -114,6 +114,36 @@ class DataCache @Inject constructor(
         if (saveMarkedCompletedAssignments(completed, signIn) or ignoredKept) _marksAdoptedVersion.update { it + 1 }
     }
 
+    /**
+     * Replaces the ignored and marked-done sets with what [change] makes of them, in one step with
+     * every save of either: both are read and written under the folder's lock, so no other save
+     * lands between the read and the write. [change] answers null to write nothing. Written only
+     * while [signIn] stands, and said on [marksAdoptedVersion] as [adoptAssignmentMarks] says it.
+     */
+    suspend fun updateAssignmentMarks(
+        signIn: SignIn,
+        change: (ignored: Set<String>, completed: Set<String>) -> Pair<Set<String>, Set<String>>?,
+    ) {
+        val type = object : TypeToken<List<String>>() {}.type
+        val ignoredFile = File(userDataDir, "ignored_assignments.json")
+        val completedFile = File(userDataDir, "marked_completed_assignments.json")
+        val wrote = userDataMutex.withLock {
+            if (!signIn.isCurrent) return@withLock false
+            withContext(Dispatchers.IO) {
+                val (nextIgnored, nextCompleted) = change(
+                    readJson<List<String>>(ignoredFile, type)?.toSet().orEmpty(),
+                    readJson<List<String>>(completedFile, type)?.toSet().orEmpty(),
+                ) ?: return@withContext false
+                atomicWrite(ignoredFile, gson.toJson(nextIgnored.toList()))
+                atomicWrite(completedFile, gson.toJson(nextCompleted.toList()))
+                true
+            }
+        }
+        if (!wrote) return
+        _assignmentMarksVersion.update { it + 1 }
+        _marksAdoptedVersion.update { it + 1 }
+    }
+
     suspend fun replaceIgnoredAssignments(ids: Set<String>, signIn: SignIn) = saveIgnoredAssignments(ids, signIn)
 
     suspend fun replaceMarkedCompletedAssignments(ids: Set<String>, signIn: SignIn) =
