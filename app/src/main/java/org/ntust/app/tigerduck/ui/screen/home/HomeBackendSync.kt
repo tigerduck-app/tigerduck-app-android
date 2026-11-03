@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import org.ntust.app.tigerduck.auth.AuthService
 import org.ntust.app.tigerduck.auth.isSessionRefused
+import org.ntust.app.tigerduck.data.CourseTombstoneKeys
 import org.ntust.app.tigerduck.data.PendingCourseOverrides
 import org.ntust.app.tigerduck.data.cache.DataCache
 import org.ntust.app.tigerduck.data.model.Assignment
@@ -171,6 +172,9 @@ class HomeBackendSync @Inject constructor(
  * pruned for the older read: added back by hand, or brought back where the server is silent
  * (`DataCache.commitSyncHides`). Its hide not written, its row stays, as one whose hide was lifted.
  *
+ * On `/v4` the courses [gone], taken back by a removal or a reset elsewhere ([CourseMembership]),
+ * leave the term with no hide, but one added back by hand since the sync began.
+ *
  * A course the commit takes out of the term, hidden since here or on another device, or dropped,
  * takes its waiting colour and name in [overrides] with it, those set before the commit wrote the term:
  * a course put back meanwhile stays, and so does what waits for it. The two go together however
@@ -192,9 +196,10 @@ internal suspend fun commitReconciledTerm(
     handAdded: Set<String>,
     overrides: PendingCourseOverrides,
     signIn: SignIn,
+    gone: Set<String> = emptySet(),
 ): Boolean {
     val newlyHidden = dataCache.commitSyncHides(semester, read, hides, tombstoneNos, courseSync, signIn)
-    if (kept == null && left.isEmpty() && merged.isEmpty() && newlyHidden.isEmpty()) return false
+    if (kept == null && left.isEmpty() && merged.isEmpty() && newlyHidden.isEmpty() && gone.isEmpty()) return false
     withContext(NonCancellable) {
         val before = overrides.reserveVersion()
         var removed = emptyList<Course>()
@@ -208,7 +213,7 @@ internal suspend fun commitReconciledTerm(
             CourseSyncReconciler.committedCourses(
                 current, localCourses, kept ?: localCourses, merged, hidden, newlyHidden, left, droppedHere, droppedOnServer,
                 handAdded, answer,
-            ).also { committed ->
+            ).filterNot { it.courseNo in gone && CourseTombstoneKeys.key(semester, it.courseNo) !in courseSync.addedBack() }.also { committed ->
                 val stays = committed.mapTo(mutableSetOf()) { it.courseNo }
                 removed = current.filter { it.courseNo !in stays }
             }

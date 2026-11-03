@@ -576,7 +576,7 @@ class SyncWiringTest {
     @Test
     fun `the syncs forget the waiting colours and names of the courses they prune or a reset elsewhere wipes`() {
         // The term's commit hands the courses it took out to the forget (commitReconciledTerm).
-        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn,\n")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcileTerm", "outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),\n")
         assertCalls("sync/reconcile/CourseResetReconciler.kt", "applyCourseReset", "pendingCourseOverrides.forget(")
         assertCalls("sync/reconcile/CurrentTermCourses.kt", "reconcile", "pendingCourseOverrides, signIn,\n")
     }
@@ -611,10 +611,10 @@ class SyncWiringTest {
      */
     @Test
     fun `Home's sync and the worker write nothing once a sign-out has wiped the data`() {
-        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcile", "syncCourseList(result, takesCourseList, pass.courseSync, signIn)")
+        assertCalls("sync/reconcile/RosterReconciler.kt", "reconcile", "syncCourseList(result, takesCourseList, pass.courseSync, signIn, pass.holds())")
         assertCalls(
             "sync/reconcile/RosterReconciler.kt", "reconcile",
-            "SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES)", "currentTerm.reconcile(result, pass.courseSync, signIn)",
+            "SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES)", "currentTerm.reconcile(result, pass.courseSync, signIn,",
         )
     }
 
@@ -841,7 +841,7 @@ class SyncWiringTest {
             "termCourseSync.answerRosterRequests(requests, studentId, password, signIn)",
         )
         val worker = body("sync/reconcile/RosterReconciler.kt", "reconcile")
-        val reconcile = worker.indexOf("currentTerm.reconcile(result, pass.courseSync, signIn)")
+        val reconcile = worker.indexOf("currentTerm.reconcile(result, pass.courseSync, signIn,")
         val answer = worker.indexOf("answerRosterRequestsNow(result.rosterRequests, signIn)")
         assertTrue("the worker's pass no longer answers roster requests after its reconcile", reconcile in 0 until answer)
         val run = body("notification/BackgroundSyncWorker.kt", "doWork")

@@ -415,7 +415,7 @@ object CourseSyncReconciler {
      * not come from an NTUST enrolment fetch, and a later refresh must not
      * wipe it.
      */
-    private fun toCourse(it: ServerCourse) = Course(
+    internal fun toCourse(it: ServerCourse) = Course(
         courseNo = it.courseNo,
         courseName = it.courseName,
         instructor = it.instructors.joinToString(", "),

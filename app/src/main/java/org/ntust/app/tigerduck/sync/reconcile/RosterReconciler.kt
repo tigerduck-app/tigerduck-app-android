@@ -19,10 +19,13 @@ import org.ntust.app.tigerduck.push.BackendSyncResult
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.ServerCourse
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.sync.SyncCategory
+import org.ntust.app.tigerduck.sync.SyncField
 import org.ntust.app.tigerduck.sync.SyncMode
 import org.ntust.app.tigerduck.sync.SyncPass
 import org.ntust.app.tigerduck.sync.SyncPolicies
+import org.ntust.app.tigerduck.ui.screen.home.CourseMembership
 import org.ntust.app.tigerduck.ui.screen.home.CourseSyncReconciler
 import org.ntust.app.tigerduck.ui.screen.home.commitReconciledTerm
 import org.ntust.app.tigerduck.util.logSummary
@@ -60,14 +63,14 @@ class RosterReconciler @Inject constructor(
         val signIn = pass.signIn
         return when (pass.mode) {
             SyncMode.FOREGROUND -> pass.policy.applies(SyncCategory.COURSES).also { takesCourseList ->
-                syncCourseList(result, takesCourseList, pass.courseSync, signIn)
+                syncCourseList(result, takesCourseList, pass.courseSync, signIn, pass.holds())
                 if (takesCourseList) answerRosterRequests(result.rosterRequests, signIn)
             }
             // Read here, once the steps before have run, as the worker always read it: a course
             // switch turned off while they ran leaves the list and its roster requests.
             SyncMode.BACKGROUND -> syncPolicies.current.applies(SyncCategory.COURSES).also { takesCourseList ->
                 if (takesCourseList) {
-                    currentTerm.reconcile(result, pass.courseSync, signIn)
+                    currentTerm.reconcile(result, pass.courseSync, signIn, pass.holds(), SyncCategory.COURSES in pass.syncedBefore)
                     answerRosterRequestsNow(result.rosterRequests, signIn)
                 }
             }
@@ -128,6 +131,8 @@ class RosterReconciler @Inject constructor(
         val selectionDropped: Map<String, List<String>>,
         val serverKnown: Map<String, List<String>>,
         var tombstones: Set<String>,
+        /** A `/v4` pull's holds (LWW D12): membership by its tombstones and resets ([CourseMembership]). */
+        val holds: PullHolds?,
     ) {
         val updatedKnown = serverKnown.toMutableMap()
     }
@@ -149,7 +154,13 @@ class RosterReconciler @Inject constructor(
      * Each term's commit leaves be what was put back in it since [courseSync]
      * began; see [commitReconciledTerm].
      */
-    private suspend fun syncCourseList(result: BackendSyncResult, takesCourseList: Boolean, courseSync: DataCache.CourseSync, signIn: SignIn) {
+    private suspend fun syncCourseList(
+        result: BackendSyncResult,
+        takesCourseList: Boolean,
+        courseSync: DataCache.CourseSync,
+        signIn: SignIn,
+        holds: PullHolds?,
+    ) {
         if (!takesCourseList) return
 
         val resetAt = dataCache.loadSemesterResetAt()
@@ -166,7 +177,7 @@ class RosterReconciler @Inject constructor(
         val selectionDropped = dataCache.loadSelectionDroppedNos()
         val serverKnown = dataCache.loadServerKnownNos()
         val run = CourseListRun(
-            result, courseSync, signIn, rowsBySemester, selectionDropped, serverKnown, migratedTombstones(semesters, signIn),
+            result, courseSync, signIn, rowsBySemester, selectionDropped, serverKnown, migratedTombstones(semesters, signIn), holds,
         )
         val currentSemester = courseService.currentSemesterCode()
         var touchedCurrent = false
@@ -192,12 +203,13 @@ class RosterReconciler @Inject constructor(
         val signIn = run.signIn
         val rowsBySemester = run.rowsBySemester
         val localCourses = dataCache.loadCourses(semester)
-        // After the courses: see CourseSyncReconciler.withoutRestored.
-        val restored = dataCache.restoredCoursesIn(semester, result.fetchedAtMs)
+        // After the courses: see CourseSyncReconciler.withoutRestored. On /v4 a hide is the snapshot's to lift.
+        val restored = if (run.holds != null) emptySet() else dataCache.restoredCoursesIn(semester, result.fetchedAtMs)
         run.tombstones = CourseSyncReconciler.withoutRestored(semester, run.tombstones, restored)
         val read = run.tombstones
         val tombstoneNos = CourseSyncReconciler.tombstoneNosFor(semester, result.tombstones)
-        val outcome = CourseSyncReconciler.reconcileSemester(
+        val membership = run.holds?.let { holds -> stampedTerm(run, semester, localCourses, holds) }
+        val outcome = membership?.outcome ?: CourseSyncReconciler.reconcileSemester(
             semester = semester,
             localCourses = localCourses,
             serverRows = rowsBySemester[semester].orEmpty(),
@@ -236,10 +248,31 @@ class RosterReconciler @Inject constructor(
         }
         val wrote = commitReconciledTerm(
             dataCache, run.courseSync, semester, read, run.tombstones, tombstoneNos, localCourses, pruned, outcome.left,
-            outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn,
+            outcome.droppedOnServer, outcome.merged, outcome.handAddedNos, pendingCourseOverrides, signIn, membership?.gone.orEmpty(),
         )
         if (outcome.uploadLocal) uploadTerm(run, semester, outcome)
         return wrote
+    }
+
+    /**
+     * [semester]'s membership on a `/v4` pull ([CourseMembership]): what this phone holds is a
+     * course whose add or delete waits, read here at the term's step as `/v3` reads them, or whose
+     * membership was acknowledged since the snapshot began ([holds]).
+     */
+    private suspend fun stampedTerm(run: CourseListRun, semester: String, localCourses: List<Course>, holds: PullHolds): CourseMembership.TermOutcome {
+        val waiting = pendingCourseAdds.waitingIn(semester) + pendingCourseDeletes.waitingIn(semester)
+        return CourseMembership.reconcileTerm(
+            semester = semester,
+            localCourses = localCourses,
+            serverRows = run.rowsBySemester[semester].orEmpty(),
+            tombstones = run.result.tombstones,
+            hides = run.tombstones,
+            keeps = { it in waiting || holds.keeps(SyncField.membership(SyncField.courseKey(semester, it))) },
+            serverKnownNos = run.serverKnown[semester].orEmpty().toSet(),
+            selectionDroppedNos = run.selectionDropped[semester].orEmpty().toSet(),
+            answer = dataCache.selectionAnswerIn(semester),
+            fetchedAtMs = run.result.fetchedAtMs,
+        )
     }
 
     /**
