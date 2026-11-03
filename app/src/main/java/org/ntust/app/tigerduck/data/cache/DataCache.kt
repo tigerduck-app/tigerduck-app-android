@@ -36,7 +36,6 @@ import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import org.ntust.app.tigerduck.data.model.ScoreReport
 import org.ntust.app.tigerduck.network.model.CourseSearchResult
-import org.ntust.app.tigerduck.util.logSummary
 import java.io.File
 import java.util.Date
 import javax.inject.Inject
@@ -1691,39 +1690,6 @@ class DataCache @Inject constructor(
             true
         }
 
-    /**
-     * Write-to-temp + rename so a crash or full disk mid-write can't leave a
-     * truncated JSON file behind. This matters most for userDataDir: a
-     * truncated `manual_courses_*.json` loses data that has no remote source
-     * to re-fetch from. rename() within the same directory is atomic on the
-     * filesystems Android uses. Failures are swallowed (callers can't do
-     * anything useful with them) but logged — durable user data silently
-     * failing to persist is otherwise undiagnosable in the field.
-     */
-    private fun atomicWrite(target: File, content: String) {
-        val tmp = File(target.parentFile, target.name + TEMP_SUFFIX)
-        try {
-            tmp.writeText(content)
-            if (!tmp.renameTo(target)) {
-                // Rename-over-existing can fail on some filesystems; delete
-                // the target only after the temp file write has succeeded so
-                // we never lose existing data if the write itself fails.
-                target.delete()
-                if (!tmp.renameTo(target)) {
-                    // Both renames failed — fall back to direct write so
-                    // data isn't lost entirely. The temp file still holds
-                    // the content so the write is safe to attempt.
-                    target.writeText(content)
-                    runCatching { tmp.delete() }
-                    return
-                }
-            }
-        } catch (e: Exception) {
-            android.util.Log.w(TAG, "Failed to write a data file: ${e.logSummary()}")
-            runCatching { tmp.delete() }
-        }
-    }
-
     private suspend fun <T> loadFromUserData(
         type: java.lang.reflect.Type,
         filename: String,
@@ -1755,7 +1721,7 @@ class DataCache @Inject constructor(
         private const val COURSE_CUSTOM_NAMES_FILE = "course_custom_names.json"
 
         /** What [atomicWrite] names its temporary file with, after the file it writes. */
-        private const val TEMP_SUFFIX = ".tmp"
+        internal const val TEMP_SUFFIX = ".tmp"
 
         private const val MOODLE_DIR = "moodle"
         private const val ASSIGNMENT_RECORDS_FILE = "moodle_assignments.json"
