@@ -721,7 +721,7 @@ class HomeViewModel @Inject constructor(
                 RefreshOrder.run(pull = ::pullFromBackend, pushOutbox = {}) { afterPull ->
                     val studentId = authService.storedStudentId
                     val password = authService.storedPassword
-                    val fetched = if (studentId.isNullOrBlank() || password.isNullOrBlank()) null else fetchCoursesAndAssignments(studentId, password)
+                    val fetched = if (studentId.isNullOrBlank() || password.isNullOrBlank()) null else fetchCoursesAndAssignments(studentId, password, afterPull)
                     afterPull()
                     // Re-read after the pull so server-merged courses and
                     // deletions are reflected even if the Moodle fetch failed.
@@ -806,28 +806,27 @@ class HomeViewModel @Inject constructor(
      * their names and links, and the assignments' courses. Returns (null, null) for any piece that
      * failed so the caller can fall back to cached data cleanly, null courses when no source named
      * any or course selection's answer was refused ([RecordedSelection.Refused]), and null
-     * assignments when there was no course to ask Moodle about.
+     * assignments when there was no course to ask Moodle about. Only the enrolments are fetched
+     * beside the pull: [afterPull] is awaited before anything reads or writes this phone's data.
      */
     private suspend fun fetchCoursesAndAssignments(
         studentId: String,
         password: String,
+        afterPull: suspend () -> Unit,
     ): Pair<RemoteCourses?, AssignmentsToStore?> = coroutineScope {
         // Before the fetch: a sign-out while it runs drops what it brings.
         val signIn = signInNow()
-        // TTL-throttled, so this costs one request an hour however often Home
-        // refreshes. Resolved before the gate below, which depends on it.
+        // TTL-throttled, one request an hour however often Home refreshes; before the gate below, which needs it.
         semesterCatalog.refreshIfStale()
         val semester = courseService.currentSemesterCode()
-        // 選課 serves exactly one term and its 選課清單 page carries no term
-        // marker, so its course numbers belong to whichever term the catalogue
-        // reports as open. While that runs ahead of the term in session —
-        // 選課 for the next term opens weeks before it starts — importing them
-        // here would file the *next* term's enrolments into this term's cache.
+        // 選課 serves exactly one term and its 選課清單 page carries no term marker, so its course
+        // numbers belong to whichever term the catalogue reports as open. While that runs ahead of
+        // the term in session — 選課 for the next term opens weeks before it starts — importing
+        // them here would file the *next* term's enrolments into this term's cache.
         val servesSelectionSemester = semester == semesterCatalog.selectionSemesterCode()
 
-        // Moodle webservice calls auth with a long-lived wstoken, so they
-        // don't need the NTUST SSO cookies that ensureAuthenticated refreshes.
-        // Let them run concurrently with the SSO + course-selection scrape.
+        // Moodle webservice calls auth with a long-lived wstoken, not the NTUST SSO cookies
+        // ensureAuthenticated refreshes: they run beside the SSO and course-selection scrape.
         val moodleEnrolledDef = async {
             try {
                 if (BuildConfig.DEBUG) ServerFailureSimulator.check(ServerKind.MOODLE)
@@ -859,11 +858,12 @@ class HomeViewModel @Inject constructor(
         }
 
         val courseNos = courseNosDef.await()
-        // Before anything overwrites the cache: a course that was in the
-        // portal roster and is not in this answer was dropped in 加退選, and
-        // the backend will keep serving it until someone deletes it by hand.
-        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }
         val moodleEnrolled = moodleEnrolledDef.await()
+        // What follows reads or writes this phone's data, the pull's writes in it, as on dev.
+        afterPull()
+        // Before anything overwrites the cache: a course that was in the portal roster and is not
+        // in this answer was dropped in 加退選, and the backend keeps serving it until deleted by hand.
+        val recorded = courseNos?.let { dataCache.recordSelectionRoster(semester, it, signIn) }
         val moodleForSemester = CourseRosterMerge.moodleCoursesFor(semester, moodleEnrolled)
         val moodleByNo = moodleForSemester.associateBy { it.courseNo }
         // Moodle adds no course to the term, but its courses are still whose

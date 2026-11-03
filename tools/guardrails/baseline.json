@@ -1004,8 +1004,8 @@
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
     "kind": "long-function",
-    "name": "HomeViewModel.fetchCoursesAndAssignments(String, String)",
-    "lines": 114
+    "name": "HomeViewModel.fetchCoursesAndAssignments(String, String, suspend()->Unit)",
+    "lines": 113
   },
   {
     "path": "app/src/main/java/org/ntust/app/tigerduck/ui/screen/home/HomeViewModel.kt",
