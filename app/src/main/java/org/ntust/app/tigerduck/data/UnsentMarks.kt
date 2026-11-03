@@ -19,6 +19,7 @@ import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.account.SignIn
+import org.ntust.app.tigerduck.shared.account.SignInBound
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncClock
@@ -136,6 +137,10 @@ class UnsentMarks internal constructor(
 
     // Whether this process has given the parked marks their one more try.
     private val parkedRequeued = AtomicBoolean(false)
+
+    // The mark the backend's reply last put on each assignment in place of this phone's, for the
+    // sign-in it was put there under: a later reply may write over that, never over a tap's.
+    private val backendMarks = SignInBound<Map<String, String>>(emptyMap())
 
     private val lane = OutboxLane(
         id = OutboxChannelId.MARKS,
@@ -268,13 +273,13 @@ class UnsentMarks internal constructor(
     }
 
     // LWW D12, a write response's winner: the mark the backend holds after this write is this
-    // phone's, unless a newer tap of the assignment waits, whose own answer settles it. When the
-    // backend took the write, its mark is put back whatever stands here now, so an older reply's
-    // mark written meanwhile goes. When it kept a later one, that one is taken only while this
-    // phone's mark is still the one the reply answered: Home saves a tap's mark and the queue keeps
-    // the tap in two steps, in either order, and a newer tap's mark, queued or not, is never the one
-    // answered. Read, decided and written in one step with every save of the marks; adopted, so Home
-    // reads the marks again rather than writing the ones it holds over them.
+    // phone's, unless a newer edit of the assignment stands here. A newer tap waiting in the queue
+    // settles it; one Home saved and the queue has yet to keep is this phone's mark no longer being
+    // the one the reply answered. So a reply, took or refused, writes only over the mark it answered,
+    // or over one an earlier reply put there in its place (remembered as it is written), never over
+    // a tap: a later reply then still takes back what an older reply's winner left, as when Home
+    // cleared the one set it holds and left the other. Read, decided and written in one step with
+    // every save of the marks; adopted, so Home reads the marks again rather than writing its own.
     private suspend fun takeWinner(mark: UnsentMark, answer: WriteAnswer, signIn: SignIn) {
         val applied = answer.applied ?: return
         val status = answer.values[WriteAnswer.LOCAL_STATUS] as? String ?: return
@@ -282,7 +287,13 @@ class UnsentMarks internal constructor(
         val answered = mark.status ?: return
         if (lane.entries().any { it.assignmentId == id && !it.isSameTap(mark) }) return
         val took = WriteAnswer.LOCAL_STATUS in applied
-        dataCache.updateAssignmentMarks(signIn) { ignored, completed -> backendMarkIn(id, status, answered, took, ignored, completed) }
+        dataCache.updateAssignmentMarks(signIn) { ignored, completed ->
+            backendMarkIn(id, status, answered, backendMarks.value[id], ignored, completed)?.also {
+                // A mark the backend took is this phone's own; one it kept in its place is remembered.
+                val known = backendMarks.value
+                backendMarks.set(if (took) known - id else known + (id to markOf(status)), signIn)
+            }
+        }
     }
 
     // The same tap, however many times the backend refused it.
@@ -315,19 +326,19 @@ class UnsentMarks internal constructor(
 
 /**
  * The ignored and marked-done sets with [status], the backend's mark, on [id] in place of what they
- * hold; null when nothing changes. When the backend [took] the write, its mark is put back whatever
- * the sets hold; when it kept a later one, only while [id]'s mark in them is still [answered], the
- * mark the reply answered, as one a newer tap set is not.
+ * hold; null when nothing changes. Only while [id]'s mark in them is [answered], the mark the reply
+ * answered, or [backendMark], one an earlier reply put there in its place: never over a tap's.
  */
 internal fun backendMarkIn(
     id: String,
     status: String,
     answered: String,
-    took: Boolean,
+    backendMark: String?,
     ignored: Set<String>,
     completed: Set<String>,
 ): Pair<Set<String>, Set<String>>? {
-    if (!took && markIn(id, ignored, completed) != markOf(answered)) return null
+    val here = markIn(id, ignored, completed)
+    if (here != markOf(answered) && here != backendMark) return null
     val next = when (markOf(status)) {
         AssignmentOverrideReconciler.STATUS_IGNORED -> (ignored + id) to (completed - id)
         AssignmentOverrideReconciler.STATUS_COMPLETED -> (ignored - id) to (completed + id)

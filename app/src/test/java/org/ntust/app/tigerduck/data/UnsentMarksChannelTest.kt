@@ -565,6 +565,51 @@ class UnsentMarksChannelTest {
     }
 
     /**
+     * The backend took an older tap, whose reply lands after Home saved a newer clear and before the
+     * clear reached the queue, and the clear's own PATCH then fails: the clear stays on this phone,
+     * as no reply writes over an edit made after the one it answers.
+     */
+    @Test
+    fun `a reply the backend took does not undo a newer tap saved before it and queued after`() = runTest {
+        // The first tap's own write, as Home makes it.
+        assertTrue(cache.saveIgnoredAssignments(setOf("7"), signIn))
+        val sent = mutableListOf<String>()
+        val firstOut = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val marks = UnsentMarks(
+            dataCache = cache,
+            writer = MarkWriter { _, status, _, _ ->
+                sent += status
+                if (sent.size > 1) throw java.io.IOException("offline")
+                firstOut.complete(Unit)
+                release.await()
+                WriteAnswer(sent = true, serverClockUs = null, applied = setOf("local_status"), values = mapOf("local_status" to status))
+            },
+            records = { true },
+            sends = { true },
+            lastWriterWins = { true },
+            scope = backgroundScope,
+        )
+
+        val first = launch { marks.send("7", "ignored", signIn) }
+        firstOut.await()
+        // Cleared while the first was out: Home saves the mark first...
+        assertTrue(cache.replaceIgnoredAssignments(emptySet(), signIn))
+        val adopted = cache.marksAdoptedVersion.value
+        release.complete(Unit)
+        // ...and the tap reaches the queue as the reply is read, behind the check's read of it.
+        val newer = launch { marks.send("7", "none", signIn) }
+        first.join()
+        newer.join()
+
+        assertEquals(listOf("ignored", "none"), sent)
+        assertEquals("the clear stays", emptySet<String>(), cache.loadIgnoredAssignments())
+        assertEquals(emptySet<String>(), cache.loadMarkedCompletedAssignments())
+        assertEquals("nor is Home told to read the older mark", adopted, cache.marksAdoptedVersion.value)
+        assertEquals("the clear still waits", listOf("7" to "none"), cache.loadUnsentMarks().map { it.assignmentId to it.status })
+    }
+
+    /**
      * A newer clear Home saves and queues while the older reply's backend mark is being written,
      * whose own reply then says the backend took the clear: this phone ends with the clear, as the
      * backend does, and not with the older reply's mark.
@@ -688,22 +733,25 @@ class UnsentMarksChannelTest {
     }
 
     @Test
-    fun `the backend's mark is put back when it took the write, and taken in place of the one answered only`() {
+    fun `a reply's mark is written over the mark it answered or an earlier reply's, never over a tap's`() {
         val ignored = setOf("7", "8")
         val completed = emptySet<String>()
-        fun take(id: String, status: String, answered: String, took: Boolean) = backendMarkIn(id, status, answered, took, ignored, completed)
+        fun take(id: String, status: String, answered: String, backendMark: String? = null) =
+            backendMarkIn(id, status, answered, backendMark, ignored, completed)
 
-        // It kept a later mark: taken while this phone's is still the one answered.
-        assertEquals(setOf("8") to setOf("7"), take("7", "locally_completed", "ignored", took = false))
+        // Over the mark it answered.
+        assertEquals(setOf("8") to setOf("7"), take("7", "locally_completed", "ignored"))
         // This phone's mark is not the one answered: a newer tap set it, queued or not.
-        assertNull(take("7", "locally_completed", "none", took = false))
+        assertNull(take("7", "locally_completed", "none"))
+        assertNull(take("7", "none", "none"))
+        // Over a mark an earlier reply put here in place of this phone's.
+        assertEquals(setOf("8") to emptySet<String>(), take("7", "none", "none", backendMark = "ignored"))
+        assertNull(take("7", "none", "none", backendMark = "locally_completed"))
         // An archived answer is the ignored mark this phone holds.
-        assertEquals(setOf("7") to emptySet<String>(), take("8", "none", "archived", took = false))
-        // It took the write: its mark is this phone's, whatever an older reply put here meanwhile.
-        assertEquals(setOf("8") to emptySet<String>(), take("7", "none", "none", took = true))
+        assertEquals(setOf("7") to emptySet<String>(), take("8", "none", "archived"))
         // Already so: nothing to write.
-        assertNull(take("8", "ignored", "ignored", took = true))
-        assertNull(take("9", "none", "none", took = true))
+        assertNull(take("8", "ignored", "ignored"))
+        assertNull(take("9", "none", "none"))
     }
 
     @Test
