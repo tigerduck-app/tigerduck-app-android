@@ -3,6 +3,7 @@ package org.ntust.app.tigerduck.push
 import com.google.gson.Gson
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.shared.Course
 import org.ntust.app.tigerduck.shared.account.SignIn
 import java.security.MessageDigest
@@ -108,8 +109,8 @@ internal class UploadLedger(
      * after left a gap a sign-out fell into: its clearing of the ledger
      * landed between the two, and the departing account's list stayed for
      * the next account to skip. Returns whether it sent. A [send] that
-     * throws records nothing; one the server turned away
-     * ([PushApiException.statusCode]) holds the same list back for
+     * throws records nothing; one the server turned away (an error
+     * [backendError] reads, from either version) holds the same list back for
      * [REFUSED_UPLOAD_PAUSE_MS] from the answer, unless [always], while
      * [signIn], the sign-in it was sent under, stands.
      */
@@ -131,8 +132,10 @@ internal class UploadLedger(
             }
             try {
                 send()
-            } catch (e: PushApiException) {
-                if (e.statusCode != null) refused[refusalKey] = clock()
+            } catch (e: Exception) {
+                // The backend answered with an error, on either version: /v3's PushApiException with
+                // its status, /v4's BackendException with its code. A failure with no answer is none.
+                if (e.backendError() != null) refused[refusalKey] = clock()
                 throw e
             }
             record(fingerprint, now)
