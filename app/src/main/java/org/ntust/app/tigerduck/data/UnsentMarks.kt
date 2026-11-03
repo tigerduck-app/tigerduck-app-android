@@ -19,7 +19,6 @@ import org.ntust.app.tigerduck.network.backend.backendError
 import org.ntust.app.tigerduck.push.PushApiClient
 import org.ntust.app.tigerduck.push.WriteAnswer
 import org.ntust.app.tigerduck.shared.account.SignIn
-import org.ntust.app.tigerduck.shared.account.SignInBound
 import org.ntust.app.tigerduck.sync.AckClock
 import org.ntust.app.tigerduck.sync.SyncCategory
 import org.ntust.app.tigerduck.sync.SyncClock
@@ -34,7 +33,6 @@ import org.ntust.app.tigerduck.sync.outbox.OutboxChannelId
 import org.ntust.app.tigerduck.sync.outbox.OutboxLane
 import org.ntust.app.tigerduck.sync.outbox.SendResult
 import org.ntust.app.tigerduck.sync.outbox.UntimedEntries
-import org.ntust.app.tigerduck.ui.screen.home.AssignmentOverrideReconciler
 import org.ntust.app.tigerduck.util.logSummary
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -82,8 +80,11 @@ internal fun interface MarkWriter {
  * wall clock as it always was. A mark an older build wrote with no time goes
  * without one on `/v3`, as it always has; on `/v4` it is given its old-entry
  * time at its first load there and written back (X1), never its send time.
- * On `/v4` a reply that says the backend kept a later mark puts that mark on
- * this phone, unless a newer tap of the assignment waits (LWW D12).
+ * On `/v4` a reply writes nothing on this phone, the backend's later mark
+ * included: Home saves the marks from its own state, outside the queue, so
+ * no check at a reply could tell an older reply's mark from a newer tap. A
+ * mark the backend kept in place of this phone's is another device's later
+ * write, which the change feed brings and the next pull applies.
  */
 @Singleton
 class UnsentMarks internal constructor(
@@ -137,10 +138,6 @@ class UnsentMarks internal constructor(
 
     // Whether this process has given the parked marks their one more try.
     private val parkedRequeued = AtomicBoolean(false)
-
-    // The mark the backend's reply last put on each assignment in place of this phone's, for the
-    // sign-in it was put there under: a later reply may write over that, never over a tap's.
-    private val backendMarks = SignInBound<Map<String, String>>(emptyMap())
 
     private val lane = OutboxLane(
         id = OutboxChannelId.MARKS,
@@ -268,32 +265,7 @@ class UnsentMarks internal constructor(
             return if (e.backendError()?.isClockAhead == true) SendResult.Retry else SendResult.afterFailure(e)
         }
         if (!answer.sent) return SendResult.NotSent
-        if (lastWriterWins()) takeWinner(mark, answer, signIn)
         return SendResult.Sent(answer.serverClockUs)
-    }
-
-    // LWW D12, a write response's winner: the mark the backend holds after this write is this
-    // phone's, unless a newer edit of the assignment stands here. A newer tap waiting in the queue
-    // settles it; one Home saved and the queue has yet to keep is this phone's mark no longer being
-    // the one the reply answered. So a reply, took or refused, writes only over the mark it answered,
-    // or over one an earlier reply put there in its place (remembered as it is written), never over
-    // a tap: a later reply then still takes back what an older reply's winner left, as when Home
-    // cleared the one set it holds and left the other. Read, decided and written in one step with
-    // every save of the marks; adopted, so Home reads the marks again rather than writing its own.
-    private suspend fun takeWinner(mark: UnsentMark, answer: WriteAnswer, signIn: SignIn) {
-        val applied = answer.applied ?: return
-        val status = answer.values[WriteAnswer.LOCAL_STATUS] as? String ?: return
-        val id = mark.assignmentId ?: return
-        val answered = mark.status ?: return
-        if (lane.entries().any { it.assignmentId == id && !it.isSameTap(mark) }) return
-        val took = WriteAnswer.LOCAL_STATUS in applied
-        dataCache.updateAssignmentMarks(signIn) { ignored, completed ->
-            backendMarkIn(id, status, answered, backendMarks.value[id], ignored, completed)?.also {
-                // A mark the backend took is this phone's own; one it kept in its place is remembered.
-                val known = backendMarks.value
-                backendMarks.set(if (took) known - id else known + (id to markOf(status)), signIn)
-            }
-        }
     }
 
     // The same tap, however many times the backend refused it.
@@ -323,47 +295,6 @@ class UnsentMarks internal constructor(
         fun sendsMarks(prefs: AppPreferences): Boolean = SyncPolicies(prefs).current.sends(SyncCategory.ASSIGNMENTS)
     }
 }
-
-/**
- * The ignored and marked-done sets with [status], the backend's mark, on [id] in place of what they
- * hold; null when nothing changes. Only while [id]'s mark in them is [answered], the mark the reply
- * answered, or [backendMark], one an earlier reply put there in its place: never over a tap's.
- */
-internal fun backendMarkIn(
-    id: String,
-    status: String,
-    answered: String,
-    backendMark: String?,
-    ignored: Set<String>,
-    completed: Set<String>,
-): Pair<Set<String>, Set<String>>? {
-    val here = markIn(id, ignored, completed)
-    if (here != markOf(answered) && here != backendMark) return null
-    val next = when (markOf(status)) {
-        AssignmentOverrideReconciler.STATUS_IGNORED -> (ignored + id) to (completed - id)
-        AssignmentOverrideReconciler.STATUS_COMPLETED -> (ignored - id) to (completed + id)
-        else -> (ignored - id) to (completed - id)
-    }
-    return next.takeIf { it != (ignored to completed) }
-}
-
-// [status] as the two sets hold a mark: ignored (an older name for it, archived, included), marked
-// done, or neither.
-private fun markOf(status: String): String = when (status) {
-    AssignmentOverrideReconciler.STATUS_IGNORED, STATUS_ARCHIVED -> AssignmentOverrideReconciler.STATUS_IGNORED
-    AssignmentOverrideReconciler.STATUS_COMPLETED -> AssignmentOverrideReconciler.STATUS_COMPLETED
-    else -> AssignmentOverrideReconciler.STATUS_NONE
-}
-
-// [id]'s mark in the two sets, as [markOf] names it.
-private fun markIn(id: String, ignored: Set<String>, completed: Set<String>): String = when (id) {
-    in ignored -> AssignmentOverrideReconciler.STATUS_IGNORED
-    in completed -> AssignmentOverrideReconciler.STATUS_COMPLETED
-    else -> AssignmentOverrideReconciler.STATUS_NONE
-}
-
-// An older name for ignored, which the backend may still answer with, as a snapshot reads it.
-private const val STATUS_ARCHIVED = "archived"
 
 // A sender that says only whether a mark went: an answer with nothing more in it.
 private fun MarkSender.answering() = MarkWriter { id, status, signIn, madeAtMs ->
