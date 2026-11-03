@@ -4,8 +4,6 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import dagger.hilt.android.qualifiers.ApplicationContext
 import org.ntust.app.tigerduck.data.CourseIgnores
@@ -384,7 +382,7 @@ class DataCache @Inject constructor(
         val written = cacheMutex.withLock {
             if (!signIn.isCurrent) return@withLock false
             withContext(Dispatchers.IO) {
-                writeMoodleEnvelope(File(cacheDir, ASSIGNMENT_RECORDS_FILE), records, System.currentTimeMillis())
+                writeMoodleEnvelope(gson, File(cacheDir, ASSIGNMENT_RECORDS_FILE), records, System.currentTimeMillis())
             }
             true
         }
@@ -396,7 +394,7 @@ class DataCache @Inject constructor(
         val type = object : TypeToken<List<MoodleAssignmentRecord>>() {}.type
         return cacheMutex.withLock {
             withContext(Dispatchers.IO) {
-                readMoodleEnvelope<List<MoodleAssignmentRecord>>(File(cacheDir, ASSIGNMENT_RECORDS_FILE), type)?.value
+                readMoodleEnvelope<List<MoodleAssignmentRecord>>(gson, File(cacheDir, ASSIGNMENT_RECORDS_FILE), type)?.value
             }
         }.orEmpty()
     }
@@ -1448,41 +1446,14 @@ class DataCache @Inject constructor(
     suspend fun saveMoodleData(value: Any, fetchedAtMs: Long, name: String, account: String, signIn: SignIn) {
         cacheMutex.withLock {
             if (!signIn.isCurrent) return@withLock
-            withContext(Dispatchers.IO) { writeMoodleEnvelope(moodleFile(name, account), value, fetchedAtMs) }
+            withContext(Dispatchers.IO) { writeMoodleEnvelope(gson, moodleFile(name, account), value, fetchedAtMs) }
         }
     }
 
     suspend fun <T> loadMoodleData(type: java.lang.reflect.Type, name: String, account: String): MoodleCached<T>? =
         cacheMutex.withLock {
-            withContext(Dispatchers.IO) { readMoodleEnvelope(moodleFile(name, account), type) }
+            withContext(Dispatchers.IO) { readMoodleEnvelope(gson, moodleFile(name, account), type) }
         }
-
-    /** Writes [value] to [file] under the Moodle cache's schema number, with when it was fetched. */
-    private fun writeMoodleEnvelope(file: File, value: Any, fetchedAtMs: Long) {
-        val envelope = JsonObject().apply {
-            addProperty("v", MOODLE_CACHE_SCHEMA)
-            addProperty("fetchedAt", fetchedAtMs)
-            add("value", gson.toJsonTree(value))
-        }
-        file.parentFile?.mkdirs()
-        atomicWrite(file, gson.toJson(envelope))
-    }
-
-    /** What [writeMoodleEnvelope] wrote to [file]; null for a file in another shape, or none. */
-    private fun <T> readMoodleEnvelope(file: File, type: java.lang.reflect.Type): MoodleCached<T>? = try {
-        if (!file.exists()) {
-            null
-        } else {
-            val envelope = JsonParser.parseString(file.readText()).asJsonObject
-            if (envelope.get("v")?.asInt != MOODLE_CACHE_SCHEMA) {
-                null
-            } else {
-                gson.fromJson<T>(envelope.get("value"), type)?.let { MoodleCached(it, envelope.get("fetchedAt").asLong) }
-            }
-        }
-    } catch (_: Exception) {
-        null
-    }
 
     /** Where files of [account]'s Moodle data that are not JSON, such as member pictures, go. */
     fun moodleFilesDir(account: String): File = File(moodleDir, moodleAccountFolder(account))
